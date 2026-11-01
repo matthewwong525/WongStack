@@ -4,11 +4,12 @@ This wiki is what WongStack has learned: how you work, who is who, and how the p
 
 New here? Start with [getting started](stack/getting-started.md): from any folder to a working assistant and a live site, with three things you do by hand.
 
-The rest is for people who shape how WongStack works. [AI knowledge centers](agent-knowledge-center.md) gives the six principles behind it. [Wiki style](wiki-style.md) says how a page is shaped, [voice](voice.md) how its sentences read, and [contributing](contributing.md) how to send an improvement upstream. Building UI? [UX principles](ux-principles.md) says what a screen should *be* before any component is picked.
+The rest is for people who shape how WongStack works. [AI knowledge centers](agent-knowledge-center.md) gives the six principles behind it. [Wiki style](wiki-style.md) says how a page is shaped, [voice](voice.md) how its sentences read, and [contributing](contributing.md) how to send an improvement upstream. Building UI? [UX principles](ux-principles.md) says what a screen should *be* before any component is picked. [Review pages](review-pages.md) says how every page that asks a person to review and choose looks and works.
 
 ## Where to find things
 
 - [AI knowledge centers](agent-knowledge-center.md) — the six working principles, and why WongStack keeps process knowledge in the repo and makes it runnable by agents.
+- [Review pages](review-pages.md) — the one standard for every page that asks a person to look, note, and choose: plans, built previews, and other work such as ads.
 - [Contributing upstream](contributing.md) — how to send a workflow improvement back to WongStack by hand, and the generality bar it has to clear.
 - [People](people/README.md) — who is who, their emails, and how each likes work done.
 - [Development](development/README.md) — how this repo plans, builds, checks, and ships changes.

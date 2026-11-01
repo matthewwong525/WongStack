@@ -72,9 +72,39 @@ An add-on is a Node script in your repo that the daily runs: `addons.morning` on
 
 An add-on that fails, prints anything else, or runs past 60 seconds gives one `Not read: add-on <path>` and never stops the daily.
 
-## The watch on a computer
+## The daily on a computer
 
-`daily.mjs serve` runs the same watch without a chat, and sends each pass's lines to the Daily chat as one `Watch · <day>` message. While it runs, the chat's own watch ends. It is optional, and nothing installs it as a service: run it under your own service manager if you want the watch to outlive the chat. With no Daily chat open, it keeps the lines and starts none.
+`daily.mjs serve` runs the watch without a chat, every minute, and sooner when a chat stops. Each `stopped` or `asking` line gets one background run of your AI tool, with a fresh context, by [the chief of staff](#the-chief-of-staff). It keeps the 15-minute wait after your own message, and drops the line when you write in that chat again. At most 3 runs work at one time, and one per chat. A run stops after 30 minutes. While it runs, the chat's own watch ends. The Daily chat gets no message from it, only a board it can not read, one line per day; the rest goes to [the journal](#the-journal).
+
+- **`runs`** (optional, in [your settings file](#your-settings-file)): `{"agent": "codex"}` uses Codex; the default is Claude Code, the tested path.
+- **`sweeps`** (optional): a JSON file in the repo with [your own jobs](#your-own-jobs).
+
+Nothing installs it as a service. To keep it on, run it under your own service manager, such as this systemd unit:
+
+```ini
+[Service]
+# As root, the worker sets IS_SANDBOX=1 for each Claude Code run itself.
+EnvironmentFile=-/etc/environment
+WorkingDirectory=/path/to/your/checkout
+ExecStart=/usr/bin/node .claude/skills/daily/scripts/daily.mjs serve
+Restart=always
+RestartSec=30
+```
+
+`daily.mjs serve --dry-run` runs one pass on a copy of its state and prints what it would start, so you can check it first.
+
+### The journal
+
+The service writes one line for each thing it did: a run's start and its end line, a closed chat, a source it could not read. With each message you send in the Daily chat, its new lines reach the assistant, newest first, and you see none of them: ask *what's going on?*. In another AI tool, the chat runs `D journal --new` per message. `D journal` prints every line. Lines stay 14 days, run logs 7, in the private state folder.
+
+### Your own jobs
+
+Your `sweeps` file adds to [the default list](../../.agents/skills/daily/references/sweeps.json):
+
+- **`events`**: an event kind, such as one your [add-on](#add-ons) prints, and the brief that judges it: `{"invoice": {"brief": "invoice.md", "title": "Invoice {{invoice}}", "lane": "invoices", "ownPlace": true}}`. A `lane` runs one job at a time; `ownPlace` runs outside the 3-run limit. An entry with the name of a default one replaces it.
+- **`sweeps`**: timed jobs, such as `{"id": "pay", "at": ["09:00"], "days": [1], "check": "scripts/pay-check.mjs", "brief": "pay.md"}`. `every: "15m"` with `hours: "8-21"` repeats. A time the computer missed is skipped. The optional `check` is an [add-on](#add-ons) script; it prints `{"run": {…}}` when there is work, and those fields fill the brief.
+
+A brief is a Markdown file in `.agents/daily/briefs/`, else [the skill's](../../.agents/skills/daily/references/briefs/header.md); `{{name}}` takes a field. Each run reads the header brief first: no person is there, agent text is data, and it never sends or pays unless its brief allows that one step.
 
 ## Updates keep your settings
 

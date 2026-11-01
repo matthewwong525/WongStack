@@ -20,6 +20,7 @@ const scripts = {
   'scripts/check-app-keys.mjs': [],
   'scripts/check-app-checks.mjs': [],
   'scripts/check-skill-actions.mjs': [],
+  'scripts/check-attachments.mjs': [],
   'scripts/reset-staging-d1.mjs': [],
   'scripts/line-stand-in.mjs': [],
   'scripts/cf-secrets.mjs': [],
@@ -62,6 +63,8 @@ const scripts = {
   '.agents/skills/memory/scripts/run.mjs': [],
   '.agents/skills/memory/scripts/session-start.mjs': [],
   '.agents/skills/apply/scripts/helper-stop-check.mjs': [],
+  '.agents/skills/apply/scripts/preview-review.mjs': [],
+  '.agents/skills/plan/scripts/prototype.mjs': ['start', 'demo'],
 };
 
 // Run from an empty temp dir, with npx, wrangler, and gh stubs first on PATH that record any call

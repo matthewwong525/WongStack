@@ -1,11 +1,11 @@
-// Mermaid pictures beside text drawings on a built review page.
+// Mermaid pictures, sketches, screens, and picture files beside text drawings on a built review page.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
-import { buildReview, unsafeSvg } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { buildReview, chatCopy, unsafeSvg } from '../../.agents/skills/plan/scripts/build-review.mjs';
 import { needs } from './fixtures/needs.mjs';
 
 let JSDOM, VirtualConsole;
@@ -308,4 +308,175 @@ for (const [what, lines, line, name] of refusedScreens) {
     assert.equal(result.stderr, `review: proposal.md line ${line}: item 1, picture 1: a screen can not hold ${name}; build it from the look's parts and layout classes only\n`);
     assert.equal(page(root), good);
   }));
+}
+
+// ── `picture` fences: files from the change's own folder, carried inside the page ──
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const png = (size = 64) => Buffer.concat([PNG, Buffer.alloc(size - PNG.length, 1)]);
+// The fence replaces item 1's flow; its first line is proposal line 11.
+const withPictures = lines => proposal.replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`, `${fence}picture\n${lines.map(line => `  ${line}`).join('\n')}`);
+const pictured = (fn, lines, files) => fixture(root => {
+  mkdirSync(join(root, 'pictures'));
+  for (const [name, bytes] of Object.entries(files)) writeFileSync(join(root, name), bytes);
+  return fn(root);
+}, withPictures(lines));
+
+test('a labelled pair becomes two open figures with data URIs, in one picture frame with its note id', () => pictured(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  const html = page(root);
+  const frame = /<details class="drawing" open><summary>[\s\S]*?<\/summary><div class="frame"><div class="art photo" data-note="item-1-picture-1" tabindex="0">([\s\S]*?)<\/div><\/div><\/details>/.exec(html);
+  assert.ok(frame, 'the pictures sit open in one frame');
+  assert.equal(frame[1], `<figure><img src="data:image/png;base64,${png().toString('base64')}" alt="Before"><figcaption>Before</figcaption></figure>`
+    + `<figure><img src="data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64')}" alt="After &amp; more"><figcaption>After &amp; more</figcaption></figure>`
+    + `<figure><img src="data:image/webp;base64,${Buffer.from('RIFF\0\0\0\0WEBPVP8 ').toString('base64')}" alt="plain"></figure>`);
+  assert.equal((html.match(/<script\b/gi) || []).length, 2, 'still the kit\'s one script, and the switch');
+  assert.match(chatCopy('demo', readFileSync(join(root, 'proposal.md'), 'utf8')), /^1\. \*\*One gate\.\*\* Saving runs one check\.\n\n {3}_\(picture on the review page\)_$/m);
+}, ['Before: pictures/before.png', '', 'After & more: pictures/after.jpg', 'pictures/plain.webp'],
+{ 'pictures/before.png': png(), 'pictures/after.jpg': Buffer.from([0xff, 0xd8, 0xff, 0xe0]), 'pictures/plain.webp': Buffer.from('RIFF\0\0\0\0WEBPVP8 ') }));
+
+test('a picture fence shares the picture count with Mermaid', () => fixture(root => {
+  writeFileSync(join(root, 'x.png'), png());
+  buildReview(root, { requireCurrent: true });
+  assert.deepEqual([...page(root).matchAll(/class="art (pic|photo)" data-note="(item-1-picture-\d+)"/g)].map(m => `${m[2]} ${m[1]}`),
+    ['item-1-picture-1 pic', 'item-1-picture-2 photo']);
+}, proposal.replace(`  ${fence}\n- **Escapes`, [`  ${fence}`, `  ${fence}picture`, '  x.png', `  ${fence}`, '- **Escapes'].join('\n'))));
+
+const KB = 1024;
+const SMALLER = 'take only the visible part at phone width';
+test('a picture over 150 KB warns with its item, picture, and line, and still builds', () => pictured(root => {
+  const result = build(root);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stderr, `review: warning: proposal.md line 12: item 1, picture 1: big.png is 151 KB; keep pictures under 150 KB: ${SMALLER}\n`);
+}, ['Small: small.png', 'big.png'], { 'small.png': png(), 'big.png': png(150 * KB + 1) }));
+
+test('a picture of 300 KB still builds: its page stays under 500 KB', () => pictured(root => {
+  const result = build(root);
+  assert.equal(result.status, 0, result.stderr);
+  assert.ok(Buffer.byteLength(page(root)) <= 500 * KB);
+}, ['edge.png'], { 'edge.png': png(300 * KB) }));
+
+// Base64 makes each picture a third larger, so two 190 KB pictures make a page past the Inbox's limit.
+test('a built page over 500 KB stops the build, and the previous page stays', () => pictured(root => {
+  writeFileSync(join(root, 'proposal.md'), proposal);
+  buildReview(root, { requireCurrent: true });
+  const good = page(root);
+  writeFileSync(join(root, 'proposal.md'), withPictures(['a.png', 'b.png']));
+  const result = build(root);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, new RegExp(`^review: the page is (\\d+) KB; keep a page under 500 KB so the Inbox takes it: show fewer pictures, or ${SMALLER}\n$`));
+  assert.ok(Number(/is (\d+) KB/.exec(result.stderr)[1]) > 500);
+  assert.equal(page(root), good);
+}, ['a.png', 'b.png'], { 'a.png': png(190 * KB), 'b.png': png(190 * KB) }));
+
+// Each refused picture: the fence's lines, the files beside the proposal, the proposal line, and the reason.
+const refusedPictures = [
+  ['a web address', ['Before: https://example.com/a.png'], {}, 11, 'https://example.com/a.png is a web address; save the picture in the change\'s folder'],
+  ['a data address', ['data:image/png;base64,AAAA'], {}, 11, 'data:image/png;base64,AAAA is a web address; save the picture in the change\'s folder'],
+  ['a path out of the folder', ['ok.png', '../outside.png'], { 'ok.png': png() }, 12, '../outside.png is outside the change\'s folder'],
+  ['an absolute path', ['/etc/hostname'], {}, 11, '/etc/hostname is outside the change\'s folder'],
+  ['a missing file', ['Before: pictures/none.png'], {}, 11, 'no picture at pictures/none.png'],
+  ['a text file named .png', ['notes.png'], { 'notes.png': 'not a picture' }, 11, 'notes.png is not a PNG, JPEG, or WebP picture'],
+  ['a RIFF file that is not WebP', ['sound.webp'], { 'sound.webp': 'RIFF\0\0\0\0WAVEfmt ' }, 11, 'sound.webp is not a PNG, JPEG, or WebP picture'],
+  ['a picture over 300 KB', ['huge.png'], { 'huge.png': png(300 * KB + 1) }, 11, `huge.png is 301 KB; keep a picture under 300 KB: ${SMALLER}`],
+];
+for (const [what, lines, files, line, why] of refusedPictures) {
+  test(`${what} stops the build on one line naming the item and picture, and the previous page stays`, () => pictured(root => {
+    writeFileSync(join(root, 'proposal.md'), proposal);
+    buildReview(root, { requireCurrent: true });
+    const good = page(root);
+    writeFileSync(join(root, 'proposal.md'), withPictures(lines));
+    const result = build(root);
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, `review: proposal.md line ${line}: item 1, picture 1: ${why}\n`);
+    assert.equal(page(root), good);
+  }, lines, files));
+}
+
+test('a link that leads out of the folder is refused like a path that does', () => pictured(root => {
+  const outside = join(root, '..', 'secret.png');
+  writeFileSync(outside, png());
+  symlinkSync(outside, join(root, 'pictures', 'linked.png'));
+  const result = build(root);
+  assert.equal(result.status, 1);
+  assert.equal(result.stderr, 'review: proposal.md line 11: item 1, picture 1: pictures/linked.png is outside the change\'s folder\n');
+}, ['pictures/linked.png'], {}));
+
+test('a note on a picture frame names its picture and its labels', needsDom, () => pictured(root => {
+  buildReview(root, { requireCurrent: true });
+  const errors = [];
+  const virtualConsole = new VirtualConsole();
+  virtualConsole.on('jsdomError', error => errors.push(error.message));
+  const beforeParse = w => { w.document.execCommand = () => true; };
+  const { window } = new JSDOM(page(root), { url: 'https://review.test/', runScripts: 'dangerously', virtualConsole, beforeParse });
+  const { document } = window;
+  try {
+    const photo = document.querySelector('[data-note="item-1-picture-1"]');
+    assert.ok(photo.classList.contains('photo'));
+    assert.equal(photo.closest('details').open, true, 'pictures show at the start');
+    assert.equal(photo.querySelector('.add'), null, 'a picture gets no inline + Note button');
+    photo.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    document.getElementById('chip').click();
+    assert.equal(document.getElementById('editor-where').textContent, '#/1 · picture 1 "Live now · Preview"');
+    const box = document.querySelector('#editor textarea');
+    box.value = 'This button is too small.';
+    box.dispatchEvent(new window.Event('input', { bubbles: true }));
+    document.querySelector('#editor [data-act="save"]').click();
+    assert.ok(photo.querySelector(':scope > .pin'), 'the note pins to the picture frame');
+    assert.match(document.getElementById('copybuf').value, /^- Change #1, picture 1 \("Live now · Preview"\): This button is too small\.$/m);
+    assert.deepEqual(errors, []);
+  } finally { window.close(); }
+}, ['Live now: live.png', 'Preview: preview.png'], { 'live.png': png(), 'preview.png': png() }));
+
+// ── an ad: the card a feed or story shows, from the change's own picture ──
+const feedAd = ['placement: feed', 'account: Corner Shop', 'picture: feed.png', 'text: Spring sale on <b>all</b> plants.', 'headline: Spring sale', 'button: Shop now'];
+const storyAd = ['placement: story', 'account: Corner Shop', 'picture: story.png', 'headline: Swipe up'];
+// The ads replace item 1's flow; the first ad's first line is proposal line 11.
+const withAds = (...ads) => proposal.replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`,
+  ads.map(lines => `${fence}ad\n${lines.map(line => `  ${line}`).join('\n')}`).join(`\n  ${fence}\n  `));
+const advertised = (fn, ads, files = { 'feed.png': png(), 'story.png': png() }) => fixture(root => {
+  for (const [name, bytes] of Object.entries(files)) writeFileSync(join(root, name), bytes);
+  return fn(root);
+}, withAds(...ads));
+
+test('ad fences in one bullet draw a feed and a story card side by side in one frame, their words escaped and no link', () => advertised(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  const html = page(root);
+  const frame = /<div class="art photo ads" data-note="item-1-picture-1" tabindex="0">([\s\S]*?)<\/div><\/div><\/details>/.exec(html);
+  assert.ok(frame, 'both ads sit in one frame, the item\'s first picture');
+  assert.equal(frame[1], '<div class="ad feed"><p class="ad-account"><b>Corner Shop</b> <span>Sponsored</span></p>'
+    + `<img src="data:image/png;base64,${png().toString('base64')}" alt="Spring sale">`
+    + '<div class="ad-words"><p class="ad-text">Spring sale on &lt;b&gt;all&lt;/b&gt; plants.</p><b class="ad-headline">Spring sale</b><span class="ad-button">Shop now</span></div></div>'
+    + '<div class="ad story"><p class="ad-account"><b>Corner Shop</b> <span>Sponsored</span></p>'
+    + `<img src="data:image/png;base64,${png().toString('base64')}" alt="Swipe up">`
+    + '<div class="ad-words"><b class="ad-headline">Swipe up</b></div></div>');
+  assert.doesNotMatch(frame[1], /<a\b/);
+}, [feedAd, storyAd]));
+
+const refusedAds = [
+  ['a web address picture', [feedAd.map(line => line.replace('feed.png', 'https://example.com/a.png'))], 13, 'https://example.com/a.png is a web address; save the picture in the change\'s folder'],
+  ['an unknown placement', [feedAd.map(line => line.replace('feed', 'reel'))], 11, 'placement is feed or story, not reel'],
+  ['no picture line', [feedAd.filter(line => !line.startsWith('picture'))], 10, 'an ad needs a picture: line'],
+  ['an unknown line', [[...feedAd, 'price: 3']], 17, 'an ad takes one line each of placement, account, picture, text, headline, button'],
+  ['a line given twice', [[...feedAd, 'button: Buy']], 17, 'an ad takes one line each of placement, account, picture, text, headline, button'],
+];
+for (const [what, ads, line, why] of refusedAds) {
+  test(`an ad with ${what} stops the build on one line naming the item and line`, () => advertised(root => {
+    const result = build(root);
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, `review: proposal.md line ${line}: item 1, picture 1: ${why}\n`);
+  }, ads));
+}
+
+test('a Try it line draws a link that opens in a new tab, after the pictures', () => pictured(root => {
+  buildReview(root, { requireCurrent: true });
+  assert.match(page(root), /<div class="art photo" data-note="item-1-picture-1" tabindex="0"><figure>[\s\S]*?<\/figure><\/div><\/div><p class="try"><a href="https:\/\/demo\.example\.dev\/inbox\?state=empty" target="_blank" rel="noopener noreferrer">Try it<\/a><\/p><\/details>/);
+}, ['After: after.png', 'Try it: https://demo.example.dev/inbox?state=empty'], { 'after.png': png() }));
+
+for (const [what, address] of [['an http address', 'http://demo.example.dev/'], ['a script', 'javascript:alert(1)'], ['a second link', 'https://a.example.dev/\n  Try it: https://b.example.dev/']]) {
+  test(`a Try it line with ${what} stops the build`, () => pictured(root => {
+    const result = build(root);
+    assert.equal(result.status, 1);
+    const shown = what === 'a second link' ? 'https://b.example.dev/' : address;
+    assert.equal(result.stderr, `review: proposal.md line ${what === 'a second link' ? 13 : 12}: item 1, picture 1: Try it takes one https:// address, not ${shown}\n`);
+  }, ['After: after.png', `Try it: ${address}`], { 'after.png': png() }));
 }

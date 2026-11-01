@@ -19,6 +19,8 @@ The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SK
 - [Test a setup change on a real install](test-a-setup-change.md) — install from an unpublished branch into a throwaway folder, what to walk, and how to remove it.
 - [Test a hook in a live session](test-a-hook.md) — run a Claude Code hook headless on its own and in a Paseo chat with the question box, and what a blocking `Stop` hook shows.
 - [The landing page](landing-page.md) — the public site in `site/`, which no install receives: where its install wording lives, what it must never offer, its privacy promises, and how it is checked, previewed, and published.
+- [Attachments](attachments.md) — the paste-in fixes on the site's Attachments page: the file's shape, the bullet rules, how to write one, and the check that keeps each in step with its sources.
+- [Service key guides](service-guides.md) — the public `/guides` pages that show how to make, save, check, and replace each tool's key: what a guide holds, how to add one, and how to take and blur its pictures.
 - [The hosted app's archive](hosted-app-archive.md) — the app that ran at wongstack.com is shut down: what is gone, what is kept and where, and why its repo must never be published as it is.
 - [The payload rule](../../.agents/rules/payload.md) — the release steps and the link check every payload edit runs.
 - [Development](../development/README.md) — the change loop and the conventions every install uses, this repo included.

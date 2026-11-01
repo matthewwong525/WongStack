@@ -3,6 +3,44 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 45.3.0 — A quiet Daily chat
+
+- **The 15-minute wait holds.** A chat that stops soon after your own message waits 15 minutes from that message, even when it runs and stops again in between. A new message from you starts the wait again.
+- **The daily on a computer works in the background.** `daily.mjs serve` no longer sends the Daily chat a `Watch ·` message each pass. It starts one background run of your AI tool for each stop, at most 3 at one time and one per chat, and stops a run after 30 minutes ([the daily on a computer](wiki/development/daily.md#the-daily-on-a-computer)).
+- **A journal in place of messages.** Each run's end line, and each closed chat or source it could not read, goes to a private journal. The Daily chat gets its new lines with your next message, and you see none of them. Only a week board it can not read still sends one line per day ([the journal](wiki/development/daily.md#the-journal)).
+- **Your own jobs.** A `sweeps` file named in your settings adds event jobs and timed jobs, each with its own brief. `runs.agent` picks Claude Code or Codex for the runs ([your own jobs](wiki/development/daily.md#your-own-jobs)).
+
+**Updating.** Nothing to do if you do not run `daily.mjs serve`. If a service on your computer runs it, it gets the new way after the update with no change. An install with its own copy of the worker and journal (WongOS): set your settings file's `sweeps` to `.agents/daily/sweeps.json`, give its fill job `lane` and `ownPlace` fields, and change the service's `ExecStart` to `daily.mjs serve`. In your own `.agents/daily/briefs/header.md`, change the last command to `D journal --run {{run}} --line "<the line>"`, or delete that file to use the skill's header. In your guide, change `journal.mjs read` to `D journal`. Then delete your own `worker.mjs` and `journal.mjs` and the `.agents/settings.json` hook you added for them.
+
+## 45.2.0 — One review standard
+
+- **Every review page looks and works the same.** A plan, a finished build, and other work, such as ads to approve, all show the ask, why, numbered cards, decisions only when there are some, and one bar at the bottom. A page with no decisions shows no Decisions section ([review pages](wiki/review-pages.md)).
+- **Each card takes OK or Change.** *OK* marks the card accepted, and *Undo* takes it back. *Change* opens a note on the card. Each OK goes to the chat with your notes, such as *Card #2: OK*. An OK alone starts nothing.
+- **Notes on words and on a spot of a picture.** Select words to note just those words. In the full-screen view, tap a point on a screenshot or an ad to pin a note there. The notes list groups notes by card.
+- **A review page for work that is not a plan.** An agent can make a page with its own question and up to 6 buttons, such as *Approve* and *Launch*. A button that can't be undone asks once more. The page opens in your Inbox, like a plan.
+- **Ads show as they run.** An ad card shows a feed or story ad with its account, picture, words, headline, and button. Several ads sit side by side where they fit.
+- **A plan that changes a screen shows the real new screen.** `/plan` makes a throwaway copy of the app with sample data and puts it on the preview address. The plan shows *Before*, *After* for each state, and a *Try it* link. When no copy can run, the plan shows a sketch and says why. Later notes keep the earlier edits, and the build starts from the copy. After the build, the preview page shows *Approved* beside *Built*.
+- **Links come first in the chat.** A reply with a plan, a preview, or any page to open puts the link near the top, so a chat that folds a long reply into *See more* no longer hides it.
+
+**Updating.** Nothing to do. Plans you already have keep their pages until you change them.
+
+## 45.1.1 — The app's top bar stays put
+
+- **The app's bar stays at the top of every page.** It no longer hides when you read down a plan, and it no longer slides back over the plan when you scroll up. On the week board, Access and every other page, it stays at the top as you scroll, as before 44.15.0.
+- **_Back_ and the plan's name scroll away with the plan.** They sit at the top of the plan's own page, above its title, and go up with its words. The plan never changes size. Scroll back to the top to tap *Back*.
+
+**Updating.** Nothing to do. A plan sent before this update keeps *Back* fixed above it until its chat builds the plan again.
+
+## 45.1.0 — Real pictures in plans, and a review page for the built screens
+
+- **A plan can show real pictures.** A `picture` fence in a What Changes bullet shows PNG, JPEG or WebP files from the change's own folder, open at the start. Two sit side by side, each with its label, such as *Before* and *After*. The page carries each picture inside itself, so it still opens with no internet. A tap on a picture leaves a note on it. A web address or a file outside the folder stops the build. A picture over 150 KB warns. A picture over 300 KB, or a page over 500 KB, stops the build, so every page fits in the Inbox: take only the visible part at phone width ([the review file](wiki/ux-principles.md#the-review-file)).
+- **A plan that changes a screen you can open today shows a screenshot of it.** `/plan` opens the screen as you, takes a picture, and shows it as the *Before* above the sketch of the new screen. When the screen can not open, the plan says why.
+- **Sketches use real words.** A screen sketch uses real labels and the app's parts, not gray bars. The rule that asked for low detail is gone.
+- **After a build, one review page shows the changed screens.** Each screen shows *Live now* beside *Preview*, at phone width. You tap a picture to leave a note, then **Send notes**, or tap **Publish**, which asks *Goes live, can't be undone* first. This page takes the place of the pictures in chat ([the preview page](wiki/ux-principles.md#the-preview-page)).
+- **A page shows only the buttons its link offers.** Before, *Build it* and *Build and publish* showed only when the link offered both. A plan page still offers both, so it looks as before.
+
+**Updating.** Nothing to do. Plans you already have keep their pages until you change them.
+
 ## 45.0.0 — A week board for your tasks, and a personal daily
 
 - **The Inbox opens on your week.** The app keeps the app owner's tasks by day and week, with a backlog. You tick, drag, move and delete them, and type a new one. Teammates get no board yet. A plan still opens from its link. The list of chat questions and the Schedules view are gone: a chat's question waits in that chat.

@@ -244,11 +244,11 @@ The first request SHALL ask the agent to question the person about their work an
 - **AND** it shows a preview with the new app and no welcome, and asks before publishing
 - **AND** it reads no past chats on account of the request
 
-### Requirement: The top bar scrolls with the page
+### Requirement: The top bar stays at the top
 
-The main app's top bar SHALL sit at the top of every page and scroll off with it, not stay pinned, so a long page gets the whole screen as the person reads down.
+The main app's top bar SHALL stay at the top of the screen on every page while the person scrolls, laid over the page's content, never hiding, and opaque enough that the page's text under it does not make it hard to read.
 
 #### Scenario: Reading down a long page
 
 - **WHEN** the person scrolls down a page longer than the screen
-- **THEN** the top bar scrolls out of view, and scrolling back to the top shows it again
+- **THEN** the top bar stays at the top, its links and the light and dark switch in reach, while the page scrolls under it

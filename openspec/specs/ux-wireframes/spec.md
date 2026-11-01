@@ -22,12 +22,17 @@ Every change `/plan` drafts SHALL carry `openspec/changes/<name>/review.html`, c
 
 ### Requirement: The page is one scrolling review
 
-The page SHALL be one vertical document: the change name and saved-note count, the Why, the numbered What Changes items each with its full text and drawing, and the Decisions. Each Decision-log bullet SHALL be labeled `asked`, `assumed`, `check`, or `log` by its opening word.
+The page SHALL be one vertical document in the shared review frame: the change name as its ask and the saved-note count, the Why, the numbered What Changes items as cards, each with its full text, its drawing, and OK and Change, and the Decisions. Each Decision-log bullet SHALL be labeled `asked`, `assumed`, `check`, or `log` by its opening word.
 
 #### Scenario: Decisions are labeled
 
 - **WHEN** the Decision log holds an "Asked … → chose …" bullet and an "Assumed …" bullet
 - **THEN** the page labels them `asked` and `assumed`
+
+#### Scenario: A change is a card
+
+- **WHEN** a plan has three What Changes items
+- **THEN** the page shows three numbered cards, each with OK and Change
 
 ### Requirement: The page is rebuilt from the proposal
 
@@ -83,7 +88,9 @@ The page SHALL escape all proposal text, drawings and picture labels included, s
 
 ### Requirement: A visual is a narrow drawing
 
-A visual SHALL be a fence inside its What Changes bullet, drawn by the planning agent in the same pass with no other agent and no browser, from the shared drawing guide's patterns: a `mermaid` fence for steps, states, and back-and-forth flows; a `screen` fence for screens and before-and-after layouts, built from the shared look's app parts; an `svg` fence for a free drawing such as arrows or layers; a Markdown table for a table; and a `text` fence for a small listing such as a file tree. Mermaid, screen, and SVG fences SHALL show on the page as inline pictures made at build time. A change SHALL draw one visual by default, plus a sketch of each screen it adds or restructures. A text drawing SHALL aim for 40 columns and MAY reach 56. The builder SHALL warn about a text line wider than 60 columns, or a picture wider than 640 pixels, and still build. A proposal with only text fences SHALL build as it did before pictures.
+A visual SHALL be a fence inside its What Changes bullet, drawn by the planning agent in the same pass with no other agent, from the shared drawing guide's patterns: a `mermaid` fence for steps, states, and back-and-forth flows; a `screen` fence for screens and before-and-after layouts, built from the shared look's app parts; an `svg` fence for a free drawing such as arrows or layers; a Markdown table for a table; a `text` fence for a small listing such as a file tree; and a `picture` fence for a real picture. Mermaid, screen, and SVG fences SHALL show on the page as inline pictures made at build time. A change SHALL draw one visual by default, plus a sketch of each screen it adds or restructures. A text drawing SHALL aim for 40 columns and MAY reach 56. The builder SHALL warn about a text line wider than 60 columns, or a picture wider than 640 pixels, and still build. A proposal with only text fences SHALL build as it did before pictures.
+
+A `picture` fence SHALL list one `[label:] path` per line. Each path SHALL resolve to a PNG, JPEG or WebP file, known by its first bytes, inside the page's source folder. The page SHALL carry each picture inside itself, open at the start, with its label as caption and alt text, side by side when two fit, else stacked, and SHALL take a spot note on it. The builder SHALL stop, naming the item and picture and keeping the last good page, for a web address, an absolute path, a path or link that leaves the folder, a missing file, another file type, or a picture over 300 KB. It SHALL stop, keeping the last good page, when the built page passes 500 KB, so the Inbox can store it. It SHALL warn about a picture over 150 KB and still build. Each size message SHALL say to take only the visible part at phone width.
 
 #### Scenario: A wide line
 
@@ -115,6 +122,26 @@ A visual SHALL be a fence inside its What Changes bullet, drawn by the planning 
 - **WHEN** a `mermaid` or `svg` fence draws wider than 640 pixels
 - **THEN** the builder warns with the item and picture and still writes the page
 
+#### Scenario: A labelled pair of pictures
+
+- **WHEN** a What Changes bullet holds a `picture` fence with `Before: pictures/a.png` and `After: pictures/b.png`
+- **THEN** the page shows both pictures open, side by side where they fit, captioned *Before* and *After*, with no network load, and a note on one names its picture
+
+#### Scenario: A picture from the web
+
+- **WHEN** a `picture` fence names `https://example.com/a.png`
+- **THEN** the build stops with the item and picture, and the last good page stays
+
+#### Scenario: A large picture
+
+- **WHEN** a `picture` fence names a 200 KB PNG
+- **THEN** the builder warns with the item and picture and still writes the page
+
+#### Scenario: A page too big for the Inbox
+
+- **WHEN** two 190 KB pictures make the built page larger than 500 KB
+- **THEN** the build stops with the page's size, and the last good page stays
+
 ### Requirement: The builder flags a crooked box
 
 The builder SHALL warn, naming the item and drawing line, when a line inside a box drawn with line characters puts the box's right edge in a different column from its top-right corner. It SHALL still write the page, and SHALL NOT warn about boxes drawn with `+`, `-`, and `|`.
@@ -131,12 +158,12 @@ The builder SHALL warn, naming the item and drawing line, when a line inside a b
 
 ### Requirement: Screen sketches show each state and the change
 
-A change that restructures a screen SHALL sketch it before and after, side by side where both fit in 640 pixels, else one above the other. A change that adds a screen SHALL sketch each empty, loading, or error state its flow names. A sketch SHALL stay a low-fidelity wireframe in the page's colors; the builder SHALL warn, and still build, about a fill or stroke color that is not one of the kit's named colors.
+A change that adds or restructures a screen SHALL show it before and after, side by side where both fit in 640 pixels, else one above the other, with each empty, loading, or error state its flow names. The after SHALL be a picture of the plan's prototype; a sketch SHALL stand in only when no prototype can be made, with one plain line saying why. A screen the person can open today SHALL also get a Before screenshot, or one plain line saying why it can not. A sketch SHALL use real words and the app's parts, with a gray bar only for unknown text, in the page's colors; the builder SHALL warn, and still build, about a fill or stroke color that is not one of the kit's named colors.
 
 #### Scenario: A changed screen
 
 - **WHEN** a plan changes an existing screen's layout
-- **THEN** its review page shows that screen before and after the change
+- **THEN** its review page shows a screenshot of the screen today beside a picture of the prototype, for each state the plan names
 
 #### Scenario: A fixed color
 
@@ -172,7 +199,7 @@ Each drawing SHALL start folded under its item, behind a control that says how m
 
 ### Requirement: A reviewer notes any item
 
-Each Why paragraph, item, decision, drawing line, and picture SHALL take a note, through a visible Note control or a still click, and a drag, pinch, or tap on a link or control SHALL keep its normal action. A note on a picture SHALL anchor to the whole picture and be named `Change #<n>, picture <k>`. Saved notes SHALL show as numbered pins, persist per change in the browser, and never be written to a repository file. A pin whose text changed SHALL show as possibly moved.
+Each Why paragraph, item, decision, drawing line, and picture SHALL take a note, through a visible Note control or a still click, and a drag, pinch, or tap on a link or control SHALL keep its normal action. Selected words in any text SHALL take a note that quotes them. A note on a picture SHALL anchor to its spot and be named `Change #<n>, picture <k>`. Saved notes SHALL show as numbered pins, listed together grouped by card, persist per page in the browser, and never be written to a repository file. A pin whose text changed SHALL show as possibly moved.
 
 #### Scenario: Tap Note on a phone
 
@@ -182,11 +209,16 @@ Each Why paragraph, item, decision, drawing line, and picture SHALL take a note,
 #### Scenario: A note on a picture
 
 - **WHEN** the reviewer taps item 1's picture full screen and saves a note
-- **THEN** the note pins to the picture, and the copied note starts `Change #1, picture 1` with the picture's words
+- **THEN** the note pins to the spot on the picture, and the copied note starts `Change #1, picture 1` with the picture's words
+
+#### Scenario: A note on selected words
+
+- **WHEN** the reviewer selects "Shop now" in card 2's text and saves *say Get 20% off*
+- **THEN** the note lists under card 2 and the copied note quotes "Shop now"
 
 ### Requirement: Copied notes name the plan and each place
 
-Copy notes SHALL put a block on the clipboard whose first line is `Notes on the plan <change-name> from the review page. Don't build yet.`, then one bullet per saved note with its place and a short quote. When the page is not on an open reply link, every note save SHALL copy that block too: before a save the page SHALL say that saving copies all notes, and a failed copy on save SHALL keep the note saved and say to tap Copy notes. The page SHALL word notes as either a question or a change, never assuming a change. After a copy, it SHALL say to paste the notes into chat.
+Copy notes SHALL put a block on the clipboard whose first line is `Notes on the plan <change-name> from the review page. Don't build yet.`, then one line per card marked OK, then one bullet per saved note with its place and a short quote. When the page is not on an open reply link, every note save SHALL copy that block too: before a save the page SHALL say that saving copies all notes, and a failed copy on save SHALL keep the note saved and say to tap Copy notes. The page SHALL word notes as either a question or a change, never assuming a change. After a copy, it SHALL say to paste the notes into chat.
 
 #### Scenario: Two notes copied
 
@@ -197,6 +229,11 @@ Copy notes SHALL put a block on the clipboard whose first line is `Notes on the 
 
 - **WHEN** the reviewer saves a second note on a page opened from disk
 - **THEN** the clipboard holds the header line and both bullets, and the page says it saved and copied 2 notes
+
+#### Scenario: An OK is copied
+
+- **WHEN** the reviewer taps OK on change 1 and copies notes
+- **THEN** the block holds `Change #1: OK` under the header line
 
 ### Requirement: Unfinished notes stay drafts
 
@@ -297,7 +334,7 @@ On an open reply link, the page's one notes control SHALL send every saved note 
 
 ### Requirement: A plan on a reply link can start its build
 
-On an open reply link, the review page SHALL offer Send notes, Build it, and Build and publish as three directly visible bottom buttons, reachable without scrolling on a phone. A build choice SHALL send the selected action with every saved unsent note in one request, so the chat applies the notes and continues into the selected build or publish action without another build choice. Build and publish SHALL ask once more on the page before sending. The page SHALL mark only acknowledged submitted notes as sent and SHALL preserve unsent notes on failure. A changed plan SHALL prevent the action and ask for reload. Opened from disk or after the link closes, the page SHALL show no build choices and SHALL retain note copying. Send notes alone SHALL build nothing.
+On an open reply link, the review page SHALL offer Send notes, Build it, and Build and publish as three directly visible bottom buttons, reachable without scrolling on a phone. A build choice SHALL send the selected action with every saved unsent note in one request, so the chat applies the notes and continues into the selected build or publish action without another build choice. Build and publish SHALL ask once more on the page before sending. The page SHALL mark only acknowledged submitted notes as sent and SHALL preserve unsent notes on failure. A changed plan SHALL prevent the action and ask for reload. Each build choice SHALL show only when the link offers it; with both offered, the page SHALL look as before. Opened from disk, after the link closes, or on a link that offers neither, the page SHALL show no build choices and SHALL retain note copying. Send notes alone SHALL build nothing.
 
 #### Scenario: Build it from the page
 
@@ -308,6 +345,11 @@ On an open reply link, the review page SHALL offer Send notes, Build it, and Bui
 
 - **WHEN** the reviewer taps *Build and publish* with one saved note not yet sent and confirms publishing
 - **THEN** the chat receives the chosen action and note together, updates the plan, and builds and publishes without a further build choice; the acknowledged note is marked sent
+
+#### Scenario: A link that offers one build choice
+
+- **WHEN** the reply link offers `build` and not `publish`
+- **THEN** the page shows *Send notes* and *Build it* in two equal columns, and no *Build and publish*
 
 ### Requirement: Review requests show immediate progress
 

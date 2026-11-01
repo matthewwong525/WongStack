@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { assemble, buildReview, chatCopy, notesHeader, planActions, planLink, REVIEW_IN_CHAT, REVIEW_ON_PAGE } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { assemble, buildReview, chatCopy, notesHeader, planActions, planLink, previewActions, previewNotesHeader, REVIEW_IN_CHAT, REVIEW_ON_PAGE, WORK_IN_CHAT, workActions, workNotesHeader } from '../../.agents/skills/plan/scripts/build-review.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { needs } from './fixtures/needs.mjs';
 
@@ -58,6 +58,11 @@ function fixture(fn, source = proposal) {
 }
 
 function page(root) { return readFileSync(join(root, 'review.html'), 'utf8'); }
+// The bar's buttons a built page carries, as the builder wrote them.
+function actionsOf(html) {
+  const [, attr] = /<div id="ready" data-actions="([^"]*)" hidden>/.exec(html);
+  return JSON.parse(attr.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'));
+}
 // An element's text without the Note button the script adds to it.
 function text(el) {
   const copy = el.cloneNode(true);
@@ -116,9 +121,9 @@ test('the page renders the proposal as static content', needsDom, () => fixture(
   window.close();
 }));
 
-test('a proposal without a Decision log says no decision is recorded', () => fixture(root => {
+test('a proposal without a Decision log has no Decisions section or jump link', () => fixture(root => {
   buildReview(root, { requireCurrent: true });
-  assert.match(page(root), /No decision is recorded yet\./);
+  assert.doesNotMatch(page(root), /id="decisions"|href="#decisions"|No decision is recorded/);
 }, proposal.split('## Decision log')[0]));
 
 test('drawings and text holding markup stay text', needsDom, () => fixture(root => {
@@ -311,7 +316,7 @@ test('the built page carries the app\'s colours and parts in its one style, and 
 }));
 
 // What the CLI prints for the fixture between its status line and the link line.
-const copy = `${chatCopy('example', proposal)}\n`;
+const copy = `${chatCopy('example', proposal)}\n\n`;
 
 test('the chat copy holds Why, each change numbered, and only the assumed decisions', () => {
   const picture = proposal.replace('- **Third item**', `- **Flow** has a picture.\n  ${fence}mermaid\n  flowchart LR\n    a --> b\n  ${fence}\n- **Rows** have a table.\n  | a | b |\n  | - | - |\n  | 1 | 2 |\n- **Third item**`);
@@ -332,7 +337,7 @@ test('both builder aliases run from the CLI and report failures', () => fixture(
     rmSync(join(root, 'review.html'), { force: true });
     const result = spawnSync(process.execPath, [resolve(here, `../../${alias}/skills/plan/scripts/build-review.mjs`), root, '--require-current'], { encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, `review: current, updated\n${copy}\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`, 'the link line, a blank line, then the review line, end the output');
+    assert.equal(result.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${copy}${REVIEW_IN_CHAT}\n`, 'the link line opens the output, and the review line ends it');
   }
   writeFileSync(join(root, 'proposal.md'), proposal.replace('  c ─→ d', `  ${'y'.repeat(61)}`));
   const warned = spawnSync(process.execPath, [resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs'), root], { encoding: 'utf8' });
@@ -347,7 +352,7 @@ test('both builder aliases run from the CLI and report failures', () => fixture(
 const builder = resolve(here, '../../.claude/skills/plan/scripts/build-review.mjs');
 
 test('--link prints the file where no reply link can open', () => fixture(root => {
-  const file = `review: current, updated\n${copy}\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`;
+  const file = `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${copy}${REVIEW_IN_CHAT}\n`;
   const home = join(dirname(root), 'home');
   for (const env of [{ REPLY_LINK: 'off', PASEO_AGENT_ID: 'a-chat' }, { REPLY_LINK: '', PASEO_AGENT_ID: '' }]) {
     rmSync(join(root, 'review.html'), { force: true });
@@ -371,14 +376,14 @@ test('--link prints the reply link in the same line, with the plan\'s header and
   try {
     // Without --link the same setup prints the file and registers nothing.
     const plain = spawnSync(process.execPath, [builder, root, '--require-current'], { encoding: 'utf8', env, timeout: 30_000 });
-    assert.equal(plain.stdout, `review: current, updated\n${copy}\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`);
+    assert.equal(plain.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${copy}${REVIEW_IN_CHAT}\n`);
     assert.equal(existsSync(state), false, 'no link, no actions');
     rmSync(join(root, 'review.html'));
     const out = spawnSync(process.execPath, [builder, root, '--require-current', '--link'], { encoding: 'utf8', env, timeout: 30_000 });
     assert.equal(out.status, 0, out.stderr);
     const [, link] = /^Click here to see the plan: \[review\.html\]\((\S+)\)$/m.exec(out.stdout) ?? [];
     assert.match(link ?? out.stdout, new RegExp(`^${ORIGIN}/p/[0-9a-f]{32}/#key=[0-9a-f]{64}$`));
-    assert.equal(out.stdout, `review: current, updated\n${copy}\n${planLink(link)}\n\n${REVIEW_ON_PAGE}\n`);
+    assert.equal(out.stdout, `review: current, updated\n${planLink(link)}\n\n${copy}${REVIEW_ON_PAGE}\n`);
     const [page] = readdirSync(join(state, 'pages')).map(name => JSON.parse(readFileSync(join(state, 'pages', name), 'utf8')));
     assert.equal(page.file, join(resolve(root), 'review.html'));
     assert.equal(page.header, notesHeader('example'));
@@ -389,11 +394,12 @@ test('--link prints the reply link in the same line, with the plan\'s header and
       build: 'Build it now: run /apply for the plan example. Chosen on its review page. Apply any attached review notes to this plan first, then continue without another build choice.',
       publish: 'Build and publish: run /ship for the plan example. Chosen on its review page. Apply any attached review notes to this plan first, then continue without another build choice.',
     });
-    for (const name of ['build', 'publish']) assert.ok(kit.includes(`data-ready="${name}"`), `the kit offers ${name}`);
+    const built = readFileSync(join(root, 'review.html'), 'utf8');
+    assert.deepEqual(actionsOf(built).map(action => [action.name, action.label]), [['build', 'Build it'], ['publish', 'Build and publish']], 'the page offers both');
     assert.ok(kit.includes("'Notes on the plan ' + CHANGE + ' from the review page. Don\\'t build yet.'"), 'the kit copies notes under the same line');
     // A second run prints the same link, and an older page, which can not send, keeps its file.
     const again = spawnSync(process.execPath, [builder, root, '--link'], { encoding: 'utf8', env, timeout: 30_000 });
-    assert.equal(again.stdout, `review: current, unchanged\n${copy}\n${planLink(link)}\n\n${REVIEW_ON_PAGE}\n`, 'the same link while the tunnel lives');
+    assert.equal(again.stdout, `review: current, unchanged\n${planLink(link)}\n\n${copy}${REVIEW_ON_PAGE}\n`, 'the same link while the tunnel lives');
     writeFileSync(join(root, 'review.html'), '<!-- wong-review:2 -->\n<html><!-- proposal:start -->\nold\n<!-- proposal:end --></html>');
     const older = spawnSync(process.execPath, [builder, root, '--link'], { encoding: 'utf8', env, timeout: 30_000 });
     assert.equal(older.stdout, `review: proposal-only, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`);
@@ -527,60 +533,281 @@ test('in the inbox frame the page talks only on the port its first greeting carr
   window.close();
 }));
 
-test('in the inbox frame the page says which way the reader turns and when they reach its top, so the inbox can tuck its bars; alone it says nothing', needsDom, () => fixture(async root => {
+test('in the inbox frame the page draws Back and its workspace first, as text, posts inbox:back on a tap, and says nothing as it scrolls; alone it has no Back', needsDom, () => fixture(async root => {
   buildReview(root, { requireCurrent: true });
-  const { window, errors } = dom(page(root));
+  const { window, document, errors } = dom(page(root));
   const parent = { postMessage: () => {} };
   const port = { posted: [], postMessage: message => port.posted.push(JSON.parse(JSON.stringify(message))), onmessage: null };
   Object.defineProperty(window, 'parent', { configurable: true, get: () => parent });
-  let y = 0, tall = window.innerHeight;
-  Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y });
-  Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => tall });
-  const turns = () => port.posted.filter(message => message.type === 'inbox:scroll').map(message => message.down);
-  const tops = () => port.posted.filter(message => message.type === 'inbox:scroll').map(message => message.top);
-  const to = (...ys) => { for (const at of ys) { y = at; window.dispatchEvent(new window.Event('scroll')); } };
   await loaded(window);
-  to(300, 0);
-  const event = new window.MessageEvent('message', { data: { type: 'inbox:hello', item: 'i1', version: 'v1', actions: [] } });
+  assert.ok(document.body.hasAttribute('data-own-back'), 'the inbox knows this page draws its own Back');
+  assert.equal(document.querySelector('.back'), null, 'opened on its own, the page has no Back row');
+  const workspace = '<b>goofy-crab</b>';
+  const event = new window.MessageEvent('message', { data: { type: 'inbox:hello', item: 'i1', version: 'v1', actions: [], workspace } });
   Object.defineProperty(event, 'source', { value: parent });
   Object.defineProperty(event, 'ports', { value: [port] });
   window.dispatchEvent(event);
-  assert.deepEqual(turns(), [], 'before the greeting the page says nothing');
-  to(30, 40, 47);
-  assert.deepEqual(turns(), [], 'within the top zone the bars stay');
-  to(60, 200, 400);
-  assert.deepEqual(turns(), [true], 'reading down turns once');
-  to(395, 400, 393);
-  assert.deepEqual(turns(), [true], 'small jitter turns nothing');
-  to(380, 300);
-  assert.deepEqual(turns(), [true, false], 'scrolling 8 px back up turns');
-  assert.deepEqual(tops(), [false, false], 'a turn up mid-page is not the top');
-  to(310, 600);
-  assert.deepEqual(turns(), [true, false, true]);
-  // The bars tucking makes the frame taller, and the browser moves the page to fit: that is no turn.
-  tall += 100;
-  to(500);
-  assert.deepEqual(turns(), [true, false, true]);
-  to(30);
-  assert.deepEqual(turns(), [true, false, true, false], 'back at the top the bars return');
-  assert.deepEqual(tops(), [false, false, false, true]);
-  // Turned up mid-page, then on to the top: the page says it reached the top without turning again.
-  to(600, 300);
-  assert.deepEqual(turns(), [true, false, true, false, true, false]);
-  to(100, 40);
-  assert.deepEqual(turns(), [true, false, true, false, true, false, false], 'reaching the top says so once');
-  assert.deepEqual(tops().slice(-3), [false, false, true]);
-  to(20, 0);
-  assert.equal(turns().length, 7, 'within the top zone it says nothing more');
-  // Back up into the top zone, then a few px down past it without a turn: still the top.
-  to(600, 45);
-  assert.deepEqual(tops().slice(-1), [true]);
-  const said = turns().length;
-  to(52);
-  assert.equal(turns().length, said, 'creeping past the top zone says nothing');
-  to(60);
-  assert.deepEqual(turns().slice(-1), [true]);
-  assert.deepEqual(tops().slice(-1), [false], 'a turn down leaves the top');
+  const header = document.querySelector('main > header');
+  const row = header.firstElementChild;
+  assert.equal(row.className, 'back', 'Back sits first, above the title, so it scrolls away with the page');
+  const [back, where] = row.children;
+  assert.deepEqual([back.tagName, back.className, back.textContent], ['BUTTON', 'btn-ghost', 'Back']);
+  assert.deepEqual([where.textContent, where.children.length], [workspace, 0], 'markup in the workspace stays text');
+  for (const y of [0, 300, 900, 200, 0]) {
+    Object.defineProperty(window, 'scrollY', { configurable: true, get: () => y });
+    window.dispatchEvent(new window.Event('scroll'));
+  }
+  assert.deepEqual(port.posted.map(message => message.type), ['inbox:notes-get'], 'scrolling posts nothing');
+  back.click();
+  assert.deepEqual(port.posted.at(-1), { type: 'inbox:back' });
+  assert.deepEqual(errors, []);
+  window.close();
+}));
+
+test('in the inbox frame a greeting with no workspace shows Back alone', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  await loaded(window);
+  hosted(window, []);
+  const row = document.querySelector('main > header').firstElementChild;
+  assert.deepEqual([...row.children].map(child => child.textContent), ['Back']);
+  assert.deepEqual(errors, []);
+  window.close();
+}));
+
+// ── a preview page: the finished build's screens, with Send notes and Publish only ──
+function previewFixture(fn) {
+  const dir = mkdtempSync(join(tmpdir(), 'wong-review-'));
+  const root = join(dir, 'example-preview');
+  mkdirSync(root);
+  writeFileSync(join(root, 'shot.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]));
+  writeFileSync(join(root, 'proposal.md'), `${proposal}\n`.replace('- **Third item**', `- **Inbox**\n  ${fence}picture\n  Live now: shot.png\n  Preview: shot.png\n  ${fence}\n- **Third item**`));
+  try { return fn(root); } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('a preview page has no Decisions, its own notes key and kind, and fixed words for its line and its one button', () => previewFixture(root => {
+  assert.equal(buildReview(root, { requireCurrent: true, kind: 'preview' }).kind, 'current');
+  const html = page(root);
+  assert.match(html, /<body data-kind="preview" data-change="example-preview" data-own-back>/);
+  assert.doesNotMatch(html, /id="decisions"|href="#decisions"/);
+  assert.match(html, /class="art photo" data-note="item-3-picture-1"/);
+  assert.equal(previewNotesHeader('example'), "Notes on the preview of example from its review page. Don't publish yet.");
+  assert.deepEqual(previewActions('example'), {
+    publish: 'Publish: run /ship for the plan example. Chosen on its preview page. Apply any attached notes first, then continue without another publish choice.',
+  });
+  assert.ok(kit.includes("'Notes on the preview of ' + NAME + ' from its review page. Don\\'t publish yet.'"), 'the kit copies notes under the same line');
+  // A plan page keeps its Decisions and has no kind.
+  buildReview(root, { requireCurrent: true });
+  assert.match(page(root), /<body data-change="example-preview" data-own-back>[\s\S]*id="decisions"/);
+}));
+
+function hosted(window, actions) {
+  const port = { posted: [], postMessage: message => port.posted.push(JSON.parse(JSON.stringify(message))), onmessage: null };
+  const parent = { postMessage: () => {} };
+  Object.defineProperty(window, 'parent', { configurable: true, get: () => parent });
+  const event = new window.MessageEvent('message', { data: { type: 'inbox:hello', item: 'i1', version: 'v1', actions } });
+  Object.defineProperty(event, 'source', { value: parent });
+  Object.defineProperty(event, 'ports', { value: [port] });
+  window.dispatchEvent(event);
+  return port;
+}
+const shown = document => [...document.querySelectorAll('#ready > button')].filter(button => !button.hidden).map(button => button.textContent);
+
+test('in the inbox a preview page names the build, offers only Publish, and sends notes under the preview line', needsDom, () => previewFixture(async root => {
+  buildReview(root, { requireCurrent: true, kind: 'preview' });
+  const { window, document, errors } = dom(page(root));
+  window.document.execCommand = () => true;
+  await loaded(window);
+  assert.equal(document.querySelector('h1').textContent, 'Built: look, then publish?');
+  assert.equal(document.querySelector('.eyebrow').textContent, 'example');
+  assert.equal(document.title, 'Preview · example');
+  assert.match(document.querySelector('.hint').textContent, /^Tap a picture to see it full screen, then tap it to note it\./);
+  document.getElementById('copy').click();
+  const port = hosted(window, ['publish']);
+  assert.deepEqual(port.posted, [{ type: 'inbox:notes-get', key: 'wong-review3:example-preview' }]);
+  assert.equal(document.getElementById('ready').hidden, false);
+  assert.deepEqual(shown(document), ['Publish']);
+  assert.equal(document.getElementById('ready-confirm').getAttribute('aria-label'), 'Publish? This goes live and can\'t be undone.');
+  document.querySelector('[data-ready="publish"]').click();
+  assert.equal(document.getElementById('ready-confirm').hidden, false, 'Publish asks first');
+  assert.equal(port.posted.filter(message => message.type === 'inbox:tap').length, 0);
+  document.querySelector('[data-ready="yes"]').click();
+  assert.deepEqual(port.posted.at(-1), { type: 'inbox:tap', action: 'publish', text: '' });
+  port.onmessage({ data: { type: 'inbox:result', state: 'sent' } });
+  await new Promise(done => setTimeout(done, 0));
+  assert.equal(document.getElementById('ready-message').textContent, 'Asked the chat to publish.');
+  assert.deepEqual(errors, []);
+  window.close();
+}));
+
+test('a preview page opened from disk copies its notes under the preview line', needsDom, () => previewFixture(async root => {
+  buildReview(root, { requireCurrent: true, kind: 'preview' });
+  const { window, document, errors } = dom(page(root));
+  window.document.execCommand = () => true;
+  await loaded(window);
+  const why = document.querySelector('[data-note="why-1"]');
+  why.querySelector('.add').click();
+  document.querySelector('#editor textarea').value = 'Bigger, please.';
+  document.querySelector('#editor [data-act="save"]').click();
+  assert.equal(document.getElementById('copybuf').value.split('\n')[0], "Notes on the preview of example from its review page. Don't publish yet.");
+  assert.deepEqual(errors, []);
+  window.close();
+}));
+
+test('in the inbox a plan page shows each build choice it is offered', needsDom, () => fixture(async root => {
+  // The folder goes at the first await: read the page before it.
+  buildReview(root, { requireCurrent: true });
+  const html = page(root);
+  for (const [actions, want] of [[['build', 'publish'], ['Build it', 'Build and publish']], [['build'], ['Build it']], [['publish'], ['Build and publish']], [[], []]]) {
+    const { window, document, errors } = dom(html);
+    await loaded(window);
+    hosted(window, actions);
+    assert.deepEqual(shown(document).map(label => label.trim()), want, JSON.stringify(actions));
+    assert.equal(document.getElementById('ready').hidden, !want.length);
+    assert.deepEqual(errors, []);
+    window.close();
+  }
+}));
+
+// ── a review page of other work: its ask, its cards, and its own buttons ──
+const work = `# Approve these 2 ads?
+
+## Why
+
+The spring sale starts Monday.
+
+## To review
+
+- **Feed ad.** For people who follow the shop.
+- **Story ad.** Shop now in the story.
+
+## Decisions
+
+- **2026-10-31** — Assumed: two placements.
+`;
+function workFixture(fn, source = work) {
+  const dir = mkdtempSync(join(tmpdir(), 'wong-review-'));
+  const root = join(dir, 'spring-ads');
+  mkdirSync(root);
+  writeFileSync(join(root, 'review.md'), source);
+  try { return fn(root); } finally { rmSync(dir, { recursive: true, force: true }); }
+}
+const approveLaunch = () => workActions(['approve=Approve|Approved: run the 2 ads as shown.', 'launch=Launch|Launch the 2 ads now.'], ['launch']);
+
+test('a review page asks its one line, lists its cards under To review, and carries its own buttons without their messages', () => workFixture(root => {
+  const result = buildReview(root, { kind: 'review', actions: approveLaunch() });
+  assert.deepEqual(result, { kind: 'current', changed: true, warnings: [], ask: 'Approve these 2 ads?' });
+  const html = page(root);
+  assert.match(html, /<title>Review · Approve these 2 ads\?<\/title>/);
+  assert.match(html, /<h1>Approve these 2 ads\?<\/h1>/);
+  assert.match(html, /<body data-header="Notes on the review page &quot;Approve these 2 ads\?&quot;\. Don't go on yet\." data-kind="review" data-change="spring-ads" data-own-back>/);
+  assert.match(html, /href="#changes">To review<\/a>/);
+  assert.match(html, /<h2 id="changes-h">To review<\/h2>/);
+  assert.match(html, /<section id="decisions"[\s\S]*Assumed: two placements/);
+  assert.equal(workNotesHeader('Approve these 2 ads?'), 'Notes on the review page "Approve these 2 ads?". Don\'t go on yet.');
+  assert.deepEqual(actionsOf(html), [
+    { name: 'approve', label: 'Approve', done: 'Sent to the chat: Approve.' },
+    { name: 'launch', label: 'Launch', done: 'Sent to the chat: Launch.', confirm: { say: "Can't be undone.", yes: 'Yes, launch', ask: "Launch? This can't be undone." } },
+  ]);
+  assert.doesNotMatch(html, /run the 2 ads/, 'a message goes to the chat, never into the page');
+  assert.equal(buildReview(root, { kind: 'review', actions: approveLaunch() }).changed, false, 'a second build changes no bytes');
+}));
+
+test('a review page with no Decisions has no Decisions section or jump link', () => workFixture(root => {
+  buildReview(root, { kind: 'review', actions: [] });
+  assert.doesNotMatch(page(root), /id="decisions"|href="#decisions"/);
+}, work.split('## Decisions')[0]));
+
+test('a review.md missing its ask, Why, or To review stops on one line', () => {
+  for (const [source, why] of [
+    [work.replace('# Approve these 2 ads?\n', ''), /review\.md: missing # <ask>, the one line the page asks, such as # Approve these 3 ads\?$/],
+    [work.replace('## Why', '## Reason'), /review\.md: missing ## Why$/],
+    [work.replace('## To review', '## What Changes'), /review\.md: missing ## To review$/],
+  ]) workFixture(root => assert.throws(() => buildReview(root, { kind: 'review', actions: [] }), why), source);
+});
+
+test('a review page takes 6 named buttons at most, each with a label and a one-line message, and confirms only its own', () => {
+  const six = Array.from({ length: 6 }, (_, i) => `b${i}=B ${i}|Do ${i}.`);
+  assert.equal(workActions(six).length, 6);
+  for (const [pairs, confirm, why] of [
+    [[...six, 'b6=B|Do.'], [], /--action: 6 at most/],
+    [['yes=Yes|Do.'], [], /a lowercase name other than yes, cancel, or send: yes=Yes\|Do\./],
+    [['send=Send|Do.'], [], /other than yes, cancel, or send/],
+    [['Approve=Approve|Do.'], [], /a lowercase name/],
+    [['approve=Approve'], [], /takes "<name>=<label>\|<message>"/],
+    [['approve=|Do.'], [], /--action approve: a label of 40 characters at most/],
+    [['approve=Approve|Do\nthis.'], [], /a one-line message of 300 at most/],
+    [[`approve=Approve|${'x'.repeat(301)}`], [], /a one-line message of 300 at most/],
+    [['a=A|Do.', 'a=B|Do.'], [], /--action: each name once/],
+    [['a=A|Do.'], ['b'], /--confirm b names no --action/],
+  ]) assert.throws(() => workActions(pairs, confirm), why, pairs.join(' '));
+});
+
+test('the review kind runs from the CLI; --action and --confirm belong to it alone', () => workFixture(root => {
+  const out = spawnSync(process.execPath, [builder, root, '--kind', 'review', '--action', 'approve=Approve|Approved.', '--action', 'launch=Launch|Launch now.', '--confirm', 'launch'], { encoding: 'utf8' });
+  assert.equal(out.status, 0, out.stderr);
+  assert.equal(out.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'), 'the review')}\n\n${WORK_IN_CHAT}\n`);
+  assert.match(out.stdout, /^Click here to see the review: \[review\.html\]/m);
+  for (const args of [['--kind', 'plan', '--action', 'a=A|Do.'], ['--kind', 'mail'], ['--confirm', 'a']]) {
+    assert.equal(spawnSync(process.execPath, [builder, root, ...args], { encoding: 'utf8' }).status, 2, args.join(' '));
+  }
+  const bad = spawnSync(process.execPath, [builder, root, '--kind', 'review', '--action', 'yes=Yes|Do.'], { encoding: 'utf8' });
+  assert.equal(bad.status, 1);
+  assert.match(bad.stderr, /^review: --action takes/);
+}));
+
+test('a review folder named outside [\\w-]{1,100} stops with one line, since the Inbox would drop its notes', () => {
+  for (const name of ['spring ads', 'x'.repeat(101)]) workFixture(root => {
+    const renamed = join(dirname(root), name);
+    renameSync(root, renamed);
+    const out = spawnSync(process.execPath, [builder, renamed, '--kind', 'review'], { encoding: 'utf8' });
+    assert.equal(out.status, 1, name);
+    assert.equal(out.stderr, `review: a review folder name is letters, digits, - and _, up to 100: ${name}\n`);
+    assert.equal(existsSync(join(renamed, 'review.html')), false, 'no page is written');
+  });
+  workFixture(root => {
+    const renamed = join(dirname(root), 'x'.repeat(100));
+    renameSync(root, renamed);
+    assert.equal(buildReview(renamed, { kind: 'review', actions: [] }).kind, 'current', 'a name of 100 builds');
+  });
+});
+
+test('in the inbox a review page offers its own buttons, an OK per card, and sends OKs as lines above the notes', needsDom, () => workFixture(async root => {
+  buildReview(root, { kind: 'review', actions: approveLaunch() });
+  const { window, document, errors } = dom(page(root));
+  await loaded(window);
+  assert.equal(document.querySelector('.items .item .verdict [data-ok]').textContent, 'OK');
+  const port = hosted(window, ['approve', 'launch']);
+  assert.deepEqual(shown(document), ['Approve', 'Launch']);
+  document.querySelector('#item-1 [data-ok]').click();
+  assert.equal(document.querySelector('#item-1 .verdict .tag').hidden, false);
+  assert.equal(document.querySelector('#item-1 .verdict [data-open]').hidden, true, 'an OK card hides Change');
+  assert.equal(document.querySelector('#item-1 [data-ok]').textContent, 'Undo');
+  document.querySelector('#item-2 [data-ok]').click();
+  document.querySelector('#item-2 [data-ok]').click();
+  assert.equal(document.querySelector('#item-2 .verdict .tag').hidden, true, 'Undo takes the OK back');
+  document.querySelector('[data-ready="launch"]').click();
+  assert.equal(document.getElementById('ready-confirm').getAttribute('aria-label'), "Launch? This can't be undone.");
+  assert.equal(document.querySelector('#ready-confirm p').textContent, "Can't be undone.");
+  assert.equal(port.posted.filter(message => message.type === 'inbox:tap').length, 0, 'nothing goes before a yes');
+  document.querySelector('[data-ready="yes"]').click();
+  assert.deepEqual(port.posted.at(-1), { type: 'inbox:tap', action: 'launch', text: 'Card #1: OK' });
+  port.onmessage({ data: { type: 'inbox:result', state: 'sent' } });
+  await new Promise(done => setTimeout(done, 0));
+  assert.equal(document.getElementById('ready-message').textContent, 'Sent to the chat: Launch.');
+  assert.equal(document.querySelector('#item-1 .verdict .tag').textContent, 'OK · Sent');
+  assert.deepEqual(errors, []);
+  window.close();
+}));
+
+test('a plan page names its cards Change in its OK lines, copied under the plan line', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  window.document.execCommand = () => true;
+  await loaded(window);
+  document.querySelector('#item-2 [data-ok]').click();
+  document.getElementById('copy').click();
+  assert.equal(document.getElementById('copybuf').value, `${notesHeader('example')}\nChange #2: OK`);
   assert.deepEqual(errors, []);
   window.close();
 }));

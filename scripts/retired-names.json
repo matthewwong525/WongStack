@@ -134,5 +134,8 @@
   {"name": "plans-ready", "replacement": "the week board in the Inbox", "why": "the daily morning plan card left with the week board"},
   {"name": "daily.mjs opened", "replacement": "`daily.mjs start --report`"},
   {"name": "D reminders", "replacement": "`D remind`, a task on the week board"},
-  {"name": "wong-daily/", "replacement": "the daily state folder under `~/.local/state/wongstack/daily/`"}
+  {"name": "wong-daily/", "replacement": "the daily state folder under `~/.local/state/wongstack/daily/`"},
+  {"name": "inbox:scroll", "replacement": "`inbox:back` from the plan page's own Back", "allow": ["app/src/apps/inbox/frame.test.ts", "app/src/apps/inbox/PlanView.test.tsx"], "why": "each test sends the message an older plan still posts, to show the inbox ignores it"},
+  {"name": "tuckBars", "replacement": "the pinned top bar in `app/src/Layout.tsx`"},
+  {"name": "Watch · <day>", "replacement": "the daily's journal, `D journal --new`"}
 ]
