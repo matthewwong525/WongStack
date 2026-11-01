@@ -12,8 +12,10 @@ import { delivery } from '../../save/scripts/delivery-route.mjs';
 import { EXIT, PaseoError, findPaseo, git, paseo, parseCommand, runPaseo, withJson } from './lib/paseo.mjs';
 
 const USAGE = `usage: workspace.mjs open --title <part> --brief <file>
-                         [--checkout <branch> [--reviewed <commit>]] [--agent claude|codex] [--dry-run]`;
-const VALUE_FLAGS = ['title', 'brief', 'checkout', 'reviewed', 'agent'];
+                         [--checkout <branch> [--reviewed <commit>]] [--agent claude|codex] [--label key=value] [--dry-run]`;
+const VALUE_FLAGS = ['title', 'brief', 'checkout', 'reviewed', 'agent', 'label'];
+// A tag a script puts on the chats it opens, so it can find them again.
+const LABEL = /^[a-z][a-z0-9-]{0,39}=[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const MODES = { claude: 'bypassPermissions', codex: 'full-access' };
 const PARENT_VARS = ['PASEO_AGENT_ID', 'PASEO_WORKSPACE_ID'];
 const PLACEHOLDERS = new Set(['main', 'master', 'default', 'hello', 'hello world', 'test', 'testing', 'untitled',
@@ -53,13 +55,14 @@ export function agentSettings(inspected, agent) {
 }
 
 /** The `paseo run` arguments, without --json. `--` ends the options, so a brief of any shape is the prompt. */
-export function runArgs({ primary, title, brief, settings, base, checkout }) {
+export function runArgs({ primary, title, brief, settings, base, checkout, label }) {
   const args = ['run', '-d', '--new-workspace', 'worktree'];
   if (checkout) args.push('--worktree-mode', 'checkout-branch', '--branch', checkout);
   else args.push('--worktree-mode', 'branch-off', '--base', base);
   args.push('--cwd', primary, '--title', title, '--provider', settings.provider);
   if (settings.model) args.push('--model', settings.model);
   if (settings.thinking) args.push('--thinking', settings.thinking);
+  if (label) args.push('--label', label);
   args.push('--mode', settings.mode, '--', brief);
   return args;
 }
@@ -104,9 +107,9 @@ function appSteps({ primary, title, briefFile, settings, base, checkout, commit 
   ].join('\n');
 }
 
-function primaryWorktree() {
+function primaryWorktree(cwd) {
   try {
-    return primaryRoot().primary;
+    return primaryRoot(cwd).primary;
   } catch (error) {
     if (error instanceof PrimaryRootError) throw new PaseoError(EXIT.input, error.message);
     throw error;
@@ -200,11 +203,12 @@ function readBrief(file) {
   return text;
 }
 
-async function open(flags, env) {
+export async function openWorkspace(flags, env = process.env, { cwd = process.cwd() } = {}) {
   const title = workspaceTitle(flags.title);
+  if (flags.label && !LABEL.test(flags.label)) throw new PaseoError(EXIT.input, 'Use a safe key=value label.');
   const brief = readBrief(flags.brief);
-  const primary = primaryWorktree();
-  const ctx = { primary, title, briefFile: flags.brief, checkout: flags.checkout, commit: null, settings: null, base: null };
+  const primary = primaryWorktree(cwd);
+  const ctx = { primary, title, briefFile: flags.brief, checkout: flags.checkout, commit: null, label: flags.label, settings: null, base: null };
   if (flags.reviewed !== undefined && !ctx.checkout) throw new PaseoError(EXIT.input, '--reviewed goes with --checkout <branch>.');
   if (ctx.checkout) ctx.commit = reviewedCheckout(primary, ctx.checkout, flags.reviewed ?? null, { dryRun: flags.dryRun });
   try {
@@ -256,7 +260,7 @@ async function main(argv = process.argv.slice(2), env = process.env) {
   try {
     const { command, flags } = parseCommand(argv, { values: VALUE_FLAGS, booleans: { '--dry-run': 'dryRun' }, unknown: arg => `Unknown argument ${arg}.` });
     if (command !== 'open') throw new PaseoError(EXIT.input, `Unknown command "${command}". Use open.`);
-    process.stdout.write(`${JSON.stringify(await open(flags, env), null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify(await openWorkspace(flags, env), null, 2)}\n`);
     return EXIT.ok;
   } catch (error) {
     const code = error instanceof PaseoError ? error.code : 1;

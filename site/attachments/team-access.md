@@ -3,7 +3,7 @@ title: Everyone has access to your company secrets
 problem: Keys sit in shared files and chats, so every teammate and every AI can use all of them.
 fix: Each person signs in as themselves, and keys stay in your app, never in chat.
 order: 6
-checked: 2026-10-31
+checked: 2026-11-01
 sources:
   - wiki/stack/employee-access.md
   - wiki/development/secrets.md

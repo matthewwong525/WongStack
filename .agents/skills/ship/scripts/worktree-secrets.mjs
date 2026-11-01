@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // Keep a linked worktree's copies of the live secrets files in step with the primary checkout: `seed`, `status`,
-// `promote`. Output is JSON of paths and key names, never a value. The convention: wiki/development/secrets.md
+// `promote`; `seed` also copies the chat settings. JSON output never shows a value. See wiki/development/secrets.md
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { chmodSync, copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { chmodSync, copyFileSync, existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
 import { isMain } from "../../memory/scripts/lib/cli.mjs";
 import { primaryRoot } from "../../memory/scripts/lib/primary-root.mjs";
 
@@ -14,6 +14,7 @@ const LIVE_FILE = /^(\.env|\.dev\.vars)(\..+)?$/;
 export const ENTRY = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
 const BASE_FILE = "wongstack-secrets-base.json";
 const KINDS = ["add", "remove", "change", "conflict", "unresolved"];
+const SETTINGS = ".claude/settings.local.json";
 
 export function isIgnored(root, rel) {
   try {
@@ -68,9 +69,23 @@ function saveBase(ctx, base) {
   writeFileSync(join(ctx.gitDir, BASE_FILE), `${JSON.stringify(base, null, 2)}\n`, { mode: 0o600 });
 }
 
+/** Copies the primary's local chat settings into a worktree that has none: copied, kept, none, or not git-ignored. */
+function seedSettings(ctx) {
+  const source = join(ctx.primary, SETTINGS);
+  const target = join(ctx.root, SETTINGS);
+  if (!existsSync(source) || !existsSync(dirname(target))) return "none";
+  if (existsSync(target)) return "kept";
+  // `.claude` is often a link to `.agents`, and git checks the ignore rules only on the real path.
+  const rel = relative(realpathSync(ctx.root), join(realpathSync(dirname(target)), "settings.local.json"));
+  if (!isIgnored(ctx.root, rel)) return "not git-ignored";
+  copyFileSync(source, target);
+  chmodSync(target, 0o600);
+  return "copied";
+}
+
 function seed(ctx) {
   const base = loadBase(ctx) ?? { files: {} };
-  const result = { seeded: [], adopted: [], unseeded: [], skipped: [] };
+  const result = { seeded: [], adopted: [], unseeded: [], skipped: [], settings: seedSettings(ctx) };
 
   for (const rel of liveFiles(ctx.primary)) {
     if (base.files[rel]) continue;

@@ -99,7 +99,7 @@ A linked worktree works on its own **branch copy** of each live file, at the sam
 node .claude/skills/ship/scripts/worktree-secrets.mjs seed
 ```
 
-Wire that command into your worktree tool's setup step; this repo's `paseo.json` does. `seed` copies each primary live file the worktree ignores, never overwrites a file the worktree has, and records a baseline of key names and value hashes in the worktree's own Git directory — never in the working tree, and never a value.
+Wire that command into your worktree tool's setup step; this repo's `paseo.json` does. `seed` copies each primary live file the worktree ignores, never overwrites a file the worktree has, and records a baseline of key names and value hashes in the worktree's own Git directory — never in the working tree, and never a value. It also copies your local chat settings, `.claude/settings.local.json`, once; `status` and `promote` skip them.
 
 Route each edit by its kind, so `main` sees an edit only when it is safe:
 

@@ -36,7 +36,7 @@ Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned
 }
 ```
 
-**Browser → `<id>.batch.json`**: ordered commands; the driver feeds them unread to `agent-browser batch --bail --json`. First read `agent-browser skills get core` (`--full` for command details): use the installed guide.
+**Browser → `<id>.batch.json`**: ordered commands; the driver feeds them unread to `agent-browser batch --bail --json`. First read `agent-browser skills get core` (`--full` for details): use the installed guide.
 
 ```json
 [
@@ -76,7 +76,8 @@ Evidence rules:
 - **Screenshot where a person would look**, at numbered absolute paths under `$RUN_DIR/evidence/<id>/`; use `--full`, or `--annotate` for element labels.
 - **Use semantic elements** (`find role/text/label`) or same-batch snapshot refs; re-snapshot after navigation/re-render.
 - **Write no assertions**: a journey produces evidence.
-- **Never capture request headers**, `network requests` or HARs: they contain Access credentials.
+- **Re-read a typed date or time** (`get value`): `fill` can pass on an empty field.
+- **Never capture request headers**, `network requests` or HARs: they hold Access credentials.
 - Browser URLs must be full; only request paths use the preview base.
 
 ## c — run it
@@ -99,7 +100,7 @@ Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result
 
 - **A clean exit, green suite or `200` is not a pass.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**, as does exit zero or `200` with contradictory output.
 - A failing command is evidence, not a crash. `--bail` stops a browser journey there, so earlier evidence shows how far it got.
-- A screenshot that looks like the previous page → check the landed URL in `<id>.url`. A missing wait is the journey's defect, not the app's.
+- A screenshot that looks like the previous page → check the landed URL in `<id>.url`; a missing wait is the journey's defect: add it and re-walk.
 - `[redacted:.env]` in text evidence stands for a `.env` value the driver replaced; read the screenshot for it.
 - **Ambiguous → unverified**: retain evidence/`THEN`, offer readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks) at handoff; finish independent checks first.
 
@@ -111,7 +112,7 @@ Fix a failure by [fix it or ask](../../../../wiki/development/the-change-loop.md
 
 For an in-scope repair CI can cheaply reproduce, retain a focused check: `/save` captures its intended failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the available reproduction, missing proof and limitation. No new infrastructure.
 
-Usually **out of scope**: app `401` with valid service token (app authentication), previous-page screenshot (repair journey waits and re-walk).
+Usually **out of scope**: app `401` with valid service token (app authentication).
 
 ## f — post the evidence, then clean up
 

@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 45.4.0 — Small fixes from WongOS
+
+- **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)).
+- **A new workspace keeps your chat settings.** The worktree setup now also copies your `.claude/settings.local.json`, such as the commands you allowed, into a new workspace that has none. So a new chat does not ask for them again ([worktrees and branch copies](wiki/development/secrets.md#worktrees-and-branch-copies)).
+- **The app opens like a real app from a phone's home screen.** Add it to the home screen, and it opens full screen with no browser bar.
+- **Two lessons for checks.** A kept check points at sample data, not at a record a check made: a fresh rebuild removes that record ([kept checks](wiki/development/kept-checks.md)). A check reads a date or time field again after it types in it, because the browser tool can say the typing worked while the field stays empty.
+
+**Updating.** Nothing to do. A repo with its own `paseo.json` keeps it; its existing setup step copies the chat settings too.
+
 ## 45.3.0 — A quiet Daily chat
 
 - **The 15-minute wait holds.** A chat that stops soon after your own message waits 15 minutes from that message, even when it runs and stops again in between. A new message from you starts the wait again.

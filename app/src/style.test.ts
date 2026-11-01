@@ -47,6 +47,13 @@ it("starts light on every device, with a dark set the switch alone turns on", ()
   expect(css).toMatch(/--font-sans:\s*system-ui, sans-serif/);
 });
 
+it("opens full screen from a phone's home screen, under its generic title", () => {
+  const html = readFileSync(join(app, "index.html"), "utf8");
+  expect(html).toMatch(/<meta name="viewport" content="[^"]*\bviewport-fit=cover\b[^"]*"/);
+  expect(html).toContain('<meta name="apple-mobile-web-app-capable" content="yes" />');
+  expect(html).toContain("<title>Your apps</title>");
+});
+
 it("gives every page one frame: the bar's contents and the page share a width and a left edge", async () => {
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ state: "legacy", signIn: true })));
   render(createElement(MemoryRouter, null, createElement(Routes, null,
