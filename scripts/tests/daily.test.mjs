@@ -127,16 +127,17 @@ test('start opens each due routine once per day, with its first message; a missi
   const stateDir = temp('state');
   const config = loadSettings(join(root, '.agents/daily/alex.json'), root);
   const opened = [];
-  const launch = async args => { opened.push(args); return { ok: true, cwd: '/w/calm-cat', agentId: 'agent-review' }; };
+  const launch = async args => { opened.push(args); return { ok: true, cwd: '/w/calm-cat', workspaceName: 'Review', agentId: 'agent-review' }; };
   assert.deepEqual(dueTasks(config, root, '2026-10-21').map(task => task.key), ['review:2026-10-21']);
   assert.equal(firstMessage({ procedure: '.agents/skills/review/SKILL.md' }), '/review');
   const dry = await start({ config, project: root, stateDir, now: NOW, launch, dryRun: true });
   assert.deepEqual(dry.tasks, [{ title: 'Review', state: 'due', workspace: null, message: '/review' }]);
   const first = await start({ config, project: root, stateDir, now: NOW, launch, env: { PASEO_AGENT_ID: 'agent-daily' } });
-  assert.deepEqual(first.tasks, [{ title: 'Review', state: 'started', workspace: 'calm-cat' }]);
+  assert.deepEqual(first.tasks, [{ title: 'Review', state: 'started', workspace: 'Review' }]);
   assert.deepEqual(opened, [{ destination: root, title: 'Review', message: '/review' }]);
   const again = await start({ config, project: root, stateDir, now: NOW, launch, env: {} });
-  assert.deepEqual(again.tasks, [{ title: 'Review', state: 'already', workspace: 'calm-cat' }]);
+  assert.deepEqual(again.tasks, [{ title: 'Review', state: 'already', workspace: 'Review' }]);
+  assert.equal(startedRecord(stateDir).read()['review:2026-10-21'].cwd, '/w/calm-cat', 'the record keeps the folder to find the chat by');
   assert.equal(opened.length, 1);
   const report = startReport({ config, stateDir, now: NOW });
   assert.equal(report.morning, 'done');
@@ -218,14 +219,18 @@ test('picture gives this week, the backlog and late tasks oldest first, and the 
     { id: 'e', title: 'Older', week: '2026-09-28', slot: 'mon', status: 'open' }]);
   const agents = [{ id: 'agent-1', name: 'Fix it', status: 'idle', cwd: '/w/fox' }, { id: 'agent-sub', name: 'Helper', status: 'running', cwd: '/w/fox' },
     { id: 'agent-x', name: 'Elsewhere', status: 'idle', cwd: '/other/x' }, { id: 'agent-d', name: 'Daily', status: 'idle', cwd: '/w/fox' }];
-  const call = async ([name, id]) => (name === 'ls' ? agents : { ParentAgentId: id === 'agent-sub' ? 'agent-1' : null });
+  const workspaces = [{ workspaceId: 'ws-fox', name: 'Fix the login bug', cwd: '/w/fox/' }];
+  const call = async ([name, id]) => (name === 'ls' ? agents : name === 'workspace' ? workspaces : { ParentAgentId: id === 'agent-sub' ? 'agent-1' : null });
   const config = validateConfig(settings());
   const read = await picture({ config, project: '/w/main', now: NOW, board: box.board, call, env: { PASEO_AGENT_ID: 'agent-d' }, trees: async () => ['/w/main', '/w/fox'] });
   assert.deepEqual(read.sources, { tasks: 'ok', chats: 'ok' });
   assert.deepEqual(read.dated.map(task => task.id), ['a']);
   assert.deepEqual(read.backlog.map(task => task.id), ['c']);
   assert.deepEqual(read.late.map(task => [task.id, task.day, task.lateDays]), [['e', '2026-09-28', 23], ['d', '2026-10-16', 5]]);
-  assert.deepEqual(read.chats, [{ agent: 'agent-1', title: 'Fix it', status: 'idle', workspace: 'fox' }]);
+  assert.deepEqual(read.chats, [{ agent: 'agent-1', title: 'Fix it', status: 'idle', workspace: 'Fix the login bug' }]);
+  workspaces.length = 0;
+  const unnamed = await picture({ config, project: '/w/main', now: NOW, board: box.board, call, env: { PASEO_AGENT_ID: 'agent-d' }, trees: async () => ['/w/main', '/w/fox'] });
+  assert.equal(unnamed.chats[0].workspace, 'fox', 'a workspace Paseo does not list keeps its folder name');
   box.down = true;
   const off = await picture({ config: { ...config, sources: { tasks: true, chats: false } }, project: '/w/main', now: NOW, board: box.board, call });
   assert.deepEqual(off.sources, { tasks: 'unavailable', chats: 'off' });
@@ -239,13 +244,13 @@ test('start-task opens a task of today once ever, names its chat and marks it in
     { id: 'b', title: 'Tomorrow', week: '2026-10-19', slot: 'thu', status: 'open' },
     { id: 'c', title: 'Has a chat', week: '2026-10-19', slot: 'wed', status: 'open', chat: 'old-elk' }]);
   const opened = [];
-  const launch = async args => { opened.push(args); return { ok: true, cwd: '/w/kind-owl', agentId: 'agent-t' }; };
+  const launch = async args => { opened.push(args); return { ok: true, cwd: '/w/kind-owl', workspaceName: args.title, agentId: 'agent-t' }; };
   const go = (id, more = {}) => startTask({ config, project: '/w/main', stateDir, id, now: NOW, board: box.board, launch, ...more });
-  assert.deepEqual(await go('a', { note: 'use the app' }), { day: '2026-10-21', title: '-Call the bank', state: 'started', workspace: 'kind-owl' });
+  assert.deepEqual(await go('a', { note: 'use the app' }), { day: '2026-10-21', title: '-Call the bank', state: 'started', workspace: 'Task: -Call the bank' });
   assert.equal(opened[0].title, 'Task: -Call the bank');
   assert.equal(opened[0].message, taskMessage({ title: '-Call the bank', note: 'use the app' }));
   assert.match(opened[0].message, /^Call the bank\nNote: use the app\n/);
-  assert.deepEqual(box.calls.filter(([name]) => name !== 'tasks'), [['link', { id: 'a', chat: 'kind-owl' }], ['status', { id: 'a', status: 'in_progress' }]]);
+  assert.deepEqual(box.calls.filter(([name]) => name !== 'tasks'), [['link', { id: 'a', chat: 'Task: -Call the bank' }], ['status', { id: 'a', status: 'in_progress' }]]);
   assert.equal((await go('a')).state, 'already');
   assert.equal(opened.length, 1);
   assert.equal((await go('b')).state, 'refused');
@@ -257,12 +262,14 @@ test('open-daily finds or makes the Daily workspace, archives idle Daily chats a
   const stateDir = temp('state');
   const config = validateConfig(settings());
   const calls = [];
-  const paseo = { workspaces: [], daily: [{ id: 'old-idle', status: 'idle' }, { id: 'old-busy', status: 'running' }, { id: 'old-asks', status: 'idle' }] };
+  const paseo = { workspaces: [], models: [{ id: 'claude-opus-5-5', defaultThinkingOptionId: 'low' }],
+    daily: [{ id: 'old-idle', status: 'idle' }, { id: 'old-busy', status: 'running' }, { id: 'old-asks', status: 'idle' }] };
   const call = async args => {
     calls.push(args.join(' '));
     if (args[0] === 'workspace' && args[1] === 'ls') return paseo.workspaces;
     if (args[0] === 'workspace' && args[1] === 'create') return { workspaceId: 'wks_new' };
     if (args[0] === 'ls') return paseo.daily;
+    if (args[0] === 'provider') return paseo.models;
     if (args[0] === 'inspect') return { PendingPermissions: args[1] === 'old-asks' ? [{ id: 'r' }] : [] };
     if (args[0] === 'run') return { agentId: 'agent-daily' };
     return { ok: true };
@@ -271,11 +278,15 @@ test('open-daily finds or makes the Daily workspace, archives idle Daily chats a
   const opened = await openDaily({ config, project: '/w/main', stateDir, now: NOW, call });
   assert.deepEqual(opened, { state: 'opened', day: '2026-10-21', workspace: 'wks_new', created: true, agent: 'agent-daily', archived: ['old-idle'],
     kept: ['old-busy', 'old-asks'] });
-  assert.ok(calls.includes('run --workspace wks_new --label daily-chat=1 --title Daily --provider claude --mode bypassPermissions --no-wait /daily'));
+  assert.ok(calls.includes('run --workspace wks_new --label daily-chat=1 --title Daily --provider claude --thinking medium --mode bypassPermissions --no-wait /daily'),
+    'a model whose default is low gets medium');
   assert.equal((await openDaily({ config, project: '/w/main', stateDir, now: NOW, call })).state, 'already');
   paseo.workspaces = [{ workspaceId: 'wks_found', name: 'Daily', cwd: '/w/main/' }];
+  paseo.models = [{ id: 'claude-fable-5-1', defaultThinkingOptionId: 'high' }];
   const next = await openDaily({ config, project: '/w/main', stateDir: temp('state2'), now: NOW, call });
   assert.deepEqual([next.workspace, next.created], ['wks_found', false]);
+  assert.equal(calls.at(-1), 'run --workspace wks_found --label daily-chat=1 --title Daily --provider claude --mode bypassPermissions --no-wait /daily',
+    'a model whose default is high keeps it');
 });
 
 test('readArgs takes each command with its flags, chief-service as serve, and refuses the rest', () => {

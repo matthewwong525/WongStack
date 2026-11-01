@@ -18,6 +18,7 @@ import { BUCKETS, HAND_SOURCES, allow, answer, chiefDay, chiefEnv, close, doneAg
 import { SettingsError, addDays, loadSettings, localDay, mondayOf, occurrence, placePath, settingsFiles, settingsFor, slotOf } from './config.mjs';
 import { addLine, format, hookOutput, newLines, readLines } from './journal.mjs';
 import { serveDaily } from './worker.mjs';
+import { flooredThinking } from '../../schedule/scripts/workspace.mjs';
 
 const LAUNCHER = fileURLToPath(new URL('../../schedule/scripts/workspace.mjs', import.meta.url));
 const REPO = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -138,8 +139,8 @@ async function launchWorkspace({ destination, title, message }) {
   } finally { rmSync(directory, { recursive: true, force: true }); }
 }
 
-/** The name the person sees in Paseo's list of worktrees, such as `little-giraffe`. */
-const workspaceOf = opened => (opened.cwd && basename(opened.cwd)) || opened.workspaceName || opened.workspaceId || null;
+/** The workspace's name in Paseo, such as `Task: Call Kim`; its folder (`little-giraffe`) only when it has none. */
+const workspaceOf = opened => opened.workspaceName || (opened.cwd && basename(opened.cwd)) || opened.workspaceId || null;
 
 // ---------------------------------------------------------------------------
 // start
@@ -250,15 +251,23 @@ async function worktrees(project) {
   return stdout.split('\n').filter(line => line.startsWith('worktree ')).map(line => folderOf(line.slice(9)));
 }
 
+/** Each workspace folder's name in Paseo; empty when Paseo does not list them, so a folder name stands in. */
+async function workspaceNames(call) {
+  const list = await call(['workspace', 'ls', '--background']).catch(() => null);
+  return new Map((Array.isArray(list) ? list : []).filter(each => each?.cwd && each.name).map(each => [folderOf(each.cwd), each.name]));
+}
+
 /** Live top-level chats in this checkout's worktrees, never the Daily chat: names and status, no typed text. */
 async function readChats({ call, project, self, trees = worktrees }) {
   const folders = new Set(await trees(project));
   const list = await call(['ls', '--global']);
   if (!Array.isArray(list)) throw new Error('Paseo did not return a list.');
+  const names = await workspaceNames(call);
   const rows = [];
   for (const agent of list.filter(each => live(each) && each.id !== self && each.name !== 'Daily' && folders.has(folderOf(each.cwd))).slice(0, ROWS)) {
     if ((await call(['inspect', agent.id]).catch(() => null))?.ParentAgentId) continue;
-    rows.push({ agent: agent.id, title: agent.name ?? null, status: agent.status, workspace: basename(folderOf(agent.cwd)) || null });
+    const place = folderOf(agent.cwd);
+    rows.push({ agent: agent.id, title: agent.name ?? null, status: agent.status, workspace: names.get(place) ?? (basename(place) || null) });
   }
   return { chats: rows };
 }
@@ -357,8 +366,9 @@ export async function openDaily({ config, project, stateDir, now = new Date(), c
     if (!detail || detail.PendingPermissions?.length) kept.push(agent.id);
     else { await call(['archive', agent.id]); archived.push(agent.id); }
   }
-  const started = await call(['run', '--workspace', id, '--label', 'daily-chat=1', '--title', 'Daily', '--provider', 'claude', '--mode', 'bypassPermissions',
-    '--no-wait', '/daily']);
+  const thinking = await flooredThinking(call, { provider: 'claude', model: null, thinking: null });
+  const started = await call(['run', '--workspace', id, '--label', 'daily-chat=1', '--title', 'Daily', '--provider', 'claude',
+    ...(thinking ? ['--thinking', thinking] : []), '--mode', 'bypassPermissions', '--no-wait', '/daily']);
   saved.write({ workspaceId: id, agentId: started?.agentId ?? null });
   return { state: 'opened', day, workspace: id, created: !open, agent: started?.agentId ?? null, archived, kept };
 }

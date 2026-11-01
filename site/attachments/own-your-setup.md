@@ -3,7 +3,7 @@ title: Switch AI apps and you lose your whole setup
 problem: Your instructions, memory, and tools live inside one AI app, so switching starts you over.
 fix: Your setup lives in your own folder, in files any AI can read.
 order: 7
-checked: 2026-10-31
+checked: 2026-11-01
 sources:
   - AGENTS.md
   - wiki/maintaining/repo-layout.md

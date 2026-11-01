@@ -21,6 +21,37 @@ const PARENT_VARS = ['PASEO_AGENT_ID', 'PASEO_WORKSPACE_ID'];
 const PLACEHOLDERS = new Set(['main', 'master', 'default', 'hello', 'hello world', 'test', 'testing', 'untitled',
   'new workspace', 'workspace', 'scratch', 'temp', 'tmp', 'wip']);
 const SLUG = /^(?=.*[A-Za-z0-9])(?=.*[-_])[A-Za-z0-9._-]+$/;
+// Thinking below this floor becomes `medium`; `auto` and empty mean unset, so the model's own default applies.
+const BELOW_FLOOR = new Set(['none', 'off', 'minimal', 'low']);
+const UNSET = new Set(['', 'auto']);
+
+/** The level a chat opened for the person starts at: never below medium, and an unset level the model would run
+ *  at medium or more stays unset, so a model whose default is high keeps it. */
+export function floorThinking(level, modelDefault) {
+  const asked = String(level ?? '').trim().toLowerCase();
+  if (BELOW_FLOOR.has(asked)) return 'medium';
+  if (!UNSET.has(asked)) return String(level).trim();
+  const fallback = String(modelDefault ?? '').trim().toLowerCase();
+  return !fallback || UNSET.has(fallback) || BELOW_FLOOR.has(fallback) ? 'medium' : null;
+}
+
+/** The level the model runs at when none is passed, from `paseo provider models` through `call`; null when unread.
+ *  No model named means Paseo's default, which it lists first. */
+export async function modelDefault(call, { provider, model }) {
+  try {
+    const models = await call(['provider', 'models', provider]);
+    const found = Array.isArray(models) ? (model ? models.find(each => each.id === model) : models[0]) : null;
+    return found?.defaultThinkingOptionId ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The floored level for these settings; it reads the model's default only when no level is set. */
+export async function flooredThinking(call, settings) {
+  const unset = UNSET.has(String(settings.thinking ?? '').trim().toLowerCase());
+  return floorThinking(settings.thinking, unset ? await modelDefault(call, settings) : null);
+}
 
 /** The workspace's name in plain words: a slug becomes words; a placeholder, which no conversion fixes, is exit 2. */
 export function workspaceTitle(raw) {
@@ -215,6 +246,7 @@ export async function openWorkspace(flags, env = process.env, { cwd = process.cw
     const bin = findPaseo(env, 'WORKSPACE_PASEO_BIN');
     const caller = env.PASEO_AGENT_ID?.trim();
     ctx.settings = agentSettings(caller ? await paseo(bin, ['inspect', caller]) : null, flags.agent);
+    ctx.settings.thinking = await flooredThinking(args => paseo(bin, args, { env: childEnv(env) }), ctx.settings);
     let warning = null;
     if (!ctx.checkout) {
       ({ base: ctx.base, warning } = await freshBase(primary, await defaultBranch(primary), { fetch: !flags.dryRun }));
@@ -245,6 +277,7 @@ export async function openWorkspace(flags, env = process.env, { cwd = process.cw
       ...(ctx.checkout ? { checkout: ctx.checkout, commit: ctx.commit } : { base: ctx.base }),
       provider: ctx.settings.provider,
       model: ctx.settings.model,
+      thinking: ctx.settings.thinking,
       mode: ctx.settings.mode,
       ...(created?.setupSkippedReason ? { setupSkippedReason: created.setupSkippedReason } : {}),
       ...(warnings.length ? { warning: warnings.join('\n') } : {}),

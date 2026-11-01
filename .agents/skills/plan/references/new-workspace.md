@@ -58,22 +58,22 @@ A chat's task is its first ask, change or to-do. Another task, not a quick quest
 
 ## Open each workspace
 
-Write each other part's [brief](#the-brief) to a file in the git-ignored scratch folder that `node "$(git rev-parse --show-toplevel)/.claude/skills/schedule/scripts/tidy.mjs" scratch` makes and prints, then run:
+Write each other part's [brief](#the-brief) to a file in the scratch folder that `node "$(git rev-parse --show-toplevel)/.claude/skills/schedule/scripts/tidy.mjs" scratch` prints, then run:
 
 ```bash
 W="$(git rev-parse --show-toplevel)/.claude/skills/schedule/scripts/workspace.mjs"
 node "$W" open --title '<part>' --brief <file>
 ```
 
-Open every workspace this way: a raw `paseo run --new-workspace` keeps the branch name. Title it in the person's words, like *Sign in with Google*; the script refuses a placeholder like `main`.
+Open every workspace this way: a raw `paseo run --new-workspace --new-branch`, or Paseo's Handoff skill, keeps a slug name and skips the medium-thinking floor. Title it in the person's words, like *Sign in with Google*; the script refuses a placeholder like `main`.
 
-The workspace starts from the freshly fetched default branch, never this one. Outside a Paseo agent (`PASEO_AGENT_ID` unset), add `--agent claude` or `--agent codex` for the agent you are.
+The workspace starts from the fresh default branch, never this one. Outside a Paseo agent (`PASEO_AGENT_ID` unset), add `--agent claude` or `--agent codex` for the agent you are.
 
 Exit `2` is bad input or Paseo refusing: show `error`. Exits `3` to `5` opened nothing: show `error` and `fallback.app`, then do the parts here.
 
 ## The brief
 
-The new agent starts with no conversation, so the brief carries it:
+The brief is all the new agent knows:
 
 ```text
 /plan <the part, in the person's words>
@@ -84,11 +84,11 @@ This is one part of a larger request. Plan only this part.
 - Builds on: <part> — <being built here | in workspace "<title>" | about to publish | none>
 ```
 
-A part that builds on another opens now, with the rest. Its plan records what it builds on; whichever publishes second catches up.
+A part that builds on another opens now too; its plan records what it builds on, and whichever publishes second catches up.
 
 ## Report
 
-Before drafting your plan, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* Add any `warning` the script prints. On `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person. A technical reader also gets the workspace id and branch.
+Before your plan, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* Add any `warning` the script prints. On `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person. A technical reader also gets the workspace id and branch.
 
 ## Pick up saved work
 

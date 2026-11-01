@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Chats opened for you think at medium or more and show their names
+
+- **A chat opened for you never thinks below medium.** The workspace launcher, the Daily chat, and a schedule on the app's clock pass `--thinking`. Low, off, or none becomes medium. High and above stay. An unset level stays unset when the model's own default is medium or more, so a model that defaults to high keeps high; when the default is lower or can not be read, it becomes medium ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)). A chat you start yourself keeps the level you pick.
+- **Open a workspace only through the launcher.** A raw `paseo run --new-workspace` with `--new-branch`, or Paseo's Handoff skill, keeps a slug name such as `roadmap-week-bricks` and the caller's thinking level ([new workspaces](.agents/skills/plan/references/new-workspace.md)).
+- **The Daily shows a chat's workspace name, not its folder.** The morning lines, the Daily's chat list, and the chat on a board task show *Task: Call Kim*, not `potent-quail`. The folder name still finds the chat.
+
+**Updating.** Nothing to do. If your repo added its own thinking floor to `workspace.mjs`, take this one in its place.
+
 ## 45.4.0 — Small fixes from WongOS
 
 - **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)).

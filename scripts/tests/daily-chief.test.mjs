@@ -23,7 +23,7 @@ afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: 
 function day() {
   const stateDir = mkdtempSync(join(tmpdir(), 'chief-test-')); roots.push(stateDir);
   const record = {
-    'task:job': { workspace: 'bold-otter', cwd: '/w/bold-otter', agentId: 'agent-job', at: new Date(START - HOUR).toISOString(), title: 'Post the editor job', id: 'job' },
+    'task:job': { workspace: 'Task: Post the editor job', cwd: '/w/bold-otter', agentId: 'agent-job', at: new Date(START - HOUR).toISOString(), title: 'Post the editor job', id: 'job' },
     'email:2026-10-21': { workspace: 'calm-cat', cwd: join(homedir(), 'w/calm-cat'), at: new Date(START - HOUR).toISOString() },
     'task:old': { workspace: 'old-owl', cwd: '/w/old-owl', agentId: 'agent-old', at: new Date(START - 30 * HOUR).toISOString(), title: 'Old task', id: 'old' },
   };
@@ -109,6 +109,23 @@ test('hand finds a chat by id, id prefix, title or workspace, and refuses this c
   assert.equal((await hand({ ...at, day: '2026-10-21', agent: 'agent-team', env: {} })).status, 'unsupported');
 });
 
+test('a handed or admitted chat shows its workspace name, and its folder name still finds it', async () => {
+  const t = day();
+  t.paseo.workspaces = [{ workspaceId: 'ws-team', cwd: '/w/team-yak', name: 'Plan the team week' },
+    { workspaceId: 'ws-mine', cwd: '/w/agent-mine', name: 'Fix the login page' }];
+  assert.deepEqual(await hand({ ...t.at, day: '2026-10-21', agent: 'Team plan', env, now: new Date(START) }),
+    { status: 'handed', agent: 'agent-team', title: 'Team plan', workspace: 'Plan the team week', source: 'handed' });
+  t.own('agent-mine', 'My own chat');
+  await t.once(START);
+  const rows = watched({ ...t.at, day: '2026-10-21', list: t.paseo.list, self: SELF });
+  assert.deepEqual(rows.filter(row => ['agent-team', 'agent-mine'].includes(row.agentId)).map(row => [row.agentId, row.workspace, row.cwd]),
+    [['agent-team', 'Plan the team week', '/w/team-yak'], ['agent-mine', 'Fix the login page', '/w/agent-mine']]);
+  for (const folder of ['team-yak', 'agent-mine']) {
+    assert.equal((await reply({ ...t.at, day: '2026-10-21', agent: folder, text: 'Keep going.', bucket: 'keep-going', label: 'Keep going', env,
+      now: new Date(START + MIN) })).status, 'sent', folder);
+  }
+});
+
 test('watch says asking, stopped once per idle spell, gone, done and not read one time each, and a second watch repeats none of it', async () => {
   const t = day();
   await hand({ ...t.at, day: '2026-10-21', agent: 'Team plan', env, now: new Date(START) });
@@ -129,6 +146,7 @@ test('watch says asking, stopped once per idle spell, gone, done and not read on
   t.paseo.list[0].status = 'idle';
   await t.once(START + 240e3);
   assert.deepEqual(t.taken(), [['stopped', 'agent-job']]);
+  // The started row shows the workspace's name; its folder name still finds it.
   assert.equal((await reply({ ...t.at, day: '2026-10-21', agent: 'bold-otter', text: 'Keep going.', bucket: 'keep-going', label: 'Keep going: job', env,
     now: new Date(START + 250e3) })).status, 'sent');
   await t.once(START + 300e3);

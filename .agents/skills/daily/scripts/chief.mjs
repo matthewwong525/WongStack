@@ -80,12 +80,22 @@ export function watched({ stateDir, day, started, timezone, list = [], self, ign
       && !seen.has(row.agentId) && seen.add(row.agentId));
 }
 
+/** Each workspace folder's name in Paseo; empty when Paseo does not list them, so a folder name stands in. */
+async function workspaceNames(call) {
+  const list = await call(['workspace', 'ls', '--background']).catch(() => null);
+  return new Map((Array.isArray(list) ? list : []).filter(each => each?.cwd && each.name).map(each => [folder(each.cwd), each.name]));
+}
+
+// The board shows `workspace`; `cwd` keeps the folder, so a folder name still finds the chat.
+const placeOf = (names, cwd) => ({ workspace: names.get(folder(cwd)) ?? (basename(folder(cwd)) || null), cwd: cwd ?? null });
+
 // The Daily chat is the watch's own chat: never watched.
 const OWN_NAMES = ['Daily'];
 
 // Admits each live top-level chat that worked in the last 24 hours, once; `inspect` runs again only on a new status.
 // A skipped chat leaves, and joins again only when it works after the skip ends.
 async function admit({ rows, list, state, call, self, ignore = [], now, skip = new Set() }) {
+  let names;
   for (const row of state.chats.filter(each => skip.has(each.agentId))) {
     state.known[row.agentId] = { parent: null, status: null, skipped: true };
     delete state.agents[row.agentId];
@@ -101,8 +111,8 @@ async function admit({ rows, list, state, call, self, ignore = [], now, skip = n
     try { detail = await call(['inspect', agent.id]); } catch { continue; }
     state.known[agent.id] = { parent: detail?.ParentAgentId ?? null, updatedAt: detail?.UpdatedAt ?? null, status: agent.status };
     if (detail?.ParentAgentId || !(working(agent.status) || now - Date.parse(detail?.UpdatedAt ?? 0) < DAY_MS)) continue;
-    state.chats.push({ agentId: agent.id, title: agent.name ?? null, workspace: basename(folder(agent.cwd)) || null, source: 'own',
-      at: new Date(now).toISOString() });
+    names ??= await workspaceNames(call);
+    state.chats.push({ agentId: agent.id, title: agent.name ?? null, ...placeOf(names, agent.cwd), source: 'own', at: new Date(now).toISOString() });
   }
 }
 
@@ -166,7 +176,8 @@ export function findAgents(list, name) {
 function watchedRow(rows, name) {
   const want = lowered(name);
   return rows.find(row => row.agentId === name) ?? rows.find(row => name.length >= 4 && row.agentId.startsWith(name))
-    ?? rows.find(row => lowered(row.title) === want || lowered(row.workspace) === want) ?? null;
+    ?? rows.find(row => lowered(row.title) === want || lowered(row.workspace) === want || (row.cwd && lowered(basename(folder(row.cwd))) === want))
+    ?? null;
 }
 
 /** A short mark of a text, or null for none: a different mark means the agent said something new. */
@@ -473,7 +484,7 @@ export async function hand({ stateDir, day, started, timezone, agent: name, sour
   if (skipped(stateDir, day).has(agent.id)) return { status: 'refused', reason: 'skip', error: `An add-on leaves ${agent.name ?? name} alone.` };
   const before = watched({ stateDir, day, started, timezone, list }).find(row => row.agentId === agent.id);
   if (before && !(source === 'asked' && before.source === 'own')) return { status: 'already', ...describe(before) };
-  const entry = { agentId: agent.id, title: agent.name ?? name, workspace: basename(folder(agent.cwd)) || null, source, at: now.toISOString() };
+  const entry = { agentId: agent.id, title: agent.name ?? name, ...placeOf(await workspaceNames(call), agent.cwd), source, at: now.toISOString() };
   writeJson(handsFile(stateDir, day), [...readJson(handsFile(stateDir, day), []), entry]);
   return { status: 'handed', ...describe(entry) };
 }
