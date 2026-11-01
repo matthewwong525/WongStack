@@ -5,8 +5,8 @@ import { dirname, join } from 'node:path';
 import { helperFiles } from '../../../hand-over/scripts/lib/computer.mjs';
 import { loadRecord, listRecords } from './records.mjs';
 import { appCall, appFields, paseoAdapter, startupPrompt } from './hosts.mjs';
-import { EXIT, PaseoError, findPaseo, runPaseo } from './paseo.mjs';
-import { childEnv, workspaceTitle } from '../workspace.mjs';
+import { EXIT, PaseoError, findPaseo, paseo, runPaseo } from './paseo.mjs';
+import { childEnv, flooredThinking, workspaceTitle } from '../workspace.mjs';
 
 const KEY = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const DISABLED = ['registering', 'paused', 'cancelled', 'completed', 'superseded', 'cleanup-pending'];
@@ -41,10 +41,15 @@ export async function checkRun(run, root) {
 /** Opens the run's chat as a Paseo schedule would: in the record's checkout, with the guarded startup prompt. */
 export async function openSession({ binding, title, env = process.env }) {
   const context = binding.execution.context;
+  const bin = findPaseo(env, 'WONG_PASEO_BIN');
   const args = ['run', '-d', '--cwd', context.cwd, '--title', title];
   if (context.provider) args.push('--provider', context.provider);
+  // A provider may name its model (`codex/gpt-6.1-sol`); Paseo's default provider is Claude.
+  const [provider, model = null] = String(context.provider || 'claude').split('/');
+  const thinking = await flooredThinking(more => paseo(bin, more, { env: childEnv(env) }), { provider, model, thinking: null });
+  if (thinking) args.push('--thinking', thinking);
   if (context.mode) args.push('--mode', context.mode);
-  const { data } = await runPaseo(findPaseo(env, 'WONG_PASEO_BIN'), [...args, '--', startupPrompt(binding)], { env: childEnv(env) });
+  const { data } = await runPaseo(bin, [...args, '--', startupPrompt(binding)], { env: childEnv(env) });
   return { agentId: data?.agentId ?? null, chatTitle: data?.title ?? title };
 }
 
