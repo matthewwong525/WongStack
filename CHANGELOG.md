@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — The browser runs Camoufox 158
+
+- **The browser is Camoufox 158 and tells sites its true version.** The personal browser now runs the build that the official [Camoufox](https://github.com/daijro/camoufox) library pins, with a disguise made for that build. A site that checks the browser version, such as an online store's admin, sees the version that really runs, so it shows no "unsupported browser" page ([browsing](wiki/development/browsing.md)).
+- **Our own small browser server replaces camofox.** [`browser-server.mjs`](.agents/skills/browser/scripts/browser-server.mjs) drives the browser, with the same `browse.mjs` commands as before. Your skills and scripts need no change.
+- **Logins stay in a real profile folder, with one kept identity.** Site logins and site storage stay in `~/.wong-stack/camoufox/profile/`. The browser keeps one disguise from start to start, so sites see the same browser after a restart.
+- **Your logins move once, and Meta logins never move.** The first start copies the old browser's site logins one time. It never copies a Facebook, Messenger, Instagram or other Meta login, because Meta can lock an account when its login shows up in another browser. You sign in to those again yourself.
+- **The install needs Python.** The first errand asks before it installs about 3 GB into your home folder. It needs Python 3.10 or newer with its `venv` part; with none, it says how to get it. On a Mac, the browser runs with no window ([installing Camoufox](wiki/development/required-tools.md#installing-camoufox)).
+- **The dependency update watches the new pin.** `/update-dependencies` checks for a newer Camoufox library and hands it to you. It never moves the pin itself.
+
+**Updating.** Before you update, stop the old browser: run `node .claude/skills/browser/scripts/browse.mjs stop`. After the update, the first browsing task asks to install the new browser, which needs Python 3.10 or newer. Your site logins move over once, except Meta's: sign in to Facebook, Messenger and Instagram again. When the new browser has your logins, you can delete the old folders `~/.wong-stack/camofox/` and `~/.cache/camoufox` to get the space back.
+
 ## 45.4.0 — Small fixes from WongOS
 
 - **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)).

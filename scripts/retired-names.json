@@ -137,5 +137,7 @@
   {"name": "wong-daily/", "replacement": "the daily state folder under `~/.local/state/wongstack/daily/`"},
   {"name": "inbox:scroll", "replacement": "`inbox:back` from the plan page's own Back", "allow": ["app/src/apps/inbox/frame.test.ts", "app/src/apps/inbox/PlanView.test.tsx"], "why": "each test sends the message an older plan still posts, to show the inbox ignores it"},
   {"name": "tuckBars", "replacement": "the pinned top bar in `app/src/Layout.tsx`"},
-  {"name": "Watch · <day>", "replacement": "the daily's journal, `D journal --new`"}
+  {"name": "Watch · <day>", "replacement": "the daily's journal, `D journal --new`"},
+  {"name": "@askjo/camofox-browser", "replacement": "the Camoufox library, pinned by `CAMOUFOX` in `.agents/skills/browser/scripts/browse.mjs`"},
+  {"name": "#installing-camofox", "replacement": "`#installing-camoufox` in `wiki/development/required-tools.md`"}
 ]

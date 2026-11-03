@@ -4,11 +4,11 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { CAMOFOX } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { CAMOUFOX } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
 import { SHOP } from '../../.agents/skills/shop/scripts/shop.mjs';
 import {
-  CAMOFOX_PINS, PIN_FILES, SHOP_PIN, VIEWER_PIN, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamofoxPins, readPin, readShopPin, readViewerPin, rewritePins, run,
+  CAMOUFOX_PIN, PIN_FILES, SHOP_PIN, VIEWER_PIN, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamoufoxPin, readPin, readShopPin, readViewerPin, rewritePins, run,
 } from '../../.agents/skills/update-dependencies/scripts/update.mjs';
 
 test('a bump keeps the range prefix and never goes backwards', () => {
@@ -62,12 +62,12 @@ test('every OpenSpec pin matches the version CI checks the skills against', () =
   }
 });
 
-// camofox and its driver are pinned in browse.mjs alone; the updater reads that file, not a copy.
-test('camofox\'s two pins are read from browse.mjs itself', () => {
-  const text = readFileSync(join(import.meta.dirname, '../..', CAMOFOX_PINS), 'utf8');
-  assert.deepEqual(readCamofoxPins(text), { camofox: CAMOFOX['@askjo/camofox-browser'], driver: CAMOFOX['playwright-core'] });
-  assert.equal(readCamofoxPins("{ '@askjo/camofox-browser': '1.18.1' }"), null, 'one pin alone is no pin');
-  assert.equal(readCamofoxPins("{ '@askjo/camofox-browser': '^1.18.1', 'playwright-core': '1.58.2' }"), null, 'a range is no pin');
+// The Camoufox library and its build are pinned in browse.mjs alone; the updater reads that file, not a copy.
+test('the Camoufox pin is read from browse.mjs itself', () => {
+  const text = readFileSync(join(import.meta.dirname, '../..', CAMOUFOX_PIN), 'utf8');
+  assert.deepEqual(readCamoufoxPin(text), { library: CAMOUFOX.python, build: CAMOUFOX.build });
+  assert.equal(readCamoufoxPin("CAMOUFOX = { python: '0.5.9' }"), null, 'a library with no build is no pin');
+  assert.equal(readCamoufoxPin("CAMOUFOX = { python: '^0.5.9', build: 'v158.0.1-beta.41' }"), null, 'a range is no pin');
 });
 
 // The live view's viewer is pinned in view.mjs alone; the updater reads that file, not a copy.
@@ -362,35 +362,35 @@ test('--dry-run prints what every stage would change and writes nothing', async 
   assert.doesNotMatch(f.calls(), /npm install/);
 });
 
-const CAMOFOX_FILE = "export const CAMOFOX = { '@askjo/camofox-browser': '1.18.1', 'playwright-core': '1.58.2' };\n";
+const CAMOUFOX_FILE = "export const CAMOUFOX = { python: '0.5.9', build: 'v158.0.1-beta.41' };\n";
+/** A fetchJson that answers PyPI with `camoufox` as its newest version, and every other address with the Node index. */
+const withPypi = camoufox => async url => (url === 'https://pypi.org/pypi/camoufox/json' ? { info: { version: camoufox } } : NODE_INDEX);
 
-test('camofox\'s pins are surveyed and never moved: a newer one is handed to the person with the rule', async t => {
-  const f = fixture(t, withRegistry({ '@askjo/camofox-browser': '1.18.1' }));
-  write(f.root, CAMOFOX_PINS, CAMOFOX_FILE);
-  const current = await f.go();
+test('the Camoufox pin is surveyed and never moved: a newer library is handed to the person with the rule', async t => {
+  const f = fixture(t);
+  write(f.root, CAMOUFOX_PIN, CAMOUFOX_FILE);
+  const current = await f.go({ fetchJson: withPypi('0.5.9') });
   assert.equal(current.code, 0, current.out);
-  assert.match(current.out, /^camofox 1\.18\.1 current, driver 1\.58\.2 pinned$/m);
+  assert.match(current.out, /^camoufox 0\.5\.9 current, build v158\.0\.1-beta\.41 pinned$/m);
   assert.doesNotMatch(current.out, /needs you/);
 
-  f.setState(withRegistry({ '@askjo/camofox-browser': '1.19.0' }));
-  const newer = await f.go();
+  const newer = await f.go({ fetchJson: withPypi('0.6.0') });
   assert.equal(newer.code, 0, newer.out);
-  assert.match(newer.out, /^camofox 1\.18\.1 -> 1\.19\.0 pinned, driver 1\.58\.2$/m);
-  assert.match(newer.out, /^needs you: camofox 1\.18\.1 -> 1\.19\.0: move both pins in \.agents\/skills\/browser\/scripts\/browse\.mjs together, and only after a login saves and survives a restart on a real camofox with them$/m);
+  assert.match(newer.out, /^camoufox 0\.5\.9 -> 0\.6\.0 pinned, build v158\.0\.1-beta\.41$/m);
+  assert.match(newer.out, /^needs you: camoufox 0\.5\.9 -> 0\.6\.0: move the library and the build it pins in \.agents\/skills\/browser\/scripts\/browse\.mjs together, and only after a login saves and survives a restart on a real Camoufox with them$/m);
   assert.match(newer.out, /^status: needs-agent$/m);
-  assert.equal(f.read(CAMOFOX_PINS), CAMOFOX_FILE, 'the pins are left as they are');
-  assert.doesNotMatch(f.calls(), /npm install/);
+  assert.equal(f.read(CAMOUFOX_PIN), CAMOUFOX_FILE, 'the pin is left as it is');
+  assert.doesNotMatch(f.calls(), /npm install|pip/);
 });
 
-test('a browse.mjs that pins nothing fails the survey, and a repo without it skips camofox', async t => {
+test('a browse.mjs that pins nothing fails the survey, and a repo without it skips Camoufox', async t => {
   const f = fixture(t);
   const without = await f.go();
-  assert.doesNotMatch(without.out, /camofox/);
-  assert.doesNotMatch(f.calls(), /camofox/);
-  write(f.root, CAMOFOX_PINS, "export const CAMOFOX = { '@askjo/camofox-browser': 'latest' };\n");
+  assert.doesNotMatch(without.out, /camoufox/i);
+  write(f.root, CAMOUFOX_PIN, "export const CAMOUFOX = { python: 'latest' };\n");
   const unpinned = await f.go();
   assert.equal(unpinned.code, 1);
-  assert.match(unpinned.out, /^FAIL \.agents\/skills\/browser\/scripts\/browse\.mjs — names no pinned camofox and playwright-core versions$/m);
+  assert.match(unpinned.out, /^FAIL \.agents\/skills\/browser\/scripts\/browse\.mjs — names no pinned Camoufox library and build$/m);
 });
 
 const VIEWER_FILE = "export const VIEWER = { version: '1.6.0', url: 'https://example.invalid/v1.6.0.tar.gz', sha256: 'abc' };\n";

@@ -61,7 +61,7 @@ After the four pass, install each missing helper the same yes covered ([why each
 - **`agent-browser`:** `npm install -g agent-browser` (`--prefix ~/.local` when it needs `sudo`), then `agent-browser install` for its Chrome, with `--with-deps` on Linux only when `sudo -n true` succeeds.
 - **`cloudflared`:** [its route](../../../../wiki/development/required-tools.md#installing-cloudflared) for this system. It also signs the owner in for memory and company actions at [the first deploy](cloudflare.md#4g-smoke-test-what-you-built).
 
-Never offer camofox here: the first errand asks, then runs `browse.mjs install` ([why](../../../../wiki/development/required-tools.md#installing-camofox)). Nor Shop's command: the first shopping request [asks](../../../../wiki/development/required-tools.md#installing-shops-command). The inbox helper installs later, in the target.
+Never offer Camoufox here: the first errand asks, then runs `browse.mjs install` ([why](../../../../wiki/development/required-tools.md#installing-camoufox)). Nor Shop's command: the first shopping request [asks](../../../../wiki/development/required-tools.md#installing-shops-command). The inbox helper installs later, in the target.
 
 A helper still missing after install doesn't stop setup: say so in one line (*"The browser didn't install; I'll offer it again when I need it."*) and continue. Without `cloudflared`, memory waits on this computer until it is in.
 

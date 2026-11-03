@@ -1,27 +1,55 @@
-// Installs fake-camofox-server.mjs where browse.mjs looks for camofox, under a test's own HOME. `fakeCamofox(home)`
-// returns the control folder's helpers. BROWSE_ENV sets browse.mjs waits: long caps, so a wait ends by its state.
+// A fake Camoufox under a test's own HOME: a venv `python` for browse.mjs's install and pin checks, and BROWSE_ENV,
+// which starts fake-camofox-server.mjs as the server and sets long wait caps, so a wait ends by its state.
 
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 
-const SERVER = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'fake-camofox-server.mjs')).href;
-export const BROWSE_ENV = { BROWSE_SETTLE_MS: '15000', BROWSE_SETTLE_GAP_MS: '10', BROWSE_LOGIN_WAIT_MS: '300', BROWSE_COMMAND_MS: '15000', BROWSE_START_MS: '15000' };
+const SERVER = join(dirname(fileURLToPath(import.meta.url)), 'fake-camofox-server.mjs');
+export const BROWSE_ENV = { BROWSE_SETTLE_MS: '15000', BROWSE_SETTLE_GAP_MS: '10', BROWSE_LOGIN_WAIT_MS: '300', BROWSE_COMMAND_MS: '15000', BROWSE_START_MS: '15000', BROWSE_SERVER_SCRIPT: SERVER };
+/** The versions browse.mjs pins, as the fake library answers its check. */
+export const PINNED = { library: '0.5.9', build: '158.0.1-beta.41' };
 
-/** `driver` is the playwright-core version the install holds; `installed: false` leaves camofox out. */
-export function fakeCamofox(home, { driver = '1.58.2', installed = true } = {}) {
-  const install = join(home, '.wong-stack', 'camofox');
+/** A fake Python: `-m venv <dir>` makes `<dir>/bin/python` a copy of itself; pip and `camoufox fetch` pass unless
+ * `fail-pip` is set; launch-config.py prints `check.json`, else the pinned pair. Each run goes to `python.jsonl`. */
+export function fakePython(file, control) {
+  writeFileSync(file, `#!${process.execPath}
+const fs = require('node:fs');
+const path = require('node:path');
+const control = ${JSON.stringify(control)};
+const args = process.argv.slice(2);
+fs.appendFileSync(path.join(control, 'python.jsonl'), JSON.stringify({ python: __filename, args, cache: process.env.XDG_CACHE_HOME, tmp: process.env.TMPDIR }) + '\\n');
+if (args[0] === '-I' && args[1] === '-c') process.exit(0);
+if (args[0] === '-m' && args[1] === 'venv') {
+  fs.mkdirSync(path.join(args[2], 'bin'), { recursive: true });
+  fs.copyFileSync(__filename, path.join(args[2], 'bin', 'python'));
+  fs.chmodSync(path.join(args[2], 'bin', 'python'), 0o755);
+  process.exit(0);
+}
+if (args[0] === '-m') {
+  if (fs.existsSync(path.join(control, 'fail-pip'))) { console.error('pip error: no space left on device'); process.exit(1); }
+  process.exit(0);
+}
+const check = fs.existsSync(path.join(control, 'check.json')) ? fs.readFileSync(path.join(control, 'check.json'), 'utf8') : ${JSON.stringify(JSON.stringify(PINNED))};
+console.log(check);
+process.exit(JSON.parse(check).error ? 3 : 0);
+`);
+  chmodSync(file, 0o755);
+  return file;
+}
+
+/** `installed: false` leaves the venv out. */
+export function fakeCamofox(home, { installed = true } = {}) {
+  const install = join(home, '.wong-stack', 'camoufox');
   const control = join(home, 'fake-camofox');
   mkdirSync(control, { recursive: true });
   const file = name => join(control, name);
   if (installed) {
-    for (const [name, version] of [['@askjo/camofox-browser', '1.18.1'], ['playwright-core', driver]]) {
-      mkdirSync(join(install, 'node_modules', name), { recursive: true });
-      writeFileSync(join(install, 'node_modules', name, 'package.json'), JSON.stringify({ name, version, type: 'module' }));
-    }
-    writeFileSync(join(install, 'node_modules/@askjo/camofox-browser/server.js'), `globalThis.FAKE_CAMOFOX_DIR = ${JSON.stringify(control)};\nawait import(${JSON.stringify(SERVER)});\n`);
+    mkdirSync(join(install, 'venv', PINNED.library, 'bin'), { recursive: true });
+    fakePython(join(install, 'venv', PINNED.library, 'bin', 'python'), control);
   }
   const json = name => (existsSync(file(name)) ? JSON.parse(readFileSync(file(name), 'utf8')) : null);
+  const lines = name => (existsSync(file(name)) ? readFileSync(file(name), 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : []);
   const serverPid = () => { try { return JSON.parse(readFileSync(join(install, 'server.json'), 'utf8')).pid; } catch { return null; } };
   return {
     install,
@@ -31,10 +59,12 @@ export function fakeCamofox(home, { driver = '1.58.2', installed = true } = {}) 
     has: name => existsSync(file(name)),
     env: () => json('env.json'),
     tabs: () => json('tabs.json') ?? [],
+    /** Each run of the fake Python, `{python, args, cache, tmp}`. */
+    pythonRuns: () => lines('python.jsonl'),
     starts: () => (existsSync(file('starts.log')) ? readFileSync(file('starts.log'), 'utf8').trim().split('\n').length : 0),
     /** The stacks of the server's crashes, '' when none: a failing test prints them. */
     errors: () => (existsSync(file('errors.log')) ? readFileSync(file('errors.log'), 'utf8') : ''),
-    requests: () => (existsSync(file('requests.jsonl')) ? readFileSync(file('requests.jsonl'), 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : []),
+    requests: () => lines('requests.jsonl'),
     /** Each request as `METHOD /path`, with each tab's id written `:tab`. */
     calls() { return this.requests().map(({ method, path }) => `${method} ${path.replace(/\/tabs\/[0-9a-f-]{36}/, '/tabs/:tab')}`); },
     serverPid,

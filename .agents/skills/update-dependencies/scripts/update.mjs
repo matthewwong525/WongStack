@@ -11,7 +11,7 @@ const USAGE = `Usage: node .claude/skills/update-dependencies/scripts/update.mjs
 
 Surveys and updates the OpenSpec and browser CLIs, the OpenSpec pins, and the app/,
 scripts/tests/, and site/ dependencies, then checks the OpenSpec contract and reports.
-camofox's two pins in browse.mjs, the live view's viewer pin in view.mjs, and the pin of Shop's
+the Camoufox library's pin in browse.mjs, the live view's viewer pin in view.mjs, and the pin of Shop's
 command in shop.mjs are surveyed and never moved: a newer one is handed to you. Each stage prints
 "== <stage>", a line per item, then "ok", or "FAIL <what> — <error>" and exits 1.
 Run it again after a fix: finished stages report current.
@@ -29,8 +29,9 @@ export const PIN_FILES = [
   '.github/CONTRIBUTING.md',
 ];
 const PROSE_FILE = '.github/CONTRIBUTING.md';
-// camofox and its browser driver are pinned in one constant here; a repo without the file skips them.
-export const CAMOFOX_PINS = '.agents/skills/browser/scripts/browse.mjs';
+// The Camoufox library and the build it pins are named in one constant here; a repo without the file skips them.
+export const CAMOUFOX_PIN = '.agents/skills/browser/scripts/browse.mjs';
+const CAMOUFOX_INDEX = 'https://pypi.org/pypi/camoufox/json';
 // The live view's viewer, noVNC, is pinned by version and by its files' fingerprint in one constant here.
 export const VIEWER_PIN = '.agents/skills/hand-over/scripts/view.mjs';
 // Shop's command is pinned by version and by its package's fingerprint in one constant here.
@@ -89,11 +90,10 @@ export function readPin(text) {
   return text.match(PIN)?.[1] ?? null;
 }
 
-/** The two versions browse.mjs installs, `{camofox, driver}`, or null when the text pins either one no more. */
-export function readCamofoxPins(text) {
-  const pin = name => text.match(new RegExp(`'${name}': '(\\d+\\.\\d+\\.\\d+)'`))?.[1];
-  const [camofox, driver] = [pin('@askjo/camofox-browser'), pin('playwright-core')];
-  return camofox && driver ? { camofox, driver } : null;
+/** What browse.mjs installs, `{library, build}`, or null when the text pins either one no more. */
+export function readCamoufoxPin(text) {
+  const match = text.match(/CAMOUFOX = \{ python: '(\d+\.\d+\.\d+)', build: '(v[\w.-]+)' \}/);
+  return match ? { library: match[1], build: match[2] } : null;
 }
 
 /** The noVNC version view.mjs installs, or null when the text pins none. */
@@ -240,7 +240,7 @@ async function survey(ctx) {
     else ctx.log(behind(tool) ? `${name} ${tool.installed ?? 'missing'} -> ${tool.latest}` : `${name} ${tool.installed} current`);
   }
 
-  await surveyCamofox(ctx);
+  await surveyCamoufox(ctx);
   await surveyViewer(ctx);
   await surveyShop(ctx);
 
@@ -270,16 +270,19 @@ async function survey(ctx) {
   }
 }
 
-// camofox's pins are read, never moved here: a newer driver once broke saving a login, so the two move together,
-// by hand, and only once a login saved and came back on a real camofox.
-async function surveyCamofox(ctx) {
-  if (!existsSync(join(ctx.root, CAMOFOX_PINS))) return;
-  const pins = readCamofoxPins(readText(ctx, CAMOFOX_PINS));
-  if (!pins) throw new StageFailure(CAMOFOX_PINS, 'names no pinned camofox and playwright-core versions');
-  const latest = versionOf(await need(ctx, 'npm', ['view', '@askjo/camofox-browser', 'version']));
-  if (compareVersions(latest, pins.camofox) <= 0) { ctx.log(`camofox ${pins.camofox} current, driver ${pins.driver} pinned`); return; }
-  ctx.log(`camofox ${pins.camofox} -> ${latest} pinned, driver ${pins.driver}`);
-  needsYou(ctx, `camofox ${pins.camofox} -> ${latest}: move both pins in ${CAMOFOX_PINS} together, and only after a login saves and survives a restart on a real camofox with them`);
+// The Camoufox pin is read, never moved here: each library version pins its own browser build, so the library and
+// the build move together, by hand, and only once a login saved and came back on a real Camoufox.
+async function surveyCamoufox(ctx) {
+  if (!existsSync(join(ctx.root, CAMOUFOX_PIN))) return;
+  const pin = readCamoufoxPin(readText(ctx, CAMOUFOX_PIN));
+  if (!pin) throw new StageFailure(CAMOUFOX_PIN, 'names no pinned Camoufox library and build');
+  let index;
+  try { index = await ctx.fetchJson(CAMOUFOX_INDEX); } catch (error) { throw new StageFailure(`fetch ${CAMOUFOX_INDEX}`, error.message); }
+  const latest = versionOf(String(index?.info?.version ?? ''));
+  if (!latest) throw new StageFailure(`fetch ${CAMOUFOX_INDEX}`, 'names no camoufox version');
+  if (compareVersions(latest, pin.library) <= 0) { ctx.log(`camoufox ${pin.library} current, build ${pin.build} pinned`); return; }
+  ctx.log(`camoufox ${pin.library} -> ${latest} pinned, build ${pin.build}`);
+  needsYou(ctx, `camoufox ${pin.library} -> ${latest}: move the library and the build it pins in ${CAMOUFOX_PIN} together, and only after a login saves and survives a restart on a real Camoufox with them`);
 }
 
 // The viewer's pin is read, never moved here: its version goes with a fingerprint of its files, so the two move

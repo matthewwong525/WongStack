@@ -6,7 +6,7 @@ import { createHash } from 'node:crypto';
 import { accessSync, constants, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, dirname, join, relative } from 'node:path';
-import { serverPid } from '../../browser/scripts/browse.mjs';
+import { serverDisplay, serverPid } from '../../browser/scripts/browse.mjs';
 import { readBody, reply } from './form.mjs';
 import { alive, killTunnel } from './lib/tunnel.mjs';
 
@@ -153,9 +153,10 @@ function xvfbDisplay(pid, proc) {
   return null;
 }
 
-/** The X display camofox's browser draws on, or null when it has none: `DISPLAY` of the server's
- * `camoufox-bin` child, whose value is the browser's own, else the socket of its `Xvfb` child. */
-export function screenOf(server = serverPid(), proc = '/proc') {
+/** The X display the browser draws on, or null when it has none: the one its server recorded, else `DISPLAY` of
+ * the server's `camoufox-bin` child, else the socket of its `Xvfb` child. */
+export function screenOf(server = serverPid(), proc = '/proc', recorded = proc === '/proc' && server === serverPid() ? serverDisplay() : null) {
+  if (recorded) return recorded;
   const children = server ? childrenOf(server, proc) : [];
   for (const { pid } of children.filter(child => child.name === 'camoufox-bin')) {
     const display = readText(join(proc, String(pid), 'environ')).split('\0').find(entry => entry.startsWith('DISPLAY='))?.slice(8);
