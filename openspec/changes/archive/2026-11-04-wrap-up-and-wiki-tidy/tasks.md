@@ -38,4 +38,4 @@
 
 - [x] 5.1 Run the daily, memory and dream tests, `node .github/scripts/checks.mjs --worktree` and `openspec validate wrap-up-and-wiki-tidy --strict --no-interactive`.
 - [x] 5.2 Run `daily.mjs serve --dry-run` on this computer and read its `wouldDo` and `wouldCheck` lines.
-- [ ] 5.3 `/save`, and check the gate passes.
+- [x] 5.3 `/save`, and check the gate passes.

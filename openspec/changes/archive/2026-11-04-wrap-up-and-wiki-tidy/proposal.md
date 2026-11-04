@@ -1,6 +1,6 @@
 # Wrap up finished chats, and tidy the wiki after memory
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** somber-stingray
 **Open questions:** none
 
@@ -83,3 +83,4 @@ None.
 - **2026-11-03** — Assumed: the wiki tidy's journal line puts the change's link before the page list, because a journal line is cut at 300 characters and the link must survive.
 - **2026-11-04** — Built and reviewed (three review findings fixed); first save.
 - **2026-11-04** — Assumed: the live check moves out of the tasks to after publish (the first merged chat that goes quiet shows `Wrapped up`, the first consolidation starts one wiki tidy), because the wiki tidy runs in a copy of the published main, which has none of this code before it merges, and a task that only passes after publish can never be ticked.
+- **2026-11-04** — Archived for publish as 45.5.0; the gate passed on the first save.

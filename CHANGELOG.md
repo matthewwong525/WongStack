@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Wrap up finished chats, and tidy the wiki after memory
+## 45.5.0 — Wrap up finished chats, and tidy the wiki after memory
 
 - **A finished chat wraps itself up.** Where the daily runs on a computer, a chat whose work is merged gets `/close` after you have been quiet there for 15 minutes. The chat saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat with new work since the merge, or one you write in again, stays open. Each chat gets `/close` one time, counting a Done on the board ([wrap up a finished chat](wiki/development/daily.md#wrap-up-a-finished-chat)).
 - **The wiki gets a small tidy each time memory tidies itself.** After each memory consolidation, about once a day, a background run puts each lasting fact saved since the last tidy on the page that owns it, and publishes that change through the normal checks. It works in its own copy of the repo, never in your checkout. It never edits a page WongStack ships, a spec, a plan or a saved fact. `/dream-memory` still runs only when you type it ([the small wiki tidy](wiki/development/wiki-dream.md#the-small-wiki-tidy)).
