@@ -288,6 +288,32 @@ test('discovery of a docs-only change emits scope with no suite or commands', t 
   assert.deepEqual(f.calls(), []);
 });
 
+test('--suite-base skips the suite on a docs-only diff since it, names the commit, and still runs loosened and wiki', t => {
+  const f = fixture(t);
+  const code = f.commit({ 'app/index.js': 'export const x = 2;\n' });
+  f.commit({ 'wiki/README.md': `${wiki}\nMore guidance.\n` });
+  const result = f.run(['--suite-base', code, '--summary', f.summary]);
+  passes(result);
+  assert.deepEqual(f.calls(), []);
+  const text = readFileSync(f.summary, 'utf8');
+  assert.match(text, new RegExp(`already passed the test check on commit ${code}, and only docs changed since`));
+  assert.match(text, /Loosened checks/);
+  assert.match(result.stdout, /^Wiki: /m);
+  assert.doesNotMatch(text, /wiki check skipped/);
+});
+
+test('--suite-base runs the suite when code changed since that commit, and refuses a bad SHA', t => {
+  const f = fixture(t);
+  const first = f.commit({ 'app/index.js': 'export const x = 2;\n' });
+  f.commit({ 'app/index.js': 'export const x = 3;\n' });
+  const result = f.run(['--suite-base', first]);
+  passes(result);
+  ranOnce(f);
+  assert.match(result.stdout, /suite ran: success/);
+  for (const sha of ['abc123', '', '--injected']) assert.equal(f.run(['--suite-base', sha]).status, 2, sha);
+  assert.equal(f.calls().length, 2);
+});
+
 test('missing context and non-SHA inputs are usage errors before commands', t => {
   const f = fixture(t);
   for (const args of [['--head', 'main'], ['--base', '--injected'], ['--default-branch', '']]) {
@@ -337,6 +363,13 @@ test('GitHub invokes the shared script once, and staging has no dependency on th
   assert.match(passed, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   assert.match(passed, /bash \.github\/scripts\/already-passed\.sh >> "\$GITHUB_OUTPUT"/);
   assert.match(workflow, /- name: Run shared checks\n\s+if: \$\{\{ !cancelled\(\) && steps\.passed\.outputs\.passed != 'true' \}\}/);
+  // On any other branch, a docs-only push reuses an earlier commit's pass for the suite alone.
+  const reused = workflow.slice(workflow.indexOf('- name: Check whether an earlier commit of this branch already passed'), workflow.indexOf('- name: Say the code already passed'));
+  assert.match(reused, /if: \$\{\{ github\.event_name == 'push' && github\.ref_name != github\.event\.repository\.default_branch \}\}/);
+  assert.match(reused, /GH_TOKEN: \$\{\{ github\.token \}\}[\s\S]*DEFAULT_BRANCH: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.match(reused, /bash \.github\/scripts\/already-passed\.sh --branch >> "\$GITHUB_OUTPUT"/);
+  assert.match(workflow, /SUITE_BASE: \$\{\{ steps\.reused\.outputs\.passed == 'true' && steps\.reused\.outputs\.sha \|\| '' \}\}/);
+  assert.match(workflow, /\$\{SUITE_BASE:\+--suite-base "\$SUITE_BASE"\}/);
   assert.match(workflow, /checks: read\n\s+pull-requests: read/);
   const deploy = readFileSync(join(repo, '.github/workflows/deploy.yml'), 'utf8');
   // The deploy job waits on its own build job only, never on the tests.
@@ -611,7 +644,7 @@ test('the pre-check runs the install-shaped test in the same turn, names its fai
 
 test('the pre-check refuses commit arguments, and its options need --worktree', t => {
   const f = localFixture(t);
-  for (const args of [['--base', f.base], ['--head', f.base], ['--discover'], ['--summary', f.summary], ['--only', 'nope'], ['--only', ','], ['--lock-wait', 'soon']]) {
+  for (const args of [['--base', f.base], ['--head', f.base], ['--discover'], ['--summary', f.summary], ['--only', 'nope'], ['--only', ','], ['--lock-wait', 'soon'], ['--suite-base', f.base]]) {
     assert.equal(f.local(args).status, 2, args.join(' '));
   }
   for (const args of [['--only', 'suite'], ['--lock-wait', '5']]) assert.equal(f.run(args).status, 2, args.join(' '));
