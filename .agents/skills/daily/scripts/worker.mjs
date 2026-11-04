@@ -1,14 +1,15 @@
 // The daily's service on a computer (`daily.mjs serve`): each pass runs the watch, then starts one background AI run
 // per job in the sweep list, and writes the rest to the journal. wiki/development/daily.md#the-daily-on-a-computer
 import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { linkCopy, place } from '../../memory/scripts/knowledge.mjs';
 import { headlessCommand } from '../../memory/scripts/lib/headless.mjs';
 import { runNode } from './addons.mjs';
-import { HOLD_MS, beat, dailyAgent, readJson, sameRepo, sendText, serviceAlive, userAt, watch, watchStops, writeJson } from './chief.mjs';
-import { RUN_AGENTS, SETTINGS_DIR, localDay } from './config.mjs';
+import { HOLD_MS, beat, readJson, sameRepo, serviceAlive, userAt, watch, watchStops, writeJson } from './chief.mjs';
+import { RUN_AGENTS, SETTINGS_DIR, localDay, morningOf } from './config.mjs';
 import { addLine, prune, readLines } from './journal.mjs';
 
 const REFERENCES = fileURLToPath(new URL('../references/', import.meta.url));
@@ -18,7 +19,6 @@ export const RUN_MS = 30 * 60e3;
 /** A timed job's `at` time still counts this long after it; a later pass skips it, as a missed routine. */
 export const AT_GRACE_MIN = 15;
 const DAY_MS = 24 * 3600e3;
-const BOARD_SOURCES = ['board', 'to-dos'];
 // With no job of the install's own for them, these go to each chat's own stop step, not the journal.
 const STOP_EVENTS = ['stopped', 'asking'];
 const oneLine = value => String(value?.message ?? value).split('\n')[0].slice(0, 200);
@@ -142,8 +142,8 @@ export const alive = pid => {
   try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
 };
 
-/** A run's env: no Paseo id, so its daily commands act as the Daily chat's helper; no hook, memory run or tidy of its
- * own. Claude Code refuses to bypass permissions as root unless `IS_SANDBOX=1`. */
+/** A run's env: no Paseo id, so its daily commands act under the stand-in id; no hook, memory run or tidy of its own.
+ * Claude Code refuses to bypass permissions as root unless `IS_SANDBOX=1`. */
 export function runEnv(env, runId, { agent = 'claude', root = process.getuid?.() === 0 } = {}) {
   const { PASEO_AGENT_ID: _drop, ...rest } = env;
   return { ...rest, ...(agent === 'claude' && root ? { IS_SANDBOX: '1' } : {}), WONG_DAILY_RUN: '1', WONG_DAILY_RUN_ID: runId,
@@ -175,7 +175,7 @@ export function quietLine(event) {
  * ends stale runs and starts what the queue allows, `boot` journals runs a restart stopped and removes their copies. */
 export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AGENTS[0], context = {}, call, env = process.env,
   briefs = briefFolders(project), launch = spawnRun, typedAt = userAt, isAlive = alive, kill = stopGroup, now = () => Date.now(),
-  sendDaily, runCheck, git = runGit, dryRun = false, print = () => {}, wake = () => {} }) {
+  runCheck, git = runGit, dryRun = false, print = () => {}, wake = () => {} }) {
   const file = join(stateDir, 'worker-queue.json');
   const dueFile = join(stateDir, 'sweeps.json');
   const runs = join(stateDir, 'runs');
@@ -183,7 +183,7 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
   const exited = new Set();
   const date = () => new Date(now());
   const today = () => localDay(date(), timezone);
-  const load = () => ({ queue: [], running: [], told: null, ...readJson(file, {}) });
+  const load = () => ({ queue: [], running: [], ...readJson(file, {}) });
   const save = state => writeJson(file, state);
   const journal = (line, more = {}) => addLine({ stateDir, timezone, line, now: date(), ...more });
   const maxRuns = sweeps.maxRuns ?? 3;
@@ -206,19 +206,7 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     state.queue = [...state.queue.filter(each => !stale(each)), item];
   }
 
-  async function boardLine(state, event) {
-    if (state.told === today()) return;
-    const text = `Not read: your board — ${event.error ?? 'no answer'}`;
-    if (dryRun) { print({ wouldSend: text }); return; }
-    try { await sendDaily(text); state.told = today(); } catch (error) {
-      journal(`Not sent to the Daily chat: ${text} — ${oneLine(error)}`, { kind: 'not-sent' });
-    }
-  }
-
-  async function quiet(state, event) {
-    journal(quietLine(event), { kind: event.event, title: event.title ?? undefined, workspace: event.workspace ?? undefined });
-    if (event.event === 'not-read' && BOARD_SOURCES.includes(event.source)) await boardLine(state, event);
-  }
+  const quiet = event => journal(quietLine(event), { kind: event.event, title: event.title ?? undefined, workspace: event.workspace ?? undefined });
 
   const ended = run => readLines({ stateDir }).some(entry => entry.run === run.runId && entry.kind === 'end');
 
@@ -334,7 +322,7 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
       for (const event of events.filter(each => each?.event && each.event !== 'unsupported')) {
         const item = itemOf(event);
         if (item) enqueue(state, item);
-        else if (!STOP_EVENTS.includes(event.event)) await quiet(state, event);
+        else if (!STOP_EVENTS.includes(event.event)) quiet(event);
       }
       save(state);
     },
@@ -392,6 +380,14 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
 // One worker per person and repo
 
 const lockFile = stateDir => join(stateDir, 'serve.lock');
+const SCRIPTS = dirname(fileURLToPath(import.meta.url));
+
+/** A short hash of the daily scripts: a worker's beat holds the one it started with, so `D ensure` sees older code. */
+export function codeStamp(dir = SCRIPTS) {
+  const hash = createHash('sha256');
+  for (const name of readdirSync(dir).filter(each => each.endsWith('.mjs')).sort()) hash.update(`${name}\0`).update(readFileSync(join(dir, name)));
+  return hash.digest('hex').slice(0, 12);
+}
 // A new worker writes its first beat within a pass; until then its lock counts as held.
 const LOCK_GRACE_MS = 5 * 60e3;
 
@@ -449,9 +445,38 @@ export function dropServeLock(stateDir, pid = process.pid) {
 
 const STEP_MS = 1000;
 
-/** One pass: the beat that tells `D ensure` this worker runs, the watch, then the worker. */
-export async function workerPass({ worker, watchOnce, stateDir, seconds, now = () => Date.now() }) {
-  beat({ stateDir, seconds, now: now() });
+/** The file `start` writes once the day's morning ran. */
+export const morningFile = (stateDir, day) => join(stateDir, `morning-${day}.json`);
+
+/** One journal line per routine `start` started or could not, add-on line and source not read. */
+function morningLines(result, journal) {
+  for (const row of result.tasks) {
+    const where = { title: row.title, workspace: row.workspace ?? undefined };
+    if (row.state === 'started') journal(`Started: ${row.title}${row.workspace ? ` in ${row.workspace}` : ''}`, { kind: 'routine', ...where });
+    if (row.state === 'failed') journal(`Not started: ${row.title} — ${row.reason}`, { kind: 'not-started', ...where });
+  }
+  for (const line of result.lines ?? []) journal(line, { kind: 'post' });
+  for (const each of result.notRead ?? []) journal(`Not read: ${each.source} — ${each.error}`, { kind: 'not-read' });
+}
+
+/** The day's morning, at or past `config.morning` with no morning file yet: `start` runs it, the journal keeps what it
+ * did, and its add-on events go to `dispatch`. A dry run prints each routine it would start. */
+export async function morningPass({ config, stateDir, start, dispatch, date = new Date(), dryRun = false, print = () => {} }) {
+  const { day, hour, minute } = clockOf(date, config.timezone);
+  if (hour * 60 + minute < toMinutes(morningOf(config)) || existsSync(morningFile(stateDir, day))) return;
+  if (dryRun) {
+    for (const row of (await start({ config, dryRun: true, now: date })).tasks) if (row.state === 'due') print({ wouldStart: 'routine', title: row.title });
+    return;
+  }
+  const result = await start({ config, now: date });
+  morningLines(result, (line, more) => addLine({ stateDir, timezone: config.timezone, line, now: date, ...more }));
+  await dispatch(result.events ?? []);
+}
+
+/** One pass: the beat that tells `D ensure` this worker runs, the morning when due, the watch, then the worker. */
+export async function workerPass({ worker, watchOnce, stateDir, seconds, now = () => Date.now(), morning = async () => {}, code }) {
+  beat({ stateDir, seconds, now: now(), code });
+  await morning();
   await worker.dispatch(await watchOnce());
   await worker.sweep();
   await worker.pump();
@@ -470,29 +495,44 @@ export async function serveWorker({ worker, pass, signal, seconds = 60, once = f
   }
 }
 
-/** `daily.mjs serve`: the service over the person's settings, with `agent` unless the settings name one. `watching`
- * holds the watch's board, to-dos and add-ons; a dry run works on a state copy, starts nothing, and prints its plan. */
-export async function serveDaily({ config, project, stateDir, call, env = process.env, watching, started, daily, seconds = 60, once = false,
-  dryRun = false, print = item => console.log(JSON.stringify(item)), log, launch, watcher, sleep, agent = RUN_AGENTS[0], ownRepo = sameRepo(project) }) {
+/** `daily.mjs serve`: `watching` holds the board, to-dos and add-ons; `start` runs the morning when `settings()`, read
+ * each pass, has a file. A dry run works on a state copy, starts nothing, and prints its plan. */
+export async function serveDaily({ config, project, stateDir, call, env = process.env, watching, started, hasFile = false,
+  settings = () => ({ config, hasFile }), start = null, seconds = 60, once = false, dryRun = false, print = item => console.log(JSON.stringify(item)),
+  log, launch, watcher, sleep, agent = RUN_AGENTS[0], ownRepo = sameRepo(project), now = () => Date.now(), code = codeStamp() }) {
   const signal = { heard: false };
   const timezone = config.timezone;
-  const ignore = () => [daily.read().agentId].filter(Boolean);
   const worker = makeWorker({ stateDir, project, timezone, sweeps: loadSweeps({ project, file: config.sweeps }),
-    agent: config.runs?.agent ?? agent, call, env, dryRun, print, launch, context: { person: config.person, timezone, repo: project },
-    sendDaily: async text => sendText(call, await dailyAgent({ daily, call }), text),
+    agent: config.runs?.agent ?? agent, call, env, dryRun, print, launch, context: { person: config.person, timezone, repo: project }, now,
     runCheck: ({ sweep, context }) => runNode({ file: resolve(project, sweep.check), cwd: project, input: context }),
     wake: () => { signal.heard = true; } });
   const watchOnce = async () => {
     const events = [];
-    await watch({ stateDir, started, timezone, call, ...watching, env, self: null, ignore: ignore(),
-      service: true, once: true, ownRepo, print: text => events.push(JSON.parse(text)) });
+    await watch({ stateDir, started, timezone, call, ...watching, env, self: null, service: true, once: true, ownRepo, print: text => events.push(JSON.parse(text)) });
     if (dryRun) for (const event of events) print({ event });
     return events;
+  };
+  // A settings file that can not be read, or a morning that throws, is journaled once a day; the next pass tries again.
+  const noted = new Set();
+  const morning = async () => {
+    if (!start) return;
+    const date = new Date(now()), day = localDay(date, timezone);
+    const note = (kind, line) => {
+      if (noted.has(`${day}:${kind}`)) return;
+      noted.add(`${day}:${kind}`);
+      addLine({ stateDir, timezone, line, kind, now: date });
+    };
+    let current;
+    try { current = settings(); } catch (error) { note('not-read', `Not read: the settings file — ${oneLine(error)}`); return; }
+    if (!current?.hasFile || !current.config) return;
+    try { await morningPass({ config: current.config, stateDir, start, dispatch: worker.dispatch, date, dryRun, print }); } catch (error) {
+      note('not-started', `Not started: the morning — ${oneLine(error)}`);
+    }
   };
   const stops = dryRun ? null : watchStops(env, () => { signal.heard = true; }, watcher);
   try {
     await serveWorker({ worker, signal, seconds, once: dryRun || once, sleep, ...(log && { log }),
-      pass: () => workerPass({ worker, stateDir, seconds, watchOnce }) });
+      pass: () => workerPass({ worker, stateDir, seconds, watchOnce, now, morning, code }) });
     if (dryRun) print({ dryRun: true, waiting: readJson(join(stateDir, 'worker-queue.json'), {}).queue?.map(item => item.title) ?? [] });
   } finally { stops?.close?.(); }
 }

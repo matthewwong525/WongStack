@@ -5,7 +5,6 @@ import { git } from '../../schedule/scripts/lib/paseo.mjs';
 import { mergedAtTip, ownWorkspace, pullRequest, savedState, worktreeState } from '../../schedule/scripts/tidy.mjs';
 
 const DEFAULT_BRANCHES = new Set(['main', 'master', 'HEAD']);
-const OWN_NAMES = ['Daily'];
 const real = file => { try { return realpathSync(file); } catch { return file; } };
 
 /** A folder: its top, git's common folder, and tidy's saved-state inputs; null when git can not read it. */
@@ -23,10 +22,10 @@ function savedWorktree(here, home) {
     && savedState({ ...here, merged: true }).saved);
 }
 
-/** True when `agent` is stopped, not the Daily chat or a sub-agent, its folder a saved worktree of `project`, and its
+/** True when `agent` is stopped, not a sub-agent, its folder a saved worktree of `project`, and its
  * pull request merged at that folder's last commit. `look` reads git, `prOf` reads `gh`, `inspect` reads Paseo. */
 export async function finished({ agent, project, look = lookFolder, prOf = pullRequest, inspect = null }) {
-  if (!agent?.cwd || agent.archivedAt || !['idle', 'error'].includes(agent.status) || OWN_NAMES.includes(agent.name)) return false;
+  if (!agent?.cwd || agent.archivedAt || !['idle', 'error'].includes(agent.status) ) return false;
   const here = look(agent.cwd);
   if (!savedWorktree(here, look(project)) || !mergedAtTip(prOf(here.top, here.branch), here.tip)) return false;
   if (!inspect) return true;

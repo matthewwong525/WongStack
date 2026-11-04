@@ -99,7 +99,7 @@ Opening a workspace SHALL pass its brief to the new agent as its first message w
 
 #### Scenario: A brief written as a list
 
-- **WHEN** /daily opens a workspace with a brief whose first line is `- **Goal**: …`
+- **WHEN** the daily opens a workspace for a board task with a brief whose first line is `- **Goal**: …`
 - **THEN** the workspace opens and its agent's first message is that brief, unchanged
 
 ### Requirement: A publish opens the next work, then closes

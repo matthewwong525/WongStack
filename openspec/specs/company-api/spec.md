@@ -106,7 +106,7 @@ A copy of an installed project, such as a workspace's own copy, SHALL reach the 
 
 #### Scenario: A workspace opened from the main copy
 
-- **WHEN** the person is signed in from the main copy, before or after this update, and /daily runs in a new workspace copy of the same project
+- **WHEN** the person is signed in from the main copy, before or after this update, and a daily routine runs in a new workspace copy of the same project
 - **THEN** its inbox cards, questions and approvals reach the person's inbox with no extra login
 
 #### Scenario: No sign-in for this app

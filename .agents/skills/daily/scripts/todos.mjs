@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { localDay, mondayOf, slotOf } from './config.mjs';
 
-/** The watch sources that are the person's own chats: opened, handed to the watch, or opened by the Daily chat. */
-export const TODO_SOURCES = ['own', 'handed', 'asked'];
+/** The watch sources that are the person's own chats: opened, or handed to the watch. */
+export const TODO_SOURCES = ['own', 'handed'];
 const END = 9999;
 const TITLE_CHARS = 200;
 const BRANCH_MS = 10 * 60e3;

@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 47.0.0 — Your day runs without a Daily chat
+
+- **The morning starts by itself.** At `morning` in your settings file, 08:00 by default, the helper that runs in the background starts your due routines and morning add-ons, one time per day. You open no chat for it, and you get no morning list: your tasks are on your week in the Inbox ([the daily routine](wiki/development/daily.md#what-it-does)).
+- **Ask any chat.** *Remind me Friday to …*, *start the supplier list*, *watch flashy-crab*, *tell flashy-crab: yes, merge*, *stop check-ins* and changes to your daily settings work in any chat. `/daily` is no longer a command ([ask in any chat](wiki/development/daily.md#ask-in-any-chat)).
+- **What's going on, from any chat.** It tells what the background runs did since that chat last asked, and in Paseo it offers to close the finished chats you pick ([close finished chats](wiki/development/daily.md#close-finished-chats)).
+- **Everything goes to the journal.** A week board the helper can not read is now one journal line per day, not a message. Your messages no longer carry the journal's new lines.
+- **Stop check-ins also stops the morning.** *Start check-ins* turns both back on.
+
+**Updating.** If a timer on your computer runs `daily.mjs open-daily`, remove it: the helper now starts your morning by itself. To start it at another time, add `"morning": "HH:MM"` to your settings file. Close your old Daily chat when you like.
+
 ## 46.3.0 — Ship goes all the way
 
 - **Ship goes with its own best answer.** When a question comes up while `/ship` builds, saves, checks or publishes, and the recommended answer stays inside the work and can be undone, ship takes it and keeps going. It still stops before it uses a key, signs in, changes access, spends money, sends or posts, changes a business record or real data, deletes something outside the change, accepts terms or weakens a check, and when something still fails after two fixes or no answer is clearly best ([fix it or ask inside `/ship`](wiki/development/the-change-loop.md#inside-ship)). `/apply`, `/save` and `/verify` typed on their own still ask.
