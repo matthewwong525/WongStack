@@ -17,7 +17,7 @@ Document each thing in **exactly one place**: the same procedure on two pages is
 
 Readers land from search, without context.
 
-- Give every page a clear **`#` title** and a **first sentence** that says what it is, never a breadcrumb, caveat, or filler: search results quote it.
+- Give every page a clear **`#` title** and a **first sentence** that says what it is, never a breadcrumb, caveat, or filler: search results quote it. Only one frontmatter block, such as [`public: true`](stack/knowledge-reader.md#public-pages), may come before the title.
 - **Title the topic, not its place in a sequence**: `Find inspiration`, never `Stage 1 — Find inspiration`. Order lives in the parent hub's list, so a page moves without going stale.
 - Put drill-down links **inline, at the point of need**, not only at the bottom.
 
@@ -31,7 +31,7 @@ Use a folder only if a step grows into several pages (`onboarding/`: a hub, a pa
 
 ## Maps are pictures; links live in the list
 
-A `mermaid` diagram may open a section; keep it **visual-only**: clickable nodes are brittle. The numbered list beside it holds the links.
+A `mermaid` diagram may open a section; keep it **visual-only**: clickable nodes are brittle.
 
 ## No orphans, no dead-ends, full hub-coverage
 
@@ -64,7 +64,6 @@ When a person asks for more detail than [plain words](../.agents/skills/explore/
 
 1. **Prefer extending an existing page.**
 2. Otherwise place it at the right layer, linked from its parent's step.
-3. Follow the rules above.
 
 ## Keeping it tidy
 

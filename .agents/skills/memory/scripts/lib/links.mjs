@@ -26,6 +26,10 @@ export function markdownFiles(root, dir = root) {
   return out.sort();
 }
 
+// A leading frontmatter block, matched as the reader matches it: app/worker/apps/knowledge/render.ts.
+const FRONT = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
+const blankFront = text => text.replace(FRONT, m => m.replace(/[^\r\n]/g, ' '));
+
 // Blank fenced code and code spans, keeping every newline: a command in backticks is not a link.
 const maskCode = text => text.replace(FENCE, m => m.replace(/[^\n]/g, ' ')).replace(/`[^`\n]*`/g, m => ' '.repeat(m.length));
 
@@ -108,14 +112,15 @@ const OPENERS = [
 const openerOf = line => OPENERS.find(([pattern]) => pattern.test(line))?.[1] ?? null;
 
 // A page's size and opening problems: over the word cap, no `# ` title first, more than one title, or no sentence
-// straight after the title saying what the page is. A `# ` line inside fenced code is not a title.
+// straight after the title saying what the page is. A `# ` line in fenced code or frontmatter is not a title.
 function pageProblems(root, page) {
   const raw = readFileSync(join(root, page), 'utf8');
   const problems = [];
   const words = countWords(raw);
   if (words > WIKI_PAGE_WORDS) problems.push(`${page}: ${words.toLocaleString('en-US')} words, over the ${WIKI_PAGE_WORDS.toLocaleString('en-US')}-word cap; split it by its sections into pages beside it`);
-  const lines = raw.split(/\r?\n/);
-  const masked = maskCode(raw).split(/\r?\n/);
+  const body = blankFront(raw);
+  const lines = body.split(/\r?\n/);
+  const masked = maskCode(body).split(/\r?\n/);
   const first = masked.findIndex(line => line.trim());
   const titles = masked.filter(line => line.startsWith('# ')).length;
   if (first < 0 || !/^# +\S/.test(lines[first])) problems.push(`${page}: has no # title on its first line`);
