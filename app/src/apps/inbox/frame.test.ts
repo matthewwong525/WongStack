@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { frameMessage, notesKey, ownBack } from './frame'
+import { actionLabels, frameMessage, notesKey, ownBack } from './frame'
 
 const plan = { actions: ['build', 'publish'], key: 'wong-review3:inbox' }
 
@@ -37,4 +37,13 @@ it('reads whether a plan draws its own Back from its body tag, and from nothing 
   expect(ownBack('<body data-own-back="">')).toBe(true)
   for (const body of ['<body data-change="inbox">', '<p data-own-back>', '<body data-own-backs>', '<body x-data-own-back>',
     '<body><p>data-own-back</p>', '<div data-own-back></div><body>']) expect(ownBack(body)).toBe(false)
+})
+
+it("reads a page's button labels from its ready line, and none from a page with no line or a broken one", () => {
+  const ready = (actions: string) => `<p>Plan</p><div id="ready" data-actions="${actions}" hidden></div>`
+  expect(actionLabels(ready('[{&quot;name&quot;:&quot;publish&quot;,&quot;label&quot;:&quot;Build &amp; publish&quot;}]')))
+    .toEqual({ publish: 'Build & publish' })
+  expect(actionLabels('<p>Plan</p>')).toEqual({})
+  expect(actionLabels(ready('[{'))).toEqual({})
+  expect(actionLabels(ready('[{&quot;name&quot;:3}]'))).toEqual({})
 })

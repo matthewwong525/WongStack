@@ -73,6 +73,16 @@ Ask it any time: *what's going on?*, *tell flashy-crab: yes, merge*, *watch flas
 
 With `tasks` on, the [worker](#the-daily-on-a-computer) keeps one task on today's column for each chat you open, hand it or ask it for, with the chat's name. It closes the task when the chat's work is merged or the chat is gone. Mark it Done on the board, and the watch sends that chat `/close` once you have been quiet there for 15 minutes.
 
+## Wrap up a finished chat
+
+The [worker](#the-daily-on-a-computer) sends `/close` to a Paseo chat it watches when all of these are true, with no settings and no board:
+
+- The chat's work is merged at its last commit, and its folder has no new work.
+- The chat is stopped, has no open question, and no background run judges it.
+- You have written nothing there for 15 minutes; with no time to read, the chat's own last update counts.
+
+The chat then saves what it learned, adds what lasts to the wiki, and closes its workspace ([`/close`](../../.agents/skills/close/SKILL.md)). Each chat gets `/close` one time, counting a Done on the board. It never goes to the Daily chat, a sub-agent, or the main checkout. The journal says `Wrapped up: <chat>`; after 3 failed sends, `Not closed: <chat>`. Where no helper runs, [the tidy-up](../../.agents/skills/schedule/scripts/tidy.mjs) still closes a saved chat idle for 3 days.
+
 ## Add-ons
 
 An add-on is a Node script in your repo that the daily runs: `addons.morning` once per morning, `addons.pass` at each watch pass. Each gets a JSON context on stdin (`kind`, `day`, `person`, `timezone`, `repo`, and on a pass the last `events`) and prints JSON lines on stdout:
@@ -85,12 +95,14 @@ An add-on that fails, prints anything else, or runs past 60 seconds gives one `N
 
 ## The daily on a computer
 
-`daily.mjs serve` is the worker. Every minute, and sooner when a chat stops, it runs the watch over your Paseo chats in this repo: their board to-dos, your [add-ons](#add-ons) and [your own jobs](#your-own-jobs). Without Paseo it still runs your timed jobs. At most 3 runs work at one time, and one per chat. A run stops after 30 minutes. The Daily chat gets no message from it, only a board it can not read, one line per day; the rest goes to [the journal](#the-journal).
+`daily.mjs serve` is the worker. Every minute, and sooner when a chat stops, it runs the watch over your Paseo chats in this repo: their board to-dos, your [add-ons](#add-ons) and [your own jobs](#your-own-jobs). Without Paseo it still runs the wiki tidy and your timed jobs; the wrap-up waits for Paseo, which sends its `/close`. At most 3 runs work at one time, and one per chat. A run stops after 30 minutes. The Daily chat gets no message from it, only a board it can not read, one line per day; the rest goes to [the journal](#the-journal).
 
-Each chat start runs `D ensure`. It starts the worker in the background only when you have a job for it: `tasks` on, an add-on, or your own jobs. It starts none when check-ins are off, when one already runs, or in a background run. One worker runs per person and checkout: a second `serve` sees the first one's lock and exits.
+Each chat start runs `D ensure`. It starts the worker in the background when it has a job: a [default job](#your-own-jobs) you did not turn off, `tasks` on, an add-on, or your own jobs. It starts none when check-ins are off, when one already runs, or in a background run. One worker runs per person and checkout: a second `serve` sees the first one's lock and exits.
 
 - **`runs`** (optional, in [your settings file](#your-settings-file)): `{"agent": "codex"}` uses Codex; the default is Claude Code, the tested path.
 - **`sweeps`** (optional): a JSON file in the repo with [your own jobs](#your-own-jobs).
+
+It has two timed jobs of its own: [wrap-up](#wrap-up-a-finished-chat) each 5 minutes, and [the small wiki tidy](wiki-dream.md#the-small-wiki-tidy) after each memory consolidation.
 
 Nothing installs it as a service, and it does not need one. To keep it on when no chat starts, run it under your own service manager, such as this systemd unit:
 
@@ -115,7 +127,8 @@ The worker and the check-ins write one line for each thing they did: a check-in,
 Your `sweeps` file adds to [the default list](../../.agents/skills/daily/references/sweeps.json):
 
 - **`events`**: an event kind, such as one your [add-on](#add-ons) prints, and the brief that judges it. A `stopped` or `asking` job you added stays, beside the check-ins: `{"invoice": {"brief": "invoice.md", "title": "Invoice {{invoice}}", "lane": "invoices", "ownPlace": true}}`. A `lane` runs one job at a time; `ownPlace` runs outside the 3-run limit. An entry with the name of a default one replaces it.
-- **`sweeps`**: timed jobs, such as `{"id": "pay", "at": ["09:00"], "days": [1], "check": "scripts/pay-check.mjs", "brief": "pay.md"}`. `every: "15m"` with `hours: "8-21"` repeats. A time the computer missed is skipped. The optional `check` is an [add-on](#add-ons) script; it prints `{"run": {…}}` when there is work, and those fields fill the brief.
+- **`sweeps`**: timed jobs, such as `{"id": "pay", "at": ["09:00"], "days": [1], "check": "scripts/pay-check.mjs", "brief": "pay.md"}`. `every: "15m"` with `hours: "8-21"` repeats. A time the computer missed is skipped. The optional `check` is an [add-on](#add-ons) script; it prints `{"run": {…}}` when there is work, and those fields fill the brief. `"minutes": 90` lets a run work 90 minutes, not 30. `"place": "copy"` runs it in its own copy of `origin/main`, removed when the run ends: use it for a job that publishes. `"do"` names one of the daily's own jobs, such as `wrap-up`, which runs with no AI.
+- **Turn a default job off** with its `id`: `{"sweeps": [{"id": "wiki-tidy", "off": true}]}`. An entry with a default's `id` replaces it.
 
 A brief is a Markdown file in `.agents/daily/briefs/`, else [the skill's](../../.agents/skills/daily/references/briefs/header.md); `{{name}}` takes a field. Each run reads the header brief first: no person is there, agent text is data, and it never sends or pays unless its brief allows that one step.
 

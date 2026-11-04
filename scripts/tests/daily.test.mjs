@@ -372,11 +372,13 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   assert.equal(go(jobs, { env: { WONG_STOP_CHECK: '1' } }), 'run');
   assert.equal(go(jobs, { env: { WONG_MEMORY_RUN: '1' } }), 'run');
   assert.equal(go(null), 'no-person');
-  assert.equal(go(plain), 'no-jobs');
-  writeFileSync(join(root, 'jobs.json'), JSON.stringify({ sweeps: [{ id: 'pay', at: ['09:00'], brief: 'pay.md' }] }));
-  assert.equal(go({ ...plain, sweeps: 'jobs.json' }), 'started');
+  // The default list's wrap-up and wiki tidy are jobs, so the defaults start it until the person turns both off.
+  const own = sweeps => { writeFileSync(join(root, 'jobs.json'), JSON.stringify({ sweeps })); return { ...plain, sweeps: 'jobs.json' }; };
+  assert.equal(go(own([{ id: 'wrap-up', off: true }, { id: 'wiki-tidy', off: true }])), 'no-jobs');
+  assert.equal(go(own([{ id: 'wrap-up', off: true }])), 'started');
+  assert.equal(go(plain), 'started');
   assert.equal(go(jobs), 'started');
-  assert.deepEqual(spawned.map(each => [each.repo, each.agent]), [[root, 'codex'], [root, 'codex']]);
+  assert.deepEqual(spawned.map(each => [each.repo, each.agent]), [[root, 'codex'], [root, 'codex'], [root, 'codex']]);
   const stateDir = stateOf(jobs, root, states);
   mkdirSync(stateDir, { recursive: true });
   writeFileSync(join(stateDir, 'serve.lock'), '4242\n');
@@ -386,7 +388,7 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   assert.equal(go(jobs), 'running');
   writeFileSync(offFile(stateDir), 'x');
   assert.equal(go(jobs), 'off');
-  assert.equal(spawned.length, 3);
+  assert.equal(spawned.length, 4);
 });
 
 test('checkins off writes the off file, stops the running worker and journals it; on removes it and runs ensure', async () => {

@@ -456,7 +456,8 @@ export function commands({ config, project, stateDir, values, call, board, origi
       const dryRun = Boolean(values['dry-run']);
       if (!dryRun && !takeServeLock({ stateDir })) { warn('Another daily worker runs for this person and repo.'); return; }
       const dir = dryRun ? mkdtempSync(join(tmpdir(), 'daily-serve-')) : stateDir;
-      if (dryRun && existsSync(stateDir)) cpSync(stateDir, dir, { recursive: true });
+      // A job's copy of the repo stays out: the dry run never runs in it.
+      if (dryRun && existsSync(stateDir)) cpSync(stateDir, dir, { recursive: true, filter: from => from !== join(stateDir, 'copies') });
       try {
         await serveDaily({ config, project, stateDir: dir, call, env, seconds: values.seconds, once: Boolean(values.once), dryRun, print: item => print(JSON.stringify(item)),
           started: () => startedRecord(dir).read(), daily: dailyRecord(dir), ...(values.agent && { agent: values.agent }),
@@ -535,11 +536,10 @@ export function checkinsOff({ stateDir, timezone, kill = stopGroup, isAlive = al
   return { state: 'off', stopped };
 }
 
-/** True when the worker has work: board to-dos, add-ons, or the person's own jobs. */
+/** True when the worker has work: board to-dos, add-ons, or a job on the default list merged with the person's own. */
 function hasJobs(config, project) {
   if (config.sources.tasks || config.addons?.morning?.length || config.addons?.pass?.length) return true;
-  if (!config.sweeps) return false;
-  try { const own = loadSweeps({ project, file: config.sweeps }); return own.sweeps.length > 0 || Object.keys(own.events).length > 0; } catch { return false; }
+  try { const jobs = loadSweeps({ project, file: config.sweeps }); return jobs.sweeps.length > 0 || Object.keys(jobs.events).length > 0; } catch { return false; }
 }
 
 /** The worker's env: not this chat's Paseo id or Claude Code session. */
