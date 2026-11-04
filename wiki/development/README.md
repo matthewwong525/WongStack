@@ -10,6 +10,9 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [Staging walkthrough](staging-walkthrough.md) — why `/verify` probes the deployed preview, what you need for it, and what it deliberately is not.
   - [Kept checks](kept-checks.md) — passed preview checks saved in the project and replayed, with no AI, before each publish.
 - [The daily routine](daily.md) — each morning the worker starts the team's routines, then your own; ask any chat for reminders and what's going on, and check-ins keep your chats moving.
+- [A teammate's first day](first-day/README.md) — from the owner adding a person in Access to their first saved change: setup, then two lessons they open by typing `lesson 1` and `lesson 2` in a new chat.
+  - [Use skills](first-day/use-skills.md) — Lesson 1: who you are, what a skill is, a question card, one real skill, and one task per chat.
+  - [Make your first change](first-day/make-a-change.md) — Lesson 2: plan, build and save one small, real change; it stops at the save.
 - [Code improvement](repository-improvement.md) — run or schedule `/improve-code` to find one way to make the code simpler or safer to change; it writes the plan and stops for your yes.
 - [Host schedules](../stack/host-schedules.md) — `/schedule` chooses predictable scripts first and verifies an existing host clock for assistant work; ongoing definitions and finite goals stay visible.
 - [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, `openspec`, and `curl`: why it stays that small, and how the payload handles JSON without a standalone `jq`.

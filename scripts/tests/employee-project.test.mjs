@@ -252,19 +252,21 @@ function connected(t, { code = 'ready', installed = false } = {}) {
 }
 const origin = 'https://business.example.com';
 
-const DONE = folder => `Used this computer's existing sign-in as ${identity.email}. Apps that work: orders. Memory works. The project is in ${folder}, and new chats keep it up to date. Nothing else is needed.`;
+const DONE = folder => `Used this computer's existing sign-in as ${identity.email}. Apps that work: orders. Memory works. The project is in ${folder}, and new chats keep it up to date. Next: open a new chat in ${folder} and type "lesson 1". It takes about 20 minutes and shows you how to work here.`;
 test('install signs in, downloads the project for a person who holds Project code, confirms memory, and says it is done', async t => {
   // Setup keeps the sign-in where the downloaded copy's own tools look for it.
   const home = process.env.HOME; process.env.HOME = mkdtempSync(join(tmpdir(), 'employee-home-'));
   t.after(() => { rmSync(process.env.HOME, { recursive: true, force: true }); process.env.HOME = home; });
   const f = connected(t, { installed: true });
   const folder = join(f.base, 'project');
+  const paseo = process.env.PASEO_AGENT_ID; delete process.env.PASEO_AGENT_ID;
+  t.after(() => { if (paseo !== undefined) process.env.PASEO_AGENT_ID = paseo; });
   const report = await f.client.install(origin, folder, f.copy);
   assert.deepEqual(report, { connected: origin, signedInAs: identity.email, signIn: 'reused', apps: ['orders'], memory: 'works', state: f.stateDir, project: 'installed', folder, summary: DONE(folder) });
   // Memory is asked once, with the same sign-in.
   assert.deepEqual(f.state.requests.filter(row => row.path === '/_memory/caller'), [{ path: '/_memory/caller', session: TOKEN }]);
-  // The report names no command to run, no environment file and no key.
-  assert.doesNotMatch(JSON.stringify(report), /\bnode\b|company-api|--state|\.env\b|\bkey\b|\bnext\b/i);
+  // The report names no command to run, no environment file and no key: its next step is a lesson for the person.
+  assert.doesNotMatch(JSON.stringify(report), /\bnode\b|company-api|--state|\.env\b|\bkey\b|"next":/i);
   // The download asks the app's own address, as the person who signed in.
   assert.deepEqual(f.state.copies, [{ address: `${origin}/api/access/code/git/`, folder, token: TOKEN }]);
   assert.ok(!JSON.stringify(report).includes(TOKEN));
@@ -374,7 +376,7 @@ test('the packaged command installs in one step, updates on the next, and ends a
   assert.ok(report.state.startsWith(home));
   assert.equal(statSync(report.state).mode & 0o777, 0o700);
   assert.equal(report.next, undefined);
-  assert.match(report.summary, /Nothing else is needed\.$/);
+  assert.match(report.summary, /Next: open a new chat in .* and type "lesson 1"\. It takes about 20 minutes and shows you how to work here\.$/);
   // One download, from the app's own address. The session is a header for that address alone, set in Git's
   // environment: never an argument. No redirect, no prompt, no credential helper, and no other credential.
   const [asked, clone, ...pointed] = calls();

@@ -179,9 +179,9 @@ test('the downloaded copy finds the sign-in setup saved, and a computer already 
   };
   const install = (stateDir, run = async () => jwt()) => companyClient({ ...f, stateDir, run, request: async () => Response.json({ ...setup(), code: 'ready' }) })
     .install(origin, folder, copy);
-  const reused = await install(installState(origin));
+  const reused = await paseo(t, undefined, () => install(installState(origin)));
   assert.equal(reused.signIn, 'reused');
-  assert.match(reused.summary, /^Used this computer's existing sign-in as employee@example\.com\. .*Nothing else is needed\.$/);
+  assert.match(reused.summary, /^Used this computer's existing sign-in as employee@example\.com\. .*Next: open a new chat in .* and type "lesson 1"\./);
   assert.equal(companyClient({ root: folder, routesDir: f.routesDir, cacheDir: f.cacheDir }).target(), origin);
   // Another company's sign-in from inside the copy never overwrites the one its git updates use.
   await assert.rejects(companyClient({ root: folder, routesDir: f.routesDir, cacheDir: f.cacheDir, run: async () => jwt() }).login('https://other.example.com'),
@@ -193,7 +193,35 @@ test('the downloaded copy finds the sign-in setup saved, and a computer already 
     .install(origin, folder, copy);
   assert.equal(elsewhere.signIn, 'new'); assert.equal(links.length, 1);
   assert.match(elsewhere.summary, /^Signed in as employee@example\.com\. .*The project's own tools can't find this sign-in yet\.$/);
-  assert.doesNotMatch(elsewhere.summary, /Nothing else is needed/);
+  assert.doesNotMatch(elsewhere.summary, /Nothing else is needed|lesson/);
+});
+/** Runs `step` with `PASEO_AGENT_ID` set to `id`, or unset, so the summary does not depend on where the tests run. */
+async function paseo(t, id, step) {
+  const before = process.env.PASEO_AGENT_ID;
+  t.after(() => { if (before === undefined) delete process.env.PASEO_AGENT_ID; else process.env.PASEO_AGENT_ID = before; });
+  if (id === undefined) delete process.env.PASEO_AGENT_ID; else process.env.PASEO_AGENT_ID = id;
+  return step();
+}
+test('a first install names Lesson 1 as the next step, in Paseo\'s words inside Paseo; an update or apps only still end done', async t => {
+  const f = directories(t), home = process.env.HOME; process.env.HOME = f.base; t.after(() => { process.env.HOME = home; });
+  const folder = join(f.base, 'project');
+  const copy = project => async ({ folder: dir }) => {
+    mkdirSync(join(dir, '.claude'), { recursive: true });
+    writeFileSync(join(dir, '.claude', '.wong-stack.json'), JSON.stringify({ components: { companyApi: { origin } } }));
+    return { project, folder: dir };
+  };
+  const install = (project, code = 'ready') => companyClient({ ...f, stateDir: installState(origin), run: async () => jwt(), request: async () => Response.json({ ...setup(), code }) })
+    .install(origin, folder, copy(project));
+  const plain = await paseo(t, undefined, () => install('installed'));
+  assert.match(plain.summary, new RegExp(`The project is in ${folder}, and new chats keep it up to date\\. Next: open a new chat in ${folder} and type "lesson 1"\\. It takes about 20 minutes and shows you how to work here\\.$`));
+  assert.doesNotMatch(plain.summary, /Nothing else is needed|Paseo/);
+  const inPaseo = await paseo(t, 'agent-1', () => install('installed'));
+  assert.match(inPaseo.summary, /Next: in Paseo, open a new workspace on this project, choose New worktree from main, and type "lesson 1" there\. It takes about 20 minutes/);
+  // Only a first download names the lesson: an update and an apps-only run end as they did.
+  for (const run of [() => install('up to date'), () => install('installed', 'off'), () => install('installed', 'lacked')]) {
+    const report = await paseo(t, 'agent-1', run);
+    assert.match(report.summary, /Nothing else is needed\.$/); assert.doesNotMatch(report.summary, /lesson/);
+  }
 });
 test('a workspace copy known only by its memory address uses the sign-in its main copy made, and never another app\'s', async t => {
   const f = directories(t), home = process.env.HOME; process.env.HOME = f.base; t.after(() => { process.env.HOME = home; });

@@ -34,6 +34,7 @@
       "improve-code",
       "schedule",
       "daily",
+      "lesson",
       "memory",
       "wong-sync",
       "agent-browser"
@@ -101,7 +102,8 @@
       }
     ],
     "dirs": [
-      "openspec/schemas/scheduled-work"
+      "openspec/schemas/scheduled-work",
+      "wiki/development/first-day"
     ]
   },
   "ui": {
