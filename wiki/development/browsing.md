@@ -16,10 +16,11 @@ node $B open https://www.netflix.com/   # BROWSE_URL=, once the page settles
 node $B snapshot                        # the page as text, each part with a ref: e1, e2…
 node $B click e7                        # also: type e3 "Jo", press Enter, select e5 "Large"
 node $B get url                         # also: get count <selector>, get value e3
+node $B upload e9 report.pdf            # below: File uploads
 node $B close                           # this task's page; keeps the logins
 ```
 
-A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest snapshot.
+A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest snapshot. [File uploads](file-uploads.md) give a page files, never private ones.
 
 **Each ref acts on the box it marks.** A box in a payment box gets its own ref, even when the page has a box of the same name. When the script can't tell them apart, those boxes print no ref, and a `- note:` line says so: read the page again or use a selector. A click on a tick box, a round choice, or a switch is read back; if nothing changed, the script presses Space on it, and if it still didn't change, prints `BROWSE_ERROR=the box did not change`. A button with no ref, such as DigiKey's *Continue* `span`, takes a selector: `span[id*=ontinue]`. `BROWSE_CLICK=script` means only the page's script took the click, which a site may ignore: don't click again; send [the view that stays open](live-view.md#when-it-opens).
 

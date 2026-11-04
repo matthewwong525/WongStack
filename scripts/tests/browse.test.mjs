@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { JSDOM } from 'jsdom';
-import { addTyped, BAD_SELECTOR, boxAt, boxChanged, boxesIn, CAMOUFOX, countScript, frameOf, FRAMES_SCRIPT, frameSites, hasWords, installedLine, labelFrames, leftPage, MARK_SCRIPT, NO_REF_NOTE, passwordShown, refNames, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, mainDomain, selectorError, sessionName, shownCount, targetOf, typedMark, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { addTyped, BAD_SELECTOR, OLD_BROWSER, privatePath, boxAt, boxChanged, boxesIn, CAMOUFOX, countScript, frameOf, FRAMES_SCRIPT, frameSites, hasWords, installedLine, labelFrames, leftPage, MARK_SCRIPT, NO_REF_NOTE, passwordShown, refNames, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, mainDomain, selectorError, sessionName, shownCount, targetOf, typedMark, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { hostOf, readLogins, writeLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
 import { BROWSE_ENV, fakeCamofox, fakePython } from './fixtures/fake-camofox.mjs';
 
@@ -336,7 +336,7 @@ test('a command with no page open says so, and bad words are a usage error', t =
   const lost = f.run('click', 'e1', '--session', 'nobody');
   assert.equal(lost.status, 1);
   assert.equal(lost.stdout, 'BROWSE_ERROR=no page is open in this session; run `browse.mjs open <url>` first\n');
-  for (const args of [[], ['fly'], ['open'], ['open', 'ftp://files.example.com'], ['click'], ['type', 'e1'], ['snapshot', 'extra'], ['get'], ['get', 'title'], ['get', 'url', 'extra'], ['get', 'count'], ['login', 'shop'], ['login', '--password', 'e2'], ['forget']]) {
+  for (const args of [[], ['fly'], ['open'], ['open', 'ftp://files.example.com'], ['click'], ['type', 'e1'], ['snapshot', 'extra'], ['get'], ['get', 'title'], ['get', 'url', 'extra'], ['get', 'count'], ['login', 'shop'], ['login', '--password', 'e2'], ['forget'], ['upload'], ['upload', 'input[type=file]']]) {
     const out = f.run(...args);
     assert.equal(out.status, 2, args.join(' '));
     assert.match(out.stderr, /usage: browse\.mjs/);
@@ -1328,4 +1328,54 @@ test('a snapshot keeps each ref\'s box in the tab file, and a new page drops the
   assert.deepEqual(names(), { e1: ['textbox', 'Name'], e2: ['button', 'Go'] });
   ok(f, 'open', ACCOUNT, '--session', 'names');
   assert.equal(names(), undefined);
+});
+
+test('privatePath refuses a hidden part anywhere and .env files; a chat folder and an example pass', () => {
+  for (const path of ['/home/me/.wong-stack/logins.json', '/home/me/.ssh/id_ed25519', '/home/me/.gtoken', '/home/me/app/.env', '/srv/app/.env.local',
+    '/home/me/.paseo/worktrees/a-chat/.env', '/mnt/home-copy/me/.wong-stack/logins.json', '/tmp/.hidden/x.stl', '/home/me/.ssh/.env.example',
+    '/tmp/.hidden/.paseo/worktrees/a/model.stl']) {
+    assert.ok(privatePath(path), path);
+  }
+  for (const path of ['/home/me/app/.env.example', '/home/me/app/model.stl', '/home/me/.paseo/worktrees/a-chat/model.stl',
+    '/mnt/home-copy/me/.paseo/worktrees/a/model.stl', '/home/me/.paseo/worktrees/a/.github/x.yml', join(tmpdir(), 'model.stl')]) {
+    assert.equal(privatePath(path), null, path);
+  }
+});
+
+test('upload sends the absolute paths, and stops at a missing file or a link to a private one before any call', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP, '--session', 'a');
+  const model = join(f.home, 'model.stl');
+  writeFileSync(model, 'solid model\n');
+  f.saveLogins(LOGINS);
+  symlinkSync(f.loginsFile, join(f.home, 'part.stl'));
+  const before = f.camofox.requests().length;
+  const missing = f.run('upload', 'input[type=file]', 'model.stl', 'gone.stl', '--session', 'a');
+  assert.equal(missing.status, 1);
+  assert.equal(missing.stdout, 'BROWSE_ERROR=gone.stl does not exist\n');
+  const linked = f.run('upload', 'input[type=file]', 'model.stl', 'part.stl', '--session', 'a');
+  assert.equal(linked.status, 1);
+  assert.match(linked.stdout, /^BROWSE_ERROR=part\.stl is private \(a hidden file or folder\)/);
+  assert.equal(f.run('upload', 'input[type=file]', f.home, '--session', 'a').stdout, `BROWSE_ERROR=${f.home} is not a file\n`);
+  assert.equal(f.camofox.requests().length, before, 'no call reached the browser');
+
+  assert.equal(ok(f, 'upload', 'input[type=file]', 'model.stl', '--session', 'a'), 'BROWSE_UPLOADED=1\nBROWSE_UPLOAD_VIA=box\n');
+  f.camofox.set('upload-via', 'picker');
+  assert.equal(ok(f, 'upload', 'e2', model, model, '--session', 'a'), 'BROWSE_UPLOADED=2\nBROWSE_UPLOAD_VIA=picker\n');
+  assert.deepEqual(f.camofox.requests().slice(before).map(({ method, path, body }) => [`${method} ${path.replace(/^\/tabs\/[^/]+/, '')}`, body]), [
+    ['POST /upload', { userId: 'me', selector: 'input[type=file]', files: [model] }],
+    ['POST /upload', { userId: 'me', ref: 'e2', files: [model, model] }],
+  ], 'a relative path goes as the absolute one');
+});
+
+test('an upload on a browser older than the command says so, and opens no new tab', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP, '--session', 'a');
+  writeFileSync(join(f.home, 'model.stl'), 'solid model\n');
+  f.camofox.set('old-browser');
+  const before = f.camofox.calls().length;
+  const old = f.run('upload', 'input[type=file]', 'model.stl', '--session', 'a');
+  assert.equal(old.status, 1);
+  assert.equal(old.stdout, `BROWSE_ERROR=${OLD_BROWSER}\n`);
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/upload']);
 });

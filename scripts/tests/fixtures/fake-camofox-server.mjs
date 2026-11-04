@@ -135,6 +135,8 @@ const STEPS = {
     tab.picked[body.ref ?? body.selector] = body.option;
     return send(response, 200, { ok: true });
   },
+  // A server from before the upload command has no such route: `old-browser` answers as it does.
+  upload: (_, body, response) => (has('old-browser') ? refuse(response, 404, 'no such route') : send(response, 200, { ok: true, count: body.files.length, via: has('upload-via') ? text('upload-via') : 'box' })),
   press(tab, body, response) {
     if (has('press-url')) tab.url = text('press-url');
     if (body.key === 'Space' && tab.focus && isBox(tab.focus) && !has('box-ignores-space')) toggle(tab);

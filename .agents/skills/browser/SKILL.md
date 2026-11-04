@@ -10,6 +10,7 @@ disable-model-invocation: true
 `scripts/browse.mjs` installs, starts, and drives Camoufox, the browser the agent uses websites in as the person. [Browsing](../../../wiki/development/browsing.md) owns when and how to run it:
 
 - `open`, `snapshot`, `click`, `type`, `press`, `select`, `get`, and `screenshot` work one page.
+- `upload <ref-or-selector> <path> [<path>...]` gives a page's file box, or the picker a button opens, files from this computer; it refuses private and missing paths.
 - `logins`, `login`, and `forget` use saved logins, never showing a password.
 - A sign-in box in a frame from another site sits at the end of `snapshot`, under the first-line note: use its ref, not a selector or a live view.
 - `save` and `close` keep the logins; `status`, `install`, and `stop` manage the browser.

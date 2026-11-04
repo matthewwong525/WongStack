@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The browser can upload files to a page
+
+- **The agent can give a site a file.** `browse.mjs upload <ref-or-selector> <path> [<path>...]` puts files from this computer into a page's file box, a file box hidden behind a drop area, or the file picker that a button opens. It prints how many files went in and which way, so the agent can read the page and see the upload start. A live view can't do this, because it shows only the page, not the computer's file picker ([file uploads](wiki/development/file-uploads.md)).
+- **Private files never go out.** The upload stops, and the page gets no file, when a path is missing, is a folder, or is private: a `.env` file anywhere, or a file with a hidden folder or name in its path, such as your saved logins or `~/.ssh`. The chats' own work folders under `.paseo/worktrees/` are allowed. The rule is by place, so a token file with no fixed name is private too. A link to a private file is refused, and the browser's server checks again.
+- **A clear reason when it can't.** A box that takes one file refuses two, and a button that opens no picker says so in one line.
+
+**Updating.** The update adds the file uploads page and links it from your wiki's development page. A browser that is running gets the new command at its next start; until then, an upload says so. Don't stop the browser just for this.
+
 ## 48.2.0 — A card form shows the site live from the press
 
 - **When you press Pay, you see the site.** The same private form link shows the store's page live, under one line such as *Paying Example Shop · 4 s*. If the site stops on a step, you tap through it there. Where no live view can open, such as on a Mac, the form shows the same line and a counter ([the private form](wiki/development/private-form.md#what-you-see)).
