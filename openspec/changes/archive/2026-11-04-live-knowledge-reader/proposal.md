@@ -1,6 +1,6 @@
 # A live reader in the app for company knowledge
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** fluffy-wombat
 **Open questions:** none
 
@@ -83,3 +83,4 @@ Non-goals: editing pages in the app (a chat saves them), the knowledge repo itse
 - **2026-11-04** — Assumed: the Access step's `/public/*` route waits until after publish, so the step was run again from `main` to take it off both Access apps. CI checks every upload with `main`'s Access check, which refused the route, so every preview and every publish from `main` failed while it was on. After publish, the Access step runs once more, and the live app shows `/public/*` with no sign-in.
 - **2026-11-04** — Assumed: 6.2 checks `/public/*` through the check sign-in, and leaves out "a teammate without the app is refused", because a preview's only sign-in holds every app; the route tests cover the refusal, and the no-sign-in check runs on the live app after publish.
 - **2026-11-04** — Asked how to handle `daily-journal.test.mjs`, red on `main` since the date passed 3 November (it wrote a line on a fixed date and read it by the real clock) → chose to fix it in this change: that test now uses one real moment for the line, the hook and `D journal --new`.
+- **2026-11-04** — Archived for publish. `main` came in with 45.9.0 and its own fix for the journal test; that fix was kept. The spec is back in the `knowledge-reader` area's docs.
