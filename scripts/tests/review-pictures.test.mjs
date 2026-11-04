@@ -349,24 +349,31 @@ test('a picture over 150 KB warns with its item, picture, and line, and still bu
   assert.equal(result.stderr, `review: warning: proposal.md line 12: item 1, picture 1: big.png is 151 KB; keep pictures under 150 KB: ${SMALLER}\n`);
 }, ['Small: small.png', 'big.png'], { 'small.png': png(), 'big.png': png(150 * KB + 1) }));
 
-test('a picture of 300 KB still builds: its page stays under 500 KB', () => pictured(root => {
+test('a picture of 300 KB still builds: its page stays under 800 KB, so it gives no page warning', () => pictured(root => {
   const result = build(root);
   assert.equal(result.status, 0, result.stderr);
-  assert.ok(Buffer.byteLength(page(root)) <= 500 * KB);
+  assert.doesNotMatch(result.stderr, /the page is/);
+  assert.ok(Buffer.byteLength(page(root)) <= 800 * KB);
 }, ['edge.png'], { 'edge.png': png(300 * KB) }));
 
-// Base64 makes each picture a third larger, so two 190 KB pictures make a page past the Inbox's limit.
-test('a built page over 500 KB stops the build, and the previous page stays', () => pictured(root => {
+test('a page over 800 KB builds with a warning: it is slow on a phone', () => pictured(root => {
+  const result = build(root);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stderr, new RegExp(`review: warning: the page is \\d+ KB; a page over 800 KB is slow on a phone: show fewer pictures, or ${SMALLER}\n$`));
+}, ['a.png', 'b.png'], { 'a.png': png(300 * KB), 'b.png': png(300 * KB) }));
+
+// Base64 makes each picture a third larger, so four 300 KB pictures make a page past the Inbox's limit.
+test('a built page over 1.5 MB stops the build, and the previous page stays', () => pictured(root => {
   writeFileSync(join(root, 'proposal.md'), proposal);
   buildReview(root, { requireCurrent: true });
   const good = page(root);
-  writeFileSync(join(root, 'proposal.md'), withPictures(['a.png', 'b.png']));
+  writeFileSync(join(root, 'proposal.md'), withPictures(['a.png', 'b.png', 'c.png', 'd.png']));
   const result = build(root);
   assert.equal(result.status, 1);
-  assert.match(result.stderr, new RegExp(`^review: the page is (\\d+) KB; keep a page under 500 KB so the Inbox takes it: show fewer pictures, or ${SMALLER}\n$`));
-  assert.ok(Number(/is (\d+) KB/.exec(result.stderr)[1]) > 500);
+  assert.match(result.stderr, new RegExp(`^review: the page is (\\d+) KB; keep a page under 1.5 MB so the Inbox takes it: show fewer pictures, or ${SMALLER}\n$`));
+  assert.ok(Number(/is (\d+) KB/.exec(result.stderr)[1]) > 1536);
   assert.equal(page(root), good);
-}, ['a.png', 'b.png'], { 'a.png': png(190 * KB), 'b.png': png(190 * KB) }));
+}, ['a.png'], Object.fromEntries(['a', 'b', 'c', 'd'].map(name => [`${name}.png`, png(300 * KB)]))));
 
 // Each refused picture: the fence's lines, the files beside the proposal, the proposal line, and the reason.
 const refusedPictures = [
@@ -480,3 +487,64 @@ for (const [what, address] of [['an http address', 'http://demo.example.dev/'], 
     assert.equal(result.stderr, `review: proposal.md line ${what === 'a second link' ? 13 : 12}: item 1, picture 1: Try it takes one https:// address, not ${shown}\n`);
   }, ['After: after.png', `Try it: ${address}`], { 'after.png': png() }));
 }
+
+// ── `live` fences: the chat's own page from a folder, its files carried inside one sealed frame ──
+// The fence replaces item 1's flow; it opens on proposal line 10, where a card-wide refusal points.
+const withLive = (lines = ['folder: site']) => proposal.replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`, `${fence}live\n${lines.map(line => `  ${line}`).join('\n')}`);
+const site = { 'site/index.html': '<!doctype html><html><head><link rel="stylesheet" href="style.css"></head><body><img src="logo.png" alt="Logo">'
+  + '<a href="#top">Top</a><a href="mailto:hi@example.com">Mail</a><script src="app.js"></script></body></html>',
+'site/style.css': 'body { background: url("logo.png"); }', 'site/app.js': 'review.answer("Blue"); const end = "</script>";', 'site/logo.png': png() };
+const lived = (fn, files = site, lines) => fixture(root => {
+  mkdirSync(join(root, 'site'));
+  for (const [name, bytes] of Object.entries(files)) writeFileSync(join(root, name), bytes);
+  return fn(root);
+}, withLive(lines));
+const srcdoc = html => /<iframe sandbox="allow-scripts" title="Live card 1" srcdoc="([^"]*)"><\/iframe>/.exec(html)[1]
+  .replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+
+test('a live fence carries its page, styles, script, and pictures inside one sealed frame', () => lived(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  const html = page(root), doc = srcdoc(html), uri = `data:image/png;base64,${png().toString('base64')}`;
+  assert.match(html, /<div class="live" data-live="item-1-live-1" data-height="640"><div class="live-box"><iframe sandbox="allow-scripts" /);
+  assert.match(doc, /^<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline';[^"]*connect-src 'none'[^"]*"><script>\(function\(\)\{var port=null/);
+  assert.ok(doc.includes(`<style>body { background: url("${uri}"); }</style>`), 'the stylesheet and its picture are inside');
+  assert.ok(doc.includes(`<img src="${uri}" alt="Logo">`));
+  assert.ok(doc.includes('<script>review.answer("Blue"); const end = "<\\/script>";</script>'), 'the script is inside, its end tag escaped');
+  assert.ok(doc.includes('<a href="#top">Top</a><a href="mailto:hi@example.com">Mail</a>'), 'a link in the page or to mail stays');
+  assert.equal((html.match(/<script\b/gi) || []).length, 2, 'the card\'s scripts sit only inside its frame');
+  assert.match(chatCopy('demo', readFileSync(join(root, 'proposal.md'), 'utf8')), /^1\. \*\*One gate\.\*\* Saving runs one check\.\n\n {3}_\(live page on the review page\)_$/m);
+}));
+
+// Each refused live card: its files, the fence's lines, the proposal line, and the reason.
+const refusedLive = [
+  ['a web picture', { 'site/index.html': '<img src="https://example.com/a.png">' }, undefined, 10, 'https://example.com/a.png is a web address; a live card loads nothing from the web: copy it into the folder'],
+  ['a script from another site', { 'site/index.html': '<script src="//cdn.example.com/a.js"></script>' }, undefined, 10, '//cdn.example.com/a.js is a web address; a live card loads nothing from the web: copy it into the folder'],
+  ['a link to a web page', { 'site/index.html': '<a href="https://example.com/">Shop</a>' }, undefined, 10, 'https://example.com/ is a web address; a live card loads nothing from the web: copy it into the folder'],
+  ['a stylesheet import', { 'site/index.html': '<style>@import "more.css";</style>' }, undefined, 10, 'a stylesheet @import; put the styles in one file'],
+  ['a path out of the folder', { 'site/index.html': '<img src="../../outside.png">' }, undefined, 10, '../../outside.png is outside the change\'s folder'],
+  ['a folder out of the change', {}, ['folder: ../elsewhere'], 10, '../elsewhere/index.html is outside the change\'s folder'],
+  ['no index page', {}, undefined, 10, 'no index.html in site'],
+  ['a file that is not what its name says', { 'site/index.html': '<img src="logo.gif">', 'site/logo.gif': 'not a picture' }, undefined, 10, 'logo.gif is not the GIF file its name says'],
+  ['an unknown line', site, ['folder: site', 'width: 300'], 12, 'a live card takes one folder: line and one height: line'],
+  ['a height out of range', site, ['folder: site', 'height: 9000'], 10, 'height is a number of pixels from 200 to 4000, not 9000'],
+  ['a card over 800 KB', { 'site/index.html': `<script>${'x'.repeat(801 * KB)}</script>` }, undefined, 10, /^the live card is \d+ KB; keep a live card under 800 KB: use smaller pictures$/],
+];
+for (const [what, files, lines, line, why] of refusedLive) {
+  test(`a live card with ${what} stops the build on one line naming the item and card`, () => lived(root => {
+    const result = build(root);
+    assert.equal(result.status, 1);
+    const said = /^review: proposal\.md line (\d+): item 1, live card 1: (.*)\n$/.exec(result.stderr);
+    assert.ok(said, result.stderr);
+    assert.equal(Number(said[1]), line);
+    if (why instanceof RegExp) assert.match(said[2], why); else assert.equal(said[2], why);
+  }, files, lines));
+}
+
+test('a live card carries an SVG, a GIF, and a font, each checked by its own bytes', () => lived(root => {
+  buildReview(root, { requireCurrent: true });
+  const doc = srcdoc(page(root));
+  assert.ok(doc.includes(`src="data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>').toString('base64')}"`));
+  assert.ok(doc.includes('src="data:image/gif;base64,R0lGODlh"'));
+  assert.ok(doc.includes('url("data:font/woff2;base64,d09GMg==")'));
+}, { 'site/index.html': '<style>@font-face { font-family: a; src: url(a.woff2); }</style><img src="a.svg"><img src="a.gif">',
+  'site/a.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>', 'site/a.gif': 'GIF89a', 'site/a.woff2': 'wOF2' }));

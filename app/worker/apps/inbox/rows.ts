@@ -6,7 +6,7 @@
 export type Scope = { db: D1DatabaseSession; installation: string; email: string; now: number; wake: (computer?: string | null) => Promise<void> };
 
 /** `sql` bound to the caller's installation as ?1 and email as ?2, then `values` from ?3. */
-export const mine = (at: Pick<Scope, "db" | "installation" | "email">, sql: string, ...values: (string | number | null)[]) =>
+export const mine = (at: Pick<Scope, "db" | "installation" | "email">, sql: string, ...values: (string | number | null | Uint8Array)[]) =>
   at.db.prepare(sql).bind(at.installation, at.email, ...values);
 
 /** Notes that the caller's computer is here now: a check-in, a claim, or a hello on its line. */

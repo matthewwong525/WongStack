@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -22,11 +22,16 @@ const sha = text => createHash('sha256').update(text).digest('hex');
 // The live app's inbox routes, kept in memory; `status` answers every call with that code, and `down` throws. A
 // check-in hands out the taps on the items it names, once, as the app does.
 function fakeApp(origin = ORIGIN) {
-  const app = { calls: [], items: new Map(), taps: [], status: 200, down: false, reports: true };
+  const app = { calls: [], items: new Map(), taps: [], files: new Map(), status: 200, down: false, reports: true };
   const answer = (route, body) => {
     if (route === 'items') return { items: [...app.items.values()], computerOnline: true };
     if (route === 'item') { app.items.set(body.id, body); return { id: body.id, version: body.version }; }
     if (route === 'item-close') { app.items.delete(body.id); return { id: body.id }; }
+    if (route.startsWith('file?')) {
+      const query = new URLSearchParams(route.slice(5)), file = app.files.get(query.get('id')), n = Number(query.get('part'));
+      if (!file || !(n < file.parts.length)) return null;
+      return { name: file.name, type: file.type, question: file.question, size: file.size, parts: file.parts.length, data: file.parts[n].toString('base64') };
+    }
     if (route === 'checkin') {
       const taken = app.taps.filter(tap => body.items.includes(tap.item));
       app.taps = app.taps.filter(tap => !taken.includes(tap));
@@ -268,14 +273,14 @@ test('an inbox helper from older code is replaced by the next start; a current o
   const started = record();
   pids.push(started.pid);
   assert.notEqual(started.pid, old.pid);
-  assert.equal(started.protocol, 9);
+  assert.equal(started.protocol, 10);
   assert.equal(alive(old.pid), false, 'the older helper ended');
 
   const current = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e6)'], { detached: true, stdio: 'ignore' });
   pids.push(current.pid);
-  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 9 }));
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 10 }));
   await startInbox(at.state, at.env);
-  assert.deepEqual(record(), { pid: current.pid, protocol: 9 }, 'no second helper starts');
+  assert.deepEqual(record(), { pid: current.pid, protocol: 10 }, 'no second helper starts');
   assert.ok(alive(current.pid));
 });
 
@@ -291,7 +296,7 @@ test('a recorded pid that is not the inbox helper is a stale record: a new helpe
   const started = JSON.parse(readFileSync(at.state.inbox, 'utf8'));
   pids.push(started.pid);
   assert.notEqual(started.pid, other.pid);
-  assert.equal(started.protocol, 9);
+  assert.equal(started.protocol, 10);
   assert.ok(alive(other.pid), 'the other program is left running');
 });
 
@@ -538,4 +543,66 @@ test('a hidden kept-open item wakes its chat on every tap, moves its close each 
   assert.equal(await tick(at, app, { wake, now: Date.now() + 9 * 3_600_000 }), 0);
   assert.deepEqual(woken.map(each => each.message), [ROUND, ROUND, STOP], 'the stop message comes once');
   assert.equal(app.items.has(item.id), false);
+});
+
+test('a tap\'s files are read part by part, saved for the chat, and named in its message before it is reported sent', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const file = join(at.dir, 'review.html');
+  writeFileSync(file, `${MARK}<title>One</title>`);
+  const folder = join(at.dir, 'up');
+  const { id } = await openInboxItem({ file, kind: 'plan', header: HEADER, actions: { build: BUILD }, hours: 24, target: CHAT, cwd: at.dir, uploads: folder },
+    { env: at.env, clientFor: async () => app.client, start: () => {} });
+  const png = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(2000, 1)]);
+  const logo = 'c'.repeat(32), fake = 'd'.repeat(32);
+  app.files.set(logo, { name: 'logo.png', type: 'image/png', question: 'Change #3, "Logo"', size: png.length, parts: [png.subarray(0, 1500), png.subarray(1500)] });
+  app.files.set(fake, { name: 'brief.pdf', type: 'application/pdf', question: 'Need #1, "Brief"', size: 5, parts: [Buffer.from('hello')] });
+  const version = sha(`${MARK}<title>One</title>`);
+  const { woken, wake } = waker();
+  app.taps.push({ id: 't1', item: id, action: 'send', text: 'Hello', version, files: [{ id: fake, name: 'brief.pdf', question: 'Need #1, "Brief"', size: 5 }] });
+  assert.equal(await tick(at, app, { wake }), 1);
+  assert.deepEqual(reported(app), ['failed'], 'a file that is not what its name says fails its tap');
+  assert.equal(woken.length, 0);
+  assert.deepEqual(existsSync(folder) ? readdirSync(folder) : [], []);
+  app.taps.push({ id: 't2', item: id, action: 'build', text: '- Change #3, "Logo": logo.png', version, files: [{ id: logo, name: 'logo.png', question: 'Change #3, "Logo"', size: png.length }] });
+  assert.equal(await tick(at, app, { wake }), 0);
+  assert.deepEqual(app.calls.filter(call => call.route.startsWith('file?')).map(call => call.route).slice(-2), [`file?id=${logo}&part=0`, `file?id=${logo}&part=1`]);
+  const path = join(folder, `${logo}-logo.png`);
+  assert.deepEqual(readFileSync(path), png);
+  assert.equal((statSync(path).mode & 0o777).toString(8), '600');
+  assert.deepEqual(woken.map(w => w.message), [`${BUILD}\n- Change #3, "Logo": logo.png\nFiles:\n- Change #3, "Logo": logo.png, 2 KB, at ${path}`]);
+  assert.deepEqual(reported(app), ['failed', 'sent'], 'sent once the file is written and the chat has it');
+});
+
+test('a long read of one tap\'s files fails no other tap of its round, and each outcome is told as soon as it is known', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const opened = [];
+  for (const name of ['one', 'two']) {
+    const file = join(at.dir, `${name}.html`);
+    writeFileSync(file, `${MARK}<title>${name}</title>`);
+    opened.push({ ...await openInboxItem({ file, kind: 'plan', header: HEADER, actions: { build: BUILD }, hours: 24, target: CHAT, cwd: at.dir,
+      uploads: join(at.dir, 'up') }, { env: at.env, clientFor: async () => app.client, start: () => {} }), version: sha(`${MARK}<title>${name}</title>`) });
+  }
+  // Each part takes a minute to read: two of them pass the 90 seconds a round's taps once had together.
+  const realNow = Date.now;
+  let skew = 0;
+  Date.now = () => realNow() + skew;
+  t.after(() => { Date.now = realNow; });
+  const http = app.client.http;
+  app.client.http = async (path, init) => {
+    if (path.includes('file?')) skew += 60_000;
+    return http(path, init);
+  };
+  const png = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(2000, 1)]);
+  const logo = 'c'.repeat(32);
+  app.files.set(logo, { name: 'logo.png', type: 'image/png', question: 'Need #2, "Logo"', size: png.length, parts: [png.subarray(0, 1000), png.subarray(1000)] });
+  app.taps.push({ id: 't1', item: opened[0].id, action: 'build', text: '', version: opened[0].version, files: [{ id: logo, name: 'logo.png', question: 'Need #2, "Logo"', size: png.length }] },
+    { id: 't2', item: opened[1].id, action: 'build', text: '', version: opened[1].version, files: [] });
+  const { woken, wake } = waker();
+  await tick(at, app, { wake });
+  assert.equal(woken.length, 2, 'both taps reach the chat');
+  assert.deepEqual(app.calls.filter(call => call.route === 'tap-result').map(call => [call.body.id, call.body.state]), [['t1', 'sent'], ['t2', 'sent']]);
+  const order = app.calls.map(call => call.route === 'tap-result' ? call.body.id : call.route === 'item-close' ? `close ${call.body.id}` : null).filter(Boolean);
+  assert.equal(order[0], 't1', 'the first is told before the second is delivered');
 });

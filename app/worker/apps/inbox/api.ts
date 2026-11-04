@@ -1,8 +1,9 @@
-// The inbox's server side: items, taps and schedules, each for the signed-in person alone, and the owner's week board
-// (tasks/), which the week screen and the daily change. wiki/development/reply-links.md
+// The inbox's server side: items, taps, sent files and schedules, each for the signed-in person alone, and the owner's
+// week board (tasks/), which the week screen and the daily change. wiki/development/reply-links.md
 import type { Route } from "../../api/contract.ts";
 import { checkin } from "./checkin.ts";
 import { claim } from "./claim.ts";
+import { fileRead, fileUpload } from "./files.ts";
 import { itemClose } from "./item-close.ts";
 import { itemPut } from "./item-put.ts";
 import { item } from "./item.ts";
@@ -25,5 +26,5 @@ export const routes = new Map<string, Route>([
   ["PUT item", itemPut], ["POST item-close", itemClose], ["POST checkin", checkin], ["POST tap-result", tapResult], ["GET line", line],
   ["GET schedules", schedules], ["GET schedule", scheduleDetail], ["PUT schedule", schedulePut], ["POST pause", pause], ["POST resume", resume],
   ["POST delete", scheduleDelete], ["POST run-now", runNow], ["POST run-cancel", runCancel], ["POST claim", claim],
-  ["POST run-result", runResult], ["PUT mirror", mirror], ...weekRoutes, ...dailyRoutes,
+  ["POST run-result", runResult], ["PUT mirror", mirror], ["POST file", fileUpload], ["GET file", fileRead], ...weekRoutes, ...dailyRoutes,
 ]);

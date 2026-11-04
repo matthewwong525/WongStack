@@ -601,11 +601,11 @@ test('a preview page has no Decisions, its own notes key and kind, and fixed wor
   assert.match(page(root), /<body data-change="example-preview" data-own-back>[\s\S]*id="decisions"/);
 }));
 
-function hosted(window, actions) {
+function hosted(window, actions, extra = {}) {
   const port = { posted: [], postMessage: message => port.posted.push(JSON.parse(JSON.stringify(message))), onmessage: null };
   const parent = { postMessage: () => {} };
   Object.defineProperty(window, 'parent', { configurable: true, get: () => parent });
-  const event = new window.MessageEvent('message', { data: { type: 'inbox:hello', item: 'i1', version: 'v1', actions } });
+  const event = new window.MessageEvent('message', { data: { type: 'inbox:hello', item: 'i1', version: 'v1', actions, ...extra } });
   Object.defineProperty(event, 'source', { value: parent });
   Object.defineProperty(event, 'ports', { value: [port] });
   window.dispatchEvent(event);
@@ -811,3 +811,258 @@ test('a plan page names its cards Change in its OK lines, copied under the plan 
   assert.deepEqual(errors, []);
   window.close();
 }));
+
+// ── questions: a form fence in a card or a needs item, and the needs list ──
+const asking = `## Why
+
+Know the shop.
+
+## What Changes
+
+- **Shop details.** Tell us about the shop.
+  ${fence}form
+  text: Shop name
+  long: About the shop
+  choice: Sale ends | Sunday, Next Sunday
+  choices: Colours | Red, Blue, Green
+  date: Launch day
+  tick: Free shipping over $50
+  file: Logo | image, pdf | 2
+  ${fence}
+
+## What the build needs
+
+- **Shopify key**: Ready, \`SHOPIFY_TOKEN\` is in \`.env\`.
+- **Your logo**: Needs you.
+  ${fence}form
+  file: Logo | image | 1
+  ${fence}
+- **Meta ads key**: Needs you. Get it: <https://key.example.dev/k>
+- **Nothing else.**
+
+## Decision log
+
+- **2026-11-03** — Assumed: one shop.
+`;
+
+test('a form fence draws real inputs, each with a stable question id, its words escaped', () => fixture(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  const html = page(root);
+  const form = /<div class="form">([\s\S]*?)<\/div><\/li>/.exec(html)[1];
+  assert.deepEqual([...form.matchAll(/data-q="([^"]+)" data-kind="(\w+)" data-label="([^"]+)"/g)].map(m => m.slice(1).join(' ')), [
+    'item-1-q-1 text Shop name', 'item-1-q-2 long About the shop', 'item-1-q-3 choice Sale ends', 'item-1-q-4 choices Colours',
+    'item-1-q-5 date Launch day', 'item-1-q-6 tick Free shipping over $50', 'item-1-q-7 file Logo']);
+  assert.match(form, /<input type="radio" name="q-item-1-q-3" value="Next Sunday"> Next Sunday<\/label>/);
+  assert.match(form, /<input type="checkbox" name="q-item-1-q-4" value="Green"> Green<\/label>/);
+  assert.match(form, /data-types="png,jpg,jpeg,webp,gif,pdf" data-count="2"><p class="q-label">Logo<\/p><label class="drop"><input type="file" accept="\.png,\.jpg,\.jpeg,\.webp,\.gif,\.pdf" multiple>/);
+  assert.match(form, /pictures, PDFs; up to 2 files, 25 MB each\. Never send a password, key, or card here\./);
+  assert.match(chatCopy('example', asking), /^1\. \*\*Shop details\.\*\* Tell us about the shop\.\n\n {3}_\(questions on the review page\)_$/m);
+}, asking));
+
+test('the needs list sits after the cards and before Decisions, each item marked, its link opening a new tab', () => fixture(root => {
+  buildReview(root, { requireCurrent: true });
+  const html = page(root);
+  assert.ok(html.indexOf('<section id="changes"') < html.indexOf('<section id="needs"') && html.indexOf('<section id="needs"') < html.indexOf('<section id="decisions"'));
+  assert.match(html, /<li><a href="#needs">Needs<\/a><\/li>/);
+  assert.deepEqual([...html.matchAll(/<li class="need card" id="(need-\d)" data-need="(\w+)">/g)].map(m => `${m[1]} ${m[2]}`), ['need-1 ready', 'need-2 needs', 'need-3 needs', 'need-4 none']);
+  assert.match(html, /<p><span class="tag">Ready<\/span> <b>Shopify key<\/b> <code>SHOPIFY_TOKEN<\/code> is in <code>\.env<\/code>\.<\/p>/);
+  assert.match(html, /data-q="need-2-q-1" data-kind="file" data-label="Logo"/);
+  assert.match(html, /<span class="tag-outline">Needs you<\/span> <b>Meta ads key<\/b> Get it: <a target="_blank" rel="noopener noreferrer" href="https:\/\/key\.example\.dev\/k">Open the link<\/a>/);
+  assert.match(chatCopy('example', asking), /\*\*What the build needs\*\*\n\n- \*\*Shopify key\*\*: Ready[^\n]*\n- \*\*Your logo\*\*: Needs you\.\n/);
+}, asking));
+
+test('a page with no needs list has no Needs section or jump link', () => fixture(root => {
+  buildReview(root, { requireCurrent: true });
+  assert.doesNotMatch(page(root), /id="needs"|href="#needs"/);
+}));
+
+// Each refused question or need: the swap in the source, the line, the place, and the reason.
+const refusedAsks = [
+  ['an unknown kind', ['text: Shop name', 'colour: Shop colour'], 9, 'item 1', 'a question is one of text, long, choice, choices, date, tick, file, then a colon and its words'],
+  ['an unknown file type', ['file: Logo | image, pdf | 2', 'file: Logo | movie'], 15, 'item 1', 'a file takes "| <types> | <count>", types from image, pdf, text, office, zip, not movie'],
+  ['a file count over 5', ['file: Logo | image, pdf | 2', 'file: Logo | image | 6'], 15, 'item 1', 'a file question takes 1 to 5 files, not 6'],
+  ['a choice with no options', ['choice: Sale ends | Sunday, Next Sunday', 'choice: Sale ends'], 11, 'item 1', 'choice takes "| a, b" with 1 to 12 options'],
+  ['a secret', ['text: Shop name', 'text: Your API key'], 9, 'item 1', 'the question "Your API key" asks for a secret; a page never takes a password, key, or card: send its private link (wiki/development/secrets.md#receive-a-key-through-a-private-link)'],
+  ['a password in a need', ['file: Logo | image | 1', 'text: Shop password'], 23, 'need 2', 'the question "Shop password" asks for a secret; a page never takes a password, key, or card: send its private link (wiki/development/secrets.md#receive-a-key-through-a-private-link)'],
+  ['over 12 questions', ['text: Shop name', Array.from({ length: 13 }, (_, i) => `text: Question ${i + 1}`).join('\n  ')], 8, 'item 1', 'a form holds 1 to 12 questions'],
+];
+for (const [what, [from, to], line, where, why] of refusedAsks) {
+  test(`a form with ${what} stops the build on one line naming its place`, () => fixture(root => {
+    const result = spawnSync(process.execPath, [builder, root, '--require-current'], { encoding: 'utf8' });
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, `review: proposal.md line ${line}: ${where}: ${why}\n`);
+  }, asking.replace(from, to)));
+}
+
+const refusedNeeds = [
+  ['neither state', ['**Shopify key**: Ready,', '**Shopify key**: Maybe,'], 'item 1: start with **<what>**: Ready or **<what>**: Needs you'],
+  ['an http link', ['<https://key.example.dev/k>', '[the link](http://key.example.dev/k)'], 'item 3: a need takes one https link at most'],
+  ['nothing to give', ['Get it: <https://key.example.dev/k>', 'Ask the owner.'], 'item 3: a need that needs you holds a form or its https link'],
+];
+for (const [what, [from, to], why] of refusedNeeds) {
+  test(`a need with ${what} stops the build naming the item`, () => fixture(root => {
+    const result = spawnSync(process.execPath, [builder, root, '--require-current'], { encoding: 'utf8' });
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, `review: proposal.md line 18: ## What the build needs, ${why}\n`);
+  }, asking.replace(from, to)));
+}
+
+test('answers are kept with the notes and go out under their questions, before the notes, once each', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const html = page(root);
+  const { window, document, errors } = dom(html);
+  window.document.execCommand = () => true;
+  await loaded(window);
+  const q = id => document.querySelector(`[data-q="${id}"]`);
+  const type = (el, value) => { el.value = value; el.dispatchEvent(new window.Event('input', { bubbles: true })); };
+  const pick = el => { el.checked = true; el.dispatchEvent(new window.Event('change', { bubbles: true })); };
+  type(q('item-1-q-1').querySelector('input'), 'Corner Shop');
+  pick(q('item-1-q-3').querySelectorAll('input')[1]);
+  pick(q('item-1-q-4').querySelectorAll('input')[0]);
+  pick(q('item-1-q-4').querySelectorAll('input')[2]);
+  pick(q('item-1-q-6').querySelector('input'));
+  document.querySelector('[data-note="why-1"] .add').click();
+  document.querySelector('#editor textarea').value = 'Shorter.';
+  document.querySelector('#editor [data-act="save"]').click();
+  assert.deepEqual(document.getElementById('copybuf').value.split('\n').slice(1), [
+    '- Change #1, "Shop name": Corner Shop', '- Change #1, "Sale ends": Next Sunday', '- Change #1, "Colours": Red, Green',
+    '- Change #1, "Free shipping over $50": Yes', '- Why, paragraph 1 ("Know the shop."): Shorter.']);
+  const saved = JSON.parse(window.localStorage.getItem('wong-review3:example'));
+  assert.deepEqual(saved.answers, { 'item-1-q-1': 'Corner Shop', 'item-1-q-3': 'Next Sunday', 'item-1-q-4': ['Red', 'Green'], 'item-1-q-6': true });
+  // The inbox hands the saved answers back: they fill the inputs again.
+  const fresh = dom(html);
+  await loaded(fresh.window);
+  const port = hosted(fresh.window, ['build']);
+  port.onmessage({ data: { type: 'inbox:notes', value: JSON.stringify(saved) } });
+  assert.equal(fresh.document.querySelector('[data-q="item-1-q-1"] input').value, 'Corner Shop');
+  assert.equal(fresh.document.querySelectorAll('[data-q="item-1-q-4"] input')[2].checked, true);
+  fresh.document.getElementById('copy').click();
+  assert.equal(port.posted.at(-1).text.split('\n')[0], '- Change #1, "Shop name": Corner Shop');
+  port.onmessage({ data: { type: 'inbox:result', state: 'sent' } });
+  await new Promise(done => setTimeout(done, 0));
+  type(fresh.document.querySelector('[data-q="item-1-q-1"] input'), 'Corner Shop Two');
+  fresh.document.getElementById('copy').click();
+  assert.equal(port.posted.at(-1).text, '- Change #1, "Shop name": Corner Shop Two', 'only the changed answer goes again');
+  assert.deepEqual([errors, fresh.errors], [[], []]);
+  [window, fresh.window].forEach(w => w.close());
+}, asking));
+
+test('in the inbox the needs list holds Build it until each need is answered, and a tap leads to the first', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  await loaded(window);
+  const port = hosted(window, ['build']);
+  const button = document.querySelector('[data-ready="build"]');
+  assert.equal(button.textContent.trim(), '2 things need you');
+  window.Element.prototype.scrollIntoView = () => {};
+  button.click();
+  assert.equal(port.posted.filter(m => m.type === 'inbox:tap').length, 0, 'a gated tap sends nothing');
+  assert.ok(document.getElementById('need-2').classList.contains('hit'), 'the tap shows the first open need');
+  const logo = { id: 'b'.repeat(32), name: 'logo.png', size: 10, sent: false };
+  port.onmessage({ data: { type: 'inbox:notes', value: JSON.stringify({ notes: [], files: { 'need-2-q-1': [logo] } }) } });
+  assert.equal(button.textContent.trim(), '1 thing needs you', 'a link need stays open until the chat rebuilds the page');
+  assert.equal(document.querySelector('#need-2 .tag').textContent, 'Answered');
+  assert.deepEqual(errors, []);
+  window.close();
+}, asking));
+
+test('in the inbox a file the app no longer holds goes back to its question, and a send that names one keeps the page live', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  await loaded(window);
+  const logo = { id: 'b'.repeat(32), name: 'logo.png', size: 10, sent: false }, shop = { id: 'c'.repeat(32), name: 'shop.png', size: 10, sent: false };
+  const sent = { id: 'd'.repeat(32), name: 'old.png', size: 10, sent: true };
+  // A day on: the app deleted the logo, and the hello says what it still holds.
+  const port = hosted(window, ['build'], { files: [shop.id] });
+  port.onmessage({ data: { type: 'inbox:notes', value: JSON.stringify({ notes: [], files: { 'need-2-q-1': [logo], 'item-1-q-7': [shop, sent] } }) } });
+  const need = document.querySelector('[data-q="need-2-q-1"] .files');
+  assert.match(need.textContent, /logo\.png · 1 KB Refused: the app no longer holds it; pick it again/);
+  assert.doesNotMatch(need.textContent, /Retry/);
+  assert.equal(document.querySelector('[data-ready="build"]').textContent.trim(), '2 things need you', 'the logo\'s need opens again');
+  assert.match(document.querySelector('[data-q="item-1-q-7"] .files').textContent, /shop\.png · 1 KB Sent.*old\.png · 1 KB Sent/);
+  // The app deletes the shop picture too before the send: the send is refused, the page stays live, and it asks again.
+  document.getElementById('copy').click();
+  assert.deepEqual(port.posted.at(-1).files, [shop.id]);
+  port.onmessage({ data: { type: 'inbox:result', state: 'gone', files: [] } });
+  await new Promise(done => setTimeout(done, 0));
+  assert.equal(document.getElementById('toast').textContent, 'A file is no longer held. Pick it again, then send.');
+  assert.match(document.querySelector('[data-q="item-1-q-7"] .files').textContent, /old\.png · 1 KB Sent.*shop\.png · 1 KB Refused: the app no longer holds it/);
+  assert.match(document.getElementById('copy').textContent, /Send notes/, 'the link is still live');
+  assert.deepEqual(errors, []);
+  window.close();
+}, asking));
+
+test('with nothing open the build buttons read as their own labels', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  await loaded(window);
+  hosted(window, ['build']);
+  assert.equal(document.querySelector('[data-ready="build"]').textContent.trim(), 'Build it');
+  assert.deepEqual(errors, []);
+  window.close();
+}, asking.replace(/- \*\*Your logo\*\*[\s\S]*?k>\n/, '')));
+
+test('in the inbox Build it that names a file the app no longer holds stays, so a picked-again file builds', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  await loaded(window);
+  const shop = { id: 'c'.repeat(32), name: 'shop.png', size: 10, sent: false };
+  const port = hosted(window, ['build'], { files: [shop.id] });
+  port.onmessage({ data: { type: 'inbox:notes', value: JSON.stringify({ notes: [], files: { 'item-1-q-7': [shop] } }) } });
+  document.querySelector('[data-ready="build"]').click();
+  assert.deepEqual(port.posted.at(-1), { type: 'inbox:tap', action: 'build', text: '- Change #1, "Logo": shop.png', files: [shop.id] });
+  // The app deleted the file before the tap reached the chat.
+  port.onmessage({ data: { type: 'inbox:result', state: 'gone', files: [] } });
+  await new Promise(done => setTimeout(done, 0));
+  assert.equal(document.getElementById('ready-message').textContent, 'A file is no longer held. Pick it again, then send.');
+  assert.equal(document.getElementById('ready').hidden, false, 'the button stays for the next tap');
+  assert.deepEqual(shown(document).map(t => t.trim()), ['Build it']);
+  const q = document.querySelector('[data-q="item-1-q-7"]'), input = q.querySelector('input[type=file]');
+  const again = new window.File([new Uint8Array([0x89])], 'shop.png', { type: 'image/png' });
+  again.arrayBuffer = () => Promise.resolve(new ArrayBuffer(1));
+  Object.defineProperty(input, 'files', { configurable: true, value: [again] });
+  input.dispatchEvent(new window.Event('change', { bubbles: true }));
+  await new Promise(done => setTimeout(done, 0));
+  const ref = port.posted.find(m => m.type === 'inbox:file').ref;
+  port.onmessage({ data: { type: 'inbox:file-result', ref, id: 'e'.repeat(32) } });
+  await new Promise(done => setTimeout(done, 0));
+  document.querySelector('[data-ready="build"]').click();
+  assert.equal(port.posted.at(-1).action, 'build');
+  assert.deepEqual(port.posted.at(-1).files, ['e'.repeat(32)], 'only the file picked again goes');
+  port.onmessage({ data: { type: 'inbox:result', state: 'sent' } });
+  await new Promise(done => setTimeout(done, 0));
+  assert.equal(document.getElementById('ready').hidden, true, 'a sent build hides the buttons');
+  assert.deepEqual(errors, []);
+  window.close();
+}, asking.replace(/- \*\*Your logo\*\*[\s\S]*?k>\n/, '')));
+
+test('in the inbox a file goes over the port at once, and a send names it by id', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  await loaded(window);
+  const port = hosted(window, ['build']);
+  const q = document.querySelector('[data-q="need-2-q-1"]'), input = q.querySelector('input[type=file]');
+  const logo = new window.File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'logo.png', { type: 'image/png' });
+  logo.arrayBuffer = () => Promise.resolve(new ArrayBuffer(4));
+  Object.defineProperty(input, 'files', { configurable: true, value: [logo] });
+  input.dispatchEvent(new window.Event('change', { bubbles: true }));
+  assert.match(q.querySelector('.files').textContent, /logo\.png · 1 KB Sending…/);
+  await new Promise(done => setTimeout(done, 0));
+  const sent = port.posted.find(m => m.type === 'inbox:file');
+  assert.deepEqual({ ...sent, data: undefined }, { type: 'inbox:file', ref: 'f1', name: 'logo.png', question: 'Need #2, "Logo"', data: undefined });
+  port.onmessage({ data: { type: 'inbox:file-result', ref: 'f1', id: 'a'.repeat(32) } });
+  await new Promise(done => setTimeout(done, 0));
+  assert.match(q.querySelector('.files').textContent, /logo\.png · 1 KB Sent/);
+  const big = new window.File(['x'], 'huge.png');
+  Object.defineProperty(big, 'size', { value: 40 * 1024 * 1024 });
+  const other = document.querySelector('[data-q="item-1-q-7"] input[type=file]');
+  Object.defineProperty(other, 'files', { configurable: true, value: [big] });
+  other.dispatchEvent(new window.Event('change', { bubbles: true }));
+  assert.match(document.querySelector('[data-q="item-1-q-7"] .files').textContent, /huge\.png · 40\.0 MB Refused: too big: 25 MB at most/);
+  assert.equal(port.posted.filter(m => m.type === 'inbox:file').length, 1, 'a file too big is never sent');
+  assert.equal(document.querySelector('[data-ready="build"]').textContent.trim(), '1 thing needs you', 'the logo answers its need; the link need stays');
+  document.getElementById('copy').click();
+  assert.deepEqual(port.posted.at(-1), { type: 'inbox:tap', action: 'send', text: '- Need #2, "Logo": logo.png', files: ['a'.repeat(32)] });
+  assert.deepEqual(errors, []);
+  window.close();
+}, asking));

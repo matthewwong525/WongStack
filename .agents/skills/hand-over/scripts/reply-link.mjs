@@ -4,7 +4,7 @@
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
@@ -14,12 +14,13 @@ import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { lookCss } from '../../plan/scripts/look.mjs';
 import { computerId, readApps, rememberApp } from './lib/computer.mjs';
 import { logAction } from './lib/helper-log.mjs';
-import { checkin, closeItem, companyFor, inTime, listLink, openSocket, probe, tapResult, upload } from './lib/inbox.mjs';
+import { checkin, closeItem, companyFor, inTime, listLink, openSocket, probe, readFile, tapResult, upload } from './lib/inbox.mjs';
 import { appLines, nextPoll, waiter } from './lib/line.mjs';
+import { bytesRefused, FILE_LIMITS, filesLines, nameRefused, removeFile, saveFile, savedPath, uploadsFor } from './lib/uploads.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
 import { canWake, chatTarget, liveChats, wakeChat } from './lib/wake.mjs';
 
-const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [--action <name>=<message>]...
+const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [--action <name>=<message>]... [--uploads <dir>]
        reply-link.mjs item --title "<words>" --header "<line>" [--hours N] [--action <name>=<message>]...
                       [--hidden] [--keep-open] [--stop "<message>"]
        reply-link.mjs close <file> | list
@@ -33,6 +34,7 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
           --hours: how long the link stays open (default 24)
           --action: a button the page may offer, and the one-line message a tap on it
           sends to this chat; the page can never change that message (6 at most)
+          --uploads: the folder for files the page sends (default .scratch/<page folder>-uploads)
   item    put an item with no file in the inbox for this chat and print REPLY_ITEM=<id>, or none;
           an open item of this chat with the same title is replaced
           --hidden: the inbox lists no card for it; it still takes taps
@@ -44,15 +46,19 @@ export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300
 const HOURS = 24;
 // Raised when the server or inbox helper changes: one from older code is swapped for this one. Every project on the
 // computer shares both, so a copy that changes either raises it past every other copy's number.
-export const PROTOCOL = 9;
+export const PROTOCOL = 10;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
-const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act)?$/;
+const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act|file)?$/;
 const TUNNEL_WAIT_MS = Number(process.env.REPLY_LINK_TUNNEL_WAIT_MS) || 30_000;
 const POLL_MS = Number(process.env.REPLY_LINK_POLL_MS) || 5000;
 const SEND_GAP_MS = Number(process.env.REPLY_LINK_SEND_GAP_MS) || 5000;
 const PROBE_MS = 4000;
-// The app fails a collected tap after 2 minutes with no result; one older than this here is reported, never woken.
+// The file limits, smaller in tests only.
+const FILE_MAX = Number(process.env.REPLY_LINK_FILE_BYTES) || FILE_LIMITS.file;
+const FILES_MAX = Number(process.env.REPLY_LINK_FILES_BYTES) || FILE_LIMITS.total;
+// The app fails a collected tap 2 minutes after its claim, or its last file part read, with no result; one older than
+// this here is reported, never woken.
 const DELIVER_MS = 90_000;
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
@@ -60,7 +66,7 @@ const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); 
 /** The state files under `env.HOME`, apart from hand-over's. */
 function files(env = process.env) {
   const dir = join(env.HOME || homedir(), '.wong-stack', 'reply-link');
-  return { dir, pages: join(dir, 'pages'), items: join(dir, 'items'), inbox: join(dir, 'inbox.json'), server: join(dir, 'server.json'), lock: join(dir, 'starting.lock'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml') };
+  return { dir, pages: join(dir, 'pages'), items: join(dir, 'items'), uploads: join(dir, 'uploads'), inbox: join(dir, 'inbox.json'), server: join(dir, 'server.json'), lock: join(dir, 'starting.lock'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml') };
 }
 
 const pageFile = (state, id) => join(state.pages, `${id}.json`);
@@ -80,7 +86,10 @@ function openPages(state, { sweep = false } = {}) {
   for (const name of names) {
     const page = readPage(state, name.replace(/\.json$/, ''));
     if (page) found.push(page);
-    else if (sweep) rmSync(join(state.pages, name), { force: true });
+    else if (sweep) {
+      rmSync(join(state.pages, name), { force: true });
+      dropUnsent(state, name.replace(/\.json$/, ''));
+    }
   }
   return found;
 }
@@ -102,10 +111,11 @@ function checkActions(pairs) {
 const actionsOf = page => (page.actions && typeof page.actions === 'object' ? page.actions : {});
 
 /** Writes the file's registration, keeping an open one's id and key so its link stays; its actions are replaced. */
-function register(state, { file, header, actions, hours, target }) {
+function register(state, { file, header, actions, hours, target, uploads }) {
   mkdirSync(state.pages, { recursive: true, mode: 0o700 });
   const kept = openPages(state).find(page => page.file === file);
-  const page = { id: kept?.id ?? randomBytes(16).toString('hex'), file, key: kept?.key ?? randomBytes(32).toString('hex'), header, actions, target, deadline: Date.now() + hours * 3_600_000 };
+  const page = { id: kept?.id ?? randomBytes(16).toString('hex'), file, key: kept?.key ?? randomBytes(32).toString('hex'), header, actions, target,
+    uploads, deadline: Date.now() + hours * 3_600_000 };
   writeFileSync(pageFile(state, page.id), `${JSON.stringify(page)}\n`, { mode: 0o600 });
   return page;
 }
@@ -149,6 +159,77 @@ function fileVersion(page) {
   try { return createHash('sha256').update(readFileSync(page.file)).digest('hex'); } catch { return null; }
 }
 
+// ── files a page sent: saved in its uploads folder, listed per page so a close in another process finds them ──
+const uploadsFile = (state, id) => join(state.uploads, `${id}.json`);
+const readUploads = (state, id) => (ID.test(id) ? readJson(uploadsFile(state, id)) : null) ?? [];
+function writeUploads(state, id, list) {
+  mkdirSync(state.uploads, { recursive: true, mode: 0o700 });
+  writeFileSync(uploadsFile(state, id), `${JSON.stringify(list)}\n`, { mode: 0o600 });
+}
+
+/** Deletes each file page `id` saved but never sent to the chat; the sent ones stay for it. */
+function dropUnsent(state, id) {
+  for (const file of readUploads(state, id)) if (!file.sent) removeFile(file.path);
+  rmSync(uploadsFile(state, id), { force: true });
+}
+
+/** The page's files a send names, or null when it names one the page never saved or the list is malformed. */
+function namedFiles(state, page, body) {
+  if (!Object.hasOwn(body, 'files')) return [];
+  if (!Array.isArray(body.files) || body.files.length > 60) return null;
+  const saved = readUploads(state, page.id);
+  const found = body.files.map(id => saved.find(file => file.id === id));
+  return found.every(Boolean) && new Set(body.files).size === body.files.length ? found : null;
+}
+
+/** Marks `files` as in the chat, so the link's close keeps them. */
+function markSent(state, page, files) {
+  const ids = new Set(files.map(file => file.id));
+  writeUploads(state, page.id, readUploads(state, page.id).map(file => (ids.has(file.id) ? { ...file, sent: true } : file)));
+}
+
+/** A header's words, decoded, or null when they are missing, unreadable, or longer than `max`. */
+function headerText(request, name, max) {
+  try {
+    const text = decodeURIComponent(request.headers[name] ?? '').trim();
+    return text && text.length <= max ? text : null;
+  } catch { return null; }
+}
+
+/** Streams a request's body to `path`, keeping its first 4096 bytes; `size` past `max` stops the writing. */
+async function streamTo(request, path, max) {
+  const out = createWriteStream(path, { mode: 0o600, flags: 'wx' });
+  const head = [];
+  let size = 0, headSize = 0;
+  try {
+    for await (const chunk of request) {
+      size += chunk.length;
+      if (size > max) continue;
+      if (headSize < 4096) { head.push(chunk); headSize += chunk.length; }
+      if (!out.write(chunk)) await new Promise(done => out.once('drain', done));
+    }
+  } finally { await new Promise(done => out.end(done)); }
+  return { size, head: Buffer.concat(head).subarray(0, 4096) };
+}
+
+/** POST file: one file, saved at once in the page's uploads folder; a send names it later by its id. */
+async function saveUpload(state, page, request, response) {
+  const name = headerText(request, 'x-file-name', FILE_LIMITS.name);
+  const question = headerText(request, 'x-file-question', FILE_LIMITS.question);
+  const refused = !question ? 'a file needs its question' : nameRefused(name);
+  if (refused) { request.resume(); return reply(response, 400, { error: refused }); }
+  const saved = readUploads(state, page.id);
+  const left = Math.min(FILE_MAX, FILES_MAX - saved.reduce((sum, file) => sum + file.size, 0));
+  const id = randomBytes(16).toString('hex');
+  const path = savedPath(page.uploads ?? uploadsFor(page.file), id, name);
+  // A cut-off upload leaves no part of itself: nothing lists it, so the link's close would never find it.
+  const { size, head } = await streamTo(request, path, left).catch(error => { removeFile(path); throw error; });
+  const why = size > FILE_MAX ? `${name} is over 25 MB` : size > left ? 'this link has taken 100 MB of files' : bytesRefused(name, head);
+  if (why) { removeFile(path); return reply(response, size > left ? 413 : 400, { error: why }); }
+  writeUploads(state, page.id, [...readUploads(state, page.id), { id, name, question, size, path, sent: false }]);
+  return reply(response, 200, { id });
+}
+
 /** The request handler for every registered page. `wake(target, message)` resolves to wakeChat's
  * answer; the page supplies neither the header, nor the target, nor an action's message. */
 export function replyRoutes(state, { wake = wakeChat } = {}) {
@@ -162,9 +243,12 @@ export function replyRoutes(state, { wake = wakeChat } = {}) {
   }
   async function send(page, request, response) {
     if (tooSoon(page)) return reply(response, 429, { sent: false });
-    const text = sendText(await readBody(request));
-    if (!text) return reply(response, 400, { sent: false });
-    const sent = (await wake(page.target, `${page.header}\n${text}`)) === 'notified';
+    const body = await readBody(request);
+    const text = sendText(body);
+    const named = text && namedFiles(state, page, body);
+    if (!named) return reply(response, 400, { sent: false });
+    const sent = (await wake(page.target, [`${page.header}\n${text}`, filesLines(named)].filter(Boolean).join('\n'))) === 'notified';
+    if (sent) markSent(state, page, named);
     return reply(response, sent ? 200 : 502, { sent });
   }
   /** The names accepted for the page's file as it stands; a new version starts empty. */
@@ -177,7 +261,8 @@ export function replyRoutes(state, { wake = wakeChat } = {}) {
     const body = await readBody(request);
     const actions = actionsOf(page);
     const name = typeof body?.action === 'string' && Object.hasOwn(actions, body.action) ? body.action : null;
-    if (!name || (Object.hasOwn(body, 'text') && (typeof body.text !== 'string' || body.text.length > LIMITS.text))) return reply(response, 400, { sent: false });
+    const named = name && namedFiles(state, page, body);
+    if (!named || (Object.hasOwn(body, 'text') && (typeof body.text !== 'string' || body.text.length > LIMITS.text))) return reply(response, 400, { sent: false });
     const text = body.text?.trim() || '';
     const version = fileVersion(page);
     if (!version) return reply(response, 410, { closed: true });
@@ -186,8 +271,9 @@ export function replyRoutes(state, { wake = wakeChat } = {}) {
     if (names.has(name)) return reply(response, 409, { done: true });
     // Marked before the wake, so a tap that arrives during it is refused; unmarked when the chat did not get it.
     names.add(name);
-    const sent = (await wake(page.target, actions[name] + (text ? `\n${text}` : ''))) === 'notified';
-    if (!sent) names.delete(name);
+    const sent = (await wake(page.target, [actions[name], text, filesLines(named)].filter(Boolean).join('\n'))) === 'notified';
+    if (sent) markSent(state, page, named);
+    else names.delete(name);
     return reply(response, sent ? 200 : 502, { sent });
   }
   return async (request, response) => {
@@ -207,6 +293,7 @@ export function replyRoutes(state, { wake = wakeChat } = {}) {
     if (!keyMatches(request.headers['x-reply-key'], page.key)) return reply(response, 403);
     if (request.method !== (action === 'alive' ? 'GET' : 'POST')) return reply(response, 405);
     if (action === 'alive') return reply(response, 200, { closesAt: page.deadline, actions: Object.keys(actionsOf(page)), version: fileVersion(page) });
+    if (action === 'file') return saveUpload(state, page, request, response);
     return (action === 'send' ? send : act)(page, request, response);
   };
 }
@@ -225,6 +312,8 @@ async function serve(port, tunnelPid) {
     server.closeAllConnections();
     await killTunnel(tunnelPid);
     await unlist(openPages(state));
+    // The links close with the server: a file no send named goes too.
+    for (const name of (() => { try { return readdirSync(state.uploads); } catch { return []; } })()) dropUnsent(state, name.replace(/\.json$/, ''));
     if (readJson(state.server)?.pid === process.pid) for (const file of [state.server, state.log, state.config]) rmSync(file, { force: true });
     process.exit(0);
   };
@@ -397,6 +486,7 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
   const item = { id: kept?.id ?? spec.id ?? randomBytes(16).toString('hex'), file, kind: spec.kind, title: file === null ? spec.title : titleOf(body, file),
     workspace: (spec.workspace ?? basename(spec.cwd)).slice(0, 100), header: spec.header, actions: spec.actions, target: spec.target,
     deadline: Date.now() + spec.hours * 3_600_000, version: sha(body), ...(file === null && { body }), done: kept?.done ?? { version: null, names: [] },
+    uploads: spec.uploads ?? uploadsFor(file ?? join(spec.cwd, 'inbox', 'item'), spec.cwd),
     app: { cwd: spec.cwd, origin }, ...(spec.hidden && { hidden: true }), ...(spec.keepOpen && { keepOpen: true, hours: spec.hours }),
     ...(spec.stop && { stop: spec.stop }) };
   if (!(await upload(client, shown(item, body)))) return null;
@@ -435,33 +525,55 @@ export async function closeInboxItem(id, { env = process.env, clientFor = compan
   return Boolean(item);
 }
 
+/** The tap's files, each read from the app, checked as a tunnel's are, and saved in the item's uploads folder; null
+ * once one fails, with what it saved removed. */
+async function fetchFiles(item, tap, read) {
+  const listed = Array.isArray(tap.files) ? tap.files : [];
+  const saved = [];
+  let total = 0;
+  for (const { id } of listed) {
+    const file = typeof id === 'string' && /^[0-9a-f]{32}$/.test(id) ? await read(id) : null;
+    total += file?.bytes.length ?? 0;
+    const why = !file ? 'unread' : file.bytes.length !== file.size || file.size > FILE_LIMITS.file || total > FILE_LIMITS.total ? 'size'
+      : nameRefused(file.name) ?? bytesRefused(file.name, file.bytes);
+    const folder = item.uploads ?? uploadsFor(item.file ?? join(appOf(item).cwd, 'inbox', 'item'), appOf(item).cwd);
+    let path = null;
+    if (!why) try { path = saveFile(folder, id, file.name, file.bytes); } catch { /* a folder it can't write */ }
+    if (!path) { saved.forEach(done => removeFile(done.path)); return null; }
+    saved.push({ name: file.name, question: file.question, size: file.size, path });
+  }
+  return saved;
+}
+
 /** One tap's outcome under `act`'s rules: `changed` on an old version, `sent` with no second wake for a done action.
  * `gap` paces the item's wakes, one per SEND_GAP_MS, as a page's sends are; a tap held too long is `failed`. */
-async function deliver(state, item, tap, { wake, gap }) {
+async function deliver(state, item, tap, { wake, gap, read }) {
   if (tap.version !== item.version) return 'changed';
   const text = typeof tap.text === 'string' ? tap.text.trim() : '';
-  if (tap.action === 'send') return text && await gap(item.id) && (await wake(item.target, `${item.header}\n${text}`)) === 'notified' ? 'sent' : 'failed';
-  if (!Object.hasOwn(item.actions, tap.action)) return 'failed';
-  // A kept-open item takes the same action again and again: each tap is its own wake.
-  if (item.keepOpen) return await gap(item.id) && (await wake(item.target, item.actions[tap.action])) === 'notified' ? 'sent' : 'failed';
+  if (tap.action !== 'send' && !Object.hasOwn(item.actions, tap.action)) return 'failed';
   if (item.done.version !== item.version) item.done = { version: item.version, names: [] };
-  if (item.done.names.includes(tap.action)) return 'sent';
-  if (!(await gap(item.id))) return 'failed';
+  const once = tap.action !== 'send' && !item.keepOpen;
+  if (once && item.done.names.includes(tap.action)) return 'sent';
+  if ((tap.action === 'send' && !text) || !(await gap(item.id))) return 'failed';
+  const saved = await fetchFiles(item, tap, read);
+  if (!saved) return 'failed';
+  // A kept-open item takes the same action again and again: each tap is its own wake, with no notes.
+  const words = tap.action === 'send' ? [`${item.header}\n${text}`] : item.keepOpen ? [item.actions[tap.action]] : [item.actions[tap.action], text];
   // Marked before the wake, so a second tap during it is never woken twice; unmarked when the chat did not get it.
-  item.done.names.push(tap.action);
-  keepItem(state, item);
-  if ((await wake(item.target, item.actions[tap.action] + (text ? `\n${text}` : ''))) === 'notified') return 'sent';
-  item.done.names = item.done.names.filter(name => name !== tap.action);
-  keepItem(state, item);
+  if (once) { item.done.names.push(tap.action); keepItem(state, item); }
+  if ((await wake(item.target, [...words, filesLines(saved)].filter(Boolean).join('\n'))) === 'notified') return 'sent';
+  if (once) { item.done.names = item.done.names.filter(name => name !== tap.action); keepItem(state, item); }
+  saved.forEach(file => removeFile(file.path));
   return 'failed';
 }
 
-/** Waits out the rest of the item's gap since its last wake, then starts the next; false once the tap is too old. */
-function pacer({ lastWake, wait, collected }) {
+/** Waits out the rest of the item's gap since its last wake, then starts the next; false once the tap is too old.
+ * `claim.at` is when the app last held the round's taps: their collection, or a file part read since. */
+function pacer({ lastWake, wait, claim }) {
   return async id => {
     const left = (lastWake.get(id) ?? -Infinity) + SEND_GAP_MS - Date.now();
     if (left > 0) await wait(left);
-    if (Date.now() - collected > DELIVER_MS) return false;
+    if (Date.now() - claim.at > DELIVER_MS) return false;
     lastWake.set(id, Date.now());
     return true;
   };
@@ -535,21 +647,22 @@ async function renew(state, client, item) {
 /** One app's round: collect its taps, deliver each, close what got its answer, and tell the app each outcome. */
 async function serveApp(state, { client, items }, { wake, reported, lastWake, wait, log }) {
   const taps = (await checkin(client, [...items.keys()])) ?? [];
-  const gap = pacer({ lastWake, wait, collected: Date.now() });
-  const outcomes = new Map();
+  const claim = { at: Date.now() };
+  const gap = pacer({ lastWake, wait, claim });
+  const read = id => readFile(client, id, () => { claim.at = Date.now(); });
   for (const tap of taps) {
     const item = items.get(tap.item);
     // An item this round closed takes no second answer; one made elsewhere was never collected for it.
     const known = reported.get(tap.id)?.outcome;
-    const outcome = known ?? (item ? await deliver(state, item, tap, { wake, gap }) : 'expired');
+    const outcome = known ?? (item ? await deliver(state, item, tap, { wake, gap, read }) : 'expired');
     if (!known) log({ event: 'tap', app: client.target(), item: tap.item, tap: tap.id, action: tap.action, outcome });
-    outcomes.set(tap.id, { outcome, told: false, at: Date.now(), client });
-    reported.set(tap.id, outcomes.get(tap.id));
+    reported.set(tap.id, { outcome, told: false, at: Date.now(), client });
+    // Told at once: a later tap's files can take longer to read than the app waits for this one's result.
+    await report(new Map([[tap.id, reported.get(tap.id)]]));
     // Any item is answered once its answer is in the chat; a rebuilt plan opened again comes back as a new item.
     if (item && outcome === 'sent' && item.keepOpen) await renew(state, client, item);
     else if (item && outcome === 'sent') { await endItem(state, client, item); items.delete(item.id); }
   }
-  await report(outcomes);
 }
 
 /** The apps to keep a line to, `origin → {client, roots}`: each open item's app, and in service mode each remembered
@@ -668,16 +781,17 @@ export async function unlist(pages, { clientFor = companyFor } = {}) {
 
 /** `{link}` for the file's reply link, the inbox's first, or `{link: null, reason}` where none can open. A page at a
  * tunnel that is no plan comes back as `page`, for the inbox to list. */
-async function openLink({ file, header, actions = {}, hours = HOURS, env = process.env, cwd = process.cwd(), inbox = {} }) {
+async function openLink({ file, header, actions = {}, hours = HOURS, env = process.env, cwd = process.cwd(), inbox = {}, uploads }) {
   const checked = checkActions(Object.entries(actions));
   if (env.REPLY_LINK === 'off') return { link: null, reason: 'off' };
   const target = chatTarget(env, cwd);
   if (!canWake(target, env)) return { link: null, reason: 'no-chat' };
   const real = realpathSync(file);
-  const item = await openInboxItem({ file: real, kind: 'plan', header, actions: checked, hours, target, cwd }, { env, ...inbox });
+  const folder = resolve(cwd, uploads ?? uploadsFor(real, cwd));
+  const item = await openInboxItem({ file: real, kind: 'plan', header, actions: checked, hours, target, cwd, uploads: folder }, { env, ...inbox });
   if (item) return { link: item.link };
   const state = files(env);
-  const page = register(state, { file: real, header, actions: checked, hours, target });
+  const page = register(state, { file: real, header, actions: checked, hours, target, uploads: folder });
   const server = await ensureServer(state, env);
   if (server.reason) {
     rmSync(pageFile(state, page.id), { force: true });
@@ -701,8 +815,8 @@ function realFile(file) {
   }
 }
 
-async function open(file, { header, actions, hours }) {
-  const { link, reason, page } = await openLink({ file: realFile(file), header, actions, hours });
+async function open(file, { header, actions, hours, uploads }) {
+  const { link, reason, page } = await openLink({ file: realFile(file), header, actions, hours, uploads });
   console.log(`REPLY_LINK=${link ?? 'none'}`);
   if (!link) console.log(`REPLY_REASON=${reason}`);
   // The chat has its link first: the inbox's listing waits at most 3 s, and a failed one changes nothing.
@@ -716,6 +830,7 @@ async function close(file) {
   const page = openPages(state).find(open => open.file === path);
   if (page) {
     rmSync(pageFile(state, page.id), { force: true });
+    dropUnsent(state, page.id);
     await unlist([page]);
   }
   const item = openItems(state).find(open => open.file === path);
@@ -740,7 +855,7 @@ function list() {
 
 if (isMain(import.meta.url)) {
   const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' }, action: { type: 'string', multiple: true }, service: { type: 'boolean' },
-    title: { type: 'string' }, hidden: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, stop: { type: 'string' } } });
+    title: { type: 'string' }, hidden: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, stop: { type: 'string' }, uploads: { type: 'string' } } });
   const takes = { open: 1, item: 0, close: 1, list: 0, serve: 2, 'serve-inbox': 0 }[command];
   if (takes === undefined || rest.length !== takes) usageError(USAGE, command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const hours = Number(values.hours ?? HOURS);
@@ -753,10 +868,11 @@ if (isMain(import.meta.url)) {
   if (command === 'item' && (!title || title.length > 200 || stop.length > LIMITS.action)) usageError(USAGE, '--title takes 1 to 200 characters, --stop at most 300');
   if (command !== 'item' && (values.title ?? values.stop ?? values.hidden ?? values['keep-open']) !== undefined) usageError(USAGE, '--title, --hidden, --keep-open and --stop go with item only');
   if (values.service && command !== 'serve-inbox') usageError(USAGE, '--service goes with serve-inbox only');
+  if (values.uploads !== undefined && (command !== 'open' || !values.uploads.trim())) usageError(USAGE, '--uploads takes a folder, with open only');
   let actions;
   try { actions = checkActions((values.action ?? []).map(pair => pair.split(/=(.*)/s).slice(0, 2))); } catch (error) { usageError(USAGE, error.message); }
   const itemSpec = { title, header, actions, hours, hidden: Boolean(values.hidden), keepOpen: Boolean(values['keep-open']), stop };
-  await { open: () => open(rest[0], { header, actions, hours }), item: () => putItem(itemSpec), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': () => serveInbox({ service: Boolean(values.service) }) }[command]();
+  await { open: () => open(rest[0], { header, actions, hours, uploads: values.uploads }), item: () => putItem(itemSpec), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': () => serveInbox({ service: Boolean(values.service) }) }[command]();
   // An app call past its 3 s wait would keep the process, and the chat's answer, alive until it fails.
   if (opens || command === 'close') process.exit(process.exitCode ?? 0);
 }

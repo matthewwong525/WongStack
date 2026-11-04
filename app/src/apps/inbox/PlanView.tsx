@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router'
 import { Loading } from '@/components/Loading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Failed, label, pending, readInbox, readPlan, sendTap, type Plan, type Tap } from './api'
+import { Failed, FILE_MAX, FILE_REFUSALS, label, pending, readInbox, readPlan, sendFile, sendTap, type Plan, type Tap } from './api'
 import { frameMessage, notesKey, ownBack } from './frame'
 import { LINE_REFRESH_MS, REFRESH_MS, useLine } from './line'
 import { TapLine } from './TapLine'
@@ -31,8 +31,9 @@ export function PlanView({ id }: { id: string }) {
   const [tap, setTap] = useState<Tap | null>(null)
   const frame = useRef<HTMLIFrameElement>(null)
   const channel = useRef<{ version: string; port: MessagePort | null } | null>(null)
-  // True while the page waits to hear what became of its tap.
+  // True while the page waits to hear what became of its tap; `carried`, while that tap names files.
   const asked = useRef(false)
+  const carried = useRef(false)
   const load = useCallback(() => readPlan(id).then(answer => { setPlan(answer); setTap(answer.item.tap); setGone(null) },
     (error: unknown) => setGone(error instanceof Failed && (error.status === 404 || error.status === 410) ? 'closed' : 'unavailable')), [id])
   useEffect(() => { void load() }, [load])
@@ -60,19 +61,33 @@ export function PlanView({ id }: { id: string }) {
     return () => clearInterval(timer)
   }, [look, waiting, up])
   const post = (data: object) => channel.current?.port?.postMessage(data)
+  // A tap that did not reach the chat may have taken its files with it: the page hears which the app still holds.
+  const tell = async (state: string) => {
+    const held = carried.current && state !== 'sent' ? await readPlan(id).then(answer => ({ files: answer.item.files }), () => ({})) : {}
+    post({ type: 'inbox:result', state, ...held })
+  }
   const settle = (next: Tap) => {
     setTap(next)
-    if (asked.current && !pending(next)) { asked.current = false; post({ type: 'inbox:result', state: next.state }) }
+    if (asked.current && !pending(next)) { asked.current = false; void tell(next.state) }
   }
   const listen = async (item: Plan['item'], data: unknown) => {
     const message = frameMessage(data, { actions: item.actions, key: notesKey(item.body) })
     if (message?.type === 'inbox:notes-get') post({ type: 'inbox:notes', value: localStorage.getItem(message.key) })
     if (message?.type === 'inbox:notes-set') localStorage.setItem(message.key, message.value)
     if (message?.type === 'inbox:back') void navigate('/apps/inbox/')
+    if (message?.type === 'inbox:file') post({ type: 'inbox:file-result', ref: message.ref, ...await upload(item, message) })
     if (message?.type !== 'inbox:tap') return
-    const result = await sendTap({ item: item.id, action: message.action, version: item.version, text: message.text })
-    if (typeof result === 'string') post({ type: 'inbox:result', state: result })
+    const files = message.files?.length ? { files: message.files } : {}
+    carried.current = !!message.files?.length
+    const result = await sendTap({ item: item.id, action: message.action, version: item.version, text: message.text, ...files })
+    if (typeof result === 'string') void tell(result)
     else { asked.current = true; settle(result) }
+  }
+  const upload = async (item: Plan['item'], file: { name: string; question: string; data: ArrayBuffer }) => {
+    const size = file.data.byteLength
+    if (size > FILE_MAX) return { error: FILE_REFUSALS.too_large }
+    const sent = await sendFile({ item: item.id, ...file })
+    return typeof sent === 'string' ? { error: sent } : { id: sent.id }
   }
   const greet = (item: Plan['item']) => {
     const before = channel.current
@@ -81,7 +96,8 @@ export function PlanView({ id }: { id: string }) {
     const { port1, port2 } = new MessageChannel()
     port1.onmessage = event => void listen(item, event.data)
     channel.current = { version: item.version, port: port1 }
-    frame.current?.contentWindow?.postMessage({ type: 'inbox:hello', item: item.id, version: item.version, actions: item.actions, workspace: item.workspace, theme: appLook() }, '*', [port2])
+    frame.current?.contentWindow?.postMessage({ type: 'inbox:hello', item: item.id, version: item.version, actions: item.actions, workspace: item.workspace,
+      files: item.files, theme: appLook() }, '*', [port2])
   }
   if (!plan) return <div className="grid gap-4">
     <Back />

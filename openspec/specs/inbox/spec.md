@@ -7,7 +7,7 @@ One inbox in the live app that opens on the person's week board, where they mark
 
 ### Requirement: A plan opens inside the inbox without reaching the app
 
-A plan item SHALL show the same review page the plan's file holds, with its notes and its actions. The page SHALL run sealed from the app: it SHALL be unable to read the person's sign-in, call the app, or change anything but its own notes and the actions its item offers.
+A plan item SHALL show the same review page the plan's file holds, with its notes and its actions. The page SHALL run sealed from the app: it SHALL be unable to read the person's sign-in, call the app, or change anything but its own notes, the files the person sends with a tap, and the actions its item offers.
 
 #### Scenario: The person reviews a plan
 
@@ -78,7 +78,7 @@ A plan item SHALL close once a tap on it, notes or an action, reaches its chat, 
 
 ### Requirement: The inbox never holds a secret
 
-No page that collects a password, key, card or other secret, and no form other than a plan, SHALL ever be shown inside the inbox, and the inbox SHALL offer no way to enter a secret. Such a page MAY be listed as a link item holding only its title, its kind, its closing time and its address. *Open* SHALL take the person to the page's own private link in a new tab, sending the inbox's address nowhere. A link item SHALL take no taps and SHALL leave the list once its link ends.
+No page that collects a password, key, card or other secret, and no form other than a review page's questions, SHALL ever be shown inside the inbox, and the inbox SHALL offer no way to enter a secret. Such a page MAY be listed as a link item holding only its title, its kind, its closing time and its address. *Open* SHALL take the person to the page's own private link in a new tab, sending the inbox's address nowhere. A link item SHALL take no taps and SHALL leave the list once its link ends.
 
 #### Scenario: A key is needed
 
@@ -150,3 +150,17 @@ A plan whose page was built before it carried its own *Back* SHALL show *Back* a
 
 - **WHEN** the person opens a plan built before this change
 - **THEN** *Back* and the workspace sit above the plan and stay there while it scrolls, and nothing hides or slides
+
+### Requirement: No one can open a file sent from the inbox after 24 hours
+
+A file sent with a tap SHALL be kept by the app only for that tap's item and person, until the computer takes it, and SHALL be deleted once the computer has it, or when the tap is cancelled or fails. No one SHALL be able to open a file more than 24 hours after it was sent, and the app SHALL delete that file the next time the Inbox is used. No other person, item, or page SHALL be able to read it. The database's restore history MAY keep deleted data for up to 30 days.
+
+#### Scenario: The computer takes the file
+
+- **WHEN** the computer delivers a tap with a file to its chat
+- **THEN** the app deletes the file, and asking for it again finds nothing
+
+#### Scenario: The computer never comes back
+
+- **WHEN** a file waits 24 hours and the computer has not taken it
+- **THEN** no one can open it, and the next time the Inbox is used the app deletes it and its tap shows as not delivered

@@ -11,8 +11,8 @@ import { TAP_POLL_MS } from './TapLine'
 const PLAN = 'c'.repeat(32)
 const BODY = '<!doctype html><title>One inbox</title><body data-change="inbox-mini-app"><p>The plan</p>'
 const NOTES = 'wong-review3:inbox-mini-app'
-const plan = (version = 'v1', tap: Tap | null = null) => ({ id: PLAN, kind: 'plan', title: 'One inbox', workspace: 'lousy-dingo',
-  actions: ['build', 'publish'], version, createdAt: 1, closesAt: 2, detail: null, tap, body: BODY })
+const plan = (version = 'v1', tap: Tap | null = null, files: string[] = []) => ({ id: PLAN, kind: 'plan', title: 'One inbox', workspace: 'lousy-dingo',
+  actions: ['build', 'publish'], version, createdAt: 1, closesAt: 2, detail: null, tap, body: BODY, files })
 const waiting: Tap = { id: 't'.repeat(32), item: PLAN, action: 'build', text: '', state: 'waiting' }
 
 let answer: () => Response
@@ -20,6 +20,7 @@ let tapAnswer: () => Response
 let tapState: Tap['state']
 let online: boolean | null
 let calls: { path: string; body: unknown }[]
+let fileAnswer: () => Response
 // The frame's window as the inbox sees it: jsdom loads each frame once, and that load greets this stand-in.
 let frameWindow: { postMessage: ReturnType<typeof vi.fn> }
 beforeEach(() => {
@@ -30,9 +31,11 @@ beforeEach(() => {
   tapState = 'sent'
   online = false
   calls = []
+  fileAnswer = () => Response.json({ file: { id: 'f'.repeat(32) } })
   localStorage.clear()
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
-    calls.push({ path, body: init?.body ? JSON.parse(init.body as string) : null })
+    calls.push({ path, body: typeof init?.body === 'string' ? JSON.parse(init.body) : init?.body ?? null })
+    if (path.startsWith('/apps/inbox/api/file?')) return fileAnswer()
     if (path.startsWith('/apps/inbox/api/item?')) return answer()
     if (path === '/apps/inbox/api/tap') return tapAnswer()
     if (path === '/apps/inbox/api/items') return online === null ? new Response(null, { status: 503 }) : Response.json({ items: [], computerOnline: online })
@@ -81,7 +84,7 @@ it('seals the plan in a frame that can run its page but never reach the app, and
   expect(screen.getByRole('link', { name: 'Back' }).getAttribute('href')).toBe('/apps/inbox/')
   // The hello names the workspace, so a page that draws its own Back can show it there.
   expect(posted).toHaveBeenCalledWith({ type: 'inbox:hello', item: PLAN, version: 'v1', actions: ['build', 'publish'], workspace: 'lousy-dingo',
-    theme: 'light' }, '*', [port])
+    files: [], theme: 'light' }, '*', [port])
 })
 
 it('fills the window below the Back row and the tap line, edge to edge with no border, so only the plan scrolls', async () => {
@@ -324,4 +327,87 @@ it('reloads a plan that changed, and says when a plan has closed or the inbox is
   answer = () => Response.json({ item: plan(), computerOnline: true })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry' })) })
   expect(await screen.findByTitle('One inbox')).toBeTruthy()
+})
+
+const picked = (bytes: number, ref = 'shot') => ({ type: 'inbox:file', ref, name: 'shot.png', question: 'A picture of the old page',
+  data: new ArrayBuffer(bytes) })
+
+it("sends a file the page hands over for its own item, answers its id, and refuses one over 25 MB with no call", async () => {
+  const { heard, say } = await open()
+  await say(picked(3))
+  await until(() => heard.length > 0)
+  const sent = calls.find(call => call.path.startsWith('/apps/inbox/api/file?'))!
+  expect(new URL(sent.path, 'https://app.example').searchParams.toString())
+    .toBe(new URLSearchParams({ item: PLAN, name: 'shot.png', question: 'A picture of the old page' }).toString())
+  expect((sent.body as ArrayBuffer).byteLength).toBe(3)
+  expect(heard).toEqual([{ type: 'inbox:file-result', ref: 'shot', id: 'f'.repeat(32) }])
+  const before = calls.length
+  await say(picked(25 * 1024 * 1024 + 1, 'big'))
+  await until(() => heard.length > 1)
+  expect(heard[1]).toEqual({ type: 'inbox:file-result', ref: 'big', error: 'too big: 25 MB at most' })
+  expect(calls.slice(before).filter(call => call.path.startsWith('/apps/inbox/api/file?'))).toEqual([])
+  fileAnswer = () => Response.json({ error: { code: 'bad_file', message: 'No.' } }, { status: 400 })
+  await say(picked(3, 'odd'))
+  await until(() => heard.length > 2)
+  expect(heard[2]).toEqual({ type: 'inbox:file-result', ref: 'odd', error: 'this is not a file the page takes' })
+})
+
+it('passes the files the page sent with its tap', async () => {
+  const { say } = await open()
+  await say({ type: 'inbox:tap', action: 'build', text: 'With a picture', files: ['f'.repeat(32)] })
+  await until(() => calls.some(call => call.path === '/apps/inbox/api/tap'))
+  expect(calls.find(call => call.path === '/apps/inbox/api/tap')?.body).toEqual({ item: PLAN, action: 'build', version: 'v1',
+    text: 'With a picture', files: ['f'.repeat(32)] })
+})
+
+it("leaves the item's 100 MB to the app, which counts only the files it still holds, and words each refusal as the page shows it", async () => {
+  const { heard, say } = await open()
+  const answers = () => heard.map(data => (data as { error?: string }).error ?? 'sent')
+  for (let n = 0; n < 5; n++) await say(picked(25 * 1024 * 1024, `part-${n}`))
+  await until(() => heard.length === 5)
+  expect(answers()).toEqual(['sent', 'sent', 'sent', 'sent', 'sent'])
+  heard.length = 0
+  const refusals: (() => Response)[] = [
+    () => Response.json({ error: { code: 'too_large', message: 'No.' } }, { status: 413 }),
+    () => Response.json({ error: { code: 'full', message: 'No.' } }, { status: 507 }),
+    () => Response.json({ error: { code: 'not_found', message: 'No.' } }, { status: 404 }),
+    () => { throw new TypeError('offline') },
+  ]
+  for (const refusal of refusals) { fileAnswer = refusal; await say(picked(0)); await until(() => heard.length === refusals.indexOf(refusal) + 1) }
+  expect(answers()).toEqual(['the files for this page pass 100 MB', 'the app is full for now; try again later', 'it was not sent; try again',
+    'it was not sent; try again'])
+})
+
+const LOGO = 'a'.repeat(32), BRIEF = 'b'.repeat(32)
+it('tells the page which files the app still holds when it opens, and after a tap with files that did not reach the chat', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  answer = () => Response.json({ item: plan('v1', null, [BRIEF]), computerOnline: true })
+  const { posted, heard, say } = await open()
+  expect(posted.mock.calls[0][0]).toMatchObject({ type: 'inbox:hello', files: [BRIEF] })
+  // The app deleted the logo: the tap is refused, and the page hears it with what is still held.
+  tapAnswer = () => Response.json({ error: { code: 'files_gone', message: 'No.' } }, { status: 409 })
+  await say({ type: 'inbox:tap', action: 'build', text: '', files: [LOGO, BRIEF] })
+  await until(() => heard.length === 1)
+  expect(heard).toEqual([{ type: 'inbox:result', state: 'gone', files: [BRIEF] }])
+  // A cancelled tap took its file with it.
+  tapAnswer = () => Response.json({ tap: waiting })
+  await say({ type: 'inbox:tap', action: 'build', text: '', files: [BRIEF] })
+  await until(() => screen.queryByRole('status') !== null)
+  answer = () => Response.json({ item: plan('v1', null, []), computerOnline: true })
+  tapState = 'cancelled'
+  await act(async () => { await vi.advanceTimersByTimeAsync(TAP_POLL_MS) })
+  await until(() => heard.length === 2)
+  expect(heard[1]).toEqual({ type: 'inbox:result', state: 'cancelled', files: [] })
+  // A tap with no files, or one that reached the chat, asks the app nothing more.
+  const reads = calls.filter(call => call.path.startsWith('/apps/inbox/api/item?')).length
+  tapAnswer = () => Response.json({ error: { code: 'too_soon' } }, { status: 429 })
+  await say({ type: 'inbox:tap', action: 'send', text: 'A note' })
+  await until(() => heard.length === 3)
+  expect(heard[2]).toEqual({ type: 'inbox:result', state: 'soon' })
+  expect(calls.filter(call => call.path.startsWith('/apps/inbox/api/item?'))).toHaveLength(reads)
+  // When the app can't say, the page keeps every file it has.
+  answer = () => { throw new TypeError('offline') }
+  await say({ type: 'inbox:tap', action: 'build', text: '', files: [BRIEF] })
+  await until(() => heard.length === 4)
+  expect(heard[3]).toEqual({ type: 'inbox:result', state: 'soon' })
 })
