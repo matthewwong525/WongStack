@@ -169,13 +169,43 @@ export function quietLine(event) {
 }
 
 // ---------------------------------------------------------------------------
+// A problem that needs the person
+
+/** `{counts: {kind: n}, opened: {kind: day}, chats: [agentId]}`: failures in a row, the day a kind's chat opened,
+ * and the chats the watch and the check-ins leave alone. */
+export const needsYouFile = stateDir => join(stateDir, 'needs-you.json');
+export const needsYouChats = stateDir => readJson(needsYouFile(stateDir), {}).chats ?? [];
+const DAILY = 'node .claude/skills/daily/scripts/daily.mjs';
+const NEEDS_YOU = {
+  board: { what: 'the week board', steps: [`Run \`${DAILY} who\`. On \`missing\` or \`expired\`, run its \`login\` command in the background and show the person its link.`,
+    'The worker reads the board again within a minute of the sign-in.'] },
+  paseo: { what: 'Paseo', steps: ['Run `paseo ls`.', 'Fix what its error names, such as a stopped Paseo daemon.'] },
+  morning: { what: 'the morning start', steps: [`Run \`${DAILY} start --dry-run\`.`,
+    'Fix the settings file it names, by wiki/development/daily.md#your-settings-file.'] },
+};
+const jobSteps = check => [check ? `Run the job's check by hand: \`node ${check} < /dev/null\`.` : "Read the job's entry in the sweeps file the settings name.",
+  'Fix the check or the brief, by wiki/development/daily.md#your-own-jobs.'];
+
+/** The first message of a *Needs you* chat: what failed, why, and the steps, the guide's own fix first. */
+export function needsYouMessage({ what, reason, steps, guide }) {
+  return [`The daily's background worker failed two times in a row at ${what}.`, `Reason: ${reason}`,
+    ...(guide ? [`First read ${guide}. When it gives its own fix for this problem, follow that, not the steps below.`] : []),
+    'Steps to fix it:', ...steps.map((step, index) => `${index + 1}. ${step}`),
+    'Do the steps an agent can do. Ask the person only for a step that needs them, such as a sign-in. Then check that the fix works.'].join('\n');
+}
+
+// The watch sources that count as a kind; other sources stay journal lines.
+const NEEDS_SOURCES = { board: 'board', workspaces: 'paseo' };
+
+// ---------------------------------------------------------------------------
 // The worker
 
-/** The worker over one state folder: `dispatch` routes events, `sweep` queues due jobs, `pump`
- * ends stale runs and starts what the queue allows, `boot` journals runs a restart stopped and removes their copies. */
+/** The worker over one state folder: `dispatch` routes events, `sweep` queues due jobs, `pump` starts runs, `boot`
+ * cleans up after a restart; `failed` and `worked` count a kind's failures in a row, `ignored` names their chats. */
 export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AGENTS[0], context = {}, call, env = process.env,
   briefs = briefFolders(project), launch = spawnRun, typedAt = userAt, isAlive = alive, kill = stopGroup, now = () => Date.now(),
-  runCheck, git = runGit, dryRun = false, print = () => {}, wake = () => {} }) {
+  runCheck, git = runGit, dryRun = false, print = () => {}, wake = () => {}, guide = () => null,
+  openChat = async () => { throw new Error('no way to open a chat here'); } }) {
   const file = join(stateDir, 'worker-queue.json');
   const dueFile = join(stateDir, 'sweeps.json');
   const runs = join(stateDir, 'runs');
@@ -187,6 +217,44 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
   const save = state => writeJson(file, state);
   const journal = (line, more = {}) => addLine({ stateDir, timezone, line, now: date(), ...more });
   const maxRuns = sweeps.maxRuns ?? 3;
+  const needsFile = needsYouFile(stateDir);
+  const loadNeeds = () => ({ counts: {}, opened: {}, chats: [], ...readJson(needsFile, {}) });
+
+  function needsYou(kind) {
+    if (!kind.startsWith('job:')) return NEEDS_YOU[kind];
+    const job = sweeps.sweeps?.find(each => each.id === kind.slice(4));
+    return { what: `the job ${job?.title ?? kind.slice(4)}`, steps: jobSteps(job?.check) };
+  }
+
+  // The first failure in a row is `note`'s journal line; a later one opens one chat a kind a day, tried once.
+  async function failed(kind, { note, reason }) {
+    const needs = loadNeeds();
+    needs.counts[kind] = (needs.counts[kind] ?? 0) + 1;
+    if (!dryRun) writeJson(needsFile, needs);
+    if (needs.counts[kind] === 1) { note(); return; }
+    if (needs.opened[kind] === today()) return;
+    const { what, steps } = needsYou(kind);
+    const title = `Needs you: ${what}`;
+    const message = needsYouMessage({ what, reason, steps, guide: guide() });
+    if (dryRun) { print({ wouldOpen: title, message }); return; }
+    writeJson(needsFile, { ...needs, opened: { ...needs.opened, [kind]: today() } });
+    try {
+      const opened = await openChat({ title, message });
+      if (!opened?.agentId) throw new Error(opened?.error ?? 'Paseo did not start the chat.');
+      const after = loadNeeds();
+      writeJson(needsFile, { ...after, chats: [...after.chats, opened.agentId].slice(-14) });
+      journal(`Opened: ${title}`, { kind: 'opened', title });
+    } catch (error) {
+      journal(`Not opened: ${title} — ${oneLine(error)}`, { kind: 'not-opened' });
+    }
+  }
+
+  function worked(kind) {
+    const needs = loadNeeds();
+    if (!(kind in needs.counts)) return;
+    delete needs.counts[kind];
+    if (!dryRun) writeJson(needsFile, needs);
+  }
 
   function itemOf(event) {
     const entry = sweeps.events?.[event.event];
@@ -245,19 +313,21 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     });
   }
 
-  function start(item, state) {
+  async function start(item, state) {
     const runId = runIdOf(item.kind, date());
+    const job = item.kind === 'sweep' ? `job:${item.fields.sweep}` : null;
+    const notStarted = reason => {
+      const note = () => journal(`Not started: ${item.title} — ${reason}`, { kind: 'not-started' });
+      return job ? failed(job, { note, reason }) : note();
+    };
     let brief;
-    try { brief = briefFor(item, runId, briefs); } catch (error) {
-      journal(`Not started: ${item.title} — ${oneLine(error)}`, { kind: 'not-started' });
-      return;
-    }
+    try { brief = briefFor(item, runId, briefs); } catch (error) { await notStarted(oneLine(error)); return; }
     if (dryRun) { print({ wouldStart: item.kind, title: item.title, lane: item.lane, brief: item.brief }); return; }
     let copy = null;
     if (item.place === 'copy') {
       try { copy = makeCopy(runId); } catch (error) {
         removeCopy(join(copies, runId));
-        journal(`Not started: ${item.title} — ${oneLine(error)}`, { kind: 'not-started' });
+        await notStarted(oneLine(error));
         return;
       }
     }
@@ -268,9 +338,10 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     } catch { /* journaled below */ }
     if (!child?.pid) {
       if (copy) removeCopy(copy);
-      journal(`Not started: ${item.title} — ${command} did not start`, { kind: 'not-started' });
+      await notStarted(`${command} did not start`);
       return;
     }
+    if (job) worked(job);
     child.on?.('exit', () => { exited.add(runId); wake(); });
     state.running.push({ runId, pid: child.pid, kind: item.kind, title: item.title, lane: item.lane, ownPlace: item.ownPlace,
       startedAt: date().toISOString(), ...(item.minutes && { minutes: item.minutes }), ...(copy && { copy }) });
@@ -297,10 +368,15 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
 
   async function checked(sweep) {
     if (!sweep.check) return {};
+    const kind = `job:${sweep.id}`;
     try {
-      return runOf(await runCheck({ sweep, context: { ...context, kind: 'sweep', day: today(), sweep: sweep.id } }));
+      const run = runOf(await runCheck({ sweep, context: { ...context, kind: 'sweep', day: today(), sweep: sweep.id } }));
+      // A run's start resets the count; a reset here would hide a start that fails every period.
+      if (!run) worked(kind);
+      return run;
     } catch (error) {
-      journal(`Not read: job ${sweep.title ?? sweep.id} — ${oneLine(error)}`, { kind: 'not-read' });
+      const reason = oneLine(error);
+      await failed(kind, { reason, note: () => journal(`Not read: job ${sweep.title ?? sweep.id} — ${reason}`, { kind: 'not-read' }) });
       return null;
     }
   }
@@ -320,9 +396,15 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     async dispatch(events) {
       const state = load();
       for (const event of events.filter(each => each?.event && each.event !== 'unsupported')) {
-        const item = itemOf(event);
-        if (item) enqueue(state, item);
-        else if (!STOP_EVENTS.includes(event.event)) quiet(event);
+        const kind = NEEDS_SOURCES[event.source];
+        if (kind && event.event === 'not-read') await failed(kind, { note: () => quiet(event), reason: event.error ?? 'no answer' });
+        else if (kind && event.event === 'read') worked(kind);
+        else if (event.again || event.event === 'read') continue;
+        else {
+          const item = itemOf(event);
+          if (item) enqueue(state, item);
+          else if (!STOP_EVENTS.includes(event.event)) quiet(event);
+        }
       }
       save(state);
     },
@@ -354,13 +436,17 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
       const kept = [];
       for (const item of state.queue) {
         const next = await verdict(item, state, permits);
-        if (next === 'start') start(item, state);
+        if (next === 'start') await start(item, state);
         else if (next === 'wait') kept.push(item);
       }
       state.queue = kept;
       save(state);
       return state;
     },
+
+    failed,
+    worked,
+    ignored: () => loadNeeds().chats,
 
     tidy() {
       prune({ stateDir, timezone, keep: sweeps.journalDays ?? 14, now: date() });
@@ -496,38 +582,39 @@ export async function serveWorker({ worker, pass, signal, seconds = 60, once = f
 }
 
 /** `daily.mjs serve`: `watching` holds the board, to-dos and add-ons; `start` runs the morning when `settings()`, read
- * each pass, has a file. A dry run works on a state copy, starts nothing, and prints its plan. */
+ * each pass, has a file; `openChat` opens a *Needs you* chat. A dry run works on a state copy and starts nothing. */
 export async function serveDaily({ config, project, stateDir, call, env = process.env, watching, started, hasFile = false,
   settings = () => ({ config, hasFile }), start = null, seconds = 60, once = false, dryRun = false, print = item => console.log(JSON.stringify(item)),
-  log, launch, watcher, sleep, agent = RUN_AGENTS[0], ownRepo = sameRepo(project), now = () => Date.now(), code = codeStamp() }) {
+  log, launch, watcher, sleep, agent = RUN_AGENTS[0], ownRepo = sameRepo(project), now = () => Date.now(), code = codeStamp(), openChat,
+  guide = config.guide ?? null }) {
   const signal = { heard: false };
   const timezone = config.timezone;
+  // The guide of the settings read last: a file made or changed after the start counts.
+  let current = { config: { guide } };
   const worker = makeWorker({ stateDir, project, timezone, sweeps: loadSweeps({ project, file: config.sweeps }),
     agent: config.runs?.agent ?? agent, call, env, dryRun, print, launch, context: { person: config.person, timezone, repo: project }, now,
     runCheck: ({ sweep, context }) => runNode({ file: resolve(project, sweep.check), cwd: project, input: context }),
-    wake: () => { signal.heard = true; } });
+    wake: () => { signal.heard = true; }, guide: () => current?.config?.guide ?? null, ...(openChat && { openChat }) });
   const watchOnce = async () => {
     const events = [];
-    await watch({ stateDir, started, timezone, call, ...watching, env, self: null, service: true, once: true, ownRepo, print: text => events.push(JSON.parse(text)) });
+    await watch({ stateDir, started, timezone, call, ...watching, env, self: null, ignore: worker.ignored(), service: true, once: true, ownRepo,
+      print: text => events.push(JSON.parse(text)) });
     if (dryRun) for (const event of events) print({ event });
     return events;
   };
-  // A settings file that can not be read, or a morning that throws, is journaled once a day; the next pass tries again.
-  const noted = new Set();
+  // A settings file that can not be read, or a morning that throws, is a `morning` failure; the next pass tries again.
   const morning = async () => {
     if (!start) return;
-    const date = new Date(now()), day = localDay(date, timezone);
-    const note = (kind, line) => {
-      if (noted.has(`${day}:${kind}`)) return;
-      noted.add(`${day}:${kind}`);
-      addLine({ stateDir, timezone, line, kind, now: date });
-    };
-    let current;
-    try { current = settings(); } catch (error) { note('not-read', `Not read: the settings file — ${oneLine(error)}`); return; }
+    const date = new Date(now());
+    const failed = (kind, line, error) => worker.failed('morning', { reason: oneLine(error),
+      note: () => addLine({ stateDir, timezone, line: `${line} — ${oneLine(error)}`, kind, now: date }) });
+    try { current = settings(); } catch (error) { await failed('not-read', 'Not read: the settings file', error); return; }
     if (!current?.hasFile || !current.config) return;
     try { await morningPass({ config: current.config, stateDir, start, dispatch: worker.dispatch, date, dryRun, print }); } catch (error) {
-      note('not-started', `Not started: the morning — ${oneLine(error)}`);
+      await failed('not-started', 'Not started: the morning', error);
+      return;
     }
+    worker.worked('morning');
   };
   const stops = dryRun ? null : watchStops(env, () => { signal.heard = true; }, watcher);
   try {

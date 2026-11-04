@@ -15,7 +15,7 @@ import { RUN_AGENTS } from './config.mjs';
 import { RUN_FLAGS, hookInput, offFile, personSettings, stateOf } from './daily.mjs';
 import { addLine } from './journal.mjs';
 import { readChat } from './transcript.mjs';
-import { fillText, runEnv, stopGroup } from './worker.mjs';
+import { fillText, needsYouChats, runEnv, stopGroup } from './worker.mjs';
 
 const USAGE = 'usage: stop-check.mjs stop --agent claude|codex   the Stop hook; reads the hook\'s JSON on stdin';
 const BRIEF = fileURLToPath(new URL('../references/briefs/stop-judge.md', import.meta.url));
@@ -80,6 +80,8 @@ export async function stopCheck({ input, agent = RUN_AGENTS[0], env = process.en
   if (!config) return skip('no person');
   const stateDir = stateOf(config, undefined, root);
   if (existsSync(offFile(stateDir))) return skip('off');
+  // A *Needs you* chat waits for the person.
+  if (env.PASEO_AGENT_ID && needsYouChats(stateDir).includes(env.PASEO_AGENT_ID)) return skip('needs you');
   const file = streakFile(stateDir, input);
   const saved = { count: 0, since: null, sent: [], ...readJson(file, {}) };
   const chat = readChat(input.transcript_path, saved.sent);
