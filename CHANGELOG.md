@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Connect your tools after install
+
+- **Install goes on to connecting your tools.** After setup's closing report, the same chat asks which tools you use for your work, such as Stripe, Notion or Figma. When they are connected, or you say *skip*, it gives the usual last step: open your site and paste the *Make it yours* request ([connect your tools](wiki/stack/connect-your-tools.md)).
+- **Say *connect my tools* or *connect my Figma* at any time.** A new helper puts each tool in one of three groups. A tool the app can already use gets one look-up that changes nothing, so you see it work. A tool the app does not know yet gets added. A website with no API, a tool that offers only a sign-in, or your own mail is *not connected yet*: the helper opens no browser and sends no password link. It ends with a short list.
+- **The helper works out how to add each new tool.** It reads the tool's own developer pages and finds a key you can make there, or the tool's own AI connector that takes a key. It writes what it found on the tool's notes page, so the next chat does not find it again. Then one private link takes every key, one change adds every new tool to the app, and you answer *publish it?* once, with no plan to review. When it is live, the keys go to the app and each tool shows a look-up working.
+- **A teammate gets a message for the owner.** A teammate's computer can not store a key in the app, so the helper writes a short message to send to the owner. The owner says *connect Figma for Ana*, and the helper then reminds the owner to give Ana a level in Access. The assistant never changes Access itself.
+
+**Updating.** If you installed before this version, type *connect my tools* in a chat to connect the tools you work with.
+
 ## 48.0.0 — The browser runs Camoufox 158
 
 - **The browser is Camoufox 158 and tells sites its true version.** The personal browser now runs the build that the official [Camoufox](https://github.com/daijro/camoufox) library pins, with a disguise made for that build. A site that checks the browser version, such as an online store's admin, sees the version that really runs, so it shows no "unsupported browser" page ([browsing](wiki/development/browsing.md)).

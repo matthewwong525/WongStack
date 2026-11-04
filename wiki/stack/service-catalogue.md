@@ -29,7 +29,7 @@ Notion   Team notes and docs    not saved yet: ask the owner
 - **Project code is left out**: it is the stack's own key, reached through [the project's route](employee-project.md#who-gets-what).
 - **The list stays short.** One row per service, however many actions each has, at most 200 rows, and never a key value. `--json` prints the whole answer.
 
-A row says what to do next. A key that isn't saved: [send its key link](../development/secrets.md#receive-a-key-through-a-private-link). A key you have no level for: ask the owner or an Admin.
+A row says what to do next. A key that isn't saved: [send its key link](../development/secrets.md#receive-a-key-through-a-private-link). A key you have no level for: ask the owner or an Admin. A tool in no row is one the app doesn't know yet: [connect your tools](connect-your-tools.md#work-out-how-to-add-a-new-tool) adds it.
 
 Behind it is `GET /api/services` (`?all=1` for every key), with the same login, cache and credential rules as the action list below. Each key's purpose and guide link come from [the key registry](api-keys.md#a-saved-key-shows-in-access).
 
