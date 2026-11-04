@@ -1,6 +1,6 @@
 # Deny tools to background runs
 
-**Status:** ready-to-build
+**Status:** ready-to-ship
 **Branch:** slick-gorilla
 **Open questions:** none
 
@@ -60,3 +60,4 @@ None.
 - **2026-11-04** — Assumed: it is Claude-only, and a Codex run with a `deny` list does not start, with one journal line, because Codex's command rules match fixed word prefixes, not these patterns, so a run would work without the block; failing closed sends nothing.
 - **2026-11-04** — Assumed: the list reaches every run the worker starts (events and timed jobs), not the memory or stop-check runs, because those already run with a short list of allowed tools.
 - **2026-11-04** — Assumed: morning routines do not get the list, and the page says so, because each opens its own chat through Paseo, which has no option to refuse tools; the second look found the docs said every run did.
+- **2026-11-04** — Archived for publish as 47.3.0, after a second look found one problem (the docs said morning routines get the list), fixed by wording.
