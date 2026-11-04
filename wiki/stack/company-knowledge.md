@@ -52,6 +52,22 @@ Each save prints its commit. `knowledge.mjs undo <commit>` takes that one save b
 
 The repository can't refuse a forced push on its own, so the copy keeps watch: `update` notices when the published history no longer holds what this computer last saw, and prints `rewritten=`. `knowledge.mjs restore` then puts the lost saves back as a merge on top of what is published now, with no force.
 
+## Move an older install's pages
+
+An install from before the knowledge repo keeps its own pages in the code repo, in `wiki/` or `docs/`. The update's [catch-up step](../../.agents/skills/wong-sync/references/catch-up.md) `own-pages` moves them, with [`knowledge-move.mjs`](../../.agents/skills/wong-sync/scripts/knowledge-move.mjs):
+
+1. **The plan lists.** `knowledge-move.mjs plan --target . --source <source path>` writes nothing. It prints each page that moves (`moves`, with `counts` by folder), each file that stays and why (`stays`), the link fixes (`rewrites`), and what needs a person (`hand`, `outside`). Put the counts and the stays in the plan, and make each `hand` and `outside` item a task.
+2. **A held move waits.** When the app shows the whole wiki from the code repo (`replacedReaders`) and WongStack ships no live reader yet, the plan says `held`. List the pages and say they wait for the live reader; nothing moves. The install record keeps `components.knowledgeMove: 'held'`, so the next update asks again; the move drops it. A held update also leaves WongStack's pages in `docs/` (`wiki-elsewhere`) and the record keeps its docs folder setting: without it, the next update looks for your pages in `wiki/`, finds none, and never moves them.
+3. **The build moves.** When the update also moves WongStack's pages out of `docs/` (`wiki-elsewhere`), both moves run in this update, that one first, so the moved pages link them at their place in `wiki/`. Make the copy if it is missing (`knowledge.mjs update`), then run `knowledge-move.mjs move` with the same arguments. It copies each page to `knowledge/`, deletes it from the code repo, fixes each link and path it listed, and writes the moves list. It makes no git commit and no save, and never touches a `hand` item.
+4. **You finish by hand.** Do each `hand` task. Move each page in `stays` that a reader reads to the place it names, beside that reader. Fix the problems `move` prints for both wikis, then save the pages it printed with `knowledge.mjs save`.
+5. **Recopy before publish.** `knowledge-move.mjs recopy --target . --main origin/main` carries each edit a teammate saved to a moved page in the code repo since the move. Save again if it carried a page. When a page changed in both places, it stops, names the page, and writes nothing: merge the two by hand.
+
+Pages the payload ships stay in the code repo. A page that your code reads as it runs (an `import ...?raw`, a `readFile`, a pattern, or a config value) stays with that code, so the app keeps working and an edit goes through [the gate](../development/the-change-loop.md#the-gate).
+
+### Old paths
+
+The moves list, `.agents/knowledge-moves.json`, maps each old path to its new place, and it never gets shorter. Past plans, finished changes and memory keep their old paths; `memory.mjs areas <old path>` prints the new place. The wiki check fails on a file at an old path and names the new place, so a chat that started before the move can't put a page back in the code repo.
+
 ## When the sign-in runs out
 
 Chats keep reading the last copy. Nothing opens a browser or waits for one: saves print `pending=` until you sign in again with `node scripts/company-api.mjs login`, and the next update publishes them.

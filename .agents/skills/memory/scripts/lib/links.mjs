@@ -81,6 +81,16 @@ export function backlinks(root, path) {
   return markdownFiles(root).filter(file => file !== want).flatMap(file => linksIn(root, file).filter(hits)).map(({ file, line }) => `${file}:${line}`);
 }
 
+/** The code repo's map from each page moved to the knowledge repo to its new place; it never shrinks. */
+export const MOVES_FILE = '.agents/knowledge-moves.json';
+/** `{ version, base, moves: { old: new }, copied }`, or null when this repo moved no pages. */
+export function readMoves(root) {
+  try {
+    const list = JSON.parse(readFileSync(join(root, MOVES_FILE), 'utf8'));
+    return list?.moves && typeof list.moves === 'object' ? list : null;
+  } catch { return null; }
+}
+
 // A `<page>.mine.md` is one side of a knowledge save's conflict, never a page of its own.
 const MINE = /\.mine\.md$/;
 export const wikiPages = (root, pagesRoot = 'wiki') => markdownFiles(root, join(root, pagesRoot)).filter(page => !MINE.test(page));
@@ -118,13 +128,16 @@ function pageProblems(root, page) {
   return problems;
 }
 
-// The problems of `pagesRoot` (wiki or knowledge), one line each: a dead link or heading, an orphan, a hub that skips
-// a page beside it, a page too long or badly opened. With no knowledge copy here (as in CI), links into it are skipped.
+// The problems of `pagesRoot` (wiki or knowledge): dead links and headings, orphans, hub gaps, bad pages, and files
+// back at a moved page's old path. With no knowledge copy here (as in CI), links into it are skipped.
 export function checkWiki(root, pagesRoot = 'wiki') {
   const pages = wikiPages(root, pagesRoot);
+  const moved = pagesRoot === 'knowledge' ? [] : Object.entries(readMoves(root)?.moves ?? {})
+    .filter(([old]) => existsSync(join(root, old)))
+    .map(([old, now]) => `${old}: moved to the knowledge repo as ${now}; edit it there, not here`);
   const unseen = pagesRoot !== 'knowledge' && !existsSync(join(root, 'knowledge'));
   const links = pages.flatMap(file => linksIn(root, file)).filter(({ rel }) => !(unseen && /^knowledge(\/|$)/.test(rel ?? '')));
-  const problems = [];
+  const problems = [...moved];
   for (const { file, line, written, rel, readme, anchor } of links) {
     if (rel === null || !existsSync(join(root, rel))) problems.push(`${file}:${line}: links to ${written}, which does not exist`);
     else if (anchor) {

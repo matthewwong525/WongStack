@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 45.11.0 — A live reader for company knowledge
+## Next (minor) — A live reader for company knowledge
 
 - **A Knowledge app on Home.** It lists every company knowledge page by folder, and opens each one as the newest save has it. A save from any chat shows on the next open, with no publish. Links between pages open in the app, and diagrams draw as pictures ([the knowledge reader](wiki/stack/knowledge-reader.md)).
 - **Search by words.** The box on the list finds a page by its title or its text, and shows the line that matched.
@@ -12,6 +12,20 @@
 - **Page content never runs code.** Raw HTML and unsafe links in a page show as text.
 
 **Updating.** On the Access page, tick Knowledge for the people who should read company pages. Then, once this update is live, run setup's Access step once, so pages marked public open with no sign-in. Not before: until then the publish check doesn't know the new route and refuses every publish ([public pages](wiki/stack/knowledge-reader.md#public-pages)). Until you do, each publish warns, and public pages stay behind the sign-in.
+
+## 46.0.0 — Your own pages move to the knowledge repo
+
+- **One update moves your pages, after one yes.** The update plan lists each of your own pages that moves from the code repo to the knowledge repo, by folder, with counts. Pages that WongStack ships stay in the code repo.
+- **Every link to a moved page is fixed.** Links in skills, rules, code comments, specs and other pages now point to the new place. A link that the update can't fix safely, such as a path that code builds as it runs, is a step on the plan for you to do.
+- **Pages your app reads stay with the code.** A page that the app or a script reads as it runs goes next to the code that reads it, so the app works the same.
+- **No edit is lost while the update waits.** Just before the update goes live, it copies each page that changed in the code repo since the move. If the same page changed in both places, it stops and names the page.
+- **An old chat can't bring a page back.** The wiki check fails on a page at a moved path and names its new place. `.agents/knowledge-moves.json` maps each old path to its new place, and `memory.mjs areas <old path>` prints it.
+
+**Updating.** Say yes to the list of pages in the update plan. The update moves the pages and fixes the links. Look at the steps it lists for you, do them, then publish. If your app shows your pages from the code repo, the pages wait: they move in the update that brings the live reader.
+
+## 45.10.1 — Try a changed reply link without stopping the running one
+
+- **The reply-link guide says how to try a changed copy safely.** Run it with a temporary home folder and a stand-in `paseo`, so the computer's running helper and its open pages stay as they are ([reply links](wiki/development/reply-links.md#open-one-for-another-page)).
 
 ## 45.10.0 — Review pages that ask and run the real thing
 
