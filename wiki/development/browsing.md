@@ -8,7 +8,7 @@ Browsing lets the agent use websites as you: saved logins, pictures, and chat qu
 
 ## Saved browser logins
 
-The agent reaches your accounts (mail, calendar, banking) in [camofox](https://github.com/jo-inc/camofox-browser), a browser more sites let in, not through connectors. One script drives it: [`browse.mjs`](../../.agents/skills/browser/scripts/browse.mjs). Your logins stay in your home folder, outside every repo, and survive a restart.
+The agent reaches your accounts (mail, calendar, banking) in [Camoufox](https://camoufox.com), a Firefox that more sites let in, not through connectors. One script drives it: [`browse.mjs`](../../.agents/skills/browser/scripts/browse.mjs), through a small server beside it, [`browser-server.mjs`](../../.agents/skills/browser/scripts/browser-server.mjs). Your logins stay in the browser's profile folder in your home folder, outside every repo, and survive a restart. The browser also keeps one device identity, made once per Camoufox version, so a site does not see a new device at each restart.
 
 ```bash
 B=.claude/skills/browser/scripts/browse.mjs
@@ -23,7 +23,7 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **Each ref acts on the box it marks.** A box in a payment box gets its own ref, even when the page has a box of the same name. When the script can't tell them apart, those boxes print no ref, and a `- note:` line says so: read the page again or use a selector. A click on a tick box, a round choice, or a switch is read back; if nothing changed, the script presses Space on it, and if it still didn't change, prints `BROWSE_ERROR=the box did not change`.
 
-1. **The first errand installs the browser, once you say yes.** On `BROWSE_NEEDS=install` (exit 3), the agent asks once, saying [what the install needs](required-tools.md#installing-camofox): about 1.4 GB of disk and 700 MB of memory. It then runs `browse.mjs install`.
+1. **The first errand installs the browser, once you say yes.** On `BROWSE_NEEDS=install` (exit 3), the agent asks once, saying [what the install needs](required-tools.md#installing-camoufox): Python 3.10 or newer, about 3 GB of disk, and 700 MB of memory. It then runs `browse.mjs install`. On `BROWSE_NEEDS=python`, it asks you to install Python first.
 2. **A saved login goes first.** When a site asks to log in, the agent runs `browse.mjs logins`, which gives each login's name, site, and username, never a password. It matches the login page's host against each saved site's host, `www.` dropped: they match when they're equal, or when one sits under the other, so `login.netflix.com` matches `netflix.com`. A login saved for `clinic.janeapp.com` also gets one try on `myodetox.janeapp.com`, the same main domain, with `--main-domain` on `login`: some sites keep one account per subdomain, and a repeat can lock it. The script checks the same match itself, right before each value it types.
    - **One match:** the agent logs in without asking, because saving the login was your permission. It names the page's boxes from its own snapshot, and the script types the login into them:
 
@@ -46,13 +46,17 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **A check never clears a shared browser's cookies.** A helper that needs a clean or signed-in browser for a test makes a throwaway profile in a temporary folder and deletes it afterwards. Never run `cookies clear` on a profile that holds sign-ins, such as `~/.wong-stack/browser-profile`: it deletes every sign-in there for good, and you must log in again by hand.
 
+**A test never copies a Facebook or Messenger login** to another browser or network: Meta can lock the account.
+
 **Read a page only after it settles.** `open` waits for two matching reads a second apart. After a click, read again if the page looks unfinished.
 
-**Nothing is reported to the browser's makers.** `browse.mjs` switches camofox's failure reports off at every start, and the browser listens only on this computer.
+**Nothing is reported to the browser's makers.** The server sends no failure reports, and it listens only on this computer, behind a key only you can read.
+
+**The first start moves your old logins once.** It copies the cookies and site storage of the old camofox browser into the new profile, then writes a `migrated` file so it never copies again. It never copies a Facebook, Messenger, Instagram, or other Meta login: Meta can lock an account when its login shows up in another browser, so you sign in to those again yourself.
 
 **Every new start uses a local forwarding proxy automatically**, with no extra install or account. It keeps no browsing logs and tunnels secure traffic encrypted. Startup failure stops the browser; stopping the browser closes its proxy.
 
-It uses this computer's own network: Canadian on a Canadian laptop, Finnish on a Finland server. It needs neither WARP nor Paseo's relay, chooses no country, and uses no phone connection. Sites can still [refuse](#when-a-site-refuses-the-browser).
+It uses this computer's own network: Canadian on a Canadian laptop, Finnish on a Finland server. Its timezone follows the address sites see, and its language is English for that country. It needs neither WARP nor Paseo's relay, chooses no country, and uses no phone connection. Sites can still [refuse](#when-a-site-refuses-the-browser).
 
 A running browser keeps its pages and logins. The default activates after you ask to stop it and a later errand starts it again. Never restart it just for an update.
 

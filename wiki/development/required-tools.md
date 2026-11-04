@@ -10,15 +10,15 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 | `openspec` | The planning layer the workflow verbs front. It is distributed only as an npm package, so it runs on Node. |
 | `curl` | [Setup's provisioning](#the-cloudflare-stack-pack) drives the Cloudflare API with it, and `/verify`'s request and state probes use it. |
 
-Core reads remain dependency-free: **no `jq`, no `python`, and no project-language toolchain**. [Optional document retrieval](document-retrieval.md#optional-meaning-based-search) uses npm only in its explicit host setup to install pinned QMD/models outside the repo. Keyword fallback needs no setup; ordinary reads never install or download. No app package or lockfile changes.
+Core reads remain dependency-free: **no `jq`, no `python` (only [Camoufox](#installing-camoufox) needs it), and no project-language toolchain**. [Optional document retrieval](document-retrieval.md#optional-meaning-based-search) uses npm only in its explicit host setup to install pinned QMD/models outside the repo. Keyword fallback needs no setup; ordinary reads never install or download. No app package or lockfile changes.
 
-**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys. A private link adds one more, `cloudflared`, browsing as you adds camofox, a robot check adds a live view's three small tools, and shopping adds Shop's command.**
+**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys. A private link adds one more, `cloudflared`, browsing as you adds Camoufox, a robot check adds a live view's three small tools, and shopping adds Shop's command.**
 
 | Tool | Why |
 |---|---|
 | `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
 | `cloudflared` | Cloudflare's free tunnel tool, which gives every [private link](browsing.md#how-private-links-work) (the password link, the key link, and a private form) an address your phone or another computer can open. Setup offers it up front, in the same question. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time a private link needs it. A link opened at the agent's own computer needs it too: there is no local link. |
-| camofox | The browser the agent [uses websites in as you](browsing.md#saved-browser-logins), which more sites let in. Setup never offers it, since most installs never browse. The first errand asks, then [installs it](#installing-camofox) into your home folder. |
+| Camoufox | The browser the agent [uses websites in as you](browsing.md#saved-browser-logins), which more sites let in. Setup never offers it. The first errand asks, then [installs it](#installing-camoufox) into your home folder. |
 | Shop's command | What [shopping](shopping.md) runs to search Shop's catalog and pay at its checkout. Setup never offers it. The first shopping request asks, then [installs it](#installing-shops-command) into your home folder. |
 | `x11vnc`, `xdotool`, noVNC | What [a live view](live-view.md) needs to show you the agent's browser at a robot check, on Linux only. Setup never offers them. The first check asks, saying two need admin rights, then [installs them](#installing-the-live-views-tools). |
 
@@ -76,7 +76,7 @@ This heading remains for older links. Memory uses [the company sign-in](memory.m
 
 **Nothing is installed without asking.** Installing a runtime changes the machine, not the repo. When a step needs a tool and it is missing, the skill explains what and why, and asks.
 
-**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh` (not on [the Artifacts route](../stack/artifacts-route.md)), Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). The same question covers `agent-browser` and `cloudflared`, so nothing stops later to ask; a failed install of either is named and skipped, since setup finishes without them. The owner's memory waits for `cloudflared`, which signs them in once. It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. It also offers [the background helper](../stack/live-line.md#the-helper). Every other skill keeps point-of-need installs: on a machine setup didn't ready, or where a helper failed, `/verify` adds its browser the first time it needs one, and a private link its tunnel tool. An errand on your accounts always asks for [camofox](#installing-camofox) itself, and a shopping request for [Shop's command](#installing-shops-command).
+**Setup is the one skill that checks ahead**, because nothing works until its tools exist. Before it writes anything, it checks for `git`, `gh` (not on [the Artifacts route](../stack/artifacts-route.md)), Node.js, and `openspec`, and asks once to install the missing ones ([get the computer ready](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/tools.md)). The same question covers `agent-browser` and `cloudflared`, so nothing stops later to ask; a failed install of either is named and skipped, since setup finishes without them. The owner's memory waits for `cloudflared`, which signs them in once. It uses the system package manager — Homebrew when it is already there, `winget`, or `apt` — only when that needs no password, because an agent can't type one. Otherwise it installs into your home folder, `~/.local`, which also works on managed laptops. It never installs a package manager. It also offers [the background helper](../stack/live-line.md#the-helper). Every other skill keeps point-of-need installs: on a machine setup didn't ready, or where a helper failed, `/verify` adds its browser the first time it needs one, and a private link its tunnel tool. An errand on your accounts always asks for [Camoufox](#installing-camoufox) itself, and a shopping request for [Shop's command](#installing-shops-command).
 
 ### Installing `cloudflared`
 
@@ -92,14 +92,14 @@ Setup and a first private link install it from Cloudflare's own channel:
   chmod +x ~/.local/bin/cloudflared
   ```
 
-### Installing camofox
+### Installing Camoufox
 
 The first errand on your accounts asks once, then runs [`browse.mjs install`](../../.agents/skills/browser/scripts/browse.mjs):
 
-- **What it needs.** About 1.4 GB of disk, about 700 MB of memory while it runs, and no admin password.
-- **Where it goes.** `~/.wong-stack/camofox/` holds camofox and its browser driver, in the two versions WongStack has tried and no others: a newer driver fails to save a login. The browser itself, a 660 MB download, lands in your home folder's cache: `~/.cache/camoufox` on Linux, `~/Library/Caches/camoufox` on a Mac.
-- **A temp folder on disk.** The download fails when the temp folder is kept in memory and is small, so the script uses one of its own, on disk.
-- **To remove it,** delete both folders. Your [saved logins](passwords.md) are a separate file.
+- **What it needs.** Python 3.10 or newer with `venv` (else `BROWSE_NEEDS=python`), 3 GB of disk, 700 MB of memory, and no admin password. Linux also needs `Xvfb`; a Mac shows no window.
+- **What it installs.** The pinned [`camoufox`](https://pypi.org/project/camoufox/) Python library and the build it pins, whose disguise it makes. A start refuses a pair that disagrees.
+- **Where it goes.** `~/.wong-stack/camoufox/`: the library in `venv/`, the build in `cache/`, your site logins in `profile/`, and its own temp folder on disk.
+- **To remove it,** stop the browser, then delete `~/.wong-stack/camoufox/`. Your [saved logins](passwords.md) are a separate file. Delete an older install's `~/.wong-stack/camofox/` and `~/.cache/camoufox` once the new browser has your logins.
 
 ### Installing the live view's tools
 

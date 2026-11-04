@@ -1,0 +1,149 @@
+"""Prints the shared browser's launch config from the official camoufox library, as one JSON line.
+
+usage: launch-config.py --library <version> --build <tag> [--check] [--proxy <url>] [--display <:n>] [--fingerprint <file>]
+
+--check only compares the pins with what is installed. A refusal prints {"error", "needs"} and exits 3;
+"needs" names the part to install again: python, library, build, or pins (the two pins disagree).
+--fingerprint keeps the browser's identity in <file> (mode 600), made once per library and build, so each start
+shows sites the same device. browser-server.mjs runs it at each start; browse.mjs status runs --check.
+"""
+
+import argparse
+import contextlib
+import json
+import os
+import sys
+from importlib import metadata
+
+
+class Refusal(Exception):
+    def __init__(self, reason, needs):
+        super().__init__(reason)
+        self.needs = needs
+
+
+def installed_build():
+    """The pinned build's `<version>-<build>`, or None when the library finds it not installed."""
+    from camoufox.multiversion import get_active_path
+
+    active = get_active_path()
+    if active is None:
+        return None
+    with open(os.path.join(active, 'version.json'), encoding='utf-8') as file:
+        data = json.load(file)
+    return f"{data.get('version')}-{data.get('release') or data.get('build') or data.get('tag')}"
+
+
+def check(library, build):
+    """The installed `{library, build}`, once both match the pins; else a Refusal naming what to install."""
+    try:
+        have = metadata.version('camoufox')
+    except metadata.PackageNotFoundError:
+        raise Refusal('the camoufox library is not installed', 'library')
+    if have != library:
+        raise Refusal(f'the camoufox library is {have}, not {library}', 'library')
+    from camoufox.browser_pin import load_pin
+
+    pin = load_pin()
+    if pin is None or pin.tag != build:
+        raise Refusal(f'camoufox {library} pins {pin.tag if pin else "no build"}, not {build}; raise both pins together', 'pins')
+    spec = f'{pin.version}-{pin.build}'
+    found = installed_build()
+    if found != spec:
+        raise Refusal(f'the camoufox build {spec} is not installed' + (f' ({found} is)' if found else ''), 'build')
+    return {'library': have, 'build': spec}
+
+
+def country_of(proxy):
+    """The proxy's exit address and its country, or (None, None) when the lookup fails."""
+    from camoufox.geolocation import get_geolocation
+    from camoufox.ip import public_ip
+
+    try:
+        address = public_ip(proxy) if proxy else public_ip()
+        return address, get_geolocation(address).locale.region
+    except Exception:  # noqa: BLE001 -- a failed lookup starts the browser in US English, as camofox did
+        return None, None
+
+
+def saved_fingerprint(path, versions):
+    """The identity saved in `path` for these versions, else a new one saved there; and whether it was saved."""
+    try:
+        with open(path, encoding='utf-8') as file:
+            saved = json.load(file)
+        if saved.get('versions') == versions and isinstance(saved.get('fingerprint'), dict):
+            return saved['fingerprint'], True
+    except (OSError, ValueError, AttributeError):
+        pass
+    from camoufox.fingerprints import generate_fingerprint
+
+    fingerprint = generate_fingerprint(os='linux')
+    temp = f'{path}.tmp'
+    with open(os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w', encoding='utf-8') as file:
+        json.dump({'versions': versions, 'fingerprint': fingerprint}, file, default=str)
+    os.chmod(temp, 0o600)
+    os.replace(temp, path)
+    return fingerprint, False
+
+
+def launch(proxy, display, fingerprint=None):
+    """The persistent-context options for this start, English for the country the proxy's address is in."""
+    from camoufox.utils import launch_options, persistent_context_options, spoofs_window_dimensions
+
+    address, country = country_of(proxy)
+    locale = f'en-{country}' if country else 'en-US'
+    options = launch_options(
+        os='linux',
+        headless=not display,
+        virtual_display=display or None,
+        humanize=True,
+        enable_cache=True,
+        geoip=address or None,
+        locale=locale,
+        proxy={'server': proxy} if proxy else None,
+        fingerprint=fingerprint,
+    )
+    return {'options': persistent_context_options(options, spoofs_window_dimensions(options)), 'locale': locale}
+
+
+def driver_dir():
+    """The Node package of the Playwright driver the Python library runs, so the protocol matches the build."""
+    import playwright
+
+    return os.path.join(os.path.dirname(playwright.__file__), 'driver', 'package')
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--library', required=True)
+    parser.add_argument('--build', required=True)
+    parser.add_argument('--check', action='store_true')
+    parser.add_argument('--proxy')
+    parser.add_argument('--display')
+    parser.add_argument('--fingerprint')
+    args = parser.parse_args()
+    out = sys.stdout
+    try:
+        # The library prints progress and warnings; only the JSON line goes to stdout.
+        with contextlib.redirect_stdout(sys.stderr):
+            result = check(args.library, args.build)
+            if not args.check:
+                fingerprint, saved = saved_fingerprint(args.fingerprint, result) if args.fingerprint else (None, None)
+                result |= launch(args.proxy, args.display, fingerprint) | {'driver': driver_dir()}
+                if args.fingerprint:
+                    result['fingerprint'] = 'saved' if saved else 'new'
+    except Refusal as refusal:
+        out.write(json.dumps({'error': str(refusal), 'needs': refusal.needs}) + '\n')
+        return 3
+    except ImportError as error:
+        out.write(json.dumps({'error': f'the camoufox library does not load: {error}', 'needs': 'library'}) + '\n')
+        return 3
+    except Exception as error:  # noqa: BLE001 -- the server shows the reason; the traceback is on stderr
+        out.write(json.dumps({'error': f'the launch config failed: {error}', 'needs': None}) + '\n')
+        return 1
+    out.write(json.dumps(result, default=str) + '\n')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

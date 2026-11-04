@@ -1,12 +1,7 @@
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer as httpServer, request } from 'node:http';
 import { connect, createServer as tcpServer, Server } from 'node:net';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
 import { startForwarder } from '../../.agents/skills/browser/scripts/forwarder.mjs';
 
 async function listen(t, server) {
@@ -196,17 +191,4 @@ test('listener always binds only IPv4 loopback, and startup errors and stalls fa
   await assert.rejects(startForwarder(), { message: 'proxy startup failed' });
   t.mock.method(Server.prototype, 'listen', function () { return this; });
   await assert.rejects(startForwarder({ startMs: 10 }), { message: 'proxy startup failed' });
-});
-
-test('launcher closes its proxy when Camofox import fails, with no direct fallback or error detail', async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'wong-test-proxy-launch-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
-  const portFile = join(dir, 'port');
-  const module = join(dir, 'broken.mjs');
-  writeFileSync(module, `import {writeFileSync} from 'node:fs'; writeFileSync(${JSON.stringify(portFile)}, process.env.PROXY_PORT); throw new Error('private import failure');`);
-  const launcher = fileURLToPath(new URL('../../.agents/skills/browser/scripts/server.mjs', import.meta.url));
-  const result = spawnSync(process.execPath, [launcher, module], { encoding: 'utf8', timeout: 5000 });
-  assert.equal(result.status, 1);
-  assert.equal(result.stdout + result.stderr, '');
-  await assert.rejects(raw(Number(readFileSync(portFile, 'utf8')), 'GET / HTTP/1.1\r\n\r\n'), { code: 'ECONNREFUSED' });
 });

@@ -694,7 +694,7 @@ async function watch() {
     live.front();
     return null;
   };
-  /** The call camofox counts as use, which keeps the link's page open: a view's fit again, a form's constant. */
+  /** The call the server counts as use, which keeps the link's page open: a view's fit again, a form's constant. */
   const keepOpen = () => (live ? live.fit() : page.keepAlive());
   let keepAt = Date.now() + KEEP_MS;
   while (!done) {

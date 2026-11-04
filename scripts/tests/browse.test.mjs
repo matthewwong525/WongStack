@@ -1,16 +1,14 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { connect } from 'node:net';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { JSDOM } from 'jsdom';
-import { addTyped, boxAt, boxChanged, boxesIn, CAMOFOX, countScript, frameOf, FRAMES_SCRIPT, frameSites, googleResults, labelFrames, leftPage, MARK_SCRIPT, NO_REF_NOTE, passwordShown, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, mainDomain, selectorError, serverEnv, sessionName, targetOf, typedMark, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { addTyped, boxAt, boxChanged, boxesIn, CAMOUFOX, countScript, frameOf, FRAMES_SCRIPT, frameSites, installedLine, labelFrames, leftPage, MARK_SCRIPT, NO_REF_NOTE, passwordShown, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, mainDomain, selectorError, sessionName, targetOf, typedMark, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { hostOf, readLogins, writeLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
-import { localProxyEnv } from '../../.agents/skills/browser/scripts/server.mjs';
-import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
+import { BROWSE_ENV, fakeCamofox, fakePython } from './fixtures/fake-camofox.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/browser/scripts/browse.mjs');
@@ -24,25 +22,15 @@ const LOGINS = [
   { name: 'bank-example-com', url: 'https://www.bank.example.com/', username: 'other-zq@mail.example', password: 'Vault-7781-JKLM' },
 ];
 
-// A HOME of its own holding a fake camofox install, and a fake npm first on PATH that logs its argv and
-// TMPDIR and, unless `fail-npm` is set, writes the install's server file as the real install would.
+// A HOME of its own holding a fake Camoufox install, and a fake python3 first on PATH that logs each run and makes
+// a venv as the real install would; `fail-pip` in the control folder fails the library step.
 function fixture(t, options = {}) {
   const home = mkdtempSync(join(tmpdir(), 'wong-test-browse-'));
   const camofox = fakeCamofox(home, options);
   const bin = join(home, 'bin');
   mkdirSync(bin);
-  writeFileSync(join(bin, 'npm'), `#!${process.execPath}
-const fs = require('node:fs');
-const path = require('node:path');
-const args = process.argv.slice(2);
-fs.writeFileSync(${JSON.stringify(join(home, 'npm.json'))}, JSON.stringify({ args, tmp: process.env.TMPDIR }));
-if (fs.existsSync(${JSON.stringify(join(home, 'fail-npm'))})) { console.error('npm error ENOSPC'); process.exit(1); }
-const dir = path.join(args[args.indexOf('--prefix') + 1], 'node_modules/@askjo/camofox-browser');
-fs.mkdirSync(dir, { recursive: true });
-fs.writeFileSync(path.join(dir, 'server.js'), '');
-`);
-  chmodSync(join(bin, 'npm'), 0o755);
-  const env = { ...process.env, ...BROWSE_ENV, HOME: home, PATH: `${bin}:${process.env.PATH}`, SENTRY_DSN: 'https://key@sentry.example/1', CAMOFOX_CRASH_REPORT_URL: 'https://reports.example/report', PROXY_HOST: 'external.example', PROXY_PORTS: '8080,8081', PROXY_PASSWORD: 'unused-password', PROXY_STRATEGY: 'backconnect' };
+  fakePython(join(bin, 'python3'), camofox.control);
+  const env = { ...process.env, ...BROWSE_ENV, HOME: home, PATH: `${bin}:${process.env.PATH}` };
   const runWith = (extra, ...args) => spawnSync(process.execPath, [script, ...args], { cwd: home, env: { ...env, ...extra }, encoding: 'utf8', timeout: 30_000 });
   const run = (...args) => runWith({}, ...args);
   /** Runs a command beside the test, so two can run at once; resolves to its status and output. */
@@ -57,7 +45,7 @@ fs.writeFileSync(path.join(dir, 'server.js'), '');
     rmSync(home, { recursive: true, force: true });
   });
   const loginsFile = join(home, '.wong-stack/logins.json');
-  return { home, env, camofox, run, runWith, start, loginsFile, saveLogins: logins => writeLogins(logins, loginsFile), npm: () => JSON.parse(readFileSync(join(home, 'npm.json'), 'utf8')) };
+  return { home, env, camofox, run, runWith, start, loginsFile, saveLogins: logins => writeLogins(logins, loginsFile) };
 }
 
 /** Runs a command and asserts it worked; returns its stdout. */
@@ -81,7 +69,8 @@ test('with no install, a command prints BROWSE_NEEDS=install with the sizes and 
     const out = f.run(...args);
     assert.equal(out.status, 3, args.join(' '));
     assert.equal(out.stdout, 'BROWSE_NEEDS=install\n');
-    assert.match(out.stderr, /1\.4 GB of disk/);
+    assert.match(out.stderr, /Python 3\.10 or newer/);
+    assert.match(out.stderr, /3 GB of disk/);
     assert.match(out.stderr, /700 MB of memory/);
   }
   assert.equal(ok(f, 'status'), 'BROWSE_INSTALLED=no\nBROWSE_SERVER=stopped\n');
@@ -89,24 +78,45 @@ test('with no install, a command prints BROWSE_NEEDS=install with the sizes and 
   assert.equal(f.camofox.starts(), 0);
 });
 
-test('install asks npm for the two pinned versions and no others, into the home folder, with its temp folder on disk', t => {
+test('install makes a venv, installs the pinned library and its build there, and checks both, its temp and cache on disk', t => {
   const f = fixture(t, { installed: false });
-  assert.deepEqual(CAMOFOX, { '@askjo/camofox-browser': '1.18.1', 'playwright-core': '1.58.2' });
-  assert.equal(ok(f, 'install'), 'BROWSE_INSTALLED=yes\n');
-  const { args, tmp } = f.npm();
-  assert.deepEqual(args, ['install', '--prefix', f.camofox.install, '--no-audit', '--no-fund', '@askjo/camofox-browser@1.18.1', 'playwright-core@1.58.2']);
-  assert.equal(tmp, join(f.camofox.install, 'tmp'));
-  assert.ok(statSync(tmp).isDirectory(), 'the temp folder exists before the download');
+  assert.deepEqual(CAMOUFOX, { python: '0.5.9', build: 'v158.0.1-beta.41' });
+  assert.equal(ok(f, 'install'), 'BROWSE_INSTALLED=yes camoufox 158.0.1-beta.41 library 0.5.9\n');
+  const venv = join(f.camofox.install, 'venv', '0.5.9', 'bin', 'python');
+  const runs = f.camofox.pythonRuns().filter(run => run.args[1] !== '-c');
+  assert.deepEqual(runs.map(run => [run.python, run.args.slice(0, 3)]), [
+    [join(f.home, 'bin', 'python3'), ['-m', 'venv', join(f.camofox.install, 'venv', '0.5.9')]],
+    [venv, ['-m', 'pip', 'install']],
+    [venv, ['-m', 'camoufox', 'fetch']],
+    [venv, ['-I', join(repo, '.agents/skills/browser/scripts/launch-config.py'), '--library']],
+  ]);
+  assert.ok(runs[1].args.includes('camoufox[geoip]==0.5.9'), 'pip gets the one pinned version');
+  assert.deepEqual(runs.at(-1).args.slice(3), ['0.5.9', '--build', 'v158.0.1-beta.41', '--check']);
+  for (const run of runs) {
+    assert.equal(run.tmp, join(f.camofox.install, 'tmp'));
+    assert.equal(run.cache, join(f.camofox.install, 'cache'), 'the library never sees the default cache folder');
+  }
   assert.equal(statSync(f.camofox.install).mode & 0o777, 0o700);
 
-  writeFileSync(join(f.home, 'fail-npm'), '');
+  f.camofox.set('fail-pip');
   const failed = f.run('install');
   assert.equal(failed.status, 1);
-  assert.equal(failed.stdout, 'BROWSE_ERROR=the install failed; see npm\'s lines above\n');
-  assert.match(failed.stderr, /ENOSPC/, 'npm\'s own lines reach the person');
+  assert.equal(failed.stdout, 'BROWSE_ERROR=the install failed at the camoufox library; see the lines above\n');
+  assert.match(failed.stderr, /no space left/, 'pip\'s own lines reach the person');
 });
 
-test('the server starts with its own loopback proxy, reporting off, private files, and stops the listener with it', async t => {
+test('install with no Python 3.10 stops with BROWSE_NEEDS=python and installs nothing', t => {
+  const f = fixture(t, { installed: false });
+  const empty = mkdtempSync(join(tmpdir(), 'wong-test-no-python-'));
+  t.after(() => rmSync(empty, { recursive: true, force: true }));
+  const out = f.runWith({ PATH: empty }, 'install');
+  assert.equal(out.status, 3, out.stderr);
+  assert.equal(out.stdout, 'BROWSE_NEEDS=python\n');
+  assert.match(out.stderr, /Python 3\.10 or newer/);
+  assert.ok(!existsSync(join(f.camofox.install, 'venv')));
+});
+
+test('the server starts in its private folder with the key in a file, never on its command line, and stops', async t => {
   const f = fixture(t);
   assert.equal(ok(f, 'open', SHOP, '--session', 'a'), `BROWSE_URL=${SHOP}\n`);
   const env = f.camofox.env();
@@ -114,108 +124,58 @@ test('the server starts with its own loopback proxy, reporting off, private file
   assert.match(key, /^[0-9a-f]{64}$/);
   assert.equal(statSync(join(f.camofox.install, 'api-key')).mode & 0o777, 0o600);
   assert.equal(statSync(join(f.camofox.install, 'server.json')).mode & 0o777, 0o600);
-  assert.deepEqual({ ...env, pid: undefined, argv: undefined, CAMOFOX_PORT: undefined, PROXY_PORT: undefined }, {
-    CAMOFOX_BIND_HOST: '127.0.0.1',
-    CAMOFOX_CRASH_REPORT_ENABLED: 'false',
-    CAMOFOX_CRASH_REPORT_URL: '',
-    SENTRY_DSN: '',
-    CAMOFOX_PROFILE_DIR: join(f.camofox.install, 'profiles'),
-    CAMOFOX_API_KEY: key,
-    TMPDIR: join(f.camofox.install, 'tmp'),
-    cwd: f.camofox.install,
-    pid: undefined,
-    argv: undefined,
-    CAMOFOX_PORT: undefined,
-    PROXY_HOST: '127.0.0.1',
-    PROXY_PORT: undefined,
-    PROXY_PROTOCOL: 'http',
-    PROXY_STRATEGY: 'round_robin',
-  });
-  assert.deepEqual(env.argv, [join(repo, '.agents/skills/browser/scripts/server.mjs'), join(f.camofox.install, 'node_modules/@askjo/camofox-browser/server.js')], 'the key is not on the command line');
+  assert.equal(env.TMPDIR, join(f.camofox.install, 'tmp'));
+  assert.equal(env.cwd, f.camofox.install);
+  assert.deepEqual(env.argv, [BROWSE_ENV.BROWSE_SERVER_SCRIPT], 'the key is not on the command line');
   const info = JSON.parse(readFileSync(join(f.camofox.install, 'server.json'), 'utf8'));
-  assert.equal(info.port, Number(env.CAMOFOX_PORT));
-  assert.equal(info.proxy, 'local');
-  assert.notEqual(env.PROXY_PORT, env.CAMOFOX_PORT);
-  const listening = () => new Promise(resolve => {
-    const socket = connect(Number(env.PROXY_PORT), '127.0.0.1');
-    socket.once('connect', () => { socket.destroy(); resolve(true); });
-    socket.once('error', () => resolve(false));
-  });
-  assert.equal(await listening(), true);
+  assert.equal(info.port, Number(env.BROWSE_SERVER_PORT));
   assert.ok(f.camofox.requests().every(request => request.auth === `Bearer ${key}`), 'every request carries the key');
   assert.ok(!existsSync(join(f.camofox.install, 'server.log')), 'the server keeps no log');
+  assert.ok(['profile', 'cache', 'tmp', 'tabs'].every(dir => (statSync(join(f.camofox.install, dir)).mode & 0o777) === 0o700), 'the private folders are the person\'s alone');
 
-  assert.match(ok(f, 'status'), /^BROWSE_INSTALLED=yes camofox 1\.18\.1 driver 1\.58\.2\nBROWSE_SERVER=running\n$/);
+  assert.match(ok(f, 'status'), /^BROWSE_INSTALLED=yes camoufox 158\.0\.1-beta\.41 library 0\.5\.9\nBROWSE_SERVER=running\n$/);
   ok(f, 'snapshot', '--session', 'a');
   assert.equal(f.camofox.starts(), 1, 'a later command uses the running server');
 
   assert.equal(ok(f, 'stop'), 'BROWSE_SERVER=stopped\n');
-  assert.ok(f.camofox.has('stopped'), 'the server was asked to stop, so it can save first');
+  assert.ok(f.camofox.has('stopped'), 'the server was asked to stop, so it can close the browser first');
   assert.ok(!alive(env.pid));
-  assert.equal(await listening(), false, 'the one-process listener stopped too');
   assert.match(ok(f, 'status'), /BROWSE_SERVER=stopped/);
   assert.equal(ok(f, 'stop'), 'BROWSE_SERVER=stopped\n', 'stopping twice is fine');
 });
 
-test('native inherited proxy routes and credentials are removed, leaving one local HTTP endpoint', () => {
-  assert.deepEqual(localProxyEnv(1234, { PATH: '/bin', PROXY_HOST: 'external', PROXY_PORTS: '8080,8081', PROXY_BACKCONNECT_HOST: 'other', PROXY_USERNAME: 'user', PROXY_PASSWORD: 'secret', PROXY_COUNTRY: 'us', PROXY_STRATEGY: 'backconnect', PROXY_PROTOCOL: 'socks5' }), {
-    PATH: '/bin', PROXY_HOST: '127.0.0.1', PROXY_PORT: '1234', PROXY_PROTOCOL: 'http', PROXY_STRATEGY: 'round_robin',
-  });
-});
-
-test('an already-running older server keeps its pages until explicitly stopped, then starts with the proxy', async t => {
+test('a library and build that disagree are refused before anything starts, and status names the part to install', t => {
   const f = fixture(t);
-  // Start the old entrypoint directly, with an OS-assigned port recorded by the fixture.
-  const original = join(f.camofox.install, 'node_modules/@askjo/camofox-browser/server.js');
-  writeFileSync(join(f.camofox.install, 'api-key'), 'legacy-key\n', { mode: 0o600 });
-  const { createServer } = await import('node:net');
-  const apiPort = await new Promise(resolvePort => {
-    const probe = createServer();
-    probe.listen(0, '127.0.0.1', () => { const value = probe.address().port; probe.close(() => resolvePort(value)); });
-  });
-  const detached = spawnSync(process.execPath, ['--input-type=module', '-e', `import {spawn} from 'node:child_process'; const child = spawn(process.execPath, [${JSON.stringify(original)}], {detached:true, stdio:'ignore'}); child.unref(); console.log(child.pid);`], {
-    env: { ...process.env, HOME: f.home, CAMOFOX_PORT: String(apiPort), CAMOFOX_BIND_HOST: '127.0.0.1', CAMOFOX_API_KEY: 'legacy-key', PROXY_HOST: '', PROXY_PORT: '', PROXY_PORTS: '' }, encoding: 'utf8',
-  });
-  const oldPid = Number(detached.stdout.trim());
-  t.after(() => { try { process.kill(oldPid, 'SIGKILL'); } catch { /* gone */ } });
-  writeFileSync(join(f.camofox.install, 'server.json'), JSON.stringify({ pid: oldPid, port: apiPort }));
-  for (let i = 0; i < 100; i++) {
-    try { await fetch(`http://127.0.0.1:${apiPort}/health`); break; } catch { await new Promise(done => setTimeout(done, 10)); }
-  }
-  ok(f, 'open', SHOP, '--session', 'a');
-  ok(f, 'open', ACCOUNT, '--session', 'b');
-  assert.equal(f.camofox.starts(), 1);
-  assert.equal(f.camofox.tabs().length, 2);
-  assert.equal(JSON.parse(readFileSync(join(f.camofox.install, 'server.json'), 'utf8')).proxy, undefined);
-  ok(f, 'stop');
-  ok(f, 'open', SHOP, '--session', 'a');
-  assert.equal(f.camofox.starts(), 2);
-  assert.equal(f.camofox.env().PROXY_HOST, '127.0.0.1');
-});
-
-test('serverEnv overrides whatever the shell set for reporting', () => {
-  const env = serverEnv(4321, 'k', { PATH: '/bin', SENTRY_DSN: 'https://x', CAMOFOX_CRASH_REPORT_ENABLED: 'true', CAMOFOX_BIND_HOST: '0.0.0.0' });
-  assert.deepEqual({ ...env, CAMOFOX_PROFILE_DIR: undefined, TMPDIR: undefined }, { PATH: '/bin', CAMOFOX_PORT: '4321', CAMOFOX_BIND_HOST: '127.0.0.1', CAMOFOX_CRASH_REPORT_ENABLED: 'false', CAMOFOX_CRASH_REPORT_URL: '', SENTRY_DSN: '', CAMOFOX_API_KEY: 'k', CAMOFOX_PROFILE_DIR: undefined, TMPDIR: undefined });
-});
-
-test('a driver that is not 1.58.x is refused before anything starts', t => {
-  for (const driver of ['1.64.0', '1.57.9']) {
-    const f = fixture(t, { driver });
-    const out = f.run('open', SHOP);
-    assert.equal(out.status, 1);
-    assert.equal(out.stdout, `BROWSE_ERROR=the browser driver is ${driver}, not 1.58.x, and a login does not save on any other; run \`browse.mjs install\`\n`);
-    assert.equal(f.camofox.starts(), 0);
-    assert.ok(!existsSync(join(f.camofox.install, 'server.json')));
-  }
-});
-
-test('a server that never answers is reported, not waited on forever', t => {
-  const f = fixture(t);
-  writeFileSync(join(f.camofox.install, 'node_modules/@askjo/camofox-browser/server.js'), 'process.exit(1);\n');
+  f.camofox.set('check.json', { error: 'the camoufox build 158.0.1-beta.41 is not installed (158.0.0-beta.40 is)', needs: 'build' });
   const out = f.run('open', SHOP);
+  assert.equal(out.status, 1);
+  assert.equal(out.stdout, 'BROWSE_ERROR=the browser will not start: the camoufox build 158.0.1-beta.41 is not installed (158.0.0-beta.40 is); run `browse.mjs install`\n');
+  assert.equal(f.camofox.starts(), 0);
+  assert.ok(!existsSync(join(f.camofox.install, 'server.json')));
+  assert.equal(ok(f, 'status'), 'BROWSE_INSTALLED=no (the camoufox build 158.0.1-beta.41 is not installed (158.0.0-beta.40 is); the build part needs `browse.mjs install`)\nBROWSE_SERVER=stopped\n');
+  assert.equal(installedLine({ error: 'camoufox 0.5.9 pins v158.0.2-beta.42, not v158.0.1-beta.41; raise both pins together', needs: 'pins' }), 'no (camoufox 0.5.9 pins v158.0.2-beta.42, not v158.0.1-beta.41; raise both pins together; the pins part needs `browse.mjs install`)');
+});
+
+test('a server that never answers is reported, not waited on forever, and one that names its failure is not tried again', t => {
+  const f = fixture(t);
+  const dead = join(f.home, 'dead-server.mjs');
+  writeFileSync(dead, 'process.exit(1);\n');
+  const out = f.runWith({ BROWSE_SERVER_SCRIPT: dead }, 'open', SHOP);
   assert.equal(out.status, 1);
   assert.equal(out.stdout, 'BROWSE_ERROR=the browser did not start\n');
   assert.ok(!existsSync(join(f.camofox.install, 'start.lock')), 'the start lock is released');
+
+  const failing = join(f.home, 'failing-server.mjs');
+  writeFileSync(failing, `import { appendFileSync, writeFileSync } from 'node:fs';
+appendFileSync(${JSON.stringify(join(f.home, 'failing-starts'))}, 'start\\n');
+writeFileSync('server.json', JSON.stringify({ pid: process.pid, error: 'Xvfb, the screen the browser draws on, is not installed' }));
+process.exit(1);
+`);
+  const named = f.runWith({ BROWSE_SERVER_SCRIPT: failing }, 'open', SHOP);
+  assert.equal(named.status, 1);
+  assert.equal(named.stdout, 'BROWSE_ERROR=the browser did not start: Xvfb, the screen the browser draws on, is not installed\n');
+  assert.equal(readFileSync(join(f.home, 'failing-starts'), 'utf8'), 'start\n', 'a start with a reason is not tried again');
+  assert.ok(!existsSync(join(f.camofox.install, 'server.json')));
 });
 
 test('open reads the page only once it settles, and a second open moves the same tab', t => {
@@ -458,8 +418,9 @@ test('a browser that stops answering is reported', t => {
   const running = f.camofox.serverPid();
   t.after(() => { try { process.kill(running, 'SIGKILL'); } catch { /* gone */ } });
   writeFileSync(join(f.camofox.install, 'server.json'), JSON.stringify({ pid: process.pid, port: 9 }));
-  writeFileSync(join(f.camofox.install, 'node_modules/@askjo/camofox-browser/server.js'), 'process.exit(1);\n');
-  assert.equal(f.run('click', 'e1').stdout, 'BROWSE_ERROR=the browser did not start\n');
+  const dead = join(f.home, 'dead-server.mjs');
+  writeFileSync(dead, 'process.exit(1);\n');
+  assert.equal(f.runWith({ BROWSE_SERVER_SCRIPT: dead }, 'click', 'e1').stdout, 'BROWSE_ERROR=the browser did not start\n');
 });
 
 test('two sessions started at once share one server, and close in one leaves the other\'s tab open', async t => {
@@ -911,14 +872,6 @@ test('the page scripts find secret values in frames and shadow roots, read a sec
   assert.doesNotThrow(() => domOf('<p></p>').eval(MARK_SCRIPT), 'with nothing focused, the body is marked and nothing breaks');
 });
 
-test('googleResults names Google\'s results page as camofox does, and nothing else', () => {
-  assert.equal(googleResults('https://www.google.com/search?q=ring'), true);
-  assert.equal(googleResults('https://www.google.ca/search'), true);
-  assert.equal(googleResults('https://www.google.com/maps'), false);
-  assert.equal(googleResults(SHOP), false);
-  assert.equal(googleResults('not a url'), false);
-});
-
 test('leftPage ignores a changed query, and counts a new path or fragment', () => {
   assert.equal(leftPage(SHOP, `${SHOP}?error=1`), false);
   assert.equal(leftPage(`${SHOP}?next=/cart`, SHOP), false);
@@ -1299,9 +1252,9 @@ test('a password typed into another site\'s frame stays hidden once the site sho
   assert.match(out, /^ {2}- textbox "Field" \[e3\]: \[hidden\]$/m);
   assert.match(out, /^ {2}- textbox "Other" \[e5\]: hello$/m, 'another value reads as given');
   assertNoSecret(out, 'the page reading');
-  const tabs = join(f.home, '.wong-stack/camofox/tabs');
+  const tabs = join(f.home, '.wong-stack/camoufox/tabs');
   assertNoSecret(filesUnder(tabs), 'the tab file');
-  const key = readFileSync(join(f.home, '.wong-stack/camofox/api-key'), 'utf8').trim();
+  const key = readFileSync(join(f.home, '.wong-stack/camoufox/api-key'), 'utf8').trim();
   assert.deepEqual(JSON.parse(filesUnder(tabs)).typed, [typedMark(key, PASSWORD)]);
 });
 

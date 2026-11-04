@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Installs, starts, and drives camofox, the browser the agent uses websites in as the person; the only script
-// that talks to it. Exit codes: 0 ok · 1 failed · 2 usage · 3 camofox is not installed. Node built-ins only.
+// Installs, starts, and drives Camoufox, the browser the agent uses websites in as the person; the only script that
+// talks to its server. Exit codes: 0 ok · 1 failed · 2 usage · 3 the browser is not installed. Node built-ins only.
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -10,6 +10,8 @@ import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { hostOf, readLogins, writeLogins } from './logins.mjs';
+import { MOVE_MS } from './login-move.mjs';
+import { INTERACTIVE_ROLES, MAX_REFS, SKIP_PATTERNS, parseLine } from './refs.mjs';
 
 const USAGE = `usage: browse.mjs <command> [--session <name>]
   open <url>                    open the page in this task's tab; prints BROWSE_URL=
@@ -33,33 +35,39 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   close                         close this task's tab
   status | install | stop       the install and the server`;
 
-/** The only versions installed, moved together and only with a passing save on a real camofox. That check also
- * compares the two lists below with the installed `lib/interactive-roles.js` and `server.js`'s `SKIP_PATTERNS`. */
-export const CAMOFOX = { '@askjo/camofox-browser': '1.18.1', 'playwright-core': '1.58.2' };
-// camofox's roles that get a ref (lib/interactive-roles.js), and names it gives none (server.js SKIP_PATTERNS).
-const INTERACTIVE_ROLES = ['button', 'link', 'textbox', 'checkbox', 'radio', 'menuitem', 'listitem', 'combobox', 'tab', 'searchbox', 'slider', 'spinbutton', 'switch'];
-const SKIP_PATTERNS = [/datepicker/i, /date.?picker/i, /calendar/i, /^date$/i];
-const MAX_REFS = 500;
+/** The only versions installed, moved together: the library's disguise is made for the build it pins, and
+ * launch-config.py refuses a start when the library, its pin and the installed build disagree. */
+export const CAMOUFOX = { python: '0.5.9', build: 'v158.0.1-beta.41' };
 const CHECKS = ['checkbox', 'radio', 'switch', 'menuitemcheckbox'];
 export const NO_REF_NOTE = '- note: some boxes have no ref; read the page again or use a selector';
-const DRIVER_LINE = CAMOFOX['playwright-core'].split('.').slice(0, 2).join('.');
-const NEEDS = 'camofox is not installed. It needs about 1.4 GB of disk and about 700 MB of memory while it runs. Ask the person, then run `browse.mjs install`.';
+const NEEDS = 'the browser, Camoufox, is not installed. It needs Python 3.10 or newer, about 3 GB of disk, and about 700 MB of memory while it runs. Ask the person, then run `browse.mjs install`.';
+const PYTHON_NEEDS = 'the browser needs Python 3.10 or newer with its venv module, and this computer has none. Install it (Debian or Ubuntu: `sudo apt install python3 python3-venv`), then run `browse.mjs install`.';
 const USER = 'me';
-const DIR = join(homedir(), '.wong-stack', 'camofox');
-const FILES = { server: join(DIR, 'server.json'), key: join(DIR, 'api-key'), lock: join(DIR, 'start.lock'), tmp: join(DIR, 'tmp'), tabs: join(DIR, 'tabs'), profiles: join(DIR, 'profiles') };
-const packageDir = name => join(DIR, 'node_modules', name);
-const SERVER_SCRIPT = join(packageDir('@askjo/camofox-browser'), 'server.js');
-const LAUNCHER = fileURLToPath(new URL('./server.mjs', import.meta.url));
+const DIR = join(homedir(), '.wong-stack', 'camoufox');
+/** The browser's files. A venv per library version keeps the last one until a new one installs and checks. */
+export const FILES = {
+  server: join(DIR, 'server.json'), key: join(DIR, 'api-key'), lock: join(DIR, 'start.lock'), tmp: join(DIR, 'tmp'), tabs: join(DIR, 'tabs'),
+  profile: join(DIR, 'profile'), cache: join(DIR, 'cache'), marker: join(DIR, 'migrated'), fingerprint: join(DIR, 'fingerprint.json'), venv: join(DIR, 'venv', CAMOUFOX.python),
+};
+/** The old camofox browser's profiles, read once for the login move. */
+export const OLD_PROFILES = join(homedir(), '.wong-stack', 'camofox', 'profiles');
+const PYTHON = join(FILES.venv, 'bin', 'python');
+const LAUNCH_CONFIG = fileURLToPath(new URL('./launch-config.py', import.meta.url));
+// BROWSE_SERVER_SCRIPT is for tests only: a stand-in server, so no real browser starts.
+const SERVER_SCRIPT = process.env.BROWSE_SERVER_SCRIPT || fileURLToPath(new URL('./browser-server.mjs', import.meta.url));
 const ms = (name, normal) => Number(process.env[name] ?? normal);
 const SETTLE_MS = ms('BROWSE_SETTLE_MS', 8000);
 const SETTLE_GAP_MS = ms('BROWSE_SETTLE_GAP_MS', 1000);
 const LOGIN_WAIT_MS = ms('BROWSE_LOGIN_WAIT_MS', 15_000);
 const COMMAND_MS = ms('BROWSE_COMMAND_MS', 45_000);
-const START_MS = ms('BROWSE_START_MS', 60_000);
+/** A start's parts: the launch config, the browser's launch, then the login move; a start waits for all three. */
+export const CONFIG_MS = 180_000;
+export const LAUNCH_MS = 60_000;
+const START_MS = ms('BROWSE_START_MS', CONFIG_MS + LAUNCH_MS + MOVE_MS + 30_000);
 const INSTALL_MS = 30 * 60_000;
 const sleep = wait => new Promise(done => setTimeout(done, wait));
 
-/** A stop with a plain reason. `status` is camofox's HTTP status; `needs` is what to install. */
+/** A stop with a plain reason. `status` is the server's HTTP status; `needs` is what to install. */
 export class BrowseError extends Error {
   constructor(reason, { status = null, timedOut = false, needs = null } = {}) {
     super(reason);
@@ -73,7 +81,7 @@ export function sessionName(given) {
   return basename(top || process.cwd()).replace(/[^A-Za-z0-9._-]+/g, '-').slice(0, 64) || 'default';
 }
 
-/** A snapshot ref (`e12` or `@e12`) or a selector, as camofox's routes take it. */
+/** A snapshot ref (`e12` or `@e12`) or a selector, as the server's routes take it. */
 export function targetOf(target) {
   return /^@?e\d+$/.test(target) ? { ref: target.replace(/^@/, '') } : { selector: target };
 }
@@ -104,7 +112,7 @@ const SECRET_NAME = /password|passcode|passwort|\bpin\b|card (?:number|no\b)|\bc
 const SECRET_FIELDS = ['input[type=password]', ...['cc-number', 'cc-csc', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'one-time-code'].map(kind => `[autocomplete~="${kind}"]`), '[data-wong-hidden]'].join(', ');
 /** A snapshot line: its indent, its start quoted or bare, and its value, or a lone `:` when it sits on a child line. */
 const LINE = /^(\s*)- (?:'((?:[^']|'')*)'(?: \[[^\]]*\])*|([^'].*?))(?:: (.*)|(:))?$/;
-/** A box's start: its role, its name, and its marks, camofox's ref among them. A dropdown is a combobox too, but its
+/** A box's start: its role, its name, and its marks, the server's ref among them. A dropdown is a combobox too, but its
  * pick sits on an option line, which no rule here hides. */
 const BOX_KEY = /^(?:textbox|searchbox|spinbutton|combobox)(?: "((?:[^"\\]|\\.)*)")?(?: \[[^\]]*\])*$/;
 /** The values of the page's secret boxes, dropdowns left out, in the page, same-origin frames, and shadow roots. */
@@ -134,7 +142,7 @@ export const typedMark = (key, text) => createHmac('sha256', key).update(squash(
 export const addTyped = (tab, key, secret) => ({ ...tab, typed: [...(tab?.typed ?? []), typedMark(key, secret)].slice(-5) });
 
 /** A box line's indent, name, and inline value, else null. Playwright single-quotes a start whose name holds `: `,
- * ` #`, `{`, `}` or a backtick, and camofox gives that line no ref. */
+ * ` #`, `{`, `}` or a backtick, and the server gives that line no ref. */
 function boxOf(line) {
   const parts = LINE.exec(line);
   const box = parts && BOX_KEY.exec(parts[3] ?? parts[2].replaceAll("''", "'"));
@@ -162,7 +170,7 @@ export function hideSecrets(snapshot, secretValues = [], typed = [], key = '') {
   return lines.join('\n');
 }
 
-/** A long page whole again. Past 80,000 characters camofox sends a page in pieces, each its part, a marker, and the
+/** A long page whole again. Past 80,000 characters the server sends a page in pieces, each its part, a marker, and the
  * page's last 5,000 characters; a raw join would cut a line, a secret box's among them, past hiding. */
 export function joinPieces(pieces) {
   const total = pieces[0].totalChars;
@@ -187,28 +195,38 @@ export function joinPieces(pieces) {
   return whole;
 }
 
-// A line's role and name as camofox reads them, its ref mark where camofox writes one, and a frame block's first line.
-const HEAD = /^(\s*-\s+(\w+)(?:\s+"([^"]*)")?)/;
-const MARK = /^(\s*-\s+\w+(?:\s+"[^"]*")?) \[(e\d+)\]/;
+// A line's role and name as the server reads them, its ref mark where it writes one, and a frame block's first line.
 const FRAME = /^- iframe "[^\n]*":$/;
 
-/** Whether `line` is the box camofox marks `ref`, not page text that holds `[ref]`. */
-const refLine = (line, ref) => MARK.exec(line)?.[2] === ref;
+/** The ref the server marked on `line`'s box, right after its name, or null. */
+const refOf = line => {
+  const box = parseLine(line);
+  return (box && /^ \[(e\d+)\]/.exec(line.slice(box.at))?.[1]) ?? null;
+};
+/** `line` with its box's ref taken off. */
+const unmark = line => {
+  const box = parseLine(line);
+  return box ? line.slice(0, box.at) + line.slice(box.at).replace(/^ \[e\d+\]/, '') : line;
+};
+/** `line` with its box marked `ref`. */
+const remark = (line, ref) => {
+  const bare = unmark(line);
+  const { at } = parseLine(bare);
+  return `${bare.slice(0, at)} [${ref}]${bare.slice(at)}`;
+};
 
-/** The `role:name` camofox numbers a line by, or null for a line it gives no ref. */
+/** Whether `line` is the box the server marks `ref`, not page text that holds `[ref]`. */
+const refLine = (line, ref) => refOf(line) === ref;
+
+/** The `role:name` the server numbers a line by, or null for a line it gives no ref. */
 function refKey(line) {
-  const [, , role = '', name = ''] = HEAD.exec(line) ?? [];
-  if (!INTERACTIVE_ROLES.includes(role.toLowerCase()) || (name && SKIP_PATTERNS.some(skip => skip.test(name)))) return null;
-  return `${role.toLowerCase()}:${name}`;
+  const box = parseLine(line);
+  if (!box || !INTERACTIVE_ROLES.includes(box.role) || (box.name && SKIP_PATTERNS.some(skip => skip.test(box.name)))) return null;
+  return `${box.role}:${box.name}`;
 }
 
-/** True on a Google results page, which camofox reads its own way, numbering every line it marks. */
-export function googleResults(url) {
-  try { const { hostname, pathname } = new URL(url); return hostname.includes('google.') && pathname === '/search'; } catch { return false; }
-}
-
-/** Page text whose refs act on the line they mark: frame pages renumber in camofox's order; if `refsCount` disagrees,
- * marks shared across blocks go, and on any page so does a main-page mark that isn't the line's place. */
+/** Page text whose refs act on the line they mark: frame pages renumber in the server's order; if `refsCount`
+ * disagrees, marks shared across blocks go, and on any page so does a main-page mark that isn't the line's place. */
 export function relabel(snapshot, refsCount) {
   const lines = snapshot.split('\n');
   const keys = lines.map(refKey);
@@ -217,9 +235,9 @@ export function relabel(snapshot, refsCount) {
   const count = keys.filter(Boolean).length;
   if (firstFrame >= 0 && count === refsCount && count <= MAX_REFS) {
     let next = 0;
-    return lines.map((line, at) => (keys[at] ? line.replace(MARK, '$1').replace(HEAD, `$1 [e${++next}]`) : line)).join('\n');
+    return lines.map((line, at) => (keys[at] ? remark(line, `e${++next}`) : line)).join('\n');
   }
-  // camofox numbers the main page first, so a frame it counted but didn't print leaves its ref on a main-page namesake.
+  // The server numbers the main page first: a frame it counted but didn't print leaves its ref on a main-page namesake.
   // A windowed read, with no count, skips this; a page with nothing dropped reads byte for byte.
   const mainEnd = refsCount == null ? 0 : firstFrame >= 0 ? firstFrame : lines.length;
   const wrong = new Set();
@@ -227,7 +245,7 @@ export function relabel(snapshot, refsCount) {
   lines.slice(0, mainEnd).forEach((line, at) => {
     if (!keys[at]) return;
     place++;
-    const mark = MARK.exec(line)?.[2];
+    const mark = refOf(line);
     if (mark && mark !== `e${place}`) wrong.add(at);
   });
   if (firstFrame < 0 && !wrong.size) return snapshot;
@@ -237,17 +255,17 @@ export function relabel(snapshot, refsCount) {
     if (frames[at]) block++;
     if (keys[at]) blocks.set(keys[at], (blocks.get(keys[at]) ?? new Set()).add(block));
   });
-  return [...lines.map((line, at) => (wrong.has(at) || blocks.get(keys[at])?.size > 1 ? line.replace(MARK, '$1') : line)), NO_REF_NOTE].join('\n');
+  return [...lines.map((line, at) => (wrong.has(at) || blocks.get(keys[at])?.size > 1 ? unmark(line) : line)), NO_REF_NOTE].join('\n');
 }
 
 /** The main page's frames as `[name, src]`, to tell each frame block's site; the browser names a frame with no
  * `name` by its `id`. */
 export const FRAMES_SCRIPT = `[...document.querySelectorAll('iframe')].map(frame => [frame.getAttribute('name') || frame.id, frame.src])`;
-/** A frame label as camofox cleans it. */
+/** A frame label as the server cleans it. */
 const cleanLabel = label => label.replace(/card-fields-/, '').replace(/-[a-z0-9]{10,}$/, '');
 const rawHost = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
 
-/** Each frame block's label in camofox's page text, mapped to its site's host, or '' when it can't be told: a label
+/** Each frame block's label in the server's page text, mapped to its site's host, or '' when it can't be told: a label
  * that is no iframe's cleaned name or host, or that two iframes on different hosts share. */
 export function frameSites(snapshot, frames) {
   const sites = new Map();
@@ -305,19 +323,19 @@ export function boxesIn(snapshot) {
   return boxes;
 }
 
-/** A selector's element as `[role, '', ticked]` when it is a tick box, radio, or switch, else null, also when camofox's
- * click and focus would take different matches. It runs in the page, so it uses nothing outside itself. */
+/** A selector's element as `[role, '', ticked]` when it is a tick box, radio, or switch, else null, also when the
+ * server's click and focus would take different matches. It runs in the page, so it uses nothing outside itself. */
 export function boxAt(document, selector, checks) {
   let found;
   try { found = [...document.querySelectorAll(selector)]; } catch { return null; }
-  // camofox's click takes the only visible match when exactly one is, a selector list left alone
+  // The server's click takes the only visible match when exactly one is, a selector list left alone
   // (`visibleSelectorCandidate`), else the first. Visible is Playwright's: a size, and shown.
   const visible = element => {
     const { width, height } = element.getBoundingClientRect();
     return width > 0 && height > 0 && document.defaultView.getComputedStyle(element).visibility === 'visible';
   };
   const shown = found.length > 1 && !selector.includes(',') ? found.filter(visible) : [];
-  // camofox's keyboard focus takes the first match, so a visible pick behind it gets no read, and so no Space retry.
+  // The server's keyboard focus takes the first match, so a visible pick behind it gets no read, and so no Space retry.
   if (shown.length === 1 && shown[0] !== found[0]) return null;
   const box = found[0];
   const native = /^(checkbox|radio)$/.test(box?.type) && box.tagName === 'INPUT';
@@ -328,7 +346,7 @@ export function boxAt(document, selector, checks) {
 }
 
 /** True when `now`, a box's state after a click, shows the click took: a radio picked, else any change. Another role or
- * name means camofox renumbered and the ref holds another thing: a change, so Space never lands on it. */
+ * name means the server renumbered and the ref holds another thing: a change, so Space never lands on it. */
 export function boxChanged(before, now) {
   if (!now || now[0] !== before[0] || now[1] !== before[1]) return true;
   return before[0] === 'radio' ? now[2] === true : now[2] !== before[2];
@@ -340,39 +358,66 @@ export function leftPage(before, now) {
   return page(before) !== page(now);
 }
 
-/** The environment camofox starts in: loopback only, nothing reported, its files under one folder. */
-export function serverEnv(port, key, env = process.env) {
-  return {
-    ...env,
-    CAMOFOX_PORT: String(port),
-    CAMOFOX_BIND_HOST: '127.0.0.1',
-    CAMOFOX_CRASH_REPORT_ENABLED: 'false',
-    CAMOFOX_CRASH_REPORT_URL: '',
-    SENTRY_DSN: '',
-    CAMOFOX_PROFILE_DIR: FILES.profiles,
-    CAMOFOX_API_KEY: key,
-    TMPDIR: FILES.tmp,
-  };
+/** The small environment Python runs in. The library copies it into the browser's, and with no `XDG_CACHE_HOME`
+ * of its own it deletes `~/.cache/camoufox`, the old camofox build's folder. */
+export function pythonEnv(env = process.env) {
+  return { PATH: env.PATH ?? '/usr/bin:/bin', HOME: homedir(), LANG: 'C.UTF-8', XDG_CACHE_HOME: FILES.cache, TMPDIR: FILES.tmp };
+}
+
+/** launch-config.py's answer for `args`: `{library, build, ...}`, or `{error, needs}`. With no venv, the library
+ * is missing. It runs without blocking, since its country lookup goes through this process's forwarder. */
+export async function launchConfig(args, { python = PYTHON } = {}) {
+  if (!existsSync(python)) return { error: 'the camoufox library is not installed', needs: 'library' };
+  const child = spawn(python, ['-I', LAUNCH_CONFIG, '--library', CAMOUFOX.python, '--build', CAMOUFOX.build, ...args], { env: pythonEnv(), stdio: ['ignore', 'pipe', 'pipe'], timeout: CONFIG_MS });
+  let out = '';
+  let err = '';
+  child.stdout.on('data', chunk => { out += chunk; });
+  child.stderr.on('data', chunk => { err = (err + chunk).slice(-4000); });
+  await new Promise(done => { child.once('close', done); child.once('error', done); });
+  try { return JSON.parse(out.trim().split('\n').at(-1)); } catch { return { error: `the launch config gave no answer${err ? `: ${err.trim().split('\n').at(-1)}` : ''}`, needs: null }; }
+}
+
+/** The `BROWSE_INSTALLED=` value for a `--check` answer. */
+export function installedLine(check) {
+  if (!check) return 'no';
+  if (check.error) return `no (${check.error}; the ${check.needs ?? 'browser'} part needs \`browse.mjs install\`)`;
+  return `yes camoufox ${check.build} library ${check.library}`;
 }
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; } };
 const tabFile = session => join(FILES.tabs, `${session}.json`);
-const installed = () => existsSync(SERVER_SCRIPT);
-/** The camofox server's process id as last recorded, or null. */
+const installed = () => existsSync(PYTHON);
+/** The browser server's process id as last recorded, or null. */
 export const serverPid = () => readJson(FILES.server)?.pid ?? null;
-const driver = () => readJson(join(packageDir('playwright-core'), 'package.json'))?.version ?? 'missing';
+/** The X display the running browser draws on, as its server recorded it, or null. */
+export const serverDisplay = () => readJson(FILES.server)?.display ?? null;
 
 function privateDirs() {
-  for (const dir of [DIR, FILES.tmp, FILES.tabs, FILES.profiles]) mkdirSync(dir, { recursive: true, mode: 0o700 });
+  for (const dir of [DIR, FILES.tmp, FILES.tabs, FILES.profile, FILES.cache]) mkdirSync(dir, { recursive: true, mode: 0o700 });
 }
 
-function install() {
+/** The first Python 3.10 or newer on PATH that can make a venv, or null. */
+export function findPython(names = ['python3', 'python3.14', 'python3.13', 'python3.12', 'python3.11', 'python3.10', 'python']) {
+  const probe = 'import sys, venv, ensurepip; sys.exit(0 if sys.version_info >= (3, 10) else 1)';
+  return names.find(name => spawnSync(name, ['-I', '-c', probe], { stdio: 'ignore', timeout: 20_000 }).status === 0) ?? null;
+}
+
+/** Installs the pinned library in its own venv, then the build it pins, then checks both. */
+async function install() {
+  const system = findPython();
+  if (!system) throw new BrowseError(PYTHON_NEEDS, { needs: 'python' });
   privateDirs();
-  const specs = Object.entries(CAMOFOX).map(([name, version]) => `${name}@${version}`);
-  const done = spawnSync('npm', ['install', '--prefix', DIR, '--no-audit', '--no-fund', ...specs], { stdio: ['ignore', 2, 2], env: { ...process.env, TMPDIR: FILES.tmp }, timeout: INSTALL_MS, shell: process.platform === 'win32' });
-  if (done.status !== 0 || !installed()) throw new BrowseError('the install failed; see npm\'s lines above');
-  console.log('BROWSE_INSTALLED=yes');
+  const run = (command, args, what) => {
+    const done = spawnSync(command, args, { stdio: ['ignore', 2, 2], env: pythonEnv(), timeout: INSTALL_MS });
+    if (done.status !== 0) throw new BrowseError(`the install failed at ${what}; see the lines above`);
+  };
+  if (!installed()) run(system, ['-m', 'venv', FILES.venv], 'the Python venv');
+  run(PYTHON, ['-m', 'pip', 'install', '--disable-pip-version-check', '--quiet', `camoufox[geoip]==${CAMOUFOX.python}`], 'the camoufox library');
+  run(PYTHON, ['-m', 'camoufox', 'fetch'], 'the Camoufox build');
+  const check = await launchConfig(['--check']);
+  if (check.error) throw new BrowseError(`the install finished, but ${check.error}`);
+  console.log(`BROWSE_INSTALLED=${installedLine(check)}`);
 }
 
 /** The API key, made once into a 0600 file. */
@@ -396,7 +441,8 @@ async function liveServer() {
   const info = readJson(FILES.server);
   if (!info || !alive(info.pid)) return null;
   try {
-    await fetch(`http://127.0.0.1:${info.port}/health`, { signal: AbortSignal.timeout(2000) });
+    // A server still starting answers 503, so only an ok answer counts.
+    if (!(await fetch(`http://127.0.0.1:${info.port}/health`, { signal: AbortSignal.timeout(2000) })).ok) return null;
   } catch {
     return null;
   }
@@ -431,13 +477,17 @@ async function spawnServer() {
   const end = Date.now() + START_MS;
   for (let tries = 0; tries < 3; tries++) {
     const port = await freePort();
-    const child = spawn(process.execPath, [LAUNCHER, SERVER_SCRIPT], { cwd: DIR, detached: true, stdio: 'ignore', env: serverEnv(port, apiKey()) });
+    apiKey();
+    const child = spawn(process.execPath, [SERVER_SCRIPT], { cwd: DIR, detached: true, stdio: 'ignore', env: { ...process.env, BROWSE_SERVER_PORT: String(port), TMPDIR: FILES.tmp } });
     child.unref();
-    writeFileSync(FILES.server, `${JSON.stringify({ pid: child.pid, port, proxy: 'local' })}\n`, { mode: 0o600 });
+    writeFileSync(FILES.server, `${JSON.stringify({ pid: child.pid, port })}\n`, { mode: 0o600 });
     const { live, died } = await awaitServer(child.pid, end);
     if (live) return live;
     if (!died) await terminate(child.pid);
+    // The server leaves its reason when the browser itself failed; only a start with none is tried again.
+    const reason = readJson(FILES.server)?.error;
     rmSync(FILES.server, { force: true });
+    if (reason) throw new BrowseError(`the browser did not start: ${reason}`);
     if (!died) break;
   }
   throw new BrowseError('the browser did not start');
@@ -447,8 +497,10 @@ async function spawnServer() {
  * if that start fails, this task takes it over. */
 async function startServer() {
   if (!installed()) throw new BrowseError(NEEDS, { needs: 'install' });
-  if (!driver().startsWith(`${DRIVER_LINE}.`)) throw new BrowseError(`the browser driver is ${driver()}, not ${DRIVER_LINE}.x, and a login does not save on any other; run \`browse.mjs install\``);
   privateDirs();
+  // A library, pin and build that disagree would send a disguise made for another build, so nothing starts.
+  const check = await launchConfig(['--check']);
+  if (check.error) throw new BrowseError(`the browser will not start: ${check.error}; run \`browse.mjs install\``);
   const end = Date.now() + START_MS;
   do {
     const live = await liveServer();
@@ -480,11 +532,12 @@ async function stop() {
 }
 
 async function status() {
-  console.log(`BROWSE_INSTALLED=${installed() ? `yes camofox ${readJson(join(packageDir('@askjo/camofox-browser'), 'package.json'))?.version} driver ${driver()}` : 'no'}`);
+  console.log(`BROWSE_INSTALLED=${installedLine(installed() ? await launchConfig(['--check']) : null)}`);
   console.log(`BROWSE_SERVER=${(await liveServer()) ? 'running' : 'stopped'}`);
 }
 
-/** One call to camofox, with a deadline. A refusal throws a BrowseError with camofox's reason, or with
+
+/** One call to the server, with a deadline. A refusal throws a BrowseError with the server's reason, or with
  * none of its words when `quiet`: a failed typing step can quote what was typed. */
 async function call(server, method, path, body, { wait = COMMAND_MS, quiet = false } = {}) {
   let response;
@@ -521,12 +574,12 @@ export function client(given, { retry = true, start = true } = {}) {
 
   const read = async tabId => {
     const pieces = [await json('GET', `/tabs/${tabId}/snapshot?userId=${USER}`)];
-    // A long page comes in windows, each repeating its end, so its lines can't be counted as camofox counted them.
+    // A long page comes in windows, each repeating its end, so its lines can't be counted as the server counted them.
     const refsCount = pieces[0].hasMore ? null : pieces[0].refsCount;
     while (pieces.at(-1).hasMore) pieces.push(await json('GET', `/tabs/${tabId}/snapshot?userId=${USER}&offset=${pieces.at(-1).nextOffset}`));
     const { url } = pieces.at(-1);
     const text = pieces.length > 1 ? joinPieces(pieces) : pieces[0].snapshot ?? '';
-    return { url, snapshot: googleResults(url) ? text : relabel(text, refsCount) };
+    return { url, snapshot: relabel(text, refsCount) };
   };
   /** Waits until two reads a gap apart match, so a half-loaded page is not read as the page. */
   const settle = async tabId => {
@@ -612,9 +665,9 @@ export function client(given, { retry = true, start = true } = {}) {
     count: selector => bySelector(selector, countScript(selector)),
     /** The page's size, `[width, height]`. */
     size: () => evaluate('[innerWidth, innerHeight]'),
-    /** Sets the page's size; camofox resizes the page's window with it. */
+    /** Sets the page's size. */
     resize: (width, height) => onTab(tabId => send('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),
-    /** A use camofox counts, so it keeps an idle page open; it reads and changes nothing on the page. */
+    /** A use the server counts, so it keeps an idle page open; it reads and changes nothing on the page. */
     keepAlive: () => evaluate('1'),
     /** Marks the focused box as secret, as `login` does after typing a password. */
     mark: () => evaluate(MARK_SCRIPT),
@@ -640,9 +693,9 @@ export function client(given, { retry = true, start = true } = {}) {
       writeFileSync(file, png, { mode: 0o600 });
       return file;
     },
-    /** Keeps the logins now, with every tab open: an empty cookie import makes camofox checkpoint. */
+    /** Checks the server answers for the logins: the profile folder keeps them itself, with every tab open. */
     save: () => send('POST', `/sessions/${USER}/cookies`, { cookies: [] }),
-    /** Closes this task's tab, and camofox's session, which saves, when no tab is left. */
+    /** Closes this task's tab, and the session when no tab is left. */
     async close() {
       const tab = readTab();
       rmSync(tabFile(session), { force: true });

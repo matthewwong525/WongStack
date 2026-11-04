@@ -1,0 +1,88 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { fakeLibrary } from './fixtures/fake-camoufox-library.mjs';
+
+const SCRIPT = fileURLToPath(new URL('../../.agents/skills/browser/scripts/launch-config.py', import.meta.url));
+const PINS = ['--library', '0.5.9', '--build', 'v158.0.1-beta.41'];
+
+/** Runs launch-config.py on a fake library; resolves to its exit code and its one JSON line. */
+function run(library, ...args) {
+  return runPinned(PINS, library, ...args);
+}
+
+function runPinned(pins, library, ...args) {
+  const dir = mkdtempSync(join(tmpdir(), 'launch-config-test-'));
+  try {
+    const lib = fakeLibrary(dir, library);
+    const done = spawnSync('python3', [SCRIPT, ...pins, ...args], { encoding: 'utf8', env: { PATH: process.env.PATH, PYTHONPATH: lib, HOME: dir } });
+    return { status: done.status, out: JSON.parse(done.stdout), stdout: done.stdout, stderr: done.stderr };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test('the launch config is one JSON line: versions, the context options, English for the proxy country, the driver', () => {
+  const { status, out, stdout } = run({}, '--proxy', 'http://127.0.0.1:4000', '--display', ':7');
+  assert.equal(status, 0);
+  assert.equal(stdout.trim().split('\n').length, 1, 'the library\'s own lines stay off stdout');
+  assert.deepEqual(Object.keys(out).sort(), ['build', 'driver', 'library', 'locale', 'options']);
+  assert.equal(out.library, '0.5.9');
+  assert.equal(out.build, '158.0.1-beta.41');
+  assert.equal(out.locale, 'en-CA');
+  assert.match(out.driver, /playwright[/\\]driver[/\\]package$/);
+  const { given, ...options } = out.options;
+  assert.deepEqual(given, { os: 'linux', headless: false, virtual_display: ':7', humanize: true, enable_cache: true, geoip: '203.0.113.7', locale: 'en-CA', proxy: { server: 'http://127.0.0.1:4000' }, fingerprint: null });
+  assert.equal(options.no_viewport, true);
+  assert.equal(options.executable_path, '/fake/camoufox-bin');
+});
+
+test('a failed country lookup starts in US English with no geoip', () => {
+  const { out } = run({ country: null });
+  assert.equal(out.locale, 'en-US');
+  assert.equal(out.options.given.geoip, null);
+  assert.equal(out.options.given.headless, true);
+});
+
+test('--check gives only the versions', () => {
+  assert.deepEqual(run({}, '--check').out, { library: '0.5.9', build: '158.0.1-beta.41' });
+});
+
+test('a library, pin or build that disagrees is refused, naming the part to install', () => {
+  for (const [library, needs, reason] of [
+    [{ version: '0.5.8' }, 'library', /library is 0\.5\.8, not 0\.5\.9/],
+    [{ pin: 'v159.0.0-beta.1' }, 'pins', /pins v159\.0\.0-beta\.1, not v158\.0\.1-beta\.41/],
+    [{ installed: '158.0.0-beta.40' }, 'build', /158\.0\.1-beta\.41 is not installed \(158\.0\.0-beta\.40 is\)/],
+    [{ installed: null }, 'build', /158\.0\.1-beta\.41 is not installed$/],
+  ]) {
+    const { status, out } = run(library);
+    assert.equal(status, 3);
+    assert.equal(out.needs, needs);
+    assert.match(out.error, reason);
+  }
+});
+
+test('the identity is made once per library and build, then each start reuses it', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'launch-config-fingerprint-'));
+  const file = join(dir, 'fingerprint.json');
+  try {
+    const first = run({}, '--fingerprint', file);
+    assert.equal(first.out.fingerprint, 'new');
+    assert.equal(statSync(file).mode & 0o777, 0o600);
+    const again = run({}, '--fingerprint', file, '--proxy', 'http://127.0.0.1:4001');
+    assert.equal(again.out.fingerprint, 'saved');
+    assert.deepEqual(again.out.options.given.fingerprint, first.out.options.given.fingerprint);
+    assert.equal(again.out.options.given.proxy.server, 'http://127.0.0.1:4001', 'the proxy and locale still follow each start');
+    const raised = runPinned(['--library', '0.6.0', '--build', 'v159.0.0-beta.1'], { version: '0.6.0', pin: 'v159.0.0-beta.1', installed: '159.0.0-beta.1' }, '--fingerprint', file);
+    assert.equal(raised.out.fingerprint, 'new');
+    assert.notDeepEqual(raised.out.options.given.fingerprint, first.out.options.given.fingerprint);
+    writeFileSync(file, '{not json');
+    assert.equal(run({}, '--fingerprint', file).out.fingerprint, 'new', 'a broken file is made again');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
