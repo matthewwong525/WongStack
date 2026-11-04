@@ -10,6 +10,7 @@ import { item } from "./item.ts";
 import { items } from "./items.ts";
 import { line } from "./line-open.ts";
 import { mirror } from "./mirror.ts";
+import { reviews } from "./reviews.ts";
 import { runResult } from "./run-result.ts";
 import { pause, resume, runCancel, runNow, scheduleDelete } from "./schedule-control.ts";
 import { schedulePut } from "./schedule-put.ts";
@@ -22,7 +23,7 @@ import { dailyRoutes } from "./tasks/daily-routes.ts";
 import { weekRoutes } from "./tasks/week-routes.ts";
 
 export const routes = new Map<string, Route>([
-  ["GET items", items], ["GET item", item], ["POST tap", tap], ["GET tap", tapStatus], ["POST tap-cancel", tapCancel],
+  ["GET items", items], ["GET item", item], ["GET reviews", reviews], ["POST tap", tap], ["GET tap", tapStatus], ["POST tap-cancel", tapCancel],
   ["PUT item", itemPut], ["POST item-close", itemClose], ["POST checkin", checkin], ["POST tap-result", tapResult], ["GET line", line],
   ["GET schedules", schedules], ["GET schedule", scheduleDetail], ["PUT schedule", schedulePut], ["POST pause", pause], ["POST resume", resume],
   ["POST delete", scheduleDelete], ["POST run-now", runNow], ["POST run-cancel", runCancel], ["POST claim", claim],

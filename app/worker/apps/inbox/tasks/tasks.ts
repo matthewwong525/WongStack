@@ -1,7 +1,7 @@
 // The board's tasks: read a week, search every week, add, change and delete a task, and the week's goal.
-import { parseTaskTitle, searchResultLimit, searchWords, taskBand, taskSlots, type Task, type TaskSearchResult, type TaskSlot,
+import { parseTaskTitle, searchResultLimit, taskBand, taskSlots, type Task, type TaskSearchResult, type TaskSlot,
   type TaskStatus, type WeekPlan } from "../../../../src/lib/board.ts";
-import { BoardError, NOW } from "./board.ts";
+import { BoardError, NOW, titlePatterns } from "./board.ts";
 import { groupFor, loadGroups } from "./groups.ts";
 import { bandOrder, endOfBand, resolvePosition } from "./positions.ts";
 
@@ -35,14 +35,13 @@ export async function loadWeek(db: D1DatabaseSession, week: string): Promise<Wee
 
 /** Every task whose title holds each word, any week or status: the live backlog first, then weeks newest first. */
 export async function searchTasks(db: D1DatabaseSession, query: string): Promise<TaskSearchResult[]> {
-  const words = searchWords(query);
+  const words = titlePatterns(query);
   if (!words.length) throw new BoardError("validation_failed");
   const { results } = await db.prepare(`SELECT t.id, t.title, t.status, t.week, t.slot, t.backlog_group_id, g.name AS group_name, t.import_key
     FROM tasks t LEFT JOIN backlog_groups g ON g.id = t.backlog_group_id
     WHERE t.deleted_at IS NULL AND ${words.map(() => "t.title LIKE ? ESCAPE '\\'").join(" AND ")}
     ORDER BY (t.week IS NULL) DESC, t.week DESC, t.updated_at DESC LIMIT ${searchResultLimit}`)
-    // Escaped, so `100%` finds only itself, and `a_b` never finds `axb`.
-    .bind(...words.map(word => `%${word.replace(/[\\%_]/g, character => `\\${character}`)}%`))
+    .bind(...words)
     .all<Omit<TaskRow, "position" | "estimate_hours" | "link" | "chat" | "created_at" | "updated_at"> & { group_name: string | null }>();
   return results.map(row => ({ id: row.id, title: row.title, status: row.status, week: row.week, slot: row.slot,
     backlogGroupId: row.backlog_group_id, backlogGroupName: row.group_name, importKey: row.import_key }));

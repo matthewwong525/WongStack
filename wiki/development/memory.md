@@ -85,7 +85,7 @@ Two passes keep the live facts tidy: plain code for what follows a rule, and a m
 
 For a teammate both passes change only their own facts, and no tag; the admin's tidy everyone's.
 
-Both passes tidy facts, never pages. [A memory dream](wiki-dream.md) runs consolidation at once when you type `/dream-memory`, whatever the clock says. It then moves lasting facts onto the wiki and supersedes a fact the project outgrew, such as one naming a gone file.
+Both passes tidy facts; [a small wiki tidy](wiki-dream.md#the-small-wiki-tidy) then moves lasting ones onto pages. [A memory dream](wiki-dream.md) runs consolidation at once when you type `/dream-memory`, and also supersedes a fact the project outgrew, such as one naming a gone file.
 
 ## Sign-in and expiry
 

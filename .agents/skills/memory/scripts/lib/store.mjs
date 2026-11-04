@@ -248,6 +248,9 @@ function recordTeam(ctx, header, roleHeader) {
 
 // The background run's tally of what it stored, in the state folder while run.mjs holds its lock.
 export const RUN_TALLY = 'run-tally.json';
+// A consolidation that ended well leaves `{at}` here, and the daily's wiki tidy claims it.
+// wiki/development/wiki-dream.md#the-small-wiki-tidy
+export const CONSOLIDATED = 'consolidated.json';
 
 export function statePath(ctx, ...parts) {
   const path = join(ctx.stateDir, ...parts);

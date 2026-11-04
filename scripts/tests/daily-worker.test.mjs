@@ -38,6 +38,7 @@ function rig({ stateDir = folder(), sweeps = defaults(), start = '2026-10-31T14:
     },
     sendDaily: async text => { world.sent.push(text); },
     runCheck: async input => { world.checks.push(input); return world.checkOut; },
+    builtins: { 'wrap-up': async () => {} },
   };
   const make = (more = {}) => makeWorker({ ...options, ...more });
   return { world, stateDir, worker: make(), make, at: text => { world.t = Date.parse(text); },
@@ -244,8 +245,8 @@ test("the install's list merges over the default, and its brief folder wins over
     events: { invoice: { brief: 'invoice.md' } }, sweeps: [{ id: 'pay', at: ['09:00'], brief: 'pay.md' }] }));
   const merged = loadSweeps({ project, file: '.agents/daily/jobs.json' });
   assert.deepEqual(Object.keys(merged.events), ['stopped', 'asking', 'invoice']);
-  assert.deepEqual([merged.maxRuns, merged.journalDays, merged.sweeps.map(sweep => sweep.id)], [2, 14, ['pay']]);
-  assert.deepEqual(defaults().sweeps, []);
+  assert.deepEqual([merged.maxRuns, merged.journalDays, merged.sweeps.map(sweep => sweep.id)], [2, 14, ['wrap-up', 'wiki-tidy', 'pay']]);
+  assert.deepEqual(defaults().sweeps.map(sweep => sweep.id), ['wrap-up', 'wiki-tidy']);
   assert.equal(JSON.parse(readFileSync(DEFAULT_SWEEPS, 'utf8')).journalDays, 14);
   assert.match(briefFor({ brief: 'judge.md', fields: { title: 'x' } }, 'r1', briefFolders(project)), /Our own judge for x\./);
   writeFileSync(join(project, '.agents/daily/bad.json'), JSON.stringify({ sweeps: [{ id: 'evil', brief: 'pay.md', check: '../outside.mjs' }] }));
@@ -323,4 +324,107 @@ test('serve --dry-run prints what it would do, starts nothing, and leaves the li
   assert.deepEqual(printed.at(-1), { dryRun: true, waiting: [] });
   assert.equal(existsSync(join(stateDir, 'serve.json')), false);
   assert.equal(existsSync(join(stateDir, 'worker-queue.json')), false);
+});
+
+test("an install's timed job replaces the default of its id, and an off entry removes one; an unknown do fails the list", () => {
+  const project = folder();
+  const own = sweeps => {
+    writeFileSync(join(project, 'jobs.json'), JSON.stringify({ sweeps }));
+    return loadSweeps({ project, file: 'jobs.json' }).sweeps;
+  };
+  const merged = own([{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'wrap-up', off: true }, { id: 'pay', at: ['09:00'], brief: 'pay.md' }]);
+  assert.deepEqual(merged, [{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'pay', at: ['09:00'], brief: 'pay.md' }]);
+  assert.deepEqual(own([{ id: 'wiki-tidy', off: true }]).map(sweep => sweep.id), ['wrap-up']);
+  assert.throws(() => own([{ id: 'nap', every: '5m', do: 'sleep' }]), /bad entry: nap/);
+  assert.throws(() => own([{ id: 'far', every: '5m', brief: 'far.md', place: 'away' }]), /bad entry: far/);
+  assert.throws(() => own([{ id: 'long', every: '5m', brief: 'long.md', minutes: 0 }]), /bad entry: long/);
+});
+
+test('a built-in job runs in the pass with no AI run; a failing one journals; a dry run only prints it', async () => {
+  const sweeps = { ...defaults(), sweeps: [defaults().sweeps[0]] };
+  const { world, make, at, stateDir } = rig({ sweeps });
+  const seen = [];
+  const worker = make({ builtins: { 'wrap-up': async ({ busy, now }) => { seen.push([busy('a'), now.toISOString()]); } } });
+  await worker.dispatch([stop('a')]);
+  await worker.sweep();
+  await worker.sweep();
+  await worker.pump();
+  assert.deepEqual(seen, [[true, '2026-10-31T14:00:00.000Z']]);
+  assert.equal(world.spawned.length, 1);
+  at('2026-10-31T14:05:00Z');
+  await make({ builtins: { 'wrap-up': async () => { throw new Error('Paseo is down'); } } }).sweep();
+  assert.ok(lines(stateDir).includes('Not read: job Wrap up finished chats — Paseo is down'));
+  at('2026-10-31T14:10:00Z');
+  const printed = [];
+  await make({ dryRun: true, print: item => printed.push(item), builtins: { 'wrap-up': async () => { seen.push('ran'); } } }).sweep();
+  assert.deepEqual(printed, [{ wouldDo: 'wrap-up', due: '2026-10-31T10:10' }]);
+  assert.equal(seen.length, 1);
+});
+
+/** A git that records each command and makes or removes the copy's folder as git would. */
+function fakeGit(calls, { fail = null } = {}) {
+  return (cwd, args) => {
+    const command = args.join(' ');
+    calls.push(command);
+    if (fail && command.startsWith(fail)) throw new Error(`git ${fail} failed`);
+    if (command.startsWith('worktree add')) mkdirSync(args[4], { recursive: true });
+    if (command.startsWith('worktree remove')) rmSync(args[3], { recursive: true, force: true });
+    return '';
+  };
+}
+
+test('the wiki tidy runs in its own copy for up to 90 minutes, and the copy goes when the run ends, is stopped, or at boot', async () => {
+  const calls = [];
+  const { world, make, at, end, stateDir } = rig();
+  const worker = make({ git: fakeGit(calls) });
+  world.checkOut = '{"run":{"consolidated":"2026-10-31T13:00:00Z"}}';
+  await worker.sweep();
+  await worker.pump();
+  assert.equal(world.spawned.length, 1);
+  const copy = world.spawned[0].project;
+  assert.match(copy, /\/copies\/sweep-\d{8}T\d{6}-\w+$/);
+  assert.ok(copy.startsWith(stateDir) && existsSync(copy));
+  assert.deepEqual(calls, ['fetch -q origin main', `worktree add -q --detach ${copy} origin/main`]);
+  assert.match(world.spawned[0].args.join(' '), /Memory consolidated at 2026-10-31T13:00:00Z\./);
+  end(world.spawned[0].pid);
+  await worker.pump();
+  assert.equal(existsSync(copy), false);
+  assert.deepEqual(calls.slice(2), [`worktree remove --force ${copy}`, 'worktree prune']);
+  // The next consolidation's run: past 30 minutes it still runs; at 90 it is stopped and its copy goes.
+  at('2026-10-31T14:30:00Z');
+  await worker.sweep();
+  await worker.pump();
+  const second = world.spawned[1];
+  at('2026-10-31T15:59:00Z');
+  await worker.pump();
+  assert.deepEqual(world.killed, []);
+  at('2026-10-31T16:00:00Z');
+  await worker.pump();
+  assert.deepEqual(world.killed, [second.pid]);
+  assert.equal(existsSync(second.project), false);
+  assert.ok(lines(stateDir).includes('Not finished: Wiki tidy — stopped after 90 minutes'));
+  // A copy a crash left behind goes at the next boot.
+  mkdirSync(join(stateDir, 'copies', 'sweep-left'), { recursive: true });
+  make({ git: fakeGit(calls) }).boot();
+  assert.equal(existsSync(join(stateDir, 'copies', 'sweep-left')), false);
+});
+
+test('a copy that git can not make starts no run, and a dry run makes no copy', async () => {
+  const calls = [];
+  const { world, make, at, stateDir } = rig();
+  world.checkOut = '{"run":{"consolidated":"2026-10-31T13:00:00Z"}}';
+  const worker = make({ git: fakeGit(calls, { fail: 'fetch' }) });
+  await worker.sweep();
+  await worker.pump();
+  assert.equal(world.spawned.length, 0);
+  assert.ok(lines(stateDir).includes('Not started: Wiki tidy — git fetch failed'));
+  at('2026-10-31T14:30:00Z');
+  calls.length = 0;
+  const printed = [];
+  const dry = make({ dryRun: true, print: item => printed.push(item), git: fakeGit(calls) });
+  dry.boot();
+  await dry.sweep();
+  await dry.pump();
+  assert.deepEqual(calls, []);
+  assert.deepEqual(printed.map(item => item.wouldDo ?? item.wouldCheck), ['wrap-up', 'wiki-tidy']);
 });

@@ -7,5 +7,9 @@
     "stopped": { "brief": "judge.md", "title": "Judge {{title}}", "hold": true },
     "asking": { "brief": "judge.md", "title": "Judge {{title}}", "hold": true }
   },
-  "sweeps": []
+  "sweeps": [
+    { "id": "wrap-up", "title": "Wrap up finished chats", "every": "5m", "do": "wrap-up" },
+    { "id": "wiki-tidy", "title": "Wiki tidy", "every": "30m", "check": ".agents/skills/daily/scripts/wiki-tidy-check.mjs",
+      "brief": "wiki-tidy.md", "place": "copy", "minutes": 90, "ownPlace": true }
+  ]
 }

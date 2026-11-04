@@ -16,7 +16,8 @@ export const LIMITS = { bodyBytes: Math.round(1.6 * 1024 * 1024), text: 20_000, 
   urlBytes: 2048, step: 200 };
 /** A computer that checked in this recently is online: six missed check-ins means it is gone, not slow. */
 const ONLINE_MS = 60_000;
-/** A closed item and its taps are kept a day, then removed at a check-in; a sent file a day at most, at any call. */
+/** A closed item and its taps are kept a day, then removed at a check-in; a review page with its body stays. A sent
+ *  file is kept a day at most, deleted at any call. */
 const KEEP_MS = 24 * 3_600_000;
 /** A collected tap whose result hasn't come this long after its claim, or its last file part read, is failed, never
  *  handed out again: nothing fires twice. */
@@ -117,12 +118,16 @@ export const settleTaps = (at: Scope) => at.db.batch([
   ...dropSettledFiles(at),
 ]);
 
-/** Removes items closed over a day ago, with their taps. */
-export const prune = (at: Scope) => at.db.batch([
+// Which closed items go: any but a review page, and a review page older code emptied. The second matches the
+// inbox_items_emptied index's WHERE exactly, so the clean-up never reads a kept page.
+const GONE = ["kind <> 'plan'", "kind = 'plan' AND body = ''"];
+
+/** Removes items closed over a day ago, with their taps; a review page that kept its body stays. */
+export const prune = (at: Scope) => at.db.batch(GONE.flatMap(which => [
   mine(at, `DELETE FROM inbox_taps WHERE installation_id = ?1 AND email = ?2 AND item_id IN (SELECT id FROM inbox_items
-    WHERE installation_id = ?1 AND email = ?2 AND closed_at < ?3)`, at.now - KEEP_MS),
-  mine(at, "DELETE FROM inbox_items WHERE installation_id = ?1 AND email = ?2 AND closed_at < ?3", at.now - KEEP_MS),
-]);
+    WHERE installation_id = ?1 AND email = ?2 AND ${which} AND closed_at < ?3)`, at.now - KEEP_MS),
+  mine(at, `DELETE FROM inbox_items WHERE installation_id = ?1 AND email = ?2 AND ${which} AND closed_at < ?3`, at.now - KEEP_MS),
+]));
 
 // An item's columns as the list shows them: a plan's HTML is left out; its newest tap on the version shown rides along,
 // its text cut short. A rebuild starts clean: an answer to the old version never shows above the new one.
@@ -141,11 +146,20 @@ export const listed = (row: ItemRow): Item => {
     tap: row.tap === null ? null : JSON.parse(row.tap) };
 };
 
+/** When the item stopped taking taps: closed, or its time ran out. Null while it is open. */
+export const endedAt = (row: Pick<ItemRow, "closed_at" | "closes_at">, now: number) =>
+  row.closed_at ?? (row.closes_at <= now ? row.closes_at : null);
+
+/** The caller's item `id` with `extra` columns, open or not, or the answer that says there is none. */
+export async function findItem<Row extends ItemRow>(at: Scope, id: string, extra = ""): Promise<Row | Response> {
+  const row = await mine(at, `SELECT ${ITEM_COLUMNS}${extra} FROM inbox_items i WHERE installation_id = ?1 AND email = ?2 AND id = ?3`, id).first<Row>();
+  return row ?? fail("not_found", 404);
+}
+
 /** The caller's open item `id` with `extra` columns, or the answer that says why there is none: unknown or closed. */
 export async function openItem<Row extends ItemRow>(at: Scope, id: string, extra = ""): Promise<Row | Response> {
-  const row = await mine(at, `SELECT ${ITEM_COLUMNS}${extra} FROM inbox_items i WHERE installation_id = ?1 AND email = ?2 AND id = ?3`, id).first<Row>();
-  if (!row) return fail("not_found", 404);
-  return row.closed_at !== null || row.closes_at <= at.now ? fail("closed", 410) : row;
+  const row = await findItem<Row>(at, id, extra);
+  return row instanceof Response || endedAt(row, at.now) === null ? row : fail("closed", 410);
 }
 
 /** Whether the caller's computer checked in within the last minute. */
