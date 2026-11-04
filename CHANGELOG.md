@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Faster checks: a save that matches a branch that already passed skips the full test run
+## 47.2.0 — Faster checks: a save that matches a branch that already passed skips the full test run
 
 - **A save that changes only notes reuses the last pass.** When an earlier save of the same change passed the tests, and everything changed since is plans, wiki pages or other notes, the tests do not run again. Before, a change's last save, which often only files its plan away, ran the full suite again and the change waited minutes to go live ([the gate](wiki/development/the-change-loop.md#the-gate)).
 - **The other checks still run.** The notes, loosened-check and skill checks look at the whole change, and the check's summary names the save that passed.

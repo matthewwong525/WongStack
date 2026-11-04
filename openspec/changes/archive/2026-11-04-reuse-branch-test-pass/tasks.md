@@ -16,4 +16,4 @@
 ## 3. Verification
 
 - [x] 3.1 Run `node .github/scripts/checks.mjs --worktree` and verify it exits 0
-- [ ] 3.2 After `/save`, verify the branch's CI run shows the `reused` step ran on the push, and the `test` check is green
+- [x] 3.2 After `/save`, verify the branch's CI run shows the `reused` step ran on the push, and the `test` check is green

@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · reuse-branch-test-pass</title>
+<title>Review · 2026-11-04-reuse-branch-test-pass</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="reuse-branch-test-pass" data-own-back>
+<body data-change="2026-11-04-reuse-branch-test-pass" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>reuse-branch-test-pass</h1>
+  <h1>2026-11-04-reuse-branch-test-pass</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -445,6 +445,7 @@
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-04</p>Check: <code>.github/scripts/checks.mjs</code> gains <code>--suite-base</code>, because the workflow reuses an earlier pass on the same branch. It skips the suite only when only docs changed since that passed commit; the loosened, wiki and skill checks still read the whole change.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-04</p>Check: <code>.github/workflows/test.yml</code> runs <code>already-passed.sh --branch</code> on a push to a branch other than the default branch and passes its commit to <code>checks.mjs --suite-base</code>, because a docs-only save need not run the suite again. Every code push still runs the suite.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: the gate paragraph keeps the builder's trim, with the wiki check's reason put back, because a reviewer asked to restore the old paragraph and that would push the save instructions over their size limit.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: archived for publishing after the branch's CI passed on b1c5212 and the new step ran there, because the plan's last task asked to see it run.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

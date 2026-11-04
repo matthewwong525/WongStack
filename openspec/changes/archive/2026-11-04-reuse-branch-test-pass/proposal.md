@@ -59,3 +59,4 @@ None.
 - **2026-11-04** — Check: `.github/scripts/checks.mjs` gains `--suite-base`, because the workflow reuses an earlier pass on the same branch. It skips the suite only when only docs changed since that passed commit; the loosened, wiki and skill checks still read the whole change.
 - **2026-11-04** — Check: `.github/workflows/test.yml` runs `already-passed.sh --branch` on a push to a branch other than the default branch and passes its commit to `checks.mjs --suite-base`, because a docs-only save need not run the suite again. Every code push still runs the suite.
 - **2026-11-04** — Assumed: the gate paragraph keeps the builder's trim, with the wiki check's reason put back, because a reviewer asked to restore the old paragraph and that would push the save instructions over their size limit.
+- **2026-11-04** — Assumed: archived for publishing after the branch's CI passed on b1c5212 and the new step ran there, because the plan's last task asked to see it run.
