@@ -38,9 +38,9 @@ export const keys = {
   // Look-ups only, so Read is the one level. wiki/stack/company-api.md#look-things-up-in-cloudflare
   cloudflare: { title: "Cloudflare", purpose: "Look up this account's Workers, databases, logs and usage",
     docs: "https://developers.cloudflare.com/api/", secrets: ["WONG_CLOUDFLARE_READ"], levels: ["read"], setup: true, liveOnly: true },
-  // The project, through /api/access/code/ only: Read installs and saves, Write also publishes. Either secret reads,
-  // the second saves and publishes; on Cloudflare ARTIFACTS stands in for both. wiki/stack/employee-project.md
-  code: { title: "Project code", purpose: "This project's own code, to install it and save changes", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"],
+  // The project through /api/access/code/, and company knowledge through /api/access/knowledge/: Read installs,
+  // saves a change and saves knowledge, Write also publishes. ARTIFACTS stands in for the secrets on Cloudflare.
+  code: { title: "Project code", purpose: "This project's own code and company knowledge, to install, read and save them", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"],
     liveOnly: true },
   // Add a key as: stripe: { title: "Stripe", purpose: "Payments and refunds", secrets: ["STRIPE_SECRET_KEY"] },
   // Direct use adds `forward` and `docs: "https://docs.stripe.com/api"`: wiki/stack/company-api.md#use-a-key-directly

@@ -1,7 +1,7 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { headlessCommand } from '../../.agents/skills/memory/scripts/lib/headless.mjs';
@@ -491,9 +491,15 @@ test('the wiki tidy runs in its own copy for up to 90 minutes, and the copy goes
   assert.ok(copy.startsWith(stateDir) && existsSync(copy));
   assert.deepEqual(calls, ['fetch -q origin main', `worktree add -q --detach ${copy} origin/main`]);
   assert.match(world.spawned[0].args.join(' '), /Memory consolidated at 2026-10-31T13:00:00Z\./);
+  // A linked company-knowledge copy outlives the job's copy.
+  const knowledge = join(stateDir, 'knowledge-copy');
+  mkdirSync(knowledge);
+  writeFileSync(join(knowledge, 'page.md'), '# Page\n');
+  symlinkSync(knowledge, join(copy, 'knowledge'), 'dir');
   end(world.spawned[0].pid);
   await worker.pump();
   assert.equal(existsSync(copy), false);
+  assert.ok(existsSync(join(knowledge, 'page.md')));
   assert.deepEqual(calls.slice(2), [`worktree remove --force ${copy}`, 'worktree prune']);
   // The next consolidation's run: past 30 minutes it still runs; at 90 it is stopped and its copy goes.
   at('2026-10-31T14:30:00Z');

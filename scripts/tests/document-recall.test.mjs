@@ -92,6 +92,18 @@ test('combined CLI returns live fact metadata once with independently verified l
   assert.equal(packet.sources.facts.state, 'ok'); assert.equal(packet.sources.documents.state, 'ok');
   assert.equal(packet.documents[0].freshness, 'verified'); assert.ok(Buffer.byteLength(result.stdout) <= 6144);
 });
+test('recall returns a knowledge page labeled as company knowledge, and never a knowledge people page', async t => {
+  const { repo, fake } = await setup(t);
+  const copy = join(repo.root, 'knowledge');
+  for (const [page, text] of [['ops/shipping.md', '# Shipping\nCourier pickups happen every Friday.\n'], ['people/ana.md', '# Ana\nAna books courier pickups every Friday.\n']]) {
+    mkdirSync(join(copy, page, '..'), { recursive: true }); writeFileSync(join(copy, page), text);
+  }
+  execFileSync('git', ['init', '-q'], { cwd: copy });
+  const result = await memory(repo, fake, ['recall', 'courier pickups Friday', '--mode', 'keyword', '--json']);
+  assert.equal(result.code, 0, result.stderr);
+  const packet = JSON.parse(result.stdout);
+  assert.deepEqual(packet.documents.map(doc => [doc.path, doc.role]), [['knowledge/ops/shipping.md', 'knowledge']]);
+});
 test('denied or offline facts leave usable documents and no hidden fact identifiers', async t => {
   const { repo, fake } = await setup(t); document(repo);
   const denied = await memory(repo, fake, ['recall', 'delivery', '--mode', 'keyword', '--json'], { env: { CLOUDFLARE_MEMORY_TOKEN: 'wongm_missing.bad' } });

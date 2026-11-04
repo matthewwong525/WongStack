@@ -43,6 +43,27 @@ test('rejects symlink files/directories and escaping or malformed paths', t => {
   for (const path of ['wiki/../private.md', '/wiki/guide.md', 'wiki\\guide.md', 'wiki//guide.md', 'wiki/./guide.md']) assert.equal(safeSource(ctx.root, path), null);
   assert.deepEqual(Object.keys(scanCorpus(ctx).entries), ['wiki/guide.md']);
 });
+test('the knowledge copy is a second root, read through its link, with people pages and conflict copies left out', t => {
+  const { ctx, put } = fixture(t);
+  put('wiki/guide.md');
+  const copy = tempDir(t, 'documents-knowledge-');
+  execFileSync('git', ['init', '-q'], { cwd: copy });
+  for (const page of ['ops/shipping.md', 'people/ana.md', 'ops/shipping.mine.md', 'notes.txt']) {
+    mkdirSync(join(copy, page, '..'), { recursive: true }); writeFileSync(join(copy, page), '# Shipping\nParcels leave on Fridays.\n');
+  }
+  symlinkSync(copy, join(ctx.root, 'knowledge'), process.platform === 'win32' ? 'junction' : 'dir');
+  const corpus = scanCorpus(ctx);
+  assert.deepEqual(Object.keys(corpus.entries), ['wiki/guide.md', 'knowledge/ops/shipping.md']);
+  assert.equal(corpus.entries['knowledge/ops/shipping.md'].role, 'knowledge');
+  assert.ok(scopedEntries(corpus, { change: 'any' }).some(entry => entry.role === 'knowledge'), 'knowledge is current guidance');
+  assert.equal(lexicalSearch(corpus, 'When do parcels leave?')[0].path, 'knowledge/ops/shipping.md');
+  assert.equal(safeSource(ctx.root, 'knowledge/people/ana.md'), null);
+  symlinkSync(join(copy, 'ops', 'shipping.md'), join(copy, 'ops', 'linked.md'));
+  assert.equal(safeSource(ctx.root, 'knowledge/ops/linked.md'), null, 'a link inside the copy is not followed');
+  const plain = tempDir(t, 'documents-plain-');
+  mkdirSync(join(plain, 'knowledge')); writeFileSync(join(plain, 'knowledge', 'x.md'), '# X\n');
+  assert.equal(safeSource(plain, 'knowledge/x.md'), null, 'a folder that is no copy is not read');
+});
 test('scan bounds report omitted eligible sources and continue after racing reads', t => {
   const { ctx, put } = fixture(t);
   put('wiki/a.md', 'a'.repeat(100)); put('wiki/b.md', 'small');

@@ -81,7 +81,9 @@ export function backlinks(root, path) {
   return markdownFiles(root).filter(file => file !== want).flatMap(file => linksIn(root, file).filter(hits)).map(({ file, line }) => `${file}:${line}`);
 }
 
-export const wikiPages = root => markdownFiles(root, join(root, 'wiki'));
+// A `<page>.mine.md` is one side of a knowledge save's conflict, never a page of its own.
+const MINE = /\.mine\.md$/;
+export const wikiPages = (root, pagesRoot = 'wiki') => markdownFiles(root, join(root, pagesRoot)).filter(page => !MINE.test(page));
 
 // The most words a wiki page holds, counted as `scripts/measure-context.mjs` counts them: whitespace-separated,
 // across the whole file. A longer page is slow to read and costly to load.
@@ -116,11 +118,12 @@ function pageProblems(root, page) {
   return problems;
 }
 
-// The wiki's problems, one line each: a dead link or missing heading, an orphan page, a hub (README.md) that skips
-// a page or subfolder beside it, and a page over the word cap or with a bad opening. No wiki/ has none.
-export function checkWiki(root) {
-  const pages = wikiPages(root);
-  const links = pages.flatMap(file => linksIn(root, file));
+// The problems of `pagesRoot` (wiki or knowledge), one line each: a dead link or heading, an orphan, a hub that skips
+// a page beside it, a page too long or badly opened. With no knowledge copy here (as in CI), links into it are skipped.
+export function checkWiki(root, pagesRoot = 'wiki') {
+  const pages = wikiPages(root, pagesRoot);
+  const unseen = pagesRoot !== 'knowledge' && !existsSync(join(root, 'knowledge'));
+  const links = pages.flatMap(file => linksIn(root, file)).filter(({ rel }) => !(unseen && /^knowledge(\/|$)/.test(rel ?? '')));
   const problems = [];
   for (const { file, line, written, rel, readme, anchor } of links) {
     if (rel === null || !existsSync(join(root, rel))) problems.push(`${file}:${line}: links to ${written}, which does not exist`);
@@ -132,14 +135,14 @@ export function checkWiki(root) {
     }
   }
   const linked = new Set(links.flatMap(({ file, rel, readme }) => [rel, readme].filter(to => to && to !== file)));
-  for (const page of pages) if (page !== 'wiki/README.md' && !linked.has(page)) problems.push(`${page}: no other wiki page links to it`);
+  for (const page of pages) if (page !== `${pagesRoot}/README.md` && !linked.has(page)) problems.push(`${page}: no other wiki page links to it`);
   for (const hub of pages.filter(page => posix.basename(page) === 'README.md')) {
     const dir = posix.dirname(hub);
     const own = links.filter(link => link.file === hub).flatMap(({ rel, readme }) => [rel, readme]).filter(Boolean);
     for (const entry of readdirSync(join(root, dir)).sort()) {
       const child = `${dir}/${entry}`;
       const folder = isDir(join(root, child));
-      if (folder ? !pages.some(page => page.startsWith(`${child}/`)) : !entry.endsWith('.md') || entry === 'README.md') continue;
+      if (folder ? !pages.some(page => page.startsWith(`${child}/`)) : !entry.endsWith('.md') || entry === 'README.md' || MINE.test(entry)) continue;
       if (!own.some(to => to === child || (folder && to.startsWith(`${child}/`)))) problems.push(`${hub}: does not link ${entry}${folder ? '/' : ''}`);
     }
   }

@@ -26,7 +26,7 @@ Both formats return original evidence, source status, mode, backend, coverage, o
 
 `--change <slug>` narrows change documents while retaining current guidance. Every excerpt carries its path-derived role: `wiki`, `specs`, `active` (proposed), or `archive` (historical). Mixed searches interleave current sources before proposed/history sources. Similarity never makes a historical proposal current guidance.
 
-The allowlist is `wiki/**/*.md` except `wiki/people/**`, `openspec/specs/**/*.md`, and changes' `proposal.md`, `design.md`, `tasks.md` and `specs/**/spec.md`. Eligible unsaved/new files are included; Git ignore rules exclude untracked ignored files. Review pages, evidence/log/transcript/cache files, credentials, code, agent instructions, private facts and symlinks are excluded. Lookup never follows a source outside the real checkout. A scan is bounded to four seconds, 2 MiB per source and 32 MiB total; omitted or racing sources make coverage partial. Split oversized guidance into linked pages.
+The allowlist is `wiki/**/*.md` except `wiki/people/**`, the [company knowledge](../stack/company-knowledge.md) copy's tracked `knowledge/**/*.md` except `people/**` and `*.mine.md`, `openspec/specs/**/*.md`, and changes' `proposal.md`, `design.md`, `tasks.md` and `specs/**/spec.md`. Eligible unsaved/new files are included; Git ignore rules exclude untracked ignored files. Review pages, evidence/log/transcript/cache files, credentials, code, agent instructions, private facts and symlinks are excluded. Lookup never follows a source outside the real checkout. A scan is bounded to four seconds, 2 MiB per source and 32 MiB total; omitted or racing sources make coverage partial. Split oversized guidance into linked pages.
 
 ## Optional meaning-based search
 

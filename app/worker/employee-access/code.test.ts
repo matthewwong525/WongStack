@@ -7,6 +7,7 @@ import { CODE_CHANGE } from "./change";
 import { CODE_GIT, NOT_SET_UP, codeGit, codeSource, codeState, codeStep, saveSource, saveStep, savedBranch, upstream } from "./code";
 import type { ConnectionEnv } from "./core";
 import { keyCatalogue } from "./key-catalogue";
+import { KNOWLEDGE_GIT } from "./knowledge";
 import { everyKey, offered, saved, scopedEnv } from "./key-levels";
 import { keyUse } from "./key-use";
 import { currentPolicy } from "./policy";
@@ -82,14 +83,14 @@ beforeEach(() => {
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); });
 
 it("registers Project code as a key with Read to install and Write to publish, offered with no app, that no route lists and no app tick gives", () => {
-  expect(keys.code).toEqual({ title: "Project code", purpose: "This project's own code, to install it and save changes", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"],
+  expect(keys.code).toEqual({ title: "Project code", purpose: "This project's own code and company knowledge, to install, read and save them", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"],
     liveOnly: true });
   expect([offered("code"), everyKey().get("code")]).toEqual([["read", "write"], "write"]);
   expect(keyUse.some(use => use.keys.includes("code"))).toBe(false);
   expect(changedSet({ apps: [], keys: {} }, { apps: { orders: true } })).toEqual({ apps: ["orders"], keys: {} });
   // Saved follows whether the project can be handed out: a Cloudflare-kept one needs no secret.
   const row = (bindings: object) => keyCatalogue(bindings).find(key => key.id === "code");
-  expect(row({})).toEqual({ id: "code", title: "Project code", purpose: "This project's own code, to install it and save changes", levels: ["read", "write"], saved: false, setup: false, liveOnly: true, alone: true, direct: false });
+  expect(row({})).toEqual({ id: "code", title: "Project code", purpose: "This project's own code and company knowledge, to install, read and save them", levels: ["read", "write"], saved: false, setup: false, liveOnly: true, alone: true, direct: false });
   expect([row(github)!.saved, row(saving)!.saved, row(artifacts().env)!.saved, saved({ WONG_CODE_READ: TOKEN }, "code")]).toEqual([true, true, true, false]);
   // No route is handed the credential or the binding, even one that lists the key.
   const all = { DB: {}, ...github, WONG_CODE_WRITE: WIDE, ARTIFACTS: {}, CODE_CHECKS: {}, WONG_CLOUDFLARE_READ: "look-up" };
@@ -418,6 +419,21 @@ it("hands the project only to a person who holds Project code now, judged before
   f.sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   for (const identity of [owner, holder]) expect(await code(await read(identity))).toBe("code_unavailable");
   expect(fetched).not.toHaveBeenCalled();
+});
+
+it("keeps the project's rules beside company knowledge: main is refused at the project's address and taken at knowledge's", async () => {
+  kept(() => new Response(`${pkt("unpack ok\n")}${pkt("ok refs/heads/main\n")}0000`));
+  const logged = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    const stored = artifacts();
+    const both = { ...env, ...saving, WONG_KNOWLEDGE_REPOSITORY: "recipe-box-knowledge", ARTIFACTS: stored.env.ARTIFACTS };
+    const toMain = () => ({ method: "POST", body: `${updates([to("refs/heads/main")])}${PACK}`, headers: { "Content-Type": "application/x-git-receive-pack-request" } });
+    const project = await handleAccess(git("git-receive-pack", toMain()), both, owner);
+    expect((await project.text()).slice(5, -4)).toBe(`${pkt("unpack ok\n")}${pkt(`ng refs/heads/main ${NEVER}`)}0000`);
+    const knowledge = await handleAccess(new Request(`${site.origin}${KNOWLEDGE_GIT}git-receive-pack`, toMain()), both, owner);
+    expect([knowledge.status, gitCalls().map(([address]) => address)]).toEqual([200, [`${REMOTE}/git-receive-pack`]]);
+    expect(stored.calls).toEqual([["get", "recipe-box-knowledge"], ["info"], ["createToken", "write", 300]]);
+  } finally { logged.mockRestore(); }
 });
 
 it("tells setup and the home page who may connect: ready, lacked, or off for everyone", async () => {

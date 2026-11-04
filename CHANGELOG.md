@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 45.8.0 — Company knowledge in its own repo
+
+- **Company pages go live at once.** The team's own pages, such as people, customers and how the company works, now live in a repository of their own in Cloudflare, not in the code repository. A save makes them live for the team at once, with no pull request and no wait for checks. Pages about the code stay in `wiki/` ([company knowledge](wiki/stack/company-knowledge.md)).
+- **One copy on each computer.** The pages are at `knowledge/` in every workspace: one copy in the main checkout, and a link to it in each workspace. When a chat starts, the copy moves to the newest version in the background. A copy with unsaved edits is left as it is, and the chat names those pages.
+- **A save takes only the pages it names.** `knowledge.mjs save` checks the links, puts the save on top of the newest version, and tells you how to undo it. When someone saved the same lines first, you get both versions to join. A save made while the app can't be reached waits and goes live with the next one.
+- **Undo and restore.** `knowledge.mjs undo <commit>` takes one save back. If someone forces an older history, the next update says so, and `knowledge.mjs restore` puts the lost saves back.
+- **The app hands it out to the same people as the project.** The **Project code** tick also covers company knowledge. Only the live app holds it; previews never read or change it.
+- **Memory reads it.** The digest reads your people page from `knowledge/people/` first, and memory search finds the other knowledge pages. `/close` and `/dream-memory` save knowledge pages at once.
+- **Every install needs Cloudflare's paid plan**, about $5 a month, on both ways to install. Setup stops on a free plan and asks you to turn it on or stop. The landing page now says *Install*, not *Install for free*.
+
+**Updating.** Nothing changes for an existing install: your pages stay in `wiki/`, and saves work as before, until a later update moves them after one yes. A new install needs Cloudflare's paid plan.
+
 ## 45.7.0 — Check-ins for everyone, with or without Paseo
 
 - **Each chat checks its own stops.** When a chat in Claude Code or Codex stops and your last message there is more than 15 minutes old, one read-only AI run sorts the stop. A next step or a safe pick goes back to the chat, and it carries on. Everything else waits for you, as before. It works with or without Paseo, and no Daily chat has to stay open ([check-ins](wiki/development/daily.md#check-ins)).

@@ -21,7 +21,7 @@ const factSchema = { type: 'object', required: ['id', 'slug', 'type', 'body', 'c
   properties: { id: { type: 'integer' }, slug: { type: 'string' }, type: { type: 'string' }, body: { type: 'string' },
     author: { type: ['string', 'null'] }, created_at: { type: 'string' }, session_id: { type: ['string', 'null'] }, state: { type: 'string' }, superseded_by: { type: 'null' } }, additionalProperties: false };
 const documentSchema = { type: 'object', required: ['path', 'role', 'hash', 'heading', 'startLine', 'endLine', 'text', 'truncated', 'freshness', 'reference'],
-  properties: { path: { type: 'string' }, role: { enum: ['wiki', 'specs', 'active', 'archive'] }, hash: { type: 'string', pattern: '^[a-f0-9]{64}$' },
+  properties: { path: { type: 'string' }, role: { enum: ['wiki', 'knowledge', 'specs', 'active', 'archive'] }, hash: { type: 'string', pattern: '^[a-f0-9]{64}$' },
     heading: { type: 'string' }, startLine: { type: 'integer', minimum: 1 }, endLine: { type: 'integer', minimum: 1 },
     text: { type: 'string' }, truncated: { type: 'boolean' }, freshness: { const: 'verified' }, reference: { type: 'string' }, score: { type: 'number' } }, additionalProperties: false };
 const descriptions = Object.entries(READ_INPUTS).filter(([command]) => ['search', 'show'].includes(command)).map(([command, properties]) => ({

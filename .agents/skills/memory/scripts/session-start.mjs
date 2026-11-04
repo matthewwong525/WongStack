@@ -15,6 +15,7 @@ const BUDGET_MS = 1500;
 const TIDY = join(HERE, '../../schedule/scripts/tidy.mjs');
 // Moves a clean teammate's copy forward in the background: wiki/stack/employee-project.md#update-the-copy
 const UPDATE = join(HERE, '../../save/scripts/update-copy.mjs');
+const KNOWLEDGE = join(HERE, 'knowledge.mjs');
 // Starts the daily's worker when the person has a job for it: wiki/development/daily.md#the-daily-on-a-computer
 const DAILY = join(HERE, '../../daily/scripts/daily.mjs');
 
@@ -77,6 +78,27 @@ function signInLine(ctx) {
   } catch { return ''; }
 }
 
+// Company knowledge: link this workspace to the computer's copy, update it in the background, and name pages left
+// unsaved or a lost history. wiki/stack/company-knowledge.md
+async function knowledgeLine(ctx) {
+  try {
+    const { linkCopy, place, unsaved } = await import(pathToFileURL(KNOWLEDGE).href);
+    const k = place(ctx.root);
+    const copy = existsSync(join(k.copy, '.git'));
+    if (!copy && !k.address) return '';
+    if (copy) linkCopy(k);
+    if (process.env.WONG_KNOWLEDGE_UPDATE !== '0') {
+      const child = spawn(process.execPath, [KNOWLEDGE, 'update'], { cwd: ctx.root, detached: true, stdio: 'ignore' });
+      child.on('error', () => {});
+      child.unref();
+    }
+    if (!copy) return '';
+    const pages = unsaved(k);
+    if (existsSync(join(k.copy, '.git', 'wong-knowledge-rewritten'))) return 'Knowledge: the published history lost saves this computer holds; `knowledge.mjs restore` puts them back.';
+    return pages.length ? `Knowledge: ${pages.length} page${pages.length === 1 ? '' : 's'} with edits not saved yet: ${pages.slice(0, 5).map(page => `knowledge/${page}`).join(', ')}.` : '';
+  } catch { return ''; }
+}
+
 const USAGE = 'usage: session-start.mjs [--agent claude|codex]   the SessionStart hook; reads the hook\'s JSON on stdin';
 
 async function main(agent) {
@@ -93,12 +115,15 @@ async function main(agent) {
   // The digest fetch runs while local discovery reads the disk.
   const digest = (async () => loadDigest(ctx, openStore(ctx, { timeoutMs: BUDGET_MS }), BUDGET_MS))().catch(error => ({ error }));
   const tidy = tidyUp(ctx);
+  const knowledge = knowledgeLine(ctx);
   const localWork = spoolList(ctx).length > 0 || pending(ctx, { exclude: [sessionId] }).length > 0;
   const result = await digest;
 
   const out = [signInLine(ctx)].filter(Boolean);
   const tidied = await tidy;
   if (tidied) out.push(tidied);
+  const known = await knowledge;
+  if (known) out.push(known);
   const redirected = branchWorkerLine(ctx);
   if (redirected) out.push(redirected);
   if (result.error) {

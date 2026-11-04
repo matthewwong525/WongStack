@@ -7,13 +7,14 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
+import { knowledgeCopy } from '../../memory/scripts/lib/knowledge-copy.mjs';
 import { wikiPages } from '../../memory/scripts/lib/links.mjs';
 import { pathWords } from '../../memory/scripts/lib/upkeep.mjs';
 import { PLAIN_UTC } from '../../memory/worker/statements.mjs';
 
 const USAGE = `usage: dream.mjs <command> [--json]
   since   the last dream: its date, the highest fact id it read, the pages it checked
-  pages   each wiki page as own|shipped and each spec, its words, and when it was last checked, longest unchecked first
+  pages   each wiki and knowledge page as own|shipped and each spec, its words, and when it was last checked, longest unchecked first
   drift   live facts naming a repo path that is gone, and plans that are finished or 30 days idle`;
 const MEMORY = fileURLToPath(new URL('../../memory/scripts/memory.mjs', import.meta.url));
 const SLUG = 'wiki-dream';
@@ -43,7 +44,7 @@ export function isDreamFact(fact) {
 
 /** The wiki pages and specs a dream fact's body names. */
 export function pagesNamed(body) {
-  return [...new Set(String(body).match(/(?:wiki\/[\w./-]*\.md|openspec\/specs\/[\w-]+\/spec\.md)/g) || [])];
+  return [...new Set(String(body).match(/(?:(?:wiki|knowledge)\/[\w./-]*\.md|openspec\/specs\/[\w-]+\/spec\.md)/g) || [])];
 }
 
 /** The last dream from its facts, or the first-dream default: 30 days before `today`. */
@@ -178,7 +179,8 @@ function payloadFiles(root) {
 
 function committed(root, path) {
   try {
-    return execFileSync('git', ['-C', root, 'log', '-1', '--format=%cI', '--', path], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
+    const [at, rel] = path.startsWith('knowledge/') ? [join(root, 'knowledge'), path.slice(10)] : [root, path];
+    return execFileSync('git', ['-C', at, 'log', '-1', '--format=%cI', '--', rel], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
   } catch {
     return null;
   }
@@ -209,7 +211,9 @@ function pages({ json }) {
   } catch (error) {
     console.error(`dream.mjs: the memory store could not be read, so commit dates alone are used: ${error.message}`);
   }
-  const found = [...wikiPages(root), ...specPages(root)].map(path => ({ path, text: readFileSync(join(root, path), 'utf8'), committed: committed(root, path) }));
+  // Company knowledge, when this computer holds a copy, is all the install's own.
+  const knowledge = knowledgeCopy(root) ? wikiPages(root, 'knowledge') : [];
+  const found = [...wikiPages(root), ...knowledge, ...specPages(root)].map(path => ({ path, text: readFileSync(join(root, path), 'utf8'), committed: committed(root, path) }));
   const list = pageList(found, shippedPaths(payloadFiles(root)), checks);
   if (json) return console.log(JSON.stringify({ pages: list }));
   console.log(list.map(page => [page.kind, page.words, page.lastChecked ?? 'never', page.path].join('\t')).join('\n'));

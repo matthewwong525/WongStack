@@ -192,16 +192,19 @@ export function readCache(ctx, now = Date.now()) {
   return text.trim() ? { text, age: ageDays(new Date(statSync(file).mtimeMs).toISOString(), now) } : null;
 }
 
-// The page under a repo's wiki/people/ that lists its git email as a whole address, or null.
+// The page under knowledge/people/, then wiki/people/, that lists the git email as a whole address, or null.
 export function personPage(ctx) {
-  const dir = join(ctx.root, 'wiki', 'people');
   const email = (ctx.author || '').toLowerCase();
-  if (!email || !existsSync(dir)) return null;
+  if (!email) return null;
   const pattern = new RegExp(`(^|[^\\w.+-])${email.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\w.-])`);
-  for (const name of readdirSync(dir).sort()) {
-    if (!name.endsWith('.md') || name === 'README.md') continue;
-    const text = readFileSync(join(dir, name), 'utf8');
-    if (pattern.test(text.toLowerCase())) return { path: `wiki/people/${name}`, text };
+  for (const folder of ['knowledge/people', 'wiki/people']) {
+    const dir = join(ctx.root, folder);
+    if (!existsSync(dir)) continue;
+    for (const name of readdirSync(dir).sort()) {
+      if (!name.endsWith('.md') || name === 'README.md') continue;
+      const text = readFileSync(join(dir, name), 'utf8');
+      if (pattern.test(text.toLowerCase())) return { path: `${folder}/${name}`, text };
+    }
   }
   return null;
 }

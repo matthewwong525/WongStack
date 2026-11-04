@@ -1,9 +1,10 @@
 // The daily's service on a computer (`daily.mjs serve`): each pass runs the watch, then starts one background AI run
 // per job in the sweep list, and writes the rest to the journal. wiki/development/daily.md#the-daily-on-a-computer
 import { execFileSync, spawn } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { linkCopy, place } from '../../memory/scripts/knowledge.mjs';
 import { headlessCommand } from '../../memory/scripts/lib/headless.mjs';
 import { runNode } from './addons.mjs';
 import { HOLD_MS, beat, chiefDay, dailyAgent, readJson, sameRepo, sendText, serviceAlive, userAt, watch, watchStops, watched,
@@ -231,9 +232,14 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     git(project, ['fetch', '-q', 'origin', 'main']);
     mkdirSync(copies, { recursive: true, mode: 0o700 });
     git(project, ['worktree', 'add', '-q', '--detach', dir, 'origin/main']);
+    // Company knowledge, when this computer holds a copy, so a job saves its pages there.
+    try { linkCopy(place(dir)); } catch { /* the job works without it */ }
     return dir;
   }
   function removeCopy(dir) {
+    // The link goes first: the removal must never reach into the computer's one knowledge copy.
+    const link = join(dir, 'knowledge');
+    try { if (lstatSync(link).isSymbolicLink()) unlinkSync(link); } catch { /* no link */ }
     try { git(project, ['worktree', 'remove', '--force', dir]); } catch { /* not a worktree any more */ }
     rmSync(dir, { recursive: true, force: true });
     try { git(project, ['worktree', 'prune']); } catch { /* the next removal prunes */ }

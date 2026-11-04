@@ -405,7 +405,7 @@ img[src^="/logos/"] {
   }
 }
 
-/* "Install for free" and "See it on GitHub →" side by side, wrapping on a phone. */
+/* "Install" and "See it on GitHub →" side by side, wrapping on a phone. */
 .actions {
   display: flex;
   flex-wrap: wrap;

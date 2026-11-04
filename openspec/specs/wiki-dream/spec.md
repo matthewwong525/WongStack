@@ -62,7 +62,7 @@ A dream SHALL edit only pages the install owns. A fact that belongs on or contra
 
 ### Requirement: A dream publishes alone, through the project's checks
 
-A dream's edits SHALL be published apart from any other work, through the same checks as any wiki edit, on either delivery route, with no closing question. A checkout holding unfinished work SHALL stop the dream before it edits anything. The report SHALL name each page changed and the fact behind each edit.
+A dream's edits to company knowledge SHALL be saved at once, apart from any other work, with no closing question. Its edits to pages in the code repository, and every edit on an install with no knowledge copy, SHALL be published apart from any other work through the same checks as any wiki edit, on either delivery route. A checkout holding unfinished work SHALL stop the dream before it edits anything. The report SHALL name each page changed, the fact behind each edit, and how to undo the knowledge saves.
 
 #### Scenario: Unfinished work in the checkout
 
@@ -168,7 +168,7 @@ When it finds the last dream and each page's last check, a dream SHALL ignore a 
 
 ### Requirement: A small wiki tidy follows each memory consolidation
 
-Where the daily's helper runs, after each memory consolidation for the person, the helper SHALL start one background run that places each repeatable fact saved since the last tidy or dream on the install's own page that owns it, by the same rules a dream uses, and fixes only the pages those facts touch. It SHALL publish its edit alone through the project's checks, with no question, and write one journal line naming the pages it changed. It SHALL NOT edit a page WongStack ships, a spec, a plan, or a saved fact. A fact it has read SHALL not be read again by the next tidy or dream.
+Where the daily's helper runs, after each memory consolidation for the person, the helper SHALL start one background run that places each repeatable fact saved since the last tidy or dream on the install's own page that owns it, by the same rules a dream uses, and fixes only the pages those facts touch. It SHALL save a company-knowledge edit at once and publish any other edit alone through the project's checks, with no question, and write one journal line naming the pages it changed. It SHALL NOT edit a page WongStack ships, a spec, a plan, or a saved fact. A fact it has read SHALL not be read again by the next tidy or dream.
 
 #### Scenario: A preference from an unclosed chat
 

@@ -449,10 +449,23 @@ test('the digest shows your people page within 1.5 KB, a line naming the rest, t
   assert.match(lines[end + 2], /^- \[feedback\] Preference fact/);
 });
 
+test('the digest finds your page in knowledge/people/ before wiki/people/', async t => {
+  const env = await setup(t);
+  for (const folder of ['knowledge', 'wiki']) mkdirSync(join(env.repo.root, folder, 'people'), { recursive: true });
+  writeFileSync(join(env.repo.root, 'knowledge', 'people', 'ana.md'), '# Ana\n\nAna runs operations now.\n\n- **Git emails:** `dev@example.com`.\n');
+  writeFileSync(join(env.repo.root, 'wiki', 'people', 'ana.md'), '# Ana\n\nAn old page.\n\n- **Git emails:** `dev@example.com`.\n');
+  const lines = (await digestOf(env)).split('\n');
+  const start = lines.indexOf('## You (knowledge/people/ana.md)');
+  assert.ok(start > 0, 'the knowledge page shows');
+  assert.equal(lines[start + 1], 'Ana runs operations now.');
+  assert.ok(!lines.includes('An old page.'));
+});
+
 test('with no people page listing you, the digest has no person section and still asks for a search', async t => {
   const env = await setup(t);
-  mkdirSync(join(env.repo.root, 'wiki', 'people'), { recursive: true });
+  for (const folder of ['knowledge', 'wiki']) mkdirSync(join(env.repo.root, folder, 'people'), { recursive: true });
   writeFileSync(join(env.repo.root, 'wiki', 'people', 'bo.md'), '# Bo\n\n- **Git emails:** `bo@example.com`.\n');
+  writeFileSync(join(env.repo.root, 'knowledge', 'people', 'cy.md'), '# Cy\n\n- **Git emails:** `cy@example.com`.\n');
   insertFact(env)('ops', 'feedback', 'Keep replies short.', 1);
   const lines = (await digestOf(env)).split('\n');
   assert.equal(lines.filter(line => line.startsWith('## You')).length, 0);

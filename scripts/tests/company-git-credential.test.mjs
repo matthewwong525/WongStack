@@ -41,6 +41,18 @@ test('answers nothing for an expired, missing or other person\'s sign-in, or an 
   assert.equal((await helper(t)(token, 'protocol=http\nhost=business.example.com\n'))[0], '');
 });
 
+test('with no saved person, only company knowledge takes the computer\'s own sign-in', async t => {
+  const state = mkdtempSync(join(tmpdir(), 'wong-test-credential-'));
+  t.after(() => rmSync(state, { recursive: true, force: true }));
+  const token = jwt({ email: 'owner@example.com', sub: 'owner-1', exp: future() });
+  const ask = input => credential(input, { stateOf: () => state, run: async () => token });
+  // Git asks with no trailing slash (seen with git 2.53).
+  assert.equal(await ask('protocol=https\nhost=business.example.com\npath=api/access/knowledge/git\n'), `username=x-access\npassword=${token}\n`);
+  assert.equal(await ask('protocol=https\nhost=business.example.com\npath=api/access/knowledge/git/info/refs\n'), `username=x-access\npassword=${token}\n`);
+  assert.equal(await ask('protocol=https\nhost=business.example.com\npath=api/access/knowledge/gitx\n'), '');
+  assert.equal(await ask(ASKED), '');
+});
+
 test('the script answers only `get`: store and erase print nothing and keep nothing', () => {
   for (const verb of ['store', 'erase']) {
     assert.equal(execFileSync(process.execPath, [HELPER, verb], { input: `${ASKED}username=x\npassword=secret\n`, encoding: 'utf8' }), '');

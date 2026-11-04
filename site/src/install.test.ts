@@ -17,23 +17,19 @@ import {
   WAYS,
   agents,
   computers,
-  freeAccounts,
 } from "./install";
 
-it("names computers and accounts the way a sentence does, for one, two, or three", () => {
+it("names computers the way a sentence does, for one, two, or three", () => {
   expect(computers(["One"])).toBe("One");
   expect(computers(["One", "Two"])).toBe("One and Two");
   expect(computers(["One", "Two", "Three"])).toBe("One, Two, and Three");
-  expect(freeAccounts(["One"])).toBe("a free One account");
-  expect(freeAccounts(["One", "Two"])).toBe("free One and Two accounts");
-  expect(freeAccounts(["One", "Two", "Three"])).toBe("free One, Two, and Three accounts");
 });
 
 it("names its own computers and accounts when given none", () => {
   expect(COMPUTERS.length).toBeGreaterThan(0);
   expect(ACCOUNTS.length).toBeGreaterThan(0);
   for (const name of COMPUTERS) expect(computers()).toContain(name);
-  for (const { name } of ACCOUNTS) expect(freeAccounts()).toContain(name);
+  for (const { name } of ACCOUNTS) expect(WAYS[0]?.line).toContain(name);
 });
 
 it("gives every agent and account a logo file that exists under public/logos/", () => {
@@ -72,46 +68,48 @@ it("opens the first step with any assistant, and names one only as a linked exam
   }
 });
 
-it("gives two ways to install, the free one first, each line naming its own accounts and cost", () => {
+it("gives two ways to install, the GitHub one first, each line naming its own accounts and the paid plan's cost", () => {
   expect(WAYS.map((way) => [way.name, way.accounts, way.computers, way.cost])).toEqual([
-    ["Free", ["GitHub", "Cloudflare"], ["Mac", "Windows", "Linux"], "free"],
+    ["With GitHub", ["GitHub", "Cloudflare"], ["Mac", "Windows", "Linux"], "about $5 a month"],
     ["Cloudflare alone", ["Cloudflare"], ["Mac", "Linux"], "about $5 a month"],
   ]);
   expect(WAYS.map((way) => way.line)).toEqual([
-    "Free: your project is kept in a free GitHub account, and your apps run in a free Cloudflare account.",
+    "With GitHub, on Mac, Windows, or Linux: your project is kept in a GitHub account, and your apps run on Cloudflare's paid plan, about $5 a month.",
     "Or keep everything in Cloudflare alone, on Mac or Linux: Cloudflare's paid plan, about $5 a month.",
   ]);
   for (const way of WAYS) {
     for (const account of way.accounts) expect([way.name, account, way.line.includes(account)]).toEqual([way.name, account, true]);
     expect([way.name, way.line.toLowerCase().includes(way.cost)]).toEqual([way.name, true]);
+    // No way to install is called free: every way needs the paid plan.
+    expect([way.name, /\bfree\b/i.test(way.line)]).toEqual([way.name, false]);
   }
 });
 
 it("builds the ways from the accounts and computers the rest of the page names", () => {
-  const [free, alone] = WAYS;
+  const [github, alone] = WAYS;
 
-  // The free way is the one the "built on" list and the first answer describe.
-  expect(free?.accounts).toEqual(ACCOUNTS.map((account) => account.name));
-  expect(free?.computers).toEqual(COMPUTERS);
-  // The paid way needs fewer accounts and works on fewer computers, never others.
+  // The GitHub way is the one the "built on" list describes.
+  expect(github?.accounts).toEqual(ACCOUNTS.map((account) => account.name));
+  expect(github?.computers).toEqual(COMPUTERS);
+  // Both ways cost the same; the other needs fewer accounts and works on fewer computers, never others.
+  expect(github?.cost).toBe(PAID_COST);
   expect(alone?.cost).toBe(PAID_COST);
   expect(alone?.accounts).toHaveLength(1);
   expect(alone?.computers).toHaveLength(2);
-  for (const account of alone?.accounts ?? []) expect(free?.accounts).toContain(account);
+  for (const account of alone?.accounts ?? []) expect(github?.accounts).toContain(account);
   for (const computer of alone?.computers ?? []) expect(COMPUTERS).toContain(computer);
   expect(alone?.line).toContain(alone?.computers.join(" or "));
 });
 
-it("lists every sentence that speaks of a cost: the paid way's line, that setup asks first, and what two answers add", () => {
-  expect(ASKS_FIRST).toBe("On Mac or Linux, setup asks which you want before anything costs money.");
+it("lists every sentence that speaks of a cost: each way's line, that setup checks the plan first, and what two answers add", () => {
+  expect(ASKS_FIRST).toBe("Setup checks for Cloudflare's paid plan before it makes anything.");
   expect(COST_ANSWERS).toEqual({
-    free: "On Mac or Linux you can keep everything in Cloudflare alone instead, on Cloudflare's paid plan, about $5 a month.",
-    cost: "Cloudflare's paid plan, about $5 a month, is needed only to keep everything in Cloudflare alone or to run jobs on a schedule.",
+    free: "Every way to install needs Cloudflare's paid plan, about $5 a month.",
+    cost: "Every install also needs Cloudflare's paid plan, about $5 a month.",
   });
-  expect(COST_LINES).toEqual([WAYS[1]?.line, ASKS_FIRST, COST_ANSWERS.free, COST_ANSWERS.cost]);
-  // The free way's line names no price, so it needs no allowance.
-  expect(COST_LINES).not.toContain(WAYS[0]?.line);
-  // One figure, said the same way wherever a price is named.
+  expect(COST_LINES).toEqual([WAYS[0]?.line, WAYS[1]?.line, ASKS_FIRST, COST_ANSWERS.free, COST_ANSWERS.cost]);
+  // One figure, said the same way wherever a price is named, and no cost line calls an install free.
   for (const line of COST_LINES.filter((line) => line.includes("$"))) expect(line).toContain(PAID_COST);
-  expect(COST_LINES.filter((line) => line.includes(PAID_COST))).toHaveLength(3);
+  expect(COST_LINES.filter((line) => line.includes(PAID_COST))).toHaveLength(4);
+  for (const line of COST_LINES) expect([line, /\bfree\b/i.test(line)]).toEqual([line, false]);
 });
