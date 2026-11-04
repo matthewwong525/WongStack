@@ -1,16 +1,16 @@
-// The private form's script (see hand-over.mjs `open --form` and form.mjs), loaded after picture-view.mjs. It sets
-// every string as text. `timeLeft`, `rowsOf`, `stepText`, and `ending` are exported for tests.
+// The private form's script (see hand-over.mjs `open --form` and form.mjs), after picture-view.mjs; it sets every
+// string as text. Where the link can show the site live, the press sends this page to its view page, under live/.
 
 const ENDINGS = {
   done: { title: 'Sent', hint: 'Back to your chat.' },
-  unconfirmed: { title: 'Sent, waiting for the site', hint: 'Don\'t pay again. Your chat will say how it went.' },
-  'not-accepted': { title: 'Not accepted', hint: 'The site kept its page. Back to your chat to see what it said.' },
+  'not-accepted': { title: 'Not sent', hint: 'A box could not be filled, so nothing was pressed. Back to your chat.' },
   closed: { title: 'This link has closed', hint: 'Ask your assistant for a new one.' },
   unknown: { title: 'This link has closed', hint: 'Back to your chat to see how it went.' },
 };
 const RECEIPT_EVERY_MS = 500;
 const VALUE_LIMIT = 256;
 const SOON_MS = 10 * 60_000;
+const LATE_S = 60;
 
 /** `Open until <time>` on this device's clock, `ahead` of it being the watcher's, and ` tomorrow` or the weekday past
  * today, while over ten minutes remain; then `Closes in N min`, rounded up; null once `closesAt` has passed. */
@@ -34,13 +34,20 @@ export function rowsOf(fields) {
   return rows;
 }
 
-/** The status line for the step a send is on, named by `/receipt`; the press names the site's own button. */
-export function stepText(step, submit) {
+/** The status line for the step a send is on, named by `/receipt`; the press names the site's own button. From the
+ * press, `seconds` counts up beside the site's name, and after a minute says not to pay again. */
+export function stepText(step, submit, { site = 'The site', seconds } = {}) {
+  if (step === 'pressing' || step === 'waiting') {
+    if (seconds >= LATE_S) return `${site} hasn't finished. Don't pay again unless it shows an error.`;
+    if (seconds >= 0) return `Paying ${site} · ${seconds} s`;
+  }
   return { typing: 'Typing your details…', pressing: `Pressing ${submit}…`, waiting: 'Waiting for the site…' }[step] ?? 'Sending…';
 }
 
 /** The closing screen for a receipt: a send with no receipt says to look in the chat. */
-export function ending(receipt) {
+export function ending(receipt, site = 'The site') {
+  if (receipt?.reason === 'page-changed') return { title: `${site}'s page changed. Nothing was sent.`, hint: 'Your chat will send you a new form.' };
+  if (receipt?.result === 'unconfirmed') return { title: `${site} hasn't finished`, hint: 'Don\'t pay again unless it shows an error. Your chat will say how it went.' };
   if (receipt?.result === 'done' && receipt.notification !== 'notified') return { ...ENDINGS.done, hint: 'Back to your chat, and say continue.' };
   return ENDINGS[receipt?.result] ?? (receipt ? ENDINGS.closed : ENDINGS.unknown);
 }
@@ -52,7 +59,9 @@ function start() {
   history.replaceState(null, '', location.pathname);
   const controls = [];
   let sending = false;
+  let leaving = false;
   let label = '';
+  let site;
 
   const status = text => { $('#status').textContent = text ?? ''; };
   const call = (path, body) => fetch(path, {
@@ -127,14 +136,20 @@ function start() {
     }
   }
 
-  /** Shows the step the send is on, asking `/receipt` every half second until `answered()`. */
+  /** Shows the step the send is on, asking `/receipt` every half second until `answered()`; at a press shown live,
+   * goes to the view page, with the key. */
   async function follow(answered) {
     for (;;) {
       await new Promise(done => setTimeout(done, RECEIPT_EVERY_MS));
       if (answered()) return;
       const response = await call('receipt');
-      const step = response?.status === 202 ? (await response.json().catch(() => null))?.step : null;
-      if (!answered() && step) status(stepText(step, label));
+      const { step, since, now } = (response?.status === 202 && (await response.json().catch(() => null))) || {};
+      if (answered() || !step) continue;
+      if (step === 'viewing') {
+        leaving = true;
+        return location.replace(`live/#${new URLSearchParams({ key })}`);
+      }
+      status(stepText(step, label, { site, seconds: since ? Math.floor((now - since) / 1000) : undefined }));
     }
   }
 
@@ -155,8 +170,9 @@ function start() {
       lock(false);
       return status('Check each box and try again.');
     }
+    if (leaving) return;
     const receipt = response?.ok ? (await response.json().catch(() => null))?.receipt : await lookUp();
-    end(ending(receipt));
+    if (!leaving) end(ending(receipt, site));
   });
 
   $('#done').addEventListener('click', async () => {
@@ -170,7 +186,9 @@ function start() {
     if (!key) return end(ENDINGS.closed);
     const response = await call('form');
     if (!response?.ok) return end(ENDINGS.closed);
-    const { closesAt, now, picture, ...view } = await response.json();
+    const { closesAt, now, picture, changed, ...view } = await response.json();
+    site = view.site;
+    if (changed) return end(ending({ result: 'not-accepted', reason: 'page-changed' }, site));
     draw(view);
     if (closesAt) countdown(closesAt, now ?? Date.now());
     controls[0]?.focus();

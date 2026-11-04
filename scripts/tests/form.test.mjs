@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import test from 'node:test';
-import { AUTOFILL_TOKENS, boxFor, checkForm, checkValues, describeForm, formRoutes, LIMITS, sendForm } from '../../.agents/skills/hand-over/scripts/form.mjs';
+import { refNames } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { AUTOFILL_TOKENS, boxFor, checkForm, checkValues, describeForm, formReady, formRoutes, LIMITS, sendForm } from '../../.agents/skills/hand-over/scripts/form.mjs';
 
 const CARD = {
   title: 'Pay City of Markham',
@@ -33,6 +34,7 @@ test('checkForm refuses each bad shape, naming where and why', () => {
   const whole = {
     'takes only': [{ ...CARD, html: '<b>' }],
     'title takes': [{ ...CARD, title: undefined }, { ...CARD, title: '' }, { ...CARD, title: long(LIMITS.title) }, { ...CARD, title: 'two\nlines' }, { ...CARD, title: 7 }],
+    'site takes': [{ ...CARD, site: '' }, { ...CARD, site: long(LIMITS.site) }, { ...CARD, site: 'two\nlines' }],
     'note takes': [{ ...CARD, note: '' }, { ...CARD, note: long(LIMITS.note) }, { ...CARD, note: ['a'] }],
     'fields takes 1 to 12 boxes': [{ ...CARD, fields: [] }, { ...CARD, fields: undefined }, { ...CARD, fields: 'card' }, { ...CARD, fields: Array(LIMITS.fields + 1).fill(box) }],
     'submit takes': [{ ...CARD, submit: undefined }, { ...CARD, submit: 'Pay' }, { ...CARD, submit: { label: 'Pay' } }, { ...CARD, submit: { label: '', target: '@e31' } }, { ...CARD, submit: { label: 'Pay', target: '--help' } }, { ...CARD, submit: { label: 'Pay', target: '@e31', value: 'x' } }],
@@ -72,6 +74,7 @@ test('describeForm gives the page labels, autofill names, and choices, never a t
   });
   assert.doesNotMatch(JSON.stringify(view), /@e\d|iframe|target/);
   assert.equal('note' in describeForm({ ...CARD, note: undefined }), false);
+  assert.equal(describeForm({ ...CARD, site: 'Example Shop' }).site, 'Example Shop', 'the site the status line names');
   assert.deepEqual(boxFor(), { autocomplete: '', type: 'text', inputmode: '' }, 'a box with no kind, such as a backup code');
   assert.deepEqual(boxFor('one-time-code'), { autocomplete: 'one-time-code', type: 'text', inputmode: 'numeric' });
   assert.deepEqual(boxFor('current-password'), { autocomplete: 'current-password', type: 'password', inputmode: '' });
@@ -112,11 +115,9 @@ function tools({ fail = () => false, reached = async () => true, was = 'Choose' 
   };
 }
 
-/** Sends CARD's values with `t`, resolving to the result; `t.putBack` keeps what the caller may run later. */
+/** Sends CARD's values with `t`, resolving to the result. */
 async function sent(t, form = CARD, values = VALUES) {
-  const { result, putBack } = await sendForm(form, values, t);
-  t.putBack = putBack;
-  return result;
+  return (await sendForm(form, values, t)).result;
 }
 
 // A dropdown is picked by its choice's text: camofox waits out its timeout before it tries a value.
@@ -145,15 +146,13 @@ test('sendForm starts the finish wait as the press is sent, not when the browser
   release();
   await new Promise(done => setImmediate(done));
   assert.deepEqual(t.steps, ['typing', 'pressing', 'waiting']);
-  assert.deepEqual(t.records.map(({ step, ok }) => [step, ok]), [...CARD.fields.map(() => ['fill', true]), ['finish', true], ['press', true]]);
+  assert.deepEqual(t.records.map(({ step, ok }) => [step, ok]), [['ready', true], ...CARD.fields.map(() => ['fill', true]), ['finish', true], ['press', true]]);
 });
 
-test('sendForm gives unconfirmed when pressed with no finish, and puts nothing back itself', async () => {
+test('sendForm gives unconfirmed when pressed with no finish, and leaves every typed box as it is', async () => {
   const t = tools({ reached: async () => false });
-  assert.equal(await sent(t), 'unconfirmed');
-  assert.deepEqual(t.log, [...FILLED, ...PRESSED], 'pressed once, nothing emptied: the site may still be paying');
-  await t.putBack();
-  assert.deepEqual(t.log.slice(-4), PUT_BACK, 'the caller may put each box back once the page kept still');
+  assert.deepEqual(await sendForm(CARD, VALUES, t), { result: 'unconfirmed' });
+  assert.deepEqual(t.log, [...FILLED, ...PRESSED], 'pressed once, nothing emptied: the site may have taken the card');
 });
 
 test('sendForm takes a ref in either spelling and a selector, passing each target on as written', async () => {
@@ -177,19 +176,16 @@ test('sendForm gives not-accepted, presses nothing, and puts back only what it c
   assert.equal(await sent(untyped), 'not-accepted');
   assert.deepEqual(untyped.log, [...FILLED, ...PUT_BACK], 'a box that failed mid-value is emptied too, though emptying it fails again');
   assert.deepEqual(untyped.steps, ['typing'], 'never pressing');
-  await untyped.putBack();
-  assert.equal(untyped.log.length, FILLED.length + PUT_BACK.length, 'nothing left to put back later');
 });
 
 test('sendForm puts a dropdown back on its placeholder, by its text, and leaves one that showed no text as it is', async () => {
-  const placeholder = tools({ was: 'Month', reached: async () => false });
-  assert.equal(await sent(placeholder), 'unconfirmed');
-  await placeholder.putBack();
+  const failsCode = (step, target) => step === 'type' && target === CVC;
+  const placeholder = tools({ was: 'Month', fail: failsCode });
+  assert.equal(await sent(placeholder), 'not-accepted');
   assert.deepEqual(placeholder.log.slice(-4), [PUT_BACK[0], ['select', '@e13', 'Month'], ['select', '@e14', 'Month'], PUT_BACK[3]]);
 
-  const t = tools({ was: '', reached: async () => false });
-  assert.equal(await sent(t), 'unconfirmed');
-  await t.putBack();
+  const t = tools({ was: '', fail: failsCode });
+  assert.equal(await sent(t), 'not-accepted');
   assert.deepEqual(t.log.slice(-2), [PUT_BACK[0], PUT_BACK[3]], 'camofox picks no choice with empty text, so only the text boxes are emptied');
 });
 
@@ -209,6 +205,7 @@ test('sendForm records each step\'s time with its index and kind, and never a va
   const t = tools({ fail: (step, target) => step === 'type' && target === CVC });
   await sent(t);
   assert.deepEqual(t.records.map(({ ms, ...rest }) => (assert.ok(Number.isInteger(ms) && ms >= 0), rest)), [
+    { step: 'ready', ok: true },
     { step: 'fill', index: 0, kind: 'cc-number', ok: true },
     { step: 'fill', index: 1, kind: 'cc-exp-month', ok: true },
     { step: 'fill', index: 2, kind: 'cc-exp-year', ok: true },
@@ -281,3 +278,102 @@ test('POST /send hands on only the values, and nothing to keep', async t => {
   assert.equal((await call('send', { values: VALUES, save: true })).status, 200);
   assert.deepEqual(heard, [VALUES]);
 });
+
+// A send checks every target before it types, and a page that changed presses nothing. No value here is a real card.
+
+const FORM = { title: 'Pay', site: 'Shop', fields: [{ label: 'Card', kind: 'cc-number', target: 'e1' }], submit: { label: 'Pay', target: 'e2' } };
+
+const PAGE = ['- textbox "Card" [e1]', '- button "Pay" [e2]'];
+
+/** A browser whose page shows `lines` and `shown` matches per selector, with the agent's last snapshot showing `seen`;
+ * it records each type and click. */
+function fakeBrowser(lines, { shown = {}, failType = false, seen = PAGE } = {}) {
+  const calls = [];
+  return {
+    calls,
+    names: () => refNames(seen.join('\n')),
+    snapshot: async () => ({ snapshot: lines.join('\n') }),
+    countShown: async selector => shown[selector] ?? 0,
+    type: async (target, text) => {
+      calls.push(['type', target, text]);
+      if (failType && text) throw new Error('no box');
+    },
+    click: async target => { calls.push(['click', target]); },
+  };
+}
+
+const send = (browser, form = FORM) => sendForm(form, ['test-value'], { browser, reached: async () => true, ready: () => formReady(form, browser) });
+
+test('a box gone from the page since open ends page-changed and types and presses nothing', async () => {
+  const browser = fakeBrowser(['- button "Pay" [e2]']);
+  const sent = await send(browser);
+  assert.equal(sent.result, 'not-accepted');
+  assert.equal(sent.reason, 'page-changed');
+  assert.deepEqual(browser.calls, []);
+});
+
+test('a box the site added above the targets moves each ref, so the send ends page-changed and touches nothing', async () => {
+  const browser = fakeBrowser(['- button "Accept cookies" [e1]', '- textbox "Card" [e2]', '- button "Pay" [e3]']);
+  const sent = await send(browser);
+  assert.deepEqual([sent.result, sent.reason], ['not-accepted', 'page-changed']);
+  assert.deepEqual(browser.calls, []);
+});
+
+test('a ref the agent never saw in a snapshot is not ready', async () => {
+  assert.equal(await formReady(FORM, fakeBrowser(PAGE, { seen: [] })), false);
+  assert.equal(await formReady(FORM, fakeBrowser(PAGE)), true);
+});
+
+test('a selector target counts only when shown; with all targets there the send types and presses', async () => {
+  const form = { ...FORM, submit: { label: 'Pay', target: '#pay' } };
+  const hidden = fakeBrowser(['- textbox "Card" [e1]']);
+  assert.equal(await formReady(form, hidden), false);
+  const browser = fakeBrowser(['- textbox "Card" [e1]'], { shown: { '#pay': 1 } });
+  const sent = await send(browser, form);
+  assert.equal(sent.result, 'done');
+  assert.deepEqual(browser.calls, [['type', 'e1', 'test-value'], ['click', '#pay']]);
+});
+
+test('a fill that fails puts the box back, presses nothing, and names the fill', async () => {
+  const browser = fakeBrowser(['- textbox "Card" [e1]', '- button "Pay" [e2]'], { failType: true });
+  const sent = await send(browser);
+  assert.deepEqual([sent.result, sent.reason], ['not-accepted', 'fill']);
+  assert.ok(!browser.calls.some(([step]) => step === 'click'));
+  assert.deepEqual(browser.calls.at(-1), ['type', 'e1', '']);
+});
+
+test('a press the site has not finished ends unconfirmed and leaves every typed box as it is', async () => {
+  const browser = fakeBrowser(['- textbox "Card" [e1]', '- button "Pay" [e2]']);
+  const sent = await sendForm(FORM, ['test-value'], { browser, reached: async () => false, ready: () => formReady(FORM, browser) });
+  assert.deepEqual(sent, { result: 'unconfirmed' });
+  assert.deepEqual(browser.calls, [['type', 'e1', 'test-value'], ['click', 'e2']]);
+});
+
+test('the form page on a changed site says so once, and the link ends after the reply', async () => {
+  let changed = 0;
+  const route = formRoutes(FORM, { ready: async () => false, onChanged: () => { changed++; } });
+  const answers = [];
+  for (let i = 0; i < 2; i++) {
+    const response = fakeResponse();
+    await route('/form', { method: 'GET' }, response);
+    answers.push(response.body());
+    response.emit('finish');
+  }
+  assert.equal(answers[0].changed, true);
+  assert.equal(answers[0].site, 'Shop');
+  assert.equal(answers[1].changed, undefined, 'a second read after the end is the plain form');
+  assert.equal(changed, 1);
+});
+
+/** A response that keeps its JSON and runs `finish` listeners when told. */
+function fakeResponse() {
+  const listeners = [];
+  let text = '';
+  return {
+    writeHead() { return this; },
+    end(body) { text = body; },
+    once(name, listener) { if (name === 'finish') listeners.push(listener); },
+    emit() { for (const listener of listeners.splice(0)) listener(); },
+    body: () => JSON.parse(text),
+  };
+}

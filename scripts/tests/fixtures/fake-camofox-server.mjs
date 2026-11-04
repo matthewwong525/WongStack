@@ -82,6 +82,14 @@ function evaluate(tab, expression) {
   if (expression === MARK_SCRIPT) return void (tab.focused && !has('focus-in-frame') && tab.marked.push(tab.focused));
   const querySelectorAll = selector => (parse(selector), Array.from({ length: has('count') ? Number(text('count')) : 1 }));
   if (expression.startsWith('(() => { try { return document.querySelectorAll(')) return new Function('document', `return ${expression}`)({ querySelectorAll });
+  // A shown count sees `count` matches with a size, of which `hidden-count` are hidden; page words are `page-text`.
+  if (expression.startsWith('(function shownCount(')) {
+    const hidden = has('hidden-count') ? Number(text('hidden-count')) : 0;
+    const shown = (_, at) => ({ getBoundingClientRect: () => ({ width: 300, height: 40 }), visibility: at < hidden ? 'hidden' : 'visible' });
+    const getComputedStyle = element => ({ visibility: element.visibility });
+    return new Function('document', `return ${expression}`)({ querySelectorAll: selector => querySelectorAll(selector).map(shown), defaultView: { getComputedStyle } });
+  }
+  if (expression.startsWith('(function hasWords(')) return new Function('document', `return ${expression}`)({ body: { innerText: has('page-text') ? text('page-text') : '' } });
   if (!/document\.querySelector\(".*"\)/.test(expression)) throw new Error(`the fake evaluates no such expression: ${expression}`);
   // A field read runs as written, on a page whose picked fields are dropdowns and the rest plain text boxes.
   const querySelector = selector => {
@@ -104,7 +112,8 @@ const STEPS = {
     if (isBox(body) && !has('box-ignores-click')) toggle(tab);
     // A click that redraws the page, so camofox's next read numbers other things.
     if (has('click-snapshot')) writeWhole('snapshot', text('click-snapshot'));
-    return send(response, 200, { ok: true });
+    // How the click landed, as browser-server.mjs says: `click-via` holds mouse, forced, or script.
+    return send(response, 200, { ok: true, url: tab.url, via: has('click-via') ? text('click-via') : 'mouse' });
   },
   async type(tab, body, response) {
     await held('hold-type');
@@ -135,6 +144,7 @@ const STEPS = {
     Object.assign(tab, { url: body.url, reads: 0 });
     return send(response, 200, { ok: true, tabId: tab.id, url: tab.url });
   },
+  front: (_, __, response) => send(response, 200, { ok: true }),
   evaluate: (tab, body, response) => send(response, 200, { ok: true, result: evaluate(tab, body.expression) }),
   viewport(tab, body, response) {
     if (has('fail-viewport')) return refuse(response, 500, 'viewport failed');

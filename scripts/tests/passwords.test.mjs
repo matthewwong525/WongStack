@@ -91,7 +91,7 @@ test('open --passwords serves the password page and touches no browser page', as
     let text = '';
     socket.on('data', chunk => { text += chunk; socket.destroy(); }).on('close', () => done(text));
   });
-  assert.match(upgrade, /^HTTP\/1\.1 404/, 'no live feed');
+  assert.equal(upgrade, '', 'no live feed: the socket is closed unanswered');
   assert.equal(f.camofox.starts(), 0);
 });
 

@@ -66,6 +66,7 @@ function stubPage(calls, yaml, frames = []) {
     keyboard: { type: async (text, options) => { calls.push(['keys', text, options]); }, press: async key => { calls.push(['press', key]); } },
     evaluate: async expression => ({ expression }),
     setViewportSize: async size => { calls.push(['viewport', size]); },
+    bringToFront: async () => { calls.push(['front']); },
     screenshot: async options => Buffer.from(`png full=${options.fullPage}`),
     close: async () => { closed = true; listeners.close?.(); },
     on: (event, listener) => { listeners[event] = listener; },
@@ -145,7 +146,7 @@ test('the snapshot marks boxes with refs, adds frames at the end, and a ref clic
     const text = '- heading "Pay"\n- button "Go" [e1]\n- button "Go" [e2]\n- textbox [e3]\n- iframe "js.stripe.com":\n  - textbox "Card number" [e4]\n  - button "Save" [e5]';
     assert.deepEqual(body, { url: 'https://shop.example.test/', snapshot: text, truncated: false, totalChars: text.length, hasMore: false, nextOffset: null, refsCount: 5 });
     const page = context.pages[0];
-    assert.deepEqual((await call('POST', `/tabs/${tabId}/click`, { userId: 'me', ref: 'e2' })).body, { ok: true, url: 'https://shop.example.test/' });
+    assert.deepEqual((await call('POST', `/tabs/${tabId}/click`, { userId: 'me', ref: 'e2' })).body, { ok: true, url: 'https://shop.example.test/', via: 'mouse' });
     assert.deepEqual(page.calls.at(-1), ['click', 'role:button:Go:true#1', { timeout: 3000 }]);
     // The click may change the page, so the next ref is read again, here from the frame.
     await call('POST', `/tabs/${tabId}/type`, { userId: 'me', ref: 'e4', text: '4242' });
@@ -156,14 +157,16 @@ test('the snapshot marks boxes with refs, adds frames at the end, and a ref clic
   } finally { await close(); }
 });
 
-test('a click past an overlay is forced, and then made by the page itself', async () => {
+test('a click past an overlay is forced, and then made by the page itself; the reply says which', async () => {
   const context = stubContext();
   const { call, close } = await serve(context);
   try {
     const { tabId } = (await open(call)).body;
     const page = context.pages[0];
+    page.main.clickFails = ['<div> intercepts pointer events'];
+    assert.equal((await call('POST', `/tabs/${tabId}/click`, { userId: 'me', selector: 'button.buy' })).body.via, 'forced');
     page.main.clickFails = ['<div> intercepts pointer events', 'Timeout 3000ms exceeded'];
-    await call('POST', `/tabs/${tabId}/click`, { userId: 'me', selector: 'button.buy' });
+    assert.equal((await call('POST', `/tabs/${tabId}/click`, { userId: 'me', selector: 'button.buy' })).body.via, 'script');
     assert.deepEqual(page.calls.slice(-3), [
       ['click', 'css:button.buy:visible', { timeout: 3000 }],
       ['click', 'css:button.buy:visible', { timeout: 3000, force: true }],
@@ -175,7 +178,7 @@ test('a click past an overlay is forced, and then made by the page itself', asyn
   } finally { await close(); }
 });
 
-test('type, select, press, evaluate, viewport and screenshot keep the camofox shapes', async () => {
+test('type, select, press, evaluate, viewport, front and screenshot keep the camofox shapes', async () => {
   const context = stubContext();
   const { call, close } = await serve(context);
   try {
@@ -193,6 +196,8 @@ test('type, select, press, evaluate, viewport and screenshot keep the camofox sh
     assert.deepEqual((await post('evaluate', { expression: 'location.href' })).body, { ok: true, result: { expression: 'location.href' } });
     assert.deepEqual((await post('viewport', { width: 800.4, height: 600 })).body, { ok: true, width: 800, height: 600 });
     assert.equal((await post('viewport', { width: 50, height: 600 })).status, 400);
+    assert.deepEqual((await post('front')).body, { ok: true });
+    assert.deepEqual(page.calls.at(-1), ['front']);
     const shot = await call('GET', `/tabs/${tabId}/screenshot?userId=me&fullPage=true`);
     assert.equal(shot.type, 'image/png');
     assert.equal(shot.body, 'png full=true');

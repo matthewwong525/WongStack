@@ -4,9 +4,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { refNames } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { finished, pageFault, seen, signInBoxes } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/hand-over/scripts/hand-over.mjs');
 const KEY = 'MAPS_API_KEY';
@@ -254,4 +257,278 @@ printf '{"status":"sent","agentId":"%s"}' "$2"
   assert.match(out.stdout, /^HANDOVER_NOTIFICATION=notified$/m);
   assert.equal(readFileSync(log, 'utf8'), 'agent-b\n');
   assert.ok(existsSync(join(a.dir, 'watcher.pid')), 'chat A\'s link stays open');
+});
+
+test('a hidden frame meets --until-gone, and --until-text holds only when the words show', async () => {
+  const page = { countShown: async () => 0, count: async () => 1, hasText: async words => words === 'Card saved', url: async () => 'https://shop.test/pay' };
+  assert.equal(finished({ untilGone: '#card-frame' }, await seen(page, { untilGone: '#card-frame' })), true);
+  assert.equal(finished({ untilText: 'Card saved' }, await seen(page, { untilText: 'Card saved' })), true);
+  assert.equal(finished({ untilText: 'Order placed' }, await seen(page, { untilText: 'Order placed' })), false);
+  assert.equal(finished({ untilText: 'Card saved' }, { text: null }), false, 'words that can not be read are not met');
+  assert.equal(finished({ until: 'https://shop.test/*', untilText: 'Order placed' }, { url: 'https://shop.test/pay', text: false }), false);
+});
+
+test('a finish met at open still refuses, and a page that can not be read is no page', async () => {
+  const page = { countShown: async () => 0, hasText: async () => true, url: async () => 'https://shop.test/pay' };
+  assert.equal(await pageFault(page, { untilText: 'Card saved' }, 'met'), 'met');
+  assert.equal(await pageFault({ ...page, hasText: async () => false }, { untilText: 'Card saved' }, 'met'), null);
+  const gone = { countShown: async () => { throw new Error('no tab'); } };
+  assert.match(await pageFault(gone, { untilGone: '#card-frame' }, 'met'), /No page is open/);
+});
+
+test('--sign-in takes up to three boxes, with a username or a password box', () => {
+  assert.deepEqual(signInBoxes('e1,e2,e3'), ['e1', 'e2', 'e3']);
+  assert.deepEqual(signInBoxes('e1,,e3'), ['e1', null, 'e3']);
+  assert.deepEqual(signInBoxes(',e2'), [null, 'e2', null]);
+  assert.equal(signInBoxes(',,e3'), null);
+  assert.equal(signInBoxes('e1,e2,e3,e4'), null);
+  assert.equal(signInBoxes('--until,e2'), null);
+});
+
+test('the sign-in flags go with a one-site password link only, and a finish comes with --sign-in', t => {
+  const c = fixture(t).chat('chat-a');
+  const refused = [
+    ['--keys', KEY, '--sign-in', 'e1,e2'],
+    ['--passwords', '--sign-in', 'e1,e2'],
+    ['--passwords', '--site', 'shop.test', '--until', 'https://shop.test/account*'],
+    ['--passwords', '--site', 'shop.test', '--sign-in', 'e1,e2'],
+    ['--passwords', '--site', 'shop.test', '--until-text', 'Hi', '--sign-in', ',,e3'],
+    ['--passwords', '--site', 'shop.test', '--until-text', 'one\ntwo', '--sign-in', 'e1,e2'],
+  ];
+  for (const args of refused) assert.equal(c.run('open', ...args).status, 2, args.join(' '));
+});
+
+const FORM = { title: 'Pay', site: 'Shop', fields: [{ label: 'Card', kind: 'cc-number', target: 'e1' }], submit: { label: 'Pay', target: 'e2' } };
+
+/** What the fake page answers to a read: its address, the shown count, whether its words show, or its size. */
+const evaluated = (b, expression) => (expression === 'location.href' ? b.url : expression.includes('function shownCount') ? b.shown
+  : expression.includes('function hasWords') ? b.text : expression === '[innerWidth, innerHeight]' ? [1280, 720] : expression.startsWith('[') ? [[], []] : 1);
+
+/** A fake browser server in the test's HOME, for session `pay`: a page at `url` with `lines`, `shown` matches of the
+ * finish, and `onClick`. It records every step but a read in `calls`; no real browser or site is reached. */
+async function fakeBrowser(t, f, page = {}) {
+  const b = { url: 'https://shop.test/pay', shown: 1, text: false, lines: ['- textbox "Card" [e1]', '- button "Pay" [e2]'], calls: [], onClick: () => {}, ...page };
+  const server = createServer(async (request, response) => {
+    let body = '';
+    for await (const chunk of request) body += chunk;
+    const data = body ? JSON.parse(body) : {};
+    const route = new URL(request.url, 'http://browser').pathname.split('/').at(-1);
+    const answer = value => response.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(value));
+    if (!['evaluate', 'snapshot', 'health'].includes(route)) b.calls.push({ route, ...data });
+    if (route === 'evaluate') return answer({ result: evaluated(b, data.expression) });
+    if (route === 'snapshot') return answer({ snapshot: b.lines.join('\n'), url: b.url, refsCount: b.lines.length, hasMore: false });
+    if (route === 'screenshot') return response.writeHead(200, { 'content-type': 'image/png' }).end(Buffer.from('png'));
+    if (route === 'click') b.onClick(data);
+    answer({ ok: true });
+  });
+  await new Promise(done => server.listen(0, '127.0.0.1', done));
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const dir = join(f.root, '.wong-stack/camoufox');
+  mkdirSync(join(dir, 'tabs'), { recursive: true });
+  writeFileSync(join(dir, 'server.json'), JSON.stringify({ pid: process.pid, port: server.address().port, display: ':99' }));
+  writeFileSync(join(dir, 'api-key'), 'test-key\n');
+  writeFileSync(join(dir, 'tabs', 'pay.json'), JSON.stringify({ tabId: 't1', url: b.url, names: refNames(b.lines.join('\n')) }));
+  return b;
+}
+
+/** Fake screen tools: an x11vnc that only opens its socket, and an xdotool that gives a 1280 by 720 screen. */
+function screenTools(f) {
+  f.viewTools();
+  writeFileSync(join(f.bin, 'xdotool'), '#!/bin/sh\n[ "$1" = getdisplaygeometry ] && echo "1280 720"\nexit 0\n');
+  writeFileSync(join(f.bin, 'x11vnc'), `#!${process.execPath}\nconst at = process.argv.indexOf('-unixsock');\nrequire('node:net').createServer(socket => socket.end()).listen(process.argv[at + 1]);\n`);
+  for (const name of ['xdotool', 'x11vnc']) chmodSync(join(f.bin, name), 0o755);
+}
+
+/** Opens `args` in `c` beside the test, which serves the fake browser; resolves to a keyed call on the link's page
+ * and the state it wrote. */
+async function openLink(c, ...args) {
+  const out = await c.start('open', ...args, '--session', 'pay', '--minutes', '5');
+  assert.equal(out.status, 0, out.stdout + out.stderr);
+  const state = JSON.parse(readFileSync(join(c.dir, 'state.json'), 'utf8'));
+  const call = async (path, body) => {
+    const response = await fetch(`http://127.0.0.1:${state.port}/${path}`, { method: body ? 'POST' : 'GET', headers: { 'x-hand-over-key': state.key, 'content-type': 'application/json' }, ...(body && { body: JSON.stringify(body) }) });
+    return { status: response.status, body: await response.json().catch(() => null) };
+  };
+  return { call, state };
+}
+
+const QUICK = { HANDOVER_SEND_WAIT_MS: '300', HANDOVER_SEND_POLL_MS: '50', HANDOVER_WATCH_MS: '300', BROWSE_LOGIN_WAIT_MS: '0' };
+const stepsOf = (b, route) => b.calls.filter(call => call.route === route);
+
+/** A card form open in `chat-a` with a live view free, its finish waited for `waitMs` after the press. */
+async function payLink(t, waitMs = QUICK.HANDOVER_SEND_WAIT_MS) {
+  const f = fixture(t);
+  screenTools(f);
+  const b = await fakeBrowser(t, f);
+  const c = f.chat('chat-a', { ...QUICK, HANDOVER_SEND_WAIT_MS: waitMs });
+  const form = join(f.root, 'form.json');
+  writeFileSync(form, JSON.stringify(FORM));
+  return { b, c, ...(await openLink(c, '--form', form, '--until-gone', '#card-frame')) };
+}
+
+test('a press shows the site live at its own size, and a finish met while viewing ends done', async t => {
+  const { b, c, call, state } = await payLink(t);
+  assert.equal(state.viewAfter, true);
+  const sent = await call('send', { values: ['test-value'] });
+  assert.deepEqual(sent.body.receipt, { result: 'unconfirmed', viewing: true });
+  const step = (await call('receipt')).body;
+  assert.equal(step.step, 'viewing');
+  assert.ok(step.since <= step.now);
+  const live = (await call('live/view')).body;
+  assert.deepEqual(live.live, { site: 'Shop', kind: 'pay', since: step.since, waitMs: 300 });
+  assert.deepEqual(live.fit, { kind: 'wide', width: 1280, screen: [1280, 720] });
+  const { view } = JSON.parse(readFileSync(join(c.dir, 'state.json'), 'utf8'));
+  assert.ok(existsSync(join(view.dir, 'screen.sock')), 'the screen source is up');
+  const first = await c.start('wait');
+  assert.match(first.stdout, /^HANDOVER_RESULT=unconfirmed$/m);
+  assert.match(first.stdout, /^HANDOVER_VIEWING=yes$/m);
+  b.shown = 0;
+  const final = await c.start('wait');
+  assert.match(final.stdout, /^HANDOVER_RESULT=done$/m);
+  assert.match(final.stdout, /^HANDOVER_COMPLETION=[0-9a-f]+:late$/m);
+  assert.deepEqual(stepsOf(b, 'viewport'), [], 'the page is never resized');
+  assert.ok(stepsOf(b, 'front').length >= 1, 'the page\'s own window is raised');
+  assert.deepEqual(stepsOf(b, 'type').map(each => each.text), ['test-value'], 'nothing is put back after a view');
+  assert.equal(stepsOf(b, 'click').length, 1);
+  assert.ok(!existsSync(view.dir), 'the screen source stopped');
+});
+
+for (const [way, end] of [['Done', ({ call }) => call('live/done', {})], ['close', ({ c }) => c.start('close')]]) {
+  test(`${way} on a payment's view before the finish ends it unconfirmed, as viewed`, async t => {
+    const link = await payLink(t);
+    assert.equal((await link.call('send', { values: ['test-value'] })).body.receipt.viewing, true);
+    assert.match((await link.c.start('wait')).stdout, /^HANDOVER_VIEWING=yes$/m);
+    await end(link);
+    const final = await link.c.start('wait');
+    assert.match(final.stdout, /^HANDOVER_RESULT=unconfirmed$/m);
+    assert.match(final.stdout, /^HANDOVER_REASON=viewed$/m);
+    assert.match(final.stdout, /^HANDOVER_COMPLETION=[0-9a-f]+:late$/m);
+    assert.deepEqual(stepsOf(link.b, 'type').map(each => each.text), ['test-value'], 'nothing is put back');
+  });
+}
+
+test('Done before the send\'s wait ends gives only the late result, as viewed', async t => {
+  const { b, c, call } = await payLink(t, '20000');
+  const sent = call('send', { values: ['test-value'] });
+  for (let i = 0; i < 100 && !stepsOf(b, 'click').length; i++) await pause(50);
+  assert.equal(stepsOf(b, 'click').length, 1, 'the card was pressed');
+  assert.equal((await call('live/done', {})).status, 200);
+  assert.deepEqual((await sent).body.receipt, { result: 'unconfirmed', viewing: true });
+  const only = await c.start('wait');
+  assert.match(only.stdout, /^HANDOVER_RESULT=unconfirmed$/m);
+  assert.match(only.stdout, /^HANDOVER_REASON=viewed$/m);
+  assert.match(only.stdout, /^HANDOVER_COMPLETION=[0-9a-f]+:late$/m);
+  assert.doesNotMatch(only.stdout, /^HANDOVER_VIEWING=yes$/m, 'no first result told the chat it was viewing');
+});
+
+test('a view held by another chat leaves the press to the status line and the watch, which empties nothing', async t => {
+  const f = fixture(t);
+  screenTools(f);
+  const b = await fakeBrowser(t, f);
+  f.place(join(f.home, 'links', 'chat-b'), { view: { display: ':99' }, cwd: join(f.root, 'chat-b') });
+  const c = f.chat('chat-a', QUICK);
+  const form = join(f.root, 'form.json');
+  writeFileSync(form, JSON.stringify(FORM));
+  const { call } = await openLink(c, '--form', form, '--until-gone', '#card-frame');
+  const sent = await call('send', { values: ['test-value'] });
+  assert.equal(sent.body.receipt.result, 'unconfirmed');
+  assert.equal(sent.body.receipt.watching, true);
+  assert.equal((await call('live/view')).status, 410, 'no view is served');
+  const first = await c.start('wait');
+  assert.match(first.stdout, /^HANDOVER_WATCHING=\d+$/m);
+  const final = await c.start('wait');
+  assert.match(final.stdout, /^HANDOVER_RESULT=unconfirmed$/m, 'a pressed send is never not-accepted');
+  assert.match(final.stdout, /^HANDOVER_REASON=no-answer$/m);
+  assert.deepEqual(stepsOf(b, 'type').map(each => each.text), ['test-value'], 'a still page keeps what was typed');
+  assert.deepEqual(readdirSync(f.home).filter(name => name.startsWith('screen-')), []);
+});
+
+test('a page that changed since open ends the form with page-changed, typing and pressing nothing', async t => {
+  const f = fixture(t);
+  const b = await fakeBrowser(t, f);
+  const c = f.chat('chat-a', QUICK);
+  const form = join(f.root, 'form.json');
+  writeFileSync(form, JSON.stringify(FORM));
+  const { call } = await openLink(c, '--form', form, '--until-gone', '#card-frame');
+  b.lines = ['- button "Pay" [e2]'];
+  assert.equal((await call('form')).body.changed, true);
+  const out = await c.start('wait');
+  assert.match(out.stdout, /^HANDOVER_RESULT=not-accepted$/m);
+  assert.match(out.stdout, /^HANDOVER_REASON=page-changed$/m);
+  assert.deepEqual([...stepsOf(b, 'type'), ...stepsOf(b, 'click')], []);
+});
+
+test('a view kept open stays through two address changes and ends done on I\'m finished', async t => {
+  const f = fixture(t);
+  screenTools(f);
+  const b = await fakeBrowser(t, f);
+  const c = f.chat('chat-a', QUICK);
+  const { call, state } = await openLink(c, '--view', '--keep-open', '--note', 'Tap Continue on DigiKey.');
+  assert.equal(state.view.keepOpen, true);
+  const shown = (await call('view')).body;
+  assert.equal(shown.keepOpen, true);
+  assert.equal(shown.note, 'Tap Continue on DigiKey.');
+  const pid = Number(readFileSync(join(c.dir, 'watcher.pid'), 'utf8'));
+  for (const url of ['https://shop.test/review', 'https://shop.test/receipt']) {
+    b.url = url;
+    await pause(200);
+    assert.ok(alive(pid), `still open at ${url}`);
+  }
+  assert.equal((await call('done', {})).status, 200);
+  const out = await c.start('wait');
+  assert.match(out.stdout, /^HANDOVER_RESULT=done$/m);
+  assert.ok(!existsSync(state.view.dir), 'the screen source stopped');
+});
+
+test('--keep-open goes with --view alone, and takes no finish', t => {
+  const c = fixture(t).chat('chat-a');
+  for (const args of [
+    ['--view', '--keep-open', '--until', 'https://shop.test/done*'],
+    ['--view', '--keep-open', '--until-gone', '#card'],
+    ['--view', '--keep-open', '--until-text', 'Thanks'],
+    ['--passwords', '--keep-open'],
+  ]) {
+    const out = c.run('open', ...args);
+    assert.equal(out.status, 2, args.join(' '));
+    assert.match(out.stderr, /--keep-open/);
+  }
+});
+
+const LOGIN_PAGE = ['- textbox "Email" [e1]', '- textbox "Password" [e2]', '- button "Sign in" [e3]'];
+const LOGIN = { url: 'https://shop.test/login', username: 'test@example.com', password: 'test-pass' };
+
+test('a one-site password link with no finish only saves, as before', async t => {
+  const f = fixture(t);
+  const b = await fakeBrowser(t, f, { url: LOGIN.url, lines: LOGIN_PAGE });
+  const c = f.chat('chat-a', QUICK);
+  const { call } = await openLink(c, '--passwords', '--site', 'shop.test');
+  const saved = await call('continue', { logins: [LOGIN] });
+  assert.equal(saved.body.ready, true);
+  assert.equal(saved.body.receipt?.signing, undefined);
+  const out = await c.start('wait');
+  assert.match(out.stdout, /^HANDOVER_RESULT=done$/m);
+  assert.match(out.stdout, /^HANDOVER_SAVED=shop-test$/m);
+  assert.deepEqual(stepsOf(b, 'type'), []);
+});
+
+test('a save with --sign-in signs in live from the save and ends done on the finish', async t => {
+  const f = fixture(t);
+  screenTools(f);
+  const b = await fakeBrowser(t, f, { url: LOGIN.url, lines: LOGIN_PAGE });
+  const c = f.chat('chat-a', QUICK);
+  const { call, state } = await openLink(c, '--passwords', '--site', 'shop.test', '--until', 'https://shop.test/account*', '--sign-in', 'e1,e2,e3');
+  assert.equal(state.viewAfter, true);
+  const saved = await call('continue', { logins: [LOGIN] });
+  assert.deepEqual(saved.body.receipt, { signing: true, site: 'shop.test' });
+  const first = await c.start('wait');
+  assert.match(first.stdout, /^HANDOVER_VIEWING=yes$/m);
+  const step = (await call('live/receipt')).body;
+  assert.equal(step.step, 'viewing');
+  assert.equal((await call('live/view')).body.live.kind, 'sign-in');
+  for (let i = 0; i < 100 && stepsOf(b, 'click').length < 1; i++) await pause(100);
+  assert.deepEqual(stepsOf(b, 'type').map(each => each.ref), ['e1', 'e2'], 'browse.mjs login typed the saved login');
+  b.url = 'https://shop.test/account';
+  const final = await c.start('wait');
+  assert.match(final.stdout, /^HANDOVER_RESULT=done$/m);
+  assert.deepEqual(stepsOf(b, 'viewport'), []);
 });
