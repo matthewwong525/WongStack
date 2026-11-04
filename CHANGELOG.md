@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A live reader for company knowledge
+## 46.1.0 — A live reader for company knowledge
 
 - **A Knowledge app on Home.** It lists every company knowledge page by folder, and opens each one as the newest save has it. A save from any chat shows on the next open, with no publish. Links between pages open in the app, and diagrams draw as pictures ([the knowledge reader](wiki/stack/knowledge-reader.md)).
 - **Search by words.** The box on the list finds a page by its title or its text, and shows the line that matched.
