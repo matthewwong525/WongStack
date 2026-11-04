@@ -9,6 +9,7 @@ import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
 import { offFile, stateOf } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { chatTitle, judgeLine, runJudge, stopCheck, tailOf } from '../../.agents/skills/daily/scripts/stop-check.mjs';
+import { needsYouFile } from '../../.agents/skills/daily/scripts/worker.mjs';
 import { ensureDaily } from '../../.agents/skills/memory/scripts/session-start.mjs';
 
 const SCRIPT = fileURLToPath(new URL('../../.agents/skills/daily/scripts/stop-check.mjs', import.meta.url));
@@ -166,6 +167,15 @@ test('no check-in while off, in a background run, with no person, or when ask-ch
   const asked = world();
   assert.equal((await asked.stop({ input: { stop_hook_active: false, last_assistant_message: typed } })).why, 'ask-check');
   for (const w of [off, runs, asked]) assert.deepEqual([w.judged, w.journal()], [[], []]);
+});
+
+test("a Needs you chat gets no check-in, and another chat still does", async () => {
+  const w = world();
+  mkdirSync(w.stateDir, { recursive: true });
+  writeFileSync(needsYouFile(w.stateDir), JSON.stringify({ counts: {}, opened: {}, chats: ['needs-1'] }));
+  assert.deepEqual(await w.stop({ env: { PASEO_AGENT_ID: 'needs-1' } }), { out: null, why: 'needs you' });
+  assert.deepEqual([w.judged.length, w.journal()], [0, []]);
+  assert.equal((await w.stop({ env: { PASEO_AGENT_ID: 'other-1' } })).why, 'keep-going');
 });
 
 test('the tail is the last 40 messages, cut to 60,000 characters and 100,000 bytes, with the last reply when the file lacks it', () => {

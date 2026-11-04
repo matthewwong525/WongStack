@@ -199,6 +199,30 @@ test('a board not read is said one time, and a done task is said once the board 
   assert.deepEqual(t.taken(), [['done', 'agent-job']]);
 });
 
+test("the service watch says each repeat failure as again, and read once a source reads again; a chat's watch says neither", async () => {
+  const t = day();
+  const boardEvents = () => t.lines.splice(0).filter(line => line.source === 'board')
+    .map(({ event, again }) => [event, ...(again ? ['again'] : [])]);
+  const service = now => t.once(now, { service: true, self: null });
+  await service(START);
+  assert.deepEqual(boardEvents(), [['read']]);
+  t.down(true);
+  await service(START + MIN);
+  await service(START + 2 * MIN);
+  assert.deepEqual(boardEvents(), [['not-read'], ['not-read', 'again']]);
+  t.down(false);
+  await service(START + 3 * MIN);
+  await service(START + 4 * MIN);
+  assert.deepEqual(boardEvents(), [['read']]);
+  const chat = day();
+  chat.down(true);
+  await chat.once(START);
+  await chat.once(START + MIN);
+  chat.down(false);
+  await chat.once(START + 2 * MIN);
+  assert.deepEqual(chat.lines.filter(line => line.source === 'board').map(line => line.event), ['not-read']);
+});
+
 test('the watch keeps its day after midnight, and ends when the next daily starts', async () => {
   const t = day();
   await t.once(START);
