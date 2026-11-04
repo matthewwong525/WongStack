@@ -37,4 +37,4 @@
 ## 6. Verification
 
 - [x] 6.1 Run the app's checks and `node .github/scripts/checks.mjs --worktree`; fix what fails
-- [ ] 6.2 `/save`, then on the preview: the Knowledge card opens and says knowledge is not set up (previews get no knowledge binding); `/public/<anything>` gives the not-found page with no sign-in; a teammate without the app is refused
+- [x] 6.2 `/save`, then on the preview: the Knowledge card opens and says knowledge is not set up (previews get no knowledge binding); `/public/<anything>`, reached through the check sign-in, gives the one not-found page with the strict headers

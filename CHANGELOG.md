@@ -11,7 +11,7 @@
 - **Pages marked public open for anyone.** A page whose first lines say `public: true` opens at `/public/<page>` with no sign-in. Every other path there says *not found*, so a private page's name never leaks. A public page leaves out pictures and shows diagrams as text.
 - **Page content never runs code.** Raw HTML and unsafe links in a page show as text.
 
-**Updating.** On the Access page, tick Knowledge for the people who should read company pages. Then run setup's Access step once, so pages marked public open with no sign-in ([public pages](wiki/stack/knowledge-reader.md#public-pages)). Until you do, each publish warns, and public pages stay behind the sign-in.
+**Updating.** On the Access page, tick Knowledge for the people who should read company pages. Then, once this update is live, run setup's Access step once, so pages marked public open with no sign-in. Not before: until then the publish check doesn't know the new route and refuses every publish ([public pages](wiki/stack/knowledge-reader.md#public-pages)). Until you do, each publish warns, and public pages stay behind the sign-in.
 
 ## 45.8.0 — Company knowledge in its own repo
 
