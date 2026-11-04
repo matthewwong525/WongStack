@@ -6,23 +6,42 @@
     "requirement": "The landing page says what each way to install costs",
     "scenario": "A visitor on a Mac reads the install section"
   },
-  "thenDigest": "63b4d05a547900eaa4e13e8d2d2cdcdc8461e36b56704880792424c5b99c7da3",
+  "thenDigest": "cb359e1ca4e19ba07378ae3eb1b60f1c13318e127160004289a400af71df799e",
   "probe": "browser",
   "site": "landing-preview",
   "writes": false,
   "sourcePaths": [
-    "README.md",
-    "site/index.html",
-    "site/src/Landing.tsx",
-    "site/src/Story.tsx",
-    "site/src/WorksWith.tsx",
-    "site/src/__snapshots__/apps.test.tsx.snap",
-    "site/src/apps.tsx",
-    "site/src/index.css",
-    "site/src/install.ts",
-    "site/src/mockups.tsx"
+    ".agents/skills/apply/SKILL.md",
+    ".agents/skills/apply/references/build-helper.md",
+    ".agents/skills/apply/scripts/preview-review.mjs",
+    ".agents/skills/hand-over/scripts/lib/inbox.mjs",
+    ".agents/skills/hand-over/scripts/lib/uploads.mjs",
+    ".agents/skills/hand-over/scripts/reply-link.mjs",
+    ".agents/skills/memory/references/areas.json",
+    ".agents/skills/plan/SKILL.md",
+    ".agents/skills/plan/references/drawings.md",
+    ".agents/skills/plan/references/review-kit.html",
+    ".agents/skills/plan/scripts/build-review.mjs",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    "app/src/apps/inbox/PlanView.tsx",
+    "app/src/apps/inbox/api.ts",
+    "app/src/apps/inbox/frame.ts",
+    "app/worker/api/contract.ts",
+    "app/worker/apps/inbox/api.ts",
+    "app/worker/apps/inbox/checkin.ts",
+    "app/worker/apps/inbox/file-rows.ts",
+    "app/worker/apps/inbox/files.ts",
+    "app/worker/apps/inbox/item-put.ts",
+    "app/worker/apps/inbox/item.ts",
+    "app/worker/apps/inbox/rows.ts",
+    "app/worker/apps/inbox/store.ts",
+    "app/worker/apps/inbox/tap-cancel.ts",
+    "app/worker/apps/inbox/tap-result.ts",
+    "app/worker/apps/inbox/tap.ts",
+    "schema/migrations/20261104120000_inbox_files.sql",
+    "site/attachments/plan-first.md"
   ],
-  "recordedAt": "80317a7dc63b6e9a22928b60078fc742f525f308",
+  "recordedAt": "567f42352b7fd378cb71a85453b76b4d783b6dae",
   "steps": [
     [
       "set",
@@ -32,7 +51,7 @@
     ],
     [
       "open",
-      "{url}"
+      "{url}/"
     ],
     [
       "wait",
@@ -43,10 +62,6 @@
       "get",
       "text",
       "body"
-    ],
-    [
-      "eval",
-      "(() => { const s=document.querySelector('.team-scene'); s.scrollIntoView({block:'center',behavior:'instant'}); return {copy:s.querySelector('.story-copy').getBoundingClientRect().toJSON(),conversation:s.querySelector('figure').getBoundingClientRect().toJSON(),gathering:[...s.querySelectorAll('.department-evidence > div')].map(x=>x.innerText)}; })()"
     ],
     [
       "eval",
@@ -76,13 +91,10 @@
   ],
   "expect": [
     {
-      "text": "Free: your project is kept in a free GitHub account, and your apps run in a free Cloudflare account."
+      "text": "your project is kept in a GitHub account, and your apps run on Cloudflare's paid plan, about $5 a month."
     },
     {
-      "text": "Cloudflare alone, on Mac or Linux"
-    },
-    {
-      "text": "about $5 a month"
+      "text": "Or keep everything in Cloudflare alone, on Mac or Linux: Cloudflare's paid plan, about $5 a month."
     }
   ]
 }
