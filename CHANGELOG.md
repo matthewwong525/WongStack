@@ -13,6 +13,10 @@
 
 **Updating.** Nothing to do.
 
+## 45.10.1 — Try a changed reply link without stopping the running one
+
+- **The reply-link guide says how to try a changed copy safely.** Run it with a temporary home folder and a stand-in `paseo`, so the computer's running helper and its open pages stay as they are ([reply links](wiki/development/reply-links.md#open-one-for-another-page)).
+
 ## 45.10.0 — Review pages that ask and run the real thing
 
 - **A live card runs the real page inside the review page.** The chat makes a page, such as a shop page or a small tool, and it runs sealed in its card, with no internet. Switch it between *Phone* and *Computer* width, or open it full screen. A card can have the chat's own control, such as *put these in order*, and your pick goes to the chat with your notes ([the live card](wiki/review-pages.md#the-live-card)).
