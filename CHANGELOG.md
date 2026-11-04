@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 45.9.0 — Review pages that ask and run the real thing
+## 45.10.0 — Review pages that ask and run the real thing
 
 - **A live card runs the real page inside the review page.** The chat makes a page, such as a shop page or a small tool, and it runs sealed in its card, with no internet. Switch it between *Phone* and *Computer* width, or open it full screen. A card can have the chat's own control, such as *put these in order*, and your pick goes to the chat with your notes ([the live card](wiki/review-pages.md#the-live-card)).
 - **A website is planned as a live prototype, and built from it.** For a site this app doesn't run, the chat writes the real files in the plan's `prototypes/` folder. Your notes change them, the build starts from the files you approved, and the check after it shows *Approved* beside *Built* ([a website prototype](wiki/review-pages.md#a-website-prototype)).
