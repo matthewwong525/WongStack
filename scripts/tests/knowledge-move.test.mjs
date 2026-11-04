@@ -178,6 +178,15 @@ test('move copies, relinks, lists the moves, and leaves both wikis whole', t => 
   assert.deepEqual(checkWiki(f.target, 'wiki'), []);
 });
 
+test('a moving page marked public arrives byte for byte, and the knowledge check passes it', t => {
+  const hub = `---\npublic: true\n---\n${WIKI_INSTALL['wiki/ops/README.md']}`;
+  const f = install(t, { ...WIKI_INSTALL, 'wiki/ops/README.md': hub });
+  mkdirSync(join(f.target, 'knowledge'));
+  assert.equal(move(f.options).status, 'moved');
+  assert.equal(readFileSync(join(f.target, 'knowledge/ops/README.md'), 'utf8'), hub);
+  assert.deepEqual(checkWiki(f.target, 'knowledge'), []);
+});
+
 test('a docs/ root with a docs-path folder maps shipped pages there, and a whole-wiki reader holds the move', t => {
   const files = {
     'docs/README.md': page('Docs', '- [Development](development/README.md)\n- [Ops](ops/plan.md)\n'),
