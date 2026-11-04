@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Your own pages move to the knowledge repo
+
+- **One update moves your pages, after one yes.** The update plan lists each of your own pages that moves from the code repo to the knowledge repo, by folder, with counts. Pages that WongStack ships stay in the code repo.
+- **Every link to a moved page is fixed.** Links in skills, rules, code comments, specs and other pages now point to the new place. A link that the update can't fix safely, such as a path that code builds as it runs, is a step on the plan for you to do.
+- **Pages your app reads stay with the code.** A page that the app or a script reads as it runs goes next to the code that reads it, so the app works the same.
+- **No edit is lost while the update waits.** Just before the update goes live, it copies each page that changed in the code repo since the move. If the same page changed in both places, it stops and names the page.
+- **An old chat can't bring a page back.** The wiki check fails on a page at a moved path and names its new place. `.agents/knowledge-moves.json` maps each old path to its new place, and `memory.mjs areas <old path>` prints it.
+
+**Updating.** Say yes to the list of pages in the update plan. The update moves the pages and fixes the links. Look at the steps it lists for you, do them, then publish. If your app shows your pages from the code repo, the pages wait: they move in the update that brings the live reader.
+
 ## 45.8.0 — Company knowledge in its own repo
 
 - **Company pages go live at once.** The team's own pages, such as people, customers and how the company works, now live in a repository of their own in Cloudflare, not in the code repository. A save makes them live for the team at once, with no pull request and no wait for checks. Pages about the code stay in `wiki/` ([company knowledge](wiki/stack/company-knowledge.md)).

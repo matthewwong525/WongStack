@@ -643,3 +643,30 @@ test('company API updates inventory new support while preserving a customized le
   assert.equal(record.components.memory.worker, 'https://installed.example.com/_memory'); assert.equal(record.components.companyApi, undefined);
   assert.ok(!JSON.stringify(report).includes('installed-private-value'));
 });
+
+test('own wiki pages ask for the knowledge move before 45.8.0 or while held, until a moves list exists', t => {
+  const arrange = (files, record = { version: '26.0.0' }) => {
+    const f = fixture(t, { manifest: inventory({ seededBySetup: { files: ['wiki/README.md'] } }) });
+    f.updateRecord(record);
+    currentLayout(f);
+    for (const [path, body] of Object.entries(files)) write(f.target, path, body);
+    return f;
+  };
+  const reasons = (files, record) => arrange(files, record).inspect().catchUp.reasons;
+  assert.deepEqual(reasons({ 'wiki/README.md': '# Wiki\n' }), [], 'a shipped-only wiki');
+
+  const files = { 'wiki/README.md': '# Wiki\n', 'wiki/ops/cash.md': '# Cash\n', 'wiki/ops/data.csv': 'a\n', 'wiki/notes.md': '# Notes\n' };
+  const asked = [{ code: 'own-pages', paths: ['wiki/notes.md', 'wiki/ops'] }];
+  assert.deepEqual(reasons(files), asked, 'an install from before the knowledge repo');
+  assert.deepEqual(reasons(files, { version: '45.8.0' }), [], '45.8.0 keeps its own code pages in wiki/');
+  assert.deepEqual(reasons(files, { version: '46.1.0', components: { skills: ['alpha'], knowledgeMove: 'held' } }), asked, 'a held move');
+  const docs = { 'docs/README.md': '# Docs\n', 'docs/ops/cash.md': '# Cash\n' };
+  const heldInDocs = { version: '46.1.0', components: { skills: ['alpha'], docsPath: 'docs/development', knowledgeMove: 'held' } };
+  assert.deepEqual(reasons(docs, heldInDocs), [{ code: 'wiki-elsewhere', paths: ['docs/development'] }, { code: 'own-pages', paths: ['docs/README.md', 'docs/ops'] }],
+    'a held move kept docsPath, so its own pages in docs/ are still found');
+
+  const own = arrange(files);
+  write(own.target, '.agents/knowledge-moves.json', JSON.stringify({ version: 1, base: 'abc', moves: { 'wiki/notes.md': 'knowledge/notes.md' } }));
+  rmSync(join(own.target, 'wiki/notes.md'));
+  assert.deepEqual(own.inspect().catchUp.reasons, [], 'a moves list, even one that lists fewer pages than the wiki holds');
+});

@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** blocked (on company-knowledge-repo and live-knowledge-reader shipping)
+**Status:** in-progress
 **Branch:** decent-shark
 **Open questions:** none
 
@@ -31,6 +31,12 @@ Company knowledge gets its own repo, but older installs keep theirs in the code 
     m --> f[fix links]
     f --> h[hand steps]
     h --> c[checks]
+  ```
+- **An install whose app shows its pages waits for the live reader.** ClaymooApp's app shows its pages from the code repo today. Its update lists the pages and says the move waits until WongStack ships the live reader, so its docs view never goes empty. WongOS has no such view and moves at its next update.
+  ```text
+  Your pages wait to move: 265 pages
+  Your app shows them from the code today.
+  They move when the live reader is ready.
   ```
 - **Pages that your app reads stay with the code.** A page that the app or a script reads as it runs, such as ClaymooApp's tutorial prompts or WongOS's profile, goes to a folder next to the code that reads it. The app keeps working the same, and an edit to it goes through the checks, as a code edit does.
   ```text
@@ -69,7 +75,7 @@ Company knowledge gets its own repo, but older installs keep theirs in the code 
 
 Non-goals: no change to what a page says; no cut of pages that only explain code (the weekly tidy does that later); no change to past plans or finished changes; no history carried into the knowledge repo; new installs (the knowledge repo plan sets them up); the app's live reader (its own plan).
 
-Builds on: *The knowledge repo* (workspace pale-parrot) and *A live reader in the app* (workspace "Live reader for company knowledge"). This part starts building after both ship.
+Builds on: *The knowledge repo* (shipped, 45.8.0). An install whose app shows its pages also needs *A live reader in the app* (workspace "Live reader for company knowledge", not built yet).
 
 ## Capabilities
 
@@ -84,7 +90,7 @@ Builds on: *The knowledge repo* (workspace pale-parrot) and *A live reader in th
 - New `.agents/skills/wong-sync/scripts/knowledge-move.mjs`: dry run, move, and recopy; tests in `scripts/tests/`.
 - `.agents/skills/wong-sync/references/catch-up.md`: the new step.
 - `.agents/skills/memory/scripts/lib/links.mjs` (the wiki check): fails on a page at a moved path.
-- `wiki/`: the moved-pages list, in the knowledge repo's page.
+- `wiki/stack/company-knowledge.md`: moving an older install's pages, and old paths.
 - `openspec/specs/wong-sync/spec.md`, `CHANGELOG.md` (major).
 - Downstream: ClaymooApp and WongOS run the move through their next `/wong-sync`; WongOS's 7 links into ClaymooApp's pages get a hand step.
 
@@ -101,3 +107,12 @@ Builds on: *The knowledge repo* (workspace pale-parrot) and *A live reader in th
 - **2026-11-03** — Assumed: past plans, finished changes and memory facts keep their old paths, and the moves list resolves them, because records are never changed.
 - **2026-11-03** — Assumed: a `major` release, because pages leave the code repo and paths that install code reads change.
 - **2026-11-03** — Asked, at `/ship`, what to do while the two parts this builds on are unshipped plans → chose to save only the plan now and build after both go live.
+- **2026-11-04** — Asked, at `/ship` after the knowledge repo shipped (45.8.0) and the live reader had not, whether to build now → chose to build and publish now, and hold the move of an install whose app shows its pages from the code repo until the live reader ships.
+- **2026-11-04** — Assumed: pages move to `knowledge/<same path below the wiki root>` with ordinary relative links, by 45.8.0's shipped forms; a moved page's links into the code need no rewrite, because `knowledge/` sits at the wiki root's depth.
+- **2026-11-04** — Assumed: an own file that is not a page or a picture stays in the code repo, because the knowledge repo refuses it.
+- **2026-11-04** — Assumed: the script makes no git commit and no knowledge save; the update's task saves once the link checks pass, because `/save` owns git and the knowledge save refuses a broken tree.
+- **2026-11-04** — Assumed: the update asks to move own pages only for an install from before 45.8.0, or one whose record says `components.knowledgeMove: 'held'`, and never once a moves list exists, because from 45.8.0 an install keeps its own pages about its code in `wiki/` by design, and a count of own pages would move them.
+- **2026-11-04** — Assumed: when the update also moves WongStack's pages out of `docs/`, that step runs first and the knowledge move second, so moved pages link shipped pages at their final place in `wiki/`; this replaces the 2026-11-03 order.
+- **2026-11-04** — Assumed: a string in code equal to a moved path is a hand step, not rewritten, because code may read it on another line, where the scan can't see the read; comments and prose still get rewritten.
+- **2026-11-04** — Assumed: a whole-wiki pattern holds the move only when code runs it, because a comment that names such a pattern reads nothing; JSDoc `/**` lines count as comments, and the plan lists one hand step per line and reason.
+- **2026-11-04** — Assumed: while the knowledge move is held, moving WongStack's pages out of `docs/` is held too, and the record keeps `docsPath`, because without it the next update looks for own pages in `wiki/`, finds none, and never moves the pages in `docs/`; both moves run together in the update that does the knowledge move.

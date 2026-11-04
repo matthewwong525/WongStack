@@ -35,6 +35,11 @@ When an install's wiki holds pages WongStack does not ship, sync's plan SHALL li
 - **WHEN** the install's app imports a prompt page from its wiki at build time
 - **THEN** the plan moves that page next to the code that imports it, in the code repo, and the app builds and reads it as before
 
+#### Scenario: The app shows the wiki and no live reader ships yet
+
+- **WHEN** the install's app shows its pages by bundling the whole wiki, and WongStack ships no live reader of the knowledge repo
+- **THEN** the plan lists the pages and says the move waits for the live reader, and nothing moves
+
 ### Requirement: Links to moved pages are fixed or named
 
 The move SHALL fix every link and path that names a moved page, in skills, rules, code, live specs and the code repo's remaining pages, and every link from a moved page back into the code repo. A reference the move can't fix safely SHALL become a named hand step on the plan, and the update SHALL NOT publish while a check finds a link to a page that is gone. Past plans, finished changes and memory facts SHALL keep their old paths.
@@ -60,4 +65,4 @@ The code repo SHALL keep a list mapping each moved path to its place in the know
 #### Scenario: An old chat edits a moved page
 
 - **WHEN** a chat opened before the move saves an edit to `docs/ops/cashflow-forecast.md` after the move published
-- **THEN** its check fails and names `ops/cashflow-forecast.md` in the knowledge repo as the page's new place
+- **THEN** its check fails and names `knowledge/ops/cashflow-forecast.md` as the page's new place

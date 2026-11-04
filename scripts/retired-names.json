@@ -36,7 +36,7 @@
   {"name": "dependency-currency", "replacement": "the `dependencies` spec"},
   {"name": "#the-prose-allowlist", "replacement": "`wiki/development/the-change-loop.md#the-gate`"},
   {"name": "prose-save.md", "replacement": "`save/references/facts-save.md`"},
-  {"name": "docsPath", "replacement": "WongStack's pages stay under `wiki/`", "allow": [".agents/skills/wong-sync/scripts/preflight.mjs", ".agents/skills/wong-sync/references/catch-up.md", "scripts/tests/wong-sync-preflight.test.mjs"], "why": "catching up an install from before 19.0.0 reads the old record field to move its pages back under `wiki/`"},
+  {"name": "docsPath", "replacement": "WongStack's pages stay under `wiki/`", "allow": [".agents/skills/wong-sync/scripts/preflight.mjs", ".agents/skills/wong-sync/references/catch-up.md", "scripts/tests/wong-sync-preflight.test.mjs", "scripts/tests/knowledge-move.test.mjs"], "why": "catching up an install from before 19.0.0 reads the old record field to move its pages back under `wiki/`"},
   {"name": "app/src/App.tsx", "replacement": "`app/src/router.tsx` and `app/src/pages/home/Home.tsx`", "allow": [".agents/skills/wong-sync/references/payload-manifest.md"], "why": "the tutorial rule checks a target still on the flat layout"},
   {"name": "app/public/style.css", "replacement": "`app/src/index.css`, the one stylesheet, with Tailwind classes on each screen"},
   {"name": "development/home.md", "replacement": "`wiki/development/browsing.md` for the browser, and `wiki/development/memory.md#who-sees-what` for memory"},
