@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // /daily's commands; each prints JSON. The model judges; this script holds the limits a model could drift past.
 // wiki/development/daily.md
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { closeSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,13 +14,16 @@ import { loadConfig, memoryOrigin, repoContext, signIn, signInHelp } from '../..
 import { runAddons } from './addons.mjs';
 import { boardCalls, boardClient } from './board.mjs';
 import { BUCKETS, HAND_SOURCES, allow, answer, chiefDay, chiefEnv, close, doneAgent, hand, mark, noteEnd, paseoCli, readJson,
-  remind, reply, status, todoLink, watch, watchStops, writeJson } from './chief.mjs';
-import { SettingsError, addDays, loadSettings, localDay, mondayOf, occurrence, placePath, settingsFiles, settingsFor, slotOf } from './config.mjs';
+  remind, reply, serviceAlive, status, todoLink, writeJson } from './chief.mjs';
+import { RUN_AGENTS, SettingsError, addDays, defaultSettings, loadSettings, localDay, mondayOf, occurrence, placePath, settingsFor,
+  slotOf } from './config.mjs';
 import { addLine, format, hookOutput, newLines, readLines } from './journal.mjs';
-import { serveDaily } from './worker.mjs';
+import { dailyChat, isDaily, readChat } from './transcript.mjs';
+import { alive, dropServeLock, loadSweeps, lockedBy, serveDaily, stopGroup, takeServeLock } from './worker.mjs';
 
 const LAUNCHER = fileURLToPath(new URL('../../schedule/scripts/workspace.mjs', import.meta.url));
 const REPO = fileURLToPath(new URL('../../../../', import.meta.url));
+const SELF = fileURLToPath(import.meta.url);
 const KEPT = 400;
 const ROWS = 30;
 const run = promisify(execFile);
@@ -37,7 +40,8 @@ function appOrigin(ctx) {
   try { return memoryOrigin(loadConfig(ctx)); } catch { return null; }
 }
 
-/** The settings file: `--config`, else the only one, else the one with the git email, else the sign-in email. */
+/** The settings file: `--config`, else the one whose `emails` hold the git email, else the sign-in email. A lone file
+ * that lists neither is another person's. */
 export function who({ repo = REPO, ctx = repoContext(repo), origin = appOrigin(ctx), signedIn = signIn, config = null } = {}) {
   let me;
   if (origin) {
@@ -47,13 +51,24 @@ export function who({ repo = REPO, ctx = repoContext(repo), origin = appOrigin(c
   } else {
     me = { source: 'git', state: ctx.author ? 'valid' : 'missing', email: ctx.author || null, origin: null, days: null, login: null };
   }
-  const files = settingsFiles(repo);
-  const file = config ? resolve(config) : files.length === 1 ? files[0].file : settingsFor(repo, ctx.author) ?? settingsFor(repo, me.email);
+  const file = config ? resolve(config) : settingsFor(repo, ctx.author) ?? settingsFor(repo, me.email);
   let settings = null, error = null;
   if (file) { try { settings = loadSettings(file, repo); } catch (failed) { error = failed.message; } }
   return { ...me, file: file ?? null, person: settings?.person ?? null, team: settings?.teamFile ?? null, guide: settings?.guide ?? null,
     ...(error ? { error } : {}) };
 }
+
+/** `{me, config}`: the person's settings file, else the defaults from the sign-in email while it is good, else the git
+ * email; `config` is null with neither. */
+export function personSettings({ repo = REPO, ctx = repoContext(repo), ...rest } = {}) {
+  const me = who({ repo, ctx, ...rest });
+  if (me.file) return { me, config: loadSettings(me.file, repo) };
+  const email = (me.source === 'sign-in' && ['valid', 'near'].includes(me.state) && me.email) || ctx.author || null;
+  return { me, config: email ? defaultSettings({ email }) : null };
+}
+
+/** This repo's state folder for the person's settings. */
+export const stateOf = (config, repo = REPO, root) => stateDirectory(primaryRoot(repo).primary, config.person, root);
 
 // ---------------------------------------------------------------------------
 // The started record: one row per routine, task or morning that started, under a file lock
@@ -368,7 +383,8 @@ export async function openDaily({ config, project, stateDir, now = new Date(), c
 
 const USAGE = `usage: daily.mjs who | start [--dry-run] [--report] | picture | open-daily [--dry-run]
        daily.mjs start-task --id <task id> [--note <words>] | remind --day <YYYY-MM-DD> --text <words>
-       daily.mjs watch [--seconds 60] [--hours 24] [--once] | serve [--seconds 60] [--once] [--dry-run] | status
+       daily.mjs serve [--agent claude|codex] [--seconds 60] [--once] [--dry-run] | ensure [--agent claude|codex] | status
+       daily.mjs checkins off | checkins on
        daily.mjs journal [--new] | journal --line <words> [--run <id>]
        daily.mjs hand --agent <id|title|workspace> [--source handed|asked] | close --agent <a>
        daily.mjs reply --agent <a> --file <text file> --bucket keep-going|pick|person --label <line> [--mark <mark>]
@@ -378,7 +394,8 @@ const USAGE = `usage: daily.mjs who | start [--dry-run] [--report] | picture | o
        daily.mjs mark | journal --hook
   each but the two hooks takes --config <settings file>; a hook never fails; chief-service is serve`;
 const FLAGS = { who: [], start: ['dry-run', 'report'], picture: [], 'open-daily': ['dry-run'], 'start-task': ['id', 'note'], remind: ['day', 'text'],
-  watch: ['seconds', 'hours', 'once'], serve: ['seconds', 'once', 'dry-run'], journal: ['new', 'line', 'run'], status: [], hand: ['agent', 'source'], close: ['agent'],
+  serve: ['agent', 'seconds', 'once', 'dry-run'], ensure: ['agent'], 'checkins off': [], 'checkins on': [], journal: ['new', 'line', 'run'], status: [],
+  hand: ['agent', 'source'], close: ['agent'],
   reply: ['agent', 'file', 'bucket', 'label', 'mark'], answer: ['agent', 'request', 'file', 'bucket', 'label'], allow: ['agent', 'request', 'bucket', 'label'],
   'done-agent': ['agent', 'proof'], 'todo link': ['agent', 'url'], 'note-end': ['line'] };
 const NEEDS = { 'start-task': ['id'], remind: ['day', 'text'], hand: ['agent'], close: ['agent'], reply: ['agent', 'file', 'bucket', 'label'],
@@ -390,20 +407,21 @@ const REFUSED = new Set(['refused', 'unknown', 'ambiguous', 'failed', 'not confi
 /** The command line as `{command, values}`; a wrong one exits with the usage. */
 export function readArgs(args) {
   const { values, positionals } = parseCli({ usage: USAGE, allowPositionals: true, args, options: Object.fromEntries([
-    ...['config', 'seconds', 'hours', 'id', 'note', 'agent', 'source', 'file', 'bucket', 'label', 'request', 'day', 'text', 'mark', 'proof', 'url', 'line',
+    ...['config', 'seconds', 'id', 'note', 'agent', 'source', 'file', 'bucket', 'label', 'request', 'day', 'text', 'mark', 'proof', 'url', 'line',
       'run'].map(name => [name, { type: 'string' }]),
     ...['dry-run', 'once', 'report', 'new'].map(name => [name, { type: 'boolean' }])]) });
   const [first, ...extra] = positionals;
-  const named = first === 'todo' ? `${first} ${extra.shift()}` : first;
+  const named = ['todo', 'checkins'].includes(first) ? `${first} ${extra.shift()}` : first;
   const command = named === 'chief-service' ? 'serve' : named;
   const flags = Object.keys(values).filter(name => name !== 'config');
   if (!Object.hasOwn(FLAGS, command) || extra.length || flags.some(flag => !FLAGS[command].includes(flag)) || (NEEDS[command] ?? []).some(flag => !values[flag])) {
     usageError(USAGE);
   }
-  for (const [name, low, high, fallback] of [['seconds', 5, 3600, 60], ['hours', 1, 24, 24]]) {
-    const value = values[name] === undefined ? fallback : Number(values[name]);
-    if (!Number.isInteger(value) || value < low || value > high) usageError(USAGE, `--${name} must be a whole number from ${low} to ${high}.`);
-    values[name] = value;
+  const seconds = values.seconds === undefined ? 60 : Number(values.seconds);
+  if (!Number.isInteger(seconds) || seconds < 5 || seconds > 3600) usageError(USAGE, '--seconds must be a whole number from 5 to 3600.');
+  values.seconds = seconds;
+  if (['serve', 'ensure'].includes(command) && values.agent !== undefined && !RUN_AGENTS.includes(values.agent)) {
+    usageError(USAGE, `--agent takes ${RUN_AGENTS.join(', ')}.`);
   }
   if (values.bucket !== undefined && !BUCKETS.includes(values.bucket)) usageError(USAGE, `--bucket takes ${BUCKETS.join(', ')}.`);
   if (command === 'allow' && values.bucket === 'pick') usageError(USAGE, '--bucket takes keep-going or person.');
@@ -413,7 +431,7 @@ export function readArgs(args) {
 
 /** Each command, over the settings, the checkout, the state folder and the injected calls. */
 export function commands({ config, project, stateDir, values, call, board, origin = () => board.origin(), env = process.env, addons = runAddons,
-  print = console.log }) {
+  print = console.log, warn = console.error, keep = () => ensure({ env }), hasFile = false }) {
   const started = () => startedRecord(stateDir).read();
   const daily = dailyRecord(stateDir);
   const at = { stateDir, started, timezone: config.timezone };
@@ -425,7 +443,7 @@ export function commands({ config, project, stateDir, values, call, board, origi
   const passAddons = config.addons?.pass?.length
     ? events => addons({ list: config.addons.pass, repo: project, context: { ...addonContext(config, project, localDay(new Date(), config.timezone), 'pass'), events } })
     : null;
-  const watching = { board: board.tasks, todos: config.sources.tasks ? board : null, addons: passAddons, stops: notice => watchStops(env, notice) };
+  const todos = config.sources.tasks ? board : null;
   const said = () => ({ agent: values.agent, text: readFileSync(values.file, 'utf8'), bucket: values.bucket, label: values.label });
   return {
     start: () => (values.report ? startReport({ config, stateDir }) : start({ config, project, stateDir, dryRun: Boolean(values['dry-run']), env, addons })),
@@ -433,26 +451,30 @@ export function commands({ config, project, stateDir, values, call, board, origi
     'open-daily': () => openDaily({ config, project, stateDir, call, dryRun: Boolean(values['dry-run']) }),
     'start-task': () => startTask({ config, project, stateDir, id: values.id, note: values.note, board }),
     remind: () => remind({ day: values.day, text: values.text, today: localDay(new Date(), config.timezone), add: board.add }),
-    watch: async () => {
-      const context = await chief();
-      await watch({ ...context, ...watching, ignore: [context.dailyId].filter(Boolean), seconds: values.seconds, hours: values.hours, once: Boolean(values.once) });
-    },
     // A dry run works on a copy of the state, so the live service's watch and queue see nothing taken.
     serve: async () => {
       const dryRun = Boolean(values['dry-run']);
+      if (!dryRun && !takeServeLock({ stateDir })) { warn('Another daily worker runs for this person and repo.'); return; }
       const dir = dryRun ? mkdtempSync(join(tmpdir(), 'daily-serve-')) : stateDir;
       // A job's copy of the repo stays out: the dry run never runs in it.
       if (dryRun && existsSync(stateDir)) cpSync(stateDir, dir, { recursive: true, filter: from => from !== join(stateDir, 'copies') });
       try {
         await serveDaily({ config, project, stateDir: dir, call, env, seconds: values.seconds, once: Boolean(values.once), dryRun, print: item => print(JSON.stringify(item)),
-          started: () => startedRecord(dir).read(), daily: dailyRecord(dir),
-          watching: { board: board.tasks, ...(!dryRun && { todos: watching.todos, addons: passAddons }) } });
-      } finally { if (dryRun) rmSync(dir, { recursive: true, force: true }); }
+          started: () => startedRecord(dir).read(), daily: dailyRecord(dir), ...(values.agent && { agent: values.agent }),
+          watching: { board: board.tasks, ...(!dryRun && { todos, addons: passAddons }) } });
+      } finally { if (dryRun) rmSync(dir, { recursive: true, force: true }); else dropServeLock(stateDir); }
+    },
+    'checkins off': () => checkinsOff({ stateDir, timezone: config.timezone }),
+    'checkins on': () => {
+      rmSync(offFile(stateDir), { force: true });
+      addLine({ stateDir, timezone: config.timezone, line: 'Check-ins on.', kind: 'checkins' });
+      return { state: 'on', worker: keep().state };
     },
     journal: () => {
       if (values.line) return addLine({ stateDir, timezone: config.timezone, line: values.line, run: values.run, kind: values.run ? 'end' : 'note' });
       const text = values.new
-        ? newLines({ stateDir, timezone: config.timezone, agentId: env.PASEO_AGENT_ID, dailyId: daily.read().agentId, run: Boolean(env.WONG_DAILY_RUN) })
+        ? (env.WONG_DAILY_RUN ? null : [hasFile && newDay({ config, stateDir }), newLines({ stateDir, timezone: config.timezone, key: chatKey(env) })]
+          .filter(Boolean).join('\n'))
         : readLines({ stateDir }).map(entry => format(entry, config.timezone)).join('\n');
       if (text) print(text);
     },
@@ -468,36 +490,111 @@ export function commands({ config, project, stateDir, values, call, board, origi
   };
 }
 
-/** The prompt hook: the Daily agent's new journal lines, found with no sign-in check; any other chat gets ''. */
-export function journalHook({ env = process.env, repo = REPO, root } = {}) {
-  const agentId = env.PASEO_AGENT_ID;
-  if (!agentId || env.WONG_DAILY_RUN) return '';
-  const base = stateDirectory(primaryRoot(repo).primary, '', root);
-  for (const person of readdirSync(base)) {
-    const stateDir = join(base, person);
-    if (dailyRecord(stateDir).read().agentId !== agentId) continue;
-    const file = settingsFiles(repo).find(entry => readJson(entry.file, {}).person === person)?.file;
-    return file ? hookOutput(newLines({ stateDir, timezone: loadSettings(file, repo).timezone, agentId, dailyId: agentId })) : '';
-  }
-  return '';
+/** The prompt hook's first line on a day whose morning has not run. */
+export const NEW_DAY = 'A new day: run /daily steps 2 and 3 before you answer.';
+
+/** `NEW_DAY` the first time it is asked on a day whose morning has not run, else null. */
+export function newDay({ config, stateDir, now = new Date() }) {
+  const told = join(stateDir, 'new-day.json'), day = localDay(now, config.timezone);
+  if (readJson(told, {}).day === day || startReport({ config, stateDir, now }).morning !== 'not run') return null;
+  writeJson(told, { day });
+  return NEW_DAY;
+}
+
+/** A command's journal place: the hook's `session_id` where the host shows it, else the old key. */
+export const chatKey = env => env.CLAUDE_CODE_SESSION_ID || env.CODEX_THREAD_ID || env.PASEO_AGENT_ID || 'cli';
+
+/** The prompt hook: in the Daily chat, known by its first message, the journal's new lines kept by `session_id`; on
+ * a new day with no morning run, the new-day line first, one time. Any other chat gets ''. */
+export function journalHook({ input = {}, env = process.env, repo = REPO, root, resolve: settings = () => personSettings({ repo }), now = new Date() } = {}) {
+  if (env.WONG_DAILY_RUN || env.WONG_STOP_CHECK || !input?.session_id) return '';
+  let chat = { person: [] };
+  try { if (input.transcript_path) chat = readChat(input.transcript_path); } catch { /* a new chat has no file yet */ }
+  if (!dailyChat(chat, input.prompt)) return '';
+  const { me, config } = settings();
+  if (!config) return '';
+  const stateDir = stateOf(config, repo, root);
+  const opening = Boolean(me.file) && !isDaily(input.prompt) && newDay({ config, stateDir, now });
+  return hookOutput([opening, newLines({ stateDir, timezone: config.timezone, key: input.session_id, now })].filter(Boolean).join('\n'));
+}
+
+// ---------------------------------------------------------------------------
+// Check-ins: the off switch, and the worker kept running when the person has a job for it
+
+export const offFile = stateDir => join(stateDir, 'off');
+/** Set in a background run: such a run starts no worker and gets no check-in. */
+export const RUN_FLAGS = ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK'];
+
+/** Writes the off file, stops a running worker, and journals it. */
+export function checkinsOff({ stateDir, timezone, kill = stopGroup, isAlive = alive }) {
+  mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+  writeFileSync(offFile(stateDir), `${new Date().toISOString()}\n`, { mode: 0o600 });
+  const pid = lockedBy(stateDir, { isAlive });
+  const stopped = pid && pid !== process.pid ? pid : null;
+  if (stopped) kill(stopped);
+  addLine({ stateDir, timezone, line: 'Check-ins off: a chat goes on only when you write.', kind: 'checkins' });
+  return { state: 'off', stopped };
+}
+
+/** True when the worker has work: board to-dos, add-ons, or a job on the default list merged with the person's own. */
+function hasJobs(config, project) {
+  if (config.sources.tasks || config.addons?.morning?.length || config.addons?.pass?.length) return true;
+  try { const jobs = loadSweeps({ project, file: config.sweeps }); return jobs.sweeps.length > 0 || Object.keys(jobs.events).length > 0; } catch { return false; }
+}
+
+/** The worker's env: not this chat's Paseo id or Claude Code session. */
+const workerEnv = env => Object.fromEntries(Object.entries(env).filter(([key]) => key !== 'PASEO_AGENT_ID' && !/^CLAUDE(?!_CONFIG_DIR$)/.test(key)));
+
+function startServe({ repo, env, agent }) {
+  const child = spawn(process.execPath, [SELF, 'serve', '--agent', agent], { cwd: repo, detached: true, stdio: 'ignore', env: workerEnv(env) });
+  child.on('error', () => {});
+  child.unref();
+}
+
+/** `D ensure`: starts the worker, detached, when the person has a job for it and none runs; returns at once. */
+export function ensure({ repo = REPO, env = process.env, agent = RUN_AGENTS[0], resolve: settings = () => personSettings({ repo }), spawnServe = startServe,
+  root, now = Date.now(), isAlive = alive } = {}) {
+  if (RUN_FLAGS.some(name => env[name])) return { state: 'run' };
+  const { config } = settings();
+  if (!config) return { state: 'no-person' };
+  const stateDir = stateOf(config, repo, root);
+  if (existsSync(offFile(stateDir))) return { state: 'off' };
+  if (serviceAlive(stateDir, now) || lockedBy(stateDir, { isAlive, now })) return { state: 'running' };
+  if (!hasJobs(config, primaryRoot(repo).primary)) return { state: 'no-jobs' };
+  spawnServe({ repo, env, agent });
+  return { state: 'started' };
+}
+
+/** A hook's JSON input on stdin, or {}. */
+export function hookInput() {
+  try { return JSON.parse(readFileSync(0, 'utf8') || '{}') ?? {}; } catch { return {}; }
+}
+
+/** Commands that need a settings file: the defaults hold no routines and no board. */
+const NEED_FILE = new Set(['start', 'picture', 'start-task', 'remind']);
+
+/** The settings `command` runs with: the file's, else the defaults; it throws for a command that needs a file. */
+export function commandSettings(command, { me, config }) {
+  if (config && (me.file || !NEED_FILE.has(command))) return config;
+  throw new SettingsError(`No daily settings for ${me.email ?? 'this person'}: add .agents/daily/<name>.json. See wiki/development/daily.md#your-settings-file.`);
 }
 
 async function main(args = process.argv.slice(2)) {
   // A hook runs mark and journal --hook: they never fail the chat, and print nothing but the hook's own answer.
   if (args[0] === 'mark') { mark(); return; }
   if (args[0] === 'journal' && args.includes('--hook')) {
-    try { const out = journalHook(); if (out) console.log(out); } catch { /* nothing: the prompt goes on */ }
+    try { const out = journalHook({ input: hookInput() }); if (out) console.log(out); } catch { /* prompt goes on */ }
     return;
   }
   const { command, values } = readArgs(args);
-  const me = who({ config: values.config });
-  if (command === 'who') { console.log(JSON.stringify(me, null, 2)); return; }
-  if (!me.file) throw new SettingsError(`No daily settings for ${me.email ?? 'this person'}: add .agents/daily/<name>.json. See wiki/development/daily.md#your-settings-file.`);
-  const config = loadSettings(me.file, REPO);
+  if (command === 'ensure') { console.log(JSON.stringify(ensure({ agent: values.agent }))); return; }
+  const found = personSettings({ config: values.config });
+  if (command === 'who') { console.log(JSON.stringify(found.me, null, 2)); return; }
+  const config = commandSettings(command, found);
   const project = primaryRoot(REPO).primary;
   const stateDir = stateDirectory(project, config.person);
   const board = boardCalls(boardClient(project));
-  const result = await commands({ config, project, stateDir, values, call: paseoCli(), board })[command]();
+  const result = await commands({ config, project, stateDir, values, call: paseoCli(), board, hasFile: Boolean(found.me.file) })[command]();
   if (result !== undefined) console.log(JSON.stringify(result, null, 2));
   if (REFUSED.has(result?.status ?? result?.state)) process.exitCode = 1;
 }

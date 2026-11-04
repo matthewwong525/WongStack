@@ -10,6 +10,7 @@ import { memoryCaller } from "./memory-caller.ts";
 import type { ConnectionEnv } from "./employee-access/core.ts";
 import { appPageDenied } from "./employee-access/apps.ts";
 import { CODE_GIT, gitSignIn } from "./employee-access/code.ts";
+import { KNOWLEDGE_GIT } from "./employee-access/knowledge.ts";
 import { SETUP_PATH } from "./employee-access/prompt.ts";
 import { refreshOnSchedule } from "./employee-access/pushers.ts";
 import { handleAccess } from "./employee-access/router.ts";
@@ -37,8 +38,8 @@ export default {
     const open = env.WORKSPACE_LOGIN === "off" && !env.CF_ACCESS_TEAM_DOMAIN && !env.CF_ACCESS_AUD;
     if (!identity && !open) {
       const configured = env.CF_ACCESS_TEAM_DOMAIN && env.CF_ACCESS_AUD;
-      // Git's route skips the edge sign-in, so its sign-in is checked here: wiki/stack/cloudflare-access.md
-      if (configured && url.pathname.startsWith(CODE_GIT)) return gitSignIn(url.origin);
+      // Git's routes skip the edge sign-in, so their sign-in is checked here: wiki/stack/cloudflare-access.md
+      if (configured && [CODE_GIT, KNOWLEDGE_GIT].some(prefix => url.pathname.startsWith(prefix))) return gitSignIn(url.origin);
       return new Response(configured ? "Unauthorized" : "Workspace access is not configured", {
         status: configured ? 401 : 503,
         headers: { "Cache-Control": "no-store" },

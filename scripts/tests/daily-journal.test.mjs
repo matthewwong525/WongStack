@@ -1,11 +1,11 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { commands, journalHook, stateDirectory } from '../../.agents/skills/daily/scripts/daily.mjs';
+import { NEW_DAY, commands, journalHook, stateDirectory } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
 import { addLine, hookOutput, journalDir, newLines, prune, readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 
@@ -17,7 +17,7 @@ afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: 
 const temp = () => { const dir = realpathSync(mkdtempSync(join(tmpdir(), 'daily-journal-'))); roots.push(dir); return dir; };
 const at = text => new Date(text);
 const lines = (stateDir, since) => readLines({ stateDir, since }).map(entry => entry.line);
-const fresh = (stateDir, now, agentId = DAILY, run = false) => newLines({ stateDir, timezone: TZ, agentId, dailyId: DAILY, run, now });
+const fresh = (stateDir, now, key = DAILY, run = false) => newLines({ stateDir, timezone: TZ, key, run, now });
 const config = () => validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
   places: { home: '.' }, checks: [] });
 
@@ -66,17 +66,16 @@ test('at most 40 lines show, and the rest are counted with the command that read
   assert.equal(text[41], '5 earlier lines: D journal');
 });
 
-test('another chat, a chat with no id, and a background run get nothing, and the cursor stays', () => {
+test('a chat with no key and a background run get nothing, and the cursor stays', () => {
   const stateDir = temp();
   addLine({ stateDir, timezone: TZ, line: 'Kept going: a', now: at('2026-10-31T13:00:00Z') });
   const now = at('2026-10-31T15:00:00Z');
-  assert.equal(fresh(stateDir, now, 'other'), null);
   assert.equal(fresh(stateDir, now, null), null);
   assert.equal(fresh(stateDir, now, DAILY, true), null);
   assert.match(fresh(stateDir, now), /Kept going: a/);
 });
 
-test('the journal command adds a run end, reads every line, and gives new lines only to the Daily chat', async () => {
+test('the journal command adds a run end, reads every line, and gives new lines once to the chat that runs it', async () => {
   const stateDir = temp();
   writeFileSync(join(stateDir, 'daily-workspace.json'), JSON.stringify({ workspaceId: 'w1', agentId: DAILY }));
   const run = async (values, env = {}) => {
@@ -88,25 +87,104 @@ test('the journal command adds a run end, reads every line, and gives new lines 
   const { result } = await run({ line: 'Kept going: a', run: 'judge-1' });
   assert.deepEqual([result.kind, result.run], ['end', 'judge-1']);
   assert.match((await run({})).printed[0], /Kept going: a \(run judge-1\)$/);
-  assert.deepEqual((await run({ new: true }, { PASEO_AGENT_ID: 'other' })).printed, []);
   assert.match((await run({ new: true }, { PASEO_AGENT_ID: DAILY })).printed[0], /^Journal: /);
+  assert.deepEqual((await run({ new: true }, { PASEO_AGENT_ID: DAILY })).printed, []);
+  assert.deepEqual((await run({ new: true }, { WONG_DAILY_RUN: '1' })).printed, []);
+  assert.match((await run({ new: true })).printed[0], /^Journal: /, 'outside Paseo the CLI keeps its own place');
 });
 
-test('the prompt hook finds the Daily chat by its id across the people of this checkout', () => {
+// A Claude Code transcript: `/daily` is recorded as its command tags; a hook's feedback is a meta row.
+function transcript(dir, first, more = []) {
+  const row = (type, text, timestamp, extra = {}) => JSON.stringify({ type, sessionId: 's1', cwd: dir, timestamp,
+    message: { role: type, content: type === 'user' ? text : [{ type: 'text', text }] }, ...extra });
+  const file = join(dir, `chat-${Math.random().toString(36).slice(2)}.jsonl`);
+  writeFileSync(file, `${[row('user', first, '2026-11-02T13:00:00Z'), row('assistant', 'Here is your day.', '2026-11-02T13:01:00Z'),
+    ...more.map(([type, text, timestamp, extra]) => row(type, text, timestamp, extra))].join('\n')}\n`);
+  return file;
+}
+const DAILY_TYPED = '<command-message>daily</command-message>\n<command-name>/daily</command-name>';
+
+function hookWorld(file = '/x/.agents/daily/alex.json') {
   const repo = temp(), root = temp();
   assert.equal(spawnSync('git', ['init', '-q', repo]).status, 0);
-  mkdirSync(join(repo, '.agents/daily'), { recursive: true });
-  writeFileSync(join(repo, '.agents/daily/alex.json'), JSON.stringify(config()));
   const stateDir = stateDirectory(repo, 'alex', root);
-  mkdirSync(stateDir, { recursive: true });
-  mkdirSync(stateDirectory(repo, 'sam', root), { recursive: true });
-  writeFileSync(join(stateDir, 'daily-workspace.json'), JSON.stringify({ workspaceId: 'w1', agentId: DAILY }));
-  addLine({ stateDir, timezone: TZ, line: 'Kept going: a' });
-  const hook = env => journalHook({ env, repo, root });
-  assert.equal(hook({ PASEO_AGENT_ID: 'other' }), '');
-  assert.equal(hook({ PASEO_AGENT_ID: DAILY, WONG_DAILY_RUN: '1' }), '');
-  assert.match(JSON.parse(hook({ PASEO_AGENT_ID: DAILY })).hookSpecificOutput.additionalContext, /Kept going: a/);
-  assert.equal(hook({ PASEO_AGENT_ID: DAILY }), '');
+  const hook = (input, { now = at('2026-11-03T14:00:00Z'), env = {} } = {}) => {
+    const out = journalHook({ input, env, repo, root, now, resolve: () => ({ me: { file }, config: config() }) });
+    return out ? JSON.parse(out).hookSpecificOutput.additionalContext : '';
+  };
+  return { repo, stateDir, hook };
+}
+
+test('the prompt hook knows the Daily chat by its first message, outside Paseo, and keeps its place by session', () => {
+  const { repo, stateDir, hook } = hookWorld(null);
+  addLine({ stateDir, timezone: TZ, line: 'Kept going: a', now: at('2026-11-03T13:00:00Z') });
+  const daily = transcript(repo, DAILY_TYPED, [['user', 'Stop hook feedback:\n/daily', '2026-11-02T13:02:00Z', { isMeta: true }]]);
+  const other = transcript(repo, 'Fix the login page.');
+  assert.equal(hook({ session_id: 'other', transcript_path: other, prompt: 'and the footer' }), '');
+  assert.equal(hook({ session_id: 's1', transcript_path: daily, prompt: 'hi' }, { env: { WONG_DAILY_RUN: '1' } }), '');
+  assert.match(hook({ session_id: 's1', transcript_path: daily, prompt: 'hi' }), /Kept going: a/);
+  assert.equal(hook({ session_id: 's1', transcript_path: daily, prompt: 'hi' }), '');
+  // A brand-new chat has no transcript yet: its own /daily marks it.
+  assert.match(hook({ session_id: 's2', transcript_path: join(repo, 'none.jsonl'), prompt: '/daily' }), /Kept going: a/);
+});
+
+test("on a new day with no morning run, the Daily chat's first message gets the new-day line once; /daily itself gets none", () => {
+  const { repo, hook } = hookWorld();
+  const daily = transcript(repo, DAILY_TYPED);
+  const tuesday = { session_id: 's1', transcript_path: daily, prompt: 'morning!' };
+  assert.equal(hook(tuesday).split('\n')[0], NEW_DAY);
+  assert.equal(hook(tuesday), '');
+  assert.equal(hook({ ...tuesday, prompt: '/daily' }, { now: at('2026-11-04T14:00:00Z') }), '');
+  // With no settings file there is no morning to start.
+  const none = hookWorld(null);
+  assert.equal(none.hook({ ...tuesday, transcript_path: transcript(none.repo, DAILY_TYPED) }), '');
+});
+
+test('each chat keeps its own place: a second key never moves or drops the first', () => {
+  const stateDir = temp();
+  addLine({ stateDir, timezone: TZ, line: 'Kept going: a', now: at('2026-10-31T13:00:00Z') });
+  const now = at('2026-10-31T15:00:00Z');
+  assert.match(fresh(stateDir, now, 'one'), /Kept going: a/);
+  assert.match(fresh(stateDir, now, 'two'), /Kept going: a/);
+  addLine({ stateDir, timezone: TZ, line: 'Closed: b', now: at('2026-10-31T14:00:00Z') });
+  assert.equal(JSON.parse(readFileSync(join(journalDir(stateDir), 'cursor.json'), 'utf8')).one, '2026-10-31T13:00:00.000Z');
+  assert.doesNotMatch(fresh(stateDir, now, 'one'), /Kept going: a/);
+  assert.match(fresh(stateDir, now, 'two'), /Closed: b/);
+});
+
+/** `D journal --new` in `w`'s checkout, as a chat with `env` runs it. */
+async function journalNew(w, env, hasFile = true) {
+  const printed = [];
+  await commands({ config: config(), project: w.repo, stateDir: w.stateDir, values: { new: true }, call: async () => [], board: {}, env, hasFile,
+    print: text => printed.push(text) }).journal();
+  return printed.join('\n');
+}
+
+test("D journal --new keeps the hook's place by the host's session id", async () => {
+  const w = hookWorld();
+  addLine({ stateDir: w.stateDir, timezone: TZ, line: 'Kept going: a', now: at('2026-11-03T13:00:00Z') });
+  assert.match(w.hook({ session_id: 's1', transcript_path: transcript(w.repo, DAILY_TYPED), prompt: '/daily' }), /Kept going: a/);
+  assert.doesNotMatch(await journalNew(w, { CLAUDE_CODE_SESSION_ID: 's1', PASEO_AGENT_ID: 'p1' }), /Kept going/);
+  assert.match(await journalNew(w, { CODEX_THREAD_ID: 't1', PASEO_AGENT_ID: 'p1' }), /Kept going: a/);
+  assert.doesNotMatch(await journalNew(w, { CODEX_THREAD_ID: 't1' }), /Kept going/);
+});
+
+test('in Codex, with no message hook, the first D journal --new of a day with no morning run gives the new-day line once', async () => {
+  const w = hookWorld();
+  addLine({ stateDir: w.stateDir, timezone: TZ, line: 'Kept going: a' });
+  const first = (await journalNew(w, { CODEX_THREAD_ID: 't1' })).split('\n');
+  assert.equal(first[0], NEW_DAY);
+  assert.match(first.at(-1), /Kept going: a/);
+  assert.equal(await journalNew(w, { CODEX_THREAD_ID: 't1' }), '');
+  const none = hookWorld(), run = hookWorld();
+  for (const each of [none, run]) addLine({ stateDir: each.stateDir, timezone: TZ, line: 'Kept going: b' });
+  assert.doesNotMatch(await journalNew(none, { CODEX_THREAD_ID: 't1' }, false), /A new day/, 'no settings file: no morning to start');
+  assert.equal(await journalNew(run, { CODEX_THREAD_ID: 't1', WONG_DAILY_RUN: '1' }), '', 'a background run gets nothing');
+  // In the /daily message itself, step 4 runs after the morning started: no new day.
+  const started = hookWorld();
+  mkdirSync(started.stateDir, { recursive: true });
+  writeFileSync(join(started.stateDir, `morning-${new Date().toLocaleDateString('en-CA', { timeZone: TZ })}.json`), '{"tasks":[]}');
+  assert.equal(await journalNew(started, { CODEX_THREAD_ID: 't1' }), '');
 });
 
 test('the hook command prints nothing and exits 0 when it can not read its state', () => {

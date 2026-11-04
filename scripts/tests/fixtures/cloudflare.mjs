@@ -154,6 +154,12 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
         const wanted = query.get('state');
         return ok(state.repoTokens.filter((each) => each.namespace === namespace && each.repo === name && (!wanted || each.state === wanted)).map(({ plaintext: _plaintext, ...token }) => token));
       }
+      if (method === 'POST' && kind === 'tokens' && !name) {
+        if (!inSpace.some((each) => each.name === body.repo)) return no(404, 1000, 'no such repository');
+        const made = { id: `repo-token-${++serial}`, namespace, repo: body.repo, scope: body.scope, ttl: body.ttl, state: 'active', plaintext: `art_v2_x_${createHash('sha1').update(`mint:${serial}`).digest('hex')}?expires=1900000000` };
+        state.repoTokens.push(made);
+        return ok({ id: made.id, scope: made.scope, plaintext: made.plaintext });
+      }
       if (method === 'DELETE' && kind === 'tokens' && name && !tokens) {
         const token = state.repoTokens.find((each) => each.namespace === namespace && each.id === name);
         if (!token) return no(404, 1000, 'no such token');

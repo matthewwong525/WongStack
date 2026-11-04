@@ -2,7 +2,8 @@
 // Cloudflare provisioning for a WongStack repo: the one set of steps setup's runbook (references/cloudflare.md) runs.
 // Every step checks before it acts, so a run that stopped runs again from the top. No command prints a token.
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
@@ -108,6 +109,10 @@ export const ARTIFACTS_PROVISION = [
   { name: 'Workers Containers Write', scope: 'account', id: 'bdbcd690c763475a985e8641dddc09f7' },
   { name: 'Billing Read', scope: 'account', id: '7cf72faf220841aabcfdfab81c43c4f6' },
 ];
+/** What a GitHub install adds: company knowledge's repository and the plan read, never the check runner's container. */
+export const KNOWLEDGE_PROVISION = ARTIFACTS_PROVISION.filter((row) => row.name !== 'Workers Containers Write');
+/** What a free account is told: every route keeps company knowledge in Cloudflare, which only its paid plan allows. */
+export const PAID_PLAN = { needs: 'Workers Paid', cost: 'about $5 a month', neededBy: ['github', 'artifacts'] };
 /** The check runner's storage key: the objects of its one bucket, and nothing else. */
 export const STORAGE_TOKEN = { name: 'Workers R2 Storage Bucket Item Write', scope: 'com.cloudflare.edge.r2.bucket', id: '2efd5506f9c8494dacb1fa10a3e7d5b6' };
 
@@ -133,6 +138,7 @@ export const namesFor = (base) => ({
   stagingDb: `${base}-db-staging`,
   memory: `${base}-memory`,
   deploy: `${base}-deploy`,
+  knowledge: `${base}-knowledge`,
 });
 
 /** What an Artifacts install adds under one base: its repository, its check runner (Worker, Workflow, bucket),
@@ -143,13 +149,13 @@ export const artifactNamesFor = (base) => ({ repo: base, runner: `${base}-checks
  * `openWithoutLogin`: an Access probe still refused after the full wait goes in `accessPending`, not a stop. */
 export async function widen({ token, api, fetch, account, route = 'github', openWithoutLogin = false, sleep = wait }) {
   const cf = cloudflare(token, { api, fetch });
-  const { granted, held } = await grant(cf, [...USER_GRANTS, ...NORMAL_PROVISION, ...(route === 'artifacts' ? ARTIFACTS_PROVISION : [])]);
+  const { granted, held } = await grant(cf, [...USER_GRANTS, ...NORMAL_PROVISION, ...(route === 'artifacts' ? ARTIFACTS_PROVISION : KNOWLEDGE_PROVISION)]);
   const probed = account ? [account] : (await step('cloudflare', () => cf('GET', '/accounts?per_page=50'))).map((each) => each.id);
   const accessPending = [];
   for (const id of probed) {
     await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/d1/database?per_page=1`), sleep, pending));
     // Artifacts and Containers answer only on a paid account, so the plan read is the one probe here.
-    if (route === 'artifacts') await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/subscriptions`), sleep, pending));
+    await step('cloudflare', () => retry(() => cf('GET', `/accounts/${id}/subscriptions`), sleep, pending));
     for (const surface of ['apps', 'identity_providers', 'service_tokens']) {
       const probe = () => cf('GET', `/accounts/${id}/access/${surface}?per_page=1`);
       await step('cloudflare', async () => {
@@ -176,12 +182,13 @@ export async function accounts({ token, api, fetch }) {
   return { accounts: list.map(({ id, name }) => ({ id, name })) };
 }
 
-/** Which route a new install takes, before anything is created: `artifacts` on Mac or Linux with the
- * paid plan seen, else `github` with the reason. Anything but a seen paid plan counts as not paid. */
+/** Which route a new install takes, before anything is created: `artifacts` on Mac or Linux, `github` on Windows,
+ * and the plan. With no paid plan seen, `reason` is `free-plan`: every route needs it, so setup stops. */
 export async function plan({ token, api, fetch, account, platform = process.platform, sleep = wait }) {
-  if (platform === 'win32') return { route: 'github', reason: 'windows' };
+  const route = platform === 'win32' ? 'github' : 'artifacts';
   const seen = await step('cloudflare', () => paidPlan(cloudflare(token, { api, fetch }), account, sleep));
-  return seen ? { route: 'artifacts', plan: seen } : { route: 'github', reason: 'free-plan', needs: 'Workers Paid', cost: 'about $5 a month' };
+  if (!seen) return { route, reason: 'free-plan', ...PAID_PLAN };
+  return { route, ...(route === 'github' && { reason: 'windows' }), plan: seen };
 }
 
 /** The account's R2 buckets, or null when R2 is off. Any other failure throws. */
@@ -228,6 +235,7 @@ const nameList = (base) => {
     { kind: 'database', name: n.memory },
     { kind: 'bucket', name: n.memory },
     { kind: 'token', name: n.deploy },
+    { kind: 'repository', name: n.knowledge },
   ];
 };
 
@@ -246,7 +254,7 @@ export async function names({ token, api, fetch, account, repo, route = 'github'
       cf('GET', `/accounts/${account}/d1/database?per_page=1000`),
       cf('GET', `/accounts/${account}/tokens?per_page=100`),
       r2Buckets(cf, account),
-      artifacts ? repositories(cf, account) : [],
+      repositories(cf, account),
     ]);
     return {
       repository: new Set(repos.map((r) => r.name)),
@@ -543,7 +551,7 @@ function addCodeBinding(file, key, entry, comment) {
   const before = readFileSync(file, 'utf8');
   const line = `"${key}": [{ ${Object.entries(entry).map(([name, value]) => `"${name}": "${value}"`).join(', ')} }],`;
   let text = before;
-  if (!now.live) text = text.replace(/^([ \t]+)"env"\s*:/m, (match, indent) => `${indent}// ${comment} wiki/stack/employee-project.md\n${indent}${line}\n${match}`);
+  if (!now.live) text = text.replace(/^([ \t]+)"env"\s*:/m, (match, indent) => `${indent}// ${comment}\n${indent}${line}\n${match}`);
   if (now.staging) {
     const lines = text.split('\n');
     const start = lines.findIndex((each) => /^\s*"staging"\s*:\s*\{\s*$/.test(each));
@@ -566,9 +574,23 @@ function addCodeBinding(file, key, entry, comment) {
 // repository and check-runner bindings on the live app alone. `scripts/check-target-app.mjs` builds configs with it.
 export function codeInConfig(config, repository, artifacts, runner) {
   const named = repository && existsSync(config) ? setVar(config, 'WONG_CODE_REPOSITORY', repository) : false;
-  const bound = named && artifacts ? addCodeBinding(config, 'artifacts', { binding: 'ARTIFACTS', namespace: NAMESPACE }, "The project's own repository, which Connect your assistant hands out.") : false;
-  const checks = bound && runner ? addCodeBinding(config, 'workflows', { binding: 'CODE_CHECKS', name: runner, script_name: runner, class_name: 'Checks' }, "The check runner's runs, which the app reads for a change saved through it.") : false;
+  const bound = named && artifacts ? addCodeBinding(config, 'artifacts', ARTIFACTS_BINDING, "The project's own repository, which Connect your assistant hands out. wiki/stack/employee-project.md") : false;
+  const checks = bound && runner ? addCodeBinding(config, 'workflows', { binding: 'CODE_CHECKS', name: runner, script_name: runner, class_name: 'Checks' }, "The check runner's runs, which the app reads for a change saved through it. wiki/stack/employee-project.md") : false;
   return { named, bound, checks };
+}
+
+const ARTIFACTS_BINDING = { binding: 'ARTIFACTS', namespace: NAMESPACE };
+
+// Names company knowledge's repository in both Workers' vars and binds the live app alone to the namespace, on either
+// route: `ready`, or `missing` with a to-do when the config has no safe place. Changes nothing already right.
+function knowledgeInConfig(config, repository, { note, todo }) {
+  const named = existsSync(config) ? setVar(config, 'WONG_KNOWLEDGE_REPOSITORY', repository) : false;
+  const bound = named ? addCodeBinding(config, 'artifacts', ARTIFACTS_BINDING, "The project's and company knowledge's repositories. wiki/stack/company-knowledge.md") : false;
+  if (named === 'updated') note('updated', 'app/wrangler.jsonc WONG_KNOWLEDGE_REPOSITORY');
+  if (bound === 'updated') note('updated', 'app/wrangler.jsonc ARTIFACTS');
+  if (named && bound) return 'ready';
+  todo.push(`add "WONG_KNOWLEDGE_REPOSITORY": "${repository}" to production and staging, and the "artifacts" binding ARTIFACTS for the ${NAMESPACE} namespace to production alone, in app/wrangler.jsonc, as wiki/stack/company-knowledge.md describes`);
+  return 'missing';
 }
 
 /** The to-do left when a project kept in Cloudflare can be handed out but not yet saved to. */
@@ -655,8 +677,9 @@ export function runnerConfig({ account, repo, runner }, template) {
   return fillConfig(template, { '<runner>': runner, '<account id>': account, '<namespace>': NAMESPACE, '<repo>': repo }, 'check runner');
 }
 
-/** The install's repository in the shared namespace, made when missing. A same-named one it did not make stops. */
-async function repository(cf, account, name, { state, checkpoint, note, sleep }) {
+/** A repository of this install in the shared namespace, made when missing, owned by `state[key]`. A same-named one
+ * it did not make stops. */
+async function repository(cf, account, name, { key = 'delivery', description = 'A WongStack install', state, checkpoint, note, sleep }) {
   const spaces = `/accounts/${account}/artifacts/namespaces`;
   if (!(await retry(() => orNull(() => cf('GET', `${spaces}/${NAMESPACE}`)), sleep, pending))) {
     await cf('POST', spaces, { namespace: NAMESPACE });
@@ -664,23 +687,62 @@ async function repository(cf, account, name, { state, checkpoint, note, sleep })
   }
   const repos = `${spaces}/${NAMESPACE}/repos`;
   const found = await orNull(() => cf('GET', `${repos}/${name}`));
-  const resumed = state.delivery?.creating === name;
-  const ours = resumed || (found?.id !== undefined && state.delivery?.repoId === found.id);
+  const resumed = state[key]?.creating === name;
+  const ours = resumed || (found?.id !== undefined && state[key]?.repoId === found.id);
   if (found && !ours) throw new ProvisionError('cloudflare', `this account already has a repository named ${name} that this install did not make; pick another name`);
   if (found && !resumed) note('reused', `repository ${name}`);
   else if (!found) {
-    state.delivery = { creating: name };
+    state[key] = { creating: name };
     checkpoint();
   }
-  const repo = found ?? (await cf('POST', repos, { name, default_branch: 'main', description: 'A WongStack install' }));
+  const repo = found ?? (await cf('POST', repos, { name, default_branch: 'main', description }));
   if (!found || resumed) {
     // Creating a repository returns a ready-made token. Nothing keeps it, so it is revoked.
     for (const made of await cf('GET', `${repos}/${name}/tokens?state=active&per_page=100`)) await cf('DELETE', `${spaces}/${NAMESPACE}/tokens/${made.id}`);
     note('created', `repository ${name}`);
   }
-  state.delivery = { repoId: repo.id };
+  if (state[key]?.repoId !== repo.id) state[key] = { repoId: repo.id };
   checkpoint();
   return repo.remote ?? `https://${account}.artifacts.cloudflare.net/git/${NAMESPACE}/${name}.git`;
+}
+
+/** Seconds the token that pushes company knowledge's first commit lives. */
+const START_SECONDS = 300;
+
+// Company knowledge's first commit, an empty one on main, pushed from a scratch folder with a five-minute token for
+// that repository alone, sent in Git's environment, never an argument. A main that exists is never pushed to.
+async function knowledgeStart(cf, account, name, remote, { exec, env, note }) {
+  const tokens = `/accounts/${account}/artifacts/namespaces/${NAMESPACE}/tokens`;
+  const made = await cf('POST', tokens, { repo: name, scope: 'write', ttl: START_SECONDS });
+  const basic = Buffer.from(`x:${String(made.plaintext).split('?')[0]}`).toString('base64');
+  const folder = mkdtempSync(join(tmpdir(), 'wong-knowledge-'));
+  const header = { GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.extraHeader', GIT_CONFIG_VALUE_0: `Authorization: Basic ${basic}` };
+  const git = (args, input) => exec('git', ['-C', folder, ...args], { env: { ...env, ...header, GIT_TERMINAL_PROMPT: '0' }, input });
+  try {
+    await git(['init', '-q', '--bare']);
+    if ((await git(['ls-remote', remote, 'refs/heads/main'])).stdout.trim()) return;
+    const tree = (await git(['mktree'], '')).stdout.trim();
+    const head = (await git([...(await author(git)), 'commit-tree', tree, '-m', 'Start company knowledge'])).stdout.trim();
+    await git(['push', remote, `${head}:refs/heads/main`]);
+    note('created', `the first, empty commit on ${name}'s main`);
+  } finally {
+    rmSync(folder, { recursive: true, force: true });
+    // A failed revoke stops nothing: the token ends in five minutes anyway.
+    if (made.id) await cf('DELETE', `${tokens}/${made.id}`).catch(() => {});
+  }
+}
+
+/** Company knowledge's repository, on either route: made or reused, started with one empty commit, and recorded. */
+async function knowledgeRepository(cf, { account, name, dir, env, exec, state, checkpoint, note, sleep }) {
+  const description = "A WongStack install's company knowledge";
+  const remote = await step('cloudflare', () => repository(cf, account, name, { key: 'knowledge', description, state, checkpoint, note, sleep }));
+  if (!state.knowledge.started) {
+    await step('cloudflare', () => knowledgeStart(cf, account, name, remote, { exec, env, note }));
+    state.knowledge.started = true;
+    checkpoint();
+  }
+  recordComponent(dir, 'knowledge', { namespace: NAMESPACE, repo: name }, note);
+  return { namespace: NAMESPACE, repo: name };
 }
 
 /** The runner's bucket, made when missing, with the rule that deletes old snapshots. */
@@ -717,6 +779,12 @@ async function gitRemote(git, account, remote) {
   for (const [key, value] of helperConfig(account)) await git(['config', '--replace-all', key, value]);
 }
 
+/** Git's `-c` arguments naming setup as the author where this computer names no one. */
+async function author(git) {
+  const has = (key) => git(['config', key]).then(() => true, () => false);
+  return [...((await has('user.name')) ? [] : ['-c', 'user.name=WongStack setup']), ...((await has('user.email')) ? [] : ['-c', 'user.email=setup@wongstack.invalid'])];
+}
+
 /** Main's first commit, an empty one, so a first change has a main to be published onto. A folder
  * with no commit yet starts from it. Never touches a file or an existing commit. */
 async function firstPush(git, note, todo) {
@@ -724,10 +792,8 @@ async function firstPush(git, note, todo) {
   const born = await git(['rev-parse', '--verify', '--quiet', 'HEAD']).then(() => true, () => false);
   if (!head && born) return void todo.push('this folder already has commits: push its main to the new repository with `git push origin main`');
   if (!head) {
-    const has = (key) => git(['config', key]).then(() => true, () => false);
-    const who = [...((await has('user.name')) ? [] : ['-c', 'user.name=WongStack setup']), ...((await has('user.email')) ? [] : ['-c', 'user.email=setup@wongstack.invalid'])];
     const tree = (await git(['mktree'], '')).stdout.trim();
-    head = (await git([...who, 'commit-tree', tree, '-m', 'Start the project'])).stdout.trim();
+    head = (await git([...(await author(git)), 'commit-tree', tree, '-m', 'Start the project'])).stdout.trim();
     await git(['push', 'origin', `${head}:refs/heads/main`]);
     note('created', 'the first, empty commit on main');
   }
@@ -793,14 +859,16 @@ function removeMemoryKey(file) {
   chmodSync(file, 0o600);
 }
 
+/** Stops with `plan` unless the account is on the paid plan, which every install's company knowledge needs. */
+async function paidOrStop(cf, account, sleep) {
+  if (await step('cloudflare', () => paidPlan(cf, account, sleep))) return;
+  throw new ProvisionError('plan', 'this Cloudflare account is not on the Workers Paid plan (about $5 a month), which every install needs to keep company knowledge in Cloudflare; turn it on, then run this again');
+}
+
 /** Everything after the one billable ask, under `base`. `keepConfig` leaves an installed repo's committed files alone.
  * `openWithoutLogin` goes on without Access when Cloudflare refuses Zero Trust; a site already private never opens. */
 export async function provision({ token, api, fetch, account, repo, base, route = 'github', ownerEmail, teammateEmails, dir = '.', today = isoDate(), keepConfig = false, openWithoutLogin = false, sleep = wait, exec = run, env = process.env, types = bindingTypes }) {
   const cf = cloudflare(token, { api, fetch });
-  // An Artifacts install needs the paid plan: look before anything is created or written.
-  if (route === 'artifacts' && !(await step('cloudflare', () => paidPlan(cf, account, sleep)))) {
-    throw new ProvisionError('plan', 'this Cloudflare account is not on the Workers Paid plan (about $5 a month), which keeping the project in Cloudflare needs; turn it on, or set up with GitHub for free');
-  }
   const n = namesFor(base);
   const report = { base, names: n, r2: false, created: [], reused: [], updated: [], todo: [] };
   const note = (list, what) => report[list].push(what);
@@ -808,6 +876,8 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   const envFile = durableEnv(dir);
   const needsKey = !hasKey(readEnv(envFile), machineId(machineIdFile(env)));
   const loginEmail = ownerIdentity(ownerEmail ?? (await git(['config', 'user.email']).catch(() => ({ stdout: '' }))).stdout);
+  // Every install keeps company knowledge in Cloudflare, which needs the paid plan: look before anything is made.
+  await paidOrStop(cf, account, sleep);
   const provisionStateFile = await stateFile(dir, exec);
   const state = readJson(provisionStateFile, {});
   if (state.account && (state.account !== account || state.repo !== repo || state.base !== base)) {
@@ -946,6 +1016,10 @@ export async function provision({ token, api, fetch, account, repo, base, route 
       account, config, repository: route === 'artifacts' ? artifactNamesFor(base).repo : githubRepo(`https://github.com/${repo}`),
       artifacts: route === 'artifacts', runner: artifactNamesFor(base).runner, worker: n.worker, note, todo: report.todo,
     }));
+    if (report.codeKey) report.knowledge.config = knowledgeInConfig(config, report.knowledge.repo, { note, todo: report.todo });
+  };
+  const knowledge = async () => {
+    report.knowledge = await knowledgeRepository(cf, { account, name: n.knowledge, dir, env, exec, state, checkpoint, note, sleep });
   };
   // The first save then carries types that match this config, not a stray change at publish.
   const refreshTypes = async () => {
@@ -955,6 +1029,7 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   };
   if (route === 'artifacts') {
     report.delivery = await artifactsDelivery(cf, { account, base, token, groups, buckets, deployRows: rows, dir, env, exec, state, checkpoint, note, todo: report.todo, sleep });
+    await knowledge();
     await accessKey();
     await refreshTypes();
     return report;
@@ -986,6 +1061,7 @@ export async function provision({ token, api, fetch, account, repo, base, route 
     note('created', 'GitHub secret CLOUDFLARE_ACCOUNT_ID');
   }
 
+  await knowledge();
   await accessKey();
   await refreshTypes();
   return report;
@@ -1034,11 +1110,11 @@ const rotateTodo = (names) => `previews held ${names.join(', ')}, which unpublis
 
 // What Access needs on an older install: previews on their own sign-in, apart from the live app's, the owner's email
 // in both Workers' vars, the two keys, staging left with only its own file's keys, and the project's name.
-export async function accessSetup({ token, api, fetch, account, ownerEmail, dir = '.', exec = run, env = process.env }) {
+export async function accessSetup({ token, api, fetch, account, ownerEmail, makeKnowledge = false, dir = '.', exec = run, env = process.env, sleep = wait }) {
   const cf = cloudflare(token, { api, fetch });
   const report = { created: [], reused: [], updated: [], todo: [] };
   const note = (list, what) => report[list].push(what);
-  const { access, delivery } = readJson(recordFile(dir))?.components ?? {};
+  const { access, delivery, knowledge: recorded } = readJson(recordFile(dir))?.components ?? {};
   const [worker, staging] = (access?.workers ?? []).map((each) => each.name);
   if (!access?.appId || !access.humanPolicyId || !worker || !staging) throw new ProvisionError('repo', 'this repo has no private sign-in on record; run provision first');
   const email = ownerIdentity(ownerEmail ?? access.ownerEmail);
@@ -1088,25 +1164,31 @@ export async function accessSetup({ token, api, fetch, account, ownerEmail, dir 
     account, config, repository: artifacts ? delivery.repo : (githubRepo(origin) ?? githubRepo(`https://github.com/${state.repo}`)),
     artifacts, runner: delivery?.workflow, worker, note, todo: report.todo,
   }));
+  // An install from before company knowledge gets its repository only when asked: it needs the paid plan.
+  if (!recorded && makeKnowledge) await paidOrStop(cf, account, sleep);
+  const made = !recorded && makeKnowledge ? await knowledgeRepository(cf, { account, name: namesFor(worker).knowledge, dir, env, exec, state, checkpoint, note, sleep }) : null;
+  const knowledge = recorded ?? made;
+  if (knowledge) knowledge.config = knowledgeInConfig(config, knowledge.repo, { note, todo: report.todo });
   recordComponent(dir, 'accessKey', key, note);
   recordReadKey(dir, readKey, note);
   if (state.stagingHeld) {
     delete state.stagingHeld;
     checkpoint();
   }
-  return { ...report, ownerEmail: email, accessKey: key, cloudflareReadKey: readKey, codeKey };
+  return { ...report, ownerEmail: email, accessKey: key, cloudflareReadKey: readKey, codeKey, ...(knowledge && { knowledge }) };
 }
 
 const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [--route github|artifacts]
   widen                                   grant the token a normal provision's groups, then wait until they work
   accounts                                list the accounts the token sees
-  plan                                    say which route a new install takes: artifacts on Mac or Linux with
-                                          the paid plan seen, else github with the reason; creates nothing
+  plan                                    say which route a new install takes, artifacts on Mac or Linux, else github,
+                                          and the plan; reason free-plan means every route stops; creates nothing
   names --repo <owner/name>               derive the names; report each as free, ours, or taken, and the first free base
   provision --repo <owner/name> --base <base> [--owner-email <email>] [--keep-config] [--open-without-login]
                                           make or reuse the memory store, databases, config, and deploy token;
                                           --open-without-login goes on, open, when Zero Trust needs onboarding
-  access [--owner-email <email>]          on an installed repo with sign-in on: give previews their own sign-in, with
+  access [--owner-email <email>] [--knowledge]
+                                          on an installed repo with sign-in on: give previews their own sign-in, with
                                           the same people and their own checker in .env (CF_ACCESS_STAGING_*), apart
                                           from the live app's; write each Worker's own Access ids to app/wrangler.jsonc;
                                           let memory and git past the sign-in wall; put the owner's email in both
@@ -1115,9 +1197,11 @@ const USAGE = `usage: provision.mjs <command> [--dir <repo>] [--account <id>] [-
                                           look-ups. It also names the project Connect your assistant hands out:
                                           codeKey's status is ready or missing, and its save says whether people can
                                           save changes through the app. On GitHub a missing one comes with the
-                                          owner's steps for the one key that does both, which Access asks for later
---route artifacts keeps the project in Cloudflare with no GitHub: widen adds its groups, names checks its
-names, and provision makes the repository and the check runner in place of the GitHub secrets.
+                                          owner's steps for the one key that does both, which Access asks for later.
+                                          It binds company knowledge on record; --knowledge makes it when missing
+Both routes make company knowledge's repository and need the paid plan. --route artifacts keeps the project in
+Cloudflare with no GitHub: widen adds its groups, names checks its names, and provision makes the repository and
+the check runner in place of the GitHub secrets.
 --dir is the target repo (default: here). The token is CLOUDFLARE_API_TOKEN and the account CLOUDFLARE_ACCOUNT_ID,
 from the environment or the target's .env. Each command prints one JSON report, never a token.`;
 
@@ -1129,7 +1213,7 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
   try {
     parsed = parseArgs({
       args: argv,
-      options: { dir: { type: 'string' }, account: { type: 'string' }, route: { type: 'string' }, repo: { type: 'string' }, base: { type: 'string' }, 'owner-email': { type: 'string' }, 'keep-config': { type: 'boolean' }, 'open-without-login': { type: 'boolean' }, help: { type: 'boolean' } },
+      options: { dir: { type: 'string' }, account: { type: 'string' }, route: { type: 'string' }, repo: { type: 'string' }, base: { type: 'string' }, 'owner-email': { type: 'string' }, 'keep-config': { type: 'boolean' }, 'open-without-login': { type: 'boolean' }, knowledge: { type: 'boolean' }, help: { type: 'boolean' } },
       allowPositionals: true,
       strict: true,
     });
@@ -1174,7 +1258,7 @@ export async function cli(argv, { env = process.env, out = console.log, err = co
     plan: () => plan(common),
     names: () => names(common),
     provision: () => provision({ ...common, base: safeName(options.base), ownerEmail: values['owner-email'], keepConfig: Boolean(values['keep-config']), openWithoutLogin: Boolean(values['open-without-login']) }),
-    access: () => accessSetup({ ...common, ownerEmail: values['owner-email'] }),
+    access: () => accessSetup({ ...common, ownerEmail: values['owner-email'], makeKnowledge: Boolean(values.knowledge) }),
   };
   try {
     out(JSON.stringify(await commands[command](), null, 2));

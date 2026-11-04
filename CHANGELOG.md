@@ -15,6 +15,28 @@
 
 **Updating.** Nothing to do by hand. The app's next deploy adds two tables to its database, which hold files sent from the Inbox until your computer takes them.
 
+## 45.8.0 — Company knowledge in its own repo
+
+- **Company pages go live at once.** The team's own pages, such as people, customers and how the company works, now live in a repository of their own in Cloudflare, not in the code repository. A save makes them live for the team at once, with no pull request and no wait for checks. Pages about the code stay in `wiki/` ([company knowledge](wiki/stack/company-knowledge.md)).
+- **One copy on each computer.** The pages are at `knowledge/` in every workspace: one copy in the main checkout, and a link to it in each workspace. When a chat starts, the copy moves to the newest version in the background. A copy with unsaved edits is left as it is, and the chat names those pages.
+- **A save takes only the pages it names.** `knowledge.mjs save` checks the links, puts the save on top of the newest version, and tells you how to undo it. When someone saved the same lines first, you get both versions to join. A save made while the app can't be reached waits and goes live with the next one.
+- **Undo and restore.** `knowledge.mjs undo <commit>` takes one save back. If someone forces an older history, the next update says so, and `knowledge.mjs restore` puts the lost saves back.
+- **The app hands it out to the same people as the project.** The **Project code** tick also covers company knowledge. Only the live app holds it; previews never read or change it.
+- **Memory reads it.** The digest reads your people page from `knowledge/people/` first, and memory search finds the other knowledge pages. `/close` and `/dream-memory` save knowledge pages at once.
+- **Every install needs Cloudflare's paid plan**, about $5 a month, on both ways to install. Setup stops on a free plan and asks you to turn it on or stop. The landing page now says *Install*, not *Install for free*.
+
+**Updating.** Nothing changes for an existing install: your pages stay in `wiki/`, and saves work as before, until a later update moves them after one yes. A new install needs Cloudflare's paid plan.
+
+## 45.7.0 — Check-ins for everyone, with or without Paseo
+
+- **Each chat checks its own stops.** When a chat in Claude Code or Codex stops and your last message there is more than 15 minutes old, one read-only AI run sorts the stop. A next step or a safe pick goes back to the chat, and it carries on. Everything else waits for you, as before. It works with or without Paseo, and no Daily chat has to stay open ([check-ins](wiki/development/daily.md#check-ins)).
+- **No settings file needed for check-ins.** With none, they use your email and this computer's time zone. Routines, the board and the morning list still need your file.
+- **One off switch.** Say *stop check-ins* in the Daily chat, or run `daily.mjs checkins off`. *Start check-ins* turns them back on.
+- **The Daily chat stays open for days.** It no longer watches chats itself. On a new day, your first message there starts the day before it answers.
+- **The worker starts itself.** Each chat start starts `daily.mjs serve` in the background, and only one runs per person and checkout. The wrap-up and the wiki tidy from 45.5.0 are default jobs, so they now run for everyone, not only where someone set up the daily on a computer. It does not start when check-ins are off, or when you turned both jobs off and have no other job. It watches only chats in this repo. Without Paseo it still runs the wiki tidy and your timed jobs; the wrap-up waits for Paseo, because it sends `/close` through Paseo ([the daily on a computer](wiki/development/daily.md#the-daily-on-a-computer)).
+
+**Updating.** If your settings file does not list the email you commit with or sign in with, add it to `emails`: the daily now finds a file only by its emails, never because it is the only one. Check-ins now come from each chat's stop step, so `daily.mjs watch` is gone: `/daily` runs `daily.mjs ensure` instead. A computer that runs `daily.mjs serve` as a service keeps it; the new lock stops a second copy. The wrap-up and the wiki tidy now start for every person at their next chat; to keep one off, add its `off` entry from 45.5.0 to your own jobs file. An install that added its own `stopped` or `asking` job in its `sweeps` file keeps it. If another checkout on the same computer still runs an older WongStack worker, update it too, or run `node .claude/skills/daily/scripts/daily.mjs checkins off` in one of them, so a chat does not get two check-ins.
+
 ## 45.6.1 — Check your own screens on a preview
 
 - **Access page.** It now says how a browser check signs in as you on a preview, and that your own lists start empty there, because the sample data belongs to a made-up person.

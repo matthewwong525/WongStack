@@ -49,6 +49,15 @@ test('read-only coverage validates actual Workers, reordered provider keys, exac
   }
 });
 
+test('the live app also passes with the company knowledge exception, and previews never take it', async () => {
+  const knowledge = { behavior: 'public', path_pattern: '/api/access/knowledge/git/*' };
+  const data = resources();
+  for (const destination of data['/access/apps/app'].destinations) destination.overrides = [...memory, knowledge];
+  assert.equal((await checkPrivateAccess(config, 'production', provider(data))).protection, 'configured');
+  for (const destination of data['/access/apps/previews'].destinations) destination.overrides = [git, knowledge];
+  await assert.rejects(checkPrivateAccess(config, 'staging', provider(data)), /broader than this workspace/);
+});
+
 test('missing coverage, broad exceptions, policies, precedence and secret overrides stop publication', async () => {
   const mutations = [
     ['staging', data => { data['/access/apps/previews'].destinations.pop(); }],

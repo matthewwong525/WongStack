@@ -1,12 +1,9 @@
 {
-  "$comment": "The daily's default jobs: which watch event starts which background run. An install adds its own list: wiki/development/daily.md#your-own-jobs.",
+  "$comment": "The daily's default jobs: which watch event starts which background run; each chat's stop step judges its own stops. An install adds its own list: wiki/development/daily.md#your-own-jobs.",
   "journalDays": 14,
   "runLogDays": 7,
   "maxRuns": 3,
-  "events": {
-    "stopped": { "brief": "judge.md", "title": "Judge {{title}}", "hold": true },
-    "asking": { "brief": "judge.md", "title": "Judge {{title}}", "hold": true }
-  },
+  "events": {},
   "sweeps": [
     { "id": "wrap-up", "title": "Wrap up finished chats", "every": "5m", "do": "wrap-up" },
     { "id": "wiki-tidy", "title": "Wiki tidy", "every": "30m", "check": ".agents/skills/daily/scripts/wiki-tidy-check.mjs",

@@ -58,6 +58,7 @@ test('only a fact worded as a dream is one', () => {
 test('a dream fact names its pages once each, without the sentence’s full stop', () => {
   assert.deepEqual(pagesNamed('Checked: wiki/a.md, wiki/people/b.md, wiki/a.md.'), ['wiki/a.md', 'wiki/people/b.md']);
   assert.deepEqual(pagesNamed('Nothing checked; see scripts/x.mjs.'), []);
+  assert.deepEqual(pagesNamed('Checked: knowledge/ops/shipping.md, wiki/a.md.'), ['knowledge/ops/shipping.md', 'wiki/a.md']);
   assert.deepEqual(pagesNamed('Checked: wiki/a.md, openspec/specs/memory/spec.md.'), ['wiki/a.md', 'openspec/specs/memory/spec.md']);
 });
 
