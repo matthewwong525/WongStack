@@ -158,7 +158,11 @@ export async function provisionAccess(cf, { account, appName, names, subdomain, 
 export const HUMAN_SESSION_DURATION = '720h';
 // The routes the Worker checks the sign-in on itself: git sends it as a password, which the edge can not read.
 const GIT_OVERRIDE = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
-const LIVE_OVERRIDES = [{ behavior: 'public', path_pattern: '/_memory/*' }, GIT_OVERRIDE];
+// Company knowledge is kept on the live app alone: wiki/stack/company-knowledge.md
+const KNOWLEDGE_OVERRIDE = { behavior: 'public', path_pattern: '/api/access/knowledge/git/*' };
+// Knowledge pages marked public open with no sign-in, on both apps: wiki/stack/knowledge-reader.md
+const PUBLIC_OVERRIDE = { behavior: 'public', path_pattern: '/public/*' };
+const LIVE_OVERRIDES = [{ behavior: 'public', path_pattern: '/_memory/*' }, GIT_OVERRIDE, KNOWLEDGE_OVERRIDE, PUBLIC_OVERRIDE];
 
 /** Activate the new unavailable production anchor once; later publication choices stay untouched. */
 async function bootstrapLogin(cf, { account, access, state, checkpoint, note }) {
@@ -308,7 +312,7 @@ export async function provisionAccessPolicies(cf, { account, ownerEmail, teammat
   const root = `/accounts/${account}/access`;
   const [production, staging] = access.workers;
   const live = { record: state.access, worker: production, overrides: LIVE_OVERRIDES, prefix: 'CF_ACCESS', label: 'workspace', keep: keepLiveChecker, placed: 'memory and project-download exceptions and workspace email login' };
-  const previews = { record: state.access.staging, worker: staging, overrides: [GIT_OVERRIDE], prefix: 'CF_ACCESS_STAGING', label: 'preview', placed: `previews sign-in on ${staging.name}` };
+  const previews = { record: state.access.staging, worker: staging, overrides: [GIT_OVERRIDE, PUBLIC_OVERRIDE], prefix: 'CF_ACCESS_STAGING', label: 'preview', placed: `previews sign-in on ${staging.name}` };
   for (const side of [live, previews]) Object.assign(side, await reviewApp(cf, root, side.record));
   const existingHuman = live.policies.find(policy => policy.id === state.access.humanPolicyId);
   const teammates = teammateEmails ?? (existingHuman?.include ?? []).map(rule => rule.email?.email).filter(Boolean);

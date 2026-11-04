@@ -21,8 +21,10 @@ The pack uses **merge = deploy**, independent staging and branch previews. [One 
 - [The live line](live-line.md) — the one connection your computer and open inbox keep to the app, which only says *look now*; the background helper that holds it, turning it off, and its log.
 - [CI on GitHub Actions](github-actions.md) — the thin deploy workflow that runs the pipeline's scripts, and why not Cloudflare's Workers Builds.
 - [Fix a broken production database](d1-recovery.md) — the runbooks for when production is red: undo a bad migration with Time Travel, never hand-apply schema, and repair a drifted `d1_migrations` ledger.
+- [Company knowledge](company-knowledge.md) — the team's own pages in a repository of their own: what goes there, the copy on each computer, a save that goes live at once, conflicts, undo and restore.
 - [Company actions](company-api.md) — described app actions and memory reads for employee assistants, with separate authentication.
 - [The services list](service-catalogue.md) — where a chat starts for any outside service: the keys it can use, search, short answers, the shared error shape, and each service's notes page.
+- [The knowledge reader](knowledge-reader.md) — the Knowledge app: company knowledge's pages at their newest save, search, who can read them, and pages marked public.
 - [Mini apps](mini-apps.md) — small apps from one request, part of the main app under `/apps/`: the same loop and checks as any change, and a card each on the home page.
 - [Cloudflare Access](cloudflare-access.md) — automatic email login, native Worker and preview coverage, signed identity, and separate machine access.
 - [Employee access](employee-access.md) — the Access mini app: how the owner is known, the live app's key for its sign-in list, the first open, apps by a tick, and key levels.

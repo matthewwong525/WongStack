@@ -12,7 +12,7 @@ The Artifacts route is an install that needs one account: your project's files, 
 | | Artifacts route | GitHub route |
 |---|---|---|
 | Accounts | Cloudflare | Cloudflare and GitHub |
-| Cost | Cloudflare's paid plan | free |
+| Cost | Cloudflare's paid plan | Cloudflare's paid plan |
 | Where checks run | your Cloudflare account | GitHub Actions |
 | A change is reviewed as | the plan's page and a preview | a pull request too |
 | People per project | one | a team |
@@ -22,7 +22,7 @@ The Artifacts route is an install that needs one account: your project's files, 
 
 Cloudflare's **Workers Paid plan, about $5 a month**. [Artifacts](https://developers.cloudflare.com/artifacts/platform/pricing/), which holds the project's files, runs only on that plan. The plan includes an allowance of repository use, [container time](https://developers.cloudflare.com/containers/pricing/) for checks, and storage; use beyond it is billed by Cloudflare. Three limits keep a check run small: [one run at a time](#the-check-runner), 30 minutes of stages a run, and working files deleted after two days.
 
-Setup looks at the plan before it creates anything. On a free account it stops and asks: turn the plan on, or use the GitHub route, which is free.
+Both routes need this plan, because company knowledge is kept in Cloudflare. Setup looks at the plan before it creates anything. On a free account it stops and asks: turn the plan on and continue, or stop.
 
 ## Setup
 
@@ -33,7 +33,7 @@ Setup looks at the plan before it creates anything. On a free account it stops a
 3. **Step 2 widens for this route**: `P widen --route artifacts`. It adds [three permissions](cloudflare-credentials.md#how-two-permission-rows-become-enough) to a normal provision: the repository, the check runner's container, and a read of the account's plan. Report them with the rest.
 4. **After Step 3 picks the account, look at the plan**: `P plan`. It creates nothing.
    - `"route": "artifacts"` → go on.
-   - `"reason": "free-plan"` → **stop before creating anything.** Say: *"Keeping your project in Cloudflare needs its paid plan, about $5 a month. I can wait while you turn it on, or set you up with GitHub, which is free."* Offer both as [a choice](../../.agents/skills/explore/references/asking-the-user.md). GitHub → the runbook from its own Step 1a, unchanged.
+   - `"reason": "free-plan"` → **stop before creating anything.** Say: *"Every way to install WongStack needs Cloudflare's paid plan, about $5 a month. I can wait while you turn it on, or stop here."* Offer both as [a choice](../../.agents/skills/explore/references/asking-the-user.md). Turned on → run `P plan` again. Stop → end; nothing was created.
    - `"reason": "windows"` → say this route is not ready on Windows yet, and offer GitHub the same way.
 5. **Step 4 names and provisions with the route**: `P names --route artifacts --repo <folder name>`, then `P provision --route artifacts --repo <folder name> --base <base> …` with the runbook's other flags. In place of the CI deploy token secret (4d) and the workflow (4e), it makes:
    - the project's repository, `<base>`, in the account's `wongstack` Artifacts namespace, and points `origin` at it;

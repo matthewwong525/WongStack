@@ -18,6 +18,17 @@
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/explore/scripts/step-title.mjs\" hook --agent codex",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "apply_patch",
@@ -37,6 +48,11 @@
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark",
             "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/stop-check.mjs\" stop --agent codex",
+            "timeout": 300
           }
         ]
       }

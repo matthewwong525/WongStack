@@ -4,6 +4,7 @@ import type { AppHandler } from "./apps/index";
 import worker from "./index";
 import { body } from "../tests/body";
 import { fakeEnv } from "../tests/env";
+import { fakeKnowledge, PAGES } from "../tests/knowledge";
 import { jwk, signingPair } from "../tests/signing";
 
 // Hello's routes, plus one that reports which bindings a mini app's handler is handed.
@@ -53,12 +54,25 @@ describe("private Worker routing", () => {
     }
     expect(assets.fetch).not.toHaveBeenCalled();
   });
+  it("opens a public knowledge page with no sign-in, and nothing else beside it", async () => {
+    const bindings = { ...env, ...fakeKnowledge(PAGES).env };
+    const page = await call("/public/welcome", {}, bindings);
+    expect([page.status, await page.text()]).toEqual([200, expect.stringContaining("Welcome to Acme Clay.")]);
+    expect((await call("/public/how-we-work/refunds", {}, bindings)).status).toBe(404);
+    for (const path of ["/public", "/publicity", "/apps/knowledge/welcome", "/apps/knowledge/api/page?path=welcome"]) {
+      expect((await call(path, {}, bindings)).status, path).toBe(401);
+    }
+    expect(assets.fetch).not.toHaveBeenCalled();
+  });
   it("asks an unsigned git call for the sign-in as a password, and passes a signed one on to the project's own checks", async () => {
     const refs = "/api/access/code/git/info/refs?service=git-upload-pack";
-    for (const headers of [{}, { Authorization: `Basic ${btoa("x-access:not-a-sign-in")}` }] as Record<string, string>[]) {
-      const asked = await call(refs, headers);
-      expect([asked.status, asked.headers.get("WWW-Authenticate"), asked.headers.get("Content-Type")]).toEqual([401, 'Basic realm="company app"', "text/plain; charset=utf-8"]);
-      expect(await asked.text()).toBe("Sign in to the company app again, then retry: cloudflared access login https://workspace.example.com\n");
+    // Company knowledge's Git address asks the same way.
+    for (const address of [refs, "/api/access/knowledge/git/info/refs?service=git-upload-pack", "/api/access/knowledge/git/git-receive-pack"]) {
+      for (const headers of [{}, { Authorization: `Basic ${btoa("x-access:not-a-sign-in")}` }] as Record<string, string>[]) {
+        const asked = await call(address, headers);
+        expect([asked.status, asked.headers.get("WWW-Authenticate"), asked.headers.get("Content-Type")], address).toEqual([401, 'Basic realm="company app"', "text/plain; charset=utf-8"]);
+        expect(await asked.text()).toBe("Sign in to the company app again, then retry: cloudflared access login https://workspace.example.com\n");
+      }
     }
     // Every other address keeps its plain refusal, and an app with no Access set up stays unavailable.
     expect((await call("/api/access/apps")).headers.get("WWW-Authenticate")).toBeNull();
@@ -66,6 +80,7 @@ describe("private Worker routing", () => {
     // A signed password gets past the sign-in to Project code's own check, which answers here with no store.
     const signed = await call(refs, { Authorization: `Basic ${btoa(`x-access:${await token()}`)}` });
     expect(signed.status).not.toBe(401);
+    expect((await call("/api/access/knowledge/git/info/refs?service=git-upload-pack", { Authorization: `Basic ${btoa(`x-access:${await token()}`)}` })).status).not.toBe(401);
   });
   it("keeps missing app configuration unavailable, including its static assets", async () => {
     for (const path of ASSET_PATHS) expect((await call(path, {}, { ASSETS: assets })).status).toBe(503);

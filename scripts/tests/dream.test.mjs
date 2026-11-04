@@ -58,6 +58,7 @@ test('only a fact worded as a dream is one', () => {
 test('a dream fact names its pages once each, without the sentence’s full stop', () => {
   assert.deepEqual(pagesNamed('Checked: wiki/a.md, wiki/people/b.md, wiki/a.md.'), ['wiki/a.md', 'wiki/people/b.md']);
   assert.deepEqual(pagesNamed('Nothing checked; see scripts/x.mjs.'), []);
+  assert.deepEqual(pagesNamed('Checked: knowledge/ops/shipping.md, wiki/a.md.'), ['knowledge/ops/shipping.md', 'wiki/a.md']);
   assert.deepEqual(pagesNamed('Checked: wiki/a.md, openspec/specs/memory/spec.md.'), ['wiki/a.md', 'openspec/specs/memory/spec.md']);
 });
 
@@ -226,6 +227,18 @@ test('a dream record dated ahead or not in plain UTC, or claiming facts written 
   assert.deepEqual([...checks], [['wiki/people/a.md', '2026-10-01']]);
   const pages = ['a', 'b'].map(name => ({ path: `wiki/people/${name}.md`, text: 'words', committed: null }));
   assert.deepEqual(pageList(pages, SHIPPED, checks).map(page => [page.path, page.lastChecked]), [['wiki/people/b.md', null], ['wiki/people/a.md', '2026-10-01']]);
+});
+
+test("a small wiki tidy's record counts as the last dream; a forged future one does not", () => {
+  const facts = [
+    { id: 1300, created_at: '2026-10-01T08:00:00Z', body: 'Dream 2026-10-01: read facts up to #1206. Checked: wiki/people/a.md.' },
+    { id: 1320, created_at: '2026-10-05T08:00:00Z', body: 'Wiki tidy 2026-10-05: read facts up to #1318. Checked: wiki/customers.md.' },
+    { id: 1330, created_at: '2999-01-01T00:00:00Z', body: 'Wiki tidy 2999-01-01: read facts up to #99999. Checked: wiki/people/b.md.' },
+    { id: 1331, created_at: '2026-10-06T08:00:00Z', body: 'Wiki tidy 2026-10-06: read facts up to #5000. Checked: wiki/people/b.md.' },
+  ];
+  assert.deepEqual(facts.filter(isDreamFact).map(fact => fact.id), [1300, 1320]);
+  assert.deepEqual(lastDream(facts), { since: '2026-10-05', afterFact: 1318, pages: ['wiki/customers.md'], dream: 1320 });
+  assert.equal(isDreamFact({ created_at: '2026-10-06T08:00:00Z', body: 'The wiki tidy 2026-10-06: ran.' }), false);
 });
 
 test('a dream fact split in two gives the pages of both parts', () => {

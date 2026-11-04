@@ -37,7 +37,7 @@ Use the first callable tool:
 3. Another host's equivalent structured question tool
 4. **Numbered chat** with the same questions, options, recommendation, and custom-answer path; wait for the answer.
 
-**Only where nobody can answer**, as in an unattended run, take the recommended options, label each **assumed**, not chosen, and continue. Otherwise **a question stays pending until answered**, however long it waits and whatever is preselected; meanwhile do only independent work.
+**Only where nobody can answer**, as in an unattended run, or [inside `/ship`](../../../../wiki/development/the-change-loop.md#inside-ship) for a pick it marks safe, take the recommended options, label each **assumed**, and continue. Otherwise **a question stays pending until answered**, however long it waits and whatever is preselected; meanwhile do only independent work.
 
 ## Confirmations, offers, and menus are asks
 

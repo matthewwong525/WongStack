@@ -1,14 +1,17 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { headlessCommand } from '../../.agents/skills/memory/scripts/lib/headless.mjs';
+import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
+import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
-import { commands } from '../../.agents/skills/daily/scripts/daily.mjs';
+import { commands, personSettings, start } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { addLine, readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
-import { DEFAULT_SWEEPS, SKILL_BRIEFS, briefFolders, briefFor, dueKey, fillText, loadSweeps, makeWorker, runEnv, runOf, serveDaily, serveWorker,
-  workerPass }
+import { DEFAULT_SWEEPS, SKILL_BRIEFS, briefFolders, briefFor, codeStamp, dropServeLock, dueKey, fillText, loadSweeps, lockHolder, makeWorker,
+  morningPass, runEnv, runOf, serveDaily, serveWorker, takeServeLock, workerPass }
   from '../../.agents/skills/daily/scripts/worker.mjs';
 
 const TZ = 'America/Toronto';
@@ -17,12 +20,13 @@ afterEach(() => { for (const root of roots.splice(0)) rmSync(root, { recursive: 
 function folder() {
   const dir = mkdtempSync(join(tmpdir(), 'daily-worker-'));
   roots.push(dir);
-  writeFileSync(join(dir, 'daily-workspace.json'), JSON.stringify({ agentId: 'daily-1' }));
   return dir;
 }
-const defaults = () => loadSweeps({ project: '/repo' });
+// The judge jobs an install may keep in its own list; the default list has none since each chat checks its own stops.
+const JUDGE_EVENTS = { stopped: { brief: 'judge.md', title: 'Judge {{title}}', hold: true }, asking: { brief: 'judge.md', title: 'Judge {{title}}', hold: true } };
+const defaults = () => { const merged = loadSweeps({ project: '/repo' }); return { ...merged, events: { ...JUDGE_EVENTS, ...merged.events } }; };
 
-/** A worker with fake runs, clock, Paseo and Daily chat. `world` holds what each fake saw. */
+/** A worker with fake runs, clock and Paseo. `world` holds what each fake saw. */
 function rig({ stateDir = folder(), sweeps = defaults(), start = '2026-10-31T14:00:00Z', briefs = [SKILL_BRIEFS], agent } = {}) {
   const world = { t: Date.parse(start), spawned: [], live: new Set(), exits: {}, typed: {}, pending: [], calls: [], sent: [],
     killed: [], checks: [], checkOut: '', nextPid: 100 };
@@ -36,7 +40,6 @@ function rig({ stateDir = folder(), sweeps = defaults(), start = '2026-10-31T14:
       world.live.add(pid);
       return { pid, on: (name, done) => { world.exits[pid] = done; } };
     },
-    sendDaily: async text => { world.sent.push(text); },
     runCheck: async input => { world.checks.push(input); return world.checkOut; },
   };
   const make = (more = {}) => makeWorker({ ...options, ...more });
@@ -55,7 +58,7 @@ function briefsWith(extra) {
   return dir;
 }
 
-test('no event sends anything to the Daily chat: stops start runs up to the cap, and the rest goes to the journal', async () => {
+test('no event sends any chat a message: stops start runs up to the cap, and the rest goes to the journal', async () => {
   const { world, worker, stateDir } = rig();
   await workerPass({ worker, stateDir, seconds: 60, now: () => world.t, watchOnce: async () => [
     stop('a'), ask('b', 'r1'), stop('c'), stop('d'), stop('e'), { event: 'gone', agent: 'x', title: 'old-chat' },
@@ -63,7 +66,6 @@ test('no event sends anything to the Daily chat: stops start runs up to the cap,
     { event: 'done', agent: 'y', title: 'Dentist', task: 't1' }, { event: 'end', reason: 'time' }, { event: 'odd', x: 1 },
     { event: 'unsupported', reason: 'no' }] });
   assert.ok(!world.calls.some(call => call.startsWith('send')));
-  assert.deepEqual(world.sent, []);
   assert.deepEqual(lines(stateDir).slice(0, 6), ['Closed: old-chat', 'Not read: add-on orders.mjs — down', 'Two new orders',
     'Done on the board: Dentist', 'Watch ended: time', 'odd: {"event":"odd","x":1}']);
   assert.equal(JSON.parse(readFileSync(join(stateDir, 'serve.json'), 'utf8')).seconds, 60);
@@ -169,17 +171,12 @@ test('a dry run stops no live run past 30 minutes: it prints wouldStop', async (
   assert.deepEqual(printed.map(item => item.wouldStop), ['Judge a', 'Judge b']);
 });
 
-test('a board that can not be read sends the Daily chat one line per day', async () => {
-  const { world, worker, at, stateDir } = rig();
-  const board = { event: 'not-read', source: 'board', error: 'unavailable: sign in again' };
-  await worker.dispatch([board, { event: 'not-read', source: 'to-dos', error: 'x' }]);
-  assert.deepEqual(world.sent, ['Not read: your board — unavailable: sign in again']);
-  await worker.dispatch([board]);
-  assert.equal(world.sent.length, 1);
-  at('2026-11-01T15:00:00Z');
-  await worker.dispatch([board]);
-  assert.equal(world.sent.length, 2);
-  assert.ok(lines(stateDir).includes('Not read: board — unavailable: sign in again'));
+test('a board that can not be read goes to the journal only, and sends no chat a message', async () => {
+  const { world, worker, stateDir } = rig();
+  await worker.dispatch([{ event: 'not-read', source: 'board', error: 'unavailable: sign in again' }]);
+  assert.deepEqual(lines(stateDir), ['Not read: board — unavailable: sign in again']);
+  assert.deepEqual(world.calls, []);
+  assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(stateDir, 'worker-queue.json'), 'utf8')), 'told'), false);
 });
 
 test('a timed job runs once per due time, skips a missed time, and an empty check starts nothing', async () => {
@@ -243,9 +240,10 @@ test("the install's list merges over the default, and its brief folder wins over
   writeFileSync(join(project, '.agents/daily/jobs.json'), JSON.stringify({ maxRuns: 2,
     events: { invoice: { brief: 'invoice.md' } }, sweeps: [{ id: 'pay', at: ['09:00'], brief: 'pay.md' }] }));
   const merged = loadSweeps({ project, file: '.agents/daily/jobs.json' });
-  assert.deepEqual(Object.keys(merged.events), ['stopped', 'asking', 'invoice']);
-  assert.deepEqual([merged.maxRuns, merged.journalDays, merged.sweeps.map(sweep => sweep.id)], [2, 14, ['pay']]);
-  assert.deepEqual(defaults().sweeps, []);
+  assert.deepEqual(Object.keys(merged.events), ['invoice']);
+  assert.deepEqual(loadSweeps({ project: '/repo' }).events, {});
+  assert.deepEqual([merged.maxRuns, merged.journalDays, merged.sweeps.map(sweep => sweep.id)], [2, 14, ['wiki-tidy', 'pay']]);
+  assert.deepEqual(defaults().sweeps.map(sweep => sweep.id), ['wiki-tidy']);
   assert.equal(JSON.parse(readFileSync(DEFAULT_SWEEPS, 'utf8')).journalDays, 14);
   assert.match(briefFor({ brief: 'judge.md', fields: { title: 'x' } }, 'r1', briefFolders(project)), /Our own judge for x\./);
   writeFileSync(join(project, '.agents/daily/bad.json'), JSON.stringify({ sweeps: [{ id: 'evil', brief: 'pay.md', check: '../outside.mjs' }] }));
@@ -307,7 +305,7 @@ test("serve's next pass comes right after a chat's stop report and after a run's
   const launch = () => ({ pid: process.pid, on: (name, handler) => { if (name === 'exit') runEnd = handler; } });
   const watcher = (_dir, notice) => { report = notice; return { close: () => {} }; };
   await assert.rejects(serveDaily({ config, project: folder(), stateDir, call, env: { HOME: folder() }, watching: { board: async () => ({ tasks: [] }) },
-    started: () => ({}), daily: { read: () => ({}) }, seconds: 60, log: text => logs.push(text), launch, watcher, sleep }), error => error === done);
+    started: () => ({}), seconds: 60, log: text => logs.push(text), launch, watcher, sleep }), error => error === done);
   assert.deepEqual(logs, []);
   assert.deepEqual(seen, [1, 2, 3]);
 });
@@ -319,8 +317,330 @@ test('serve --dry-run prints what it would do, starts nothing, and leaves the li
     places: { home: '.' }, checks: [] });
   const call = async args => (args[0] === 'ls' || args[0] === 'permit' ? [] : { ok: true });
   await commands({ config, project: folder(), stateDir, values: { 'dry-run': true, seconds: 60 }, call, board: { tasks: async () => ({ tasks: [] }) },
-    env: {}, print: text => printed.push(JSON.parse(text)) }).serve();
+    env: {}, print: text => printed.push(JSON.parse(text)), reread: () => ({ me: { file: null }, config }) }).serve();
   assert.deepEqual(printed.at(-1), { dryRun: true, waiting: [] });
   assert.equal(existsSync(join(stateDir, 'serve.json')), false);
   assert.equal(existsSync(join(stateDir, 'worker-queue.json')), false);
+});
+
+// ---------------------------------------------------------------------------
+// One worker per person and repo, with or without Paseo
+
+test('with no job of its own for them, a stop and a question start nothing and write no journal line', async () => {
+  const { world, stateDir, make } = rig({ sweeps: loadSweeps({ project: '/repo' }) });
+  const worker = make();
+  await worker.dispatch([stop('a'), ask('b', 'r1'), { event: 'gone', agent: 'x', title: 'old-chat' }]);
+  await worker.pump();
+  assert.deepEqual(world.spawned, []);
+  assert.deepEqual(lines(stateDir), ['Closed: old-chat']);
+});
+
+test('serve.lock: the first worker takes it, a second is refused, and a dead or silent holder is taken over', () => {
+  const stateDir = folder();
+  const now = Date.now();
+  assert.equal(takeServeLock({ stateDir, pid: 11, now }), true);
+  assert.equal(lockHolder(stateDir), 11);
+  assert.equal(takeServeLock({ stateDir, pid: 11, now }), true, 'its own lock');
+  assert.equal(takeServeLock({ stateDir, pid: 12, isAlive: () => true, now }), false);
+  assert.equal(takeServeLock({ stateDir, pid: 12, isAlive: pid => pid !== 11, now }), true, 'a dead pid');
+  assert.equal(lockHolder(stateDir), 12);
+  // A live pid with no beat for 10 minutes may be another program's now.
+  const old = (now - 10 * 60e3) / 1000;
+  utimesSync(join(stateDir, 'serve.lock'), old, old);
+  beat({ stateDir, seconds: 60, now: now - 10 * 60e3 });
+  assert.equal(takeServeLock({ stateDir, pid: 13, isAlive: () => true, now }), true, 'a stale beat');
+  beat({ stateDir, seconds: 60, now });
+  utimesSync(join(stateDir, 'serve.lock'), old, old);
+  assert.equal(takeServeLock({ stateDir, pid: 14, isAlive: () => true, now }), false, 'a beating worker keeps it');
+  dropServeLock(stateDir, 14);
+  assert.equal(lockHolder(stateDir), 13);
+  dropServeLock(stateDir, 13);
+  assert.equal(existsSync(join(stateDir, 'serve.lock')), false);
+});
+
+test('serve.lock: two takers racing over a dead lock never both win', async () => {
+  const worker = new URL('../../.agents/skills/daily/scripts/worker.mjs', import.meta.url).href;
+  // Each taker stays alive a moment, so the other sees a live holder.
+  const taker = stateDir => new Promise(done => {
+    const child = spawn(process.execPath, ['--input-type=module', '-e', `import { takeServeLock } from ${JSON.stringify(worker)};
+      console.log(takeServeLock({ stateDir: ${JSON.stringify(stateDir)} })); setTimeout(() => {}, 1500);`], { stdio: ['ignore', 'pipe', 'inherit'] });
+    let out = '';
+    child.stdout.on('data', chunk => { out += chunk; });
+    child.on('close', () => done(out.trim()));
+  });
+  for (let round = 0; round < 5; round++) {
+    const stateDir = folder();
+    writeFileSync(join(stateDir, 'serve.lock'), '2147483646\n');
+    const won = await Promise.all([taker(stateDir), taker(stateDir), taker(stateDir)]);
+    assert.equal(won.filter(each => each === 'true').length, 1, won.join(' '));
+  }
+  // A taker that finds another's takeover under way is refused; a takeover left by a dead taker is taken after 10 s.
+  const stateDir = folder();
+  writeFileSync(join(stateDir, 'serve.lock'), '2147483646\n');
+  mkdirSync(join(stateDir, 'serve.lock.take'));
+  assert.equal(takeServeLock({ stateDir, pid: 21 }), false);
+  const old = (Date.now() - 20e3) / 1000;
+  utimesSync(join(stateDir, 'serve.lock.take'), old, old);
+  assert.equal(takeServeLock({ stateDir, pid: 21, isAlive: pid => pid === 21 }), true);
+  assert.deepEqual([lockHolder(stateDir), existsSync(join(stateDir, 'serve.lock.take'))], [21, false]);
+});
+
+test('a second serve prints one line and returns, starting nothing', async () => {
+  const stateDir = folder();
+  writeFileSync(join(stateDir, 'serve.lock'), `${process.ppid}\n`);
+  const warned = [], printed = [];
+  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
+    places: {}, checks: [] });
+  const call = async () => { throw new Error('no call expected'); };
+  const result = await commands({ config, project: folder(), stateDir, values: { seconds: 60, once: true }, call, board: { tasks: call }, env: {},
+    print: text => printed.push(text), warn: text => warned.push(text) }).serve();
+  assert.deepEqual([result, printed, warned], [undefined, [], ['Another daily worker runs for this person and repo.']]);
+  assert.equal(existsSync(join(stateDir, 'serve.json')), false);
+});
+
+test('without Paseo the worker still runs a timed job, with the AI tool serve names unless the settings name one', async () => {
+  const project = folder();
+  mkdirSync(join(project, '.agents/daily/briefs'), { recursive: true });
+  writeFileSync(join(project, '.agents/daily/briefs/pay.md'), 'Pay what is due.\n');
+  writeFileSync(join(project, '.agents/daily/jobs.json'), JSON.stringify({ sweeps: [{ id: 'pay', every: '15m', brief: 'pay.md' },
+    { id: 'wiki-tidy', off: true }] }));
+  const call = async () => { throw new PaseoError(EXIT.noPaseo, 'Paseo is not installed.'); };
+  const serve = async runs => {
+    const stateDir = folder(), spawned = [], logs = [];
+    const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: true, chats: true },
+      places: {}, checks: [], sweeps: '.agents/daily/jobs.json', ...(runs && { runs }) });
+    await serveDaily({ config, project, stateDir, call, env: { HOME: folder() }, agent: 'codex', once: true, log: text => logs.push(text),
+      watching: { board: call, todos: { tasks: call } }, started: () => ({}), watcher: () => ({ close() {} }),
+      launch: run => { spawned.push(run.command); return { pid: process.pid, on: () => {} }; } });
+    assert.deepEqual(logs, []);
+    return { spawned, journal: lines(stateDir) };
+  };
+  const plain = await serve();
+  assert.deepEqual(plain.spawned, ['codex']);
+  assert.deepEqual(plain.journal, ['Started: pay']);
+  assert.deepEqual((await serve({ agent: 'claude' })).spawned, ['claude']);
+});
+
+test("an install's timed job replaces the default of its id, an off entry removes one, and one that names no default is ignored", () => {
+  const project = folder();
+  const own = sweeps => {
+    writeFileSync(join(project, 'jobs.json'), JSON.stringify({ sweeps }));
+    return loadSweeps({ project, file: 'jobs.json' }).sweeps;
+  };
+  // `wrap-up` was once a default job: an install list that still turns it off keeps working.
+  const merged = own([{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'wrap-up', off: true }, { id: 'pay', at: ['09:00'], brief: 'pay.md' }]);
+  assert.deepEqual(merged, [{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'pay', at: ['09:00'], brief: 'pay.md' }]);
+  assert.deepEqual(own([{ id: 'wiki-tidy', off: true }]), []);
+  assert.throws(() => own([{ id: 'nap', every: '5m', do: 'sleep' }]), /bad entry: nap/);
+  assert.throws(() => own([{ id: 'far', every: '5m', brief: 'far.md', place: 'away' }]), /bad entry: far/);
+  assert.throws(() => own([{ id: 'long', every: '5m', brief: 'long.md', minutes: 0 }]), /bad entry: long/);
+});
+
+/** A git that records each command and makes or removes the copy's folder as git would. */
+function fakeGit(calls, { fail = null } = {}) {
+  return (cwd, args) => {
+    const command = args.join(' ');
+    calls.push(command);
+    if (fail && command.startsWith(fail)) throw new Error(`git ${fail} failed`);
+    if (command.startsWith('worktree add')) mkdirSync(args[4], { recursive: true });
+    if (command.startsWith('worktree remove')) rmSync(args[3], { recursive: true, force: true });
+    return '';
+  };
+}
+
+test('the wiki tidy runs in its own copy for up to 90 minutes, and the copy goes when the run ends, is stopped, or at boot', async () => {
+  const calls = [];
+  const { world, make, at, end, stateDir } = rig();
+  const worker = make({ git: fakeGit(calls) });
+  world.checkOut = '{"run":{"consolidated":"2026-10-31T13:00:00Z"}}';
+  await worker.sweep();
+  await worker.pump();
+  assert.equal(world.spawned.length, 1);
+  const copy = world.spawned[0].project;
+  assert.match(copy, /\/copies\/sweep-\d{8}T\d{6}-\w+$/);
+  assert.ok(copy.startsWith(stateDir) && existsSync(copy));
+  assert.deepEqual(calls, ['fetch -q origin main', `worktree add -q --detach ${copy} origin/main`]);
+  assert.match(world.spawned[0].args.join(' '), /Memory consolidated at 2026-10-31T13:00:00Z\./);
+  // A linked company-knowledge copy outlives the job's copy.
+  const knowledge = join(stateDir, 'knowledge-copy');
+  mkdirSync(knowledge);
+  writeFileSync(join(knowledge, 'page.md'), '# Page\n');
+  symlinkSync(knowledge, join(copy, 'knowledge'), 'dir');
+  end(world.spawned[0].pid);
+  await worker.pump();
+  assert.equal(existsSync(copy), false);
+  assert.ok(existsSync(join(knowledge, 'page.md')));
+  assert.deepEqual(calls.slice(2), [`worktree remove --force ${copy}`, 'worktree prune']);
+  // The next consolidation's run: past 30 minutes it still runs; at 90 it is stopped and its copy goes.
+  at('2026-10-31T14:30:00Z');
+  await worker.sweep();
+  await worker.pump();
+  const second = world.spawned[1];
+  at('2026-10-31T15:59:00Z');
+  await worker.pump();
+  assert.deepEqual(world.killed, []);
+  at('2026-10-31T16:00:00Z');
+  await worker.pump();
+  assert.deepEqual(world.killed, [second.pid]);
+  assert.equal(existsSync(second.project), false);
+  assert.ok(lines(stateDir).includes('Not finished: Wiki tidy — stopped after 90 minutes'));
+  // A copy a crash left behind goes at the next boot.
+  mkdirSync(join(stateDir, 'copies', 'sweep-left'), { recursive: true });
+  make({ git: fakeGit(calls) }).boot();
+  assert.equal(existsSync(join(stateDir, 'copies', 'sweep-left')), false);
+});
+
+test('a copy that git can not make starts no run, and a dry run makes no copy', async () => {
+  const calls = [];
+  const { world, make, at, stateDir } = rig();
+  world.checkOut = '{"run":{"consolidated":"2026-10-31T13:00:00Z"}}';
+  const worker = make({ git: fakeGit(calls, { fail: 'fetch' }) });
+  await worker.sweep();
+  await worker.pump();
+  assert.equal(world.spawned.length, 0);
+  assert.ok(lines(stateDir).includes('Not started: Wiki tidy — git fetch failed'));
+  at('2026-10-31T14:30:00Z');
+  calls.length = 0;
+  const printed = [];
+  const dry = make({ dryRun: true, print: item => printed.push(item), git: fakeGit(calls) });
+  dry.boot();
+  await dry.sweep();
+  await dry.pump();
+  assert.deepEqual(calls, []);
+  assert.deepEqual(printed.map(item => item.wouldCheck), ['wiki-tidy']);
+});
+
+// ---------------------------------------------------------------------------
+// The morning start, with no chat
+
+/** A settings file's routine and morning add-on, a fake launcher and add-ons, and one serve pass at `at`. */
+function morningRig({ morning, addonEvents = [] } = {}) {
+  const project = folder(), stateDir = folder(), launched = [], ran = [];
+  mkdirSync(join(project, '.agents/skills/news'), { recursive: true });
+  writeFileSync(join(project, '.agents/skills/news/SKILL.md'), '# News\n');
+  mkdirSync(join(project, '.agents/daily'), { recursive: true });
+  writeFileSync(join(project, '.agents/daily/jobs.json'), JSON.stringify({ sweeps: [{ id: 'wiki-tidy', off: true }] }));
+  const raw = { version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
+    places: { home: '.' }, sweeps: '.agents/daily/jobs.json', addons: { morning: ['shop.mjs'], pass: [] }, ...(morning && { morning }),
+    checks: [{ id: 'news', enabled: true, title: 'Morning news', place: 'home', scope: 'Today', result: 'A list', procedure: '.agents/skills/news/SKILL.md',
+      cadence: { kind: 'daily' }, effects: 'Reads only', activeFrom: '2026-01-05', start: 'run', missed: 'latest' }] };
+  const config = validateConfig(raw);
+  const launch = async ({ title }) => { launched.push(title); return { ok: true, cwd: '/w/little-giraffe', agentId: 'agent-news' }; };
+  const addons = async ({ context }) => { ran.push(context.kind); return { lines: ['Two new orders'], events: addonEvents, skip: [],
+    failed: [{ addon: 'bank.mjs', error: 'down' }] }; };
+  const startDay = options => start({ config, project, stateDir, launch, addons, ...options });
+  const call = async args => (args[0] === 'ls' || args[0] === 'permit' ? [] : { ok: true });
+  const serve = (at, more = {}) => serveDaily({ config, project, stateDir, call, env: { HOME: folder() }, once: true, hasFile: true, start: startDay,
+    watching: { board: async () => ({ tasks: [] }) }, started: () => ({}), watcher: () => ({ close() {} }), ownRepo: () => true,
+    now: () => Date.parse(at), ...more });
+  return { raw, config, project, stateDir, launched, ran, launch, addons, startDay, serve };
+}
+
+/** One worker over `r` that reads the settings file each pass as `daily.mjs serve` does; `steps` run between passes. */
+async function servePasses(r, steps) {
+  const clock = { at: '2026-11-03T14:00:00Z' };
+  const settings = () => {
+    const found = personSettings({ repo: r.project, ctx: { author: 'alex@example.com' }, origin: null });
+    return { config: found.config, hasFile: Boolean(found.me.file) };
+  };
+  const done = new Error('passes done');
+  let sleeps = 0;
+  await assert.rejects(r.serve(clock.at, { settings, once: false, seconds: 5, now: () => Date.parse(clock.at), sleep: async () => {
+    if (++sleeps % 5) return;
+    const step = steps.shift();
+    if (!step) throw done;
+    step(clock);
+  } }), error => error === done);
+}
+const writeSettings = (r, more) => writeFileSync(join(r.project, '.agents/daily/alex.json'), JSON.stringify({ ...r.raw, ...more }));
+
+test('the morning starts nothing before 8:00, and at 8:00 starts the routine and add-ons once, with their journal lines', async () => {
+  const r = morningRig();
+  await r.serve('2026-11-03T12:59:00Z');
+  assert.deepEqual([r.launched, r.ran, lines(r.stateDir)], [[], [], []]);
+  await r.serve('2026-11-03T13:00:00Z');
+  assert.deepEqual([r.launched, r.ran], [['Morning news'], ['morning']]);
+  assert.deepEqual(lines(r.stateDir), ['Started: Morning news in little-giraffe', 'Two new orders', 'Not read: add-on bank.mjs — down']);
+  // A second pass, and a second worker over the same state after a restart, start nothing again.
+  await r.serve('2026-11-03T15:30:00Z');
+  await r.serve('2026-11-03T15:31:00Z', { start: options => start({ config: r.config, project: r.project, stateDir: r.stateDir, launch: r.launch,
+    addons: r.addons, ...options }) });
+  assert.deepEqual([r.launched, r.ran], [['Morning news'], ['morning']]);
+  assert.equal(lines(r.stateDir).length, 3);
+});
+
+test('the first pass after a late start runs the morning, at the time the settings name', async () => {
+  const r = morningRig({ morning: '10:30' });
+  await r.serve('2026-11-03T15:29:00Z');
+  assert.deepEqual(r.launched, []);
+  await r.serve('2026-11-03T18:00:00Z');
+  assert.deepEqual(r.launched, ['Morning news']);
+});
+
+test('with no settings file the morning starts nothing', async () => {
+  const r = morningRig();
+  await r.serve('2026-11-03T14:00:00Z', { hasFile: false });
+  assert.deepEqual([r.launched, r.ran, lines(r.stateDir)], [[], [], []]);
+});
+
+test('a settings file made after the worker started gets its morning at the next pass', async () => {
+  const r = morningRig();
+  const seen = [];
+  await servePasses(r, [() => { seen.push([...r.launched]); writeSettings(r); }]);
+  assert.deepEqual([seen, r.launched], [[[]], ['Morning news']]);
+});
+
+test("a changed morning time counts at the worker's next pass", async () => {
+  const r = morningRig();
+  writeSettings(r, { morning: '10:30' });
+  const seen = [];
+  await servePasses(r, [
+    clock => { seen.push([...r.launched]); clock.at = '2026-11-03T14:30:00Z'; },
+    () => { seen.push([...r.launched]); writeSettings(r, { morning: '09:00' }); }]);
+  assert.deepEqual([seen, r.launched], [[[], []], ['Morning news']]);
+});
+
+test('a settings file the worker can not read is journaled once a day and skips the morning until it is fixed', async () => {
+  const r = morningRig();
+  writeSettings(r, { morning: '8am' });
+  await servePasses(r, [() => {}, () => writeSettings(r)]);
+  assert.deepEqual(r.launched, ['Morning news']);
+  assert.equal(lines(r.stateDir).filter(line => line.startsWith('Not read: the settings file')).length, 1);
+});
+
+test('the beat holds the stamp of the code the worker started with', async () => {
+  const r = morningRig();
+  await r.serve('2026-11-03T12:00:00Z');
+  assert.equal(JSON.parse(readFileSync(join(r.stateDir, 'serve.json'), 'utf8')).code, codeStamp());
+  assert.match(codeStamp(), /^[0-9a-f]{12}$/);
+});
+
+test("a morning add-on's events go to dispatch, the same path as a pass add-on's", async () => {
+  const r = morningRig({ addonEvents: [{ event: 'order', id: 7, addon: 'shop.mjs' }] });
+  const dispatched = [];
+  await morningPass({ config: r.config, stateDir: r.stateDir, start: r.startDay, dispatch: async events => { dispatched.push(...events); },
+    date: new Date('2026-11-03T13:05:00Z') });
+  assert.deepEqual(dispatched, [{ event: 'order', id: 7, addon: 'shop.mjs' }]);
+});
+
+test('a dry run prints the routine it would start, and starts nothing', async () => {
+  const r = morningRig();
+  const printed = [];
+  await r.serve('2026-11-03T13:05:00Z', { dryRun: true, print: item => printed.push(item) });
+  assert.deepEqual(printed.filter(item => item.wouldStart), [{ wouldStart: 'routine', title: 'Morning news' }]);
+  assert.deepEqual([r.launched, r.ran], [[], []]);
+  assert.equal(existsSync(join(r.stateDir, 'morning-2026-11-03.json')), false);
+});
+
+test('a morning that throws is journaled once a day, and the watch still runs', async () => {
+  const r = morningRig();
+  let watched = 0;
+  const call = async args => { if (args.join(' ') === 'ls --global') watched += 1; return args[0] === 'ls' || args[0] === 'permit' ? [] : { ok: true }; };
+  const broken = async () => { throw new Error('no place'); };
+  let sleeps = 0;
+  const done = new Error('two passes');
+  await assert.rejects(r.serve('2026-11-03T14:00:00Z', { call, start: broken, once: false, sleep: async () => { if (++sleeps > 60) throw done; } }),
+    error => error === done);
+  assert.deepEqual(lines(r.stateDir), ['Not started: the morning — no place']);
+  assert.equal(watched, 2);
 });

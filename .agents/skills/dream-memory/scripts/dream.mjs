@@ -7,13 +7,14 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
+import { knowledgeCopy } from '../../memory/scripts/lib/knowledge-copy.mjs';
 import { wikiPages } from '../../memory/scripts/lib/links.mjs';
 import { pathWords } from '../../memory/scripts/lib/upkeep.mjs';
 import { PLAIN_UTC } from '../../memory/worker/statements.mjs';
 
 const USAGE = `usage: dream.mjs <command> [--json]
   since   the last dream: its date, the highest fact id it read, the pages it checked
-  pages   each wiki page as own|shipped and each spec, its words, and when it was last checked, longest unchecked first
+  pages   each wiki and knowledge page as own|shipped and each spec, its words, and when it was last checked, longest unchecked first
   drift   live facts naming a repo path that is gone, and plans that are finished or 30 days idle`;
 const MEMORY = fileURLToPath(new URL('../../memory/scripts/memory.mjs', import.meta.url));
 const SLUG = 'wiki-dream';
@@ -27,12 +28,14 @@ const CHANGES = 'openspec/changes';
 const SHIPPED_GROUPS = ['core', 'ui', 'pack', 'scaffold'];
 
 const day = stamp => String(stamp).slice(0, 10);
+// A dream's record, or a small wiki tidy's: `/dream-memory --small` writes `Wiki tidy <date>: …`.
+const RECORD = /^(?:Dream|Wiki tidy) \d{4}-\d{2}-\d{2}:/;
 const newestFirst = (a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.id - a.id;
 
 // A dream's record: upkeep tags `dream` any fact naming this folder, so the tag alone is not enough. A date ahead or
 // not plain UTC, or a `#N` at or above its own id, marks a forgery. One argument: `facts.filter` passes an index.
 export function isDreamFact(fact) {
-  if (!/^Dream \d{4}-\d{2}-\d{2}:/.test(String(fact.body))) return false;
+  if (!RECORD.test(String(fact.body))) return false;
   // Format first, so a date that parses as past can't sort first; then `!(<=)`, so an impossible day fails too.
   if (!PLAIN_UTC.test(String(fact.created_at)) || !(Date.parse(fact.created_at) <= Date.now())) return false;
   const read = /#(\d+)/.exec(String(fact.body))?.[1];
@@ -41,7 +44,7 @@ export function isDreamFact(fact) {
 
 /** The wiki pages and specs a dream fact's body names. */
 export function pagesNamed(body) {
-  return [...new Set(String(body).match(/(?:wiki\/[\w./-]*\.md|openspec\/specs\/[\w-]+\/spec\.md)/g) || [])];
+  return [...new Set(String(body).match(/(?:(?:wiki|knowledge)\/[\w./-]*\.md|openspec\/specs\/[\w-]+\/spec\.md)/g) || [])];
 }
 
 /** The last dream from its facts, or the first-dream default: 30 days before `today`. */
@@ -52,7 +55,7 @@ export function lastDream(facts, today = new Date()) {
     return { since: day(start.toISOString()), afterFact: 0, pages: [], dream: null };
   }
   // A long list of checked pages is split over several facts that start the same way.
-  const start = /^Dream \S+/.exec(fact.body)?.[0];
+  const start = RECORD.exec(fact.body)?.[0];
   const parts = facts.filter(isDreamFact).filter(part => start && part.body.startsWith(start));
   const ids = parts.map(part => Number(/#(\d+)/.exec(part.body)?.[1] ?? 0));
   return { since: day(fact.created_at), afterFact: Math.max(0, ...ids), pages: [...new Set(parts.flatMap(part => pagesNamed(part.body)))].sort(), dream: fact.id };
@@ -176,7 +179,8 @@ function payloadFiles(root) {
 
 function committed(root, path) {
   try {
-    return execFileSync('git', ['-C', root, 'log', '-1', '--format=%cI', '--', path], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
+    const [at, rel] = path.startsWith('knowledge/') ? [join(root, 'knowledge'), path.slice(10)] : [root, path];
+    return execFileSync('git', ['-C', at, 'log', '-1', '--format=%cI', '--', rel], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim() || null;
   } catch {
     return null;
   }
@@ -207,7 +211,9 @@ function pages({ json }) {
   } catch (error) {
     console.error(`dream.mjs: the memory store could not be read, so commit dates alone are used: ${error.message}`);
   }
-  const found = [...wikiPages(root), ...specPages(root)].map(path => ({ path, text: readFileSync(join(root, path), 'utf8'), committed: committed(root, path) }));
+  // Company knowledge, when this computer holds a copy, is all the install's own.
+  const knowledge = knowledgeCopy(root) ? wikiPages(root, 'knowledge') : [];
+  const found = [...wikiPages(root), ...knowledge, ...specPages(root)].map(path => ({ path, text: readFileSync(join(root, path), 'utf8'), committed: committed(root, path) }));
   const list = pageList(found, shippedPaths(payloadFiles(root)), checks);
   if (json) return console.log(JSON.stringify({ pages: list }));
   console.log(list.map(page => [page.kind, page.words, page.lastChecked ?? 'never', page.path].join('\t')).join('\n'));

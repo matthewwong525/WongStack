@@ -394,7 +394,8 @@ const toastIs = (page, text) => page.waitForFunction(want => document.getElement
 // status the link's check gets, and `actions` the names it says the link offers.
 const VERSION = 'c0'.repeat(32);
 const sentTrue = () => ({ status: 200, body: { sent: true } });
-async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions = ['build', 'publish'], hash = `#key=${LINK_KEY}`, width = 1200, height = 800, aliveReply, make = fixture } = {}) {
+const fileSaved = () => ({ status: 200, body: { id: 'f'.repeat(32) } });
+async function openLive({ send = sentTrue, act = sentTrue, file = fileSaved, alive = 200, actions = ['build', 'publish'], hash = `#key=${LINK_KEY}`, width = 1200, height = 800, aliveReply, make = fixture } = {}) {
   const f = make();
   const base = new URL(LIVE).pathname;
   const context = await browser.newContext({ viewport: { width, height } });
@@ -403,8 +404,11 @@ async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions 
   await context.route(`${new URL(LIVE).origin}/**`, async route => {
     const request = route.request(), path = new URL(request.url()).pathname;
     if (path === base) return route.fulfill({ contentType: 'text/html; charset=utf-8', body: readFileSync(join(f.dir, 'review.html'), 'utf8') });
-    requests.push({ path: path.slice(base.length), method: request.method(), key: request.headers()['x-reply-key'], body: request.postDataJSON() });
-    const answer = await (path === `${base}alive` ? aliveReply ? aliveReply(requests) : { status: alive, body: { closesAt: Date.now() + 60_000, actions, version: VERSION } } : (path === `${base}act` ? act : send)(requests));
+    // A file goes as raw bytes, named in its headers.
+    const upload = path === `${base}file`, headers = request.headers();
+    requests.push({ path: path.slice(base.length), method: request.method(), key: headers['x-reply-key'], body: upload ? null : request.postDataJSON(),
+      ...(upload && { name: headers['x-file-name'], question: headers['x-file-question'], size: request.postDataBuffer().length }) });
+    const answer = await (path === `${base}alive` ? aliveReply ? aliveReply(requests) : { status: alive, body: { closesAt: Date.now() + 60_000, actions, version: VERSION } } : (path === `${base}act` ? act : upload ? file : send)(requests));
     if (answer.abort) return route.abort();
     return route.fulfill({ status: answer.status, contentType: 'application/json', body: answer.raw ?? JSON.stringify(answer.body ?? {}) });
   });
@@ -413,7 +417,7 @@ async function openLive({ send = sentTrue, act = sentTrue, alive = 200, actions 
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(LIVE + hash);
   const only = name => () => requests.filter(request => request.path === name);
-  return { page, context, errors, requests, sends: only('send'), acts: only('act') };
+  return { page, context, errors, requests, sends: only('send'), acts: only('act'), files: only('file') };
 }
 const isLive = page => page.locator('#copy', { hasText: 'Send notes' }).waitFor();
 const ready = (page, step) => page.locator(`.bar #ready [data-ready="${step}"]`);
@@ -1181,6 +1185,49 @@ browserTest('in the inbox frame a section link scrolls the plan and never leaves
   await context.close();
 });
 
+browserTest('a closed page in the inbox frame opens read-only: no note, button or bar, and a saved note opens no editor', async () => {
+  const { dir } = fixture();
+  const html = readFileSync(join(dir, 'review.html'), 'utf8');
+  const context = await browser.newContext({ viewport: { width: 390, height: 700 }, hasTouch: true });
+  await context.route('https://inbox.test/**', route => route.fulfill({ contentType: 'text/html', body:
+    '<!doctype html><body style="margin:0"><iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" style="border:0;width:100vw;height:100vh"></iframe></body>' }));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('https://inbox.test/apps/inbox/?item=i1&from=reviews');
+  const holder = page.locator('iframe');
+  await holder.evaluate((el, body) => new Promise(done => { el.onload = done; el.srcdoc = body; }), html);
+  const frame = await (await holder.elementHandle()).contentFrame();
+  assert.ok(await frame.locator('.add').count() > 0, 'an open page offers + Note');
+  const id = await frame.locator('[data-note]').first().getAttribute('data-note');
+  // The inbox greets an archived page with no actions and readOnly, as PlanView does, and answers with a saved note.
+  await holder.evaluate((el, saved) => {
+    const { port1, port2 } = new MessageChannel();
+    window.heard = [];
+    port1.onmessage = event => {
+      window.heard.push(event.data.type);
+      if (event.data.type === 'inbox:notes-get') port1.postMessage({ type: 'inbox:notes', value: saved });
+    };
+    el.contentWindow.postMessage({ type: 'inbox:hello', item: 'i1', version: 'v1', actions: [], readOnly: true, workspace: 'desk',
+      theme: 'light' }, '*', [port2]);
+  }, JSON.stringify({ notes: [{ id, label: 'a line', text: 'Kept from before' }] }));
+  await frame.waitForFunction(() => document.body.classList.contains('read-only'));
+  for (const part of ['.bar', '.add', '.verdict', '.hint', '#chip']) {
+    assert.equal(await frame.locator(part).filter({ visible: true }).count(), 0, `${part} is hidden`);
+  }
+  assert.equal(await frame.locator('#viewer .vhint .note-it').evaluate(el => getComputedStyle(el).display), 'none',
+    'the full-screen drawing does not offer to note a line');
+  // A saved note still shows under Your notes, but opening it offers no Save or Delete note.
+  const row = frame.locator('#note-list .entry', { hasText: 'Kept from before' });
+  await row.waitFor();
+  await row.click();
+  await page.waitForTimeout(200);
+  assert.equal(await frame.locator('#editor').filter({ visible: true }).count(), 0, 'no note editor opens');
+  assert.deepEqual(await page.evaluate(() => window.heard), ['inbox:notes-get'], 'the page asks only for its notes');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 // ── a preview page: the built screens, live now beside the preview, with Send notes and Publish ──
 // A small solid PNG, so the page shows a real picture.
 function solidPng(width, height) {
@@ -1313,6 +1360,172 @@ browserTest('on a phone a review page takes an OK, its undo, Change, a note on w
     '- Card #1, picture 1, spot at 50% across and 25% down on "Spring sale" ("Spring sale"): Brighter here.',
   ].join('\n') }]);
   assert.equal(await page.locator('#item-1 .verdict .tag').innerText(), 'OK · Sent');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+// ── live cards, questions, files, and the needs list on a phone ──
+const site = `<!doctype html><html><head><style>body { margin: 0; font: 16px sans-serif; }</style></head><body>
+<button id="blue" onclick="review.answer('Blue')">Blue</button>
+<button id="net" onclick="var t = []; try { parent.document.title; t.push('read'); } catch (e) { t.push('refused'); }
+fetch('https://example.com/x').then(function () { document.title = t.concat('fetched').join(' '); }, function () { document.title = t.concat('blocked').join(' '); })">Net</button>
+<button id="leave" onclick="location.href = 'https://example.com/'">Leave</button></body></html>`;
+const asking = `## Why
+
+Know the shop.
+
+## What Changes
+
+- **Home page.** The spring sale page.
+  ${fence}live
+  folder: site
+  height: 400
+  ${fence}
+- **Shop details.** Tell us about the shop.
+  ${fence}form
+  text: Shop name
+  choice: Sale ends | Sunday, Next Sunday
+  file: Banner | image | 1
+  ${fence}
+
+## What the build needs
+
+- **Your logo**: Needs you.
+  ${fence}form
+  file: Logo | image | 1
+  ${fence}
+- **Nothing else.**
+`;
+function askingFixture() {
+  const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
+  const dir = join(temp, 'review-fixture');
+  temps.push(temp);
+  mkdirSync(join(dir, 'site'), { recursive: true });
+  writeFileSync(join(dir, 'site', 'index.html'), site);
+  writeFileSync(join(dir, 'proposal.md'), asking);
+  buildReview(dir, { requireCurrent: true });
+  return { dir };
+}
+const pngBytes = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(56, 1)]);
+
+browserTest('at 320 px a live card sends its answer, reaches neither the web nor the page, and starts again when it leaves', async () => {
+  const { page, context, errors, sends } = await openLive({ make: askingFixture, width: 320, height: 700 });
+  await context.route('https://example.com/**', route => route.fulfill({ contentType: 'text/html', body: '<p id="away">Away</p>' }));
+  await isLive(page);
+  const card = page.frameLocator('.live iframe');
+  // Playwright aims a click by the frame's unscaled size, so a tap inside a scaled card goes as an event.
+  const press = id => card.locator(id).dispatchEvent('click');
+  await press('#net');
+  const inside = await (await page.locator('.live iframe').elementHandle()).contentFrame();
+  await inside.waitForFunction(() => document.title);
+  assert.equal(await inside.evaluate(() => document.title), 'refused blocked', 'the card can not read the page or fetch the web');
+  await press('#blue');
+  await page.waitForFunction(() => /Change #1 answer\s*Blue/.test(document.getElementById('note-list').textContent));
+  await page.locator('#copy').click();
+  await toastIs(page, 'Sent 1 answer to the chat.');
+  assert.equal(sends()[0].body.text, '- Change #1 answer: Blue');
+  await press('#leave');
+  await page.locator('.live-said', { hasText: 'This card tried to leave the page.' }).waitFor();
+  await card.locator('#blue').waitFor();
+  assert.equal(await card.locator('#away').count(), 0, 'the card shows its own page again');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('at 320 px a live card draws at a phone or a computer width, scaled to the card, and opens full screen', async () => {
+  const { page, context, errors } = await openLive({ make: askingFixture, width: 320, height: 700 });
+  const card = page.frameLocator('.live iframe'), frame = page.locator('.live iframe');
+  await card.locator('#blue').waitFor();
+  const width = () => card.locator('body').evaluate(() => innerWidth);
+  assert.equal(await width(), 390);
+  assert.match(await frame.getAttribute('style'), /transform: scale\(0\.\d+\)/, 'the phone width shrinks to fit a 320 px screen');
+  await page.locator('.live-tools button', { hasText: 'Computer' }).click();
+  await page.waitForFunction(() => document.querySelector('.live iframe').style.width === '1280px');
+  assert.equal(await width(), 1280);
+  assert.ok((await frame.boundingBox()).width < 320, 'the computer width is scaled into the card');
+  await page.locator('.live-tools [data-full]').click();
+  const box = await page.locator('.live').boundingBox();
+  assert.deepEqual([box.x, box.y, box.width, box.height], [0, 0, 320, 700], 'full screen covers the screen');
+  assert.equal(await frame.evaluate(el => el.style.transform), '', 'full screen shows the page at true size');
+  assert.equal(await page.locator('.bar').isVisible(), false);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('.live.full').count(), 0);
+  await card.locator('#blue').waitFor();
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a live card laid out at no width fits once its card gets a width, with no resize of the window', async () => {
+  // The Inbox can lay the page out before its frame has a width: the card must not stay at no size.
+  const { dir } = askingFixture(), file = join(dir, 'review.html');
+  writeFileSync(file, readFileSync(file, 'utf8').replace('<div class="live-box">', '<div class="live-box" style="width:0">'));
+  const { page, context, errors } = await open(pathToFileURL(file).href, { width: 390, height: 700 });
+  const frame = page.locator('.live iframe'), stage = page.locator('.live-box');
+  await frame.waitFor({ state: 'attached' });
+  assert.equal(await stage.evaluate(el => el.clientHeight), 0, 'the card starts at no size');
+  await page.evaluate(() => { document.querySelector('.live-box').style.width = ''; });
+  await page.waitForFunction(() => document.querySelector('.live-box').clientHeight > 0);
+  const k = Number(/scale\(([\d.]+)\)/.exec(await frame.evaluate(el => el.style.transform))[1]);
+  const width = await stage.evaluate(el => el.clientWidth);
+  assert.ok(k > 0.5 && Math.abs(k - width / 390) < 0.01, `the phone width scales to the card (${k})`);
+  assert.equal(await stage.evaluate(el => el.style.height), `${Math.ceil(400 * k)}px`);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('at 320 px answers and a file go with Build it, a file too big is refused, and the needs list holds Build until answered', async () => {
+  const { page, context, errors, acts, files } = await openLive({ make: askingFixture, width: 320, height: 700, actions: ['build'] });
+  await openActions(page);
+  const build = ready(page, 'build');
+  assert.equal((await build.innerText()).trim(), '1 thing needs you');
+  await build.click();
+  assert.equal(acts().length, 0, 'a gated tap sends nothing');
+  await page.waitForFunction(() => document.getElementById('need-1').classList.contains('hit'));
+  await page.locator('[data-q="item-2-q-1"] input').fill('Corner Shop');
+  await page.locator('[data-q="item-2-q-2"] label', { hasText: 'Next Sunday' }).click();
+  await page.locator('[data-q="item-2-q-3"] input[type=file]').setInputFiles({ name: 'banner.png', mimeType: 'image/png', buffer: Buffer.alloc(26 * 1024 * 1024, 1) });
+  await page.locator('[data-q="item-2-q-3"] .files', { hasText: 'Refused: too big: 25 MB at most' }).waitFor();
+  await page.locator('[data-q="need-1-q-1"] input[type=file]').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: pngBytes });
+  await page.locator('[data-q="need-1-q-1"] .files', { hasText: 'Sent' }).waitFor();
+  assert.deepEqual(files().map(({ key, name, question, size }) => ({ key, name, question, size })),
+    [{ key: LINK_KEY, name: 'logo.png', question: encodeURIComponent('Need #1, "Logo"'), size: pngBytes.length }], 'only the logo was sent');
+  await page.waitForFunction(() => document.querySelector('[data-ready="build"]').textContent.trim() === 'Build it');
+  await build.click();
+  await saysIs(page, 'Asked the chat to build.');
+  assert.deepEqual(acts()[0].body, { action: 'build', version: VERSION, files: ['f'.repeat(32)],
+    text: ['- Change #2, "Shop name": Corner Shop', '- Change #2, "Sale ends": Next Sunday', '- Need #1, "Logo": logo.png'].join('\n') });
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a closed page with questions in the inbox frame opens read-only: no answer to type and no file to send', async () => {
+  const { dir } = askingFixture();
+  const html = readFileSync(join(dir, 'review.html'), 'utf8');
+  const context = await browser.newContext({ viewport: { width: 390, height: 700 } });
+  await context.route('https://inbox.test/**', route => route.fulfill({ contentType: 'text/html', body:
+    '<!doctype html><body style="margin:0"><iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" style="border:0;width:100vw;height:100vh"></iframe></body>' }));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('https://inbox.test/apps/inbox/?item=i1&from=reviews');
+  const holder = page.locator('iframe');
+  await holder.evaluate((el, body) => new Promise(done => { el.onload = done; el.srcdoc = body; }), html);
+  const frame = await (await holder.elementHandle()).contentFrame();
+  await holder.evaluate(el => {
+    const { port1, port2 } = new MessageChannel();
+    window.heard = [];
+    port1.onmessage = event => {
+      window.heard.push(event.data.type);
+      if (event.data.type === 'inbox:notes-get') port1.postMessage({ type: 'inbox:notes', value: null });
+    };
+    el.contentWindow.postMessage({ type: 'inbox:hello', item: 'i1', version: 'v1', actions: [], readOnly: true, workspace: 'desk',
+      files: [], theme: 'light' }, '*', [port2]);
+  });
+  await frame.waitForFunction(() => document.body.classList.contains('read-only'));
+  assert.equal(await frame.locator('[data-q="item-2-q-1"] input').isDisabled(), true, 'a text question takes no answer');
+  assert.equal(await frame.locator('.drop').filter({ visible: true }).count(), 0, 'no file box shows');
+  assert.equal(await frame.locator('input[type=file]').evaluateAll(els => els.every(el => el.disabled)), true, 'no file can be picked');
+  assert.deepEqual(await page.evaluate(() => window.heard), ['inbox:notes-get'], 'the page asks only for its notes');
   assert.deepEqual(errors, []);
   await context.close();
 });

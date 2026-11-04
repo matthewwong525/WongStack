@@ -36,7 +36,7 @@
   {"name": "dependency-currency", "replacement": "the `dependencies` spec"},
   {"name": "#the-prose-allowlist", "replacement": "`wiki/development/the-change-loop.md#the-gate`"},
   {"name": "prose-save.md", "replacement": "`save/references/facts-save.md`"},
-  {"name": "docsPath", "replacement": "WongStack's pages stay under `wiki/`", "allow": [".agents/skills/wong-sync/scripts/preflight.mjs", ".agents/skills/wong-sync/references/catch-up.md", "scripts/tests/wong-sync-preflight.test.mjs"], "why": "catching up an install from before 19.0.0 reads the old record field to move its pages back under `wiki/`"},
+  {"name": "docsPath", "replacement": "WongStack's pages stay under `wiki/`", "allow": [".agents/skills/wong-sync/scripts/preflight.mjs", ".agents/skills/wong-sync/references/catch-up.md", "scripts/tests/wong-sync-preflight.test.mjs", "scripts/tests/knowledge-move.test.mjs"], "why": "catching up an install from before 19.0.0 reads the old record field to move its pages back under `wiki/`"},
   {"name": "app/src/App.tsx", "replacement": "`app/src/router.tsx` and `app/src/pages/home/Home.tsx`", "allow": [".agents/skills/wong-sync/references/payload-manifest.md"], "why": "the tutorial rule checks a target still on the flat layout"},
   {"name": "app/public/style.css", "replacement": "`app/src/index.css`, the one stylesheet, with Tailwind classes on each screen"},
   {"name": "development/home.md", "replacement": "`wiki/development/browsing.md` for the browser, and `wiki/development/memory.md#who-sees-what` for memory"},
@@ -137,5 +137,9 @@
   {"name": "wong-daily/", "replacement": "the daily state folder under `~/.local/state/wongstack/daily/`"},
   {"name": "inbox:scroll", "replacement": "`inbox:back` from the plan page's own Back", "allow": ["app/src/apps/inbox/frame.test.ts", "app/src/apps/inbox/PlanView.test.tsx"], "why": "each test sends the message an older plan still posts, to show the inbox ignores it"},
   {"name": "tuckBars", "replacement": "the pinned top bar in `app/src/Layout.tsx`"},
-  {"name": "Watch · <day>", "replacement": "the daily's journal, `D journal --new`"}
+  {"name": "Watch · <day>", "replacement": "the daily's journal, `D journal --new`"},
+  {"name": "daily.mjs watch", "replacement": "each chat's stop check (`stop-check.mjs`) and `D ensure`"},
+  {"name": "wrap-up.mjs", "replacement": "`finished.mjs`, which marks finished chats in `D status`"},
+  {"name": "open-daily", "replacement": "the worker's morning start, which runs the due routines at `morning` with no chat", "allow": ["scripts/tests/daily.test.mjs"], "why": "the test checks that the old command is refused"},
+  {"name": "daily-workspace.json", "replacement": "the stand-in id `daily-worker` that `chiefEnv` gives a background run"}
 ]

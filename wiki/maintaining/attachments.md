@@ -61,7 +61,7 @@ Type `/paste-this-into-your-ai attachment <slug>`. [The skill](../../.agents/ski
 
 [`scripts/check-attachments.mjs`](../../scripts/check-attachments.mjs) runs with the release checks on every change, a wiki-only change too. It compares the branch with `origin/main`, uncommitted work included, and fails, naming the file and the fix, when:
 
-- **A source changed and its attachment did not.** Rewrite the attachment. If the edit doesn't change the fix, such as a wording fix, set `checked:` to today: one line, and someone has looked.
+- **A source changed and its attachment did not.** Rewrite the attachment. If the edit doesn't change the fix, such as a wording fix, set `checked:` to today: one line, and someone has looked. An attachment checked on the same day as the source's edit passes, because a second change that day can not set a newer date.
 - **A source does not exist.** Name the file it moved to, or remove it from `sources:`.
 - **A field is missing**, `order:` is not a number, or `sources:` is empty.
 - **The body is out of shape**: no single opener line and empty line, a line after them without `> `, or a last bullet without the repository link.

@@ -17,7 +17,7 @@ Document each thing in **exactly one place**: the same procedure on two pages is
 
 Readers land from search, without context.
 
-- Give every page a clear **`#` title** and a **first sentence** that says what it is, never a breadcrumb, caveat, or filler: search results quote it.
+- Give every page a clear **`#` title** and a **first sentence** that says what it is, never a breadcrumb, caveat, or filler: search results quote it. Only one frontmatter block, such as [`public: true`](stack/knowledge-reader.md#public-pages), may come before the title.
 - **Title the topic, not its place in a sequence**: `Find inspiration`, never `Stage 1 — Find inspiration`. Order lives in the parent hub's list, so a page moves without going stale.
 - Put drill-down links **inline, at the point of need**, not only at the bottom.
 
@@ -31,7 +31,7 @@ Use a folder only if a step grows into several pages (`onboarding/`: a hub, a pa
 
 ## Maps are pictures; links live in the list
 
-A `mermaid` diagram may open a section; keep it **visual-only**: clickable nodes are brittle. The numbered list beside it holds the links.
+A `mermaid` diagram may open a section; keep it **visual-only**: clickable nodes are brittle.
 
 ## No orphans, no dead-ends, full hub-coverage
 
@@ -41,15 +41,15 @@ A hub links *every one* of its children, and every page links onward, up at leas
 
 The wiki is long-term memory for **repeatable knowledge**: facts that stay true and apply again: how we work, people, the company, the product, customers. The test: **will this help with a future task that is not this one?** Yes → the wiki. No → the [memory store](development/memory.md) or the change's proposal; a single decision, a date, or one change's details fail it.
 
-- **Write it when you learn it**, in the same request. Cite the source by URL or path; don't copy it into git. Save it through a pull request like any edit ([the gate](development/the-change-loop.md#the-gate)), inside a change's own if one is open; [`/close`](../.agents/skills/close/SKILL.md) catches what a session missed.
+- **Write it when you learn it**, in the same request. Cite the source by URL or path; don't copy it into git. A company page goes in `knowledge/`, [saved at once](stack/company-knowledge.md#save-a-page); a code page, or any page with no `knowledge/` copy, goes through a pull request ([the gate](development/the-change-loop.md#the-gate)), inside a change's own if one is open; [`/close`](../.agents/skills/close/SKILL.md) catches what a session missed.
 - **Let it grow from use.** Seed nothing: the first fact on a topic makes its page; the first about a person makes `people/`. No `index.md` (hubs index) and no `log.md` (git logs).
 - **One format everywhere**: one person is a team of one.
 
 ### People
 
-`wiki/people/README.md` is the hub: who is who. Each person gets `wiki/people/<name>.md` with **every git email they use**, their preferences, and how they like work done: in a repo only you use, you and the people in your life; in a work repo, each teammate and the customers and contacts who matter.
+`knowledge/people/README.md` (`wiki/people/` with no copy) is the hub: who is who. Each person gets `people/<name>.md` with **every git email they use**, their preferences, and how they like work done: in a repo only you use, you and the people in your life; in a work repo, each teammate and the customers and contacts who matter.
 
-Find the current person by `git config user.email`. When no page lists it, write a short one (name and email) in the next wiki save, without asking; the first page also makes the hub and links it from [the wiki's root](README.md).
+Find the current person by `git config user.email`. When no page lists it, write a short one (name and email) in the next save, without asking; the first page also makes the hub and links it from its root `README.md`.
 
 When a person asks for more detail than [plain words](../.agents/skills/explore/references/asking-the-user.md#write-in-plain-words) from now on, such as branch names, write it on their page; never infer it from one message.
 
@@ -64,7 +64,6 @@ When a person asks for more detail than [plain words](../.agents/skills/explore/
 
 1. **Prefer extending an existing page.**
 2. Otherwise place it at the right layer, linked from its parent's step.
-3. Follow the rules above.
 
 ## Keeping it tidy
 

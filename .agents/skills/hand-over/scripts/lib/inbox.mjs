@@ -43,9 +43,24 @@ export function inTime(call) {
 export const listLink = (client, { id, what, title, url, closesAt, workspace }) => inTime(upload(client,
   { id, kind: 'link', title, workspace, body: JSON.stringify({ what, url }), actions: [], version: 'link', closesAt }));
 export const closeItem = (client, id) => inTime(ask(client, 'item-close', 'POST', { id }));
-/** Collects the taps waiting on `items`, `[{id, item, action, text, version}]`, or null. Each one is this computer's
- * to deliver from then on: the app hands it out once, and fails it when no result comes. */
+/** Collects the taps waiting on `items`, `[{id, item, action, text, version, files}]`, or null. Each one is this
+ * computer's to deliver from then on: the app hands it out once, and fails it when no result comes. */
 export const checkin = async (client, items) => (await ask(client, 'checkin', 'POST', { items }))?.taps ?? null;
+/** A tap's file from the app, part by part: `{name, type, question, size, bytes}`, or null when any part fails. Each
+ * part read holds the round's taps in the app a while longer; `held` hears each. */
+export async function readFile(client, id, held = () => {}) {
+  const parts = [];
+  let first = null;
+  for (let n = 0; n < (first?.parts ?? 1); n++) {
+    const part = await ask(client, `file?id=${encodeURIComponent(id)}&part=${n}`, 'GET');
+    if (!part || typeof part.data !== 'string' || !Number.isInteger(part.parts) || part.parts < 1 || part.parts > 100) return null;
+    held();
+    first ??= part;
+    parts.push(Buffer.from(part.data, 'base64'));
+  }
+  const { name, type, question, size } = first;
+  return typeof name === 'string' && typeof question === 'string' && Number.isInteger(size) ? { name, type, question, size, bytes: Buffer.concat(parts) } : null;
+}
 export const tapResult = (client, id, state) => ask(client, 'tap-result', 'POST', { id, state });
 
 /** The app's live line for this computer, a WebSocket that only ever says look. */

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 
 import {
-  ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
+  ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, KNOWLEDGE_PROVISION, PAID_PLAN, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
   KEY_OFF_TODO, LINE_TODO, accounts, lineClashTodo, artifactNamesFor, bindingTypes, cli, cloudflare, githubRepo, lineConfig, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
 import { helperConfig } from '../../.agents/skills/save/scripts/artifacts-credential.mjs';
@@ -407,7 +407,7 @@ test('exact human emails retain the owner and exclude synthetic workspace identi
   assert.throws(() => humanEmails(EMAIL, ['not-an-email']), /reachable owner email/);
 });
 
-test('human membership changes preserve separate machine permissions and only memory and git are exempt', async (t) => {
+test('human membership changes preserve separate machine permissions and only memory, git, and public pages are exempt', async (t) => {
   const env = await setup(t);
   const first = await env.provision({ teammateEmails: ['Friend@Example.com', 'extra@workspace.invalid'] });
   const [app, previews] = env.fake.state.accessApps;
@@ -415,10 +415,10 @@ test('human membership changes preserve separate machine permissions and only me
   const machines = [app, previews].map(each => structuredClone(each.policies.find(p => p.decision === 'non_identity')));
   for (const each of [app, previews]) assert.deepEqual(people(each), [{ email: { email: EMAIL } }, { email: { email: 'friend@example.com' } }]);
   const git = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
-  const live = [{ behavior: 'public', path_pattern: '/_memory/*' }, git];
+  const publicPages = { behavior: 'public', path_pattern: '/public/*' };
+  const live = [{ behavior: 'public', path_pattern: '/_memory/*' }, git, { behavior: 'public', path_pattern: '/api/access/knowledge/git/*' }, publicPages];
   assert.deepEqual(app.destinations.map(d => d.overrides), [live, live]);
-  assert.deepEqual(previews.destinations.map(d => d.overrides), [[git], [git]], 'previews open git alone: they have no memory');
-  assert.ok(![app, previews].some(each => JSON.stringify(each.destinations).includes('/public')));
+  assert.deepEqual(previews.destinations.map(d => d.overrides), [[git, publicPages], [git, publicPages]], 'previews open git and public pages alone: they have no memory');
   const token = (id) => env.fake.state.serviceTokens.find(each => each.id === id);
   const saved = readEnv(join(env.dir, '.env'));
   assert.equal(saved.CF_ACCESS_CLIENT_SECRET, token(first.access.serviceTokenId).client_secret);
@@ -519,6 +519,11 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain, ...cloudflareOpti
   const fake = await fakeCloudflare({ r2, ...(subdomain !== undefined && { subdomain }), ...cloudflareOptions });
   t.after(fake.close);
   const gh = fakeGh(join(root, 'gh'));
+  // Company knowledge's repository is a local bare one: Git sends its Artifacts address there, so nothing leaves.
+  const knowledge = join(root, 'knowledge.git');
+  execFileSync('git', ['init', '-q', '--bare', '-b', 'main', knowledge]);
+  const bases = ['recipe-box', 'recipe-box-2', 'recipe-box-5'];
+  writeFileSync(join(root, '.gitconfig'), `[url "${knowledge}"]\n${bases.map((base) => `\tinsteadOf = ${KNOWLEDGE_REMOTE.replace('recipe-box-', `${base}-`)}\n`).join('')}`);
   const env = { ...process.env, HOME: root, XDG_DATA_HOME: join(root, 'data'), XDG_CONFIG_HOME: join(root, 'config'), GIT_CONFIG_NOSYSTEM: '1', PATH: `${gh.bin}:${process.env.PATH}`, WONG_CLOUDFLARE_API: fake.api, CLOUDFLARE_MEMORY_TOKEN: '', NODE_NO_WARNINGS: '1' };
   delete env.WONG_MEMORY_API;
   delete env.CLOUDFLARE_API_TOKEN;
@@ -526,7 +531,14 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain, ...cloudflareOpti
   const sleeps = [];
   const base = { token: TOKEN, api: fake.api, account: ACCOUNT, repo: REPO, dir, env, sleep: async (ms) => sleeps.push(ms), types: async () => null };
   return {
-    root, dir, fake, gh, env, sleeps,
+    root, dir, fake, gh, env, sleeps, knowledge,
+    knowledgeHead: () => {
+      try {
+        return execFileSync('git', ['-C', knowledge, 'rev-parse', '--verify', '--quiet', 'refs/heads/main'], { encoding: 'utf8' }).trim();
+      } catch {
+        return '';
+      }
+    },
     provision: (options = {}) => provision({ ...base, base: 'recipe-box', today: TODAY, ...options }),
     names: (options = {}) => names({ ...base, ...options }),
     widen: (options = {}) => widen({ ...base, ...options }),
@@ -549,6 +561,8 @@ function assertNoSecret(env, ...texts) {
   }
 }
 
+const REMOTE = `https://${ACCOUNT}.artifacts.cloudflare.net/git/${NAMESPACE}/recipe-box.git`;
+const KNOWLEDGE_REMOTE = `https://${ACCOUNT}.artifacts.cloudflare.net/git/${NAMESPACE}/recipe-box-knowledge.git`;
 const PERMISSION_GROUPS = '.agents/skills/wong-setup/references/permission-groups.md';
 const ARTIFACTS_ROUTE = 'wiki/stack/artifacts-route.md';
 
@@ -620,7 +634,7 @@ test('the widen grants a normal provision, keeps both token groups, its resource
   env.fake.state.condition = { request_ip: { in: ['192.0.2.1/32'] } };
   env.fake.state.refusedPolls = 2;
   const report = await env.widen({ account: ACCOUNT });
-  assert.deepEqual(report.granted, NORMAL_PROVISION.map((row) => row.name));
+  assert.deepEqual(report.granted, [...NORMAL_PROVISION, ...KNOWLEDGE_PROVISION].map((row) => row.name));
   assert.ok(!report.granted.includes('Browser Run Write'), 'nothing uses the cloud browser, so the widen does not grant it');
   assert.deepEqual(report.held, USER_GRANTS.map((row) => row.name));
   const [put] = env.fake.state.puts;
@@ -729,7 +743,7 @@ test('names are derived from the repo, and a clash moves every name to the first
   const fresh = await env.names();
   assert.equal(fresh.base, 'recipe-box');
   assert.ok(fresh.checked.every((item) => item.status === 'free'));
-  assert.deepEqual(fresh.names, { worker: 'recipe-box', staging: 'recipe-box-staging', db: 'recipe-box-db', stagingDb: 'recipe-box-db-staging', memory: 'recipe-box-memory', deploy: 'recipe-box-deploy' });
+  assert.deepEqual(fresh.names, { worker: 'recipe-box', staging: 'recipe-box-staging', db: 'recipe-box-db', stagingDb: 'recipe-box-db-staging', memory: 'recipe-box-memory', deploy: 'recipe-box-deploy', knowledge: 'recipe-box-knowledge' });
 
   env.fake.state.workers.push('recipe-box');
   env.fake.state.databases.push({ uuid: 'theirs', name: 'recipe-box-2-memory' });
@@ -1475,6 +1489,7 @@ test('a config with no top-level env is left for a hand edit when a bucket arriv
     "set each environment's CF_ACCESS_AUD and CF_ACCESS_APP_ID in app/wrangler.jsonc from components.access and its staging",
     'add MEMORY_BUCKET for recipe-box-memory to app/wrangler.jsonc',
     'add "WONG_CODE_REPOSITORY" to production and staging in app/wrangler.jsonc, as wiki/stack/employee-project.md describes',
+    'add "WONG_KNOWLEDGE_REPOSITORY": "recipe-box-knowledge" to production and staging, and the "artifacts" binding ARTIFACTS for the wongstack namespace to production alone, in app/wrangler.jsonc, as wiki/stack/company-knowledge.md describes',
   ]);
   assert.equal(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), '{ "name": "recipe-box" }\n');
 });
@@ -1665,7 +1680,7 @@ test('the script runs end to end as a process, and prints no secret', async (t) 
 const RUNNER_FILES = ['wrangler.template.jsonc', 'package.json', 'package-lock.json', 'worker.mjs', 'pipeline.mjs', 'run-id.mjs'];
 const RUNNER_CONFIG = 'scripts/check-runner/wrangler.jsonc';
 const STATE_FILE = '.git/wong-stack-provision.json';
-const REMOTE = `https://${ACCOUNT}.artifacts.cloudflare.net/git/${NAMESPACE}/recipe-box.git`;
+
 /** The tree of a commit with no files. */
 const EMPTY_TREE = '4b825dc642cb6eb9a060e54bf8d69288fbee4904';
 const sha256 = (text) => createHash('sha256').update(text).digest('hex');
@@ -1677,12 +1692,13 @@ function gitVerb(args) {
   return args.slice(at);
 }
 
-/** An `exec` for the Artifacts route: `node`, `gh` and git's local calls run for real; `npm`, `npx` and git's remote
- * calls are recorded (`calls`, `ran`, `remote`) and answered here. A faked `wrangler deploy` makes its Worker. */
+// An `exec` for the Artifacts route: local calls run, `npm`, `npx` and `origin` calls are faked; company knowledge's
+// pushes reach a local bare repository, each noted in `knowledge` with whether it carried the sign-in header.
 function fakeTools(fake) {
   const calls = [];
   const ran = [];
   const remote = [];
+  const knowledge = [];
   const done = { stdout: '', stderr: '' };
   let head = '';
   const exec = async (file, args, options = {}) => {
@@ -1697,12 +1713,16 @@ function fakeTools(fake) {
     }
     const verb = file === 'git' ? gitVerb(args) : [];
     if (!['ls-remote', 'push', 'fetch'].includes(verb[0])) return run(file, args, options);
+    if (verb[1] !== 'origin') {
+      knowledge.push({ verb, header: (options.env?.GIT_CONFIG_VALUE_0 ?? '').startsWith('Authorization: Basic ') && options.env.GIT_CONFIG_KEY_0 === 'http.extraHeader' });
+      return run(file, args, options);
+    }
     remote.push(verb);
     if (verb[0] === 'ls-remote') return { stdout: head ? `${head}\trefs/heads/main\n` : '', stderr: '' };
     if (verb[0] === 'push') head = verb.at(-1).split(':')[0];
     return done;
   };
-  return { exec, calls, ran, remote };
+  return { exec, calls, ran, remote, knowledge };
 }
 
 /** A target ready for the Artifacts route: the check runner's folder and the save skill as the pack ships them,
@@ -1722,14 +1742,37 @@ async function artifactsSetup(t, setupOptions) {
   };
 }
 
+// Company knowledge's repository after a first run: recorded, one empty commit on main pushed with a five-minute token
+// for it alone, sent in Git's environment and revoked after, and the live app alone bound to it.
+function assertKnowledge(env, report) {
+  const { state } = env.fake;
+  assert.deepEqual(report.knowledge, { namespace: NAMESPACE, repo: 'recipe-box-knowledge', config: 'ready' });
+  assert.deepEqual(env.record().components.knowledge, { namespace: NAMESPACE, repo: 'recipe-box-knowledge' });
+  assert.ok(report.created.includes('repository recipe-box-knowledge'), JSON.stringify(report.created));
+  assert.ok(report.created.includes("the first, empty commit on recipe-box-knowledge's main"), JSON.stringify(report.created));
+  const head = env.knowledgeHead();
+  const show = (...args) => execFileSync('git', ['-C', env.knowledge, ...args], { encoding: 'utf8' }).trim();
+  assert.equal(show('rev-parse', `${head}^{tree}`), EMPTY_TREE);
+  assert.equal(show('rev-list', '--count', head), '1');
+  const minted = state.repoTokens.filter((token) => token.ttl);
+  assert.deepEqual(minted.map(({ repo, scope, ttl, state: now }) => ({ repo, scope, ttl, now })), [{ repo: 'recipe-box-knowledge', scope: 'write', ttl: 300, now: 'revoked' }]);
+  assert.ok(state.repoTokens.filter((token) => token.repo === 'recipe-box-knowledge').every((token) => token.state === 'revoked'));
+  if (env.tools) assert.deepEqual(env.tools.knowledge.map(({ verb, header }) => [verb[0], verb[1], header]), [['ls-remote', KNOWLEDGE_REMOTE, true], ['push', KNOWLEDGE_REMOTE, true]]);
+  const config = env.config();
+  assert.deepEqual([config.vars.WONG_KNOWLEDGE_REPOSITORY, config.env.staging.vars.WONG_KNOWLEDGE_REPOSITORY], ['recipe-box-knowledge', 'recipe-box-knowledge']);
+  assert.deepEqual([config.artifacts, config.env.staging.artifacts], [[{ binding: 'ARTIFACTS', namespace: NAMESPACE }], undefined]);
+}
+
 /** The runner's own part of the fake Cloudflare, copied, to compare before and after a run. */
 const delivered = ({ state }) => structuredClone({ repos: state.repos, repoTokens: state.repoTokens, buckets: state.buckets, lifecycles: state.lifecycles, tokens: state.accountTokens, values: state.tokenValues, secrets: state.workerSecrets, minted: state.minted });
 
-test('an Artifacts install on a free account stops with plan before anything is made, and the plan says why', async (t) => {
+test('an install on a free account stops with plan on either route before anything is made, and the plan says why', async (t) => {
   const env = await artifactsSetup(t, { paid: false });
   const before = structuredClone(env.fake.state);
   const dotEnv = readFileSync(join(env.dir, '.env'), 'utf8');
-  await assert.rejects(env.provision({ route: 'artifacts' }), { reason: 'plan', message: /Workers Paid plan.*\$5 a month.*GitHub/ });
+  for (const route of ['github', 'artifacts']) {
+    await assert.rejects(env.provision({ route }), { reason: 'plan', message: /Workers Paid plan.*\$5 a month.*every install.*company knowledge/ }, route);
+  }
 
   assert.ok(env.fake.calls.length > 0, 'the plan was read');
   assert.deepEqual(env.fake.calls.filter((call) => call.method !== 'GET'), [], 'Cloudflare was only read');
@@ -1741,47 +1784,46 @@ test('an Artifacts install on a free account stops with plan before anything is 
   assert.deepEqual(env.tools.remote, [], 'nothing was pushed');
   assert.equal(env.gh.calls(), '');
 
-  // The plan command answers the same question without stopping, and Windows without asking Cloudflare.
+  // The plan command answers the same question without stopping, Windows included: every route needs the plan.
   const requests = env.fake.calls.length;
-  assert.deepEqual(await env.plan({ platform: 'win32' }), { route: 'github', reason: 'windows' });
-  assert.equal(env.fake.calls.length, requests, 'Windows is answered with no request');
   const free = await env.plan({ platform: 'linux' });
-  assert.equal(free.route, 'github');
-  assert.equal(free.reason, 'free-plan');
+  assert.deepEqual(free, { route: 'artifacts', reason: 'free-plan', ...PAID_PLAN });
   assert.match(free.cost, /\$5 a month/);
+  assert.deepEqual(free.neededBy, ['github', 'artifacts']);
   assert.deepEqual(env.fake.calls.slice(requests).map((call) => `${call.method} ${call.path}`), [`GET /accounts/${ACCOUNT}/subscriptions`]);
+  assert.deepEqual(await env.plan({ platform: 'win32' }), { route: 'github', reason: 'free-plan', ...PAID_PLAN });
   env.fake.state.paid = true;
   assert.deepEqual(await env.plan({ platform: 'darwin' }), { route: 'artifacts', plan: 'Workers Paid' });
+  assert.deepEqual(await env.plan({ platform: 'win32' }), { route: 'github', reason: 'windows', plan: 'Workers Paid' });
   env.fake.state.refuse = [`GET /accounts/${ACCOUNT}/subscriptions`];
   await assert.rejects(env.plan({ platform: 'linux' }), { reason: 'cloudflare' });
 });
 
-test('an Artifacts widen adds its three groups and reads the plan, stops with cloudflare when refused, and a plain widen asks for neither', async (t) => {
+test('a GitHub widen adds the repository and the plan read but never the container; an Artifacts widen adds the container', async (t) => {
   const env = await setup(t);
   const heldIds = () => env.fake.state.policies.flatMap((policy) => policy.permission_groups.map((group) => group.id));
   const planReads = () => env.fake.count(`GET /accounts/${ACCOUNT}/subscriptions`);
-  const lacksArtifacts = (why) => {
-    for (const row of ARTIFACTS_PROVISION) assert.ok(!heldIds().includes(row.id), `${row.name}: ${why}`);
-    assert.equal(planReads(), 0, why);
-  };
+  const container = ARTIFACTS_PROVISION.find((row) => row.name === 'Workers Containers Write');
+  assert.deepEqual(KNOWLEDGE_PROVISION.map((row) => row.name), ['Artifacts Write', 'Billing Read']);
 
-  const plain = await env.widen({ account: ACCOUNT });
-  assert.deepEqual(plain.granted, NORMAL_PROVISION.map((row) => row.name));
-  lacksArtifacts('a plain widen');
+  const github = await env.widen({ account: ACCOUNT });
+  assert.deepEqual(github.granted, [...NORMAL_PROVISION, ...KNOWLEDGE_PROVISION].map((row) => row.name));
+  assert.ok(!heldIds().includes(container.id), 'the GitHub route never holds the check runner\'s container');
+  assert.equal(planReads(), 1, 'the GitHub route reads the plan too');
 
   env.fake.state.refuse = ['PUT /user/tokens/tok1'];
   await assert.rejects(env.widen({ account: ACCOUNT, route: 'artifacts' }), { reason: 'cloudflare', message: 'Cloudflare PUT /user/tokens/tok1: HTTP 500 1000' });
-  lacksArtifacts('a refused widen');
+  assert.ok(!heldIds().includes(container.id), 'a refused widen');
 
   env.fake.state.refuse = [];
   const report = await env.widen({ account: ACCOUNT, route: 'artifacts' });
-  assert.deepEqual(report.granted, ARTIFACTS_PROVISION.map((row) => row.name));
-  assert.deepEqual(report.held, [...USER_GRANTS, ...NORMAL_PROVISION].map((row) => row.name));
+  assert.deepEqual(report.granted, [container.name]);
+  assert.deepEqual(report.held, [...USER_GRANTS, ...NORMAL_PROVISION, ...KNOWLEDGE_PROVISION].map((row) => row.name));
   assert.deepEqual(report.probed, [ACCOUNT]);
   const onAccount = env.fake.state.policies.find((policy) => `com.cloudflare.api.account.${ACCOUNT}` in policy.resources).permission_groups.map((group) => group.id);
   for (const row of ARTIFACTS_PROVISION) assert.ok(onAccount.includes(row.id), row.name);
   assert.deepEqual(env.fake.state.policies.map((policy) => policy.resources), startingPolicies().map((policy) => policy.resources));
-  assert.equal(planReads(), 1);
+  assert.equal(planReads(), 2);
 
   const again = await env.widen({ account: ACCOUNT, route: 'artifacts' });
   assert.deepEqual(again.granted, []);
@@ -1790,10 +1832,12 @@ test('an Artifacts widen adds its three groups and reads the plan, stops with cl
 
 test('a scoped widen adds only the selected check-runner groups, keeps every other group, and reads the plan', async (t) => {
   const env = await setup(t);
-  await env.widen({ account: ACCOUNT });
+  // A token holding a normal provision alone, as before any route's groups.
+  await widenBy({ token: TOKEN, api: env.fake.api, account: ACCOUNT, rows: NORMAL_PROVISION, sleep: noSleep });
   const heldIds = () => env.fake.state.policies.flatMap((policy) => policy.permission_groups.map((group) => group.id));
   const before = heldIds();
-  const planReads = () => env.fake.count(`GET /accounts/${ACCOUNT}/subscriptions`);
+  const reads = env.fake.count(`GET /accounts/${ACCOUNT}/subscriptions`);
+  const planReads = () => env.fake.count(`GET /accounts/${ACCOUNT}/subscriptions`) - reads;
   const base = { token: TOKEN, api: env.fake.api, account: ACCOUNT, rows: ARTIFACTS_PROVISION, sleep: async (ms) => env.sleeps.push(ms) };
   const runnerGroups = ARTIFACTS_PROVISION.map(row => row.name);
 
@@ -1825,12 +1869,11 @@ test('a repository name another project holds is reported taken, and stops the i
   // Without the route, names asks nothing about repositories and reports what it always did.
   const plain = await env.names();
   assert.equal(plain.base, 'recipe-box');
-  assert.deepEqual(plain.names, { worker: 'recipe-box', staging: 'recipe-box-staging', db: 'recipe-box-db', stagingDb: 'recipe-box-db-staging', memory: 'recipe-box-memory', deploy: 'recipe-box-deploy' });
+  assert.deepEqual(plain.names, { worker: 'recipe-box', staging: 'recipe-box-staging', db: 'recipe-box-db', stagingDb: 'recipe-box-db-staging', memory: 'recipe-box-memory', deploy: 'recipe-box-deploy', knowledge: 'recipe-box-knowledge' });
   assert.deepEqual(plain.checked.map((item) => `${item.kind} ${item.name} ${item.status}`), [
     'worker recipe-box free', 'worker recipe-box-staging free', 'worker recipe-box-line free', 'database recipe-box-db free', 'database recipe-box-db-staging free',
-    'database recipe-box-memory free', 'bucket recipe-box-memory free', 'token recipe-box-deploy free',
+    'database recipe-box-memory free', 'bucket recipe-box-memory free', 'token recipe-box-deploy free', 'repository recipe-box-knowledge free',
   ]);
-  assert.equal(env.fake.count(`GET /accounts/${ACCOUNT}/artifacts`), 0);
 
   const found = await env.names({ route: 'artifacts' });
   assert.equal(found.derived, 'recipe-box');
@@ -1845,7 +1888,7 @@ test('a repository name another project holds is reported taken, and stops the i
   assert.deepEqual(artifactNamesFor('recipe-box-2'), { repo: 'recipe-box-2', runner: 'recipe-box-2-checks', storage: 'recipe-box-2-checks-storage' });
   assert.deepEqual(found.names, {
     worker: 'recipe-box-2', staging: 'recipe-box-2-staging', db: 'recipe-box-2-db', stagingDb: 'recipe-box-2-db-staging', memory: 'recipe-box-2-memory', deploy: 'recipe-box-2-deploy',
-    ...artifactNamesFor('recipe-box-2'),
+    knowledge: 'recipe-box-2-knowledge', ...artifactNamesFor('recipe-box-2'),
   });
 
   // Provisioning under the taken name stops at the repository: it is not adopted, and no runner follows.
@@ -1866,7 +1909,7 @@ test('with no namespace yet, an Artifacts install\'s names are all free', async 
   const env = await artifactsSetup(t);
   const found = await env.names({ route: 'artifacts' });
   assert.equal(found.base, 'recipe-box');
-  assert.equal(found.checked.length, 12);
+  assert.equal(found.checked.length, 13);
   assert.ok(found.checked.every((item) => item.status === 'free'), JSON.stringify(found.checked));
   assert.deepEqual(env.fake.state.namespaces, [], 'looking makes no namespace');
 });
@@ -1942,10 +1985,11 @@ test('a fresh Artifacts install makes the repository, the check runner and its k
   assert.equal(rule.enabled, true);
   assert.deepEqual(rule.deleteObjectsTransition, { condition: { type: 'Age', maxAge: SNAPSHOT_DAYS * 24 * 60 * 60 } });
 
-  // One repository, in the shared namespace, and the token Cloudflare returned with it revoked.
+  // The project's repository and company knowledge's, in the shared namespace, and every token revoked.
   assert.deepEqual(state.namespaces, [NAMESPACE]);
-  assert.deepEqual(state.repos.map((repo) => [repo.namespace, repo.name, repo.default_branch, repo.remote]), [[NAMESPACE, 'recipe-box', 'main', REMOTE]]);
-  assert.deepEqual(state.repoTokens.map((token) => token.state), ['revoked']);
+  assert.deepEqual(state.repos.map((repo) => [repo.namespace, repo.name, repo.default_branch, repo.remote]), [[NAMESPACE, 'recipe-box', 'main', REMOTE], [NAMESPACE, 'recipe-box-knowledge', 'main', KNOWLEDGE_REMOTE]]);
+  assert.deepEqual(state.repoTokens.map((token) => token.state), ['revoked', 'revoked', 'revoked']);
+  assertKnowledge(env, report);
 
   // Main's first commit: empty, pushed without force, and the folder's unborn main now points at it.
   const head = env.git('rev-parse', '--verify', 'refs/heads/main');
@@ -1977,7 +2021,7 @@ test('a second Artifacts run makes nothing new, pushes no second first commit, a
   const report = await env.provision({ route: 'artifacts' });
   assert.deepEqual(report.created, []);
   assert.deepEqual(report.updated, ['check runner recipe-box-checks'], 'the runner is deployed again, and nothing else changes');
-  for (const same of ['repository recipe-box', 'bucket recipe-box-checks', 'deploy token recipe-box-deploy', 'storage key recipe-box-checks-storage']) {
+  for (const same of ['repository recipe-box', 'repository recipe-box-knowledge', 'bucket recipe-box-checks', 'deploy token recipe-box-deploy', 'storage key recipe-box-checks-storage']) {
     assert.ok(report.reused.includes(same), `${same}: ${JSON.stringify(report.reused)}`);
   }
   assert.deepEqual(report.todo, []);
@@ -2018,7 +2062,7 @@ test('an Artifacts install with R2 off stops before the runner is installed, and
 
   env.fake.state.r2 = true;
   const report = await env.provision({ route: 'artifacts' });
-  assert.equal(env.fake.state.repos.length, 1, 'the repository the first run made is reused, not made twice');
+  assert.deepEqual(env.fake.state.repos.map((repo) => repo.name), ['recipe-box', 'recipe-box-knowledge'], 'the repository the first run made is reused, not made twice');
   assert.ok(report.reused.includes('repository recipe-box'), JSON.stringify(report.reused));
   assert.ok(report.created.includes('bucket recipe-box-checks'), JSON.stringify(report.created));
   assert.deepEqual(Object.keys(env.fake.state.workerSecrets['recipe-box-checks']).sort(), ['CF_TOKEN', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY']);
@@ -2071,6 +2115,104 @@ test('the command line prints the plan as one JSON report, and passes --route on
   assertNoSecret(env, paid.out[0], widened.out[0], named.out[0]);
 });
 
+test('a GitHub install makes company knowledge\'s repository too, binds the live app alone to it, and asks no key', async (t) => {
+  const env = await setup(t);
+  const tools = fakeTools(env.fake);
+  const report = await env.provision({ exec: tools.exec });
+  assertKnowledge({ ...env, tools }, report);
+  assert.deepEqual(env.fake.state.repos.map((repo) => repo.name), ['recipe-box-knowledge'], 'the project stays on GitHub');
+  assert.equal(report.codeKey.kept, 'github');
+  assert.deepEqual(report.todo, []);
+  assert.ok(!Object.keys(env.fake.state.workerSecrets['recipe-box'] ?? {}).some((name) => /ARTIFACTS|KNOWLEDGE/.test(name)), 'no key is made');
+  assert.equal(env.fake.state.workerSecrets['recipe-box-staging'], undefined, 'staging gets nothing');
+  assertNoSecret(env, JSON.stringify(report), JSON.stringify(tools.calls));
+});
+
+test('a rerun leaves company knowledge holding pages untouched, and one this install did not make stops', async (t) => {
+  const env = await setup(t);
+  await env.provision();
+  // A teammate saves a page, straight to the repository.
+  const copy = join(env.root, 'copy');
+  execFileSync('git', ['clone', '-q', env.knowledge, copy]);
+  writeFileSync(join(copy, 'README.md'), '# Company knowledge\n');
+  execFileSync('git', ['-C', copy, 'add', 'README.md']);
+  execFileSync('git', ['-C', copy, '-c', 'user.name=Ada', '-c', `user.email=${EMAIL}`, 'commit', '-q', '-m', 'Add the hub']);
+  execFileSync('git', ['-C', copy, 'push', '-q', 'origin', 'main']);
+  const pages = env.knowledgeHead();
+  const tokens = env.fake.state.repoTokens.length;
+
+  const again = await env.provision();
+  assert.ok(again.reused.includes('repository recipe-box-knowledge'), JSON.stringify(again.reused));
+  assert.ok(!again.created.some((item) => /knowledge/.test(item)), JSON.stringify(again.created));
+  assert.equal(env.fake.state.repoTokens.length, tokens, 'a started repository needs no token');
+  assert.equal(env.knowledgeHead(), pages);
+
+  // With no record that it started, as on another computer, it looks, finds main, and pushes nothing.
+  const file = join(env.dir, STATE_FILE);
+  const state = JSON.parse(readFileSync(file, 'utf8'));
+  delete state.knowledge.started;
+  writeFileSync(file, JSON.stringify(state));
+  const tools = fakeTools(env.fake);
+  const looked = await env.provision({ exec: tools.exec });
+  assert.deepEqual(tools.knowledge.map(({ verb }) => verb[0]), ['ls-remote']);
+  assert.ok(!looked.created.some((item) => /knowledge/.test(item)), JSON.stringify(looked.created));
+  assert.equal(env.knowledgeHead(), pages);
+  assert.equal(execFileSync('git', ['-C', env.knowledge, 'show', `${pages}:README.md`], { encoding: 'utf8' }), '# Company knowledge\n');
+  assert.ok(env.fake.state.repoTokens.every((token) => token.state === 'revoked'), 'the look\'s token is revoked');
+
+  // A same-named repository this install did not make is never adopted.
+  const other = await setup(t, { repos: ['recipe-box-knowledge'] });
+  const theirs = structuredClone(other.fake.state.repos);
+  await assert.rejects(other.provision(), { reason: 'cloudflare', message: /already has a repository named recipe-box-knowledge that this install did not make/ });
+  assert.deepEqual(other.fake.state.repos, theirs);
+  assert.equal(other.fake.state.repoTokens.length, 0);
+  assert.equal(other.knowledgeHead(), '');
+});
+
+test('the access step binds company knowledge on record, and makes it for an older install only when asked', async (t) => {
+  const env = await setup(t);
+  await env.provision();
+  const file = join(env.dir, 'app/wrangler.jsonc');
+  const text = readFileSync(file, 'utf8');
+  const knowledgeLines = /^[ \t]*(?:"WONG_KNOWLEDGE_REPOSITORY"|"artifacts"|\/\/ The project's and company knowledge's).*\n/gm;
+  writeFileSync(file, text.replace(knowledgeLines, ''));
+  const bound = await accessCommand(env);
+  assert.equal(bound.code, 0, bound.text);
+  assert.deepEqual(bound.report.updated, ['app/wrangler.jsonc WONG_KNOWLEDGE_REPOSITORY', 'app/wrangler.jsonc ARTIFACTS']);
+  assert.deepEqual(bound.report.knowledge, { namespace: NAMESPACE, repo: 'recipe-box-knowledge', config: 'ready' });
+  assert.equal(readFileSync(file, 'utf8'), text, 'the same lines, comments kept');
+  assert.equal(env.config().env.staging.artifacts, undefined, 'staging is never bound');
+  assert.deepEqual((await accessCommand(env)).report.updated, []);
+
+  // An install from before company knowledge: access leaves it alone, unless asked.
+  const record = join(env.dir, '.claude/.wong-stack.json');
+  const install = JSON.parse(readFileSync(record, 'utf8'));
+  delete install.components.knowledge;
+  writeFileSync(record, JSON.stringify(install));
+  writeFileSync(file, text.replace(knowledgeLines, ''));
+  rmSync(join(env.dir, STATE_FILE));
+  env.fake.state.repos = [];
+  const older = await accessCommand(env);
+  assert.equal(older.report.knowledge, undefined);
+  assert.deepEqual(older.report.updated, []);
+  assert.deepEqual(env.fake.state.repos, []);
+  env.fake.state.paid = false;
+  const lines = [];
+  assert.equal(await cli(['access', '--knowledge', '--dir', env.dir], { env: env.env, out: (line) => lines.push(line), err: () => {} }), 1);
+  assert.equal(JSON.parse(lines.join('\n')).error.reason, 'plan');
+  assert.deepEqual(env.fake.state.repos, []);
+  env.fake.state.paid = true;
+  execFileSync('git', ['-C', env.knowledge, 'update-ref', '-d', 'refs/heads/main']);
+  const asked = await cli(['access', '--knowledge', '--dir', env.dir], { env: env.env, out: (line) => lines.splice(0, lines.length, line), err: () => {} });
+  assert.equal(asked, 0, lines.join('\n'));
+  const made = JSON.parse(lines.join('\n'));
+  assert.deepEqual(made.knowledge, { namespace: NAMESPACE, repo: 'recipe-box-knowledge', config: 'ready' });
+  assert.ok(made.created.includes('repository recipe-box-knowledge'), JSON.stringify(made.created));
+  assert.equal(env.record().components.knowledge.repo, 'recipe-box-knowledge');
+  assert.equal(readFileSync(file, 'utf8'), text);
+  assert.ok(env.knowledgeHead(), 'one first commit');
+});
+
 /** `provision.mjs access`, as an update runs it. */
 async function accessCommand(env, fetch) {
   const lines = [];
@@ -2091,8 +2233,8 @@ test('a GitHub install names its project for both Workers and reports the wide k
   assert.match(report.codeKey.steps.join('\n'), /Only select repositories, then pick ada\/recipe-box\n.*Contents to Read and write, and Pull requests to Read and write\n.*Read-only: Actions, Commit statuses, Deployments\nAdd no other permission, and never Workflows/);
   // The key is no to-do: Access asks for it when the owner first lets someone install the project.
   assert.ok(!report.todo.some((line) => /WONG_CODE_|hand out the project|save/.test(line)));
-  // No binding and no key is made for a GitHub project, and no Artifacts permission is asked for.
-  assert.deepEqual([env.config().artifacts, env.config().env.staging.artifacts], [undefined, undefined]);
+  // No key is made for a GitHub project; the live app alone is bound, to company knowledge's repository.
+  assert.deepEqual([env.config().artifacts, env.config().env.staging.artifacts], [[{ binding: 'ARTIFACTS', namespace: NAMESPACE }], undefined]);
   assert.ok(!env.fake.state.accountTokens.some((token) => /code/.test(token.name)));
 
   // The access step, as an update runs it: nothing to change, and the same one step left.

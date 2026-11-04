@@ -2,7 +2,7 @@
 // and what a link counts as.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
@@ -157,4 +157,53 @@ test('a list or a heading straight after the title fails: the page opens with a 
   assert.deepEqual(withVoice(t, '# Voice\n\n## Tone\n\n[up](README.md)\n'), ['wiki/voice.md: opens with a heading, not a sentence saying what the page is']);
   const bare = repo(t, { ...WIKI, 'wiki/README.md': '# Wiki\nStart here.\n- [Voice](voice.md)\n- [Stack](stack/)\n- [Empty](empty.md)\n', 'wiki/empty.md': '# Empty\n' });
   assert.deepEqual(checkWiki(bare), ['wiki/empty.md: has no sentence after its # title saying what the page is']);
+});
+
+test('a page may open with one frontmatter block, read as the knowledge reader reads it', t => {
+  const up = '# Voice\n\nUp: [the wiki](README.md).\n';
+  assert.deepEqual(withVoice(t, `---\npublic: true\n---\n${up}`), []);
+  assert.deepEqual(withVoice(t, `---\npublic: true\ntitle: Voice\n---\n\n${up}`), []);
+  assert.deepEqual(withVoice(t, `---\r\npublic: true\r\n---\r\n${up.replace(/\n/g, '\r\n')}`), []);
+  assert.deepEqual(withVoice(t, `---\n# a comment\npublic: true\n---\n${up}`), [], 'a # line in the block is not a title');
+  assert.deepEqual(withVoice(t, `---\npublic: true\n${up}`), ['wiki/voice.md: has no # title on its first line']);
+  assert.deepEqual(withVoice(t, '---\npublic: true\n---\n# Voice\n\n- [up](README.md)\n'), ['wiki/voice.md: opens with a list, not a sentence saying what the page is']);
+  const root = repo(t, { ...WIKI, 'knowledge/README.md': '---\npublic: true\n---\n# Knowledge\nThe company.\n' });
+  assert.deepEqual(checkWiki(root, 'knowledge'), []);
+});
+
+test('the check and the knowledge reader use the same frontmatter pattern', () => {
+  const front = file => readFileSync(join(REPO, file), 'utf8').match(/^const FRONT = (.+);$/m)?.[1];
+  const ours = front('.agents/skills/memory/scripts/lib/links.mjs');
+  assert.ok(ours, 'links.mjs has a const FRONT line');
+  assert.equal(front('app/worker/apps/knowledge/render.ts'), ours);
+});
+
+test('knowledge/ is checked by the same rules, and its links to code resolve from the workspace', t => {
+  const root = repo(t, {
+    ...WIKI,
+    'knowledge/README.md': '# Knowledge\nThe company.\n- [Ops](ops.md)\n',
+    'knowledge/ops.md': '# Ops\n\nUp: [hub](README.md). See [the skill](../.agents/skills/x/SKILL.md#run) and [gone](gone.md).\n',
+    'knowledge/lost.md': '# Lost\n\n[up](README.md)\n',
+  });
+  assert.deepEqual(checkWiki(root, 'knowledge'), [
+    'knowledge/ops.md:3: links to gone.md, which does not exist',
+    'knowledge/lost.md: no other wiki page links to it',
+    'knowledge/README.md: does not link lost.md',
+  ]);
+  assert.deepEqual(checkWiki(root), [], 'the wiki check reads only wiki/');
+});
+
+test('a wiki link into knowledge/ is skipped with no copy, as in CI, and checked with one', t => {
+  const voice = '# Voice\n\nUp: [the wiki](README.md). See [ops](../knowledge/ops.md).\n';
+  assert.deepEqual(checkWiki(repo(t, { ...WIKI, 'wiki/voice.md': voice })), []);
+  const withCopy = repo(t, { ...WIKI, 'wiki/voice.md': voice, 'knowledge/README.md': '# Knowledge\nThe company.\n' });
+  assert.deepEqual(checkWiki(withCopy), ['wiki/voice.md:3: links to ../knowledge/ops.md, which does not exist']);
+});
+
+test('a file back at a moved page\'s old path fails, naming its place in the knowledge repo', t => {
+  const moves = JSON.stringify({ version: 1, base: 'abc', moves: { 'wiki/ops/cash.md': 'knowledge/ops/cash.md' } });
+  assert.deepEqual(checkWiki(repo(t, { ...WIKI, '.agents/knowledge-moves.json': moves })), []);
+  const back = repo(t, { ...WIKI, '.agents/knowledge-moves.json': moves, 'wiki/ops/cash.md': '# Cash\n\nOld.\n' });
+  assert.ok(checkWiki(back).includes('wiki/ops/cash.md: moved to the knowledge repo as knowledge/ops/cash.md; edit it there, not here'));
+  assert.ok(!checkWiki(back, 'knowledge').some(problem => problem.includes('moved')), 'the knowledge check never reads the list');
 });

@@ -10,7 +10,6 @@ import {
   STEPS,
   WAYS,
   computers,
-  freeAccounts,
 } from "./install";
 import { InstallButton } from "./InstallButton";
 import { PaseoShot } from "./mockups";
@@ -28,7 +27,7 @@ const DESCRIPTION =
 const FAQ: [string, ReactNode][] = [
   [
     "Is WongStack free?",
-    `Yes. The software is free and open source, and installs on your own computer with one message. You use your own AI plan and ${freeAccounts()}. ${COST_ANSWERS.free}`,
+    `The software is free and open source, and installs on your own computer with one message. You use your own AI plan. ${COST_ANSWERS.free}`,
   ],
   ["Why is it free?", "It is open source software you can use, change, and share."],
   [
@@ -69,7 +68,7 @@ const FAQ: [string, ReactNode][] = [
   ],
 ];
 
-/** "Install for free" and a quiet link to the code: the hero and the closing call to action share them. */
+/** "Install" and a quiet link to the code: the hero and the closing call to action share them. */
 function Actions() {
   return (
     <p className="actions">
@@ -151,7 +150,7 @@ export function Landing() {
       <WorksWith />
 
       <section className="band install-section" id="install">
-        <h2>Install it for free</h2>
+        <h2>Install it</h2>
         <p className="lede">It runs on your own computer, with your own AI plan.</p>
         <InstallSteps />
       </section>

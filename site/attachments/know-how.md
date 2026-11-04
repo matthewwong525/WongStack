@@ -3,8 +3,9 @@ title: It doesn't know how your business works
 problem: Your AI guesses at your processes, because nobody wrote them down where it reads.
 fix: Your know-how is written down once, in pages the AI reads before it works.
 order: 2
-checked: 2026-10-31
+checked: 2026-11-04
 sources:
+  - wiki/stack/company-knowledge.md
   - wiki/agent-knowledge-center.md
   - wiki/wiki-style.md
 ---
@@ -26,7 +27,9 @@ Add a knowledge base of how my business works to my AI setup. Build it in this p
 > Each person gets a page with their email and how they like work done
 > Different people's preferences are not contradictions: keep each on their own page
 > Private life stays out of a shared knowledge base
-> Edits to the pages go through the same review as code
+> Pages about the code go through the same review as code
+> Pages about the company sit in their own repository, and a save makes them live for the team at once
+> When pages move there, keep a list of each old place and its new one; a file back at an old place fails the check
 > If a step runs the same way every time, write it as a script, not a page
 > Keep the always-loaded instructions short, and put details in pages the AI opens when needed
 > Short sentences, plain words, active voice: write for a reader who knows nothing

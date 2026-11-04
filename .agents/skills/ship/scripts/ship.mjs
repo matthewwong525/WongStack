@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // /ship's two mechanical halves, `prepare` and `finish`, each one command. The ship skill keeps the decisions; these
 // run the rest through the existing scripts and the OpenSpec CLI. Exit codes: each `Stop(code, …)` below.
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
@@ -10,13 +11,14 @@ import { checkpointEvidence } from '../../save/scripts/checkpoint-evidence.mjs';
 import { assertTerminalGoal, assertRecordScope, assertCodeScope, operationalChange, publishedGoal, recordPath, scheduleRecord } from '../../save/scripts/schedule-record.mjs';
 import { askRoute, defaultBranch, firstLine, sh } from '../../save/scripts/checkpoint.mjs';
 
-const USAGE = `usage: node ship.mjs prepare [--change <name> | --no-change] [--allow-others] [--skip-specs] [--sync] [--store <id>] [--schedule-record <reference>]
+const USAGE = `usage: node ship.mjs prepare [--change <name> | --no-change] [--allow-others | --move-others] [--skip-specs] [--sync] [--store <id>] [--schedule-record <reference>]
        node ship.mjs finish [--schedule-record <reference> --store <id>]
 
 prepare  preflight, tasks check, validate, archive, number the release, sync, mark ready
   --change <name>  the change to archive; without it, the one change this branch touches or records
   --no-change      the branch needs no change record
   --allow-others   ship other active changes on this branch on purpose
+  --move-others    push each other active change this branch adds to its own branch, then remove it from this one
   --skip-specs     archive without a spec update (the deltas already equal the main specs)
   --sync           merge the default branch in even when no release is behind it
 finish   merge the gated pull request, promote secret edits, look at the live app; in an app copy, publish through the app`;
@@ -166,6 +168,60 @@ function selectChange(values, root, active) {
     'NEXT: no change is selected. Decide by /save\'s route table: code or a plan for code gets a change (rerun with --change <name>); anything else reruns with --no-change.']);
 }
 
+// Stages the change folder as it goes on `target`, its Branch line set, in the temporary worktree; returns its tree.
+function stageMove(dir, root, changesDir, name, target) {
+  const folder = join(dir, changesDir, name);
+  rmSync(folder, { recursive: true, force: true });
+  cpSync(join(root, changesDir, name), folder, { recursive: true });
+  const proposal = join(folder, 'proposal.md');
+  if (existsSync(proposal)) writeFileSync(proposal, readFileSync(proposal, 'utf8').replace(/^\*\*Branch:\*\*[^\r\n]*/m, `**Branch:** ${target}`));
+  must('git', ['-C', dir, 'add', '-A', '--', join(changesDir, name)], `git add ${name}`);
+  return must('git', ['-C', dir, 'write-tree', `--prefix=${join(changesDir, name)}/`], `git write-tree ${name}`);
+}
+
+// The change's own branch name, else with `-plan` added: a free one gets a push; one on origin whose head already
+// holds exactly this folder is an earlier run's push, reused as it is, so a rerun never pushes a second copy.
+function placeChange(dir, root, changesDir, name) {
+  for (const target of [name, `${name}-plan`]) {
+    if (sh('git', ['rev-parse', '--verify', '--quiet', `refs/heads/${target}`]).status === 0) continue;
+    const tree = stageMove(dir, root, changesDir, name, target);
+    if (sh('git', ['ls-remote', '--exit-code', '--heads', 'origin', target]).status === 2) {
+      must('git', ['-C', dir, 'commit', '-q', '-m', `plan: keep ${name} on its own branch`], `git commit ${name}`);
+      must('git', ['-C', dir, 'push', '-q', 'origin', `HEAD:refs/heads/${target}`], `git push ${target}`);
+      return target;
+    }
+    if (sh('git', ['-C', dir, 'fetch', '-q', 'origin', `refs/heads/${target}`]).status === 0
+      && sh('git', ['-C', dir, 'rev-parse', `FETCH_HEAD:${join(changesDir, name)}`]).stdout.trim() === tree) return target;
+  }
+  throw new Stop(1, [`error=branches ${name} and ${name}-plan are both taken; move ${name} by hand`]);
+}
+
+// Each other change goes to its own pushed branch, made from the default branch in a temporary worktree so this
+// checkout never switches. Only when every push worked are the folders put back to the default branch's state.
+function moveOthers(root, base, changesDir, others) {
+  must('git', ['fetch', 'origin', base], `git fetch origin ${base}`);
+  for (const name of others) {
+    const dir = mkdtempSync(join(tmpdir(), 'wong-move-'));
+    try {
+      must('git', ['worktree', 'add', '--quiet', '--detach', dir, `origin/${base}`], 'git worktree add');
+      // Said at once, so a later push that fails still names this branch.
+      say(`MOVED=${name}:${placeChange(dir, root, changesDir, name)}`);
+    } finally {
+      sh('git', ['worktree', 'remove', '--force', dir]);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+  const folders = others.map(name => join(changesDir, name));
+  for (const folder of folders) {
+    rmSync(join(root, folder), { recursive: true, force: true });
+    if (sh('git', ['cat-file', '-e', `origin/${base}:${folder}`]).status === 0) must('git', ['checkout', `origin/${base}`, '--', folder], `git checkout ${folder}`);
+    must('git', ['add', '-A', '--', folder], `git add ${folder}`);
+  }
+  if (sh('git', ['diff', '--cached', '--quiet', '--', ...folders]).status !== 0) {
+    must('git', ['commit', '-q', '-m', `plan: move ${others.join(', ')} to their own branches`, '--', ...folders], 'git commit of the moved plans');
+  }
+}
+
 /** Tasks, artifacts, validation, then the archive itself. */
 function archiveChange(name, values) {
   const store = values.store;
@@ -301,18 +357,21 @@ async function prepare(values) {
     if (operational && status.changeRoot && publishedGoal(root, status.changeRoot)) continue;
     names.push(change.name);
   }
+  let evidence = null;
   if (!selectedRecord) {
     try {
-      const evidence = checkpointEvidence({ repo: root, base: `origin/${base}` });
+      evidence = checkpointEvidence({ repo: root, base: `origin/${base}` });
       assertCodeScope(evidence, [...goalRoots, ...evidence.operationalRoots]);
     }
     catch (error) { throw new Stop(1, [`error=${error.message}`]); }
   }
   const name = selectedRecord ? null : selectChange(values, root, names);
-  const others = names.filter(other => other !== name);
-  if (others.length && !values['allow-others']) {
+  // Only a change this branch adds or edits rides along; one the default branch already holds is not this merge's.
+  const others = names.filter(other => other !== name && evidence?.active.includes(other));
+  if (others.length && values['move-others']) moveOthers(root, base, evidence.changesDir, others);
+  else if (others.length && !values['allow-others']) {
     throw new Stop(7, [`OTHER_CHANGES=${others.join(',')}`,
-      'NEXT: the merge would carry these active changes too. Ask: move the others off the branch (Recommended), or ship all on purpose (rerun with --allow-others).']);
+      'NEXT: the merge would carry these active changes too. Rerun with --move-others to keep each on its own branch, unless the person asked to ship them all: then rerun with --allow-others.']);
   }
 
   let archive = null;
@@ -432,14 +491,15 @@ async function finish(values) {
 
 if (isMain(import.meta.url)) {
   const { values, positionals } = parseCli({ usage: USAGE, allowPositionals: true, options: {
-    change: { type: 'string' }, 'no-change': { type: 'boolean' }, 'allow-others': { type: 'boolean' },
+    change: { type: 'string' }, 'no-change': { type: 'boolean' }, 'allow-others': { type: 'boolean' }, 'move-others': { type: 'boolean' },
     'skip-specs': { type: 'boolean' }, sync: { type: 'boolean' }, store: { type: 'string' }, 'schedule-record': { type: 'string' }, 'archive-record': { type: 'string' },
   } });
   const [command, ...extra] = positionals;
   if (!['prepare', 'finish'].includes(command) || extra.length) usageError(USAGE, 'give prepare or finish');
   if (values.change && values['no-change']) usageError(USAGE, '--change and --no-change exclude each other');
+  if (values['allow-others'] && values['move-others']) usageError(USAGE, '--allow-others and --move-others exclude each other');
   if (values['schedule-record'] && values['archive-record']) usageError(USAGE, '--schedule-record and --archive-record exclude each other');
-  if ((values['schedule-record'] || values['archive-record']) && ['change', 'no-change', 'allow-others', 'skip-specs'].some(key => values[key])) usageError(USAGE, 'record delivery excludes ordinary code selection flags');
+  if ((values['schedule-record'] || values['archive-record']) && ['change', 'no-change', 'allow-others', 'move-others', 'skip-specs'].some(key => values[key])) usageError(USAGE, 'record delivery excludes ordinary code selection flags');
   if (command === 'finish' && Object.keys(values).some(key => !['schedule-record', 'store'].includes(key))) usageError(USAGE, 'finish only takes --schedule-record and --store');
   if (command === 'finish' && values.store && !values['schedule-record']) usageError(USAGE, '--store needs --schedule-record');
   try {

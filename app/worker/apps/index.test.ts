@@ -17,6 +17,17 @@ vi.mock("./hello/api.ts", async (original) => ({
   ),
 }));
 
+// The Knowledge app's routes, plus one that records what its handler receives.
+vi.mock("./knowledge/api.ts", async (original) => ({
+  keys: undefined,
+  routes: new Map((await original<{ routes: Map<string, Route> }>()).routes).set(
+    "GET peek", (_request: Request, env: AppEnv, call: AppCall) => {
+      seen.push({ env, call });
+      return Response.json({ ok: true });
+    },
+  ),
+}));
+
 afterEach(() => {
   seen.length = 0;
 });
@@ -102,4 +113,17 @@ it("applies the app slug to both bare and described routes before handler work",
   expect(seen).toHaveLength(1);
   expect(db.withSession).toHaveBeenCalledTimes(6);
   expect(db.withSession).toHaveBeenCalledWith("first-primary");
+});
+
+it("hands only the Knowledge app's routes the knowledge reader, and none of them the binding behind it", async () => {
+  const repo = { log: vi.fn(async () => []), readTree: vi.fn(), readFile: vi.fn(), createToken: vi.fn(), info: vi.fn() };
+  const bindings = fakeEnv({ ...env, ARTIFACTS: { get: vi.fn(async () => repo) }, WONG_KNOWLEDGE_REPOSITORY: "acme-knowledge",
+    WONG_CODE_REPOSITORY: "acme-code", WONG_ENVIRONMENT: "production" });
+  const run = (app: string) => handleApp(new Request(`https://workspace.example.com/apps/${app}/api/peek`), bindings, person);
+  for (const app of ["knowledge", "hello"]) expect((await run(app)).status, app).toBe(200);
+  const [knowledge, hello] = seen;
+  for (const { env: appEnv } of seen) expect("ARTIFACTS" in appEnv).toBe(false);
+  expect(Object.keys(knowledge.call.knowledge ?? {}).sort()).toEqual(["head", "name", "readFile", "readTree"]);
+  expect(knowledge.call.knowledge?.name).toBe("acme-knowledge");
+  expect("knowledge" in hello.call).toBe(false);
 });

@@ -18,7 +18,7 @@ const VALUE_FLAGS = ['title', 'brief', 'checkout', 'reviewed', 'agent', 'label']
 const LABEL = /^[a-z][a-z0-9-]{0,39}=[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 const MODES = { claude: 'bypassPermissions', codex: 'full-access' };
 const PARENT_VARS = ['PASEO_AGENT_ID', 'PASEO_WORKSPACE_ID'];
-const PLACEHOLDERS = new Set(['main', 'master', 'default', 'hello', 'hello world', 'test', 'testing', 'untitled',
+export const PLACEHOLDERS = new Set(['main', 'master', 'default', 'hello', 'hello world', 'test', 'testing', 'untitled',
   'new workspace', 'workspace', 'scratch', 'temp', 'tmp', 'wip']);
 const SLUG = /^(?=.*[A-Za-z0-9])(?=.*[-_])[A-Za-z0-9._-]+$/;
 // Thinking below this floor becomes `medium`; `auto` and empty mean unset, so the model's own default applies.

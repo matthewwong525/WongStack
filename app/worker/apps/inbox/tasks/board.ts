@@ -2,7 +2,7 @@
 // board, the app owner's, so every route acts for the owner alone. wiki/development/reply-links.md
 import { z } from "zod";
 import { checkerOwns, defineAction, humanEmail, ownerEmail, type Action } from "../../../api/contract.ts";
-import { isMonday, taskSlots, taskStatuses } from "../../../../src/lib/board.ts";
+import { isMonday, searchWords, taskSlots, taskStatuses } from "../../../../src/lib/board.ts";
 import { installationOf } from "../store.ts";
 import { wake } from "../wake.ts";
 
@@ -16,6 +16,9 @@ export class BoardError extends Error {
     this.status = code === "not_found" ? 404 : 400;
   }
 }
+
+/** Each search word as a `LIKE … ESCAPE '\\'` pattern found anywhere: `100%` finds only itself, `a_b` never `axb`. */
+export const titlePatterns = (query: string) => searchWords(query).map(word => `%${word.replace(/[\\%_]/g, character => `\\${character}`)}%`);
 
 const ERRORS = { not_found: "No such task or group.", validation_failed: "Some fields need correction." };
 

@@ -47,7 +47,7 @@ function fakeShell(branches = {}) {
   return box;
 }
 
-// A day of chats: own, handed, asked, a routine's, a board task's, and an own-looking one in a started folder.
+// A day of chats: own, handed twice, a routine's, a board task's, and an own-looking one in a started folder.
 // `pass` runs keepTodos at a time, with `more` on top.
 function setup() {
   const stateDir = mkdtempSync(join(tmpdir(), 'todos-test-')); roots.push(stateDir);
@@ -61,7 +61,7 @@ function setup() {
     agent('agent-task', '/w/bold-otter'), agent('agent-news', '/w/news-owl/')];
   const rows = [{ agentId: 'agent-mine', title: 'Fix the Notes page', workspace: 'quick-elk', source: 'own' },
     { agentId: 'agent-hand', title: 'Team plan', workspace: 'team-yak', source: 'handed' },
-    { agentId: 'agent-ask', title: 'Book the dentist', workspace: 'new-elk', source: 'asked' },
+    { agentId: 'agent-ask', title: 'Book the dentist', workspace: 'new-elk', source: 'handed' },
     { agentId: 'agent-routine', title: 'Stretch', workspace: 'calm-cat', source: 'started' },
     { agentId: 'agent-task', title: 'Task: Post the editor job', workspace: 'bold-otter', source: 'started', task: 'job' },
     { agentId: 'agent-news', title: 'Task: News', workspace: 'news-owl', source: 'own' }];
@@ -74,7 +74,7 @@ function setup() {
   return { stateDir, record, list, rows, box, shell, logs, pass, kept };
 }
 
-test('a chat the person opened, handed or asked for gets one to-do on today, in progress, named for its chat; a routine, a board task or a daily folder gets none', async () => {
+test('a chat the person opened or handed gets one to-do on today, in progress, named for its chat; a routine, a board task or a daily folder gets none', async () => {
   const t = setup();
   await t.pass(START);
   await t.pass(START + MIN);
