@@ -1,0 +1,67 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-private-page-asked-for-publicly",
+  "scenario": {
+    "capability": "knowledge-reader",
+    "requirement": "Only pages marked public open without sign-in",
+    "scenario": "A private page asked for publicly"
+  },
+  "thenDigest": "bf0cf9ce3d785f4115de2ed9646600b8ab12265986791a7017a63a1a9347d439",
+  "probe": "request",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/skills/memory/references/areas.json",
+    ".agents/skills/wong-setup/scripts/private-access.mjs",
+    ".agents/skills/wong-sync/references/payload-manifest.md",
+    "app/package.json",
+    "app/src/apps/knowledge/App.tsx",
+    "app/src/apps/knowledge/List.tsx",
+    "app/src/apps/knowledge/Reader.tsx",
+    "app/src/apps/knowledge/States.tsx",
+    "app/src/apps/knowledge/app.json",
+    "app/src/apps/knowledge/read.ts",
+    "app/worker/api/contract.ts",
+    "app/worker/apps/index.ts",
+    "app/worker/apps/knowledge/api.ts",
+    "app/worker/apps/knowledge/list.ts",
+    "app/worker/apps/knowledge/public.ts",
+    "app/worker/apps/knowledge/render.ts",
+    "app/worker/apps/knowledge/search.ts",
+    "app/worker/apps/knowledge/source.ts",
+    "app/worker/employee-access/knowledge-reader.ts",
+    "app/worker/index.ts",
+    "scripts/check-private-access.mjs"
+  ],
+  "recordedAt": "716a1b1debfa38e896149ea0f156a6ba0d36416a",
+  "steps": [
+    [
+      "GET",
+      "/public/welcome"
+    ],
+    [
+      "GET",
+      "/public/README"
+    ],
+    [
+      "GET",
+      "/public/a/b/c"
+    ]
+  ],
+  "expect": [
+    {
+      "step": 1,
+      "status": 404,
+      "includes": "Page not found"
+    },
+    {
+      "step": 2,
+      "status": 404,
+      "includes": "Page not found"
+    },
+    {
+      "step": 3,
+      "status": 404,
+      "includes": "Page not found"
+    }
+  ]
+}
