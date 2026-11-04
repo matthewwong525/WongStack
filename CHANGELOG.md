@@ -11,6 +11,14 @@
 
 **Updating.** Nothing to do: the next save after this update uses it.
 
+## 47.1.0 — Chats opened for you think at medium or more and show their names
+
+- **A chat opened for you never thinks below medium.** The workspace launcher and a schedule on the app's clock pass `--thinking`. Low, off, or none becomes medium. High and above stay. An unset level stays unset when the model's own default is medium or more, so a model that defaults to high keeps high; when the default is lower or can not be read, it becomes medium ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)). A chat you start yourself keeps the level you pick.
+- **Open a workspace only through the launcher.** A raw `paseo run --new-workspace` with `--new-branch`, or Paseo's Handoff skill, keeps a slug name such as `roadmap-week-bricks` and the caller's thinking level ([new workspaces](.agents/skills/plan/references/new-workspace.md)).
+- **Your day shows a chat's workspace name, not its folder.** The chat on a board to-do, the chats in *what's going on?*, and the journal show *Task: Call Kim*, not `potent-quail`. The folder name still finds the chat.
+
+**Updating.** Nothing to do. If your repo added its own thinking floor to `workspace.mjs`, take this one in its place.
+
 ## 47.0.0 — Your day runs without a Daily chat
 
 - **The morning starts by itself.** At `morning` in your settings file, 08:00 by default, the helper that runs in the background starts your due routines and morning add-ons, one time per day. You open no chat for it, and you get no morning list: your tasks are on your week in the Inbox ([the daily routine](wiki/development/daily.md#what-it-does)).

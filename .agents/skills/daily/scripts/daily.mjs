@@ -150,8 +150,8 @@ async function launchWorkspace({ destination, title, message }) {
   } finally { rmSync(directory, { recursive: true, force: true }); }
 }
 
-/** The name the person sees in Paseo's list of worktrees, such as `little-giraffe`. */
-const workspaceOf = opened => (opened.cwd && basename(opened.cwd)) || opened.workspaceName || opened.workspaceId || null;
+/** The workspace's name in Paseo, such as `Task: Call Kim`; its folder (`little-giraffe`) only when it has none. */
+const workspaceOf = opened => opened.workspaceName || (opened.cwd && basename(opened.cwd)) || opened.workspaceId || null;
 
 // ---------------------------------------------------------------------------
 // start

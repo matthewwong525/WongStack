@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
-  agentSettings, childEnv, openWorkspace, parseCreated, renameArgs, runArgs, workspaceTitle,
+  agentSettings, childEnv, floorThinking, flooredThinking, openWorkspace, parseCreated, renameArgs, runArgs, workspaceTitle,
 } from '../../.agents/skills/schedule/scripts/workspace.mjs';
 
 const cli = new URL('../../.agents/skills/schedule/scripts/workspace.mjs', import.meta.url).pathname;
@@ -73,8 +73,8 @@ function ownerBranch(root, branch) {
   return sha;
 }
 
-// A fake `paseo`: `inspect` answers FAKE_INSPECT, `run` prints FAKE_RUN_STDOUT and FAKE_RUN_STDERR, `workspace rename`
-// prints { workspaceId, title } or fails with FAKE_RENAME_FAIL. Calls go to log.jsonl with the parent-agent variables.
+// A fake `paseo`: `inspect` answers FAKE_INSPECT, `provider models` FAKE_MODELS, `run` FAKE_RUN_STDOUT/ERR, `workspace
+// rename` { workspaceId, title } or FAKE_RENAME_FAIL. Calls go to log.jsonl with the parent-agent variables.
 function fakePaseo(t) {
   const dir = tmp(t, 'workspace-paseo-');
   const log = path.join(dir, 'log.jsonl');
@@ -92,6 +92,7 @@ fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify({ args, parent: process
   workspace: process.env.PASEO_WORKSPACE_ID ?? null, pinned }) + '\\n');
 if (process.env.FAKE_PASEO_DOWN) { console.error('Cannot connect to daemon at home /x: ECONNREFUSED'); process.exit(1); }
 if (args[0] === 'inspect') { console.log(process.env.FAKE_INSPECT); process.exit(0); }
+if (args[0] === 'provider') { if (!process.env.FAKE_MODELS) process.exit(1); console.log(process.env.FAKE_MODELS); process.exit(0); }
 if (args[0] === 'workspace' && args[1] === 'rename') {
   if (process.env.FAKE_RENAME_FAIL) { console.error(process.env.FAKE_RENAME_FAIL); process.exit(1); }
   console.log(JSON.stringify({ workspaceId: args[2], title: args[3] }));
@@ -155,6 +156,27 @@ test('builds branch-off and checkout arguments with the brief last', () => {
   assert.ok(!co.includes('--base'));
   const tagged = runArgs({ primary: '/p', title: 'B', brief: '/plan B', settings, base: 'origin/main', label: 'job=42' });
   assert.deepEqual(tagged.slice(tagged.indexOf('--label'), tagged.indexOf('--mode')), ['--label', 'job=42']);
+});
+
+test('thinking never starts below medium; a level set at medium or more, or a model default that is, is kept', () => {
+  for (const low of ['low', 'off', 'none', 'minimal', 'Low']) assert.equal(floorThinking(low, 'high'), 'medium', low);
+  for (const kept of ['medium', 'high', 'xhigh', 'max']) assert.equal(floorThinking(kept, 'low'), kept, kept);
+  assert.equal(floorThinking('auto', 'low'), 'medium', 'auto on a low-default model');
+  assert.equal(floorThinking(null, 'low'), 'medium');
+  assert.equal(floorThinking('auto', 'high'), null, 'auto on a high-default model stays unset');
+  assert.equal(floorThinking('', 'medium'), null);
+  assert.equal(floorThinking(null, null), 'medium', 'an unread default');
+});
+
+test('the model default is read only for an unset level: the named model, else the first; a failed read gives medium', async () => {
+  const models = [{ id: 'gpt-low', defaultThinkingOptionId: 'low' }, { id: 'gpt-high', defaultThinkingOptionId: 'high' }];
+  const asked = [];
+  const call = async args => { asked.push(args.join(' ')); return models; };
+  assert.equal(await flooredThinking(call, { provider: 'codex', model: null, thinking: null }), 'medium');
+  assert.equal(await flooredThinking(call, { provider: 'codex', model: 'gpt-high', thinking: 'auto' }), null);
+  assert.equal(await flooredThinking(call, { provider: 'codex', model: 'gpt-high', thinking: 'low' }), 'medium');
+  assert.deepEqual(asked, ['provider models codex', 'provider models codex']);
+  assert.equal(await flooredThinking(async () => { throw new Error('no daemon'); }, { provider: 'claude', model: null, thinking: null }), 'medium');
 });
 
 test('builds the rename arguments with the title as one element', () => {
@@ -319,6 +341,22 @@ test('outside a Paseo agent it needs --agent and uses Paseo\'s default model', t
   assert.equal(flag(run.args, '--mode'), 'full-access');
   assert.ok(!run.args.includes('--model'));
   assert.ok(!paseo.calls().some(c => c.args[0] === 'inspect'));
+});
+
+test('a low caller opens its workspace at medium, a high caller keeps high, and an unset caller on a high-default model passes none', t => {
+  const { root } = repo(t);
+  const thinking = (level, models) => {
+    const paseo = fakePaseo(t);
+    const env = { ...paseo.env, FAKE_INSPECT: JSON.stringify({ ...CALLER, Thinking: level }), ...(models && { FAKE_MODELS: JSON.stringify(models) }) };
+    assert.equal(runCli(root, ['open', '--title', 'B', '--brief', brief(t)], env).status, 0);
+    const [run] = paseo.runs();
+    return run.args.includes('--thinking') ? flag(run.args, '--thinking') : null;
+  };
+  assert.equal(thinking('low'), 'medium');
+  assert.equal(thinking('high'), 'high');
+  assert.equal(thinking('', [{ id: 'claude-opus-5-5', defaultThinkingOptionId: 'high' }]), null);
+  assert.equal(thinking('auto', [{ id: 'claude-opus-5-5', defaultThinkingOptionId: 'low' }]), 'medium');
+  assert.equal(thinking(''), 'medium', 'an unread model default');
 });
 
 test('a missing workspace line still reports the opened agent, with a warning', t => {
