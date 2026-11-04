@@ -27,6 +27,12 @@
 # request. Any doubt (a direct push, the default branch moved first, a failed
 # or missing check, an API error) runs them.
 #
+# A docs-only save is not tested again either. On a push to another branch,
+# `already-passed.sh --branch` finds the branch's newest earlier commit whose
+# `test` check passed. When only docs changed since it, `checks.mjs
+# --suite-base` skips the suite, still runs the docs, loosened and skill checks
+# on the whole change, and the summary names that commit. Any doubt runs it.
+#
 # ---------------------------------------------------------------------------
 # Why one commit does not test twice
 #
@@ -69,7 +75,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: read
-      # already-passed.sh reads the merged pull request and its head's test check.
+      # already-passed.sh reads the merged pull request and each commit's test check.
       checks: read
       pull-requests: read
     steps:
@@ -95,6 +101,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: bash .github/scripts/already-passed.sh >> "$GITHUB_OUTPUT"
 
+      - name: Check whether an earlier commit of this branch already passed
+        id: reused
+        if: ${{ github.event_name == 'push' && github.ref_name != github.event.repository.default_branch }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: bash .github/scripts/already-passed.sh --branch >> "$GITHUB_OUTPUT"
+
       - name: Say the code already passed
         if: ${{ steps.passed.outputs.passed == 'true' }}
         env:
@@ -109,10 +123,12 @@ jobs:
           CHECK_BASE: ${{ steps.scope.outputs.base }}
           CHECK_HEAD: ${{ github.sha }}
           CHECK_DEFAULT: ${{ github.event.repository.default_branch }}
+          SUITE_BASE: ${{ steps.reused.outputs.passed == 'true' && steps.reused.outputs.sha || '' }}
         run: |
           node .github/scripts/checks.mjs \
             --repo "$CHECK_REPO" --base "$CHECK_BASE" --head "$CHECK_HEAD" \
-            --default-branch "$CHECK_DEFAULT" --summary "$GITHUB_STEP_SUMMARY"
+            --default-branch "$CHECK_DEFAULT" --summary "$GITHUB_STEP_SUMMARY" \
+            ${SUITE_BASE:+--suite-base "$SUITE_BASE"}
 
       - name: Keep test coverage diagnostics
         if: ${{ always() && hashFiles('app/coverage/coverage-final.json') != '' }}
