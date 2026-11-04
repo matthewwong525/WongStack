@@ -96,6 +96,24 @@ test('a source and its attachment changed together pass', t => {
   assert.equal(result.status, 0, result.out);
 });
 
+test('a source edited on the day its attachment was checked passes, and an edit on a later day fails', t => {
+  const f = fixture(t);
+  const changed = new Set(['wiki/memory.md']);
+  assert.deepEqual(checkAttachments(f.root, changed, () => '2026-10-31').failures, []);
+  assert.deepEqual(checkAttachments(f.root, changed, () => '2026-11-03').failures, [STALE]);
+});
+
+test("a committed source edit's day is its commit's date", t => {
+  const f = fixture(t);
+  git(f.root, 'switch', '-q', '-c', 'edit');
+  write(f.root, { 'wiki/memory.md': '# Memory\n\nA new rule.\n' });
+  git(f.root, 'add', '-A');
+  const at = { ...process.env, GIT_COMMITTER_DATE: '2026-10-31T12:00:00+00:00' };
+  const done = spawnSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-q', '-m', 'edit'], { cwd: f.root, env: at });
+  assert.equal(done.status, 0);
+  assert.equal(f.run().status, 0);
+});
+
 test('on the default branch, after the merge, only the shape is checked', t => {
   const f = fixture(t);
   f.commit({ 'wiki/memory.md': '# Memory\n\nMerged.\n' });

@@ -21,7 +21,7 @@ disable-model-invocation: true
 - *Remind me Friday to …*: `D remind --day <YYYY-MM-DD> --text <words>` adds a task on that day of their board.
 - *Watch flashy-crab*: `D hand --agent flashy-crab`. Never send to a chat the watch does not have.
 - *Tell flashy-crab …*: by [the person's answers](references/chief.md#the-persons-answers).
-- *What's going on?*: `D status`, one line per chat.
+- *What's going on?*: `D status`, one line per chat. [Ask](../explore/references/asking-the-user.md) which `finished` chats to close; send each pick `/close` by `D reply --bucket person --label "Closed: <title>"`.
 - *Stop check-ins* or *start check-ins*: `D checkins off` or `D checkins on`.
 - *Start <task>*: `D start-task --id <id>`, for an undone task on today.
 - *A task past a quick reply*: by [quick or big](references/chief.md#quick-or-big).

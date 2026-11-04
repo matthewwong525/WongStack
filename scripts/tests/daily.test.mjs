@@ -372,9 +372,9 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   assert.equal(go(jobs, { env: { WONG_STOP_CHECK: '1' } }), 'run');
   assert.equal(go(jobs, { env: { WONG_MEMORY_RUN: '1' } }), 'run');
   assert.equal(go(null), 'no-person');
-  // The default list's wrap-up and wiki tidy are jobs, so the defaults start it until the person turns both off.
+  // The default list's wiki tidy is a job, so the defaults start it until the person turns it off.
   const own = sweeps => { writeFileSync(join(root, 'jobs.json'), JSON.stringify({ sweeps })); return { ...plain, sweeps: 'jobs.json' }; };
-  assert.equal(go(own([{ id: 'wrap-up', off: true }, { id: 'wiki-tidy', off: true }])), 'no-jobs');
+  assert.equal(go(own([{ id: 'wiki-tidy', off: true }])), 'no-jobs');
   assert.equal(go(own([{ id: 'wrap-up', off: true }])), 'started');
   assert.equal(go(plain), 'started');
   assert.equal(go(jobs), 'started');

@@ -172,7 +172,7 @@ The Daily chat SHALL receive no event messages: what happens goes to a private j
 
 ### Requirement: An install adds its own background jobs
 
-The daily SHALL start with two jobs: wrapping up a finished chat, and the small wiki tidy after each memory consolidation. Judging a stop SHALL be each chat's own check-in, not a job on that list. An install SHALL be able to add jobs in one list in its own daily folder: an event or a time that starts each job, an optional check with no AI that says whether there is work, and the instructions the run follows. A job in that list with a default job's name SHALL replace it, and the install SHALL be able to turn a default job off there. An update SHALL never change or remove that list. A job's run SHALL never send, pay, publish or delete unless its own instructions allow that one step. A job that publishes SHALL work in its own copy of the repo, never in the person's checkout.
+The daily SHALL start with one job: the small wiki tidy after each memory consolidation. Judging a stop SHALL be each chat's own check-in, not a job on that list. An install SHALL be able to add jobs in one list in its own daily folder: an event or a time that starts each job, an optional check with no AI that says whether there is work, and the instructions the run follows. A job in that list with a default job's name SHALL replace it, and the install SHALL be able to turn a default job off there. An update SHALL never change or remove that list. A job's run SHALL never send, pay, publish or delete unless its own instructions allow that one step. A job that publishes SHALL work in its own copy of the repo, never in the person's checkout.
 
 #### Scenario: A weekly job
 
@@ -187,21 +187,7 @@ The daily SHALL start with two jobs: wrapping up a finished chat, and the small 
 #### Scenario: An install turns a default job off
 
 - **WHEN** an install's list turns the wiki tidy off
-- **THEN** the helper still wraps up finished chats, and starts no wiki tidy
-
-### Requirement: A finished chat is wrapped up
-
-Where the host lets the helper watch other chats, it SHALL send `/close` to a chat it watches when the chat's work is published, nothing new is on its branch or in its folder since, the chat is not working, and the person has written nothing there for 15 minutes. It SHALL send `/close` to a chat at most once, counting a close the board's Done asked for. It SHALL NOT send `/close` to the Daily chat, a sub-agent, a chat in the main checkout, or a chat with an open question. Each wrap-up SHALL write one line to the journal.
-
-#### Scenario: A published chat goes quiet
-
-- **WHEN** the chat `flashy-crab`'s change is published, its folder holds no new work, and the person last wrote there 20 minutes ago
-- **THEN** the helper sends it `/close` once, and the journal says it was wrapped up
-
-#### Scenario: Work after the publish
-
-- **WHEN** a chat's change is published and the chat has since made a new commit that is not published
-- **THEN** the helper does not send it `/close`
+- **THEN** the helper starts no wiki tidy, and runs the install's other jobs as before
 
 ### Requirement: Each chat checks its own stops
 
@@ -267,3 +253,17 @@ After the morning reply, the person SHALL be able to ask the Daily chat, at any 
 
 - **WHEN** Jo's Daily chat from Monday is still open and Jo writes "morning" in it on Tuesday
 - **THEN** the reply gives Tuesday's list and Tuesday's routines start, with no new `/daily`
+
+### Requirement: Finished chats close only when the person picks them
+
+The helper SHALL NOT send `/close` to a chat by itself. Where the host lets the Daily chat watch other chats, its answer to *what's going on?* SHALL mark each watched chat whose work is published, with nothing new on its branch or in its folder since, that is not working and has no open question. When it marks one or more, it SHALL ask which to close, and SHALL send `/close` only to the chats the person picks. It SHALL NOT mark the Daily chat, a sub-agent, or a chat in the main checkout.
+
+#### Scenario: The person picks one finished chat
+
+- **WHEN** the chats `flashy-crab` and `calm-otter` are both published with nothing new, and the person answers *what's going on?* with "close flashy-crab"
+- **THEN** `flashy-crab` gets `/close` once, and `calm-otter` stays open
+
+#### Scenario: A published chat left open
+
+- **WHEN** a chat's change is published, and the person leaves it open for an hour without asking the Daily chat
+- **THEN** the chat stays open and gets no `/close`
