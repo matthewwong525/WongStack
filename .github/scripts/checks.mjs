@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../.agents/skills/memory/scripts/lib/cli.mjs';
 import { changedFiles, isSettings } from './check-settings.mjs';
 
-const USAGE = `usage: node .github/scripts/checks.mjs --repo <path> --base <sha-or-empty> --head <sha> --default-branch <name> [--discover] [--summary <path>]
+const USAGE = `usage: node .github/scripts/checks.mjs --repo <path> --base <sha-or-empty> --head <sha> --default-branch <name> [--discover] [--summary <path>] [--suite-base <sha>]
        node .github/scripts/checks.mjs --worktree [--repo <path>] [--default-branch <name>] [--only <parts>] [--lock-wait <seconds>]
 
 Supply the whole-change base and exact checked-out head, never only the latest
@@ -17,6 +17,9 @@ commit's parent. An empty/unavailable base runs checks conservatively.
 The default branch labels caller context; it does not select the base.
 --discover  print scope and test-suite location as JSON; run no checks
 --summary   append quality reports and the final summary to this file
+--suite-base  a commit of this branch whose test check passed: the suite, proof
+            and target compare with it, not --base; loosened, wiki and skills
+            still compare with --base
 --worktree  check the uncommitted work here, before a push; never the gate
 --only      with --worktree, rerun only these: suite, proof, target, loosened, wiki, skills, payload, payload:<step>
 --lock-wait with --worktree, seconds to wait for another chat's run (default 600)`;
@@ -55,10 +58,15 @@ function context(values) {
   if (realpathSync(git('rev-parse', '--show-toplevel')) !== repo || git('rev-parse', 'HEAD') !== values.head) {
     throw new Error('repository root or checked-out head does not match the supplied context');
   }
-  const scope = execFileSync('bash', [join(scripts, 'app-untouched.sh'), '--base', values.base, '--head', values.head], {
+  const suiteBase = values['suite-base'];
+  if (suiteBase !== undefined && !SHA.test(suiteBase)) usageError(USAGE, '--suite-base takes a full commit SHA');
+  const compare = base => parseScope(execFileSync('bash', [join(scripts, 'app-untouched.sh'), '--base', base, '--head', values.head], {
     cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'],
-  });
-  return { repo, defaultBranch: values['default-branch'], scope: parseScope(scope) };
+  }));
+  const scope = compare(values.base);
+  // The suite's own scope: the whole change, or only what changed since a commit whose suite already passed.
+  const suiteScope = suiteBase ? compare(suiteBase) : scope;
+  return { repo, defaultBranch: values['default-branch'], scope, suiteBase: suiteBase ?? null, suiteScope };
 }
 
 function suiteDir(repo) {
@@ -166,7 +174,7 @@ function regenerateTypes(repo) {
   if (existsSync(script) && readFileSync(script, 'utf8').includes('"--types"')) run('bash', [script, '--types'], repo);
 }
 
-function checks({ repo, scope, dir }, summary) {
+function checks({ repo, scope, suiteBase, suiteScope, dir }, summary) {
   const report = text => {
     console.log(text);
     if (summary) appendFileSync(summary, `${text}\n`);
@@ -179,11 +187,11 @@ function checks({ repo, scope, dir }, summary) {
     install = run('npm', ['ci', '--no-audit', '--no-fund'], dir).ok;
     if (install) regenerateTypes(repo);
     if (install) suite = run('npm', ['test'], dir).ok ? 'success' : 'failure';
-    if (install) proof = proofWanted(repo, dir, scope.base, false);
+    if (install) proof = proofWanted(repo, dir, suiteScope.base, false);
     if (proof === 'run') proof = run('npm', ['run', PROOF], dir).ok ? 'success' : 'failure';
-    if (install) target = targetWanted(repo, dir, scope.base, false);
+    if (install) target = targetWanted(repo, dir, suiteScope.base, false);
     if (target === 'run') target = run(process.execPath, [join(repo, TARGET_SCRIPT)], repo).ok ? 'success' : 'failure';
-  } else if (scope.untouched !== 'true') {
+  } else if (suiteScope.untouched !== 'true') {
     report('### No test suite yet\n\nNo `package.json` in this repo declares a `test` script, so there is nothing to run.\n\nAdd one — `/plan` includes a test task for any change that touches behavior — and this check runs it on every push.');
   }
   // Quality checks still run after install/test failure, including docs-only
@@ -197,8 +205,9 @@ function checks({ repo, scope, dir }, summary) {
   }
   const skills = skillCheck(repo);
   if (summary) appendFileSync(summary, skills.text);
-  let line = scope.untouched === 'true'
-    ? 'The main app is untouched (only docs changed), so its suite did not run.'
+  let line = suiteScope.untouched === 'true'
+    ? (suiteBase ? `This code already passed the test check on commit ${suiteBase}, and only docs changed since, so its suite did not run.`
+      : 'The main app is untouched (only docs changed), so its suite did not run.')
     : dir ? `The main app changed, so its suite ran: ${suite}.` : 'The main app changed, but no test suite is declared.';
   if (!install) line = 'The main app changed, but installation failed, so its suite did not run.';
   if (proof) line += ` ${PROOF_NOTE[proof]}`;
@@ -292,14 +301,16 @@ function main() {
     repo: { type: 'string' }, base: { type: 'string' }, head: { type: 'string' },
     'default-branch': { type: 'string' }, discover: { type: 'boolean' }, summary: { type: 'string' },
     worktree: { type: 'boolean' }, only: { type: 'string' }, 'lock-wait': { type: 'string' },
+    'suite-base': { type: 'string' },
   } });
   if (values.worktree) {
+    if (values['suite-base'] !== undefined) usageError(USAGE, '--worktree does not take --suite-base');
     process.exitCode = localChecks(values);
     return;
   }
   if (values.only !== undefined || values['lock-wait'] !== undefined) usageError(USAGE, '--only and --lock-wait need --worktree');
   const data = context(values);
-  data.dir = data.scope.untouched === 'true' ? null : suiteDir(data.repo);
+  data.dir = data.suiteScope.untouched === 'true' ? null : suiteDir(data.repo);
   if (values.discover) console.log(JSON.stringify(data));
   else if (!checks(data, values.summary)) process.exitCode = 1;
 }
