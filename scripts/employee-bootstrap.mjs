@@ -393,7 +393,14 @@ function summary({ signedInAs, signIn, memory, project, folder, applied }, title
   return [signIn === 'reused' ? `Used this computer's existing sign-in as ${signedInAs}.` : `Signed in as ${signedInAs}.`, titles.length ? `Apps that work: ${titles.join(', ')}.` : 'No apps yet: ask your admin.',
     memory === 'works' ? 'Memory works.' : 'Memory is not reachable yet; chats still work without it.',
     current ? `The project is in ${folder}, and new chats keep it up to date.` : `Project: ${project}${folder ? `, in ${folder}` : ''}.`,
-    applied === false ? 'Your changes were kept, so the update waits.' : found ? 'Nothing else is needed.' : 'The project\'s own tools can\'t find this sign-in yet.'].join(' ');
+    applied === false ? 'Your changes were kept, so the update waits.' : !found ? 'The project\'s own tools can\'t find this sign-in yet.'
+      : project === 'installed' && folder ? firstLesson(folder) : 'Nothing else is needed.'].join(' ');
+}
+/** After a first download, the person's next step: Lesson 1 in a new chat, which loads the project's skills. */
+function firstLesson(folder, env = process.env) {
+  const where = env.PASEO_AGENT_ID ? 'in Paseo, open a new workspace on this project, choose New worktree from main, and type "lesson 1" there'
+    : `open a new chat in ${folder} and type "lesson 1"`;
+  return `Next: ${where}. It takes about 20 minutes and shows you how to work here.`;
 }
 const USAGE = 'employee-bootstrap.mjs [install] [--origin <HTTPS origin>] [--dir <folder>] | login --origin <HTTPS origin> | status | code --dir <folder> | list | describe <id> | call <id> --file <JSON file or -> [--state <private directory>]';
 /** `install` keeps one private directory per company, so a second run finds the first. */
