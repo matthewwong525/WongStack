@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { main } from '../../.agents/skills/schedule/scripts/schedule.mjs';
 import { appAdapter, appHost, selectHost, startupPrompt } from '../../.agents/skills/schedule/scripts/lib/hosts.mjs';
-import { RUN_FLOOR_MS, mirrorRound, runRound } from '../../.agents/skills/schedule/scripts/lib/app-runs.mjs';
+import { RUN_FLOOR_MS, mirrorRound, openSession, runRound } from '../../.agents/skills/schedule/scripts/lib/app-runs.mjs';
 import { writeRoutine } from '../../.agents/skills/schedule/scripts/lib/records.mjs';
 import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
 import { NOW, host, item, routine } from './fixtures/scheduled-work.mjs';
@@ -305,4 +305,24 @@ test('the mirror merges the Paseo records of every folder signed in to the app i
   const list = async folder => { if (folder === '/two') throw new Error('unreadable'); return { records: folders[folder] }; };
   assert.equal(await mirrorRound(broken, { computer: COMPUTER, roots: ['/one', '/two'], list, inspect }), null);
   assert.equal(broken.calls.length, 0, 'one unreadable folder sends nothing, so its rows stay');
+});
+
+test("a run's chat opens at medium thinking or more: a low-default model gets medium, a high-default one keeps its own", async t => {
+  const root = workspace(t), bin = path.join(root, 'paseo'), log = path.join(root, 'log.jsonl');
+  writeFileSync(bin, `#!${process.execPath}
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + '\\n');
+if (args[0] === 'provider') { console.log(process.env.FAKE_MODELS); process.exit(0); }
+console.log(JSON.stringify({ agentId: 'agent-run', title: 'Weekly synthetic' }));
+`);
+  chmodSync(bin, 0o755);
+  const runs = () => readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line)).filter(args => args[0] === 'run');
+  const open = (models, provider = 'codex') => openSession({ binding: { ...appRoutine().binding, execution: { ...appRoutine().binding.execution,
+    context: { ...appRoutine().binding.execution.context, provider } } }, title: 'Weekly synthetic',
+  env: { ...process.env, WONG_PASEO_BIN: bin, FAKE_MODELS: JSON.stringify(models) } });
+  assert.deepEqual(await open([{ id: 'gpt-low', defaultThinkingOptionId: 'low' }]), { agentId: 'agent-run', chatTitle: 'Weekly synthetic' });
+  assert.equal(runs()[0][runs()[0].indexOf('--thinking') + 1], 'medium');
+  await open([{ id: 'claude-high', defaultThinkingOptionId: 'high' }], 'claude/claude-high');
+  assert.ok(!runs()[1].includes('--thinking'));
 });

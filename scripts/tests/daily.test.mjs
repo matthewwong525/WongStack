@@ -149,16 +149,17 @@ test('start opens each due routine once per day, with its first message; a missi
   const stateDir = temp('state');
   const config = loadSettings(join(root, '.agents/daily/alex.json'), root);
   const opened = [];
-  const launch = async args => { opened.push(args); return { ok: true, cwd: '/w/calm-cat', agentId: 'agent-review' }; };
+  const launch = async args => { opened.push(args); return { ok: true, cwd: '/w/calm-cat', workspaceName: 'Review', agentId: 'agent-review' }; };
   assert.deepEqual(dueTasks(config, root, '2026-10-21').map(task => task.key), ['review:2026-10-21']);
   assert.equal(firstMessage({ procedure: '.agents/skills/review/SKILL.md' }), '/review');
   const dry = await start({ config, project: root, stateDir, now: NOW, launch, dryRun: true });
   assert.deepEqual(dry.tasks, [{ title: 'Review', state: 'due', workspace: null, message: '/review' }]);
   const first = await start({ config, project: root, stateDir, now: NOW, launch });
-  assert.deepEqual(first.tasks, [{ title: 'Review', state: 'started', workspace: 'calm-cat' }]);
+  assert.deepEqual(first.tasks, [{ title: 'Review', state: 'started', workspace: 'Review' }]);
   assert.deepEqual(opened, [{ destination: root, title: 'Review', message: '/review' }]);
   const again = await start({ config, project: root, stateDir, now: NOW, launch });
-  assert.deepEqual(again.tasks, [{ title: 'Review', state: 'already', workspace: 'calm-cat' }]);
+  assert.deepEqual(again.tasks, [{ title: 'Review', state: 'already', workspace: 'Review' }]);
+  assert.equal(startedRecord(stateDir).read()['review:2026-10-21'].cwd, '/w/calm-cat', 'the record keeps the folder to find the chat by');
   assert.equal(opened.length, 1);
   const report = startReport({ config, stateDir, now: NOW });
   assert.equal(report.morning, 'done');
@@ -237,13 +238,13 @@ test('start-task opens a task of today once ever, names its chat and marks it in
     { id: 'b', title: 'Tomorrow', week: '2026-10-19', slot: 'thu', status: 'open' },
     { id: 'c', title: 'Has a chat', week: '2026-10-19', slot: 'wed', status: 'open', chat: 'old-elk' }]);
   const opened = [];
-  const launch = async args => { opened.push(args); return { ok: true, cwd: '/w/kind-owl', agentId: 'agent-t' }; };
+  const launch = async args => { opened.push(args); return { ok: true, cwd: '/w/kind-owl', workspaceName: args.title, agentId: 'agent-t' }; };
   const go = (id, more = {}) => startTask({ config, project: '/w/main', stateDir, id, now: NOW, board: box.board, launch, ...more });
-  assert.deepEqual(await go('a', { note: 'use the app' }), { day: '2026-10-21', title: '-Call the bank', state: 'started', workspace: 'kind-owl' });
+  assert.deepEqual(await go('a', { note: 'use the app' }), { day: '2026-10-21', title: '-Call the bank', state: 'started', workspace: 'Task: -Call the bank' });
   assert.equal(opened[0].title, 'Task: -Call the bank');
   assert.equal(opened[0].message, taskMessage({ title: '-Call the bank', note: 'use the app' }));
   assert.match(opened[0].message, /^Call the bank\nNote: use the app\n/);
-  assert.deepEqual(box.calls.filter(([name]) => name !== 'tasks'), [['link', { id: 'a', chat: 'kind-owl' }], ['status', { id: 'a', status: 'in_progress' }]]);
+  assert.deepEqual(box.calls.filter(([name]) => name !== 'tasks'), [['link', { id: 'a', chat: 'Task: -Call the bank' }], ['status', { id: 'a', status: 'in_progress' }]]);
   assert.equal((await go('a')).state, 'already');
   assert.equal(opened.length, 1);
   assert.equal((await go('b')).state, 'refused');
