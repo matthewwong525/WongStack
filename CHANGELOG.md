@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 47.2.0 — A problem that needs you opens one chat
+## 47.3.0 — A problem that needs you opens one chat
 
 - **A problem that stays broken opens one chat.** When the helper that runs in the background fails the same way two times in a row, at reading your week board, starting your morning, running one of your jobs, or reaching Paseo, it opens one chat named *Needs you: <what broke>*, such as *Needs you: the week board*. Its first message says what failed, why, and the steps to fix it. The chat does the steps it can and asks you only for a step that needs you, such as a sign-in ([the journal](wiki/development/daily.md#the-journal)).
 - **One failure is still one journal line.** A problem that happens one time and goes away opens nothing. A success starts the count again, and at most one chat opens for each kind of problem each day.
