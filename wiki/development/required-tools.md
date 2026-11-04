@@ -10,7 +10,7 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 | `openspec` | The planning layer the workflow verbs front. It is distributed only as an npm package, so it runs on Node. |
 | `curl` | [Setup's provisioning](#the-cloudflare-stack-pack) drives the Cloudflare API with it, and `/verify`'s request and state probes use it. |
 
-Core reads remain dependency-free: **no `jq`, no `python`, and no project-language toolchain**. [Optional document retrieval](document-retrieval.md#optional-meaning-based-search) uses npm only in its explicit host setup to install pinned QMD/models outside the repo. Keyword fallback needs no setup; ordinary reads never install or download. No app package or lockfile changes.
+Core reads remain dependency-free: **no `jq`, no `python` (only [Camoufox](#installing-camoufox) needs it), and no project-language toolchain**. [Optional document retrieval](document-retrieval.md#optional-meaning-based-search) uses npm only in its explicit host setup to install pinned QMD/models outside the repo. Keyword fallback needs no setup; ordinary reads never install or download. No app package or lockfile changes.
 
 **One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys. A private link adds one more, `cloudflared`, browsing as you adds Camoufox, a robot check adds a live view's three small tools, and shopping adds Shop's command.**
 
@@ -18,7 +18,7 @@ Core reads remain dependency-free: **no `jq`, no `python`, and no project-langua
 |---|---|
 | `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
 | `cloudflared` | Cloudflare's free tunnel tool, which gives every [private link](browsing.md#how-private-links-work) (the password link, the key link, and a private form) an address your phone or another computer can open. Setup offers it up front, in the same question. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time a private link needs it. A link opened at the agent's own computer needs it too: there is no local link. |
-| Camoufox | The browser the agent [uses websites in as you](browsing.md#saved-browser-logins), which more sites let in. Setup never offers it, since most installs never browse. The first errand asks, then [installs it](#installing-camoufox) into your home folder. |
+| Camoufox | The browser the agent [uses websites in as you](browsing.md#saved-browser-logins), which more sites let in. Setup never offers it. The first errand asks, then [installs it](#installing-camoufox) into your home folder. |
 | Shop's command | What [shopping](shopping.md) runs to search Shop's catalog and pay at its checkout. Setup never offers it. The first shopping request asks, then [installs it](#installing-shops-command) into your home folder. |
 | `x11vnc`, `xdotool`, noVNC | What [a live view](live-view.md) needs to show you the agent's browser at a robot check, on Linux only. Setup never offers them. The first check asks, saying two need admin rights, then [installs them](#installing-the-live-views-tools). |
 

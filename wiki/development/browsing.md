@@ -46,7 +46,7 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **A check never clears a shared browser's cookies.** A helper that needs a clean or signed-in browser for a test makes a throwaway profile in a temporary folder and deletes it afterwards. Never run `cookies clear` on a profile that holds sign-ins, such as `~/.wong-stack/browser-profile`: it deletes every sign-in there for good, and you must log in again by hand.
 
-**A test never copies a Facebook or Messenger login.** Never copy a Meta login to another browser, profile, or network to test something: Meta can lock the account.
+**A test never copies a Facebook or Messenger login** to another browser or network: Meta can lock the account.
 
 **Read a page only after it settles.** `open` waits for two matching reads a second apart. After a click, read again if the page looks unfinished.
 
