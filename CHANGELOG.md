@@ -11,6 +11,21 @@
 - **A renamed database change no longer leaves staging stuck.** When a change's database file gets a new name after its preview ran, the next preview fails with *duplicate column name*. The recovery page now says how to fix it on staging only; your live database is not touched ([D1 recovery](wiki/stack/d1-recovery.md#production-schema-drifted-from-d1_migrations)).
 - **Messenger's live view stays open until you are signed in.** The live view page names Messenger's signed-in address as the finish, because its password box goes away before the sign-in is done ([live view](wiki/development/live-view.md)).
 
+## 47.4.0 — Background runs can be denied tools
+
+- **Your install can name tools no background run may use.** Add a `deny` list of tool patterns to your own jobs file, such as `"deny": ["Bash(*send-approved*)"]`. Each run of a timed job or an event gets the list, and Claude Code refuses those tools in that run ([your own jobs](wiki/development/daily.md#your-own-jobs)). A morning routine does not get the list: it opens its own chat. WongStack ships no list of its own.
+- **A bad list stops with a clear message.** A `deny` that is not a list of patterns is a bad entry, the same as any other bad entry in that file.
+- **Claude Code only.** Codex can not refuse a tool by such a pattern. With Codex and a `deny` list, the helper starts no background run and writes why in the journal, so no run works without the block you set.
+
+**Updating.** Nothing to do.
+
+## 47.3.0 — A problem that needs you opens one chat
+
+- **A problem that stays broken opens one chat.** When the helper that runs in the background fails the same way two times in a row, at reading your week board, starting your morning, running one of your jobs, or reaching Paseo, it opens one chat named *Needs you: <what broke>*, such as *Needs you: the week board*. Its first message says what failed, why, and the steps to fix it. The chat does the steps it can and asks you only for a step that needs you, such as a sign-in ([the journal](wiki/development/daily.md#the-journal)).
+- **One failure is still one journal line.** A problem that happens one time and goes away opens nothing. A success starts the count again, and at most one chat opens for each kind of problem each day.
+- **Your own fix steps.** When your daily `guide` file gives its own fix for a problem, the chat follows that ([your settings file](wiki/development/daily.md#your-settings-file)).
+- **The chat waits for you.** No check-in tells it to keep going. If Paseo can not open the chat, the journal says so, with Paseo's reason.
+
 ## 47.2.0 — Faster checks: a save that matches a branch that already passed skips the full test run
 
 - **A save that changes only notes reuses the last pass.** When an earlier save of the same change passed the tests, and everything changed since is plans, wiki pages or other notes, the tests do not run again. Before, a change's last save, which often only files its plan away, ran the full suite again and the change waited minutes to go live ([the gate](wiki/development/the-change-loop.md#the-gate)).
