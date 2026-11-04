@@ -201,6 +201,7 @@ test('chat start starts the daily worker check, except in a background run', () 
   const started = [];
   const start = (command, args, options) => { started.push([args.slice(1), options.cwd]); return { on() {}, unref() {} }; };
   for (const name of ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK']) assert.equal(ensureDaily({ root: '/r' }, 'codex', { env: { [name]: '1' }, start }), false);
+  assert.equal(ensureDaily({ root: '/r' }, 'codex', { env: { WONG_DAILY_WORKER: '0' }, start }), false);
   assert.equal(ensureDaily({ root: '/r' }, 'codex', { env: {}, start }), true);
   assert.deepEqual(started, [[['ensure', '--agent', 'codex'], '/r']]);
   assert.equal(ensureDaily({ root: '/r' }, 'claude', { env: {}, start: () => { throw new Error('no'); } }), false);

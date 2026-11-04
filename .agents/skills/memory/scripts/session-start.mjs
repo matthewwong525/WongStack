@@ -33,9 +33,10 @@ function startRun(ctx, agent, sessionId) {
   } catch { return false; }
 }
 
-/** `D ensure`, detached and silent; a background run starts no worker. True when it started. */
+/** `D ensure`, detached and silent: a background run, or WONG_DAILY_WORKER=0, starts none. True when it started. */
 export function ensureDaily(ctx, agent, { env = process.env, start = spawn } = {}) {
-  if (!existsSync(DAILY) || ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK'].some(name => env[name])) return false;
+  if (!existsSync(DAILY) || env.WONG_DAILY_WORKER === '0'
+    || ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK'].some(name => env[name])) return false;
   try {
     const child = start(process.execPath, [DAILY, 'ensure', '--agent', agent], { cwd: ctx.root, detached: true, stdio: 'ignore' });
     child.on('error', () => {});
