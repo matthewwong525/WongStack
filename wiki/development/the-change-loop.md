@@ -14,7 +14,7 @@ A plain request — research, an errand, a reminder, a question — is not a cha
             resume saved work later, on any machine
 ```
 
-Each WongStack skill calls the OpenSpec CLI (setup runs `openspec init --tools none`). **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, PRs, and merges.
+Each WongStack skill calls the OpenSpec CLI. **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, PRs, and merges.
 
 **A verb whose precondition is missing invokes the verb before it**, nested, so you can enter anywhere:
 
@@ -93,6 +93,8 @@ Every chat starts in plan; only you move it on. Each step may read, research, ru
 
 You move it on by typing a step, tapping *Build it* or *Build and publish* on a plan's page, or picking build or publish when asked. A step run inside another, such as `/plan` inside `/ship`, keeps the outer step's reach. Add your own step as `.agents/skills/<name>/SKILL.md`, linked from this page.
 
+**A chat's name starts with its step**: `EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `, then its task. [`step-title.mjs`](../../.agents/skills/explore/scripts/step-title.mjs) writes the whole name, at once in Paseo and Codex's chat list; in Claude Code alone, a move it makes shows at your next message. The Daily chat, routines and helpers keep theirs.
+
 ### Fix it or ask
 
 One test decides what an agent fixes alone: **does the plan already settle what is right?** Yes → it fixes it and reports the fix: a broken plan scenario, a failing check, a reviewer's bug the builder accepts. No → it asks you one plain question, recommendation first, when the fix:
@@ -107,7 +109,7 @@ One test decides what an agent fixes alone: **does the plan already settle what 
 
 ### `/apply` never saves to stop, but may save to finish a task
 
-`/apply` writes the whole change, source and tests, before it checks any of it, and never saves to stop or between parts. Checking each part of one long build cost over three minutes a run, again for every part and repair, so the checks run once, at the end. [The helper brief](../../.agents/skills/apply/references/build-helper.md) owns how the build does it, and [`/plan`](../../.agents/skills/plan/SKILL.md#finish) lays the tasks out for it. Routine final checks belong to `/save` or `/ship`, rather than source checklist boxes.
+`/apply` writes the whole change, source and tests, before it checks any of it, and never saves to stop or between parts. Checking each part of one long build cost over three minutes a run, again for every part and repair, so the checks run once, at the end. [The helper brief](../../.agents/skills/apply/references/build-helper.md) owns how the build does it, and [`/plan`](../../.agents/skills/plan/SKILL.md#finish) lays the tasks out for it.
 
 Nothing is checked less: deployed acceptance still needs evidence, and only acceptance seen to pass ticks its task. Final checks, fresh preview evidence and the one live look stay; batch repairs, and every pushed revision takes all required CI jobs.
 
@@ -116,7 +118,7 @@ Nothing is checked less: deployed acceptance still needs evidence, and only acce
 A verb you invoke for work that changes no repo file — research, an errand, a message, a change to data in a service — keeps its stage and drops the git and OpenSpec records:
 
 - **`/plan`** writes a short numbered to-do in the chat, marking each step that acts outside it.
-- **`/apply`** works the to-do. Before each outward action — a sent message, a post, a written record, a payment, a deletion — it shows exactly what it will do and asks. Reading and drafting need no prompt.
+- **`/apply`** works the to-do. Only an outward action — a sent message, a post, a written record, a payment, a deletion — asks first, showing exactly what it will do.
 - **`/save`** keeps the progress as a memory `thread` fact, and **`/continue`** resumes it.
 - **`/ship`** is for repo changes only; the work finishes in `/apply`.
 
@@ -134,19 +136,19 @@ This page owns delivery; other surfaces link here.
 
 **The GitHub gate is CI when present, else PR review**: GitHub Actions is an optional accelerator. Where checks exist, push and let CI run; the skills wait and fix failures. Where they don't, a human reviews the PR, with the change and its archive. Either way, **no local run is the gate**; `/apply`'s host preview gates nothing and never reaches production. [Artifacts](../stack/artifacts-route.md) runs them in Cloudflare.
 
-**A finished build is checked on this computer first.** [`checks.mjs --worktree`](../../.github/scripts/checks.mjs) runs CI's checks for the changed files, before the first push and again after publishing brings the default branch in; the build repairs what fails. It is a pre-check, never the gate: it decides no save and no publish, and [the build brief](../../.agents/skills/apply/references/build-helper.md) reads its last line. Runs on one computer take turns.
+**A finished build is checked on this computer first.** [`checks.mjs --worktree`](../../.github/scripts/checks.mjs) runs CI's checks for the changed files, before the first push and again after publishing brings the default branch in; the build repairs what fails. It is a pre-check, never the gate: it decides no save and no publish, and [the build brief](../../.agents/skills/apply/references/build-helper.md) reads its last line.
 
 **Every file edit takes the gate**, through a branch and pull request. Plans and archives stay with the verbs. Only code needs a change record; [`/save`](../../.agents/skills/save/SKILL.md) decides.
 
-**GitHub's ladder is CI-when-present → merge**; a skipped rung is never a failure. The app's test suite runs *inside* CI as an ordinary check, found by its `npm test` script at the repo root **or any immediate subdirectory**, so a repo without tests is not penalized and none receives a package manifest on WongStack's behalf.
+**GitHub's ladder is CI-when-present → merge**; a skipped rung is never a failure. The app's test suite runs *inside* CI as an ordinary check, found by its `npm test` script at the repo root **or any immediate subdirectory**, so a repo without tests is not penalized.
 
 **A branch that leaves the main app untouched skips its suite**: when every path the whole branch changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job and say so, so a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code, so a change to one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The Test job skips its wiki check when the branch changes no Markdown file and removes or moves no file, since no wiki link can break. On the default branch, a merge whose files match a branch head that passed the Test check skips the suite ([`already-passed.sh`](../../.github/scripts/already-passed.sh)); any doubt runs it.
 
-[`checks.mjs`](../../.github/scripts/checks.mjs) owns discovery, tests and quality reports on both routes, and on this computer with `--worktree`. Quality checks continue after failed installs or tests.
+[`checks.mjs`](../../.github/scripts/checks.mjs) owns discovery, tests and quality reports on both routes, and on this computer with `--worktree`.
 
 **The GitHub staging walkthrough is no rung either.** `/ship` runs [`/verify`](#verifying-the-app) once and merges on the gate whatever the walk says; a walk that cannot run (no credential, budget spent) never blocks. Only a `FAILURE` stops `/ship`, to **ask the user** to fix or merge anyway: a human decision, with *merge anyway* always available.
 
-An **unverifiable** gate is not an absent one: `/save` reports it and carries on, since it is a checkpoint, while `/ship` treats it as unmergeable and stops, never reinterpreting or repeating it.
+An **unverifiable** gate is not an absent one: `/save` reports it and carries on, since it is a checkpoint, while `/ship` treats it as unmergeable and stops.
 
 ### A loosened check needs a reason
 

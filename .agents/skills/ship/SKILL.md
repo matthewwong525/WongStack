@@ -26,7 +26,7 @@ A selected routine definition or finite goal follows [record-only delivery](../s
 
 Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep publishing.
 
-Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
+Run `node .claude/skills/explore/scripts/step-title.mjs set SHIP`; `set DONE` once `finish` merges. Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
 
 ### The pull-in: nothing to ship yet
 
