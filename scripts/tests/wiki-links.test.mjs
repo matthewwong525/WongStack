@@ -180,3 +180,11 @@ test('a wiki link into knowledge/ is skipped with no copy, as in CI, and checked
   const withCopy = repo(t, { ...WIKI, 'wiki/voice.md': voice, 'knowledge/README.md': '# Knowledge\nThe company.\n' });
   assert.deepEqual(checkWiki(withCopy), ['wiki/voice.md:3: links to ../knowledge/ops.md, which does not exist']);
 });
+
+test('a file back at a moved page\'s old path fails, naming its place in the knowledge repo', t => {
+  const moves = JSON.stringify({ version: 1, base: 'abc', moves: { 'wiki/ops/cash.md': 'knowledge/ops/cash.md' } });
+  assert.deepEqual(checkWiki(repo(t, { ...WIKI, '.agents/knowledge-moves.json': moves })), []);
+  const back = repo(t, { ...WIKI, '.agents/knowledge-moves.json': moves, 'wiki/ops/cash.md': '# Cash\n\nOld.\n' });
+  assert.ok(checkWiki(back).includes('wiki/ops/cash.md: moved to the knowledge repo as knowledge/ops/cash.md; edit it there, not here'));
+  assert.ok(!checkWiki(back, 'knowledge').some(problem => problem.includes('moved')), 'the knowledge check never reads the list');
+});
