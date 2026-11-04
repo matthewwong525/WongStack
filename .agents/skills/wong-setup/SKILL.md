@@ -20,7 +20,7 @@ Name the target; use its absolute path. Create it after tools/token.
 
 Select the requested GitHub repo, else `https://github.com/matthewwong525/WongStack`. Normalize its HTTPS owner/repo URL. Read its default branch through GitHub's API, authenticated if needed. Use `https://raw.githubusercontent.com/<owner>/<repo>/refs/heads/<default branch>`; never assume main.
 
-**Route:** on Mac or Linux, unless GitHub is asked for, follow [the Artifacts route](../../../wiki/stack/artifacts-route.md#setup).
+**Route:** on Mac or Linux, unless GitHub is asked for, follow [the Artifacts route](../../../wiki/stack/artifacts-route.md#setup). Both need Cloudflare's paid plan.
 
 Before cloning/writing, read the selected source's setup/[tools](references/tools.md) under that raw root. Follow its links, `.nvmrc` and prerequisites. Missing source/requirements stop; never substitute another stack.
 

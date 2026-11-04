@@ -3,7 +3,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import App from "./App";
-import { AGENTS, PASEO, REPO_URL, freeAccounts } from "./install";
+import { AGENTS, PASEO, REPO_URL } from "./install";
 
 function renderAt(path: string) {
   window.history.pushState({}, "", path);
@@ -28,7 +28,7 @@ const DESCRIPTION =
 const JARGON = /\b(repos?|pull requests?|deploy\w*)\b|\b(PR|CI)\b/;
 
 /** The install button and the quiet link to the code: the hero and the closing call to action share them. */
-const ACTIONS = ["Install for free #install", `See it on GitHub → ${REPO_URL}`];
+const ACTIONS = ["Install #install", `See it on GitHub → ${REPO_URL}`];
 
 /** A Paseo screenshot's file and its label. */
 const paseo = (shot: Element) => [shot.getAttribute("src"), shot.getAttribute("alt")];
@@ -89,7 +89,7 @@ it("puts pictures and operational examples into the story before practical detai
     "The more you chat, the more it knows your business.",
     "The whole team starts with context.",
     WORKS_WITH,
-    "Install it for free",
+    "Install it",
     "Questions",
     "Make it yours",
   ]);
@@ -165,7 +165,7 @@ it("shows what works with each assistant: a card per agent, another assistant wi
     "Switch any time. Your skills, memory, and apps stay in your folder and your accounts.",
     "note",
   ]);
-  expect(links(section)).toEqual(["Install for free #install"]);
+  expect(links(section)).toEqual(["Install #install"]);
   expect(section.lastElementChild?.className).toBe("button");
   // No table of other products, and no mark for or against one, anywhere on the page.
   expect(within(section).queryAllByRole("table")).toHaveLength(0);
@@ -193,7 +193,7 @@ it("answers a team owner's questions, naming both ways to install and what each 
     "What if I stop using it?",
   ]);
   expect(answer("Is WongStack free?")).toBe(
-    `Yes. The software is free and open source, and installs on your own computer with one message. You use your own AI plan and ${freeAccounts()}. On Mac or Linux you can keep everything in Cloudflare alone instead, on Cloudflare's paid plan, about $5 a month.`,
+    "The software is free and open source, and installs on your own computer with one message. You use your own AI plan. Every way to install needs Cloudflare's paid plan, about $5 a month.",
   );
   expect(answer("Do I need to know how to code?")).toMatch(/^No\. You ask in plain words/);
   expect(answer("How does my team use it?")).toContain("Each person signs in to their own AI plan.");
@@ -206,7 +206,7 @@ it("answers a team owner's questions, naming both ways to install and what each 
     "Your code, apps, and memory sit in your own accounts, and your AI login stays on your own computer. Nothing passes through us.",
   );
   expect(answer("What does it cost, with AI?")).toBe(
-    "The software is free. Each person uses their own AI plan, such as Claude or ChatGPT, so there's no markup on AI and no per-seat fee. Cloudflare's paid plan, about $5 a month, is needed only to keep everything in Cloudflare alone or to run jobs on a schedule.",
+    "The software is free. Each person uses their own AI plan, such as Claude or ChatGPT, so there's no markup on AI and no per-seat fee. Every install also needs Cloudflare's paid plan, about $5 a month.",
   );
   const anthropic = answer("Will Anthropic ban my Claude account?");
   expect(anthropic).toMatch(/^If you use Claude: WongStack works with the official, unmodified Claude Code on your own computer\./);

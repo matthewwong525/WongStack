@@ -138,7 +138,7 @@ it("shows three install steps in their own section, just above the questions, wi
   const install = container.querySelector("section#install") as HTMLElement;
   const steps = install.querySelector("ol.install") as HTMLElement;
 
-  expect(install.querySelector("h2")?.textContent).toBe("Install it for free");
+  expect(install.querySelector("h2")?.textContent).toBe("Install it");
   expect(install.querySelector(".lede")?.textContent).toBe("It runs on your own computer, with your own AI plan.");
   expect(install.nextElementSibling?.querySelector("h2")?.textContent).toBe("Questions");
   expect([...steps.querySelectorAll(":scope > li > p:first-child")].map((p) => p.textContent)).toEqual([
@@ -177,8 +177,20 @@ it("keeps canonical computer, account, route and cost-consent details in the adj
   ]);
   expect(setup.closest("section")).toBe(container.querySelector("#install")?.nextElementSibling);
   expect(container.querySelector("#install .ways")).toBeNull();
-  expect(container.querySelector("#install h2")?.textContent).toBe("Install it for free");
+  expect(container.querySelector("#install h2")?.textContent).toBe("Install it");
   expect(container.querySelector("#install")?.classList.contains("install-section")).toBe(true);
+});
+
+it("calls no way to install free: the install section, every install button, and the setup question", () => {
+  const { container } = renderAt("/");
+  const setup = screen.getByText("What does setup need?").closest("details") as HTMLElement;
+  const read = [
+    container.querySelector("#install") as HTMLElement,
+    setup,
+    ...container.querySelectorAll('a[href$="#install"]'),
+  ];
+  expect(read.length).toBeGreaterThan(4);
+  for (const part of read) expect([part.textContent, /\bfree\b/i.test(part.textContent ?? "")]).toEqual([part.textContent, false]);
 });
 
 it("keeps installation to the three steps without an optional add-on block", () => {
@@ -211,7 +223,7 @@ it("keeps the install message on the page and says to select it when the browser
 it("offers install beside the operations example and after compatibility", () => {
   const { container } = renderAt("/");
   for (const name of ["Start with operations.", "Use the best models."]) {
-    expect(within(section(name)).getByRole("link", { name: "Install for free" }).getAttribute("href")).toBe("#install");
+    expect(within(section(name)).getByRole("link", { name: "Install" }).getAttribute("href")).toBe("#install");
   }
   expect(container.querySelector(".app-showcase a.button")).toBeNull();
   expect(container.querySelector(".hero a.button")?.getAttribute("href")).toBe("#install");
@@ -233,7 +245,7 @@ it("keeps one filled button above the fold: the header's links and the hero's Gi
     ["Install", "/#install", ""],
     ["Guides", "/guides", ""],
   ]);
-  expect([...hero.querySelectorAll(".button")].map((button) => button.textContent)).toEqual(["Install for free"]);
+  expect([...hero.querySelectorAll(".button")].map((button) => button.textContent)).toEqual(["Install"]);
   expect(within(hero).getByRole("link", { name: "See it on GitHub →" }).className).toBe("more");
 });
 

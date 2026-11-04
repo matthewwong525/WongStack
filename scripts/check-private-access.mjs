@@ -5,9 +5,11 @@ import { privateDeployment, accessConflicts } from './lib-access-config.mjs';
 import { findWranglerConfig, lineAddressProblem, lineConfigPath, parseConfig, redirectedConfig } from './lib-wrangler-config.mjs';
 import { isMain, parseCli, usageError } from './lib-cli.mjs';
 
-// The two routes the Worker checks the sign-in on itself; staging has no memory.
+// The routes the Worker checks the sign-in on itself; staging has no memory and no company knowledge.
 const git = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
-const live = [{ behavior: 'public', path_pattern: '/_memory/*' }, git];
+const knowledge = { behavior: 'public', path_pattern: '/api/access/knowledge/git/*' };
+// An install whose Access step ran before company knowledge holds the first set until it runs again.
+const LIVE_SETS = [[{ behavior: 'public', path_pattern: '/_memory/*' }, git], [{ behavior: 'public', path_pattern: '/_memory/*' }, git, knowledge]];
 const SHARED = "previews still share the live app's sign-in; run setup's Access step (wiki/stack/employee-access.md#finish-access-setup) and publish";
 
 export async function checkPrivateAccess(config, environment, cf, generated) {
@@ -49,14 +51,14 @@ export async function checkPrivateAccess(config, environment, cf, generated) {
   const appPath = `${root}/access/apps/${target.appId}`;
   const app = await cf(appPath);
   const host = `${target.name}.${subdomain}.workers.dev`;
-  const overrides = target === production ? live : [git];
-  const desired = [
+  const desired = overrides => [
     { type: 'worker', worker_id: target.workerId, overrides },
     ...(shared ? [{ type: 'worker', worker_id: staging.workerId, overrides: [git] }] : []),
     { type: 'public', uri: host, overrides },
   ];
   const destinations = app.destinations ?? [];
-  if (app.id !== target.appId || app.aud !== target.audience || app.type !== 'self_hosted' || app.domain !== host || destinations.length !== desired.length || desired.some(item => !destinations.some(value => isDeepStrictEqual(value, item)))) throw new Error('Access coverage or its memory and git exceptions are missing or broader than this workspace');
+  const covered = overrides => destinations.length === desired(overrides).length && desired(overrides).every(item => destinations.some(value => isDeepStrictEqual(value, item)));
+  if (app.id !== target.appId || app.aud !== target.audience || app.type !== 'self_hosted' || app.domain !== host || !(target === production ? LIVE_SETS : [[git]]).some(covered)) throw new Error('Access coverage or its memory and git exceptions are missing or broader than this workspace');
   const policies = await list(`${appPath}/policies`);
   const human = policies.filter(policy => policy.decision === 'allow');
   const machine = policies.filter(policy => policy.decision === 'non_identity');

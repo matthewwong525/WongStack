@@ -1,6 +1,6 @@
 # The widen protocol and the permission-group ids
 
-A token's policy grants Cloudflare permission groups. The user grants two on the token screen; [the provisioning runbook](cloudflare.md) grants itself the rest on demand with this protocol, which [`provision.mjs`](../scripts/provision.mjs) runs. [The Artifacts route](../../../../wiki/stack/artifacts-route.md#the-permissions-it-adds) adds four. `scripts/tests/provision.test.mjs` fails when the script's groups differ from the tables below.
+A token's policy grants Cloudflare permission groups. The user grants two on the token screen; [the provisioning runbook](cloudflare.md) grants itself the rest on demand with this protocol, which [`provision.mjs`](../scripts/provision.mjs) runs. Both routes add `Artifacts Write` and `Billing Read`; [the Artifacts route](../../../../wiki/stack/artifacts-route.md#the-permissions-it-adds) adds the rest. `scripts/tests/provision.test.mjs` fails when the script's groups differ from the tables below.
 
 ## The sequence
 
@@ -18,10 +18,8 @@ PUT /user/tokens/{id}            → the widened set
 - **Resolve ids by name at runtime**, from `/user/tokens/permission_groups?per_page=1000`; the default page hides most of the 392 groups. The ids below are a fallback and test fixture, never the lookup: ids drift, groups are added, and one name is ambiguous ([the traps](#the-two-traps)).
 - **The `PUT` replaces the policy list wholesale.** Keep `API Tokens Write` and `Account API Tokens Write` in it, or the token can never widen again. Never rebuild the account `resources` block: without it, the token verifies but sees no accounts.
 - **Re-verify, then probe one endpoint per added permission.** A widen that "succeeded" but didn't take starts a half-provision.
-- **A widen takes up to about a minute to propagate.** The first probe after a `PUT` can return `401` (code `10000`) or `403` on a permission the token now holds, so **a first `401` or `403` is not a permission problem.** Retry with backoff (about 2s, 4s, 8s, 15s, 30s); only a refusal at the end is real. Access endpoints are slowest: one adopter's run stopped on an Access `403` that would have cleared within the minute. Lost `resources` does *not* clear with time; it shows an empty `/accounts`, not a `403`.
-- **If the widen didn't take, stop and provision nothing.** Report which surfaces are unavailable, and list the permission names for the user to add by hand. Should Cloudflare ever restrict self-escalation, this turns it into a clear message, not a half-provision.
-
-`/user/tokens/permission_groups` needs `?per_page=1000`: the default page hides most of some 400 groups.
+- **A widen takes up to about a minute to propagate.** The first probe after a `PUT` can return `401` (code `10000`) or `403` on a permission the token now holds, so **a first `401` or `403` is not a permission problem.** Retry with backoff (about 2s, 4s, 8s, 15s, 30s); only a refusal at the end is real. Access endpoints are slowest. Lost `resources` does *not* clear with time; it shows an empty `/accounts`, not a `403`.
+- **If the widen didn't take, stop and provision nothing.** Report which surfaces are unavailable, and list the permission names for the user to add by hand.
 
 ## Verified ids
 

@@ -18,7 +18,7 @@ Your project remembers things in four places. A dream compares all four with eac
 
 | Place | What it holds | A dream |
 |---|---|---|
-| The wiki | how you work, people, the product | fixes your own pages |
+| The wiki and [company knowledge](../stack/company-knowledge.md) | how you work, people, the product | fixes your own pages |
 | Saved facts | what each chat learned | corrects them |
 | Specs | what the product does | lists what is wrong |
 | Plans, open and past | what was meant and why | lists what was left behind |
@@ -78,7 +78,7 @@ A dream reads old chats and saved facts to learn what happened. It weighs their 
 
 ## Your pages and shipped pages
 
-A dream edits only the pages your project owns: people, the company, customers, the product, and any page you added. It never rewrites a page WongStack ships, because the next [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) would overwrite the edit. A fact that belongs on a shipped page, or contradicts one, [is listed](#what-it-fixes-and-what-it-only-lists) with the page and the fact.
+A dream edits only the pages your project owns: people, the company, customers, the product, and any page you added. It saves a `knowledge/` page [at once](../stack/company-knowledge.md#save-a-page), and any other through a pull request. It never rewrites a page WongStack ships, because the next [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) would overwrite the edit. A fact that belongs on a shipped page, or contradicts one, [is listed](#what-it-fixes-and-what-it-only-lists) with the page and the fact.
 
 `node .claude/skills/dream-memory/scripts/dream.mjs pages` shows which pages are `own` and which are `shipped`, each `spec`, and when each was last checked. `drift` lists the saved facts that name a file that is gone and the plans that are finished or idle. A fact is listed only when the project once held the file and the fact does not itself say it was removed, so a note about planned work, or a record of a removal, is never flagged.
 
