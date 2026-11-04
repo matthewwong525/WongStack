@@ -340,6 +340,7 @@ export function commands({ config, project, stateDir, values, call, board, origi
           // after the start counts, and a removed copy of the repo breaks nothing.
           settings: () => { const found = reread(); return { config: found.config, hasFile: Boolean(found.me.file) }; },
           ...(values.agent && { agent: values.agent }),
+          openChat: ({ title, message }) => launchWorkspace({ destination: project, title, message }),
           watching: { board: board.tasks, ...(!dryRun && { todos, addons: passAddons }) } });
       } finally { if (dryRun) rmSync(dir, { recursive: true, force: true }); else dropServeLock(stateDir); }
     },

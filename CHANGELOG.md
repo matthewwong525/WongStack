@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 47.1.0 — A problem that needs you opens one chat
+
+- **A problem that stays broken opens one chat.** When the helper that runs in the background fails the same way two times in a row, at reading your week board, starting your morning, running one of your jobs, or reaching Paseo, it opens one chat named *Needs you: <what broke>*, such as *Needs you: the week board*. Its first message says what failed, why, and the steps to fix it. The chat does the steps it can and asks you only for a step that needs you, such as a sign-in ([the journal](wiki/development/daily.md#the-journal)).
+- **One failure is still one journal line.** A problem that happens one time and goes away opens nothing. A success starts the count again, and at most one chat opens for each kind of problem each day.
+- **Your own fix steps.** When your daily `guide` file gives its own fix for a problem, the chat follows that ([your settings file](wiki/development/daily.md#your-settings-file)).
+- **The chat waits for you.** No check-in tells it to keep going. If Paseo can not open the chat, the journal says so, with Paseo's reason.
+
 ## 47.0.0 — Your day runs without a Daily chat
 
 - **The morning starts by itself.** At `morning` in your settings file, 08:00 by default, the helper that runs in the background starts your due routines and morning add-ons, one time per day. You open no chat for it, and you get no morning list: your tasks are on your week in the Inbox ([the daily routine](wiki/development/daily.md#what-it-does)).

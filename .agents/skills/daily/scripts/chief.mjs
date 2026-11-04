@@ -300,11 +300,11 @@ async function notice({ rows, list, pending, state, log, record, call, line, now
   }
 }
 
-async function readWeek({ day, state, board, missed }) {
+async function readWeek({ day, board, missed, cleared }) {
   try {
     const week = await board(mondayOf(day));
     if (!Array.isArray(week?.tasks)) throw new Error('No tasks in the answer.');
-    state.notRead = state.notRead.filter(source => source !== 'board');
+    cleared('board');
     return week;
   } catch (error) { missed('board', error); return null; }
 }
@@ -327,11 +327,11 @@ export function linkAllowed(url, hosts = []) {
 }
 
 /** The pass add-ons' answer: posts and events as lines, `skip` kept for this pass, one `not-read` per failed add-on. */
-async function passAddons({ addons, state, line, missed }) {
+async function passAddons({ addons, state, line, missed, cleared }) {
   const out = await addons(state.lastEvents ?? []);
   const failed = new Set(out.failed.map(each => `add-on ${each.addon}`));
   for (const each of out.failed) missed(`add-on ${each.addon}`, new Error(each.error));
-  state.notRead = state.notRead.filter(source => !source.startsWith('add-on ') || failed.has(source));
+  for (const source of state.notRead.filter(each => each.startsWith('add-on ') && !failed.has(each))) cleared(source);
   for (const text of out.lines) line({ event: 'post', text });
   for (const event of out.events) line(event);
   if (!failed.size) state.skip = [...new Set(out.skip)];
@@ -358,11 +358,21 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
   for (;;) {
     wake.heard = false;
     const state = { startedAt: new Date(now()).toISOString(), agents: {}, gone: [], done: [], notRead: [], chats: [], known: {}, skip: [],
-      ...readJson(file, {}) };
+      ...(service && { read: [] }), ...readJson(file, {}) };
     if (state.ended) return day;
+    // The service also hears each repeat failure and each read after a failure or first that day, so the worker counts
+    // failures in a row; those events stay out of `lastEvents`, which the add-ons read.
+    const tell = event => print(JSON.stringify(event));
     const missed = (source, error) => {
-      if (!state.notRead.includes(source)) line({ event: 'not-read', source, error: oneLine(error.message) });
+      const again = state.notRead.includes(source);
+      if (!again) line({ event: 'not-read', source, error: oneLine(error.message) });
+      else if (service) tell({ event: 'not-read', source, error: oneLine(error.message), again: true });
       state.notRead = [...new Set([...state.notRead, source])];
+    };
+    const cleared = source => {
+      if (service && (state.notRead.includes(source) || !state.read.includes(source))) tell({ event: 'read', source });
+      if (service) state.read = [...new Set([...state.read, source])];
+      state.notRead = state.notRead.filter(each => each !== source);
     };
     const end = reason => {
       writeJson(file, service ? { ...state, ended: reason } : state);
@@ -371,11 +381,11 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
     };
     if (newerDay({ stateDir, started, timezone, day })) return end('next-day');
     printed = [];
-    const addonsRead = addons ? await passAddons({ addons, state, line, missed }) : true;
+    const addonsRead = addons ? await passAddons({ addons, state, line, missed, cleared }) : true;
     let read = null;
     try {
       read = await readPaseo(call);
-      state.notRead = state.notRead.filter(source => source !== 'workspaces');
+      cleared('workspaces');
     } catch (error) {
       if (notPaseo(error)) { line({ event: 'unsupported', reason: error.message }); return null; }
       missed('workspaces', error);
@@ -388,7 +398,7 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
       wake.ids = new Set(rows.map(row => row.agentId));
       const log = actions({ stateDir, day });
       await notice({ rows, ...read, state, log, record: action => logAction(stateDir, day, action), call, line, now, typedAt });
-      const week = rows.some(row => row.task && !state.done.includes(row.task)) ? await readWeek({ day, state, board, missed }) : null;
+      const week = rows.some(row => row.task && !state.done.includes(row.task)) ? await readWeek({ day, board, missed, cleared }) : null;
       if (week) doneTasks({ rows, state, week, line });
       if (todos) {
         await keepTodos({ stateDir, rows, list: read.list, started, board: todos, timezone, skip, adding: addonsRead, now: new Date(now()),
