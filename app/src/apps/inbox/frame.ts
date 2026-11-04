@@ -22,6 +22,22 @@ export function ownBack(body: string): boolean {
   return /<body\b[^>]*\sdata-own-back(?=[\s=>])/i.test(body)
 }
 
+const ENTITIES: Record<string, string> = { '&quot;': '"', '&lt;': '<', '&gt;': '>', '&amp;': '&' }
+const buttons = z.array(z.object({ name: z.string(), label: z.string() }))
+
+/** Each button's label on the plan's page, by action, from its `#ready data-actions`: *Build and publish* on a plan,
+ *  *Publish* on a preview. A page that names none, or names them badly, gives none. */
+export function actionLabels(body: string): Record<string, string> {
+  const escaped = /<div id="ready" data-actions="([^"]*)"/.exec(body)?.[1]
+  if (!escaped) return {}
+  try {
+    const found = buttons.safeParse(JSON.parse(escaped.replace(/&(quot|lt|gt|amp);/g, entity => ENTITIES[entity]))).data ?? []
+    return Object.fromEntries(found.map(button => [button.name, button.label]))
+  } catch {
+    return {}
+  }
+}
+
 /** The page's message, or null: one of four kinds, each field checked, a tap only on an action its item offers, and
  *  notes only under the plan's own key. */
 export function frameMessage(data: unknown, plan: { actions: string[]; key: string | null }): FrameMessage | null {

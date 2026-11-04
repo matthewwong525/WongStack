@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 45.6.0 — Review pages kept in the Inbox
+
+- **Reviews in the Inbox.** A new *Reviews* choice beside *Day* and *Week* lists the review pages that wait on you, with the time left, then the *Archive* of closed ones, newest first. Search finds a page by its title ([in your inbox first](wiki/development/reply-links.md#in-your-inbox-first)).
+- **A closed review page stays.** It opens read-only, under a line that says what reached the chat and when, with your notes. Before, it went a day after it closed. Other items, such as an approval, still go after a day.
+- **Sample pages.** The sample data has waiting and archived review pages, so a check can open each kind.
+
+**Updating.** Nothing to do. The app's database gets new indexes the next time you publish the app.
+
 ## 45.5.0 — Wrap up finished chats, and tidy the wiki after memory
 
 - **A finished chat wraps itself up.** Where the daily runs on a computer, a chat whose work is merged gets `/close` after you have been quiet there for 15 minutes. The chat saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat with new work since the merge, or one you write in again, stays open. Each chat gets `/close` one time, counting a Done on the board ([wrap up a finished chat](wiki/development/daily.md#wrap-up-a-finished-chat)).
