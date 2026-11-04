@@ -24,6 +24,7 @@ The pack uses **merge = deploy**, independent staging and branch previews. [One 
 - [Company knowledge](company-knowledge.md) — the team's own pages in a repository of their own: what goes there, the copy on each computer, a save that goes live at once, conflicts, undo and restore.
 - [Company actions](company-api.md) — described app actions and memory reads for employee assistants, with separate authentication.
 - [The services list](service-catalogue.md) — where a chat starts for any outside service: the keys it can use, search, short answers, the shared error shape, and each service's notes page.
+- [Connect your tools](connect-your-tools.md) — right after install, or when you name one tool: which tools work now, how a new one is added with one key link and one yes, and a teammate's message for the owner.
 - [The knowledge reader](knowledge-reader.md) — the Knowledge app: company knowledge's pages at their newest save, search, who can read them, and pages marked public.
 - [Mini apps](mini-apps.md) — small apps from one request, part of the main app under `/apps/`: the same loop and checks as any change, and a card each on the home page.
 - [Cloudflare Access](cloudflare-access.md) — automatic email login, native Worker and preview coverage, signed identity, and separate machine access.

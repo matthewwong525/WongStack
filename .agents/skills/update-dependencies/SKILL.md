@@ -1,6 +1,6 @@
 ---
 name: update-dependencies
-description: Update this source repo's toolchain and app dependencies, checking the OpenSpec CLI contract, only when asked.
+description: Update this repo's toolchain and app dependencies, only when asked.
 user-invocable: true
 ---
 
