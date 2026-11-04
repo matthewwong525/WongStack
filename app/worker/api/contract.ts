@@ -203,7 +203,8 @@ async function inputFor(action: Action, request: Request, url: URL, max: number)
     // A parser's own message quotes the body, so it never leaves the Worker.
     try { return JSON.parse(text); } catch { throw new InputRefusal("The body is not valid JSON."); }
   }
-  if (request.body) throw new InputRefusal("This action takes no request body.");
+  // A deployed Worker gives a DELETE an empty stream, not null: refuse only a body that has bytes.
+  await boundedText(request.body, 0, () => new InputRefusal("This action takes no request body."));
   const input: Record<string, unknown> = {};
   const { inputSchema } = schemas(action);
   for (const [key, value] of url.searchParams) {

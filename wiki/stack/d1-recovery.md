@@ -48,6 +48,8 @@ npx wrangler d1 migrations list <db-name> --remote
 
 Leave the migration **file unchanged** — fresh databases and staging still need it to add the change normally; only production's *recorded history* was out of sync. The build goes green on the next deploy.
 
+A renamed migration does the same to staging. A branch's preview applies its migration under the first file name. When the file gets a new name later, such as to sort after `main`'s newest, the next preview deploy fails with `duplicate column name`. Production never saw the old name, so fix staging only: run step 2 with `<staging-db-name> --remote --env staging` and the new file name, then run the failed deploy again. `<staging-db-name>` is the staging `database_name` in `app/wrangler.jsonc`.
+
 ## Next
 
 - How migrations reach production: the [deploy and data pipeline](d1-pipeline.md).

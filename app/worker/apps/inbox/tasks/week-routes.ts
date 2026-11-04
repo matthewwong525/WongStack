@@ -1,4 +1,5 @@
 // The week screen's routes: read a week, its goal and its sweep, search, and change tasks and backlog groups.
+// An agent changes or deletes a task with inbox.task-change and inbox.task-delete: wiki/development/daily.md
 import { z } from "zod";
 import { sweepDestinations, taskStatuses } from "../../../../src/lib/board.ts";
 import { boardAction, group, mondayWeek, plan, slot, task } from "./board.ts";
@@ -64,14 +65,20 @@ const changeInput = z.strictObject({
   .refine(body => Object.keys(body).length > 1, { message: "Send a change." });
 
 const taskChange = boardAction<z.infer<typeof changeInput>>({
-  operationId: "inbox.task-change", summary: "Change a task", description: "Change a task's title, status, day, group or place.",
-  input: changeInput, output: z.strictObject({ task }), encoding: "json", effect: "write",
+  operationId: "inbox.task-change", summary: "Change a task",
+  description: "Change any owner task's title, status, day, group or place, when the owner asks. A field left out keeps its value. Read the week to confirm.",
+  input: changeInput, output: z.strictObject({ task }), encoding: "json", effect: "write", agentAvailable: true, confirmWith: "inbox.daily-tasks",
+  examples: [{ input: { id: "sample-task", title: "Call Kim back" }, output: { task: { id: "sample-task", title: "Call Kim back", status: "open",
+    week: "2026-10-05", slot: "mon", backlogGroupId: null, position: 1000, estimateHours: null, importKey: null, link: null, chat: null,
+    createdAt: "2026-10-05T09:00:00.000Z", updatedAt: "2026-10-05T10:00:00.000Z" } } }],
   run: async (db, { id: taskId, ...change }) => ({ task: await updateTask(db, taskId, change) }),
 });
 
 const taskDelete = boardAction<{ id: string }>({
-  operationId: "inbox.task-delete", summary: "Delete a task", description: "Delete a task from the board.",
-  input: z.strictObject({ id }), output: z.strictObject({ id: z.string() }), encoding: "query", effect: "write",
+  operationId: "inbox.task-delete", summary: "Delete a task",
+  description: "Delete any owner task from the board; it can't be brought back. List the tasks to the owner and get one yes before the first delete. Read the week to confirm.",
+  input: z.strictObject({ id }), output: z.strictObject({ id: z.string() }), encoding: "query", effect: "write", agentAvailable: true,
+  confirmWith: "inbox.daily-tasks", examples: [{ input: { id: "sample-task" }, output: { id: "sample-task" } }],
   run: (db, input) => deleteTask(db, input.id),
 });
 
