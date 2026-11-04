@@ -3,7 +3,7 @@ title: What one person teaches it, the team never gets
 problem: Each teammate's AI learns alone, so the rest of the team starts from zero.
 fix: One shared memory and knowledge base that every teammate's AI uses.
 order: 5
-checked: 2026-10-31
+checked: 2026-11-03
 sources:
   - wiki/development/memory.md
   - wiki/wiki-style.md

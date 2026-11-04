@@ -521,6 +521,27 @@ test('inside a run, put-facts and strip add what they stored to the tally, and f
   ]);
 });
 
+test('a consolidation that ends well leaves a marker the wiki tidy claims once; capture and a failed run leave none', async t => {
+  const env = await setup(t);
+  const marker = join(env.repo.stateDir, 'consolidated.json');
+  const check = () => node(env.repo, env.fake, '../../daily/scripts/wiki-tidy-check.mjs');
+  await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok']);
+  await memory(env.repo, env.fake, ['finish-run', '--kind', 'consolidation', '--status', 'failed', '--reason', 'store down']);
+  assert.equal(existsSync(marker), false);
+  assert.equal((await check()).stdout, '');
+  const done = await memory(env.repo, env.fake, ['finish-run', '--kind', 'consolidation', '--status', 'ok']);
+  assert.equal(done.code, 0, done.stderr);
+  const { at } = JSON.parse(readFileSync(marker, 'utf8'));
+  assert.deepEqual(JSON.parse((await check()).stdout), { run: { consolidated: at } });
+  assert.equal((await check()).stdout, '', 'claimed once');
+  writeFileSync(marker, JSON.stringify({ at: '2026-01-01T00:00:00Z', claimed: '2026-01-01T00:00:00Z' }));
+  await memory(env.repo, env.fake, ['finish-run', '--kind', 'consolidation', '--status', 'ok']);
+  const next = JSON.parse(readFileSync(marker, 'utf8'));
+  assert.equal(next.claimed, '2026-01-01T00:00:00Z', 'the claim stays');
+  assert.notEqual(next.at, '2026-01-01T00:00:00Z');
+  assert.deepEqual(JSON.parse((await check()).stdout), { run: { consolidated: next.at } });
+});
+
 test('a hand run writes no tally, and finish-run with no tally records --counts as given', async t => {
   const env = await setup(t);
   const tally = join(env.repo.stateDir, 'run-tally.json');
