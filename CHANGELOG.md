@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 47.4.0 — Background runs can be denied tools
+
+- **Your install can name tools no background run may use.** Add a `deny` list of tool patterns to your own jobs file, such as `"deny": ["Bash(*send-approved*)"]`. Each run of a timed job or an event gets the list, and Claude Code refuses those tools in that run ([your own jobs](wiki/development/daily.md#your-own-jobs)). A morning routine does not get the list: it opens its own chat. WongStack ships no list of its own.
+- **A bad list stops with a clear message.** A `deny` that is not a list of patterns is a bad entry, the same as any other bad entry in that file.
+- **Claude Code only.** Codex can not refuse a tool by such a pattern. With Codex and a `deny` list, the helper starts no background run and writes why in the journal, so no run works without the block you set.
+
+**Updating.** Nothing to do.
+
 ## 47.3.0 — A problem that needs you opens one chat
 
 - **A problem that stays broken opens one chat.** When the helper that runs in the background fails the same way two times in a row, at reading your week board, starting your morning, running one of your jobs, or reaching Paseo, it opens one chat named *Needs you: <what broke>*, such as *Needs you: the week board*. Its first message says what failed, why, and the steps to fix it. The chat does the steps it can and asks you only for a step that needs you, such as a sign-in ([the journal](wiki/development/daily.md#the-journal)).

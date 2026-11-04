@@ -40,7 +40,7 @@ function badSweep(sweep) {
 }
 
 /** The default list with the install's merged over it: its `events` over the default's, and its timed `sweeps` by
- * `id`, where an entry replaces the default of its `id` and `"off": true` removes it. */
+ * `id`, where an entry replaces the default of its `id` and `"off": true` removes it. `deny` lists tool patterns. */
 export function loadSweeps({ project, file, base = DEFAULT_SWEEPS }) {
   const read = path => JSON.parse(readFileSync(path, 'utf8'));
   const defaults = read(base);
@@ -48,7 +48,10 @@ export function loadSweeps({ project, file, base = DEFAULT_SWEEPS }) {
   const merged = { ...defaults, ...own };
   merged.events = { ...defaults.events, ...own.events };
   const lists = [defaults.sweeps ?? [], own.sweeps ?? []];
-  const bad = Object.entries(merged.events).find(([, entry]) => !plain(entry) || !BRIEF.test(entry.brief))?.[0]
+  const goodDeny = merged.deny === undefined
+    || (Array.isArray(merged.deny) && merged.deny.every(pattern => typeof pattern === 'string' && pattern.trim() !== ''));
+  const bad = (goodDeny ? undefined : 'deny')
+    ?? Object.entries(merged.events).find(([, entry]) => !plain(entry) || !BRIEF.test(entry.brief))?.[0]
     ?? lists.flat().find(badSweep)?.id;
   if (bad !== undefined) throw new Error(`The sweep list has a bad entry: ${bad}. See wiki/development/daily.md#your-own-jobs.`);
   const byId = new Map(lists.flat().map(sweep => [sweep.id, sweep]));
@@ -320,6 +323,12 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
       const note = () => journal(`Not started: ${item.title} — ${reason}`, { kind: 'not-started' });
       return job ? failed(job, { note, reason }) : note();
     };
+    const deny = sweeps.deny ?? [];
+    // Codex's command rules match fixed word prefixes, not these patterns: a run there would work unblocked.
+    if (agent === 'codex' && deny.length) {
+      await notStarted('the deny list works only with Claude Code');
+      return;
+    }
     let brief;
     try { brief = briefFor(item, runId, briefs); } catch (error) { await notStarted(oneLine(error)); return; }
     if (dryRun) { print({ wouldStart: item.kind, title: item.title, lane: item.lane, brief: item.brief }); return; }
@@ -331,7 +340,7 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
         return;
       }
     }
-    const [command, args] = headlessCommand({ agent, prompt: brief, access: { full: true } });
+    const [command, args] = headlessCommand({ agent, prompt: brief, access: { full: true }, deny });
     let child = null;
     try {
       child = launch({ command, args, project: copy ?? project, logFile: join(runs, `${runId}.jsonl`), env: runEnv(env, runId, { agent }) });
