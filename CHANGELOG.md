@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Small lessons from WongOS that help every install
+## 47.3.0 — Small lessons from WongOS that help every install
 
 - **Any chat can clean up your board.** Ask *clean up my board*: the chat can rename, move or delete any task on your week board, not only a chat's to-do. Before it deletes, it lists the tasks and asks you one time, because a deleted task can't be brought back ([the week board](wiki/development/daily.md#the-week-board)).
 - **Google sign-in gets two tips.** When Google asks for a passkey first, the assistant taps *Try another way* and picks the password. While it waits for your phone, it checks the start of the page address, so a sign-in page that only names the site does not count as signed in ([approve on your phone](wiki/development/login-codes.md#approve-on-your-phone)).

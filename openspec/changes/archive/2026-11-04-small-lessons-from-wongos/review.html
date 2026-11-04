@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · small-lessons-from-wongos</title>
+<title>Review · 2026-11-04-small-lessons-from-wongos</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="small-lessons-from-wongos" data-own-back>
+<body data-change="2026-11-04-small-lessons-from-wongos" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>small-lessons-from-wongos</h1>
+  <h1>2026-11-04-small-lessons-from-wongos</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -456,6 +456,7 @@
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: the renamed-migration fix names the staging database as <code>&lt;staging-db-name&gt;</code> from <code>app/wrangler.jsonc</code>, not <code>wong-db-staging</code>, because each install names its own database.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: no sample tasks go into <code>schema/seed.sql</code>, because the change adds no data shape, only opens two existing actions to agents; a staging check adds its own tasks with <code>inbox.task-add</code>, and the seed holds no board tasks today.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: the Vitest cache tip sends nothing, because Vitest 5.0.2 keeps compiled files between runs only with <code>fsModuleCache: true</code>, which neither repo sets; a run here keeps only <code>node_modules/.vite/vitest/&lt;hash&gt;/results.json</code>, so a stale app list can't come from that cache. WongOS's paragraph may name the wrong cause.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: archived and saved for publish inside <code>/ship</code>; a full test run that failed once after <code>main</code> came in passed when run again, so the failure was a slow test, not this change.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
