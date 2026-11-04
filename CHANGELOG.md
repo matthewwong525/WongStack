@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 45.5.0 — Review pages kept in the Inbox
+## 45.6.0 — Review pages kept in the Inbox
 
 - **Reviews in the Inbox.** A new *Reviews* choice beside *Day* and *Week* lists the review pages that wait on you, with the time left, then the *Archive* of closed ones, newest first. Search finds a page by its title ([in your inbox first](wiki/development/reply-links.md#in-your-inbox-first)).
 - **A closed review page stays.** It opens read-only, under a line that says what reached the chat and when, with your notes. Before, it went a day after it closed. Other items, such as an approval, still go after a day.
