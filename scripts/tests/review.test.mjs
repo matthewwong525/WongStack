@@ -865,9 +865,12 @@ test('the needs list sits after the cards and before Decisions, each item marked
   assert.ok(html.indexOf('<section id="changes"') < html.indexOf('<section id="needs"') && html.indexOf('<section id="needs"') < html.indexOf('<section id="decisions"'));
   assert.match(html, /<li><a href="#needs">Needs<\/a><\/li>/);
   assert.deepEqual([...html.matchAll(/<li class="need card" id="(need-\d)" data-need="(\w+)">/g)].map(m => `${m[1]} ${m[2]}`), ['need-1 ready', 'need-2 needs', 'need-3 needs', 'need-4 none']);
-  assert.match(html, /<p><span class="tag">Ready<\/span> <b>Shopify key<\/b> <code>SHOPIFY_TOKEN<\/code> is in <code>\.env<\/code>\.<\/p>/);
+  assert.match(html, /<p><span class="tag">Ready<\/span> <b>Shopify key<\/b>: <code>SHOPIFY_TOKEN<\/code> is in <code>\.env<\/code>\.<\/p>/);
   assert.match(html, /data-q="need-2-q-1" data-kind="file" data-label="Logo"/);
-  assert.match(html, /<span class="tag-outline">Needs you<\/span> <b>Meta ads key<\/b> Get it: <a target="_blank" rel="noopener noreferrer" href="https:\/\/key\.example\.dev\/k">Open the link<\/a>/);
+  // The name and its detail stay apart once the tags go, as a reader sees them.
+  const said = id => new RegExp(`<li class="need card" id="${id}"[^>]*><p>(.*?)</p>`).exec(html)[1].replace(/<[^>]+>/g, '');
+  assert.deepEqual(['need-1', 'need-2', 'need-4'].map(said), ['Ready Shopify key: SHOPIFY_TOKEN is in .env.', 'Needs you Your logo', 'Nothing else.']);
+  assert.match(html, /<span class="tag-outline">Needs you<\/span> <b>Meta ads key<\/b>: Get it: <a target="_blank" rel="noopener noreferrer" href="https:\/\/key\.example\.dev\/k">Open the link<\/a>/);
   assert.match(chatCopy('example', asking), /\*\*What the build needs\*\*\n\n- \*\*Shopify key\*\*: Ready[^\n]*\n- \*\*Your logo\*\*: Needs you\.\n/);
 }, asking));
 
@@ -1032,6 +1035,30 @@ test('in the inbox Build it that names a file the app no longer holds stays, so 
   port.onmessage({ data: { type: 'inbox:result', state: 'sent' } });
   await new Promise(done => setTimeout(done, 0));
   assert.equal(document.getElementById('ready').hidden, true, 'a sent build hides the buttons');
+  assert.deepEqual(errors, []);
+  window.close();
+}, asking.replace(/- \*\*Your logo\*\*[\s\S]*?k>\n/, '')));
+
+test('in the inbox a tap that reaches the chat leaves the page answered: no bar, no Remove, no answer to change', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const html = page(root);
+  const { window, document, errors } = dom(html);
+  await loaded(window);
+  const logo = { id: 'b'.repeat(32), name: 'logo.png', size: 10, sent: false };
+  const port = hosted(window, ['build'], { files: [logo.id] });
+  port.onmessage({ data: { type: 'inbox:notes', value: JSON.stringify({ notes: [], files: { 'item-1-q-7': [logo] } }) } });
+  document.getElementById('copy').click();
+  port.onmessage({ data: { type: 'inbox:result', state: 'soon' } });
+  await new Promise(done => setTimeout(done, 0));
+  assert.equal(document.body.classList.contains('read-only'), false, 'a tap that did not go keeps the page open');
+  document.getElementById('copy').click();
+  port.onmessage({ data: { type: 'inbox:result', state: 'sent' } });
+  await new Promise(done => setTimeout(done, 0));
+  assert.equal(document.body.classList.contains('read-only'), true);
+  assert.equal([...document.querySelectorAll('.form input, .form textarea')].every(el => el.disabled), true, 'no answer can change');
+  assert.match(document.querySelector('[data-q="item-1-q-7"] .files').textContent, /logo\.png · 1 KB Sent/);
+  // The read-only look hides the bar, the file box and each file's Remove, as an archived page shows them.
+  assert.match(html, /body\.read-only \.bar,[^{]*body\.read-only \.drop, body\.read-only \.files button \{ display:none; \}/);
   assert.deepEqual(errors, []);
   window.close();
 }, asking.replace(/- \*\*Your logo\*\*[\s\S]*?k>\n/, '')));

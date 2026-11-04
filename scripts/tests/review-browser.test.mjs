@@ -1455,6 +1455,24 @@ browserTest('at 320 px a live card draws at a phone or a computer width, scaled 
   await context.close();
 });
 
+browserTest('a live card laid out at no width fits once its card gets a width, with no resize of the window', async () => {
+  // The Inbox can lay the page out before its frame has a width: the card must not stay at no size.
+  const { dir } = askingFixture(), file = join(dir, 'review.html');
+  writeFileSync(file, readFileSync(file, 'utf8').replace('<div class="live-box">', '<div class="live-box" style="width:0">'));
+  const { page, context, errors } = await open(pathToFileURL(file).href, { width: 390, height: 700 });
+  const frame = page.locator('.live iframe'), stage = page.locator('.live-box');
+  await frame.waitFor({ state: 'attached' });
+  assert.equal(await stage.evaluate(el => el.clientHeight), 0, 'the card starts at no size');
+  await page.evaluate(() => { document.querySelector('.live-box').style.width = ''; });
+  await page.waitForFunction(() => document.querySelector('.live-box').clientHeight > 0);
+  const k = Number(/scale\(([\d.]+)\)/.exec(await frame.evaluate(el => el.style.transform))[1]);
+  const width = await stage.evaluate(el => el.clientWidth);
+  assert.ok(k > 0.5 && Math.abs(k - width / 390) < 0.01, `the phone width scales to the card (${k})`);
+  assert.equal(await stage.evaluate(el => el.style.height), `${Math.ceil(400 * k)}px`);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 browserTest('at 320 px answers and a file go with Build it, a file too big is refused, and the needs list holds Build until answered', async () => {
   const { page, context, errors, acts, files } = await openLive({ make: askingFixture, width: 320, height: 700, actions: ['build'] });
   await openActions(page);

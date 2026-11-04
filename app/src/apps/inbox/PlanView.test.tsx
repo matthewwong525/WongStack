@@ -200,9 +200,19 @@ it('queues a tap from the page on the version shown, waits for the computer, the
   expect(heard).toEqual([])
   tapState = 'sent'
   await act(async () => { await vi.advanceTimersByTimeAsync(TAP_POLL_MS) })
-  expect(screen.getByRole('status').textContent).toBe('Sent')
+  // Answered: the page reads as its Archive will show it, before the computer closes it.
+  expect(screen.getAllByRole('status').map(el => el.textContent)).toEqual([`Archived · Build, ${when(Date.now())}`])
   await until(() => heard.length > 0)
   expect(heard).toEqual([{ type: 'inbox:result', state: 'sent' }])
+})
+
+it('opens a page whose tap reached the chat read-only under that answer, before the computer closes it', async () => {
+  answer = () => Response.json({ item: plan('v1', { ...waiting, state: 'sent', text: 'Shorter' }), computerOnline: true })
+  const { posted, port } = await open()
+  expect(posted).toHaveBeenCalledWith({ type: 'inbox:hello', item: PLAN, version: 'v1', actions: [], readOnly: true, workspace: 'lousy-dingo',
+    files: [], theme: 'light' }, '*', [port])
+  expect(screen.getAllByRole('status').map(el => el.textContent)).toEqual([expect.stringMatching(/^Archived · Build, .+With notes: “Shorter”$/)])
+  expect(screen.queryByText('Sent')).toBeNull()
 })
 
 it("tells the page at once when the tap is refused, and says nothing to a page that didn't ask", async () => {
@@ -219,7 +229,7 @@ it("tells the page at once when the tap is refused, and says nothing to a page t
   expect(heard).toEqual([{ type: 'inbox:result', state: 'changed' }, { type: 'inbox:result', state: 'soon' }])
   heard.length = 0
   await act(async () => { await vi.advanceTimersByTimeAsync(TAP_POLL_MS) })
-  expect(screen.getByRole('status').textContent).toBe('Sent')
+  expect(screen.getByRole('status').textContent).toMatch(/^Archived · Build, /)
   await say({ type: 'inbox:notes-get', key: 'cf-access-token' })
   expect(heard).toEqual([])
 })
@@ -272,10 +282,18 @@ it('reads a waiting tap and the computer at each look on the open line, and stop
   await until(() => count('/items') === 3)
   tapState = 'sent'
   await line().say('{"t":"look"}')
-  await until(() => screen.getByRole('status').textContent === 'Sent')
+  await until(() => screen.getByRole('status').textContent!.startsWith('Archived · Build, '))
   // Nothing waits now: a look reads nothing.
   await line().say('{"t":"look"}')
   expect([count('/items'), count('tap?id=')]).toEqual([4, 3])
+})
+
+it('keeps the line open beside a plan with no tap, and a look then reads nothing', async () => {
+  await open()
+  await act(async () => { await new Promise(done => setTimeout(done, 0)) })
+  await line().open()
+  await line().say('{"t":"look"}')
+  expect(calls.filter(call => call.path.includes('/items') || call.path.includes('tap?id='))).toEqual([])
 })
 
 it('ignores a message of an unknown kind, too large, or for an action the plan does not offer', async () => {

@@ -10,6 +10,7 @@
 - **A page can ask you questions.** Words, a choice, a date, a tick, or a file. Your answers go with your notes or with *Build it*, so the chat doesn't ask again in the chat. A question that asks for a password, key, or card stops the page's build ([questions and files](wiki/review-pages.md#questions-and-files)).
 - **Send files from the page.** Drop a file, or tap to pick one on a phone: 25 MB a file and 100 MB a page. It goes to the computer the chat runs on. From your Inbox it waits in your company app until the computer takes it. No one can open it after 24 hours, and the app deletes it the next time the Inbox is used ([files from a page](wiki/development/reply-links.md#files-from-a-page)).
 - **Every plan says what the build needs.** Each key, login, file, or answer says *Ready* or *Needs you*. While one needs you, the build buttons say how many and show the first, so a build never stops halfway to ask ([what the build needs](wiki/review-pages.md#what-the-build-needs)).
+- **An answered page looks answered at once.** After you tap a button in the Inbox and the chat gets it, the page shows your answer and its time above it, as the Archive does. It has no *Send notes* bar and no *Remove* on a sent file.
 - **A page can be larger.** A review page can be 1.5 MB, not 500 KB, and the builder warns over 800 KB, because a page that big opens slowly on a phone.
 
 **Updating.** Nothing to do by hand. The app's next deploy adds two tables to its database, which hold files sent from the Inbox until your computer takes them.

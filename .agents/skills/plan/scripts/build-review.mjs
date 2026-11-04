@@ -607,7 +607,8 @@ function needs(section, ctx) {
     const open = state?.[2] === 'Needs you';
     if (open && !forms.length && !links.length) throw new Error(`${at}, item ${block.n}: a need that needs you holds a form or its https link`);
     const tag = nothing ? '' : `<span class="${open ? 'tag-outline' : 'tag'}">${open ? 'Needs you' : 'Ready'}</span> `;
-    const words = (nothing ? inline(nothing[0].trim()) : `<b>${inline(state[1])}</b>`) + (rest ? ` ${inline(rest)}` : '');
+    // The source's own separator went with the state, so the name keeps a colon before its detail.
+    const words = nothing ? inline(nothing[0].trim()) + (rest ? ` ${inline(rest)}` : '') : `<b>${inline(state[1])}</b>${rest ? `: ${inline(rest)}` : ''}`;
     return `<li class="need card" id="need-${block.n}" data-need="${open ? 'needs' : nothing ? 'none' : 'ready'}"><p>${tag}`
       + `${words.replace(/<a href=/g, '<a target="_blank" rel="noopener noreferrer" href=')}</p>${forms.join('')}</li>`;
   }).join('\n')}\n</ol>`;

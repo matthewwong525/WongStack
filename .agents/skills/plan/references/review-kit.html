@@ -430,7 +430,7 @@
 
   // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
   let chipFor = null, chipExtra = null, tap = null;
-  // True once the inbox opens this page from its Archive: it takes no note.
+  // True once the inbox opens this page closed, or a tap on it reaches the chat: it takes no note.
   let readOnly = false;
   const pointers = {};
   // `extra` makes the chip start a new note on selected words or a picture spot.
@@ -1223,7 +1223,10 @@
     });
     cards.push(c);
     mount(c);
+    // A stage first laid out at no width, as in an Inbox frame still opening, fits again once it gets its width.
+    if (window.ResizeObserver) new ResizeObserver(function () { if (c.stage.clientWidth !== c.seen) { c.seen = c.stage.clientWidth; fitCard(c); } }).observe(c.stage);
   });
+  window.addEventListener('load', function () { cards.forEach(fitCard); });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') cards.forEach(function (c) { if (c.box.classList.contains('full')) full(c, false); });
   });
@@ -1268,6 +1271,8 @@
     } else if (hosted.reply && m.type === 'inbox:result') {
       if (Array.isArray(m.files)) keepHeld(m.files);
       const reply = hosted.reply; hosted.reply = null; reply(m.state);
+      // A tap that reached the chat closes the page in the inbox, so it reads as answered now, as its Archive shows it.
+      if (m.state === 'sent') closePage();
     } else if (m.type === 'inbox:file-result' && waiting[m.ref]) {
       const done = waiting[m.ref];
       delete waiting[m.ref];
@@ -1286,6 +1291,12 @@
     }
     document.querySelector('main > header').prepend(row);
   }
+  // A closed or answered page in the inbox is read-only: no button, no note, no answer or file.
+  function closePage() {
+    readOnly = true; document.body.classList.add('read-only');
+    all('.form input, .form textarea', function (el) { el.disabled = true; });
+    render();
+  }
   window.addEventListener('message', function (e) {
     const m = e.data;
     if (hosted || window.parent === window || e.source !== window.parent || !e.ports || !e.ports[0] || !m || m.type !== 'inbox:hello'
@@ -1300,12 +1311,7 @@
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
     backRow(m.workspace);
-    // A closed page in the inbox's Archive opens read-only: no button, no note, no answer or file.
-    if (m.readOnly === true) {
-      readOnly = true; document.body.classList.add('read-only');
-      all('.form input, .form textarea', function (el) { el.disabled = true; });
-      render(); return;
-    }
+    if (m.readOnly === true) { closePage(); return; }
     setLive('inbox'); offer(m); render();
   });
   // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.

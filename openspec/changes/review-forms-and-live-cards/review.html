@@ -492,6 +492,11 @@
 <li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: each file part the computer reads holds that check-in's taps two more minutes, and the computer reports each tap as soon as it knows, because 100 MB is some 200 reads.</li>
 <li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-04</p>Asked whether day-old files need a timed clean-up or truthful wording → chose truthful wording: unreadable after 24 hours, deleted at the next Inbox use, kept up to 30 days in the database's restore history.</li>
 <li class="decision card" id="decision-37" data-note="decision-37" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Checkpoint: built and reviewed in two rounds (stale file ids, 24-hour clean-up, long downloads, cut-off uploads, Build it hidden after a lost file, all fixed); local checks pass; tasks 7.2 and 7.3 wait for the preview.</li>
+<li class="decision card" id="decision-38" data-note="decision-38" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Fixed, from the live check: a live card opened in the Inbox could stay at no size, because it measured its card before the card had a width; it now fits again whenever its card changes width.</li>
+<li class="decision card" id="decision-39" data-note="decision-39" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Fixed, from the live check: <code>PROTOCOL</code> goes to 11, not 10, because ClaymooApp's copy on this computer already runs the shared helper at 10, and that copy can't read files: an Inbox tap would lose its file.</li>
+<li class="decision card" id="decision-40" data-note="decision-40" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Fixed, from the live check: a <i>Ready</i> need read as one run of words, because the builder dropped the comma after the state; the name now keeps a colon before its detail.</li>
+<li class="decision card" id="decision-41" data-note="decision-41" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Fixed, from the live check: after <i>Approve</i> in the Inbox, the page kept <i>Send notes</i>, <i>Remove</i> on a sent file, and a bare <i>Sent</i> line. The line and the bar came from main, the <i>Remove</i> from this change. A tap that reaches the chat now turns the page read-only under its answer, as the Archive shows it, because the computer closes the page right after.</li>
+<li class="decision card" id="decision-42" data-note="decision-42" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Checkpoint: the preview walk passed 7.3 and found four faults in 7.2 (live card empty at first open, protocol not raised, Ready need lost its separator, answered page still open); all four fixed with tests; 7.2 runs again on this save.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -725,7 +730,7 @@
 
   // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
   let chipFor = null, chipExtra = null, tap = null;
-  // True once the inbox opens this page from its Archive: it takes no note.
+  // True once the inbox opens this page closed, or a tap on it reaches the chat: it takes no note.
   let readOnly = false;
   const pointers = {};
   // `extra` makes the chip start a new note on selected words or a picture spot.
@@ -1518,7 +1523,10 @@
     });
     cards.push(c);
     mount(c);
+    // A stage first laid out at no width, as in an Inbox frame still opening, fits again once it gets its width.
+    if (window.ResizeObserver) new ResizeObserver(function () { if (c.stage.clientWidth !== c.seen) { c.seen = c.stage.clientWidth; fitCard(c); } }).observe(c.stage);
   });
+  window.addEventListener('load', function () { cards.forEach(fitCard); });
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') cards.forEach(function (c) { if (c.box.classList.contains('full')) full(c, false); });
   });
@@ -1563,6 +1571,8 @@
     } else if (hosted.reply && m.type === 'inbox:result') {
       if (Array.isArray(m.files)) keepHeld(m.files);
       const reply = hosted.reply; hosted.reply = null; reply(m.state);
+      // A tap that reached the chat closes the page in the inbox, so it reads as answered now, as its Archive shows it.
+      if (m.state === 'sent') closePage();
     } else if (m.type === 'inbox:file-result' && waiting[m.ref]) {
       const done = waiting[m.ref];
       delete waiting[m.ref];
@@ -1581,6 +1591,12 @@
     }
     document.querySelector('main > header').prepend(row);
   }
+  // A closed or answered page in the inbox is read-only: no button, no note, no answer or file.
+  function closePage() {
+    readOnly = true; document.body.classList.add('read-only');
+    all('.form input, .form textarea', function (el) { el.disabled = true; });
+    render();
+  }
   window.addEventListener('message', function (e) {
     const m = e.data;
     if (hosted || window.parent === window || e.source !== window.parent || !e.ports || !e.ports[0] || !m || m.type !== 'inbox:hello'
@@ -1595,12 +1611,7 @@
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
     backRow(m.workspace);
-    // A closed page in the inbox's Archive opens read-only: no button, no note, no answer or file.
-    if (m.readOnly === true) {
-      readOnly = true; document.body.classList.add('read-only');
-      all('.form input, .form textarea', function (el) { el.disabled = true; });
-      render(); return;
-    }
+    if (m.readOnly === true) { closePage(); return; }
     setLive('inbox'); offer(m); render();
   });
   // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.

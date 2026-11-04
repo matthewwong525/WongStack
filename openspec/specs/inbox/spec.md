@@ -181,12 +181,17 @@ The inbox SHALL show every signed-in person a Reviews list of their own review p
 
 ### Requirement: An archived review page opens read-only
 
-An archived review page SHALL open in the same view as a waiting one, showing the same page. It SHALL offer no action and take no notes, and no tap on it SHALL ever reach a chat. Above the page it SHALL say what reached the chat and when, with any notes sent, or that no answer came and when it closed.
+An archived review page SHALL open in the same view as a waiting one, showing the same page. It SHALL offer no action and take no notes, and no tap on it SHALL ever reach a chat. Above the page it SHALL say what reached the chat and when, with any notes sent, or that no answer came and when it closed. A page whose answer has just reached the chat SHALL look the same at once, before it moves to the Archive.
 
 #### Scenario: Opening an answered page
 
 - **WHEN** the person opens a page they answered with *Build and publish* and notes
 - **THEN** the page shows read-only under the answer, its time and the notes, and offers no button
+
+#### Scenario: Just answered
+
+- **WHEN** the person taps *Approve* on a page in the inbox and the chat gets it
+- **THEN** the page shows read-only under *Approve* and its time, with no *Send notes* and no *Remove* on a sent file
 
 #### Scenario: An older page tries to send
 
