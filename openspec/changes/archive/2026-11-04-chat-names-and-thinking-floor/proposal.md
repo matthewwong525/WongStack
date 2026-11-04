@@ -33,3 +33,4 @@ WongOS also has a Paseo add-on that catches chats opened outside the launcher. I
 - **2026-11-01** — Assumed: an unset level stays unset when the model's default is medium or more, not always medium as ClaymooApp's local copy does, because always-medium lowers a model whose default is high.
 - **2026-11-01** — Check: the new-workspace rule adds instruction bytes, so the same page trims as many words elsewhere.
 - **2026-11-04** — Main's 47.0.0 removed the Daily chat, so `openDaily`, its thinking floor, and the Daily's chat list (`readChats`) left this change; workspace names stay for board to-dos, status, and the journal (Matthew's choice).
+- **2026-11-04** — Archived for release 47.1.0 after main's merge; tests for the daily, chief, launcher and schedule run pass.
