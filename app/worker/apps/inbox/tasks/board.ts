@@ -36,8 +36,8 @@ export const plan = z.strictObject({ week: z.string(), goal: z.string(), backlog
 
 type Spec = Pick<Action, "operationId" | "summary" | "description" | "input" | "output" | "encoding" | "effect" | "limits" | "confirmWith">;
 
-/** A board route: the owner alone passes, and the checker on staging. A daily route is `agentAvailable`, so a skill
- *  calls it through `company-api.mjs call`. A write wakes the owner's open Inbox. */
+/** A board route: the owner alone passes, and the checker on staging. A daily route, and a task's change or delete, is
+ *  `agentAvailable`, so a skill calls it through `company-api.mjs call`. A write wakes the owner's open Inbox. */
 export function boardAction<Input>({ run, agentAvailable = false, examples = [], ...spec }: Spec & {
   agentAvailable?: boolean; examples?: Action["examples"]; run: (db: D1DatabaseSession, input: Input) => Promise<unknown>;
 }): Action {

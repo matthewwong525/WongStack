@@ -147,6 +147,18 @@ it("answers an unreadable request with fixed text that never echoes the body", a
   }
   expect(handler).not.toHaveBeenCalled();
 });
+it("lets a query action take an empty body stream, as a deployed DELETE has, and refuses one with bytes", async () => {
+  const stream = (...chunks: string[]) => new ReadableStream<Uint8Array>({ start(controller) {
+    for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
+    controller.close();
+  } });
+  const remove = (body: ReadableStream<Uint8Array>) => ({ method: "DELETE", body, duplex: "half" }) as RequestInit;
+  const empty = await call(action(), "?name=Ada", remove(stream()));
+  expect(empty.status).toBe(200); expect(await body(empty)).toEqual({ value: "Ada" });
+  expect((await call(action(), "?name=Ada", remove(stream("", "")))).status).toBe(200);
+  expect((await failure(await call(action(), "?name=Ada", remove(stream("", "x"))))).issues)
+    .toEqual([{ path: "", message: "This action takes no request body." }]);
+});
 it("bounds the issue list and each string, and drops issues that carry a credential", async () => {
   const fields = Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`f${index}`, z.number().describe("A number")]));
   const many = await failure(await call(action({ encoding: "json", input: z.strictObject(fields), examples: [] }), "", { method: "POST", headers: json, body: "{}" }));

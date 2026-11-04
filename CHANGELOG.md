@@ -14,6 +14,14 @@
 
 **Updating.** Before you update, stop the old browser: run `node .claude/skills/browser/scripts/browse.mjs stop`. After the update, the first browsing task asks to install the new browser, which needs Python 3.10 or newer. Your site logins move over once, except Meta's: sign in to Facebook, Messenger and Instagram again. When the new browser has your logins, you can delete the old folders `~/.wong-stack/camofox/` and `~/.cache/camoufox` to get the space back.
 
+## 47.5.0 — Small lessons from WongOS that help every install
+
+- **Any chat can clean up your board.** Ask *clean up my board*: the chat can rename, move or delete any task on your week board, not only a chat's to-do. Before it deletes, it lists the tasks and asks you one time, because a deleted task can't be brought back ([the week board](wiki/development/daily.md#the-week-board)).
+- **A delete with no data is no longer refused.** The live app refused a request to delete a task or a backlog group as if it carried data, which also blocks the Inbox's Delete buttons. An empty request now passes; one with data is still refused.
+- **Google sign-in gets two tips.** When Google asks for a passkey first, the assistant taps *Try another way* and picks the password. While it waits for your phone, it checks the start of the page address, so a sign-in page that only names the site does not count as signed in ([approve on your phone](wiki/development/login-codes.md#approve-on-your-phone)).
+- **A renamed database change no longer leaves staging stuck.** When a change's database file gets a new name after its preview ran, the next preview fails with *duplicate column name*. The recovery page now says how to fix it on staging only; your live database is not touched ([D1 recovery](wiki/stack/d1-recovery.md#production-schema-drifted-from-d1_migrations)).
+- **Messenger's live view stays open until you are signed in.** The live view page names Messenger's signed-in address as the finish, because its password box goes away before the sign-in is done ([live view](wiki/development/live-view.md)).
+
 ## 47.4.0 — Background runs can be denied tools
 
 - **Your install can name tools no background run may use.** Add a `deny` list of tool patterns to your own jobs file, such as `"deny": ["Bash(*send-approved*)"]`. Each run of a timed job or an event gets the list, and Claude Code refuses those tools in that run ([your own jobs](wiki/development/daily.md#your-own-jobs)). A morning routine does not get the list: it opens its own chat. WongStack ships no list of its own.
