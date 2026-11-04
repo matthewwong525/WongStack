@@ -296,6 +296,7 @@
   .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:grid; grid-template-columns:repeat(var(--cols, 1), minmax(0, 1fr)); align-items:stretch; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--background); border-top:1px solid var(--border); }
   .bar > button, #ready > button { min-width:0; height:64px; padding:6px; white-space:normal; line-height:1.3; }
   body.docked .bar, body.viewing .bar { display:none; }
+  body.read-only .bar, body.read-only .add, body.read-only .verdict, body.read-only .hint, body.read-only .vhint .note-it, body.read-only #chip, body.read-only .drop, body.read-only .files button { display:none; }
   #ready { display:contents; }
   #ready-confirm { position:absolute; right:12px; bottom:calc(100% + 8px); width:272px; max-width:calc(100vw - 24px); max-height:calc(100dvh - var(--bar, 76px) - 24px); overflow:auto; padding:12px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--border); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-lg); }
   #ready-confirm .row { display:flex; gap:8px; margin-top:10px; }
@@ -490,6 +491,7 @@
 <li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: the plan's item lists the files the app still holds, and a tap that names a deleted one is refused as <code>files_gone</code>, because the page must ask for that file again, not close the link.</li>
 <li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: each file part the computer reads holds that check-in's taps two more minutes, and the computer reports each tap as soon as it knows, because 100 MB is some 200 reads.</li>
 <li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-04</p>Asked whether day-old files need a timed clean-up or truthful wording → chose truthful wording: unreadable after 24 hours, deleted at the next Inbox use, kept up to 30 days in the database's restore history.</li>
+<li class="decision card" id="decision-37" data-note="decision-37" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Checkpoint: built and reviewed in two rounds (stale file ids, 24-hour clean-up, long downloads, cut-off uploads, Build it hidden after a lost file, all fixed); local checks pass; tasks 7.2 and 7.3 wait for the preview.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -509,7 +511,7 @@
 <div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
   <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
   <div class="vframe"></div>
-  <p class="vhint">Drag to move · pinch or + to zoom · tap a line or picture to note it</p>
+  <p class="vhint">Drag to move · pinch or + to zoom<span class="note-it"> · tap a line or picture to note it</span></p>
 </div>
 <div class="bar" data-busy="false"><button type="button" class="primary" id="copy"><span class="spinner" hidden aria-hidden="true"></span><span id="copy-label">Copy notes</span></button>
   <div id="ready" data-actions="[{&quot;name&quot;:&quot;build&quot;,&quot;label&quot;:&quot;Build it&quot;,&quot;done&quot;:&quot;Asked the chat to build.&quot;},{&quot;name&quot;:&quot;publish&quot;,&quot;label&quot;:&quot;Build and publish&quot;,&quot;done&quot;:&quot;Asked the chat to build and publish.&quot;,&quot;confirm&quot;:{&quot;say&quot;:&quot;Goes live, can't be undone.&quot;,&quot;yes&quot;:&quot;Yes, publish&quot;,&quot;ask&quot;:&quot;Build and publish? This goes live and can't be undone.&quot;}}]" hidden>
@@ -723,9 +725,12 @@
 
   // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
   let chipFor = null, chipExtra = null, tap = null;
+  // True once the inbox opens this page from its Archive: it takes no note.
+  let readOnly = false;
   const pointers = {};
   // `extra` makes the chip start a new note on selected words or a picture spot.
   function showChip(el, x, y, keyboard, extra) {
+    if (readOnly) return;
     const id = el.getAttribute('data-note');
     chipFor = el; chipExtra = extra || null;
     chip.textContent = extra && extra.quote ? 'Note' : !extra && (noteOf(id) || data.drafts[id]) ? 'Edit note' : 'Add note';
@@ -807,6 +812,7 @@
   // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
   let open = null;
   function openEditor(id, el, extra) {
+    if (readOnly) return;
     closeViewer(false); closeEditor(false); hideChip();
     if (el) reveal(el);
     const note = noteOf(id), draft = data.drafts[id];
@@ -1589,6 +1595,12 @@
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
     backRow(m.workspace);
+    // A closed page in the inbox's Archive opens read-only: no button, no note, no answer or file.
+    if (m.readOnly === true) {
+      readOnly = true; document.body.classList.add('read-only');
+      all('.form input, .form textarea', function (el) { el.disabled = true; });
+      render(); return;
+    }
     setLive('inbox'); offer(m); render();
   });
   // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.
