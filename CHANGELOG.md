@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Your own pages move to the knowledge repo
+## 46.0.0 — Your own pages move to the knowledge repo
 
 - **One update moves your pages, after one yes.** The update plan lists each of your own pages that moves from the code repo to the knowledge repo, by folder, with counts. Pages that WongStack ships stay in the code repo.
 - **Every link to a moved page is fixed.** Links in skills, rules, code comments, specs and other pages now point to the new place. A link that the update can't fix safely, such as a path that code builds as it runs, is a step on the plan for you to do.

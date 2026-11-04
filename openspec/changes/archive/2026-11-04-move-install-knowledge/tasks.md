@@ -35,4 +35,4 @@
 - [x] 5.1 Run `node .github/scripts/checks.mjs --worktree` (payload links, OpenSpec config, measured context, retired names, private names) and the script tests.
 - [x] 5.2 Run `knowledge-move.mjs plan` read-only against `/root/ClaymooApp` and `/root/WongOS`; check its counts against design.md's table, that ClaymooApp's tutorial prompts, ad naming page and personas are `stays`, `docs-content.ts` is `replaced-reader` and the move is `held`, WongOS's profile is a `stays` and its 7 ClaymooApp paths are `outside`. Record the counts in design.md; write nothing in either repo.
 - [x] 5.3 Run `move` then `recopy` on a throwaway copy of WongOS with a scratch `knowledge/` folder (no save), and `move` on a ClaymooApp copy to see it refused as held; then run WongOS's wiki check and its test suite. Record failures as hand-step kinds the plan must name, or fix the script.
-- [ ] 5.4 `/save`, then confirm CI passes on the change.
+- [x] 5.4 `/save`, then confirm CI passes on the change.

@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** decent-shark
 **Open questions:** none
 
@@ -116,3 +116,4 @@ Builds on: *The knowledge repo* (shipped, 45.8.0). An install whose app shows it
 - **2026-11-04** — Assumed: a string in code equal to a moved path is a hand step, not rewritten, because code may read it on another line, where the scan can't see the read; comments and prose still get rewritten.
 - **2026-11-04** — Assumed: a whole-wiki pattern holds the move only when code runs it, because a comment that names such a pattern reads nothing; JSDoc `/**` lines count as comments, and the plan lists one hand step per line and reason.
 - **2026-11-04** — Assumed: while the knowledge move is held, moving WongStack's pages out of `docs/` is held too, and the record keeps `docsPath`, because without it the next update looks for own pages in `wiki/`, finds none, and never moves the pages in `docs/`; both moves run together in the update that does the knowledge move.
+- **2026-11-04** — Archive checkpoint: all tasks done, CI passed on e56d09c; released as 46.0.0.
