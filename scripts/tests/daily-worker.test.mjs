@@ -267,6 +267,46 @@ test('a run uses the AI tool the settings name, with full permissions, and a roo
   assert.deepEqual(runEnv({ HOME: '/home/jo' }, 'judge-1', { agent: 'claude', root: false }), { HOME: '/home/jo', ...base });
 });
 
+test('a full Claude run with a deny list ends with --disallowedTools; no deny, a narrow grant, and Codex get none', () => {
+  const deny = ['Bash(*email*send*)', 'Bash(*send-approved*)'];
+  const [, args] = headlessCommand({ agent: 'claude', prompt: 'p', access: { full: true }, deny });
+  assert.deepEqual(args.slice(-3), ['--disallowedTools', ...deny]);
+  for (const more of [{}, { deny: [] }]) {
+    assert.ok(!headlessCommand({ agent: 'claude', prompt: 'p', access: { full: true }, ...more })[1].includes('--disallowedTools'));
+  }
+  const narrow = { tools: ['Read'], dir: '/repo' };
+  assert.ok(!headlessCommand({ agent: 'claude', prompt: 'p', access: narrow, deny })[1].includes('--disallowedTools'));
+  assert.ok(!headlessCommand({ agent: 'codex', prompt: 'p', access: { full: true }, deny })[1].includes('--disallowedTools'));
+});
+
+test("an install's deny list reaches each run, a bad one is a bad entry, and with Codex no run starts", async () => {
+  const project = folder();
+  const own = list => {
+    writeFileSync(join(project, 'jobs.json'), JSON.stringify(list));
+    return loadSweeps({ project, file: 'jobs.json' });
+  };
+  for (const deny of ['Bash(*send*)', [''], [3], null]) assert.throws(() => own({ deny }), /bad entry: deny/);
+  const deny = ['Bash(*send-approved*)'];
+  assert.deepEqual([own({ deny }).deny, own({ deny: [] }).deny], [deny, []]);
+  const briefs = briefsWith({ 'pay.md': 'Check the payments for {{who}}.\n' });
+  const sweeps = { ...defaults(), deny, sweeps: [{ id: 'pay', title: 'Payments', at: ['09:00'], check: 'scripts/pay-check.mjs', brief: 'pay.md' }] };
+  const { world, worker } = rig({ sweeps, briefs: [briefs, SKILL_BRIEFS], start: '2026-11-09T14:01:00Z' });
+  world.checkOut = '{"run":{"who":"Kim"}}\n';
+  await worker.sweep();
+  await worker.dispatch([stop('a')]);
+  await worker.pump();
+  assert.equal(world.spawned.length, 2);
+  for (const run of world.spawned) assert.deepEqual(run.args.slice(-2), ['--disallowedTools', ...deny]);
+  const codex = rig({ sweeps, briefs: [briefs, SKILL_BRIEFS], agent: 'codex', start: '2026-11-09T14:01:00Z' });
+  codex.world.checkOut = world.checkOut;
+  await codex.worker.sweep();
+  await codex.worker.dispatch([stop('a')]);
+  await codex.worker.pump();
+  assert.equal(codex.world.spawned.length, 0);
+  assert.deepEqual(lines(codex.stateDir).filter(line => line.startsWith('Not started')), [
+    'Not started: Payments — the deny list works only with Claude Code', 'Not started: Judge a — the deny list works only with Claude Code']);
+});
+
 test("a heard stop starts the service's next pass within a second, and with none the pass waits the full minute", async () => {
   const times = [], signal = { heard: false };
   let clock = 0;

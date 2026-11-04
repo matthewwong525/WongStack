@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Background runs can be denied tools
+
+- **Your install can name tools no background run may use.** Add a `deny` list of tool patterns to your own jobs file, such as `"deny": ["Bash(*send-approved*)"]`. Each run of a timed job or an event gets the list, and Claude Code refuses those tools in that run ([your own jobs](wiki/development/daily.md#your-own-jobs)). A morning routine does not get the list: it opens its own chat. WongStack ships no list of its own.
+- **A bad list stops with a clear message.** A `deny` that is not a list of patterns is a bad entry, the same as any other bad entry in that file.
+- **Claude Code only.** Codex can not refuse a tool by such a pattern. With Codex and a `deny` list, the helper starts no background run and writes why in the journal, so no run works without the block you set.
+
+**Updating.** Nothing to do.
+
 ## 47.1.0 — Chats opened for you think at medium or more and show their names
 
 - **A chat opened for you never thinks below medium.** The workspace launcher and a schedule on the app's clock pass `--thinking`. Low, off, or none becomes medium. High and above stay. An unset level stays unset when the model's own default is medium or more, so a model that defaults to high keeps high; when the default is lower or can not be read, it becomes medium ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)). A chat you start yourself keeps the level you pick.
