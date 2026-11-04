@@ -429,6 +429,7 @@
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-04</p>Check: <code>scripts/tests/daily-wrap-up.test.mjs</code> is deleted with the wrap-up job it tested, because that job is gone; its finished-chat cases move to <code>scripts/tests/daily-finished.test.mjs</code>.</li>
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: the live check moves out of the tasks to after publish, because the Daily chat and the helper run the published code, and <code>D status</code> from this branch showed no watched chats to mark.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Archived for publish as 45.9.0; review found two problems in the attachments check fix, both fixed.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: the publish fixes <code>scripts/tests/daily-journal.test.mjs</code>, which failed on <code>main</code> too: it wrote a journal line dated 2026-11-03 and read today's lines by the real clock, so it passed only on that day; the test now writes the line today, because a red check on <code>main</code> blocks every publish.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

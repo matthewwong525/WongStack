@@ -63,3 +63,4 @@ None.
 - **2026-11-04** — Check: `scripts/tests/daily-wrap-up.test.mjs` is deleted with the wrap-up job it tested, because that job is gone; its finished-chat cases move to `scripts/tests/daily-finished.test.mjs`.
 - **2026-11-04** — Assumed: the live check moves out of the tasks to after publish, because the Daily chat and the helper run the published code, and `D status` from this branch showed no watched chats to mark.
 - **2026-11-04** — Archived for publish as 45.9.0; review found two problems in the attachments check fix, both fixed.
+- **2026-11-04** — Assumed: the publish fixes `scripts/tests/daily-journal.test.mjs`, which failed on `main` too: it wrote a journal line dated 2026-11-03 and read today's lines by the real clock, so it passed only on that day; the test now writes the line today, because a red check on `main` blocks every publish.
