@@ -59,7 +59,7 @@ The message never decides what a person gets: setup asks the app when it runs. T
    | other files | stops and changes nothing |
 
 3. **Checks memory** with one call, on the same sign-in, and points the copy's Git at [its credential helper](#update-the-copy).
-4. **Says it is done**, in plain words: who is signed in, which apps work, that memory works, where the project is and that it keeps itself up to date, and that nothing else is needed. It names no command to run.
+4. **Says it is done**, in plain words: who is signed in, which apps work, that memory works, and where the project is and that it keeps itself up to date. After a first download, it ends with the person's next step: open a new chat in the project's folder, or a new Paseo workspace, and type `lesson 1` ([a teammate's first day](../development/first-day/README.md)). An update or an apps-only run ends *nothing else is needed*. It names no command to run.
 
 The downloaded file removes itself when it ends, pass or fail, so no stray file is left in the folder. `--dir <folder>` names another folder. Setup keeps its private files in one directory per company under `~/.local/state/wong-company/`, outside every project folder.
 
