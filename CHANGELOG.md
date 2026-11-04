@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 47.2.0 — Faster checks: a save that matches a branch that already passed skips the full test run
+
+- **A save that changes only notes reuses the last pass.** When an earlier save of the same change passed the tests, and everything changed since is plans, wiki pages or other notes, the tests do not run again. Before, a change's last save, which often only files its plan away, ran the full suite again and the change waited minutes to go live ([the gate](wiki/development/the-change-loop.md#the-gate)).
+- **The other checks still run.** The notes, loosened-check and skill checks look at the whole change, and the check's summary names the save that passed.
+- **Any doubt runs the tests.** No earlier pass, changed code, or an answer from GitHub that can not be read runs them, as before.
+
+**Updating.** Nothing to do: the next save after this update uses it.
+
 ## 47.1.0 — Chats opened for you think at medium or more and show their names
 
 - **A chat opened for you never thinks below medium.** The workspace launcher and a schedule on the app's clock pass `--thinking`. Low, off, or none becomes medium. High and above stay. An unset level stays unset when the model's own default is medium or more, so a model that defaults to high keeps high; when the default is lower or can not be read, it becomes medium ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)). A chat you start yourself keeps the level you pick.
