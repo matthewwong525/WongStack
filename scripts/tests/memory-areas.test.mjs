@@ -209,6 +209,15 @@ test('a topic name loads its area, unless a file has that name', async t => {
   assert.equal(file.stdout.trim(), 'No mapped area for these paths.');
 });
 
+test('an old path from the moves list prints its place in the knowledge repo', async t => {
+  const env = await setup(t);
+  env.fake.setOffline(true);
+  files(env.repo.root, { '.agents/knowledge-moves.json': JSON.stringify({ version: 1, base: 'abc', moves: { 'docs/ops/cash.md': 'knowledge/ops/cash.md' } }) });
+  const moved = await memory(env.repo, env.fake, ['areas', 'docs/ops/cash.md']);
+  assert.equal(moved.code, 0, moved.stderr);
+  assert.match(moved.stdout, /^docs\/ops\/cash\.md moved to the knowledge repo: knowledge\/ops\/cash\.md$/m);
+});
+
 const CLI_MODULE = 'export function parseCli(args) { return args; }\nexport default function main() { return 0; }\n';
 
 test('code users: direct, .claude/, re-export via, and alias imports count; a same-name decoy does not', t => {

@@ -29,6 +29,7 @@ Add a knowledge base of how my business works to my AI setup. Build it in this p
 > Private life stays out of a shared knowledge base
 > Pages about the code go through the same review as code
 > Pages about the company sit in their own repository, and a save makes them live for the team at once
+> When pages move there, keep a list of each old place and its new one; a file back at an old place fails the check
 > If a step runs the same way every time, write it as a script, not a page
 > Keep the always-loaded instructions short, and put details in pages the AI opens when needed
 > Short sentences, plain words, active voice: write for a reader who knows nothing
