@@ -407,7 +407,7 @@ test('exact human emails retain the owner and exclude synthetic workspace identi
   assert.throws(() => humanEmails(EMAIL, ['not-an-email']), /reachable owner email/);
 });
 
-test('human membership changes preserve separate machine permissions and only memory and git are exempt', async (t) => {
+test('human membership changes preserve separate machine permissions and only memory, git, and public pages are exempt', async (t) => {
   const env = await setup(t);
   const first = await env.provision({ teammateEmails: ['Friend@Example.com', 'extra@workspace.invalid'] });
   const [app, previews] = env.fake.state.accessApps;
@@ -415,10 +415,10 @@ test('human membership changes preserve separate machine permissions and only me
   const machines = [app, previews].map(each => structuredClone(each.policies.find(p => p.decision === 'non_identity')));
   for (const each of [app, previews]) assert.deepEqual(people(each), [{ email: { email: EMAIL } }, { email: { email: 'friend@example.com' } }]);
   const git = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
-  const live = [{ behavior: 'public', path_pattern: '/_memory/*' }, git, { behavior: 'public', path_pattern: '/api/access/knowledge/git/*' }];
+  const publicPages = { behavior: 'public', path_pattern: '/public/*' };
+  const live = [{ behavior: 'public', path_pattern: '/_memory/*' }, git, { behavior: 'public', path_pattern: '/api/access/knowledge/git/*' }, publicPages];
   assert.deepEqual(app.destinations.map(d => d.overrides), [live, live]);
-  assert.deepEqual(previews.destinations.map(d => d.overrides), [[git], [git]], 'previews open git alone: they have no memory');
-  assert.ok(![app, previews].some(each => JSON.stringify(each.destinations).includes('/public')));
+  assert.deepEqual(previews.destinations.map(d => d.overrides), [[git, publicPages], [git, publicPages]], 'previews open git and public pages alone: they have no memory');
   const token = (id) => env.fake.state.serviceTokens.find(each => each.id === id);
   const saved = readEnv(join(env.dir, '.env'));
   assert.equal(saved.CF_ACCESS_CLIENT_SECRET, token(first.access.serviceTokenId).client_secret);

@@ -3,6 +3,7 @@
 import { dispatch, keyUses, registrations, type Route } from "../api/contract.ts";
 import type { AccessIdentity } from "../access.ts";
 import { hasScreen } from "../employee-access/catalogue.ts";
+import { knowledgeReader, type KnowledgeReader } from "../employee-access/knowledge-reader.ts";
 import type { PolicyEnv, RouteAccess } from "../employee-access/policy.ts";
 
 // The memory store and the sign-in list key: a mini app is handed neither.
@@ -11,8 +12,9 @@ type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET" | "WONG_ACCESS_LOGIN_MANAGEM
 /** Everything the Worker has but the memory store: the database, settings, and the route's saved keys. @public */
 export type AppEnv = Omit<Env, MemoryBindings> & PolicyEnv;
 
-/** What a handler knows about its call. `identity` is null only on an open workspace. @public */
-export type AppCall = { url: URL; route: string; identity: AccessIdentity | null };
+/** What a handler knows about its call. `identity` is null only on an open workspace. Only the Knowledge app's
+ *  routes get `knowledge`, its read-only reader, and none of them the binding behind it. @public */
+export type AppCall = { url: URL; route: string; identity: AccessIdentity | null; knowledge?: KnowledgeReader | null };
 
 /** One route's handler, listed in an app's api.ts. @public */
 export type AppHandler = (request: Request, env: AppEnv, call: AppCall) => Response | Promise<Response>;
@@ -61,6 +63,7 @@ export function handleApp(request: Request, env: Env & PolicyEnv, identity: Acce
   delete appEnv.MEMORY_DB;
   delete appEnv.MEMORY_BUCKET;
   delete appEnv.WONG_ACCESS_LOGIN_MANAGEMENT;
-  return dispatch(handler, request, appEnv, { url, route, identity },
+  const call: AppCall = name === "knowledge" ? { url, route, identity, knowledge: knowledgeReader(env) } : { url, route, identity };
+  return dispatch(handler, request, appEnv, call,
     alone.get(name)?.get(`${request.method} ${route}`) ?? { apps: [name], keys: app!.keys });
 }

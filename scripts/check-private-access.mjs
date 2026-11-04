@@ -10,7 +10,10 @@ const git = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
 const knowledge = { behavior: 'public', path_pattern: '/api/access/knowledge/git/*' };
 // An install whose Access step ran before company knowledge holds the first set until it runs again.
 const LIVE_SETS = [[{ behavior: 'public', path_pattern: '/_memory/*' }, git], [{ behavior: 'public', path_pattern: '/_memory/*' }, git, knowledge]];
+// Public knowledge pages, on both apps; until the Access step runs again they stay behind the sign-in, which is closed.
+const publicPages = { behavior: 'public', path_pattern: '/public/*' };
 const SHARED = "previews still share the live app's sign-in; run setup's Access step (wiki/stack/employee-access.md#finish-access-setup) and publish";
+const NO_PUBLIC = "public knowledge pages still ask for the sign-in; run setup's Access step once (wiki/stack/knowledge-reader.md#public-pages)";
 
 export async function checkPrivateAccess(config, environment, cf, generated) {
   const production = privateDeployment(config, 'production');
@@ -58,14 +61,17 @@ export async function checkPrivateAccess(config, environment, cf, generated) {
   ];
   const destinations = app.destinations ?? [];
   const covered = overrides => destinations.length === desired(overrides).length && desired(overrides).every(item => destinations.some(value => isDeepStrictEqual(value, item)));
-  if (app.id !== target.appId || app.aud !== target.audience || app.type !== 'self_hosted' || app.domain !== host || !(target === production ? LIVE_SETS : [[git]]).some(covered)) throw new Error('Access coverage or its memory and git exceptions are missing or broader than this workspace');
+  const sets = target === production ? LIVE_SETS : [[git]];
+  const opened = sets.map(set => [...set, publicPages]).some(covered);
+  if (app.id !== target.appId || app.aud !== target.audience || app.type !== 'self_hosted' || app.domain !== host || !(opened || sets.some(covered))) throw new Error('Access coverage or its memory and git exceptions are missing or broader than this workspace');
   const policies = await list(`${appPath}/policies`);
   const human = policies.filter(policy => policy.decision === 'allow');
   const machine = policies.filter(policy => policy.decision === 'non_identity');
   if (policies.length !== 2 || human.length !== 1 || machine.length !== 1 || !app.policies?.some(policy => policy.id === human[0].id) || !app.policies?.some(policy => policy.id === machine[0].id)) throw new Error('the separate human and machine policies are missing or unreviewed');
   if (human[0].include?.length < 1 || !Array.isArray(human[0].include) || human[0].include.some(rule => Object.keys(rule).length !== 1 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rule.email?.email ?? '') || /(?:\.invalid|@(?:[^@]*\.)?noreply\.github\.com)$/i.test(rule.email.email)) || !Array.isArray(machine[0].include) || machine[0].include.length !== 1 || Object.keys(machine[0].include[0]).length !== 1 || !machine[0].include[0].service_token?.token_id || policies.some(policy => (policy.exclude?.length ?? 0) || (policy.require?.length ?? 0))) throw new Error('workspace policies must use exact reachable emails and one separate service token');
   if (accessConflicts(await list(`${root}/access/apps`), workers, subdomain, [production.appId, staging.appId]).length) throw new Error('another Access application overlaps this workspace; review hostname/path/preview precedence');
-  return { environment, worker: target.name, protection: 'configured', humanLogin: 'unverified', ...(shared && { warning: SHARED }) };
+  const warning = [shared && SHARED, !opened && NO_PUBLIC].filter(Boolean).join('; ');
+  return { environment, worker: target.name, protection: 'configured', humanLogin: 'unverified', ...(warning && { warning }) };
 }
 
 const OPEN_WARNING = 'this workspace is open without login: anyone with its link can see it. Add a card to Cloudflare and rerun provision to make it private: wiki/stack/cloudflare-access.md#open-until-the-card';

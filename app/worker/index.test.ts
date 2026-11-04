@@ -4,6 +4,7 @@ import type { AppHandler } from "./apps/index";
 import worker from "./index";
 import { body } from "../tests/body";
 import { fakeEnv } from "../tests/env";
+import { fakeKnowledge, PAGES } from "../tests/knowledge";
 import { jwk, signingPair } from "../tests/signing";
 
 // Hello's routes, plus one that reports which bindings a mini app's handler is handed.
@@ -50,6 +51,16 @@ describe("private Worker routing", () => {
     for (const path of [...ASSET_PATHS, "/api/health", "/api/nothing", "/api/access/apps", "/api/actions", "/api/openapi.json", "/apps/hello/api/health"]) {
       expect((await call(path)).status, path).toBe(401);
       expect((await call(path, { "Cf-Access-Authenticated-User-Email": "owner@example.com" })).status, path).toBe(401);
+    }
+    expect(assets.fetch).not.toHaveBeenCalled();
+  });
+  it("opens a public knowledge page with no sign-in, and nothing else beside it", async () => {
+    const bindings = { ...env, ...fakeKnowledge(PAGES).env };
+    const page = await call("/public/welcome", {}, bindings);
+    expect([page.status, await page.text()]).toEqual([200, expect.stringContaining("Welcome to Acme Clay.")]);
+    expect((await call("/public/how-we-work/refunds", {}, bindings)).status).toBe(404);
+    for (const path of ["/public", "/publicity", "/apps/knowledge/welcome", "/apps/knowledge/api/page?path=welcome"]) {
+      expect((await call(path, {}, bindings)).status, path).toBe(401);
     }
     expect(assets.fetch).not.toHaveBeenCalled();
   });

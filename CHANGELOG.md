@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — A live reader for company knowledge
+
+- **A Knowledge app on Home.** It lists every company knowledge page by folder, and opens each one as the newest save has it. A save from any chat shows on the next open, with no publish. Links between pages open in the app, and diagrams draw as pictures ([the knowledge reader](wiki/stack/knowledge-reader.md)).
+- **Search by words.** The box on the list finds a page by its title or its text, and shows the line that matched.
+- **The Access page decides who reads it.** The owner has it from the start. A teammate gets it when you tick Knowledge for them or give it in a role. A skill can read pages with the person's own access, through company actions.
+- **Pages marked public open for anyone.** A page whose first lines say `public: true` opens at `/public/<page>` with no sign-in. Every other path there says *not found*, so a private page's name never leaks. A public page leaves out pictures and shows diagrams as text.
+- **Page content never runs code.** Raw HTML and unsafe links in a page show as text.
+
+**Updating.** On the Access page, tick Knowledge for the people who should read company pages. Then run setup's Access step once, so pages marked public open with no sign-in ([public pages](wiki/stack/knowledge-reader.md#public-pages)). Until you do, each publish warns, and public pages stay behind the sign-in.
+
 ## 45.8.0 — Company knowledge in its own repo
 
 - **Company pages go live at once.** The team's own pages, such as people, customers and how the company works, now live in a repository of their own in Cloudflare, not in the code repository. A save makes them live for the team at once, with no pull request and no wait for checks. Pages about the code stay in `wiki/` ([company knowledge](wiki/stack/company-knowledge.md)).
