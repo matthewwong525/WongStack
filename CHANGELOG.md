@@ -13,6 +13,18 @@
 
 **Updating.** On the Access page, tick Knowledge for the people who should read company pages. Then, once this update is live, run setup's Access step once, so pages marked public open with no sign-in. Not before: until then the publish check doesn't know the new route and refuses every publish ([public pages](wiki/stack/knowledge-reader.md#public-pages)). Until you do, each publish warns, and public pages stay behind the sign-in.
 
+## 45.10.0 — Review pages that ask and run the real thing
+
+- **A live card runs the real page inside the review page.** The chat makes a page, such as a shop page or a small tool, and it runs sealed in its card, with no internet. Switch it between *Phone* and *Computer* width, or open it full screen. A card can have the chat's own control, such as *put these in order*, and your pick goes to the chat with your notes ([the live card](wiki/review-pages.md#the-live-card)).
+- **A website is planned as a live prototype, and built from it.** For a site this app doesn't run, the chat writes the real files in the plan's `prototypes/` folder. Your notes change them, the build starts from the files you approved, and the check after it shows *Approved* beside *Built* ([a website prototype](wiki/review-pages.md#a-website-prototype)).
+- **A page can ask you questions.** Words, a choice, a date, a tick, or a file. Your answers go with your notes or with *Build it*, so the chat doesn't ask again in the chat. A question that asks for a password, key, or card stops the page's build ([questions and files](wiki/review-pages.md#questions-and-files)).
+- **Send files from the page.** Drop a file, or tap to pick one on a phone: 25 MB a file and 100 MB a page. It goes to the computer the chat runs on. From your Inbox it waits in your company app until the computer takes it. No one can open it after 24 hours, and the app deletes it the next time the Inbox is used ([files from a page](wiki/development/reply-links.md#files-from-a-page)).
+- **Every plan says what the build needs.** Each key, login, file, or answer says *Ready* or *Needs you*. While one needs you, the build buttons say how many and show the first, so a build never stops halfway to ask ([what the build needs](wiki/review-pages.md#what-the-build-needs)).
+- **An answered page looks answered at once.** After you tap a button in the Inbox and the chat gets it, the page shows your answer and its time above it, as the Archive does. It has no *Send notes* bar and no *Remove* on a sent file.
+- **A page can be larger.** A review page can be 1.5 MB, not 500 KB, and the builder warns over 800 KB, because a page that big opens slowly on a phone.
+
+**Updating.** Nothing to do by hand. The app's next deploy adds two tables to its database, which hold files sent from the Inbox until your computer takes them.
+
 ## 45.9.0 — Close finished chats only when you pick them
 
 - **The daily stops closing chats by itself.** A chat whose work is live now stays open until you close it, mark it Done on the board, or it sits idle for 3 days. A live chat that is still open is usually one you kept open: for a follow-up, to check the result, or after a break. What it learned still reaches memory and the wiki without a close.

@@ -1,44 +1,10 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { AccessIdentity } from "../../access";
 import { handleApp } from "../index";
 import { body, type Loose } from "../../../tests/body";
 import { fakeEnv } from "../../../tests/env";
-import { database, seeded, site } from "../../../tests/employee-access/connections";
-
-const START = Date.UTC(2026, 9, 22, 9, 0);
-const person = (email: string): AccessIdentity => ({ kind: "user", id: email, claims: { email, sub: `${email}-subject`,
-  iss: "https://business.cloudflareaccess.com", aud: "business-app", exp: 9999999999 } });
-const sam = person("sam@example.com");
-const jo = person("jo@example.com");
-const machine: AccessIdentity = { kind: "service", id: "checker.access", claims: { common_name: "checker.access",
-  iss: "https://business.cloudflareaccess.com", aud: "business-app", exp: 9999999999 } };
-
-let db: ReturnType<typeof database>;
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(START);
-  db = database();
-});
-afterEach(() => vi.useRealTimers());
-
-async function call(who: AccessIdentity | null, method: string, route: string, input?: Record<string, unknown>) {
-  const query = method === "GET" && input ? `?${new URLSearchParams(input as Record<string, string>)}` : "";
-  const sends = method !== "GET" && input !== undefined;
-  const response = await handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}${query}`, {
-    method, ...(sends && { headers: { "content-type": "application/json" }, body: JSON.stringify(input) }) }), fakeEnv({ DB: db.DB }), who);
-  return { status: response.status, json: await body(response) };
-}
-
-const PLAN = "a".repeat(32);
-const APPROVAL = "b".repeat(32);
-const plan = { id: PLAN, kind: "plan", title: "One inbox", workspace: "lousy-dingo", body: "<p>The plan</p>", actions: ["build", "publish"],
-  version: "v1", closesAt: START + 24 * 3_600_000 };
-const approval = { ...plan, id: APPROVAL, kind: "approval", title: "Send the kit quote to Kim", workspace: "email",
-  body: JSON.stringify({ text: "It wants to send one message." }), actions: ["approve", "decline"], version: "q1" };
-const put = (who: AccessIdentity, item: Record<string, unknown>) => call(who, "PUT", "item", item);
-const tap = (who: AccessIdentity, input: Record<string, unknown>) => call(who, "POST", "tap", { item: PLAN, version: "v1", ...input });
-const checkin = async (who = sam, items = [PLAN, APPROVAL]) => (await call(who, "POST", "checkin", { items })).json.taps;
-const later = (ms: number) => vi.setSystemTime(Date.now() + ms);
+import { seeded, site } from "../../../tests/employee-access/connections";
+import { START, person, sam, jo, machine, db, call, PLAN, APPROVAL, plan, approval, put, tap, checkin, later } from "../../../tests/inbox";
 
 it("lists only the signed-in person's items, and never lets another read or tap one", async () => {
   expect(await put(sam, plan)).toEqual({ status: 200, json: { id: PLAN, version: "v1" } });
@@ -113,9 +79,10 @@ it("refuses a service token and an open workspace, which name no person", async 
   }
 });
 
-it("refuses a body over 512 KB, text over 20,000 characters, and an approval with no words", async () => {
-  expect((await put(sam, { ...plan, body: "x".repeat(512 * 1024) })).status).toBe(200);
-  expect(await put(sam, { ...plan, body: "x".repeat(512 * 1024 + 1) })).toMatchObject({ status: 413, json: { error: { code: "too_large" } } });
+it("refuses a body over 1.6 MB, text over 20,000 characters, and an approval with no words", async () => {
+  const most = Math.round(1.6 * 1024 * 1024);
+  expect((await put(sam, { ...plan, body: "x".repeat(most) })).status).toBe(200);
+  expect(await put(sam, { ...plan, body: "x".repeat(most + 1) })).toMatchObject({ status: 413, json: { error: { code: "too_large" } } });
   expect((await tap(sam, { action: "send", text: "n".repeat(20_000) })).status).toBe(200);
   expect(await tap(sam, { action: "send", text: "n".repeat(20_001) })).toMatchObject({ status: 400, json: { error: { code: "invalid_input" } } });
   for (const bad of ["not json", JSON.stringify({ options: ["A"] })]) {
@@ -194,7 +161,7 @@ it("hands each tap out once and claims it, so a late cancel can't undo what was 
   // A result for a tap nobody collected changes nothing.
   expect((await call(sam, "POST", "tap-result", { id: unclaimed.id, state: "sent" })).json.tap.state).toBe("waiting");
   // A check-in collects only the taps on the items it names.
-  expect(await checkin(sam, [PLAN])).toEqual([{ id: first.id, item: PLAN, action: "build", text: "", version: "v1" }]);
+  expect(await checkin(sam, [PLAN])).toEqual([{ id: first.id, item: PLAN, action: "build", text: "", version: "v1", files: [] }]);
   expect(await checkin(sam, [PLAN])).toEqual([]);
   expect((await call(sam, "GET", "tap", { id: first.id })).json.tap.state).toBe("delivering");
   expect(await call(sam, "POST", "tap-cancel", { id: first.id })).toMatchObject({ status: 409, json: { error: { code: "not_waiting" } } });
@@ -405,7 +372,7 @@ it("queues a go tap with the person's note and answers, once per version, and on
   later(5000);
   expect(await tap(sam, { item: START_CARD, version: "s1", action: "go" })).toMatchObject({ status: 409, json: { error: { code: "done" } } });
   expect(await tap(sam, { item: START_CARD, version: "s1", action: "build" })).toMatchObject({ status: 400, json: { error: { code: "bad_action" } } });
-  expect(await checkin(sam, [START_CARD])).toEqual([{ id: go.json.tap.id, item: START_CARD, action: "go", text: "Note: keep it short\n\nWhich offer leads?\nGift card", version: "s1" }]);
+  expect(await checkin(sam, [START_CARD])).toEqual([{ id: go.json.tap.id, item: START_CARD, action: "go", text: "Note: keep it short\n\nWhich offer leads?\nGift card", version: "s1", files: [] }]);
 });
 
 it("keeps an agent's status, refuses a long step, an action or an unknown state, and takes no tap on it", async () => {

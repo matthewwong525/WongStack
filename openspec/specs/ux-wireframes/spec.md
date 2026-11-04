@@ -90,7 +90,7 @@ The page SHALL escape all proposal text, drawings and picture labels included, s
 
 A visual SHALL be a fence inside its What Changes bullet, drawn by the planning agent in the same pass with no other agent, from the shared drawing guide's patterns: a `mermaid` fence for steps, states, and back-and-forth flows; a `screen` fence for screens and before-and-after layouts, built from the shared look's app parts; an `svg` fence for a free drawing such as arrows or layers; a Markdown table for a table; a `text` fence for a small listing such as a file tree; and a `picture` fence for a real picture. Mermaid, screen, and SVG fences SHALL show on the page as inline pictures made at build time. A change SHALL draw one visual by default, plus a sketch of each screen it adds or restructures. A text drawing SHALL aim for 40 columns and MAY reach 56. The builder SHALL warn about a text line wider than 60 columns, or a picture wider than 640 pixels, and still build. A proposal with only text fences SHALL build as it did before pictures.
 
-A `picture` fence SHALL list one `[label:] path` per line. Each path SHALL resolve to a PNG, JPEG or WebP file, known by its first bytes, inside the page's source folder. The page SHALL carry each picture inside itself, open at the start, with its label as caption and alt text, side by side when two fit, else stacked, and SHALL take a spot note on it. The builder SHALL stop, naming the item and picture and keeping the last good page, for a web address, an absolute path, a path or link that leaves the folder, a missing file, another file type, or a picture over 300 KB. It SHALL stop, keeping the last good page, when the built page passes 500 KB, so the Inbox can store it. It SHALL warn about a picture over 150 KB and still build. Each size message SHALL say to take only the visible part at phone width.
+A `picture` fence SHALL list one `[label:] path` per line. Each path SHALL resolve to a PNG, JPEG or WebP file, known by its first bytes, inside the page's source folder. The page SHALL carry each picture inside itself, open at the start, with its label as caption and alt text, side by side when two fit, else stacked, and SHALL take a spot note on it. The builder SHALL stop, naming the item and picture and keeping the last good page, for a web address, an absolute path, a path or link that leaves the folder, a missing file, another file type, or a picture over 300 KB. It SHALL stop, keeping the last good page, when the built page passes 1.5 MB, so the Inbox can store it, and SHALL warn when it passes 800 KB and still build. It SHALL warn about a picture over 150 KB and still build. Each size message SHALL say to take only the visible part at phone width.
 
 #### Scenario: A wide line
 
@@ -139,8 +139,13 @@ A `picture` fence SHALL list one `[label:] path` per line. Each path SHALL resol
 
 #### Scenario: A page too big for the Inbox
 
-- **WHEN** two 190 KB pictures make the built page larger than 500 KB
+- **WHEN** the built page is larger than 1.5 MB
 - **THEN** the build stops with the page's size, and the last good page stays
+
+#### Scenario: A page slow on a phone
+
+- **WHEN** the built page is larger than 800 KB and under 1.5 MB
+- **THEN** the builder warns with the page's size and still writes the page
 
 ### Requirement: The builder flags a crooked box
 
