@@ -12,6 +12,8 @@ import {
 import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
+import { readMoves } from '../../memory/scripts/lib/links.mjs';
+import { SAVED } from '../../memory/scripts/knowledge.mjs';
 
 const SCHEMA_VERSION = 1;
 const DEFAULT_MAX_CHANGES = 10_000;
@@ -405,6 +407,7 @@ export function compareSelection({ target: targetInput, source: sourceInput, rec
   const baseSelection = baseInventory
     ? expandInventory(source, installedCommit, baseTree, baseInventory.value, record)
     : { categories: [], units: new Map() };
+  const seeded = [baseInventory?.value, currentInventory].flatMap(value => value?.seededBySetup?.files ?? []);
   const currentSelection = expandInventory(source, currentCommit, currentTree, currentInventory, record);
   const keys = [...new Set([...baseSelection.units.keys(), ...currentSelection.units.keys()])].sort();
   const changes = [];
@@ -440,9 +443,40 @@ export function compareSelection({ target: targetInput, source: sourceInput, rec
     baseline: baseInventory ? 'inventory' : 'empty',
     baseSelection,
     currentSelection,
+    seeded,
     keys,
     changes,
   };
+}
+
+const docsFolder = record => (typeof record.components?.docsPath === 'string'
+  ? safeRelativePath(record.components.docsPath, 'components.docsPath') : 'wiki');
+
+/** The folder an install keeps its wiki in: `wiki`, or the top folder of an old record's `docsPath`. */
+export const wikiRoot = record => docsFolder(record).split('/')[0];
+
+// Where an install keeps a payload wiki/ path: an old docsPath folder took both wiki/development/ and wiki/.
+function installedPath(path, record) {
+  const folder = docsFolder(record);
+  if (folder === 'wiki' || !path.startsWith('wiki/')) return path;
+  return `${folder}/${path.slice(path.startsWith('wiki/development/') ? 'wiki/development/'.length : 'wiki/'.length)}`;
+}
+
+/** Every path WongStack ships at either commit, with `seeded` every path setup makes, where this install keeps it. */
+export function shippedPaths({ record, baseSelection, currentSelection, seeded }, { withSeeded = true } = {}) {
+  const units = [...baseSelection.units.values(), ...currentSelection.units.values()].filter(unit => unit.kind === 'file');
+  return new Set([...units.map(unit => unit.targetPath), ...(withSeeded ? seeded : [])].map(path => installedPath(path, record)));
+}
+
+/** Every file under the install's wiki root that WongStack doesn't ship: its own pages, pictures and other files. */
+export function ownWikiFiles(target, record, shipped) {
+  const walk = dir => readdirSync(resolve(target, dir), { withFileTypes: true }).flatMap(entry => {
+    const path = `${dir}/${entry.name}`;
+    if (entry.isSymbolicLink() || entry.name === 'node_modules' || entry.name === '.git') return [];
+    return entry.isDirectory() ? walk(path) : [path];
+  });
+  const root = wikiRoot(record);
+  return kindAt(resolve(target, root)) === 'dir' ? walk(root).filter(path => !shipped.has(path)).sort() : [];
 }
 
 function parseVersion(value) {
@@ -491,7 +525,7 @@ function skillNames(target) {
 
 // The moves an install may still need, from its layout (lstat only, plus deploy.yml's secret name) and its
 // record. references/catch-up.md owns what each code asks of the plan.
-function catchUpNeeds(target, record, installedVersion, baseline) {
+function catchUpNeeds(target, record, installedVersion, baseline, own) {
   const reasons = [];
   const at = path => kindAt(resolve(target, path));
   const agents = at('.agents');
@@ -529,6 +563,15 @@ function catchUpNeeds(target, record, installedVersion, baseline) {
   if (at('mini-apps/apps') === 'dir') {
     const apps = readdirSync(resolve(target, 'mini-apps/apps'), { withFileTypes: true }).filter(entry => entry.isDirectory());
     reasons.push({ code: 'mini-apps-folder', paths: apps.map(entry => `mini-apps/apps/${entry.name}`).sort() });
+  }
+  // Own pages from before 45.8.0, or a move held for the live reader: they go to the knowledge repo. A moves list ends
+  // it, and 45.8.0 keeps a newer install's own code pages in wiki/.
+  const pages = own.filter(path => SAVED.test(path));
+  const due = below(installedVersion, [45, 8, 0]) || components.knowledgeMove === 'held';
+  if (pages.length && due && !readMoves(target)) {
+    const root = wikiRoot(record);
+    const top = path => { const rest = path.slice(root.length + 1); return rest.includes('/') ? `${root}/${rest.split('/')[0]}` : path; };
+    reasons.push({ code: 'own-pages', paths: [...new Set(pages.map(top))].sort() });
   }
   if (baseline === 'empty') reasons.push({ code: 'no-baseline', paths: [] });
   return { needed: reasons.length > 0 || below(installedVersion, [19, 0, 0]), reasons };
@@ -593,7 +636,8 @@ export function preflight(options) {
       changedUnits: changes.length,
     },
     changes,
-    catchUp: catchUpNeeds(compared.target, record, installedVersion, compared.baseline),
+    catchUp: catchUpNeeds(compared.target, record, installedVersion, compared.baseline,
+      ownWikiFiles(compared.target, record, shippedPaths(compared))),
     updating,
     updatingComplete,
     diagnostics: [],

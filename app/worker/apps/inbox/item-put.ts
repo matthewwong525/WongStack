@@ -33,7 +33,7 @@ export const itemPut = inboxAction<Input>({
     hidden: z.boolean().optional().describe("The item takes taps but shows in no list, such as a chat's watch."),
   }),
   output: z.strictObject({ id: itemId, version: z.string() }), encoding: "json", effect: "write",
-  limits: { inputBytes: 1048576, outputBytes: 65536, timeoutMs: 15000 },
+  limits: { inputBytes: 3145728, outputBytes: 65536, timeoutMs: 15000 },
   async run(at, input) {
     if (new TextEncoder().encode(input.body).byteLength > LIMITS.bodyBytes) return fail("too_large", 413);
     const refused = fault(input);

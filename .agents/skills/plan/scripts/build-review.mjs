@@ -40,9 +40,28 @@ const SCREEN_CLASSES = new Set(['card', 'btn', 'btn-primary', 'primary', 'btn-gh
 const PHONE_WIDE = 360;
 // A `picture` fence: files from the page's own folder, checked by their first bytes, carried inside the page.
 const PHOTO_TYPES = [['image/png', [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]], ['image/jpeg', [0xff, 0xd8, 0xff]], ['image/webp', [0x52, 0x49, 0x46, 0x46]]];
-// The Inbox keeps at most 512 KB a page, and base64 makes a picture a third larger, so the built page is measured.
+// The Inbox keeps at most 1.6 MB a page, and base64 makes a picture a third larger, so the built page is measured.
 const KB = 1024;
-const PHOTO_WARN = 150 * KB, PHOTO_MAX = 300 * KB, PAGE_MAX = 500 * KB;
+const PHOTO_WARN = 150 * KB, PHOTO_MAX = 300 * KB, PAGE_WARN = 800 * KB, PAGE_MAX = 1536 * KB, LIVE_MAX = 800 * KB;
+// A live card's files: pictures and fonts by their first bytes, an SVG by its text.
+const LIVE_TYPES = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif', svg: 'image/svg+xml',
+  woff: 'font/woff', woff2: 'font/woff2' };
+const MAGIC = { 'image/gif': [0x47, 0x49, 0x46, 0x38], 'font/woff': [0x77, 0x4f, 0x46, 0x46], 'font/woff2': [0x77, 0x4f, 0x46, 0x32],
+  ...Object.fromEntries(PHOTO_TYPES) };
+const LIVE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; "
+  + "media-src data: blob:; connect-src 'none'; form-action 'none'; frame-src 'none'; base-uri 'none'";
+// The card's one way out: review.answer(text) posts to the port the kit hands it on each greeting.
+const LIVE_SHIM = '<script>(function(){var port=null,last=null;addEventListener("message",function(e){var m=e.data;'
+  + 'if(e.source!==parent||!m||m.type!=="review:hello"||!e.ports||!e.ports[0])return;port=e.ports[0];'
+  + 'if(last!==null)port.postMessage({type:"review:answer",text:last});});'
+  + 'window.review={answer:function(text){last=String(text);if(port)port.postMessage({type:"review:answer",text:last});}};}());</script>';
+// A `form` fence: one question a line, as `<kind>: <label>`, a choice's options, or a file's types and count.
+const QUESTION_KINDS = new Set(['text', 'long', 'choice', 'choices', 'date', 'tick', 'file']);
+const FILE_KINDS = { image: ['png', 'jpg', 'jpeg', 'webp', 'gif'], pdf: ['pdf'], text: ['txt', 'csv', 'md', 'json'], office: ['docx', 'xlsx', 'pptx'], zip: ['zip'] };
+const FILE_WORDS = { image: 'pictures', pdf: 'PDFs', text: 'text files', office: 'Word, Excel, or PowerPoint files', zip: 'zip files' };
+const QUESTIONS_MAX = 12, FILES_MAX = 5;
+const SECRET = /password|passcode|api key|\bkey\b|token|secret|card number|cvv|cvc/i;
+const PRIVATE_LINK = 'wiki/development/secrets.md#receive-a-key-through-a-private-link';
 const SMALLER = 'take only the visible part at phone width';
 const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
@@ -333,15 +352,21 @@ function refuser(fence, where, what, how) {
   };
 }
 
+const outside = (from, to) => /^\.\.(?:[\\/]|$)/.test(relative(from, to)) || isAbsolute(relative(from, to));
+// A file inside the page's own folder, by name and by its real path, so a link can't lead out; `base` resolves it.
+function local(path, base, root, stop, missing) {
+  if (isAbsolute(path) || outside(root, resolve(base, path))) stop(`${path} is outside the change's folder`);
+  let real, bytes;
+  try { real = realpathSync(resolve(base, path)); bytes = readFileSync(real); } catch { stop(missing); }
+  if (outside(realpathSync(root), real)) stop(`${path} is outside the change's folder`);
+  return { real, bytes };
+}
+
 // One picture file from the page's own folder, checked by name, real file, and first bytes, as a data URI.
 function photo(path, at, where, ctx, warnings) {
   const stop = why => { throw new Error(`${ctx.file} line ${at}: ${where}: ${why}`); };
   if (/^[a-z][\w+.-]*:/i.test(path)) stop(`${path} is a web address; save the picture in the change's folder`);
-  const outside = (from, to) => /^\.\.(?:[\\/]|$)/.test(relative(from, to)) || isAbsolute(relative(from, to));
-  if (isAbsolute(path) || outside(ctx.root, resolve(ctx.root, path))) stop(`${path} is outside the change's folder`);
-  let real, bytes;
-  try { real = realpathSync(resolve(ctx.root, path)); bytes = readFileSync(real); } catch { stop(`no picture at ${path}`); }
-  if (outside(realpathSync(ctx.root), real)) stop(`${path} is outside the change's folder`);
+  const { bytes } = local(path, ctx.root, ctx.root, stop, `no picture at ${path}`);
   const type = PHOTO_TYPES.find(([, magic]) => magic.every((b, j) => bytes[j] === b))?.[0];
   if (!type || (type === 'image/webp' && bytes.toString('latin1', 8, 12) !== 'WEBP')) stop(`${path} is not a PNG, JPEG, or WebP picture`);
   if (bytes.length > PHOTO_MAX) stop(`${path} is ${Math.ceil(bytes.length / KB)} KB; keep a picture under 300 KB: ${SMALLER}`);
@@ -408,12 +433,193 @@ function table(item, fence, first) {
     + '</tbody></table></div>';
 }
 
+// ── a `live` fence: the chat's own page from a folder, every file carried inside it, run in a sealed frame ──
+const WEB = /^(?:[a-z][\w+.-]*:)?\/\//i;
+const LOCAL = ref => ref && !/^(?:#|[a-z][\w+.-]*:)/i.test(ref);
+const attrOf = (tag, name) => new RegExp(`\\s${name}\\s*=\\s*("[^"]*"|'[^']*'|[^\\s>]+)`, 'i').exec(tag);
+const unquote = raw => decode(/^["']/.test(raw) ? raw.slice(1, -1) : raw, m => m);
+
+// One page and its files; `stop` names the card and the proposal line, and every address is checked once.
+function inliner(root, stop) {
+  const web = ref => {
+    if (WEB.test(ref.trim()) || /^https?:/i.test(ref.trim())) stop(`${ref} is a web address; a live card loads nothing from the web: copy it into the folder`);
+  };
+  const read = (ref, base) => local(decodeURIComponent(ref.split(/[?#]/)[0]), base, root, stop, `no file at ${ref}`);
+  const asset = (ref, base) => {
+    web(ref);
+    if (!LOCAL(ref.trim())) return ref;
+    const path = ref.trim(), ext = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(path)?.[1].toLowerCase(), type = LIVE_TYPES[ext];
+    if (!type) stop(`${path} is not a picture or font a live card can carry: PNG, JPEG, WebP, GIF, SVG, WOFF, or WOFF2`);
+    const { bytes } = read(path, base);
+    const svg = type === 'image/svg+xml';
+    const fits = svg ? /^\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*(?:<!DOCTYPE[^>]*>\s*)?<svg[\s>]/i.test(bytes.toString('utf8'))
+      : MAGIC[type].every((b, j) => bytes[j] === b) && (type !== 'image/webp' || bytes.toString('latin1', 8, 12) === 'WEBP');
+    if (!fits) stop(`${path} is not the ${ext.toUpperCase()} file its name says`);
+    if (bytes.length > PHOTO_MAX) stop(`${path} is ${Math.ceil(bytes.length / KB)} KB; keep a file under 300 KB: ${SMALLER}`);
+    return `data:${type};base64,${bytes.toString('base64')}`;
+  };
+  const css = (text, base) => {
+    if (/@import\b/i.test(text)) stop('a stylesheet @import; put the styles in one file');
+    return text.replace(/url\(\s*(["']?)([^"')]*)\1\s*\)/gi, (m, q, ref) => `url("${asset(ref, base)}")`);
+  };
+  const srcset = (value, base) => value.split(',').map(part => {
+    const [ref, ...rest] = part.trim().split(/\s+/);
+    return [asset(ref, base), ...rest].join(' ');
+  }).join(', ');
+  const setAttr = (tag, name, value) => tag.replace(attrOf(tag, name)[0], ` ${name}="${esc(value)}"`);
+  // A tag's addresses: a link's is checked, a file's is carried, and a style's url() is carried too.
+  const tag = (text, base) => {
+    let out = text;
+    const name = /^<([\w:-]+)/.exec(text)[1].toLowerCase();
+    for (const key of ['src', 'poster', 'data', 'href', 'xlink:href', 'srcset', 'action', 'formaction', 'style']) {
+      const found = attrOf(out, key);
+      if (!found) continue;
+      const value = unquote(found[1]);
+      if (key === 'style') out = setAttr(out, key, css(value, base));
+      else if (key === 'srcset') out = setAttr(out, key, srcset(value, base));
+      else if (['action', 'formaction'].includes(key) || (key === 'href' && ['a', 'area'].includes(name))) web(value);
+      else out = setAttr(out, key, asset(value, base));
+    }
+    return out;
+  };
+  const text = (path, base, kind) => {
+    web(path);
+    const { real, bytes } = read(path, base);
+    if (!new RegExp(`\\.(?:${kind})$`, 'i').test(real)) stop(`${path} is not a ${kind === 'css' ? 'stylesheet' : 'script'} file`);
+    return { body: bytes.toString('utf8'), base: dirname(real) };
+  };
+  const page = (html, base) => html.replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>|<style\b[^>]*>[\s\S]*?<\/style\s*>|<!--[\s\S]*?-->|<link\b[^>]*>|<[a-zA-Z][^>]*>/gi, part => {
+    if (part.startsWith('<!--')) return part;
+    if (/^<style/i.test(part)) return part.replace(/^(<style\b[^>]*>)([\s\S]*?)(<\/style\s*>)$/i, (m, a, body, b) => a + css(body, base) + b);
+    if (/^<script/i.test(part)) {
+      const src = attrOf(/^<script\b[^>]*>/i.exec(part)[0], 'src');
+      if (!src) return part;
+      const file = text(unquote(src[1]), base, 'js|mjs');
+      const open = /^<script\b[^>]*>/i.exec(part)[0].replace(src[0], '');
+      return `${open}${file.body.replace(/<\/script/gi, '<\\/script')}</script>`;
+    }
+    if (/^<link/i.test(part)) {
+      const rel = unquote(attrOf(part, 'rel')?.[1] ?? '').toLowerCase(), href = attrOf(part, 'href');
+      if (!href) return part;
+      if (!rel.split(/\s+/).includes('stylesheet')) return tag(part, base);
+      const file = text(unquote(href[1]), base, 'css');
+      return `<style>${css(file.body, file.base).replace(/<\/style/gi, '<\\/style')}</style>`;
+    }
+    return tag(part, base);
+  });
+  return page;
+}
+
+// The page's head takes the sealing policy and the answer shim first, before any of the page's own parts.
+function sealed(html) {
+  const first = `<meta http-equiv="Content-Security-Policy" content="${LIVE_CSP}">${LIVE_SHIM}`;
+  const head = /<head\b[^>]*>/i.exec(html) ?? /<html\b[^>]*>/i.exec(html);
+  if (!head) return `${first}${html}`;
+  const at = head.index + head[0].length;
+  return html.slice(0, at) + (/^<head/i.test(head[0]) ? first : `<head>${first}</head>`) + html.slice(at);
+}
+
+function live(item, fence, k, ctx) {
+  const id = `item-${item.n}-live-${k}`, where = `item ${item.n}, live card ${k}`;
+  const stop = (why, at = fence.at) => { throw new Error(`${ctx.file} line ${at}: ${where}: ${why}`); };
+  const spec = {};
+  fence.lines.forEach((line, i) => {
+    const m = /^\s*(folder|height):\s*(.*?)\s*$/.exec(line);
+    if (!line.trim()) return;
+    if (!m || spec[m[1]] !== undefined) stop('a live card takes one folder: line and one height: line', fence.at + 1 + i);
+    spec[m[1]] = m[2];
+  });
+  if (!spec.folder) stop('a live card needs a folder: line');
+  const height = spec.height === undefined ? 640 : Number(spec.height);
+  if (!Number.isInteger(height) || height < 200 || height > 4000) stop(`height is a number of pixels from 200 to 4000, not ${spec.height}`);
+  const index = join(spec.folder, 'index.html');
+  const { real, bytes } = local(index, ctx.root, ctx.root, stop, `no index.html in ${spec.folder}`);
+  const doc = sealed(inliner(ctx.root, stop)(bytes.toString('utf8'), dirname(real)));
+  const size = Buffer.byteLength(doc);
+  if (size > LIVE_MAX) stop(`the live card is ${Math.ceil(size / KB)} KB; keep a live card under 800 KB: use smaller pictures`);
+  return `<div class="live" data-live="${id}" data-height="${height}"><div class="live-box">`
+    + `<iframe sandbox="allow-scripts" title="${esc(`Live card ${item.n}`)}" srcdoc="${esc(doc)}"></iframe></div></div>`;
+}
+
+// ── a `form` fence: questions drawn as real inputs, each with a stable id the kit keeps its answer under ──
+function question(prefix, k, line, at, stop) {
+  const m = /^\s*([a-z]+):\s*(.*?)\s*$/.exec(line);
+  if (!m || !QUESTION_KINDS.has(m[1])) stop(`a question is one of ${[...QUESTION_KINDS].join(', ')}, then a colon and its words`, at);
+  const [label, ...parts] = m[2].split('|').map(part => part.trim());
+  const kind = m[1], id = `${prefix}-q-${k}`, words = esc(label);
+  if (!label || label.length > 200) stop('a question needs its words, 200 characters at most', at);
+  if (SECRET.test(label)) stop(`the question "${label}" asks for a secret; a page never takes a password, key, or card: send its private link (${PRIVATE_LINK})`, at);
+  const head = `class="q" data-q="${id}" data-kind="${kind}" data-label="${words}"`;
+  if (kind === 'choice' || kind === 'choices') {
+    const options = (parts[0] ?? '').split(',').map(option => option.trim()).filter(Boolean);
+    if (parts.length !== 1 || !options.length || options.length > QUESTIONS_MAX) stop(`${kind} takes "| a, b" with 1 to ${QUESTIONS_MAX} options`, at);
+    const type = kind === 'choice' ? 'radio' : 'checkbox';
+    return `<fieldset ${head}><legend class="q-label">${words}</legend>${options.map(option =>
+      `<label class="opt"><input type="${type}" name="q-${id}" value="${esc(option)}"> ${esc(option)}</label>`).join('')}</fieldset>`;
+  }
+  if (kind === 'file') {
+    const types = (parts[0] ?? '').split(',').map(type => type.trim()).filter(Boolean), count = parts[1] === undefined ? 1 : Number(parts[1]);
+    const unknown = types.find(type => !FILE_KINDS[type]);
+    if (!types.length || unknown || parts.length > 2) stop(`a file takes "| <types> | <count>", types from ${Object.keys(FILE_KINDS).join(', ')}${unknown ? `, not ${unknown}` : ''}`, at);
+    if (!Number.isInteger(count) || count < 1 || count > FILES_MAX) stop(`a file question takes 1 to ${FILES_MAX} files, not ${parts[1]}`, at);
+    const exts = types.flatMap(type => FILE_KINDS[type]);
+    return `<div ${head} data-types="${exts.join(',')}" data-count="${count}"><p class="q-label">${words}</p>`
+      + `<label class="drop"><input type="file" accept="${exts.map(ext => `.${ext}`).join(',')}"${count > 1 ? ' multiple' : ''}>`
+      + `<span>Drop ${count > 1 ? 'files' : 'a file'} here, or tap to pick</span></label>`
+      + `<p class="muted">${types.map(type => FILE_WORDS[type]).join(', ')}; ${count === 1 ? '1 file' : `up to ${count} files`}, 25 MB each. `
+      + 'Never send a password, key, or card here.</p><ul class="files"></ul></div>';
+  }
+  if (parts.length) stop(`${kind} takes only its words`, at);
+  const input = { text: `<input id="q-${id}" type="text" maxlength="2000">`, long: `<textarea id="q-${id}" rows="3" maxlength="2000"></textarea>`,
+    date: `<input id="q-${id}" type="date">` }[kind];
+  if (kind === 'tick') return `<div ${head}><label class="opt"><input id="q-${id}" type="checkbox"> ${words}</label></div>`;
+  return `<div ${head}><label class="q-label" for="q-${id}">${words}</label>${input}</div>`;
+}
+
+function form(prefix, fence, first, ctx, where) {
+  const stop = (why, at = fence.at) => { throw new Error(`${ctx.file} line ${at}: ${where}: ${why}`); };
+  const lines = fence.lines.map((line, i) => [line, fence.at + 1 + i]).filter(([line]) => line.trim());
+  if (!lines.length || lines.length > QUESTIONS_MAX) stop(`a form holds 1 to ${QUESTIONS_MAX} questions`);
+  return { count: lines.length, html: `<div class="form">${lines.map(([line, at], i) => question(prefix, first + i, line, at, stop)).join('')}</div>` };
+}
+
+// ── `## What the build needs`: each bullet Ready or Needs you; one that needs you holds its questions or its link ──
+const NEED = /^\*\*([^*]+)\*\*:\s*(Ready|Needs you)\b[.,;:]?\s*/;
+const NOTHING = /^\*\*Nothing\b[^*]*\*\*\s*/i;
+function needs(section, ctx) {
+  const items = blocks(section, 'need');
+  if (!items.length) return null;
+  return `<ol class="needs">\n${items.map(block => {
+    const at = `${ctx.file} line ${section.at}: ## ${section.title}`;
+    if (!block.n) return `<li class="aside">${inline(block.text)}</li>`;
+    const state = NEED.exec(block.text), nothing = !state && NOTHING.exec(block.text);
+    if (!state && !nothing) throw new Error(`${at}, item ${block.n}: start with **<what>**: Ready or **<what>**: Needs you`);
+    const rest = block.text.slice((state ?? nothing)[0].length).replace(/<(https:\/\/[^\s>]+)>/g, '[Open the link]($1)');
+    const links = [...rest.matchAll(/\]\(([^)\s]+)\)/g)].map(m => m[1]).filter(href => /^[a-z][\w+.-]*:/i.test(href));
+    if (links.some(href => !/^https:/i.test(href)) || links.length > 1) throw new Error(`${at}, item ${block.n}: a need takes one https link at most`);
+    let k = 1;
+    const forms = block.drawings.map(fence => {
+      if (fence.lang !== 'form') throw new Error(`${ctx.file} line ${fence.at}: need ${block.n}: a need holds only a form fence`);
+      const drawn = form(`need-${block.n}`, fence, k, ctx, `need ${block.n}`);
+      k += drawn.count;
+      return drawn.html;
+    });
+    const open = state?.[2] === 'Needs you';
+    if (open && !forms.length && !links.length) throw new Error(`${at}, item ${block.n}: a need that needs you holds a form or its https link`);
+    const tag = nothing ? '' : `<span class="${open ? 'tag-outline' : 'tag'}">${open ? 'Needs you' : 'Ready'}</span> `;
+    // The source's own separator went with the state, so the name keeps a colon before its detail.
+    const words = nothing ? inline(nothing[0].trim()) + (rest ? ` ${inline(rest)}` : '') : `<b>${inline(state[1])}</b>${rest ? `: ${inline(rest)}` : ''}`;
+    return `<li class="need card" id="need-${block.n}" data-need="${open ? 'needs' : nothing ? 'none' : 'ready'}"><p>${tag}`
+      + `${words.replace(/<a href=/g, '<a target="_blank" rel="noopener noreferrer" href=')}</p>${forms.join('')}</li>`;
+  }).join('\n')}\n</ol>`;
+}
+
 function changes(section, warnings, ctx) {
   let html = '', open = false;
   for (const block of blocks(section, 'item')) {
     if (!block.n) { html += `${open ? '</ol>\n' : ''}<p class="aside">${inline(block.text)}</p>\n`; open = false; continue; }
     // Text drawings number lines across the item, tables their rows; the other pictures and ads share one count.
-    let first = 1, pictures = 0, rows = 1;
+    let first = 1, pictures = 0, rows = 1, lives = 0, questions = 1;
     const grouped = block.drawings.reduce((all, fence) => {
       if (fence.lang === 'ad' && all.at(-1)?.lang === 'ads') all.at(-1).fences.push(fence);
       else all.push(fence.lang === 'ad' ? { lang: 'ads', fences: [fence] } : fence);
@@ -425,6 +631,8 @@ function changes(section, warnings, ctx) {
       if (fence.lang === 'svg') return sketch(block, fence, ++pictures, warnings);
       if (fence.lang === 'screen') return screen(block, fence, ++pictures, warnings);
       if (fence.lang === 'picture') return photos(block, fence, ++pictures, ctx, warnings);
+      if (fence.lang === 'live') return live(block, fence, ++lives, ctx);
+      if (fence.lang === 'form') { const drawn = form(`item-${block.n}`, fence, questions, ctx, `item ${block.n}`); questions += drawn.count; return drawn.html; }
       if (fence.lang === 'table') { const out = table(block, fence, rows); rows += fence.lines.length - 2; return out; }
       const out = drawing(block, fence, first, warnings); first += fence.lines.length; return out;
     });
@@ -475,8 +683,10 @@ function render(markdown, warnings, root, kind) {
     return `<p data-note="why-${i + 1}" tabindex="0">${inline(block.text)}</p>`;
   });
   const decided = log && decisions(found[log.toLowerCase()]);
+  const needed = found['what the build needs'] && needs(found['what the build needs'], { root, file });
   return `<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>\n<div class="card">\n${why.join('\n')}\n</div></section>\n`
     + `<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">${list}</h2>\n${changes(found[list.toLowerCase()], warnings, { root, file })}\n</section>`
+    + (needed ? `\n<section id="needs" aria-labelledby="needs-h"><h2 id="needs-h">What the build needs</h2>\n${needed}\n</section>` : '')
     + (decided ? `\n<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>\n${decided}\n</section>` : '');
 }
 
@@ -503,6 +713,7 @@ function renderGoal(markdown, root) {
 // The plan as chat Markdown, from the same parse as the page: Why, each change numbered, and the assumed decisions.
 // A chat shows no pictures, so Mermaid, SVG, screen, and picture fences point to the page; tables and text print.
 const PICTURE_LANGS = new Set(['mermaid', 'svg', 'screen', 'picture']);
+const PAGE_ONLY = { live: '   _(live page on the review page)_', form: '   _(questions on the review page)_' };
 export function chatCopy(name, markdown) {
   const found = sections(markdown);
   if (!found.why || !found['what changes']) return '';
@@ -511,6 +722,7 @@ export function chatCopy(name, markdown) {
     if (!block.n) return block.text;
     const art = block.drawings.map(fence => {
       if (PICTURE_LANGS.has(fence.lang)) return '   _(picture on the review page)_';
+      if (PAGE_ONLY[fence.lang]) return PAGE_ONLY[fence.lang];
       const body = fence.lang === 'table' ? fence.lines : ['```text', ...fence.lines, '```'];
       return body.map(line => (line ? `   ${line}` : '')).join('\n');
     });
@@ -520,7 +732,9 @@ export function chatCopy(name, markdown) {
     .map(block => block.text.replace(/^\*\*\d{4}-\d{2}-\d{2}\*\*\s*[—–-]+\s*/, ''))
     .filter(text => text.startsWith('Assumed:'))
     .map(text => `- ${text.replace(/^Assumed:\s*(.)/, (m, c) => c.toUpperCase())}`);
-  return [`**Plan: ${name}**`, '**Why**', ...why, '**What changes**', ...changes, ...(assumed.length ? ['**Assumed for you**', assumed.join('\n')] : [])].join('\n\n');
+  const needed = found['what the build needs'] ? blocks(found['what the build needs'], 'need').filter(block => block.n).map(block => `- ${block.text}`) : [];
+  return [`**Plan: ${name}**`, '**Why**', ...why, '**What changes**', ...changes, ...(needed.length ? ['**What the build needs**', needed.join('\n')] : []),
+    ...(assumed.length ? ['**Assumed for you**', assumed.join('\n')] : [])].join('\n\n');
 }
 
 // Older pages (wong-review:2 and before) keep their viewer; only the proposal block between their markers is refreshed.
@@ -568,6 +782,7 @@ export function assemble(name, content, kit = readFileSync(kitPath, 'utf8'), kin
   if (header) before = before.replace('<body ', `<body data-header="${esc(header)}" `);
   if (ask) before = before.replace('<title>Review · CHANGE-NAME', () => `<title>Review · ${esc(ask)}`).replace('<h1>CHANGE-NAME</h1>', () => `<h1>${esc(ask)}</h1>`).replace('href="#changes">Changes', 'href="#changes">To review');
   if (!content.includes('<section id="decisions"')) before = before.replace('<li><a href="#decisions">Decisions</a></li>', '');
+  if (!content.includes('<section id="needs"')) before = before.replace('<li><a href="#needs">Needs</a></li>', '');
   after = after.replace(READY, () => `<div id="ready" data-actions="${esc(JSON.stringify(actions))}" hidden>`);
   return `${FORMAT}\n${before.split('CHANGE-NAME').join(esc(name))}${content}${after.split('CHANGE-NAME').join(esc(name))}`;
 }
@@ -656,7 +871,8 @@ export function buildReview(changeRoot, { requireCurrent = false, kind = 'plan',
   let next = assemble(name, goal ? renderGoal(markdown, changeRoot) : render(markdown, warnings, changeRoot, kind), undefined, kind, extra);
   if (goal) next = next.replace('href="#why">Why', 'href="#why">Goal').replace('href="#changes">Changes', 'href="#changes">Instructions');
   const size = Buffer.byteLength(next);
-  if (size > PAGE_MAX) throw new Error(`the page is ${Math.ceil(size / KB)} KB; keep a page under 500 KB so the Inbox takes it: show fewer pictures, or ${SMALLER}`);
+  if (size > PAGE_MAX) throw new Error(`the page is ${Math.ceil(size / KB)} KB; keep a page under 1.5 MB so the Inbox takes it: show fewer pictures, or ${SMALLER}`);
+  if (size > PAGE_WARN) warnings.push(`the page is ${Math.ceil(size / KB)} KB; a page over 800 KB is slow on a phone: show fewer pictures, or ${SMALLER}`);
   return { kind: 'current', changed: writeIfDifferent(reviewPath, next), warnings, ...(ask && { ask }) };
 }
 

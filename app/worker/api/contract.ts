@@ -10,6 +10,8 @@ import { boundedBytes } from "./body.ts";
 // A mini app imports only this file, so one that keys rows on the signed-in person reads the person here, and one
 // that keeps the owner's data alone reads the owner here.
 export { checkerOwns, humanEmail, ownerEmail } from "../employee-access/policy.ts";
+/** The reads the Knowledge app's routes are handed on their call. */
+export type { Commit, KnowledgeReader } from "../employee-access/knowledge-reader.ts";
 
 /** Supported wire input, also used when building an action. @public */
 export type Encoding = "none" | "query" | "json";
@@ -111,7 +113,7 @@ function validateDescriptions(action: Action) {
 function validateLimits(action: Action) {
   const limits = action.limits ?? defaults;
   if (Object.values(limits).some(value => !Number.isSafeInteger(value) || value < 1) ||
-    limits.inputBytes > 1048576 || limits.outputBytes > 4194304 || limits.timeoutMs > 60000) {
+    limits.inputBytes > 4194304 || limits.outputBytes > 4194304 || limits.timeoutMs > 60000) {
     throw new Error(`Invalid action limits: ${action.operationId}`);
   }
 }
@@ -216,7 +218,7 @@ async function inputFor(action: Action, request: Request, url: URL, max: number)
 
 // Settings setup commits in wrangler.jsonc. Anyone with the code can read them, and an honest answer
 // may name them: an account is often named for its owner's email. Every other text binding is a secret.
-const COMMITTED = new Set(["WONG_ENVIRONMENT", "WONG_OWNER_EMAIL", "WONG_CODE_REPOSITORY", "WORKSPACE_LOGIN",
+const COMMITTED = new Set(["WONG_ENVIRONMENT", "WONG_OWNER_EMAIL", "WONG_CODE_REPOSITORY", "WONG_KNOWLEDGE_REPOSITORY", "WORKSPACE_LOGIN",
   "CF_ACCESS_TEAM_DOMAIN", "CF_ACCESS_AUD", "CF_ACCESS_APP_ID", "CF_ACCESS_WORKER_ID"]);
 
 export function containsCredential(output: unknown, env: AppEnv): boolean {

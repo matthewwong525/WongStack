@@ -8,17 +8,17 @@ user-invocable: true
 
 Start [the change loop](../../../wiki/development/the-change-loop.md): compare options and settle scope before `/plan`. Find related work with `openspec list --json` and `openspec context --json` ([CLI contract](../plan/references/openspec-cli.md#select-one-root)); read their pointers.
 
-**Change no repo file** ([limits](../../../wiki/development/the-change-loop.md#what-each-step-may-change)); [`/plan`](../plan/SKILL.md) logs answers. Explore precedes planning except [review-page notes](../plan/SKILL.md#review-notes); use [bounded mode](#when-plan-invokes-explore) under `/plan`.
+**Change no repo file** ([limits](../../../wiki/development/the-change-loop.md#what-each-step-may-change)); [`/plan`](../plan/SKILL.md) logs answers. Explore precedes planning except [review-page notes](../plan/SKILL.md#review-notes); use [bounded mode](#when-plan-invokes-explore) under `/plan`. Standalone, run `node .claude/skills/explore/scripts/step-title.mjs set EXPLORE --typed`.
 
 ## Investigate the relevant flow
 
-Read owning docs and source; trace trigger, result, and constraints. For non-code, read the process and authoritative sources. Discover facts; separate observations from inferences. Run proportional, authorized checks: tests, scripts, builds; new code only in `.scratch/`. Report results before any plan; nothing outward. Name unavailable evidence and a later check.
+Read owning docs and source; trace trigger, result, and constraints. For non-code, read the process and authoritative sources. Separate observations from inferences. Run proportional, authorized checks: tests, scripts, builds; new code only in `.scratch/`. Report results before any plan; nothing outward. Name unavailable evidence and a later check.
 
 For consequential choices, compare viable approaches, outcomes, costs; recommend with evidence. Before handoff, check material assumptions and failures against the flow; revise contradictions.
 
 ## Questions during standalone exploration
 
-Ask [the shared way](references/asking-the-user.md): two or three related ready choices, one if alone, within tool capacity. Track decisions and prerequisites in chat. Investigate a missing fact yourself; never ask the person to guess it. Hold only dependent choices and ask independent ones as the host permits.
+Ask [the shared way](references/asking-the-user.md): two or three related ready choices, one if alone, within tool capacity. Track decisions and prerequisites in chat. Investigate a missing fact yourself; never ask the person to guess it.
 
 Update dependencies after answers or evidence. Explain changed premises; reopen only affected decisions. Keep findings in chat, [drawn](../plan/references/drawings.md) as `text` when useful: chat shows no picture.
 
@@ -26,7 +26,7 @@ Update dependencies after answers or evidence. Explain changed premises; reopen 
 
 ## Search memory before asking
 
-Before asking, recall the task and look up likely paths once, then read the originals it cites:
+Before asking, recall the task and its likely paths once; read the originals cited:
 
 ```bash
 node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" recall <question>
@@ -57,7 +57,7 @@ Resolve remaining material choices [the shared way](references/asking-the-user.m
 - **Separate parts?** Ask about a new workspace for each ([how](../plan/references/new-workspace.md#ask-once)).
 - **Answers open another choice?** Follow up; stop once none remains.
 - A settled choice stays settled, nested calls included.
-- Keep an unanswered material preference open: called an assumption or an evidence gap, it hides a choice the person never made. Preserve authorized defaults and [the fallback when nobody can answer](references/asking-the-user.md#which-tool-carries-it).
+- Keep an unanswered material preference open, never called an assumption or evidence gap. Keep authorized defaults and [the fallback when nobody can answer](references/asking-the-user.md#which-tool-carries-it).
 
 Summarize outcome, approach, reasons over a serious alternative, minor assumptions, and evidence limits.
 

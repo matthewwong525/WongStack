@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { localDay, mondayOf, slotOf } from './config.mjs';
 
-/** The watch sources that are the person's own chats: opened, handed to the watch, or opened by the Daily chat. */
-export const TODO_SOURCES = ['own', 'handed', 'asked'];
+/** The watch sources that are the person's own chats: opened, or handed to the watch. */
+export const TODO_SOURCES = ['own', 'handed'];
 const END = 9999;
 const TITLE_CHARS = 200;
 const BRANCH_MS = 10 * 60e3;
@@ -82,7 +82,9 @@ export async function keepTodos({ stateDir, rows, list, started, board, timezone
     }
     const entry = kept[agentId];
     if (entry.state !== 'open' && now - Date.parse(entry.endedAt ?? entry.at) > KEEP_MS) { delete kept[agentId]; save(); }
-    else if (entry.state === 'done-open') update(agentId, await closeDone({ agentId, entry, agent, weekOf, send, typedAt, line, never: never.has(agentId) || skip.has(agentId), now }));
+    else if (entry.state === 'done-open') {
+      update(agentId, await closeDone({ agentId, entry, agent, weekOf, send, typedAt, line, never: never.has(agentId) || skip.has(agentId), now }));
+    }
   }
 }
 
@@ -127,7 +129,8 @@ const doneOpen = now => ({ state: 'done-open', closeAsked: null, closeTries: 0, 
 // never-closed chat ends `done`; 3 failed sends give `Not closed: <title>`.
 async function closeDone({ agentId, entry, agent, weekOf, send, typedAt, line, never, now }) {
   if (!live(agent) || never) return { state: 'done' };
-  if (entry.closeAsked || !send || working(agent)) return null;
+  if (entry.closeAsked) return null;
+  if (!send || working(agent)) return null;
   const typed = Date.parse(typedAt(agentId) ?? 0) || 0;
   if (now - typed < QUIET_MS) return null;
   const tasks = await weekOf(mondayOf(entry.day));

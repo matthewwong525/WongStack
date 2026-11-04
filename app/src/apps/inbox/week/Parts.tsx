@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { ArchiveIcon, ArrowRightIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, TargetIcon } from 'lucide-react'
+import { useNavigate } from 'react-router'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -57,6 +58,19 @@ export function NoticeLine({ notice, onClose }: { notice: Notice; onClose: () =>
   </Alert>
 }
 
+/** The Inbox's views: the week board by day or by week, and the person's review pages. */
+export function ViewToggle({ view, onView }: { view: ScheduleView | 'reviews'; onView: (view: ScheduleView) => void }) {
+  const navigate = useNavigate()
+  return <ToggleGroup type="single" aria-label="Inbox view" value={view} onValueChange={value => {
+    if (value === 'reviews') void navigate('/apps/inbox/?view=reviews')
+    else if (value) onView(scheduleView(value))
+  }}>
+    <ToggleGroupItem className="min-h-11" value="day">Day</ToggleGroupItem>
+    <ToggleGroupItem className="min-h-11" value="week">Week</ToggleGroupItem>
+    <ToggleGroupItem className="min-h-11" value="reviews">Reviews</ToggleGroupItem>
+  </ToggleGroup>
+}
+
 export function PlanHeader({ view, day, week, searchQuery, setSearchQuery, changeSelection }: {
   view: ScheduleView
   day: string
@@ -68,10 +82,7 @@ export function PlanHeader({ view, day, week, searchQuery, setSearchQuery, chang
   return <>
     <div className="mb-5 flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <ToggleGroup type="single" aria-label="Task view" value={view} onValueChange={value => { if (value) changeSelection(day, scheduleView(value)) }}>
-          <ToggleGroupItem className="min-h-11" value="day">Day</ToggleGroupItem>
-          <ToggleGroupItem className="min-h-11" value="week">Week</ToggleGroupItem>
-        </ToggleGroup>
+        <ViewToggle view={view} onView={next => changeSelection(day, next)} />
         <Button variant="ghost" size="icon" className="size-11" aria-label="Search tasks" aria-pressed={searchQuery !== null}
           onClick={() => setSearchQuery(current => current === null ? '' : null)}><SearchIcon /></Button>
       </div>

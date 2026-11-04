@@ -12,6 +12,7 @@ const vars = environment => ({ WONG_ENVIRONMENT: environment, CF_ACCESS_TEAM_DOM
 const config = { account_id: account, name: 'demo', assets: { run_worker_first: true }, vars: vars('production'), env: { staging: { name: 'demo-staging', vars: vars('staging') } } };
 const git = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
 const memory = [{ behavior: 'public', path_pattern: '/_memory/*' }, git];
+const publicPages = { behavior: 'public', path_pattern: '/public/*' };
 const policies = token => [
   { id: `human-${token}`, decision: 'allow', include: [{ email: { email: 'owner@example.com' } }], exclude: [], require: [] },
   { id: `machine-${token}`, decision: 'non_identity', include: [{ service_token: { token_id: token } }], exclude: [], require: [] },
@@ -29,9 +30,9 @@ function resources() {
     '/workers/scripts/demo/secrets': [], '/workers/scripts/demo-staging/secrets': [],
     '/workers/scripts': [{ id: 'demo' }, { id: 'demo-staging' }],
     '/workers/subdomain': { subdomain: 'example' },
-    '/access/apps/app': app('app', 'aud', 'demo.example.workers.dev', productionId, memory, 'service'),
+    '/access/apps/app': app('app', 'aud', 'demo.example.workers.dev', productionId, [...memory, publicPages], 'service'),
     '/access/apps/app/policies': policies('service'),
-    '/access/apps/previews': app('previews', 'previews-aud', 'demo-staging.example.workers.dev', stagingId, [git], 'preview-service'),
+    '/access/apps/previews': app('previews', 'previews-aud', 'demo-staging.example.workers.dev', stagingId, [git, publicPages], 'preview-service'),
     '/access/apps/previews/policies': policies('preview-service'),
     '/access/apps': [{ id: 'app' }, { id: 'previews' }],
   });
@@ -47,6 +48,29 @@ test('read-only coverage validates actual Workers, reordered provider keys, exac
     const result = await checkPrivateAccess(config, environment, provider(resources()));
     assert.deepEqual([result.protection, result.warning], ['configured', undefined]);
   }
+});
+
+test('the live app also passes with the company knowledge exception, and previews never take it', async () => {
+  const knowledge = { behavior: 'public', path_pattern: '/api/access/knowledge/git/*' };
+  const data = resources();
+  for (const destination of data['/access/apps/app'].destinations) destination.overrides = [...memory, knowledge, publicPages];
+  assert.equal((await checkPrivateAccess(config, 'production', provider(data))).protection, 'configured');
+  for (const destination of data['/access/apps/previews'].destinations) destination.overrides = [git, knowledge, publicPages];
+  await assert.rejects(checkPrivateAccess(config, 'staging', provider(data)), /broader than this workspace/);
+});
+
+test('an app whose Access step ran before public knowledge pages still publishes, closed, and names the step', async () => {
+  const data = resources();
+  for (const destination of data['/access/apps/app'].destinations) destination.overrides = [...memory, { behavior: 'public', path_pattern: '/api/access/knowledge/git/*' }];
+  for (const destination of data['/access/apps/previews'].destinations) destination.overrides = [git];
+  for (const environment of ['production', 'staging']) {
+    const result = await checkPrivateAccess(config, environment, provider(data));
+    assert.equal(result.protection, 'configured');
+    assert.match(result.warning, /public knowledge pages still ask for the sign-in; run setup's Access step once \(wiki\/stack\/knowledge-reader\.md#public-pages\)/);
+  }
+  // Only the exact route opens: a wider one, or one on the wrong side, stops publication.
+  data['/access/apps/previews'].destinations[0].overrides = [git, { behavior: 'public', path_pattern: '/*' }];
+  await assert.rejects(checkPrivateAccess(config, 'staging', provider(data)), /broader than this workspace/);
 });
 
 test('missing coverage, broad exceptions, policies, precedence and secret overrides stop publication', async () => {

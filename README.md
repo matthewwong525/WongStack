@@ -28,7 +28,7 @@ All three build up as you work, so the next task, and the next teammate, starts 
 You end with a working assistant, a starter site online, and memory that carries between chats.
 
 - **Make it yours.** Open the site and paste its *Make it yours* message.
-- **Your files** live in a free [GitHub](https://github.com/signup) account, or in Cloudflare on its paid plan (about $5 a month, Mac or Linux): [the two ways](wiki/stack/artifacts-route.md).
+- **Your files** live in a [GitHub](https://github.com/signup) account, or in Cloudflare alone on Mac or Linux. Both ways need Cloudflare's paid plan, about $5 a month: [the two ways](wiki/stack/artifacts-route.md).
 - **Any folder works.** If yours already has files, setup makes a `wongstack` folder in your home folder.
 - **More:** [Getting started](wiki/stack/getting-started.md) covers costs, what you do by hand, and fixes when something goes wrong.
 
@@ -50,9 +50,9 @@ I use [Claude Code](https://code.claude.com/docs/en/setup) in the free [Paseo](h
 ## Requirements
 
 - **An assistant on a plan of your own**, such as Claude or ChatGPT.
-- **A [Cloudflare](https://cloudflare.com) account.** The one token you make stays on your computer; [`SECURITY.md`](SECURITY.md) says what each token can do.
-- **A free [GitHub](https://github.com/signup) account, for the free way to install**, on Mac, Windows, or Linux. [Start in three steps](#start-in-three-steps) says what the other way costs.
-- **A few free tools.** Setup asks, then installs what is missing: `git`, [Node.js](https://nodejs.org/) 22, [OpenSpec](https://github.com/Fission-AI/OpenSpec), and, for the free way, GitHub's tool [`gh`](https://cli.github.com/). [Required tools](wiki/development/required-tools.md) says why each is needed, and what [Windows](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder) adds.
+- **A [Cloudflare](https://cloudflare.com) account on its paid plan**, about $5 a month, for every install. The one token you make stays on your computer; [`SECURITY.md`](SECURITY.md) says what each token can do.
+- **A [GitHub](https://github.com/signup) account, for the way with GitHub**, on Mac, Windows, or Linux. [Start in three steps](#start-in-three-steps) says what the other way needs.
+- **A few free tools.** Setup asks, then installs what is missing: `git`, [Node.js](https://nodejs.org/) 22, [OpenSpec](https://github.com/Fission-AI/OpenSpec), and, when you choose GitHub, GitHub's tool [`gh`](https://cli.github.com/). [Required tools](wiki/development/required-tools.md) says why each is needed, and what [Windows](wiki/development/required-tools.md#symbolic-links-in-the-agent-folder) adds.
 
 ## Learn more
 

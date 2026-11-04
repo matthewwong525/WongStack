@@ -3,14 +3,17 @@ import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { knowledgeCopy } from '../knowledge-copy.mjs';
 
 export const COLLECTIONS = {
   wiki: 'Current reusable team guidance; read the original before acting.',
+  knowledge: 'Company knowledge: the business, its customers and how the team works; read the original before acting.',
   specs: 'Recorded shipped requirements; compare with current guidance and code.',
   active: 'Proposed work, not necessarily shipped or authoritative.',
   archive: 'Historical decisions and rationale, possibly superseded.',
 };
-export const SCOPES = { current: ['wiki', 'specs'], history: ['wiki', 'specs', 'archive'], active: ['wiki', 'specs', 'active'], all: Object.keys(COLLECTIONS) };
+export const SCOPES = { current: ['wiki', 'knowledge', 'specs'], history: ['wiki', 'knowledge', 'specs', 'archive'], active: ['wiki', 'knowledge', 'specs', 'active'], all: Object.keys(COLLECTIONS) };
+const CURRENT = ['wiki', 'knowledge', 'specs'];
 export const hashText = text => createHash('sha256').update(text).digest('hex');
 export const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -18,6 +21,7 @@ export function sourceRole(path) {
   if (/(?:^|\/)(?:logs?|transcripts?|evidence|cache|\.cache)(?:[./-]|$)/i.test(path)
     || /(?:^|\/)(?:review|evidence|log|transcript)(?:[.-][^/]*)?\.md$/i.test(path)) return null;
   if (/^wiki\/(?!people(?:\/|$))[^\\]*\.md$/.test(path)) return 'wiki';
+  if (/^knowledge\/(?!people(?:\/|$))[^\\]*(?<!\.mine)\.md$/.test(path)) return 'knowledge';
   if (/^openspec\/specs\/[^\\]*\.md$/.test(path)) return 'specs';
   const match = path.match(/^openspec\/changes\/(archive\/)?([a-z0-9-]+)\/(proposal\.md|design\.md|tasks\.md|specs\/[^\\]+\/spec\.md)$/);
   return match ? match[1] ? 'archive' : 'active' : null;
@@ -27,13 +31,15 @@ export function sourceChange(path) {
   return slug?.replace(/^\d{4}-\d{2}-\d{2}-/, '') || null;
 }
 
-export function safeSource(root, path) {
+// A knowledge page is read inside the copy's real folder, which `knowledge/` links to: no other link is followed.
+export function safeSource(root, path, copy = path?.startsWith('knowledge/') ? knowledgeCopy(root) : null) {
   if (!path || isAbsolute(path) || path.includes('\\') || path.split('/').some(part => !part || part === '.' || part === '..')) return null;
-  if (!sourceRole(path)) return null;
+  const role = sourceRole(path);
+  if (!role || (role === 'knowledge' && !copy)) return null;
   try {
-    const base = realpathSync(root);
+    const base = role === 'knowledge' ? copy : realpathSync(root);
     let file = base;
-    for (const part of path.split('/')) {
+    for (const part of role === 'knowledge' ? path.split('/').slice(1) : path.split('/')) {
       file = join(file, part);
       if (lstatSync(file).isSymbolicLink()) return null;
     }
@@ -44,14 +50,16 @@ export function safeSource(root, path) {
 }
 
 export function scanCorpus(ctx, { listFiles, deadline = Date.now() + 4000, maxBytes = 32 * 1024 * 1024, maxFileBytes = 2 * 1024 * 1024 } = {}) {
-  const root = realpathSync(ctx.root);
-  const paths = listFiles ? listFiles(root) : execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', 'wiki', 'openspec'],
-    { cwd: root, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024, timeout: 3000, windowsHide: true }).split('\0');
+  const root = realpathSync(ctx.root), copy = knowledgeCopy(root);
+  const listed = (cwd, args) => execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', ...args],
+    { cwd, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024, timeout: 3000, windowsHide: true }).split('\0');
+  const paths = listFiles ? listFiles(root) : [...listed(root, ['--', 'wiki', 'openspec']),
+    ...(copy ? listed(copy, []).filter(Boolean).map(path => `knowledge/${path}`) : [])];
   const entries = {};
   let bytes = 0, omitted = 0;
-  const priority = { wiki: 0, specs: 1, active: 2, archive: 3 };
-  for (const path of [...new Set(paths)].sort((a, b) => (priority[sourceRole(a)] ?? 4) - (priority[sourceRole(b)] ?? 4) || a.localeCompare(b))) {
-    const role = sourceRole(path), file = role && safeSource(root, path);
+  const priority = { wiki: 0, knowledge: 1, specs: 2, active: 3, archive: 4 };
+  for (const path of [...new Set(paths)].sort((a, b) => (priority[sourceRole(a)] ?? 5) - (priority[sourceRole(b)] ?? 5) || a.localeCompare(b))) {
+    const role = sourceRole(path), file = role && safeSource(root, path, copy);
     if (!file) continue;
     try {
       const size = statSync(file).size;
@@ -66,7 +74,7 @@ export function scanCorpus(ctx, { listFiles, deadline = Date.now() + 4000, maxBy
 
 export function scopedEntries(corpus, { scope = 'current', change } = {}) {
   return Object.values(corpus.entries).filter(entry => SCOPES[scope]?.includes(entry.role)
-    && (!change || ['wiki', 'specs'].includes(entry.role) || sourceChange(entry.path) === change));
+    && (!change || CURRENT.includes(entry.role) || sourceChange(entry.path) === change));
 }
 
 // Final validation reopens originals: an index hit is only a candidate.

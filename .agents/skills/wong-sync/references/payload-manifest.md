@@ -25,7 +25,7 @@ On Windows, link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`,
 
 [Catch-up](catch-up.md) moves pre-19.0.0 real agent folders and reversed `AGENTS.md` links, plus other missed migrations.
 
-`components.skills` preserves local skill names. Explore dependencies beyond the copying inventory. Never copy target-owned notes, app code, business docs or OpenSpec records; seed no knowledge sections, including `wiki/people/`.
+`components.skills` preserves local skill names. Explore dependencies beyond the copying inventory. Never copy target-owned notes, app code, business docs, `knowledge/` or OpenSpec records; seed no knowledge sections, including `wiki/people/`.
 
 Setup also copies the source's values-blank `.env.example`. It is not in `payload-files.json`, so a sync never updates it.
 
@@ -41,9 +41,9 @@ Compare Git blobs, limiting `CLAUDE.md` to the marked block. Upstream units are 
 
 Pre-inventory installs use an empty baseline: all units are `added`. Missing `HEAD` inventory is an error.
 
-Two additional fields retain `schemaVersion: 1` compatibility:
+Two more fields keep `schemaVersion: 1`:
 
-- `catchUp: { needed, reasons }` derives code/path reasons from layout/record (plus `deploy.yml`): `agent-folder`, `codex-folder`, `rules-file`, `rules-file-reversed`, `wiki-elsewhere`, `opted-out`, `generated-openspec`, `deploy-token`, `deploy-key-name`, `mini-apps-folder`, `no-baseline`. Any reason or version below 19.0.0 means needed; [catch-up](catch-up.md) owns the moves.
+- `catchUp: { needed, reasons }` derives code/path reasons from layout, record, `deploy.yml` and own wiki pages. Any reason or version below 19.0.0 means needed; [catch-up](catch-up.md) owns each code's move.
 - `updating` lists newer changelog entries newest-first as `{ version, title, note }`; note is Updating/Moving-an-existing-install text or null. Unreadable changelog/version sets `updatingComplete: false`, without error.
 
 Reports expose paths/classes/counts only. Invalid/non-ancestor commits, invalid inventory, unsafe paths, missing markers, read/Git failures or oversized changes return `status: error`; [`wong-sync`](../SKILL.md) handles them.
@@ -68,7 +68,7 @@ Every sync reads this source page. Add these report instructions to its explore/
 
 ## The memory store and its hooks
 
-**memory** ships scripts/migrations/Worker route/[writing bar](../../memory/references/writing-facts.md). [Retrieval](../../../../wiki/development/document-retrieval.md) ships fallback and pinned setup metadata, never caches. Merge hooks into target settings/hooks, never replace; Codex asks once to trust them. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require an admin `memory.mjs migrate` after merge/deploy. Machine ownership also needs trusted replacement credentials; old private history stays unassigned. [Memory](../../../../wiki/development/memory.md) owns other details.
+**memory** ships scripts/migrations/Worker route/[writing bar](../../memory/references/writing-facts.md). [Retrieval](../../../../wiki/development/document-retrieval.md) ships fallback and pinned setup metadata, never caches. Merge hooks into target settings/hooks, never replace; Codex asks once to trust them. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require an admin `memory.mjs migrate` after merge/deploy. Machine ownership needs trusted replacement credentials; old private history stays unassigned. [Memory](../../../../wiki/development/memory.md) owns other details.
 
 ## The Paseo project file
 
@@ -86,7 +86,7 @@ React/Vite Worker starter with tests/package manifest. `app/worker/index.ts` rou
 
 The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide removal, explained and previewed. Update Tutorial and its test only while Home (older flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise preserve its removal. `/apps/` redirects home; compile the app list from `app/src/apps/`. Tests run root/one-folder-down `npm test`, passing when none exists. Copy no root package manifest. Plan each older screen's move onto shared UI parts.
 
-[Mini apps](../../../../wiki/stack/mini-apps.md): hello/access/inbox ship; scaffold exclusions omit source-only apps. Preserve target apps/routes/branding/welcome removal/independent memory. Access bootstrap/migrations ship explicitly; repository access stays manual. Merge target key entries; never replace a populated `app/worker/keys.ts`.
+[Mini apps](../../../../wiki/stack/mini-apps.md): hello/access/inbox/knowledge ship; scaffold exclusions omit source-only apps. Preserve target apps/routes/branding/welcome removal/independent memory. Access bootstrap/migrations ship explicitly; repo access stays manual. Merge target key entries; never replace populated `app/worker/keys.ts`.
 
 ## Scheduled-work records
 

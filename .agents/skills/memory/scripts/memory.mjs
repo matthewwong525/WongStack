@@ -10,16 +10,16 @@ import { createHash } from 'node:crypto';
 import { extractMemory } from './lib/extract.mjs';
 import { issueTask, scopeOf, taskIdentity } from './lib/extract-ledger.mjs';
 import { consolidationDue, consolidationState, DIFFERED, digestPlan, FACT_COLUMNS, formatFact, loadDigest, personalFilter, VERB_TAGS } from './lib/digest.mjs';
-import { areaDocs, changePaths, loadAreas, pastChanges, pathAreas, withAreaTags } from './lib/areas.mjs';
+import { areaDocs, changePaths, loadAreas, normalizePath, pastChanges, pathAreas, withAreaTags } from './lib/areas.mjs';
 import { ftsQuery, readFacts, stateOf, tagClause } from './lib/read-facts.mjs';
 import { BRIEF_DEFAULT_LIMIT, BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './lib/brief.mjs';
 export { ftsQuery, tagClause } from './lib/read-facts.mjs';
-import { backlinks } from './lib/links.mjs';
+import { backlinks, readMoves } from './lib/links.mjs';
 import { codeUsers } from './lib/callers.mjs';
 import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
 import { MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
-import { isMain, loadConfig, loadEnv, memoryOrigin, openStore, signIn, readJson, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
+import { isMain, loadConfig, loadEnv, memoryOrigin, openStore, signIn, readJson, CONSOLIDATED, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
 import { FormatError, inside, parseTranscriptText, pending, pruneRegistry, readRegistry, recentTranscripts, sessionFile, strip } from './lib/transcripts.mjs';
 import { ADMIN_WRITES, FTS_HITS, supersedeSql, WRITES } from '../worker/statements.mjs';
 import { MAX_TRANSCRIPT_BYTES } from '../worker/memory-worker.mjs';
@@ -434,6 +434,11 @@ async function areas(ctx, { values, positionals }) {
   const tags = [...found.keys()];
   const docs = areaDocs(tags, list, ctx.root);
   const past = pastChanges(ctx.root, [...paths, ...named], tags, list, { skip: values.change });
+  // An old path from a fact or an archive finds the page it names in the knowledge repo.
+  const moved = readMoves(ctx.root)?.moves ?? {};
+  for (const path of paths.map(path => normalizePath(path, ctx.root)).filter(path => moved[path])) {
+    console.log(`${path} moved to the knowledge repo: ${moved[path]}`);
+  }
   console.log(found.size ? `Areas: ${[...found].map(([tag, path]) => `${tag} (${path})`).join(', ')}` : 'No mapped area for these paths.');
   if (docs.length) console.log(`Docs: ${docs.join(', ')}`);
   const folders = [...new Set(tags.flatMap(tag => (list[tag]?.paths || []).filter(prefix => prefix.endsWith('/'))))];
@@ -742,7 +747,16 @@ async function finishRun(ctx, { values, tally: tallyFile }) {
   ]);
   plan.finish(results);
   pruneRegistry(ctx);
+  if (values.kind === 'consolidation' && status === 'ok') markConsolidated(ctx);
   console.log(`recorded ${values.kind} run: ${status}`);
+}
+
+// The wiki tidy's start signal; its `claimed` stays. A failed write only delays the tidy to the next consolidation.
+function markConsolidated(ctx) {
+  try {
+    const file = statePath(ctx, CONSOLIDATED);
+    writeJson(file, { ...readJson(file, {}), at: now() });
+  } catch { /* the run stays recorded */ }
 }
 
 async function due(ctx) {

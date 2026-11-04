@@ -49,13 +49,19 @@ function validateCheck(check, seen) {
   seen.add(check.id);
 }
 
+const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
+/** When the worker starts the day's routines and morning add-ons, local time. */
+export const MORNING = '08:00';
+export const morningOf = config => config.morning ?? MORNING;
+
 /** The AI tools a background run may use, from the settings' `runs.agent`; the first is the default. */
 export const RUN_AGENTS = ['claude', 'codex'];
 const checksOk = checks => Array.isArray(checks) && checks.length <= 50;
 
 /** A person's settings, checked; it throws a SettingsError naming the first problem. */
 export function validateConfig(config) {
-  const allowed = ['version', 'person', 'emails', 'timezone', 'profile', 'context', 'guide', 'sources', 'places', 'checks', 'addons', 'sweeps', 'runs'];
+  const allowed = ['version', 'person', 'emails', 'timezone', 'profile', 'context', 'guide', 'sources', 'places', 'checks', 'addons', 'sweeps', 'runs',
+    'morning'];
   if (!keys(config, allowed) || config.version !== 1) fail('version 1 and known fields only');
   if (typeof config.person !== 'string' || !idPattern.test(config.person) || config.person === 'team') fail('person');
   if (!Array.isArray(config.emails) || !config.emails.length || config.emails.length > 20 || !config.emails.every(each => EMAIL.test(each))) fail('emails');
@@ -69,6 +75,7 @@ export function validateConfig(config) {
     fail('addons');
   }
   if (config.sweeps !== undefined && !(safePath(config.sweeps) && config.sweeps.endsWith('.json'))) fail('sweeps');
+  if (config.morning !== undefined && !(typeof config.morning === 'string' && CLOCK.test(config.morning))) fail('morning, as "HH:MM"');
   if (config.runs !== undefined && !(keys(config.runs, ['agent']) && RUN_AGENTS.includes(config.runs.agent ?? 'claude'))) fail('runs');
   if (!checksOk(config.checks)) fail('checks');
   const seen = new Set();
@@ -116,6 +123,14 @@ export function loadSettings(file, repo) {
   const own = new Set(config.checks.map(check => check.id));
   const shared = (team?.checks ?? []).filter(check => !own.has(check.id)).map(check => ({ ...check, team: true }));
   return { ...config, checks: [...shared, ...config.checks], teamFile: team ? teamFile : null };
+}
+
+/** Settings for a person with no file: check-ins only, as the email's local part, in this computer's time zone. */
+export function defaultSettings({ email, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone }) {
+  const id = String(email).split('@')[0].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 72) || 'me';
+  const person = id === 'team' ? 'team-member' : id;
+  return { ...validateConfig({ version: 1, person, emails: [email], timezone, sources: { tasks: false, chats: true }, places: {}, checks: [] }),
+    teamFile: null };
 }
 
 export const placePath = (config, name, project) => {

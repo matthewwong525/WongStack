@@ -1,44 +1,10 @@
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { expect, it, vi } from "vitest";
 import type { AccessIdentity } from "../../access";
 import { handleApp } from "../index";
-import { body } from "../../../tests/body";
+import { body, type Loose } from "../../../tests/body";
 import { fakeEnv } from "../../../tests/env";
-import { database, seeded, site } from "../../../tests/employee-access/connections";
-
-const START = Date.UTC(2026, 9, 22, 9, 0);
-const person = (email: string): AccessIdentity => ({ kind: "user", id: email, claims: { email, sub: `${email}-subject`,
-  iss: "https://business.cloudflareaccess.com", aud: "business-app", exp: 9999999999 } });
-const sam = person("sam@example.com");
-const jo = person("jo@example.com");
-const machine: AccessIdentity = { kind: "service", id: "checker.access", claims: { common_name: "checker.access",
-  iss: "https://business.cloudflareaccess.com", aud: "business-app", exp: 9999999999 } };
-
-let db: ReturnType<typeof database>;
-beforeEach(() => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(START);
-  db = database();
-});
-afterEach(() => vi.useRealTimers());
-
-async function call(who: AccessIdentity | null, method: string, route: string, input?: Record<string, unknown>) {
-  const query = method === "GET" && input ? `?${new URLSearchParams(input as Record<string, string>)}` : "";
-  const sends = method !== "GET" && input !== undefined;
-  const response = await handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}${query}`, {
-    method, ...(sends && { headers: { "content-type": "application/json" }, body: JSON.stringify(input) }) }), fakeEnv({ DB: db.DB }), who);
-  return { status: response.status, json: await body(response) };
-}
-
-const PLAN = "a".repeat(32);
-const APPROVAL = "b".repeat(32);
-const plan = { id: PLAN, kind: "plan", title: "One inbox", workspace: "lousy-dingo", body: "<p>The plan</p>", actions: ["build", "publish"],
-  version: "v1", closesAt: START + 24 * 3_600_000 };
-const approval = { ...plan, id: APPROVAL, kind: "approval", title: "Send the kit quote to Kim", workspace: "email",
-  body: JSON.stringify({ text: "It wants to send one message." }), actions: ["approve", "decline"], version: "q1" };
-const put = (who: AccessIdentity, item: Record<string, unknown>) => call(who, "PUT", "item", item);
-const tap = (who: AccessIdentity, input: Record<string, unknown>) => call(who, "POST", "tap", { item: PLAN, version: "v1", ...input });
-const checkin = async (who = sam, items = [PLAN, APPROVAL]) => (await call(who, "POST", "checkin", { items })).json.taps;
-const later = (ms: number) => vi.setSystemTime(Date.now() + ms);
+import { seeded, site } from "../../../tests/employee-access/connections";
+import { START, person, sam, jo, machine, db, call, PLAN, APPROVAL, plan, approval, put, tap, checkin, later } from "../../../tests/inbox";
 
 it("lists only the signed-in person's items, and never lets another read or tap one", async () => {
   expect(await put(sam, plan)).toEqual({ status: 200, json: { id: PLAN, version: "v1" } });
@@ -113,9 +79,10 @@ it("refuses a service token and an open workspace, which name no person", async 
   }
 });
 
-it("refuses a body over 512 KB, text over 20,000 characters, and an approval with no words", async () => {
-  expect((await put(sam, { ...plan, body: "x".repeat(512 * 1024) })).status).toBe(200);
-  expect(await put(sam, { ...plan, body: "x".repeat(512 * 1024 + 1) })).toMatchObject({ status: 413, json: { error: { code: "too_large" } } });
+it("refuses a body over 1.6 MB, text over 20,000 characters, and an approval with no words", async () => {
+  const most = Math.round(1.6 * 1024 * 1024);
+  expect((await put(sam, { ...plan, body: "x".repeat(most) })).status).toBe(200);
+  expect(await put(sam, { ...plan, body: "x".repeat(most + 1) })).toMatchObject({ status: 413, json: { error: { code: "too_large" } } });
   expect((await tap(sam, { action: "send", text: "n".repeat(20_000) })).status).toBe(200);
   expect(await tap(sam, { action: "send", text: "n".repeat(20_001) })).toMatchObject({ status: 400, json: { error: { code: "invalid_input" } } });
   for (const bad of ["not json", JSON.stringify({ options: ["A"] })]) {
@@ -144,7 +111,7 @@ it("re-uploading replaces the body and the version, and reopens a closed item wi
   await put(sam, plan);
   const old = (await tap(sam, { action: "build" })).json.tap;
   await call(sam, "POST", "item-close", { id: PLAN });
-  expect(await call(sam, "GET", "item", { id: PLAN })).toMatchObject({ status: 410, json: { error: { code: "closed" } } });
+  expect((await call(sam, "GET", "item", { id: PLAN })).json.item.archived).toEqual({ endedAt: START, answers: [] });
   expect((await tap(sam, { action: "publish" })).status).toBe(410);
   await put(sam, { ...plan, body: "<p>Rebuilt</p>", version: "v2" });
   const opened = (await call(sam, "GET", "item", { id: PLAN })).json.item;
@@ -194,7 +161,7 @@ it("hands each tap out once and claims it, so a late cancel can't undo what was 
   // A result for a tap nobody collected changes nothing.
   expect((await call(sam, "POST", "tap-result", { id: unclaimed.id, state: "sent" })).json.tap.state).toBe("waiting");
   // A check-in collects only the taps on the items it names.
-  expect(await checkin(sam, [PLAN])).toEqual([{ id: first.id, item: PLAN, action: "build", text: "", version: "v1" }]);
+  expect(await checkin(sam, [PLAN])).toEqual([{ id: first.id, item: PLAN, action: "build", text: "", version: "v1", files: [] }]);
   expect(await checkin(sam, [PLAN])).toEqual([]);
   expect((await call(sam, "GET", "tap", { id: first.id })).json.tap.state).toBe("delivering");
   expect(await call(sam, "POST", "tap-cancel", { id: first.id })).toMatchObject({ status: 409, json: { error: { code: "not_waiting" } } });
@@ -262,17 +229,114 @@ it("says the computer is online for a minute after its last check-in", async () 
   expect(await online()).toBe(false);
 });
 
-it("keys rows on the installation once Access has one, and removes items closed a day ago at a check-in", async () => {
+const DAY = 24 * 3_600_000;
+const kept = () => db.sql.prepare("SELECT kind, body, (SELECT COUNT(*) FROM inbox_taps t WHERE t.item_id = i.id) AS taps FROM inbox_items i ORDER BY kind").all();
+
+it("keys rows on the installation once Access has one; a day after closing, a review page stays with its taps and an approval goes", async () => {
   db.sql.prepare(`INSERT INTO wong_access_installation (slot, installation_id, origin, account_id, worker_id, access_app_id,
     access_policy_id, issuer, audience, owner_subject, owner_email, repository_id, repository_name, policy_enabled, activated_at)
     VALUES (1, ?, ?, '', 'w', 'a', '', 'i', 'a', 's', ?, 1, '', 0, 'now')`).run(site.installationId, site.origin, site.ownerEmail);
   await put(sam, plan);
+  await put(sam, approval);
   await tap(sam, { action: "build" });
-  await call(sam, "POST", "item-close", { id: PLAN });
-  expect(db.sql.prepare("SELECT installation_id, body FROM inbox_items").all()).toEqual([{ installation_id: site.installationId, body: "" }]);
-  vi.setSystemTime(START + 24 * 3_600_000 + 1);
+  await tap(sam, { item: APPROVAL, version: "q1", action: "approve" });
+  for (const id of [PLAN, APPROVAL]) await call(sam, "POST", "item-close", { id });
+  expect(db.sql.prepare("SELECT DISTINCT installation_id FROM inbox_items").all()).toEqual([{ installation_id: site.installationId }]);
+  expect(kept()).toEqual([{ kind: "approval", body: "", taps: 1 }, { kind: "plan", body: "<p>The plan</p>", taps: 1 }]);
+  vi.setSystemTime(START + DAY + 1);
   await checkin();
-  expect(db.sql.prepare("SELECT (SELECT COUNT(*) FROM inbox_items) + (SELECT COUNT(*) FROM inbox_taps) AS count").get()).toEqual({ count: 0 });
+  expect(kept()).toEqual([{ kind: "plan", body: "<p>The plan</p>", taps: 1 }]);
+});
+
+it("removes a review page older code emptied a day after it closed, with its taps", async () => {
+  await put(sam, plan);
+  await tap(sam, { action: "build" });
+  // Code before review pages were kept emptied the body on close.
+  db.sql.prepare("UPDATE inbox_items SET closed_at = ?, body = ''").run(START);
+  vi.setSystemTime(START + DAY - 1);
+  await checkin();
+  expect(kept()).toEqual([{ kind: "plan", body: "", taps: 1 }]);
+  vi.setSystemTime(START + DAY + 1);
+  await checkin();
+  expect(kept()).toEqual([]);
+});
+
+const STATUS_PAGE = "9".repeat(32);
+const page = (n: number) => n.toString(16).padStart(32, "0");
+const titles = (rows: Loose) => rows.map(row => row.title);
+
+it("opens a closed review page read-only with each answer that reached the chat, and still takes no tap on it", async () => {
+  await put(sam, plan);
+  const notes = (await tap(sam, { action: "send", text: "Shorter, please" })).json.tap;
+  later(5000);
+  const build = (await tap(sam, { action: "build" })).json.tap;
+  await checkin();
+  later(1000);
+  await call(sam, "POST", "tap-result", { id: notes.id, state: "sent" });
+  later(1000);
+  await call(sam, "POST", "tap-result", { id: build.id, state: "failed" });
+  await call(sam, "POST", "item-close", { id: PLAN });
+  const opened = await call(sam, "GET", "item", { id: PLAN });
+  expect(opened.status).toBe(200);
+  expect(opened.json.item).toMatchObject({ body: "<p>The plan</p>",
+    archived: { endedAt: START + 7000, answers: [{ action: "send", text: "Shorter, please", at: START + 6000 }] } });
+  later(5000);
+  expect(await tap(sam, { action: "send", text: "More" })).toMatchObject({ status: 410, json: { error: { code: "closed" } } });
+  expect((await call(jo, "GET", "item", { id: PLAN })).status).toBe(404);
+  // A page whose time ran out opens the same way; an open one carries no archive.
+  await put(sam, { ...plan, id: STATUS_PAGE, closesAt: Date.now() + 1000 });
+  expect((await call(sam, "GET", "item", { id: STATUS_PAGE })).json.item.archived).toBeUndefined();
+  later(1000);
+  expect((await call(sam, "GET", "item", { id: STATUS_PAGE })).json.item.archived).toEqual({ endedAt: Date.now(), answers: [] });
+  // Any other closed item is gone.
+  await put(sam, approval);
+  await call(sam, "POST", "item-close", { id: APPROVAL });
+  expect(await call(sam, "GET", "item", { id: APPROVAL })).toMatchObject({ status: 410, json: { error: { code: "closed" } } });
+});
+
+it("lists the caller's review pages alone: waiting ones, then the Archive, newest first, by title words", async () => {
+  await put(sam, { ...plan, id: page(1), title: "Weekly profit summary" });
+  later(1000);
+  await put(sam, { ...plan, id: page(2), title: "Profit by channel" });
+  await tap(sam, { item: page(2), action: "build" });
+  const [sent] = await checkin(sam, [page(2)]);
+  await call(sam, "POST", "tap-result", { id: sent.id, state: "sent" });
+  await call(sam, "POST", "item-close", { id: page(2) });
+  later(1000);
+  await put(sam, { ...plan, id: page(3), title: "Stock check", closesAt: Date.now() + 1000 });
+  later(1000);
+  await put(sam, { ...plan, id: page(4), title: "100% off sale" });
+  await put(sam, { ...plan, id: page(5), title: "Hidden watch", hidden: true });
+  await put(sam, approval);
+  await put(jo, { ...plan, id: page(6), title: "Jo's profit plan" });
+  const listed = (await call(sam, "GET", "reviews")).json;
+  expect(titles(listed.waiting)).toEqual(["100% off sale", "Weekly profit summary"]);
+  expect(listed.waiting[0]).toEqual({ id: page(4), title: "100% off sale", workspace: "lousy-dingo", createdAt: START + 3000,
+    closesAt: plan.closesAt, endedAt: null, answered: false });
+  expect(listed.archived).toEqual([
+    { id: page(3), title: "Stock check", workspace: "lousy-dingo", createdAt: START + 2000, closesAt: START + 3000, endedAt: START + 3000, answered: false },
+    { id: page(2), title: "Profit by channel", workspace: "lousy-dingo", createdAt: START + 1000, closesAt: plan.closesAt, endedAt: START + 1000, answered: true },
+  ]);
+  expect(listed.more).toBe(false);
+  expect(titles((await call(sam, "GET", "reviews", { q: "PROFIT" })).json.waiting)).toEqual(["Weekly profit summary"]);
+  expect(titles((await call(sam, "GET", "reviews", { q: "profit channel" })).json.archived)).toEqual(["Profit by channel"]);
+  // A % is a character to find, not a wildcard.
+  expect(titles((await call(sam, "GET", "reviews", { q: "%" })).json.waiting)).toEqual(["100% off sale"]);
+  expect(titles((await call(jo, "GET", "reviews")).json.waiting)).toEqual(["Jo's profit plan"]);
+  expect((await call(machine, "GET", "reviews")).status).toBe(403);
+});
+
+it("reads the Archive 50 pages at a time, the next after the last one shown", async () => {
+  const row = db.sql.prepare(`INSERT INTO inbox_items (installation_id, email, id, kind, title, workspace, body, actions, version,
+    created_at, closes_at, closed_at) VALUES ('', 'sam@example.com', ?, 'plan', ?, 'desk', '<p>Page</p>', '[]', 'v1', ?, ?, ?)`);
+  // Two pages share a moment, so the id orders them.
+  for (let n = 1; n <= 52; n++) row.run(page(n), `Page ${n}`, START - (n === 52 ? 51 : n) * 1000, START, START - 1);
+  const first = (await call(sam, "GET", "reviews")).json;
+  expect([first.archived.length, first.more, first.archived[0].title, first.archived[49].title]).toEqual([50, true, "Page 1", "Page 50"]);
+  const last = first.archived[49];
+  const next = (await call(sam, "GET", "reviews", { before: `${last.createdAt}:${last.id}` })).json;
+  expect([titles(next.archived), next.more, next.waiting]).toEqual([["Page 52", "Page 51"], false, []]);
+  expect((await call(sam, "GET", "reviews", { before: "soon" })).status).toBe(400);
 });
 
 const START_CARD = "e".repeat(32);
@@ -308,7 +372,7 @@ it("queues a go tap with the person's note and answers, once per version, and on
   later(5000);
   expect(await tap(sam, { item: START_CARD, version: "s1", action: "go" })).toMatchObject({ status: 409, json: { error: { code: "done" } } });
   expect(await tap(sam, { item: START_CARD, version: "s1", action: "build" })).toMatchObject({ status: 400, json: { error: { code: "bad_action" } } });
-  expect(await checkin(sam, [START_CARD])).toEqual([{ id: go.json.tap.id, item: START_CARD, action: "go", text: "Note: keep it short\n\nWhich offer leads?\nGift card", version: "s1" }]);
+  expect(await checkin(sam, [START_CARD])).toEqual([{ id: go.json.tap.id, item: START_CARD, action: "go", text: "Note: keep it short\n\nWhich offer leads?\nGift card", version: "s1", files: [] }]);
 });
 
 it("keeps an agent's status, refuses a long step, an action or an unknown state, and takes no tap on it", async () => {
@@ -331,8 +395,22 @@ it("starts staging with a sample day in Fay's inbox, one agent per group, and a 
   const response = await handleApp(new Request("https://business.example.com/apps/inbox/api/items"), fakeEnv({ DB }), fay);
   const { items } = await body(response);
   expect(items.map(item => [item.workspace, item.kind, item.detail?.state]).sort()).toEqual([["bfcm-brief", "agent", "planning"],
-    ["bfcm-brief", "question", undefined], ["bfcm-brief", "start", "ready"], ["landing-check", "agent", "working"], ["ronald-files", "agent", "done"]]);
+    ["bfcm-brief", "question", undefined], ["bfcm-brief", "start", "ready"], ["bfcm-landing-page", "plan", undefined],
+    ["landing-check", "agent", "working"], ["ronald-files", "agent", "done"], ["weekly-profit-summary", "plan", undefined]]);
   const [{ detail }] = items.filter(item => String(item.kind) === "question");
   expect(String(detail.text).split("\n\n")).toHaveLength(2);
   expect(detail.options.map(option => String(option).length > 180)).toEqual([true, true]);
+});
+
+it("starts staging with Fay's review pages: two waiting, and an Archive answered with notes, with Build it, and not at all", async () => {
+  const { DB } = seeded().env;
+  const fay = person("fay@example.invalid");
+  const read = async (route: string) => body(await handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}`), fakeEnv({ DB }), fay));
+  const { waiting, archived } = await read("reviews");
+  expect(titles(waiting)).toEqual(["Weekly profit summary", "New BFCM landing page"]);
+  expect(archived.map(row => [row.title, row.answered])).toEqual([["Weekly profit summary", true], ["Stock check each Friday", true],
+    ["BFCM countdown banner", false]]);
+  const pages = await Promise.all(archived.map(row => read(`item?id=${row.id}`)));
+  expect(pages.map(({ item }) => [item.workspace, item.archived.answers.map(answer => answer.action), String(item.body).includes(`data-change="${item.workspace}"`)]))
+    .toEqual([["weekly-profit-summary", ["send"], true], ["stock-check-friday", ["build"], true], ["bfcm-landing-page", [], true]]);
 });

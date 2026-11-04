@@ -27,7 +27,14 @@ export function changedFiles(root) {
   const committed = git(root, ['diff', '--name-only', '--no-renames', base.stdout.trim(), 'HEAD']).stdout;
   const uncommitted = git(root, ['diff', '--name-only', '--no-renames', 'HEAD']).stdout;
   const untracked = git(root, ['ls-files', '--others', '--exclude-standard']).stdout;
-  return new Set([committed, uncommitted, untracked].flatMap(lines));
+  const files = new Set([committed, uncommitted, untracked].flatMap(lines));
+  return Object.assign(files, { base: base.stdout.trim(), pending: new Set([uncommitted, untracked].flatMap(lines)) });
+}
+
+/** The day this branch last edited `path`: its newest commit's date, or today while the edit is not committed. */
+export function editDay(root, changed, path) {
+  if (changed.pending?.has(path)) return new Date().toLocaleDateString('en-CA');
+  return git(root, ['log', '-1', '--format=%cs', `${changed.base}..HEAD`, '--', path]).stdout.trim();
 }
 
 /** What is wrong with the shape of one parsed attachment: its fields and its body. */
@@ -47,7 +54,7 @@ export function shapeProblems(attachment) {
 }
 
 /** Every failure line for the attachments under `root`, each naming the file and the fix. */
-export function checkAttachments(root, changed) {
+export function checkAttachments(root, changed, dayOf = path => editDay(root, changed, path)) {
   const dir = join(root, DIR);
   const files = existsSync(dir) ? readdirSync(dir).filter(name => name.endsWith('.md')).sort() : [];
   const failures = [];
@@ -58,7 +65,8 @@ export function checkAttachments(root, changed) {
     for (const source of attachment.sources ?? []) {
       if (!existsSync(join(root, source))) {
         failures.push(`${path}: source ${source} does not exist. Name the file it moved to, or remove it from \`sources:\`.`);
-      } else if (changed?.has(source) && !changed.has(path)) {
+      // Checked on the day of the edit already reads as looked at: a second change that day can not set a newer date.
+      } else if (changed?.has(source) && !changed.has(path) && attachment.checked !== dayOf(source)) {
         failures.push(`${path}: ${source} changed. Rewrite it by ${PAGE}, or set \`checked:\` to today if the fix is unchanged.`);
       }
     }

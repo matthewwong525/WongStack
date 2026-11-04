@@ -26,6 +26,10 @@ export function markdownFiles(root, dir = root) {
   return out.sort();
 }
 
+// A leading frontmatter block, matched as the reader matches it: app/worker/apps/knowledge/render.ts.
+const FRONT = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
+const blankFront = text => text.replace(FRONT, m => m.replace(/[^\r\n]/g, ' '));
+
 // Blank fenced code and code spans, keeping every newline: a command in backticks is not a link.
 const maskCode = text => text.replace(FENCE, m => m.replace(/[^\n]/g, ' ')).replace(/`[^`\n]*`/g, m => ' '.repeat(m.length));
 
@@ -81,7 +85,19 @@ export function backlinks(root, path) {
   return markdownFiles(root).filter(file => file !== want).flatMap(file => linksIn(root, file).filter(hits)).map(({ file, line }) => `${file}:${line}`);
 }
 
-export const wikiPages = root => markdownFiles(root, join(root, 'wiki'));
+/** The code repo's map from each page moved to the knowledge repo to its new place; it never shrinks. */
+export const MOVES_FILE = '.agents/knowledge-moves.json';
+/** `{ version, base, moves: { old: new }, copied }`, or null when this repo moved no pages. */
+export function readMoves(root) {
+  try {
+    const list = JSON.parse(readFileSync(join(root, MOVES_FILE), 'utf8'));
+    return list?.moves && typeof list.moves === 'object' ? list : null;
+  } catch { return null; }
+}
+
+// A `<page>.mine.md` is one side of a knowledge save's conflict, never a page of its own.
+const MINE = /\.mine\.md$/;
+export const wikiPages = (root, pagesRoot = 'wiki') => markdownFiles(root, join(root, pagesRoot)).filter(page => !MINE.test(page));
 
 // The most words a wiki page holds, counted as `scripts/measure-context.mjs` counts them: whitespace-separated,
 // across the whole file. A longer page is slow to read and costly to load.
@@ -96,14 +112,15 @@ const OPENERS = [
 const openerOf = line => OPENERS.find(([pattern]) => pattern.test(line))?.[1] ?? null;
 
 // A page's size and opening problems: over the word cap, no `# ` title first, more than one title, or no sentence
-// straight after the title saying what the page is. A `# ` line inside fenced code is not a title.
+// straight after the title saying what the page is. A `# ` line in fenced code or frontmatter is not a title.
 function pageProblems(root, page) {
   const raw = readFileSync(join(root, page), 'utf8');
   const problems = [];
   const words = countWords(raw);
   if (words > WIKI_PAGE_WORDS) problems.push(`${page}: ${words.toLocaleString('en-US')} words, over the ${WIKI_PAGE_WORDS.toLocaleString('en-US')}-word cap; split it by its sections into pages beside it`);
-  const lines = raw.split(/\r?\n/);
-  const masked = maskCode(raw).split(/\r?\n/);
+  const body = blankFront(raw);
+  const lines = body.split(/\r?\n/);
+  const masked = maskCode(body).split(/\r?\n/);
   const first = masked.findIndex(line => line.trim());
   const titles = masked.filter(line => line.startsWith('# ')).length;
   if (first < 0 || !/^# +\S/.test(lines[first])) problems.push(`${page}: has no # title on its first line`);
@@ -116,12 +133,16 @@ function pageProblems(root, page) {
   return problems;
 }
 
-// The wiki's problems, one line each: a dead link or missing heading, an orphan page, a hub (README.md) that skips
-// a page or subfolder beside it, and a page over the word cap or with a bad opening. No wiki/ has none.
-export function checkWiki(root) {
-  const pages = wikiPages(root);
-  const links = pages.flatMap(file => linksIn(root, file));
-  const problems = [];
+// The problems of `pagesRoot` (wiki or knowledge): dead links and headings, orphans, hub gaps, bad pages, and files
+// back at a moved page's old path. With no knowledge copy here (as in CI), links into it are skipped.
+export function checkWiki(root, pagesRoot = 'wiki') {
+  const pages = wikiPages(root, pagesRoot);
+  const moved = pagesRoot === 'knowledge' ? [] : Object.entries(readMoves(root)?.moves ?? {})
+    .filter(([old]) => existsSync(join(root, old)))
+    .map(([old, now]) => `${old}: moved to the knowledge repo as ${now}; edit it there, not here`);
+  const unseen = pagesRoot !== 'knowledge' && !existsSync(join(root, 'knowledge'));
+  const links = pages.flatMap(file => linksIn(root, file)).filter(({ rel }) => !(unseen && /^knowledge(\/|$)/.test(rel ?? '')));
+  const problems = [...moved];
   for (const { file, line, written, rel, readme, anchor } of links) {
     if (rel === null || !existsSync(join(root, rel))) problems.push(`${file}:${line}: links to ${written}, which does not exist`);
     else if (anchor) {
@@ -132,14 +153,14 @@ export function checkWiki(root) {
     }
   }
   const linked = new Set(links.flatMap(({ file, rel, readme }) => [rel, readme].filter(to => to && to !== file)));
-  for (const page of pages) if (page !== 'wiki/README.md' && !linked.has(page)) problems.push(`${page}: no other wiki page links to it`);
+  for (const page of pages) if (page !== `${pagesRoot}/README.md` && !linked.has(page)) problems.push(`${page}: no other wiki page links to it`);
   for (const hub of pages.filter(page => posix.basename(page) === 'README.md')) {
     const dir = posix.dirname(hub);
     const own = links.filter(link => link.file === hub).flatMap(({ rel, readme }) => [rel, readme]).filter(Boolean);
     for (const entry of readdirSync(join(root, dir)).sort()) {
       const child = `${dir}/${entry}`;
       const folder = isDir(join(root, child));
-      if (folder ? !pages.some(page => page.startsWith(`${child}/`)) : !entry.endsWith('.md') || entry === 'README.md') continue;
+      if (folder ? !pages.some(page => page.startsWith(`${child}/`)) : !entry.endsWith('.md') || entry === 'README.md' || MINE.test(entry)) continue;
       if (!own.some(to => to === child || (folder && to.startsWith(`${child}/`)))) problems.push(`${hub}: does not link ${entry}${folder ? '/' : ''}`);
     }
   }

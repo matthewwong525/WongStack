@@ -8,11 +8,132 @@
 - **The browser is Camoufox 158 and tells sites its true version.** The personal browser now runs the build that the official [Camoufox](https://github.com/daijro/camoufox) library pins, with a disguise made for that build. A site that checks the browser version, such as an online store's admin, sees the version that really runs, so it shows no "unsupported browser" page ([browsing](wiki/development/browsing.md)).
 - **Our own small browser server replaces camofox.** [`browser-server.mjs`](.agents/skills/browser/scripts/browser-server.mjs) drives the browser, with the same `browse.mjs` commands as before. Your skills and scripts need no change.
 - **Logins stay in a real profile folder, with one kept identity.** Site logins and site storage stay in `~/.wong-stack/camoufox/profile/`. The browser keeps one disguise from start to start, so sites see the same browser after a restart.
-- **Your logins move once, and Meta logins never move.** The first start copies the old browser's site logins one time. It never copies a Facebook, Messenger, Instagram or other Meta login, because Meta can lock an account when its login shows up in another browser. You sign in to those again yourself.
+- **Your logins move once, and Meta logins never move.** The first start copies the old browser's site logins one time. It never copies a Facebook, Messenger, Instagram or other Meta login, because Meta can lock an account when its login shows up in another browser. You sign in to those again yourself. A test never copies a Facebook or Messenger login to another browser or network, for the same reason ([browsing](wiki/development/browsing.md)).
 - **The install needs Python.** The first errand asks before it installs about 3 GB into your home folder. It needs Python 3.10 or newer with its `venv` part; with none, it says how to get it. On a Mac, the browser runs with no window ([installing Camoufox](wiki/development/required-tools.md#installing-camoufox)).
 - **The dependency update watches the new pin.** `/update-dependencies` checks for a newer Camoufox library and hands it to you. It never moves the pin itself.
 
 **Updating.** Before you update, stop the old browser: run `node .claude/skills/browser/scripts/browse.mjs stop`. After the update, the first browsing task asks to install the new browser, which needs Python 3.10 or newer. Your site logins move over once, except Meta's: sign in to Facebook, Messenger and Instagram again. When the new browser has your logins, you can delete the old folders `~/.wong-stack/camofox/` and `~/.cache/camoufox` to get the space back.
+
+## 47.0.0 — Your day runs without a Daily chat
+
+- **The morning starts by itself.** At `morning` in your settings file, 08:00 by default, the helper that runs in the background starts your due routines and morning add-ons, one time per day. You open no chat for it, and you get no morning list: your tasks are on your week in the Inbox ([the daily routine](wiki/development/daily.md#what-it-does)).
+- **Ask any chat.** *Remind me Friday to …*, *start the supplier list*, *watch flashy-crab*, *tell flashy-crab: yes, merge*, *stop check-ins* and changes to your daily settings work in any chat. `/daily` is no longer a command ([ask in any chat](wiki/development/daily.md#ask-in-any-chat)).
+- **What's going on, from any chat.** It tells what the background runs did since that chat last asked, and in Paseo it offers to close the finished chats you pick ([close finished chats](wiki/development/daily.md#close-finished-chats)).
+- **Everything goes to the journal.** A week board the helper can not read is now one journal line per day, not a message. Your messages no longer carry the journal's new lines.
+- **Stop check-ins also stops the morning.** *Start check-ins* turns both back on.
+
+**Updating.** If a timer on your computer runs `daily.mjs open-daily`, remove it: the helper now starts your morning by itself. To start it at another time, add `"morning": "HH:MM"` to your settings file. Close your old Daily chat when you like.
+
+## 46.3.1 — Pages marked public can be saved
+
+- **A page may start with its settings block.** A knowledge or wiki page can open with a short block between two `---` lines, such as `public: true`. The page check reads past that block and wants the title right after it, so a save of a public page goes through ([wiki style](wiki/wiki-style.md#every-page-stands-on-its-own)). Before, the save refused every page marked public.
+- **Moving older pages keeps the block.** A page that moves to the knowledge repo arrives with its settings block as it was.
+
+## 46.3.0 — Ship goes all the way
+
+- **Ship goes with its own best answer.** When a question comes up while `/ship` builds, saves, checks or publishes, and the recommended answer stays inside the work and can be undone, ship takes it and keeps going. It still stops before it uses a key, signs in, changes access, spends money, sends or posts, changes a business record or real data, deletes something outside the change, accepts terms or weakens a check, and when something still fails after two fixes or no answer is clearly best ([fix it or ask inside `/ship`](wiki/development/the-change-loop.md#inside-ship)). `/apply`, `/save` and `/verify` typed on their own still ask.
+- **You see every choice it made.** The ship report gets a *Choices I made* list, and the plan's Decision log keeps each one as an `Assumed` line. To change one, ask for one more small change.
+- **Other plans no longer stop a publish.** A plan that the main branch already has is left alone, with no question. A second plan that only this branch adds moves to its own saved branch: `ship.mjs prepare --move-others`.
+- **A failed check on the preview gets one fix first.** Ship fixes the problem once, saves, and checks again. It asks *fix more, or publish anyway?* only if the check still fails.
+- **An old test that breaks for its own reason gets one fix inside ship.** When a check fails in code the change never touched, ship fixes it once, if the fix keeps the check as strong. A plain `/save` still stops, as before.
+
+## 46.2.0 — A live reader for company knowledge
+
+- **A Knowledge app on Home.** It lists every company knowledge page by folder, and opens each one as the newest save has it. A save from any chat shows on the next open, with no publish. Links between pages open in the app, and diagrams draw as pictures ([the knowledge reader](wiki/stack/knowledge-reader.md)).
+- **Search by words.** The box on the list finds a page by its title or its text, and shows the line that matched.
+- **The Access page decides who reads it.** The owner has it from the start. A teammate gets it when you tick Knowledge for them or give it in a role. A skill can read pages with the person's own access, through company actions.
+- **Pages marked public open for anyone.** A page whose first lines say `public: true` opens at `/public/<page>` with no sign-in. Every other path there says *not found*, so a private page's name never leaks. A public page leaves out pictures and shows diagrams as text.
+- **Page content never runs code.** Raw HTML and unsafe links in a page show as text.
+
+**Updating.** On the Access page, tick Knowledge for the people who should read company pages. Then, once this update is live, run setup's Access step once, so pages marked public open with no sign-in. Not before: until then the publish check doesn't know the new route and refuses every publish ([public pages](wiki/stack/knowledge-reader.md#public-pages)). Until you do, each publish warns, and public pages stay behind the sign-in.
+
+## 46.1.0 — Show the step in the chat title
+
+- **Each chat's name starts with its step.** The five words are EXPLORE, PLAN, APPLY, SHIP and DONE, then the task: `APPLY: Fix the invoice total`. You see what each chat is doing without opening it ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **The name moves with the chat.** A new chat starts in PLAN, or EXPLORE when you ask it only to think. It moves to APPLY when you say build, SHIP when you say publish, and DONE when the work is live or a to-do is finished. A step inside another step does not move the name back.
+- **With or without Paseo.** In Paseo, the chat and its workspace change at once. In Codex, the list of past chats changes at once. In Claude Code alone, a step you type shows at once; a move the chat makes shows at your next message.
+- **Each step writes the whole name.** A name you typed by hand is replaced at the next step. The Daily chat, routines and helper chats keep their names.
+
+**Updating.** Nothing to do.
+
+## 46.0.0 — Your own pages move to the knowledge repo
+
+- **One update moves your pages, after one yes.** The update plan lists each of your own pages that moves from the code repo to the knowledge repo, by folder, with counts. Pages that WongStack ships stay in the code repo.
+- **Every link to a moved page is fixed.** Links in skills, rules, code comments, specs and other pages now point to the new place. A link that the update can't fix safely, such as a path that code builds as it runs, is a step on the plan for you to do.
+- **Pages your app reads stay with the code.** A page that the app or a script reads as it runs goes next to the code that reads it, so the app works the same.
+- **No edit is lost while the update waits.** Just before the update goes live, it copies each page that changed in the code repo since the move. If the same page changed in both places, it stops and names the page.
+- **An old chat can't bring a page back.** The wiki check fails on a page at a moved path and names its new place. `.agents/knowledge-moves.json` maps each old path to its new place, and `memory.mjs areas <old path>` prints it.
+
+**Updating.** Say yes to the list of pages in the update plan. The update moves the pages and fixes the links. Look at the steps it lists for you, do them, then publish. If your app shows your pages from the code repo, the pages wait: they move in the update that brings the live reader.
+
+## 45.10.1 — Try a changed reply link without stopping the running one
+
+- **The reply-link guide says how to try a changed copy safely.** Run it with a temporary home folder and a stand-in `paseo`, so the computer's running helper and its open pages stay as they are ([reply links](wiki/development/reply-links.md#open-one-for-another-page)).
+
+## 45.10.0 — Review pages that ask and run the real thing
+
+- **A live card runs the real page inside the review page.** The chat makes a page, such as a shop page or a small tool, and it runs sealed in its card, with no internet. Switch it between *Phone* and *Computer* width, or open it full screen. A card can have the chat's own control, such as *put these in order*, and your pick goes to the chat with your notes ([the live card](wiki/review-pages.md#the-live-card)).
+- **A website is planned as a live prototype, and built from it.** For a site this app doesn't run, the chat writes the real files in the plan's `prototypes/` folder. Your notes change them, the build starts from the files you approved, and the check after it shows *Approved* beside *Built* ([a website prototype](wiki/review-pages.md#a-website-prototype)).
+- **A page can ask you questions.** Words, a choice, a date, a tick, or a file. Your answers go with your notes or with *Build it*, so the chat doesn't ask again in the chat. A question that asks for a password, key, or card stops the page's build ([questions and files](wiki/review-pages.md#questions-and-files)).
+- **Send files from the page.** Drop a file, or tap to pick one on a phone: 25 MB a file and 100 MB a page. It goes to the computer the chat runs on. From your Inbox it waits in your company app until the computer takes it. No one can open it after 24 hours, and the app deletes it the next time the Inbox is used ([files from a page](wiki/development/reply-links.md#files-from-a-page)).
+- **Every plan says what the build needs.** Each key, login, file, or answer says *Ready* or *Needs you*. While one needs you, the build buttons say how many and show the first, so a build never stops halfway to ask ([what the build needs](wiki/review-pages.md#what-the-build-needs)).
+- **An answered page looks answered at once.** After you tap a button in the Inbox and the chat gets it, the page shows your answer and its time above it, as the Archive does. It has no *Send notes* bar and no *Remove* on a sent file.
+- **A page can be larger.** A review page can be 1.5 MB, not 500 KB, and the builder warns over 800 KB, because a page that big opens slowly on a phone.
+
+**Updating.** Nothing to do by hand. The app's next deploy adds two tables to its database, which hold files sent from the Inbox until your computer takes them.
+
+## 45.9.0 — Close finished chats only when you pick them
+
+- **The daily stops closing chats by itself.** A chat whose work is live now stays open until you close it, mark it Done on the board, or it sits idle for 3 days. A live chat that is still open is usually one you kept open: for a follow-up, to check the result, or after a break. What it learned still reaches memory and the wiki without a close.
+- **Ask the Daily chat what's going on, and close the finished ones.** It marks each chat whose work is live and that has nothing new, and asks which ones to close. Each chat you pick gets `/close`; a chat you do not pick stays open ([close finished chats](wiki/development/daily.md#close-finished-chats)).
+- **The small wiki tidy stays.** It is now the daily's one default job.
+
+**Updating.** Nothing to do. A jobs file that turns `wrap-up` off keeps working.
+
+## 45.8.0 — Company knowledge in its own repo
+
+- **Company pages go live at once.** The team's own pages, such as people, customers and how the company works, now live in a repository of their own in Cloudflare, not in the code repository. A save makes them live for the team at once, with no pull request and no wait for checks. Pages about the code stay in `wiki/` ([company knowledge](wiki/stack/company-knowledge.md)).
+- **One copy on each computer.** The pages are at `knowledge/` in every workspace: one copy in the main checkout, and a link to it in each workspace. When a chat starts, the copy moves to the newest version in the background. A copy with unsaved edits is left as it is, and the chat names those pages.
+- **A save takes only the pages it names.** `knowledge.mjs save` checks the links, puts the save on top of the newest version, and tells you how to undo it. When someone saved the same lines first, you get both versions to join. A save made while the app can't be reached waits and goes live with the next one.
+- **Undo and restore.** `knowledge.mjs undo <commit>` takes one save back. If someone forces an older history, the next update says so, and `knowledge.mjs restore` puts the lost saves back.
+- **The app hands it out to the same people as the project.** The **Project code** tick also covers company knowledge. Only the live app holds it; previews never read or change it.
+- **Memory reads it.** The digest reads your people page from `knowledge/people/` first, and memory search finds the other knowledge pages. `/close` and `/dream-memory` save knowledge pages at once.
+- **Every install needs Cloudflare's paid plan**, about $5 a month, on both ways to install. Setup stops on a free plan and asks you to turn it on or stop. The landing page now says *Install*, not *Install for free*.
+
+**Updating.** Nothing changes for an existing install: your pages stay in `wiki/`, and saves work as before, until a later update moves them after one yes. A new install needs Cloudflare's paid plan.
+
+## 45.7.0 — Check-ins for everyone, with or without Paseo
+
+- **Each chat checks its own stops.** When a chat in Claude Code or Codex stops and your last message there is more than 15 minutes old, one read-only AI run sorts the stop. A next step or a safe pick goes back to the chat, and it carries on. Everything else waits for you, as before. It works with or without Paseo, and no Daily chat has to stay open ([check-ins](wiki/development/daily.md#check-ins)).
+- **No settings file needed for check-ins.** With none, they use your email and this computer's time zone. Routines, the board and the morning list still need your file.
+- **One off switch.** Say *stop check-ins* in the Daily chat, or run `daily.mjs checkins off`. *Start check-ins* turns them back on.
+- **The Daily chat stays open for days.** It no longer watches chats itself. On a new day, your first message there starts the day before it answers.
+- **The worker starts itself.** Each chat start starts `daily.mjs serve` in the background, and only one runs per person and checkout. The wrap-up and the wiki tidy from 45.5.0 are default jobs, so they now run for everyone, not only where someone set up the daily on a computer. It does not start when check-ins are off, or when you turned both jobs off and have no other job. It watches only chats in this repo. Without Paseo it still runs the wiki tidy and your timed jobs; the wrap-up waits for Paseo, because it sends `/close` through Paseo ([the daily on a computer](wiki/development/daily.md#the-daily-on-a-computer)).
+
+**Updating.** If your settings file does not list the email you commit with or sign in with, add it to `emails`: the daily now finds a file only by its emails, never because it is the only one. Check-ins now come from each chat's stop step, so `daily.mjs watch` is gone: `/daily` runs `daily.mjs ensure` instead. A computer that runs `daily.mjs serve` as a service keeps it; the new lock stops a second copy. The wrap-up and the wiki tidy now start for every person at their next chat; to keep one off, add its `off` entry from 45.5.0 to your own jobs file. An install that added its own `stopped` or `asking` job in its `sweeps` file keeps it. If another checkout on the same computer still runs an older WongStack worker, update it too, or run `node .claude/skills/daily/scripts/daily.mjs checkins off` in one of them, so a chat does not get two check-ins.
+
+## 45.6.1 — Check your own screens on a preview
+
+- **Access page.** It now says how a browser check signs in as you on a preview, and that your own lists start empty there, because the sample data belongs to a made-up person.
+
+**Updating.** Nothing to do.
+
+## 45.6.0 — Review pages kept in the Inbox
+
+- **Reviews in the Inbox.** A new *Reviews* choice beside *Day* and *Week* lists the review pages that wait on you, with the time left, then the *Archive* of closed ones, newest first. Search finds a page by its title ([in your inbox first](wiki/development/reply-links.md#in-your-inbox-first)).
+- **A closed review page stays.** It opens read-only, under a line that says what reached the chat and when, with your notes. Before, it went a day after it closed. Other items, such as an approval, still go after a day.
+- **Sample pages.** The sample data has waiting and archived review pages, so a check can open each kind.
+
+**Updating.** Nothing to do. The app's database gets new indexes the next time you publish the app.
+
+## 45.5.0 — Wrap up finished chats, and tidy the wiki after memory
+
+- **A finished chat wraps itself up.** Where the daily runs on a computer, a chat whose work is merged gets `/close` after you have been quiet there for 15 minutes. The chat saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat with new work since the merge, or one you write in again, stays open. Each chat gets `/close` one time, counting a Done on the board ([wrap up a finished chat](wiki/development/daily.md#wrap-up-a-finished-chat)).
+- **The wiki gets a small tidy each time memory tidies itself.** After each memory consolidation, about once a day, a background run puts each lasting fact saved since the last tidy on the page that owns it, and publishes that change through the normal checks. It works in its own copy of the repo, never in your checkout. It never edits a page WongStack ships, a spec, a plan or a saved fact. `/dream-memory` still runs only when you type it ([the small wiki tidy](wiki/development/wiki-dream.md#the-small-wiki-tidy)).
+- **You see what they did when you ask.** Each wrap-up and each tidy writes one line to the journal: ask the Daily chat *what's going on?*.
+- **Default jobs merge with your own.** Your `sweeps` file keeps the default timed jobs. An entry with a default's `id` replaces it, and `"off": true` turns it off. A job can take `"minutes"` for a longer run, `"place": "copy"` to run in its own copy of the repo, and `"do"` for one of the daily's own jobs ([your own jobs](wiki/development/daily.md#your-own-jobs)).
+
+**Updating.** Nothing to do: both jobs start with the next run of `daily.mjs serve`. To turn one off, add `{"id": "wrap-up", "off": true}` or `{"id": "wiki-tidy", "off": true}` to the `sweeps` list in your own jobs file. Before you go back to an earlier version, remove those `off` entries: an earlier version refuses them.
 
 ## 45.4.0 — Small fixes from WongOS
 

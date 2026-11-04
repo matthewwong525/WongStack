@@ -8,7 +8,7 @@ This runbook turns a fresh install into a running app with session memory. [`/wo
 
 ## Boundaries
 
-- **No commits or pushes.** Step 1a makes the GitHub repository; everything else lands uncommitted for `/save`. The Artifacts route's one empty first commit on `main` is the exception.
+- **No commits or pushes.** Step 1a makes the GitHub repository; everything else lands uncommitted for `/save`. The exceptions: one empty first commit on company knowledge's `main`, and on the Artifacts route the project's.
 - **One script does the Cloudflare work, not `wrangler`**, so no app dependency is needed: [`provision.mjs`](../scripts/provision.mjs), in the source checkout, needs only Node ([required tools](../../../../wiki/development/required-tools.md)). Each command prints one JSON report: created, reused, names, URLs. A stop exits 1 with `error.reason` (`token`, `cloudflare`, or `repo`) and a plain `error.cause`; translate it with the [failure map](failure-map.md).
 - **Never print a token value**: not in a summary, an error, or an echoed command.
 - **The user token stays on the host**, only in the primary worktree's `.env`. No step copies it or makes it a GitHub secret.
@@ -46,7 +46,7 @@ A non-zero exit → stop **before** asking for the token: the primary worktree c
 
 Confirm Git ignores the destination: `git -C "$PRIMARY_ROOT" check-ignore -q .env`. In a fresh folder, first add the `.env*` / `!.env.example` and `.dev.vars*` / `!.dev.vars.example` pairs to the file `git rev-parse --path-format=absolute --git-path info/exclude` returns, then re-check; the install still commits the `.gitignore` fragment. A failed re-check → stop before accepting a secret.
 
-No `DURABLE_ENV` → create it with the blank `CLOUDFLARE_*` lines from the source's [`.env.example`](../../../../.env.example) and say: *"I made a private `.env` file. Git ignores it, so its values stay on this machine."* When `ACTIVE_ROOT` is not `PRIMARY_ROOT` and `ACTIVE_ENV` is a regular file, not a symlink, [leave both files untouched](../../../../wiki/development/secrets.md#unseeded-linked-worktree-copies): never read its values to compare, or merge one into the other. Say: *"This linked worktree also has its own `.env`. I am using the durable primary-worktree copy and left the duplicate untouched."*
+No `DURABLE_ENV` → create it with the blank `CLOUDFLARE_*` lines from the source's [`.env.example`](../../../../.env.example) and say: *"I made a private `.env` file. Git ignores it, so its values stay on this machine."* When `ACTIVE_ROOT` is not `PRIMARY_ROOT` and `ACTIVE_ENV` is a regular file, not a symlink, [leave both files untouched](../../../../wiki/development/secrets.md#unseeded-linked-worktree-copies): never read, compare, or merge them. Say: *"This worktree has its own `.env` too. I use the primary copy and left the other untouched."*
 
 Later `.env` means `DURABLE_ENV`; replace or append only the exact `KEY=` line.
 
@@ -74,7 +74,7 @@ P() { node "<source checkout>/.agents/skills/wong-setup/scripts/provision.mjs" "
 P widen
 ```
 
-It runs [the widen protocol](permission-groups.md), granting only [a normal provision](permission-groups.md#a-normal-provision). Tell the user what its `granted` list names. Access permissions are part of normal private setup.
+It runs [the widen protocol](permission-groups.md): [a normal provision](permission-groups.md#a-normal-provision), plus company knowledge's repository and a read of the plan. Tell the user what its `granted` list names.
 
 ## Step 3 — which account
 
@@ -88,13 +88,15 @@ P accounts
 
 Write the chosen id to `CLOUDFLARE_ACCOUNT_ID` in `DURABLE_ENV` and export it.
 
+Then `P plan`. `"reason": "free-plan"` → **create nothing** and ask, as [a choice](../../explore/references/asking-the-user.md): *"Every install needs Cloudflare's paid plan, about $5 a month. Turn it on and I'll continue, or stop here."*
+
 ## Step 4 — provision
 
 Ask once before the billable parts, as [a two-option choice](../../explore/references/asking-the-user.md): *"Set it up (Recommended) — your private memory store, a real database and a practice one, and automatic publishing"* or *"Stop here — nothing is created on Cloudflare"*.
 
 ### 4a. Name things; don't ask
 
-The script derives every name from the repository name and checks it against the account; state them, never make the user invent one:
+The script derives every name from the repository's and checks it; state them, never make the user invent one:
 
 ```bash
 P names --repo "$(gh repo view --json nameWithOwner -q .nameWithOwner)"
@@ -130,7 +132,7 @@ Memory answers once CI deploys production; until then facts wait in the local sp
 
 **Re-runs.** A store that verifies is current. One with no bucket, on an account now with R2, gets one: the script creates and records it, adds `MEMORY_BUCKET` to the production config, and gives `<repo>-deploy` the R2 row of [the CI deploy token table](permission-groups.md#the-ci-deploy-token). The key stays. Make by hand any edit the report's `todo` lists.
 
-**Moving an older store.** Add the production route, authenticated login callback, bindings, and install record in the update. After deployment, run `$M migrate`, sign the owner in as in [4g](#4g-smoke-test-what-you-built), run `$M migrate-people` to hand each linked computer's notes to its person, and check `$M digest`. Shared history stays available; notes from an unlinked computer wait for an admin. A failure pauses memory. Retire an old Cloudflare memory token only after replacement succeeds; never restore an email-only Worker after private machine writes.
+**Moving an older store.** The update adds the production route, login callback, bindings, and install record. After the deploy, run `$M migrate`, sign the owner in as in [4g](#4g-smoke-test-what-you-built), run `$M migrate-people` to give each linked computer's notes to its person, and check `$M digest`. Notes from an unlinked computer wait for an admin; a failure pauses memory. Retire an old memory token only after this succeeds; never restore an email-only Worker after private machine writes.
 
 ### 4c. The two app databases and the config
 
@@ -140,11 +142,13 @@ With no config, write the [fragment](../../wong-sync/references/stack-pack-fragm
 
 **The project Connect hands out.** The script names it in both Workers' vars; the Artifacts route binds production alone to it and its check runner, with no key. On GitHub the report's `codeKey` carries [the owner's steps](../../../../wiki/stack/project-git-route.md#the-owners-one-step-on-github). Say nothing of it: Access asks for the key when the owner first lets someone install the project.
 
+**Company knowledge.** The script makes `<base>-knowledge` with one empty commit, records it, and binds only the live app to it; it never changes one that holds pages.
+
 Last, it refreshes the binding types in `app/`; a failure is a `warnings` line, no stop.
 
 The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`; they need no Worker or config of their own.
 
-**Moving older mini apps.** Apps kept outside the main app move into it by [the update's catch-up step](../../wong-sync/references/catch-up.md), `mini-apps-folder`. An install with its own mini-app Worker also merges `/apps/` routing and Worker-first assets into the main Worker. Remove the obsolete mini-app config, Worker, tsconfig, ignore files, and assetsignore only as reviewed changes. After production deploys, verify `/apps/` and every saved app; only then delete the old `<repo>-mini` and `<repo>-mini-staging` Workers and `staging-mini` GitHub environment. Keep them on failure.
+**Moving older mini apps.** [The update's catch-up step](../../wong-sync/references/catch-up.md) `mini-apps-folder` moves them in, with the old mini-app Worker's `/apps/` routing, as reviewed changes. Delete the old `<repo>-mini` and `<repo>-mini-staging` Workers and `staging-mini` environment only after production serves `/apps/` and every app.
 
 ### 4d. The CI deploy token
 
@@ -165,9 +169,9 @@ Missing `workflow` scope → offer `gh auth refresh --scopes workflow` ([why](..
 
 ### 4f. First deploy
 
-The workflow deploys on push, so the first deploy comes with `/save`'s push; never push from here. Diagnose a red build with `gh run view --log-failed`, which needs no Cloudflare credential.
+The workflow deploys on push, so the first deploy comes with `/save`'s push; never push from here. Diagnose a red build with `gh run view --log-failed`.
 
-Use the report's production URL. Treat preview URLs as patterns until CI returns an actual deployed URL ([discovery](../../../../wiki/stack/d1-pipeline.md#how-the-alias-url-reaches-the-tooling)). A new hostname may need a retry while it spreads.
+Use the report's production URL. Treat preview URLs as patterns until CI returns an actual deployed URL ([discovery](../../../../wiki/stack/d1-pipeline.md#how-the-alias-url-reaches-the-tooling)).
 
 ### 4g. Smoke-test what you built
 
@@ -180,7 +184,7 @@ The check runs itself; never ask the person to sign in by email code on each sit
 
 Retry propagation; name a real failure. Human login stays unverified until Step 5's human check. The [browser runbook](../../../../wiki/stack/cloudflare-access.md#verify-it-works--in-a-browser) is for `/verify` and later changes, not setup.
 
-Once production has deployed, sign the owner in once on a private site: run `node scripts/company-api.mjs login --origin <production URL>` in the background, show the link it prints in the chat, and wait. Then check memory with `$M digest`; before the deploy, it reports the Worker does not answer. Without `cloudflared`, skip both and say memory waits.
+Once production has deployed, sign the owner in once on a private site: run `node scripts/company-api.mjs login --origin <production URL>` in the background, show the link it prints in the chat, and wait. Then check memory with `$M digest`, and make the `knowledge/` copy with `node .claude/skills/memory/scripts/knowledge.mjs update`. Before the deploy, both say the app does not answer. Without `cloudflared`, skip these; say memory and knowledge wait.
 
 ## Step 5 — the closing report
 
@@ -189,6 +193,7 @@ State, in plain words:
 - Session memory: on, with or without transcripts, only when 4g's digest answered. Otherwise: *"Memory starts once your site first goes live; until then, what I learn waits on this computer."*
 - The production URL, and the preview pattern with one branch filled in
 - What was created, and what was reused
+- *"This costs about $5 a month, for Cloudflare's paid plan."*
 - What the user token was granted, that it stays in `.env` on this computer, and that it can be [narrowed back](../../../../wiki/stack/cloudflare-credentials.md#narrowing-back)
 - That CI publishes with its own small key, `<repo>-deploy`
 - Private coverage, machine access, and human login as separate outcomes. An open site says instead: *"Anyone with the link can see your site."*
@@ -204,9 +209,8 @@ One list owns these steps; [without R2](../../../../wiki/development/memory.md#w
 
 ```text
 Optional: add a card to Cloudflare
-Free plans; light use costs nothing. Without it, anyone with
-the link can see your site, and memory keeps no full chat
-transcripts or pictures from a preview check.
+Without it, anyone with the link can see your site, and
+memory keeps no full chat transcripts or preview pictures.
 1. Add a card        https://dash.cloudflare.com/<account>/billing/payment-info
 2. Turn on storage   https://dash.cloudflare.com/<account>/r2/overview
 3. Pick Free plan    https://one.dash.cloudflare.com/<account>/

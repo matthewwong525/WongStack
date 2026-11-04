@@ -138,6 +138,8 @@ function envFor(repo, fake, extra = {}) {
     NODE_NO_WARNINGS: '1',
     // The hook's tidy-up sweeps this machine's temp folder; a test that wants it turns it on.
     WONG_TIDY: '0',
+    // Nor does it start the daily's worker, which would outlive the test and write in its folders.
+    WONG_DAILY_WORKER: '0',
     ...extra,
   };
 }

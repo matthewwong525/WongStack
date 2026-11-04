@@ -1,16 +1,21 @@
 # Memory dream
 
-A dream checks everything your project remembers against itself and against the code: type [`/dream-memory`](../../.agents/skills/dream-memory/SKILL.md) and your assistant tidies [memory](memory.md), adds the lasting facts it has gained to the wiki, fixes pages and saved facts that have gone wrong, lists the specs and plans that have, and publishes the result. It runs only when you type it or schedule it: your assistant never starts a dream on its own.
+A dream checks everything your project remembers against itself and against the code: type [`/dream-memory`](../../.agents/skills/dream-memory/SKILL.md) and your assistant tidies [memory](memory.md), adds the lasting facts it has gained to the wiki, fixes pages and saved facts that have gone wrong, lists the specs and plans that have, and publishes the result. It runs only when you type it or schedule it: your assistant never starts a full dream on its own. The [small wiki tidy](#the-small-wiki-tidy) runs on its own, after each memory consolidation.
 
 ## When to run one
 
-[`/close`](../../.agents/skills/close/SKILL.md) already moves one chat's facts onto the wiki. A chat closed any other way leaves its facts in memory, and a page nobody reads stays wrong. Run a dream:
+[`/close`](../../.agents/skills/close/SKILL.md) moves one chat's facts onto the wiki, and the small wiki tidy moves the rest each day. A page nobody reads still stays wrong. Run a dream:
 
-- after a busy week of chats you did not close with `/close`;
 - when a page or a saved fact told your assistant something that is no longer true;
 - before someone new starts reading the wiki.
 
 It uses your own assistant's model allowance, so it costs what a long chat costs.
+
+## The small wiki tidy
+
+On each computer, [the daily's worker](daily.md#the-daily-on-a-computer) starts one small tidy after each memory [consolidation](memory.md#consolidation), about once a day. A background run, in its own copy of the repo, takes the facts saved since the last tidy or dream. It puts each lasting one on the page that owns it, by [placing a fact on a page](#placing-a-fact-on-a-page). It fixes only those pages and the pages those facts name. Then it saves a [company knowledge](../stack/company-knowledge.md) page at once, and publishes any other page through the normal checks, with no question.
+
+It is `/dream-memory --small`. It never tidies memory again (consolidation just did), never checks specs or plans, and never corrects a saved fact. It never edits [a page WongStack ships](#your-pages-and-shipped-pages). Its record counts as the last dream, so the next tidy or dream starts after the facts it read. Ask any chat *what's going on?* to see `Wiki tidy: 3 facts on 2 pages (…)` or `Wiki tidy: nothing to add`. To turn it off, [add an `off` entry](daily.md#your-own-jobs) for `wiki-tidy`.
 
 ## What it reads
 
@@ -18,7 +23,7 @@ Your project remembers things in four places. A dream compares all four with eac
 
 | Place | What it holds | A dream |
 |---|---|---|
-| The wiki | how you work, people, the product | fixes your own pages |
+| The wiki and [company knowledge](../stack/company-knowledge.md) | how you work, people, the product | fixes your own pages |
 | Saved facts | what each chat learned | corrects them |
 | Specs | what the product does | lists what is wrong |
 | Plans, open and past | what was meant and why | lists what was left behind |
@@ -78,7 +83,7 @@ A dream reads old chats and saved facts to learn what happened. It weighs their 
 
 ## Your pages and shipped pages
 
-A dream edits only the pages your project owns: people, the company, customers, the product, and any page you added. It never rewrites a page WongStack ships, because the next [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) would overwrite the edit. A fact that belongs on a shipped page, or contradicts one, [is listed](#what-it-fixes-and-what-it-only-lists) with the page and the fact.
+A dream edits only the pages your project owns: people, the company, customers, the product, and any page you added. It saves a `knowledge/` page [at once](../stack/company-knowledge.md#save-a-page), and any other through a pull request. It never rewrites a page WongStack ships, because the next [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) would overwrite the edit. A fact that belongs on a shipped page, or contradicts one, [is listed](#what-it-fixes-and-what-it-only-lists) with the page and the fact.
 
 `node .claude/skills/dream-memory/scripts/dream.mjs pages` shows which pages are `own` and which are `shipped`, each `spec`, and when each was last checked. `drift` lists the saved facts that name a file that is gone and the plans that are finished or idle. A fact is listed only when the project once held the file and the fact does not itself say it was removed, so a note about planned work, or a record of a removal, is never flagged.
 

@@ -1,23 +1,28 @@
 # daily-routine Specification
 
 ## Purpose
-`/daily` gives every person on a team one start-of-day command: it runs the steps the whole team shares, then that person's own, and learns new steps as they ask. It then stays on as their chief of staff: it watches the agents it started, keeps them moving, and brings the person only what needs them.
+The daily routine runs each person's day on a team with no chat to open: each morning the worker starts the routines the whole team shares, then that person's own, and any chat does their asks and learns new steps. It is also their chief of staff: it keeps their chats moving, and brings the person only what needs them.
 
 ## Requirements
 
 ### Requirement: Daily runs as the signed-in person
 
-`/daily` SHALL know the person from their company sign-in before it runs any step. When they are signed out or the sign-in has ended, it SHALL give them the sign-in link, wait, and carry on once they are in; it SHALL run no step under a guessed person. An install with no company app SHALL use the repo's git email and say so.
+The daily SHALL know the person from their company sign-in, else the repo's git email, before the morning starts any step. It SHALL run no step under a guessed person: when no settings file lists the person's email, the morning SHALL start no routine, even when only one settings file exists.
 
 #### Scenario: Signed in
 
-- **WHEN** a person signed in as `jo@example.com` runs `/daily`
-- **THEN** it runs the team's steps and then the steps in the file that lists `jo@example.com`
+- **WHEN** a person signed in as `jo@example.com` has a settings file that lists `jo@example.com`
+- **THEN** the morning starts the team's routines and then the routines in that file
 
 #### Scenario: Signed out
 
-- **WHEN** a person whose company sign-in has ended runs `/daily`
-- **THEN** it shows the sign-in link, runs no step until they sign in, then runs their day without a second `/daily`
+- **WHEN** Jo's company sign-in has ended and Jo's settings file lists Jo's git email
+- **THEN** the morning finds Jo by the git email and starts Jo's routines, and runs no step under another person
+
+#### Scenario: Another person's file
+
+- **WHEN** the repo holds only `kim.json`, and a chat opens for `jo@example.com`
+- **THEN** the morning starts no routine for Jo, and Jo's chats still get check-ins
 
 ### Requirement: The chief stops a loop
 
@@ -48,54 +53,26 @@ The chief SHALL tell the person a watched agent's task is done only with proof i
 
 ### Requirement: Tasks handed over mid-day start at once
 
-A task the person asks the daily chat to start after the morning round SHALL start working at once from its brief, with no planning round.
+A board task the person asks any chat to start SHALL open in its own workspace and start working at once from its brief, with no planning round, one time ever, and SHALL be marked in progress.
 
 #### Scenario: A task asked at noon
 
-- **WHEN** the person tells the daily chat at noon to get someone to research packaging suppliers
-- **THEN** the agent starts researching at once and the chief watches it
-
-### Requirement: The chief hands bigger tasks to their own workspace
-
-In the daily chat, the chief SHALL answer quick asks itself: a question, a reminder, where its agents stand, a quick lookup. Any task bigger than that, one that edits files, takes several steps, or needs more than a few minutes, it SHALL start in its own workspace without asking, say so in one line, and watch it like any agent it starts. The person SHALL be able to keep a task in the chat by saying so, even right after a hand-off, and the task SHALL then never run in two places. Where no workspace can open, the chief SHALL do the task in the chat.
-
-#### Scenario: A big task asked mid-day
-
-- **WHEN** the person tells the daily chat "rewrite the returns page on the store"
-- **THEN** the chief starts it in its own workspace without asking first, names it in one line, and watches it, and the daily chat stays free for the person
-
-#### Scenario: The person keeps it here
-
-- **WHEN** the person asks for a big task and says "do it here", with the ask or right after the chief handed it off
-- **THEN** the chief does the task in the daily chat, and no workspace keeps working on it: one it just opened is closed first
+- **WHEN** Jo tells a chat at noon "start the supplier list", an undone task on today's column
+- **THEN** a workspace opens for it and starts researching at once, and the task shows in progress
 
 ### Requirement: Each person's daily reads their settings file
 
-`/daily` SHALL find the signed-in person's settings file by any email it lists, and run the routines that file and the optional team file name. A routine SHALL start only on its days, at most one time per day, each in its own workspace where the host can open one. A person with no settings file SHALL get the team's routines and an offer to start their file.
+The morning start SHALL find the person's settings file by any email it lists, and start the routines that file and the optional team file name. A routine SHALL start only on its days, at most one time per day, each in its own workspace where the host can open one. A person with no settings file SHALL get no routines, and SHALL still get check-ins.
 
 #### Scenario: A weekly routine on another day
 
-- **WHEN** Jo's file has a Monday routine and Jo runs `/daily` on a Tuesday
-- **THEN** that routine does not start, and the reply says nothing started for it
+- **WHEN** Jo's file has a Monday routine and the morning starts on a Tuesday
+- **THEN** that routine does not start
 
 #### Scenario: Run twice in a day
 
-- **WHEN** Jo runs `/daily` twice on one day
-- **THEN** the second run starts no routine again and names the workspaces already open
-
-### Requirement: The morning reply lists today's tasks
-
-After the routines, `/daily` SHALL send one ordered list of the person's tasks for today from the week board, late ones with how late they are, and the link to their week. A source it could not read SHALL be named as not read, never shown as empty.
-
-#### Scenario: A late task
-
-- **WHEN** a task from last Thursday is not done
-- **THEN** today's list holds it with its lateness
-
-#### Scenario: No app
-
-- **WHEN** the app does not answer
-- **THEN** the reply says the board was not read and lists no tasks
+- **WHEN** Jo's helper restarts at noon on a day whose morning already started
+- **THEN** no routine starts again
 
 ### Requirement: Each chat the person opens has one to-do
 
@@ -106,20 +83,6 @@ While a chat in the person's Paseo works, the daily SHALL keep one to-do for it 
 - **WHEN** the chat `flashy-crab` closes with no proof of done
 - **THEN** its to-do leaves the board
 
-### Requirement: Background helpers judge each stop
-
-When a watched chat stops or asks, one background helper with fresh context SHALL judge that stop: it keeps the chat going, picks a safe choice, or leaves the stop in its own chat. No separate helper chat SHALL open, and the Daily chat SHALL post nothing for a judged stop. When the daily runs on a computer, the computer SHALL start each helper itself, with the AI tool the person's chats use, at most 3 at a time, each stopped after 30 minutes.
-
-#### Scenario: A stop that needs the person
-
-- **WHEN** a watched chat asks whether to send an order email
-- **THEN** the helper sends nothing, the question waits in that chat, and *what's going on?* in the Daily chat shows it
-
-#### Scenario: A busy hour
-
-- **WHEN** five watched chats stop at once while the daily runs on a computer
-- **THEN** three helpers start, and each other stop waits until a helper ends
-
 ### Requirement: An install adds its own parts without changing the daily
 
 A settings file SHALL be able to name add-on scripts in the repo that run at the morning and at each watch pass. A failing add-on SHALL be named as not read and SHALL never stop the daily.
@@ -129,47 +92,28 @@ A settings file SHALL be able to name add-on scripts in the repo that run at the
 - **WHEN** a pass add-on exits with an error
 - **THEN** the watch says it was not read and goes on judging stops
 
-### Requirement: The Daily chat watches the person's chats all day
-
-After the morning reply, the daily SHALL keep watching, where the host can watch other agents, every chat in the person's Paseo that worked in the last 24 hours and every chat handed to it, but never the Daily chat or a sub-agent. A stop after the person's own message SHALL wait 15 minutes from that message, also when the chat works and stops again in that time; a new message from the person SHALL start the wait over. The person SHALL be able to ask the Daily chat, at any time, for a reminder, a watch, a message to a chat, where things stand, or a new task.
-
-#### Scenario: A task asked mid-day
-
-- **WHEN** the person tells the daily chat "get someone to research packaging suppliers"
-- **THEN** it opens a workspace for that task, watches it, and names it in the chat
-
-#### Scenario: The person is answering
-
-- **WHEN** a chat stops right after the person typed in it
-- **THEN** the chief waits 15 minutes and sends that chat nothing while the person keeps writing
-
-#### Scenario: The chat stops twice inside the wait
-
-- **WHEN** the person types in a chat at 9:56, and the chat stops at 10:01, works again, and stops at 10:05
-- **THEN** the daily sends that chat nothing before 10:11
-
 ### Requirement: A helper sorts each stop into three buckets
 
-Each time a watched agent stops or asks something, its helper SHALL decide one of three things: reply *keep going* when the agent reported progress and named its next step; pick the answer when the question has a safe recommended or already-settled answer; else leave the stop in its own chat for the person. A risky step, such as sending, paying, publishing or deleting, SHALL never be picked, and a finished plan SHALL wait for the person.
+Each time a chat stops for its check-in, its helper SHALL decide one of three things: reply *keep going* when the agent reported progress and named its next step; pick the answer when the agent's question has a safe recommended or already-settled answer; else leave the stop for the person. A risky step, such as sending, paying, publishing or deleting, SHALL never be picked, a finished plan SHALL wait for the person, and a question asked with the question tool SHALL wait for the person.
 
 #### Scenario: An agent names its next step
 
-- **WHEN** a watched agent ends its turn with "Tests pass; next I'll update the wiki page"
+- **WHEN** a chat ends its turn with "Tests pass; next I'll update the wiki page"
 - **THEN** the helper replies *keep going*, without asking the person
 
 #### Scenario: A risky recommended choice
 
-- **WHEN** a watched agent asks whether to send a drafted email to a customer, with *Send it* recommended
+- **WHEN** a chat asks whether to send a drafted email to a customer, with *Send it* recommended
 - **THEN** the helper sends nothing, and the question waits in that chat
 
 ### Requirement: A routine opens its own workspace
 
-A routine SHALL open in its own workspace where the host can open one, and SHALL run in the same chat where it cannot. A second `/daily` on the same day SHALL open no routine's workspace twice.
+A routine SHALL open in its own workspace. Where the host can not open one, the routine SHALL not start, and the journal SHALL say why. No routine SHALL open its workspace twice in one day.
 
 #### Scenario: A host with no workspaces
 
-- **WHEN** `/daily` runs where the host cannot open a workspace
-- **THEN** the routine runs in the same chat
+- **WHEN** the morning starts where the host can not open a workspace
+- **THEN** the routine does not start, and the journal names it and why
 
 ### Requirement: Updates keep each install's settings
 
@@ -182,30 +126,16 @@ A WongStack install or update SHALL deliver the daily skill without any person's
 
 ### Requirement: A person changes their own routines by asking
 
-A person SHALL be able to add, change or stop their own routines by saying so, and the change SHALL go through the usual save, shown before it is saved. Only the owner's review SHALL change the team's file.
+A person SHALL be able to add, change or stop their own routines by saying so in any chat, and the change SHALL go through the usual save, shown before it is saved. Only the owner's review SHALL change the team's file.
 
 #### Scenario: Adding a routine
 
 - **WHEN** Jo says "add checking yesterday's orders to my daily on weekdays"
-- **THEN** Jo's settings file gains that routine, Jo sees it, and the next weekday `/daily` starts it
-
-### Requirement: The Daily chat holds only the person's talk
-
-When the daily runs on a computer, the Daily chat SHALL receive no event messages: what happens goes to a private journal on that computer, outside git, kept 14 days. Each line SHALL say what was seen, what was done, or what waits for the person. When the person writes in the Daily chat, its agent SHALL get the journal lines new since their last message, out of the person's sight. The only message the computer SHALL send the Daily chat is one line a day when the person's board can not be read.
-
-#### Scenario: The person asks what happened
-
-- **WHEN** three helpers kept chats going during the morning and the person asks *what's going on?*
-- **THEN** the agent answers from the journal, and the Daily chat shows no message for those three stops
-
-#### Scenario: The board can not be read
-
-- **WHEN** the board's sign-in ends and the computer can not read the board all afternoon
-- **THEN** the Daily chat gets one line saying so that day, and no more
+- **THEN** Jo's settings file gains that routine, Jo sees it, and the next weekday morning starts it
 
 ### Requirement: An install adds its own background jobs
 
-The daily SHALL start with one job, judging a stopped or asking chat. An install SHALL be able to add jobs in one list in its own daily folder: an event or a time that starts each job, an optional check with no AI that says whether there is work, and the instructions the run follows. An update SHALL never change or remove that list. A job's run SHALL never send, pay, publish or delete unless its own instructions allow that one step.
+The daily SHALL start with one job: the small wiki tidy after each memory consolidation. Judging a stop SHALL be each chat's own check-in, not a job on that list. An install SHALL be able to add jobs in one list in its own daily folder: an event or a time that starts each job, an optional check with no AI that says whether there is work, and the instructions the run follows. A job in that list with a default job's name SHALL replace it, and the install SHALL be able to turn a default job off there. An update SHALL never change or remove that list. A job's run SHALL never send, pay, publish or delete unless its own instructions allow that one step. A job that publishes SHALL work in its own copy of the repo, never in the person's checkout.
 
 #### Scenario: A weekly job
 
@@ -216,3 +146,115 @@ The daily SHALL start with one job, judging a stopped or asking chat. An install
 
 - **WHEN** the computer was off at 9:00 and starts at 11:00
 - **THEN** the 9:00 job does not run that day
+
+#### Scenario: An install turns a default job off
+
+- **WHEN** an install's list turns the wiki tidy off
+- **THEN** the helper starts no wiki tidy, and runs the install's other jobs as before
+
+### Requirement: Each chat checks its own stops
+
+When a chat in the repo stops, the chat itself SHALL get the check-in, in any app that runs a supported AI tool, with or without Paseo, every day with no end. A stop less than 15 minutes after the person's own last message in that chat SHALL be the person's turn and SHALL get no check-in. Otherwise one helper with fresh context SHALL judge the stop; on *keep going* or a safe pick the chat SHALL carry on by itself, and on *needs you* it SHALL stop. A check-in that fails or runs out of time SHALL let the chat stop. A background run's chat and a sub-agent SHALL get no check-in, and a chat SHALL get no sixth check-in in a row with no word from the person.
+
+#### Scenario: Away during a long build
+
+- **WHEN** Jo writes in a chat at 9:00, leaves, and the chat stops at 9:40 with "Tests pass; next I'll update the wiki page"
+- **THEN** the chat carries on by itself, and Jo finds it further on when back
+
+#### Scenario: The person is answering
+
+- **WHEN** Jo writes in a chat at 9:56 and the chat stops at 10:01
+- **THEN** the chat stops and waits for Jo, with no check-in
+
+#### Scenario: A chat outside Paseo
+
+- **WHEN** a teammate runs a chat in a plain terminal, leaves, and it stops 30 minutes later with its work half done
+- **THEN** that chat gets its check-in the same way as a chat in Paseo
+
+#### Scenario: An old Daily chat after the update
+
+- **WHEN** Jo's chat that began with `/daily` before this update stops 30 minutes after Jo's last message
+- **THEN** it gets a check-in like any other chat
+
+### Requirement: Check-ins need no settings file
+
+A person with no daily settings file SHALL get check-ins as the person from their company sign-in, else the repo's git email, in the computer's time zone. A settings file SHALL add the morning start, the board, routines and the install's own jobs, and its values SHALL win.
+
+#### Scenario: A teammate who never typed /daily
+
+- **WHEN** a teammate with no settings file leaves a chat that later stops with its work half done
+- **THEN** a check-in keeps that chat going, and nothing is added to their board
+
+### Requirement: A person can turn check-ins off
+
+A person SHALL be able to turn their check-ins off and on again by asking in any chat. Off SHALL apply to that person in that repo, until they turn it on.
+
+#### Scenario: Turned off
+
+- **WHEN** Jo says *stop check-ins*, then leaves three chats that stop
+- **THEN** each of the three stops and waits for Jo
+
+### Requirement: Opening a chat keeps the daily's jobs running
+
+When a person who has daily background jobs opens any chat in a repo, the daily SHALL make sure one worker runs for that person and repo, and start it in the background when none does, without holding up the chat. Background jobs are the person's board to-dos, add-ons and timed jobs. Timed jobs SHALL run with or without Paseo. A chat that a background run opened SHALL start no worker, and a second start SHALL never make a second worker for the same person and repo. A worker SHALL handle only its own repo's chats, and the chats its daily started or was handed.
+
+#### Scenario: Two days later
+
+- **WHEN** Jo's worker started on Monday morning and Jo's weekly job is due on Wednesday while the computer stayed on
+- **THEN** the job runs, and opening another chat starts no second worker
+
+#### Scenario: Two repos on one computer
+
+- **WHEN** Jo has chats open in two repos, each with its own worker
+- **THEN** each chat has one to-do on Jo's board, from its own repo's worker
+
+### Requirement: Finished chats close only when the person picks them
+
+The helper SHALL NOT send `/close` to a chat by itself. Where the host lets a chat watch other chats, the answer to *what's going on?* in any chat SHALL mark each watched chat whose work is published, with nothing new on its branch or in its folder since, that is not working and has no open question. When it marks one or more, it SHALL ask which to close, and SHALL send `/close` only to the chats the person picks. It SHALL NOT mark the chat that asks, a sub-agent, or a chat in the main checkout.
+
+#### Scenario: The person picks one finished chat
+
+- **WHEN** the chats `flashy-crab` and `calm-otter` are both published with nothing new, and the person answers *what's going on?* with "close flashy-crab"
+- **THEN** `flashy-crab` gets `/close` once, and `calm-otter` stays open
+
+#### Scenario: A published chat left open
+
+- **WHEN** a chat's change is published, and the person leaves it open for an hour without asking *what's going on?*
+- **THEN** the chat stays open and gets no `/close`
+
+### Requirement: The morning starts with no chat
+
+Each morning the daily SHALL start the person's due routines and morning add-ons by itself, with no chat and no AI, at the person's morning time (8:00 in their time zone unless their settings name another), or at the first moment after it that the daily's helper runs on that computer. It SHALL start each one at most one time per day. What it started, each line an add-on gave, and each routine or add-on that did not start SHALL go to the journal. No chat SHALL open only to start the day.
+
+#### Scenario: A morning with the computer on
+
+- **WHEN** Jo's settings have a weekday routine and the helper is running at 8:00 on a Tuesday
+- **THEN** the routine opens in its own workspace at 8:00, the journal says so, and no other chat opens
+
+#### Scenario: The first chat comes late
+
+- **WHEN** Jo's computer was off at 8:00 and Jo opens a chat at 10:30
+- **THEN** that day's due routines start at 10:30, one time, and a second chat that day starts none again
+
+### Requirement: Any chat does the daily's asks
+
+In any chat in the repo, the person SHALL be able to ask for a reminder on a day of their board, to start an undone task of today, to watch a chat, to tell a watched chat an answer, to turn check-ins off or on, and *what's going on?*. *What's going on?* SHALL answer from the journal and, where the host can watch other chats, from where each watched chat stands. No chat SHALL get journal lines the person did not ask for.
+
+#### Scenario: A reminder from a work chat
+
+- **WHEN** Jo, in a chat fixing the store page, says "remind me Friday to call Kim back"
+- **THEN** a task *call Kim back* lands on Friday's column, one time, and the chat goes on with its work
+
+#### Scenario: What happened while away
+
+- **WHEN** three check-ins kept chats going during the morning and Jo opens a new chat and asks *what's going on?*
+- **THEN** the answer names those three check-ins and each watched chat's state, and no chat got a message about them before
+
+### Requirement: What the background did is kept in a journal
+
+What the daily's helper and the check-ins do SHALL go to a private journal on that computer, outside git, kept 14 days, one line for each thing: a check-in, a background run's start and end, a routine started, a closed chat, a source it could not read. The helper SHALL send no chat a message about it. When the person's board can not be read, the journal SHALL say so, one time per day.
+
+#### Scenario: The board can not be read
+
+- **WHEN** the board's sign-in ends and the helper can not read the board all afternoon
+- **THEN** the journal has one line saying so that day, and no chat gets a message about it

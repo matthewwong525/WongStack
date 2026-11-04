@@ -461,13 +461,98 @@ test('nothing to ship, an unselected change, and other active changes each stop 
   assert.match(several.stdout, /^CANDIDATES=demo,other\nNEXT: ask which change to ship/m);
   const others = f.run(['prepare', '--change', 'demo']);
   assert.equal(others.status, 7);
-  assert.match(others.stdout, /^OTHER_CHANGES=other\nNEXT: the merge would carry these active changes too\. Ask: move the others off the branch \(Recommended\)/m);
+  assert.match(others.stdout, /^OTHER_CHANGES=other\nNEXT: the merge would carry these active changes too\. Rerun with --move-others/m);
   assert.equal(f.has('openspec/changes/demo'), true);
   const onPurpose = f.run(['prepare', '--change', 'demo', '--allow-others', '--skip-specs']);
   assert.equal(onPurpose.status, 0, `${onPurpose.stdout}${onPurpose.stderr}`);
   assert.equal(onPurpose.value('ARCHIVE'), ARCHIVE);
   assert.match(f.calls(), /openspec archive demo --yes --skip-specs\n/);
   assert.equal(f.has('openspec/changes/other'), true);
+});
+
+test('other active changes the default branch already holds never stop prepare', t => {
+  const f = fixture(t);
+  f.advanceMain(f.change('other'));
+  f.git('merge', '-q', '--no-edit', 'origin/main');
+  f.commit(f.change('demo'));
+  const result = f.run(['prepare', '--change', 'demo', '--skip-specs']);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  assert.equal(result.value('OTHER_CHANGES'), undefined);
+  assert.equal(result.value('ARCHIVE'), ARCHIVE);
+  assert.equal(f.has('openspec/changes/other/proposal.md'), true);
+});
+
+test('--move-others keeps each other change on its own pushed branch and removes it from this one', t => {
+  const f = fixture(t);
+  const origin = join(f.dir, 'origin.git');
+  const remote = (...args) => execFileSync('git', ['--git-dir', origin, ...args], { encoding: 'utf8' }).trim();
+  f.git('push', '-q', 'origin', 'main:refs/heads/second');
+  f.commit({ ...f.change('demo'), ...f.change('other'), ...f.change('second') });
+  f.write('openspec/changes/other/notes.md', 'unsaved notes\n');
+  const result = f.run(['prepare', '--change', 'demo', '--move-others', '--skip-specs']);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  assert.match(result.stdout, /^MOVED=other:other\nMOVED=second:second-plan$/m);
+  assert.equal(result.value('ARCHIVE'), ARCHIVE);
+  assert.deepEqual(remote('ls-tree', '-r', '--name-only', 'other').split('\n'), ['CHANGELOG.md', 'VERSION', 'app.txt',
+    'openspec/changes/other/notes.md', 'openspec/changes/other/proposal.md', 'openspec/changes/other/review.html', 'openspec/changes/other/tasks.md']);
+  assert.match(remote('show', 'other:openspec/changes/other/proposal.md'), /^\*\*Branch:\*\* other$/m);
+  assert.match(remote('ls-tree', '-r', '--name-only', 'second-plan'), /^openspec\/changes\/second\/proposal\.md$/m);
+  assert.equal(f.has('openspec/changes/other'), false);
+  assert.equal(f.has('openspec/changes/second'), false);
+  assert.doesNotMatch(f.git('ls-tree', '-r', '--name-only', 'HEAD'), /openspec\/changes\/(other|second)\//);
+  assert.equal(f.git('worktree', 'list').split('\n').length, 1, 'the temporary worktree is gone');
+});
+
+test('--move-others puts a plan the default branch holds back to its state there, never deleting it', t => {
+  const f = fixture(t);
+  f.advanceMain(f.change('other', '- [ ] 1.1 Open\n'));
+  f.git('merge', '-q', '--no-edit', 'origin/main');
+  f.commit({ ...f.change('demo'), 'openspec/changes/other/tasks.md': '- [x] 1.1 Open\n' });
+  const result = f.run(['prepare', '--change', 'demo', '--move-others', '--skip-specs']);
+  assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+  assert.equal(result.value('MOVED'), 'other:other');
+  assert.equal(f.read('openspec/changes/other/tasks.md'), '- [ ] 1.1 Open\n');
+  assert.equal(f.git('status', '--porcelain', '--', 'openspec/changes/other'), '');
+});
+
+test('a failed push in --move-others removes nothing from this branch', t => {
+  const f = fixture(t);
+  f.commit({ ...f.change('demo'), ...f.change('other') });
+  f.git('remote', 'set-url', '--push', 'origin', join(f.dir, 'missing.git'));
+  const head = f.git('rev-parse', 'HEAD');
+  const result = f.run(['prepare', '--change', 'demo', '--move-others']);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /^error=git push other: /m);
+  assert.equal(result.value('MOVED'), undefined);
+  assert.equal(f.has('openspec/changes/other/proposal.md'), true);
+  assert.equal(f.has('openspec/changes/demo/proposal.md'), true);
+  assert.equal(f.git('rev-parse', 'HEAD'), head);
+  assert.equal(f.git('worktree', 'list').split('\n').length, 1, 'the temporary worktree is gone');
+});
+
+test('a push that fails after another worked names the pushed one, and the rerun reuses it with no second copy', t => {
+  const f = fixture(t);
+  const origin = join(f.dir, 'origin.git');
+  const remote = (...args) => execFileSync('git', ['--git-dir', origin, ...args], { encoding: 'utf8' }).trim();
+  const hook = join(origin, 'hooks', 'pre-receive');
+  writeFileSync(hook, '#!/usr/bin/env bash\nwhile read -r old new ref; do [ "$ref" = refs/heads/second ] && exit 1; done\nexit 0\n');
+  chmodSync(hook, 0o755);
+  f.commit({ ...f.change('demo'), ...f.change('other'), ...f.change('second') });
+  const head = f.git('rev-parse', 'HEAD');
+  const failed = f.run(['prepare', '--change', 'demo', '--move-others']);
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /^error=git push second: /m);
+  assert.match(failed.stdout, /^MOVED=other:other$/m);
+  assert.doesNotMatch(failed.stdout, /^MOVED=second/m);
+  assert.equal(f.git('rev-parse', 'HEAD'), head);
+  rmSync(hook);
+  const rerun = f.run(['prepare', '--change', 'demo', '--move-others', '--skip-specs']);
+  assert.equal(rerun.status, 0, `${rerun.stdout}${rerun.stderr}`);
+  assert.match(rerun.stdout, /^MOVED=other:other\nMOVED=second:second$/m);
+  assert.deepEqual(remote('for-each-ref', '--format=%(refname:short)', 'refs/heads').split('\n').sort(), ['main', 'other', 'second']);
+  assert.equal(remote('rev-list', '--count', 'main..other'), '1', 'the first push is reused, never pushed again');
+  assert.equal(f.has('openspec/changes/other'), false);
+  assert.equal(f.has('openspec/changes/second'), false);
 });
 
 test('a change that fails validation, has unfinished artifacts, or is unknown is not archived', t => {
@@ -546,7 +631,7 @@ test('a failed live look hands the reason to one more build, and never fails the
 
 test('bad arguments are refused; a changelog conflict keeps this branch\'s entry on top', t => {
   const f = fixture(t);
-  for (const args of [[], ['publish'], ['prepare', 'extra'], ['prepare', '--change', 'a', '--no-change'], ['finish', '--sync']]) {
+  for (const args of [[], ['publish'], ['prepare', 'extra'], ['prepare', '--change', 'a', '--no-change'], ['prepare', '--allow-others', '--move-others'], ['finish', '--sync']]) {
     assert.equal(f.run(args).status, 2, args.join(' '));
   }
   assert.equal(entryOnTop('# Log\n\n## Next (patch) — Mine\n\nMy fix.\n\n## 1.0.0 — First\n', '# Log\n\n## 1.0.1 — Theirs\n\n## 1.0.0 — First\n'),

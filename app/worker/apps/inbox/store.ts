@@ -2,6 +2,7 @@
 // person's installation and email, so one person's item never reaches another. wiki/development/reply-links.md
 import { z } from "zod";
 import { defineAction, humanEmail, type Action } from "../../api/contract.ts";
+import { dropSettledFiles, pruneFiles } from "./file-rows.ts";
 import { mine, type Scope } from "./rows.ts";
 import { wake } from "./wake.ts";
 
@@ -10,13 +11,16 @@ export { mine, seen, type Scope } from "./rows.ts";
 type Env = Parameters<Action["handler"]>[1];
 type Identity = Parameters<NonNullable<Action["allowed"]>>[0];
 
-export const LIMITS = { bodyBytes: 512 * 1024, text: 20_000, title: 200, workspace: 100, actions: 6, detail: 2000, option: 300, options: 6,
+// A page with a live card runs to 1.5 MB; D1 keeps 2 MB a row.
+export const LIMITS = { bodyBytes: Math.round(1.6 * 1024 * 1024), text: 20_000, title: 200, workspace: 100, actions: 6, detail: 2000, option: 300, options: 6,
   urlBytes: 2048, step: 200 };
 /** A computer that checked in this recently is online: six missed check-ins means it is gone, not slow. */
 const ONLINE_MS = 60_000;
-/** A closed item and its taps are kept a day, then removed at a check-in. */
+/** A closed item and its taps are kept a day, then removed at a check-in; a review page with its body stays. A sent
+ *  file is kept a day at most, deleted at any call. */
 const KEEP_MS = 24 * 3_600_000;
-/** A collected tap whose result hasn't come this long after is failed, never handed out again: nothing fires twice. */
+/** A collected tap whose result hasn't come this long after its claim, or its last file part read, is failed, never
+ *  handed out again: nothing fires twice. */
 const DELIVER_MS = 120_000;
 /** The list carries this many characters of a tap's text; `GET tap` has all of it. */
 const PREVIEW = 200;
@@ -72,7 +76,7 @@ export async function installationOf(db: D1DatabaseSession) {
   return found?.installation_id ?? "";
 }
 
-async function scope(env: Env, identity: Identity): Promise<Scope> {
+export async function scope(env: Env, identity: Identity): Promise<Scope> {
   const db = env.DB.withSession("first-primary");
   const installation = await installationOf(db);
   const email = humanEmail(identity)!;
@@ -81,11 +85,12 @@ async function scope(env: Env, identity: Identity): Promise<Scope> {
 
 const ERRORS = {
   not_found: "No such item or tap.", closed: "This item has closed.", changed: "The plan changed since you loaded it.",
-  done: "That was already sent.", not_waiting: "That tap is no longer waiting.", too_large: "The body is larger than 512 KB.",
+  done: "That was already sent.", not_waiting: "That tap is no longer waiting.", too_large: "The body or file is larger than this inbox takes: 1.6 MB a page, 25 MB a file, 100 MB an item's files.",
   bad_detail: "An approval or question needs its words as JSON.", bad_link: "A link needs its kind and an https tunnel address, and no actions.",
   bad_start: "A plan card needs its state, a plan within the limits once ready, and go and skip.", bad_agent: "An agent's status needs its state and short lines, and no actions.",
-  bad_action: "The item offers no such action, or the notes are empty.",
+  bad_action: "The item offers no such action, or the notes are empty.", files_gone: "A file sent with this is no longer held; pick it again.",
   too_soon: "Wait a few seconds, then try again.",
+  bad_file: "This is not a file the page takes, or it is empty.", full: "The inbox holds too many waiting files; try again later.",
   already_waiting: "A run is already waiting for your computer.", not_app: "This schedule runs elsewhere; ask your assistant to move it here.",
   paused: "Resume this schedule first.", bad_timing: "The timing needs a cadence, a timezone and a lateness the app can read.",
 };
@@ -101,22 +106,28 @@ export function inboxAction<Input>({ run, ...spec }: Spec & { run: (at: Scope, i
   });
 }
 
-/** Marks every waiting tap on a closed or timed-out item `expired`, so it is never delivered, and a collected tap
- *  whose result never came `failed`. */
+/** Marks every waiting tap on a closed or timed-out item `expired`, so it is never delivered, a collected tap whose
+ *  result never came `failed`, and one whose file is a day old `failed`; then deletes the files no tap will deliver. */
 export const settleTaps = (at: Scope) => at.db.batch([
   mine(at, `UPDATE inbox_taps SET state = 'expired', answered_at = ?3
     WHERE installation_id = ?1 AND email = ?2 AND state = 'waiting' AND item_id IN (SELECT id FROM inbox_items
       WHERE installation_id = ?1 AND email = ?2 AND (closed_at IS NOT NULL OR closes_at <= ?3))`, at.now),
   mine(at, `UPDATE inbox_taps SET state = 'failed', answered_at = ?3
     WHERE installation_id = ?1 AND email = ?2 AND state = 'delivering' AND claimed_at <= ?4`, at.now, at.now - DELIVER_MS),
+  ...pruneFiles(at, at.now - KEEP_MS),
+  ...dropSettledFiles(at),
 ]);
 
-/** Removes items closed over a day ago, with their taps. */
-export const prune = (at: Scope) => at.db.batch([
+// Which closed items go: any but a review page, and a review page older code emptied. The second matches the
+// inbox_items_emptied index's WHERE exactly, so the clean-up never reads a kept page.
+const GONE = ["kind <> 'plan'", "kind = 'plan' AND body = ''"];
+
+/** Removes items closed over a day ago, with their taps; a review page that kept its body stays. */
+export const prune = (at: Scope) => at.db.batch(GONE.flatMap(which => [
   mine(at, `DELETE FROM inbox_taps WHERE installation_id = ?1 AND email = ?2 AND item_id IN (SELECT id FROM inbox_items
-    WHERE installation_id = ?1 AND email = ?2 AND closed_at < ?3)`, at.now - KEEP_MS),
-  mine(at, "DELETE FROM inbox_items WHERE installation_id = ?1 AND email = ?2 AND closed_at < ?3", at.now - KEEP_MS),
-]);
+    WHERE installation_id = ?1 AND email = ?2 AND ${which} AND closed_at < ?3)`, at.now - KEEP_MS),
+  mine(at, `DELETE FROM inbox_items WHERE installation_id = ?1 AND email = ?2 AND ${which} AND closed_at < ?3`, at.now - KEEP_MS),
+]));
 
 // An item's columns as the list shows them: a plan's HTML is left out; its newest tap on the version shown rides along,
 // its text cut short. A rebuild starts clean: an answer to the old version never shows above the new one.
@@ -135,11 +146,20 @@ export const listed = (row: ItemRow): Item => {
     tap: row.tap === null ? null : JSON.parse(row.tap) };
 };
 
+/** When the item stopped taking taps: closed, or its time ran out. Null while it is open. */
+export const endedAt = (row: Pick<ItemRow, "closed_at" | "closes_at">, now: number) =>
+  row.closed_at ?? (row.closes_at <= now ? row.closes_at : null);
+
+/** The caller's item `id` with `extra` columns, open or not, or the answer that says there is none. */
+export async function findItem<Row extends ItemRow>(at: Scope, id: string, extra = ""): Promise<Row | Response> {
+  const row = await mine(at, `SELECT ${ITEM_COLUMNS}${extra} FROM inbox_items i WHERE installation_id = ?1 AND email = ?2 AND id = ?3`, id).first<Row>();
+  return row ?? fail("not_found", 404);
+}
+
 /** The caller's open item `id` with `extra` columns, or the answer that says why there is none: unknown or closed. */
 export async function openItem<Row extends ItemRow>(at: Scope, id: string, extra = ""): Promise<Row | Response> {
-  const row = await mine(at, `SELECT ${ITEM_COLUMNS}${extra} FROM inbox_items i WHERE installation_id = ?1 AND email = ?2 AND id = ?3`, id).first<Row>();
-  if (!row) return fail("not_found", 404);
-  return row.closed_at !== null || row.closes_at <= at.now ? fail("closed", 410) : row;
+  const row = await findItem<Row>(at, id, extra);
+  return row instanceof Response || endedAt(row, at.now) === null ? row : fail("closed", 410);
 }
 
 /** Whether the caller's computer checked in within the last minute. */

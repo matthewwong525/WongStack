@@ -1,16 +1,17 @@
-// The watch over the person's chats for the Daily chat's helpers, their replies, the chat to-dos and reminders. Its
+// The watch over the person's chats for the daily's helpers, their replies, the chat to-dos and reminders. Its
 // limits live here, not in a model: only watched agents, 5 own actions in a row, outward commands wait for the person.
-import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync,
+import { execFileSync } from 'node:child_process';
+import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync,
   watch as fsWatch } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { homedir, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { EXIT, PaseoError, findPaseo, paseo } from '../../schedule/scripts/lib/paseo.mjs';
 import { localDay, mondayOf, slotOf, validDay } from './config.mjs';
+import { finished } from './finished.mjs';
 import { finishTodo, keepTodos, todoOf } from './todos.mjs';
 
 export const BUCKETS = ['keep-going', 'pick', 'person'];
-export const HAND_SOURCES = ['handed', 'asked'];
 // The watch's own actions in a row on one agent before the next stop is left for the person.
 export const STREAK = 5;
 // How long a stop after the person's own message waits for them, and how much of a turn a watch line shows.
@@ -59,8 +60,8 @@ export function chiefDay({ stateDir, started, timezone, now = new Date() }) {
     .find(day => now.getTime() - Date.parse(readJson(watchFile(stateDir, day), {}).startedAt ?? 0) < DAY_MS) ?? today;
 }
 
-/** True when a later day's daily started or watched: that Daily chat owns watching now. */
-function newerDaily({ stateDir, started, timezone, day }) {
+/** True when a later day's daily started or watched: that day's watch owns watching now. */
+function newerDay({ stateDir, started, timezone, day }) {
   return Object.values(started()).some(entry => entry?.at && localDay(new Date(entry.at), timezone) > day)
     || watchDays(stateDir).some(each => each > day);
 }
@@ -80,20 +81,36 @@ export function watched({ stateDir, day, started, timezone, list = [], self, ign
       && !seen.has(row.agentId) && seen.add(row.agentId));
 }
 
-// The Daily chat is the watch's own chat: never watched.
-const OWN_NAMES = ['Daily'];
+/** A folder's git common dir, real path, or null when it is gone or not in git. */
+export function commonDir(cwd) {
+  try {
+    const dir = execFileSync('git', ['-C', cwd, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+      { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return realpathSync(dir);
+  } catch { return null; }
+}
 
-// Admits each live top-level chat that worked in the last 24 hours, once; `inspect` runs again only on a new status.
-// A skipped chat leaves, and joins again only when it works after the skip ends.
-async function admit({ rows, list, state, call, self, ignore = [], now, skip = new Set() }) {
+/** `cwd => bool`: true for a folder in `project`'s repo or one of its worktrees; each folder is asked once. */
+export function sameRepo(project, read = commonDir) {
+  const mine = read(project);
+  const seen = new Map();
+  return cwd => {
+    if (!seen.has(cwd)) seen.set(cwd, Boolean(mine) && read(cwd) === mine);
+    return seen.get(cwd);
+  };
+}
+
+// Admits each live top-level chat in this repo that worked in the last 24 hours, once; `inspect` runs again only on a
+// new status. A skipped chat leaves, and joins again only when it works after the skip ends.
+async function admit({ rows, list, state, call, self, ignore = [], now, skip = new Set(), ownRepo = () => true }) {
   for (const row of state.chats.filter(each => skip.has(each.agentId))) {
     state.known[row.agentId] = { parent: null, status: null, skipped: true };
     delete state.agents[row.agentId];
   }
   state.chats = state.chats.filter(row => !skip.has(row.agentId));
   for (const agent of list.filter(live)) {
-    if (agent.id === self || ignore.includes(agent.id) || OWN_NAMES.includes(agent.name) || rows.some(row => row.agentId === agent.id)
-      || state.chats.some(row => row.agentId === agent.id)) continue;
+    if (agent.id === self || ignore.includes(agent.id) || rows.some(row => row.agentId === agent.id)
+      || state.chats.some(row => row.agentId === agent.id) || !ownRepo(folder(agent.cwd))) continue;
     if (skip.has(agent.id)) { state.known[agent.id] = { parent: null, status: agent.status, skipped: true }; continue; }
     const known = state.known[agent.id];
     if (known?.skipped ? !working(agent.status) : known && (known.parent || known.status === agent.status)) continue;
@@ -135,18 +152,21 @@ export function streak(log, agentId, since = null) {
 
 const AGENT_ID = /^(?!\.{1,2}$)[A-Za-z0-9._-]{1,128}$/;
 
-/** When the person last typed in a chat, from Paseo's own agent record (its CLI does not show it); null when unread. */
-export function userAt(agentId, home = homedir()) {
-  if (!AGENT_ID.test(String(agentId ?? ''))) return null;
+/** Paseo's own record of a chat, read from its folder; {} when unread. */
+export function paseoRecord(agentId, home = homedir()) {
+  if (!AGENT_ID.test(String(agentId ?? ''))) return {};
   const root = join(home, '.paseo', 'agents');
   try {
     for (const project of readdirSync(root)) {
       const file = join(root, project, `${agentId}.json`);
-      if (existsSync(file)) return readJson(file, {}).lastUserMessageAt ?? null;
+      if (existsSync(file)) return readJson(file, {}) ?? {};
     }
   } catch { /* no record */ }
-  return null;
+  return {};
 }
+
+/** When the person last typed in a chat, from Paseo's own agent record (its CLI does not show it); null when unread. */
+export const userAt = (agentId, home = homedir()) => paseoRecord(agentId, home).lastUserMessageAt ?? null;
 
 /** The listed agents a name means: its id, an id prefix of 4 or more, its title, or its workspace folder, in order. */
 export function findAgents(list, name) {
@@ -319,7 +339,7 @@ async function passAddons({ addons, state, line, missed }) {
 }
 
 // Notices, never acts on an agent: one JSON line per event, kept in `<day>.watch.json` so a restart repeats nothing.
-// It ends with nothing to watch, at the hour limit, or on a later Daily; a chat's own watch ends when the service runs.
+// It ends on a later day.
 export async function watch({ stops = () => null, ...args }) {
   const wake = { heard: false, ids: new Set() };
   const watcher = stops(name => { if (!name || wake.ids.has(name)) wake.heard = true; });
@@ -327,8 +347,8 @@ export async function watch({ stops = () => null, ...args }) {
 }
 
 async function passes({ stateDir, started, timezone, call, board, todos = null, addons = null, env = process.env, self = env.PASEO_AGENT_ID,
-  ignore = [], service = false, print = console.log, seconds = 60, hours = 24, once = false, now = () => Date.now(),
-  sleep = ms => new Promise(done => setTimeout(done, ms)), wake, typedAt = userAt, shell }) {
+  ignore = [], service = false, print = console.log, seconds = 60, once = false, now = () => Date.now(),
+  sleep = ms => new Promise(done => setTimeout(done, ms)), wake, typedAt = userAt, shell, ownRepo = () => true }) {
   let printed = [];
   const line = event => { printed.push(event); print(JSON.stringify(event)); };
   if (!service && !self) { line({ event: 'unsupported', reason: UNSUPPORTED }); return null; }
@@ -337,7 +357,6 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
   if (service) endEarlier(stateDir, day);
   for (;;) {
     wake.heard = false;
-    if (!service && serviceAlive(stateDir, now())) { line({ event: 'end', reason: 'service' }); return day; }
     const state = { startedAt: new Date(now()).toISOString(), agents: {}, gone: [], done: [], notRead: [], chats: [], known: {}, skip: [],
       ...readJson(file, {}) };
     if (state.ended) return day;
@@ -350,8 +369,7 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
       line({ event: 'end', reason });
       return day;
     };
-    if (newerDaily({ stateDir, started, timezone, day })) return end('next-daily');
-    if (now() - Date.parse(state.startedAt) >= hours * 3600e3) return end('time');
+    if (newerDay({ stateDir, started, timezone, day })) return end('next-day');
     printed = [];
     const addonsRead = addons ? await passAddons({ addons, state, line, missed }) : true;
     let read = null;
@@ -365,10 +383,9 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
     if (read) {
       const list = { stateDir, day, started, timezone, list: read.list, self, ignore };
       const skip = new Set(state.skip);
-      await admit({ rows: watched({ ...list, chats: [], skip }), list: read.list, state, call, self, ignore, now: now(), skip });
+      await admit({ rows: watched({ ...list, chats: [], skip }), list: read.list, state, call, self, ignore, now: now(), skip, ownRepo });
       const rows = watched({ ...list, chats: state.chats, skip }).filter(row => !state.gone.includes(row.agentId));
       wake.ids = new Set(rows.map(row => row.agentId));
-      if (!rows.length && !service) return end('empty');
       const log = actions({ stateDir, day });
       await notice({ rows, ...read, state, log, record: action => logAction(stateDir, day, action), call, line, now, typedAt });
       const week = rows.some(row => row.task && !state.done.includes(row.task)) ? await readWeek({ day, state, board, missed }) : null;
@@ -391,7 +408,7 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
 function endEarlier(stateDir, day) {
   for (const other of watchDays(stateDir).filter(each => each < day)) {
     const old = readJson(watchFile(stateDir, other), {});
-    if (!old.ended) writeJson(watchFile(stateDir, other), { ...old, ended: 'next-daily' });
+    if (!old.ended) writeJson(watchFile(stateDir, other), { ...old, ended: 'next-day' });
   }
 }
 
@@ -429,38 +446,25 @@ async function pause({ seconds, sleep, heard }) {
   } while (waited < seconds * 1000 && !heard());
 }
 
-// The service writes this beat each pass: a chat's own watch runs only while it is stale.
+// The worker writes this beat each pass: `D ensure` starts no second worker while it is fresh.
 const beatFile = stateDir => join(stateDir, 'serve.json');
-export const beat = ({ stateDir, seconds, now = Date.now() }) => writeJson(beatFile(stateDir), { pid: process.pid, at: new Date(now).toISOString(), seconds });
-const serviceAlive = (stateDir, now) => {
-  const last = readJson(beatFile(stateDir), null);
+/** The worker's beat: its pid, time, pass length and the stamp of the code it runs. */
+export const beat = ({ stateDir, seconds, now = Date.now(), code }) =>
+  writeJson(beatFile(stateDir), { pid: process.pid, at: new Date(now).toISOString(), seconds, ...(code && { code }) });
+export const readBeat = stateDir => readJson(beatFile(stateDir), null);
+export const serviceAlive = (stateDir, now = Date.now()) => {
+  const last = readBeat(stateDir);
   return Boolean(last) && now - Date.parse(last.at) < Math.max(3 * (last.seconds ?? 60) * 1000, 5 * 60e3);
 };
 
-/** The live Daily agent: the saved one, else the newest live `daily-chat=1` agent, which is saved. It starts none. */
-export async function dailyAgent({ daily, call }) {
-  const saved = daily.read();
-  const list = await call(['ls', '--global']);
-  if (saved.agentId && (Array.isArray(list) ? list : []).some(agent => agent.id === saved.agentId && live(agent))) return saved.agentId;
-  const chats = await call(['ls', '--global', '--label', 'daily-chat=1']);
-  const found = (Array.isArray(chats) ? chats : []).filter(live).sort((a, b) => String(b.created ?? '').localeCompare(String(a.created ?? '')))[0];
-  if (!found) throw new Error('No Daily chat is open: type /daily in a chat, or run open-daily.');
-  daily.write({ ...saved, agentId: found.id });
-  return found.id;
-}
+/** A background run's stand-in id; it matches no chat. */
+export const RUN_ID = 'daily-worker';
 
-/** The env a command runs with: the Daily agent's id when this chat has none, or when the Daily agent started it. */
-export async function chiefEnv(env, { daily } = {}, call) {
-  if (!daily || env.PASEO_AGENT_ID === daily) return env;
-  if (!env.PASEO_AGENT_ID) return { ...env, PASEO_AGENT_ID: daily };
-  try {
-    if ((await call(['inspect', env.PASEO_AGENT_ID]))?.ParentAgentId === daily) return { ...env, PASEO_AGENT_ID: daily };
-  } catch { /* its own id stays */ }
-  return env;
-}
+/** The env a command runs with: a background run with no Paseo id acts under the stand-in, so an install's jobs run. */
+export const chiefEnv = env => (env.PASEO_AGENT_ID || !env.WONG_DAILY_RUN ? env : { ...env, PASEO_AGENT_ID: RUN_ID });
 
-/** Adds a chat the person names, or one the Daily chat opened (`asked`), to the day's watch list. */
-export async function hand({ stateDir, day, started, timezone, agent: name, source = 'handed', call, env = process.env, now = new Date() }) {
+/** Adds a chat the person names to the day's watch list. */
+export async function hand({ stateDir, day, started, timezone, agent: name, call, env = process.env, now = new Date() }) {
   if (!env.PASEO_AGENT_ID) return unsupported;
   const list = await call(['ls', '--global']);
   const found = findAgents(list.filter(live), name);
@@ -472,8 +476,8 @@ export async function hand({ stateDir, day, started, timezone, agent: name, sour
   if (agent.id === env.PASEO_AGENT_ID) return { status: 'refused', error: 'That is this chat.' };
   if (skipped(stateDir, day).has(agent.id)) return { status: 'refused', reason: 'skip', error: `An add-on leaves ${agent.name ?? name} alone.` };
   const before = watched({ stateDir, day, started, timezone, list }).find(row => row.agentId === agent.id);
-  if (before && !(source === 'asked' && before.source === 'own')) return { status: 'already', ...describe(before) };
-  const entry = { agentId: agent.id, title: agent.name ?? name, workspace: basename(folder(agent.cwd)) || null, source, at: now.toISOString() };
+  if (before) return { status: 'already', ...describe(before) };
+  const entry = { agentId: agent.id, title: agent.name ?? name, workspace: basename(folder(agent.cwd)) || null, source: 'handed', at: now.toISOString() };
   writeJson(handsFile(stateDir, day), [...readJson(handsFile(stateDir, day), []), entry]);
   return { status: 'handed', ...describe(entry) };
 }
@@ -578,22 +582,23 @@ export async function allow({ request, ...args }) {
   return { status: 'allowed', ...log({ kind: 'allow', request: ask.id }, args.label) };
 }
 
-/** Each watched agent with its status, open cards and last action; the last 5 actions. */
-export async function status({ stateDir, day, started, timezone, call, env = process.env, dailyId = null }) {
+/** Each watched agent with its status, open cards and last action, and `finished` on one with no card that
+ * `finishedOf` passes; the last 5 actions. */
+export async function status({ stateDir, day, started, timezone, call, env = process.env, project = process.cwd(),
+  finishedOf = agent => finished({ agent, project, inspect: id => call(['inspect', id]) }) }) {
   if (!env.PASEO_AGENT_ID) return unsupported;
   let read;
   try { read = await readPaseo(call); } catch (error) { return notPaseo(error) ? unsupported : { state: 'not-read', error: oneLine(error.message) }; }
   const log = actions({ stateDir, day });
-  return {
-    state: 'read', day,
-    agents: watched({ stateDir, day, started, timezone, list: read.list, self: env.PASEO_AGENT_ID, ignore: [dailyId].filter(Boolean) }).map(row => ({
-      ...describe(row),
-      status: read.list.find(entry => entry.id === row.agentId && live(entry))?.status ?? 'gone',
-      asking: read.pending.filter(ask => ask.agentId === row.agentId).length,
-      last: log.filter(entry => entry.agent === row.agentId).at(-1) ?? null,
-    })),
-    recent: log.filter(entry => entry.label).slice(-5).map(entry => entry.label),
-  };
+  const rows = watched({ stateDir, day, started, timezone, list: read.list, self: env.PASEO_AGENT_ID });
+  const agents = [];
+  for (const row of rows) {
+    const agent = read.list.find(entry => entry.id === row.agentId && live(entry));
+    const asking = read.pending.filter(ask => ask.agentId === row.agentId).length;
+    agents.push({ ...describe(row), status: agent?.status ?? 'gone', asking, last: log.filter(entry => entry.agent === row.agentId).at(-1) ?? null,
+      ...(!asking && agent && await finishedOf(agent) && { finished: true }) });
+  }
+  return { state: 'read', day, agents, recent: log.filter(entry => entry.label).slice(-5).map(entry => entry.label) };
 }
 
 const END_CHARS = 300;
@@ -631,27 +636,6 @@ export async function todoLink({ stateDir, day, started, timezone, agent: name, 
   if (!id) return { status: 'refused', reason: 'no-task', ...describe(row), error: `${row.title ?? name} has no task on the board yet.` };
   try { await board.link({ id, link: url }); } catch (error) { return { status: 'not confirmed', ...describe(row), task: id, reason: oneLine(error.message) }; }
   return { status: 'linked', ...describe(row), task: id };
-}
-
-/** Archives a chat the Daily chat opened on request, for *do it here*; the person's own chats stay theirs to close. */
-export async function close({ stateDir, day, started, timezone, agent: name, call, env = process.env, now = new Date() }) {
-  if (!env.PASEO_AGENT_ID) return unsupported;
-  let row;
-  try {
-    const list = await call(['ls', '--global']);
-    row = watchedRow(watched({ stateDir, day, started, timezone, list, self: env.PASEO_AGENT_ID }), name);
-    if (!row) return { status: 'unknown', error: `${name} is not a chat the watch has.` };
-    if (row.source !== 'asked') return { status: 'refused', ...describe(row), error: `${row.title ?? name} is not a chat this Daily opened for you; close it yourself.` };
-    const mine = folder(list.find(agent => agent.id === env.PASEO_AGENT_ID)?.cwd);
-    const there = folder(list.find(agent => agent.id === row.agentId)?.cwd);
-    const workspace = (await call(['workspace', 'ls', '--background'])).find(each => there && there !== mine && folder(each.cwd) === there);
-    await call(workspace ? ['workspace', 'archive', workspace.workspaceId] : ['archive', row.agentId, '--force']);
-  } catch (error) {
-    return notPaseo(error) ? unsupported : { status: 'failed', ...(row && describe(row)), error: oneLine(error.message) };
-  }
-  writeJson(handsFile(stateDir, day), readJson(handsFile(stateDir, day), [])
-    .map(entry => (entry.agentId === row.agentId && !entry.closed ? { ...entry, closed: now.toISOString() } : entry)));
-  return { status: 'closed', ...describe(row) };
 }
 
 /** A reminder's key, from its day and words: the same reminder adds one task. */

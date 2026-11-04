@@ -86,7 +86,7 @@ export async function refreshIndex(ctx, corpus, paths, { prepare = async () => (
       mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
       writeFileSync(file, entry.text, { mode: 0o600 });
     }
-    for (const role of ['wiki', 'specs', 'active', 'archive']) mkdirSync(join(dir, 'corpus', role), { recursive: true, mode: 0o700 });
+    for (const role of ['wiki', 'knowledge', 'specs', 'active', 'archive']) mkdirSync(join(dir, 'corpus', role), { recursive: true, mode: 0o700 });
     const runtime = await prepare(dir, delta, signal);
     if (signal?.aborted || !lock.owns()) throw new Error('refresh deadline or ownership lost');
     const entries = Object.fromEntries(Object.entries(corpus.entries).map(([path, { text: _text, ...entry }]) => [path, entry]));

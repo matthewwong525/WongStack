@@ -2,6 +2,6 @@
  * share it without importing each other. */
 export const InstallButton = () => (
   <a className="button" href="#install">
-    Install for free
+    Install
   </a>
 );

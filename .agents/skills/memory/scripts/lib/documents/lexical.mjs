@@ -59,7 +59,7 @@ export function lexicalSearch(corpus, query, options = {}) {
   return hits;
 }
 export function interleaveSources(candidates, limit = 5) {
-  const groups = ['wiki', 'specs', 'active', 'archive'].map(role => candidates.filter(item => item.role === role));
+  const groups = ['wiki', 'knowledge', 'specs', 'active', 'archive'].map(role => candidates.filter(item => item.role === role));
   const output = [], seen = new Set();
   while (groups.some(group => group.length) && output.length < limit) {
     for (const group of groups) {

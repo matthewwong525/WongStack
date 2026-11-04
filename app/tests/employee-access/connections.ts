@@ -18,7 +18,7 @@ export const key = JSON.stringify({ version: 2, token: "private-access-token", a
 export function database() {
   const sql = new DatabaseSync(":memory:");
   sql.exec("PRAGMA foreign_keys = ON");
-  for (const file of ["0001_employee_access.sql", "0002_employee_connections.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql", "20261013205049_admin_role.sql", "20261022120000_inbox.sql", "20261023120000_inbox_link_items.sql", "20261024120000_inbox_agent_items.sql", "20261025120000_access_pushers.sql", "20261026120000_schedules.sql", "20261028120000_task_board.sql", "20261101120000_inbox_hidden_items.sql"]) {
+  for (const file of ["0001_employee_access.sql", "0002_employee_connections.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql", "20261013205049_admin_role.sql", "20261022120000_inbox.sql", "20261023120000_inbox_link_items.sql", "20261024120000_inbox_agent_items.sql", "20261025120000_access_pushers.sql", "20261026120000_schedules.sql", "20261028120000_task_board.sql", "20261101120000_inbox_hidden_items.sql", "20261103120000_inbox_kept_reviews.sql", "20261104120000_inbox_files.sql"]) {
     sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
   }
   const statement = (query: string, values: SQLInputValue[] = []) => ({
@@ -27,10 +27,17 @@ export function database() {
     all: async () => ({ results: sql.prepare(query).all(...values), success: true }),
     run: async () => sql.prepare(query).run(...values),
   });
-  const session = { prepare: (query: string) => statement(query), batch: async (statements: { run: () => Promise<unknown> }[]) => {
+  // One batch at a time, as on D1: two calls' batches never share a transaction.
+  let queue: Promise<unknown> = Promise.resolve();
+  const transaction = async (statements: { run: () => Promise<unknown> }[]) => {
     sql.exec("BEGIN");
     try { const results = []; for (const item of statements) results.push(await item.run()); sql.exec("COMMIT"); return results; }
     catch (error) { sql.exec("ROLLBACK"); throw error; }
+  };
+  const session = { prepare: (query: string) => statement(query), batch: (statements: { run: () => Promise<unknown> }[]) => {
+    const done = queue.then(() => transaction(statements));
+    queue = done.catch(() => undefined);
+    return done;
   } };
   return { sql, session, DB: { withSession: () => session } as unknown as D1Database };
 }
