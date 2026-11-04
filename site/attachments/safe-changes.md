@@ -23,7 +23,7 @@ Add a safe way to publish changes to my AI setup. Build it in this project and a
 > A promise no check can reach is listed as unverified, never as a pass
 > Save each passed walk as a recording, and replay the recordings before each publish, so old features don't break quietly
 > Keep the replay short, with a time limit, and name any check it didn't reach
-> A failed check stops the publish; fix it in the same change, at most twice, then ask me
+> A failed check stops the publish: fix it in the same change, check again, and ask me only if it still fails
 > Removing or loosening a check needs a written reason in the plan
 > Publish only when I say yes, and only after the checks pass
 > After publishing, take one look at the live site, and change nothing there

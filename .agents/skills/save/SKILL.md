@@ -33,7 +33,7 @@ openspec list --json
 bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candidates.sh" --json
 ```
 
-Save the change this work touched, found by [the rungs](references/checkpoint-evidence.md#selection-rungs), never a plan merely because it is the only one open. Keep `BRANCH`, `NAME`, `CHANGE_ROOT` separate: a branch and its change can differ in name, so never rename or duplicate a change to match.
+Save the change this work touched, found by [the rungs](references/checkpoint-evidence.md#selection-rungs), never a plan merely because it is the only one open. Keep `BRANCH`, `NAME`, `CHANGE_ROOT` separate; never rename or duplicate a change to match its branch.
 
 A save changing repo files takes the normal route, except the validated record-only procedure above. Nothing learned, decided, or changed → report and stop.
 
@@ -56,7 +56,7 @@ Keep exact `CHANGE_ROOT`; infer `NAME` from its dated folder only if absent. Ret
 
 ## 3. Stage, exclude values, and commit
 
-Stage intended implementation, handoff and removals, never `git add .`, which sweeps in unmeant files; check for unrelated staged work. A plan-only save commits its artifacts. Write, outside the repo, a one-line repo-style commit message ending `Co-Authored-By: Claude`, and the PR summary.
+Stage intended implementation, handoff and removals, never `git add .`; check for unrelated staged work. A plan-only save commits its artifacts. Write, outside the repo, a one-line repo-style commit message ending `Co-Authored-By: Claude`, and the PR summary.
 
 ## 4. Publish and wait for the gate
 

@@ -31,6 +31,7 @@ Add a plan-first workflow to my AI setup. Build it in this project and ask me be
 > Write all the code and its tests first, then run the checks once at the end
 > Fix a problem alone only when the plan already settles what is right
 > Ask me when a fix goes past the plan, weakens a check, can't be undone, or still fails after two tries
+> Once I say publish, take your recommended answer when it stays inside the work and can be undone, and list each one in the report
 > A second agent reviews the build before I see it
 > After the build, show me a preview and ask: publish it?
 > The plan travels with the code, so any chat on any computer can pick it up

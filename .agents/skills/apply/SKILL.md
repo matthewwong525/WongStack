@@ -14,7 +14,7 @@ Build [the chosen plan](../../../wiki/development/the-change-loop.md). First run
 
 ## Resolve the plan first
 
-Build the change this chat is about, found by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). An argument naming no existing change is intent for a new plan.
+Build the change this chat is about, found by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). An argument naming no existing change is intent for a new plan. In `/ship`, an archive path is that change: skip status, add the failures as a task, and build.
 
 Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep building.
 
@@ -31,13 +31,13 @@ At **all-tasks-complete**, even at invocation, [finish with a preview](#finish-w
 
 ## Build in a helper
 
-A `.scratch/<name>-prototype` copy → first run `node .claude/skills/plan/scripts/prototype.mjs finish "<name>"`. Use a fresh helper on the parent's model, free of the planning talk: Agent (`general-purpose`) in Claude Code, a sub-agent in Codex. Prompt: the exact change name, then *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. Add `store <id>` when selected. [The brief](references/build-helper.md) owns its work, its build order, and its return.
+A `.scratch/<name>-prototype` copy → first run `node .claude/skills/plan/scripts/prototype.mjs finish "<name>"`. Use a fresh helper on the parent's model, free of the planning talk: Agent (`general-purpose`) in Claude Code, a sub-agent in Codex. Prompt: the exact change name, then *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build*. Add `store <id>` when selected, and *inside `/ship`* if so. [The brief](references/build-helper.md) owns its work, its build order, and its return.
 
 **Let it build unwatched**, with the longest host wait (the Agent call in Claude Code, `wait_agent` in Codex), waiting again on a timeout: don't narrate waits or read its files; message it only with an answer or a stop.
 
 Act on reports:
 
-- **A question** → ask the person in [the shared ask format](../explore/references/asking-the-user.md), log the answer as an `Asked` [Decision-log line](../plan/SKILL.md#explore-first), then start a new helper.
+- **A question** → ask the person in [the shared ask format](../explore/references/asking-the-user.md), log the answer as an `Asked` [Decision-log line](../plan/SKILL.md#explore-first), then start a new helper. Inside `/ship`, a [safe pick](../../../wiki/development/the-change-loop.md#inside-ship) is logged `Assumed`, not asked.
 - **A blocker** → report it and stop, ending with [the ways to clear it](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step).
 - **Final acceptance** → once the build and its tests are written, run `/save` and the retained live acceptance. Tick only what you saw pass; a blocked or failed check stays unticked and stops.
 - **All done** → confirm no unticked box, relay its `local checks:` line, then handle **all-tasks-complete** above.
@@ -65,5 +65,5 @@ Work the conversation's numbered to-do in order, writing one if missing ([verbs 
 
 ## Boundaries
 
-- **Git stays with `/save`** ([the change loop](../../../wiki/development/the-change-loop.md)), on [either route](../../../wiki/stack/artifacts-route.md); the preview upload is not git and gates nothing.
-- **Never save to stop or between parts** ([why](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)); final acceptance above is the one exception.
+- **Git stays with `/save`**, on [either route](../../../wiki/stack/artifacts-route.md); the preview upload is not git and gates nothing.
+- **Never save to stop or between parts** ([why](../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)), but for final acceptance.

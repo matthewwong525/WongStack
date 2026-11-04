@@ -59,7 +59,7 @@ A fresh look ends one of three ways:
 
 - **The promise still holds and only the page changed**, such as a renamed button. The kept check is replaced and nothing stops.
 - **The promise is broken and your change broke it.** The assistant fixes it, saves, and replays that check, without asking, at most twice. It never edits code your change didn't touch: that would turn one change into another.
-- **The break survives two tries, or doesn't come from your change.** The check is a failure that names the older promise, and `/ship` asks: fix it first, or publish anyway.
+- **The break survives two tries, or doesn't come from your change.** The check is a failure that names the older promise. `/ship` [fixes it once](../../.agents/skills/ship/SKILL.md#step-4--verify-the-preview-evidence-not-a-gate); if it still fails, it asks: fix more, or publish anyway.
 
 At most three fresh looks per publish. One renamed menu could otherwise send the assistant through every kept check; the rest are named as not checked.
 

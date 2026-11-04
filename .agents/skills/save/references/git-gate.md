@@ -16,7 +16,7 @@ The body is regenerated as the [change mirror](../../../../wiki/development/the-
 
 ## 2 — wait for checks, auto-fix on failure
 
-The command waits up to 20 minutes and ends with `SAVE_GATE_RESULT=`; save may finish unverified, ship reads it strictly:
+The command waits up to 20 minutes and ends with `SAVE_GATE_RESULT=`:
 
 | Result | Meaning | `/save` | `/ship` |
 |---|---|---|---|
@@ -30,7 +30,7 @@ The command waits up to 20 minutes and ends with `SAVE_GATE_RESULT=`; save may f
 
 ### The auto-fix loop
 
-`FAILURE` lists every failing check with the cause its log shows. Fix all by [fix it or ask](../../../../wiki/development/the-change-loop.md#fix-it-or-ask) in one push, after rerunning the failed check here where the tools exist: `node .github/scripts/checks.mjs --worktree`, a pre-check. A failure outside the diff gets one rerun; still red: stop, no code edit.
+`FAILURE` lists every failing check with the cause its log shows. Fix all by [fix it or ask](../../../../wiki/development/the-change-loop.md#fix-it-or-ask) in one push, after rerunning the failed check here where the tools exist: `node .github/scripts/checks.mjs --worktree`, a pre-check. A failure outside the diff gets one rerun; still red: stop, no code edit, but [in `/ship`](../../../../wiki/development/the-change-loop.md#inside-ship) one fix that keeps the check as strong.
 
 **Cap: 3 attempts per `/save` run**, counted by the command; each of [`/verify`](../../verify/SKILL.md)'s two re-walks passes `--new-run` for a fresh cap (budgets nest, never share). Still red → stop with the error and the checks link. Never bypass with `--no-verify` or `--force`.
 
