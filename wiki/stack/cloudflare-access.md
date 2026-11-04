@@ -85,15 +85,16 @@ New applications and human policies default to `720h` (30 days). This is the app
 
 ### 4. Bypass the public surface
 
-Three routes skip the wall, and the Worker checks the company sign-in on each itself, before any other work. Anyone else gets a 401.
+Four routes skip the wall. On the first three, the Worker checks the company sign-in itself, before any other work, and anyone else gets a 401. The fourth needs no sign-in.
 
 | Route | Where | Why it skips the wall |
 |---|---|---|
 | `/_memory/*` | the production Worker and its default-hostname anchor | memory clients send the sign-in in a `cf-access-token` header |
 | `/api/access/code/git/*` | every Worker and the anchor | Git sends the sign-in as a password, which the wall can't read |
 | `/api/access/knowledge/git/*` | the production Worker and its anchor | the same; [company knowledge](company-knowledge.md) is on the live app alone |
+| `/public/*` | every Worker and the anchor | a knowledge page marked `public: true` opens for anyone; every other path there gets one *not found* ([public pages](knowledge-reader.md#public-pages)) |
 
-The Worker verifies the same signed token the wall would: from the wall's header, the browser cookie, a `cf-access-token` header, or a Git password ([`access.ts`](../../app/worker/access.ts)). A Git call with none gets a 401 that asks for a password, so Git asks [the copy's credential helper](employee-project.md#update-the-copy), and its text names the sign-in step. Staging binds no memory and opens only the code Git route. A destination override lets a request reach the Worker; it never skips the Worker's check.
+The Worker verifies the same signed token the wall would: from the wall's header, the browser cookie, a `cf-access-token` header, or a Git password ([`access.ts`](../../app/worker/access.ts)). A Git call with none gets a 401 that asks for a password, so Git asks [the copy's credential helper](employee-project.md#update-the-copy), and its text names the sign-in step. Staging binds no memory and opens only the code Git route and `/public/*`, which finds no knowledge there. A destination override lets a request reach the Worker; it never skips the Worker's check.
 
 One address under it is not memory: `/_memory/setup.mjs`, [the setup file](employee-project.md#the-setup-files-fixed-link) *Connect your assistant* names. It answers anyone, holds no key, and reads no store. It sits there so no install needs a second override: the publish check matches the destinations exactly.
 
