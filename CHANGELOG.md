@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Faster checks: a save that matches a branch that already passed skips the full test run
+
+- **A save that changes only notes reuses the last pass.** When an earlier save of the same change passed the tests, and everything changed since is plans, wiki pages or other notes, the tests do not run again. Before, a change's last save, which often only files its plan away, ran the full suite again and the change waited minutes to go live ([the gate](wiki/development/the-change-loop.md#the-gate)).
+- **The other checks still run.** The notes, loosened-check and skill checks look at the whole change, and the check's summary names the save that passed.
+- **Any doubt runs the tests.** No earlier pass, changed code, or an answer from GitHub that can not be read runs them, as before.
+
+**Updating.** Nothing to do: the next save after this update uses it.
+
 ## 47.0.0 — Your day runs without a Daily chat
 
 - **The morning starts by itself.** At `morning` in your settings file, 08:00 by default, the helper that runs in the background starts your due routines and morning add-ons, one time per day. You open no chat for it, and you get no morning list: your tasks are on your week in the Inbox ([the daily routine](wiki/development/daily.md#what-it-does)).
