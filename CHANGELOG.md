@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A card form shows the site live from the press
+## 48.2.0 — A card form shows the site live from the press
 
 - **When you press Pay, you see the site.** The same private form link shows the store's page live, under one line such as *Paying Example Shop · 4 s*. If the site stops on a step, you tap through it there. Where no live view can open, such as on a Mac, the form shows the same line and a counter ([the private form](wiki/development/private-form.md#what-you-see)).
 - **A saved card no longer reads as "not confirmed".** A card box the site hides counts as gone. A form can also wait for words the site shows once it accepts, such as *Review your order*.

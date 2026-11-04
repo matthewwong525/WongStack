@@ -1,4 +1,8 @@
-# Proposal
+# Private form shows the site live
+
+**Status:** ready-to-ship
+**Branch:** warm-bedbug
+**Open questions:** none
 
 ## Why
 
@@ -81,3 +85,4 @@ Non-goals: saving cards; Google Pay or Apple Pay; a live view on a Mac; the Wong
 - **2026-11-04** — Assumed: `browsing.md` stays under its cap by shorter wording and by moving the form helper's read list to `private-form.md`, which owns the form, because that detail is the form's own.
 - **2026-11-04** — Assumed: the after-check reads email only when it can, worded in `private-form.md` as *when it can read your email*, as the earlier email line settled.
 - **2026-11-04** — Assumed: the `browser-logins` delta also fixes two contradictions the review did not name (a live view only for a check or a stuck login, and one live view per site that a form's view would use up), because this change ships a view from the press, a view that stays open for a stuck step, and PayPal through a view.
+- **2026-11-04** — Assumed: archive checkpoint: built in one round, reviewed twice (a stale `browser-logins` spec, a stale maintainer page, two incomplete read lists, then a missing password sign-in in the live-view list, all fixed), archived for publish as 48.2.0. Main's own check failed twice on unrelated flaky tests (`wong-sync-preflight` cleanup, an old hand-over timing test) and passed on its third run.
