@@ -14,7 +14,7 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { lookCss } from '../../plan/scripts/look.mjs';
 import { client as browseClient, sessionName } from '../../browser/scripts/browse.mjs';
-import { checkForm, FORM_ROUTES, formRoutes, LIMITS as FORM_LIMITS, sendForm } from './form.mjs';
+import { checkForm, FORM_ROUTES, formReady, formRoutes, LIMITS as FORM_LIMITS, sendForm } from './form.mjs';
 import { APP_FILE, checkGuide, KEY_ROUTES, keyRoutes, LIMITS as KEY_LIMITS, NAME as KEY_NAME, resolveKeys } from './keys.mjs';
 import { readableName } from './keys-page.mjs';
 import { closeItem, companyFor, inTime, listLink } from './lib/inbox.mjs';
@@ -28,30 +28,40 @@ import { checkView, endView, installView, liveView, MANUAL, OFF_LINUX, screenOf,
 
 export { keyMatches, tunnelOrigin } from './lib/tunnel.mjs';
 
-const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until-gone <selector>) [--session <name>] [--minutes N]
-       hand-over.mjs open --view (--until <glob> | --until-gone <selector>) [--session <name>] [--note <line>] [--minutes N]
-       hand-over.mjs open --passwords [--site <url> [--email-first]] [--username <user>] [--session <name>] [--minutes N]
+const USAGE = `usage: hand-over.mjs open --form <file> <finish> [--session <name>] [--minutes N]
+       hand-over.mjs open --view <finish> [--session <name>] [--note <line>] [--minutes N]
+       hand-over.mjs open --view --keep-open [--session <name>] [--note <line>] [--minutes N]
+       hand-over.mjs open --passwords [--site <url> [--email-first] [<finish> --sign-in <user-ref>,<password-ref>[,<submit-ref>]]]
+                          [--username <user>] [--session <name>] [--minutes N]
        hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--minutes N]
        hand-over.mjs wait | close | install-view
   open    start the private link, print HANDOVER_LINK=<url> once it answers through
           Cloudflare, then HANDOVER_SEND=<reminder to end the turn with the link>, list its address
           (no username) in the app's inbox, and watch for the finish
-          --form: a JSON file of title, note, fields (label, kind, target, options),
+          <finish>: one or more of --until <glob> (the address), --until-gone <selector>
+          (no match shown), and --until-text <words> (shown on the page); all must hold
+          --form: a JSON file of title, site, note, fields (label, kind, target, options),
           and submit (label, target), drawn as one box per field (exit 2 with
-          FORM_FILE=); the person's one send fills the site's fields and presses its
-          button; --until and --until-gone name where the site goes once it accepts;
+          FORM_FILE=); the person's one send checks every target is still on the page,
+          fills the site's fields, and presses its button; the finish names where the
+          site goes once it accepts; where a live view can open, the link shows the site
+          live from the press, as a view does, the page at its own size;
           --session names the browse.mjs session whose page it is, when not the default;
           the page shows one picture of the whole site page, taken before the link opens
           --view: a live view of that page for a check that asks whether a person is
-          there, or a stuck login; the person taps or signs in through it, and it closes once the page meets --until
-          or --until-gone; --note is the one line the page shows; open for 480 minutes;
+          there, or a stuck login; the person taps or signs in through it, and it closes once the page meets
+          the finish; --note is the one line the page shows; open for 480 minutes;
+          --keep-open, in place of a finish: a view for a stuck site or payment step
+          that stays open through every page until the person taps I'm finished
+          (done), close (closed), or the time limit (timeout); it reads no finish;
           HANDOVER_VIEW=unsupported where the browser has no screen to show, and
           HANDOVER_NEEDS=live-view (exit 3) with a line per missing tool
           --passwords: save logins and continue, or cancel; --site and --username
           fill in the add-a-login form, carried only in the link; with --site, a
           picture of the --session page when it is on that site; --email-first,
           for a site that asks the email on a page of its own, makes the password
-          optional
+          optional; with a finish, a save signs in with browse.mjs login on the
+          --sign-in boxes, shown live where a view can open, and ends on the finish
           --keys: one box per declared name; it ends on cancellation or
           once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=);
           an unopened one gives way to a new open from the same chat
@@ -60,8 +70,13 @@ const USAGE = `usage: hand-over.mjs open --form <file> (--until <glob> | --until
           --minutes: time limit for any link, default 1440 (24 hours); 480 for --view
   wait    block until the link closes; print
           HANDOVER_RESULT=done|not-accepted|unconfirmed|timeout|closed|error,
-          then for a form whose site has not answered HANDOVER_WATCHING=<minutes>:
-          it still watches the site, and a second wait prints the final result;
+          then HANDOVER_REASON=page-changed|fill for a form that pressed nothing,
+          viewed for a live send the person ended, or no-answer for a watched send
+          whose page kept still (a pressed send is never not-accepted, and its boxes
+          keep what was typed); then for a send or sign-in the site
+          has not finished in a minute HANDOVER_VIEWING=yes (the person still sees it
+          live, up to 30 minutes) or HANDOVER_WATCHING=<minutes> (no view: it still
+          watches the site), and a second wait prints the final result;
           then HANDOVER_SAVED=<name>,<name> for a password or key link, and
           HANDOVER_APP_KEYS=<name>,<name> and HANDOVER_OPENED=yes|no (whether
           anyone opened it) for a key link, then HANDOVER_REPLACED_BY=<folder>
@@ -79,6 +94,7 @@ const POLL_MS = Number(process.env.HANDOVER_POLL_MS) || 2000;
 const SEND_WAIT_MS = Number(process.env.HANDOVER_SEND_WAIT_MS) || 60_000;
 const SEND_POLL_MS = Number(process.env.HANDOVER_SEND_POLL_MS) || 500;
 const WATCH_MS = Number(process.env.HANDOVER_WATCH_MS) || 10 * 60_000;
+const VIEW_WATCH_MS = Number(process.env.HANDOVER_VIEW_WATCH_MS) || 30 * 60_000;
 const KEEP_MS = Number(process.env.HANDOVER_KEEPALIVE_MS) || 60_000;
 const DIR = join(homedir(), '.wong-stack', 'hand-over');
 const LINKS = join(DIR, 'links');
@@ -114,10 +130,15 @@ const pages = name => ({
 const PICTURE_VIEW = { '/picture-view.mjs': { file: join(HERE, 'picture-view.mjs'), type: SCRIPT } };
 const PAGES = { form: { ...pages('form-page'), ...PICTURE_VIEW }, passwords: { ...pages('passwords-page'), ...PICTURE_VIEW }, keys: pages('keys-page'), view: pages('view-page') };
 const ROUTES = { form: FORM_ROUTES, passwords: PASSWORD_ROUTES, keys: KEY_ROUTES, view: VIEW_ROUTES };
+/** Where a form's or a sign-in's live view is served on its own link: the view page, under this folder. */
+const LIVE = '/live';
+const LIVE_ROUTES = new Set(['/view', '/done']);
+const BROWSE = join(HERE, '../../browser/scripts/browse.mjs');
 /** Why a link can not open on a page that already meets its finish. */
 const MET = {
   form: 'The page already meets the finish, so the form could not tell sent from not accepted; name where the site goes next.',
   view: 'The page already meets the finish, so the view would close at once; name where the site goes once the check is passed.',
+  passwords: 'The page already meets the finish, so the sign-in would end at once; name where the site goes once you are signed in.',
 };
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 
@@ -128,10 +149,11 @@ export function globToRegExp(glob) {
 }
 
 /** True when the finish is met: every named check holds, and at least one was named. */
-export function finished({ until, untilGone }, { url, count }) {
-  if (!until && !untilGone) return false;
+export function finished({ until, untilGone, untilText }, { url, count, text }) {
+  if (!until && !untilGone && !untilText) return false;
   if (until && !(url != null && globToRegExp(until).test(url))) return false;
   if (untilGone && count !== 0) return false;
+  if (untilText && text !== true) return false;
   return true;
 }
 
@@ -143,8 +165,9 @@ const watcherPid = (file = FILES.pid) => Number(readText(file).trim()) || null;
 /** A link's browser client: it starts no browser and retries no step, so nothing is typed or pressed twice. */
 const pageOf = session => browseClient(session, { retry: false, start: false });
 
-/** The link's mode from its state: the password link, the key link, a live view, or a private form. */
-const modeOf = ({ passwords, keys, view } = {}) => (passwords ? 'passwords' : keys ? 'keys' : view ? 'view' : 'form');
+/** The link's mode from its state: the password link, the key link, a private form, or a live view. A form's
+ * state names a view too once its press is shown live. */
+const modeOf = ({ passwords, keys, form, view } = {}) => (passwords ? 'passwords' : keys ? 'keys' : form ? 'form' : view ? 'view' : 'form');
 
 /** Ends a link whose watcher can not: puts a view's page back and stops its screen source, kills the
  * tunnel, records the result, and clears the rest. The watcher closes its page first. */
@@ -159,7 +182,7 @@ async function teardown(result, { tunnelPid, view, session, completionId } = {},
 /** Result-only completion message; routing and private input are never taken from the page. */
 export function completionMessage(state, result) {
   const names = list => (list ?? []).filter(name => typeof name === 'string' && /^[a-zA-Z0-9_-]{1,200}$/.test(name));
-  return `Private input ended. Resume the existing task once for this completion; if wait already reported it, consume the duplicate without repeating the task. ${JSON.stringify({ completionId: state.completionId, mode: modeOf(state), result: result.result, ...(result.watching && { watching: true }), saved: names(result.saved), appKeys: names(result.appKeys) })}${result.appKeys?.length ? ' Push the saved Worker keys to the live app as the secrets guide requires.' : ''}`;
+  return `Private input ended. Resume the existing task once for this completion; if wait already reported it, consume the duplicate without repeating the task. ${JSON.stringify({ completionId: state.completionId, mode: modeOf(state), result: result.result, ...(result.reason && { reason: result.reason }), ...(result.watching && { watching: true }), ...(result.viewing && { viewing: true }), saved: names(result.saved), appKeys: names(result.appKeys) })}${result.appKeys?.length ? ' Push the saved Worker keys to the live app as the secrets guide requires.' : ''}`;
 }
 
 /** Tells the workspace that opened the link its result is ready: `notified`, `unconfirmed`, or `unavailable`. */
@@ -191,47 +214,63 @@ function reply(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }
 
-/** Serves the link's page on 127.0.0.1:`port`; each route needs the key in an `x-hand-over-key` header.
- * A view's viewer scripts go unkeyed, since an `import` carries no header. Resolves to a close(). */
-export function servePage({ port, key, passwords = false, keys = null, form = null, view = null, picture = false, deadline }, hooks = {}) {
+/** Serves a page file, or 404 for none. */
+function sendFile(page, response) {
+  if (!page) return void response.writeHead(404, { 'content-length': 0 }).end();
+  response.writeHead(200, { 'content-type': page.type, 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" });
+  response.end(page.text ? page.text() : readFileSync(page.file));
+}
+
+/** Serves the link's page on 127.0.0.1:`port`, each route keyed by an `x-hand-over-key` header, except a view's viewer
+ * scripts (an `import` sends none). `viewAfter` also serves the view page under LIVE once it has a screen. */
+export function servePage({ port, key, passwords = false, keys = null, form = null, view = null, viewAfter = false, picture = false, deadline }, hooks = {}) {
   const sockets = new Set();
   let finishing = false;
   let receipt = null;
   let step = null;
-  const mode = modeOf({ passwords, keys, view });
+  const mode = modeOf({ passwords, keys, form, view });
   hooks = { ...hooks, isOpen: () => !finishing };
   const routes = { passwords: () => passwordRoutes(hooks), keys: () => keyRoutes(keys, { ...hooks, closesAt: deadline }), form: () => formRoutes(form, { ...hooks, closesAt: deadline, picture }), view: () => viewRoutes(view, { ...hooks, closesAt: deadline }) }[mode]();
-  const served = PAGES[mode];
-  const bridge = view && screenBridge({ key, socketPath: socketOf(view.dir), isOpen: () => !finishing });
-  /** What a GET of `pathname` serves: the page's own file, or for a view one of the viewer's scripts. */
-  const fileFor = pathname => {
-    if (Object.hasOwn(served, pathname)) return served[pathname];
-    const file = view && viewerFile(pathname);
+  let bridge = null;
+  const mountView = shown => { bridge = screenBridge({ key, socketPath: socketOf(shown.dir), isOpen: () => !finishing }); };
+  if (view) mountView(view);
+  const keyed = request => keyMatches(request.headers['x-hand-over-key'], key);
+  /** What a GET of `pathname` serves from `files`: a page file, or once a screen is up one of the viewer's scripts. */
+  const fileFor = (files, pathname, viewer = true) => {
+    if (Object.hasOwn(files, pathname)) return files[pathname];
+    const file = viewer && bridge && viewerFile(pathname);
     return file ? { file, type: SCRIPT } : null;
+  };
+  const answerReceipt = (request, response) => {
+    if (!keyed(request)) return reply(response, 403);
+    if (request.method !== 'GET') return reply(response, 405);
+    return reply(response, receipt ? 200 : 202, receipt ?? { finishing, ...step, now: Date.now() });
+  };
+  /** The live view of a form's press or a sign-in: the view page, its viewer, its line (`/view`), and its Done. */
+  const serveLive = (pathname, request, response) => {
+    if (pathname === '/receipt') return answerReceipt(request, response);
+    if (!LIVE_ROUTES.has(pathname)) return sendFile(request.method === 'GET' && fileFor(PAGES.view, pathname), response);
+    if (!keyed(request)) return reply(response, 403);
+    if (finishing || !bridge) return reply(response, 410);
+    if (pathname === '/view') return request.method === 'GET' ? reply(response, 200, hooks.liveInfo()) : reply(response, 405);
+    if (request.method !== 'POST') return reply(response, 405);
+    reply(response, 200, { ok: true });
+    hooks.onViewed();
   };
   const server = createServer((request, response) => {
     const { pathname } = new URL(request.url, 'http://page');
-    if (pathname === '/receipt') {
-      if (!keyMatches(request.headers['x-hand-over-key'], key)) return reply(response, 403);
-      if (request.method !== 'GET') return reply(response, 405);
-      return reply(response, receipt ? 200 : 202, receipt ?? { finishing, ...(step && { step }) });
-    }
+    if (viewAfter && pathname.startsWith(`${LIVE}/`)) return serveLive(pathname.slice(LIVE.length), request, response);
+    if (pathname === '/receipt') return answerReceipt(request, response);
     if (pathname === '/picture' && PICTURED.has(mode)) return servePicture(request, response, { key, finishing, picture });
     if (ROUTES[mode].has(pathname)) {
-      if (!keyMatches(request.headers['x-hand-over-key'], key)) return reply(response, 403);
+      if (!keyed(request)) return reply(response, 403);
       if (finishing) return reply(response, 410);
       return void routes(pathname, request, response).catch(() => reply(response, 500));
     }
-    const page = request.method === 'GET' && fileFor(pathname);
-    if (!page) {
-      response.writeHead(404, { 'content-length': 0 }).end();
-      return;
-    }
-    response.writeHead(200, { 'content-type': page.type, 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-frame-options': 'DENY', 'content-security-policy': "frame-ancestors 'none'" });
-    response.end(page.text ? page.text() : readFileSync(page.file));
+    sendFile(request.method === 'GET' && fileFor(PAGES[mode], pathname, mode === 'view'), response);
   });
   server.on('connection', socket => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });
-  if (bridge) server.on('upgrade', bridge);
+  server.on('upgrade', (request, socket, head) => (bridge ? bridge(request, socket, head) : socket.destroy()));
   return new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, '127.0.0.1', () => {
@@ -246,7 +285,9 @@ export function servePage({ port, key, passwords = false, keys = null, form = nu
         if (!drained) { routes.abort?.(); await Promise.race([routes.drain?.(), sleep(100)]); }
       };
       close.setReceipt = value => { receipt = value; };
-      close.setStep = value => { step = value; };
+      /** The step a send is on, with any `more` (the press's time) for the page's line. */
+      close.setStep = (name, more = {}) => { step = { step: name, ...more }; };
+      close.mountView = mountView;
       resolve(close);
     });
   });
@@ -264,54 +305,58 @@ async function pageAnswers(port, pid) {
   return false;
 }
 
-/** What a finish is judged by: the page's address and the named element's count, each read only when
- * named. An address that can not be read is null, and a count NaN. */
-async function seen(page, { until, untilGone }) {
+/** What a finish is judged by: the page's address, the named element's shown count, and whether the named words
+ * show, each read only when named. An address or words that can not be read are null, and a count NaN. */
+export async function seen(page, { until, untilGone, untilText }) {
   return {
     ...(until && { url: await page.url().catch(() => null) }),
-    ...(untilGone && { count: await page.count(untilGone).then(Number, () => NaN) }),
+    ...(untilGone && { count: await page.countShown(untilGone).then(Number, () => NaN) }),
+    ...(untilText && { text: await page.hasText(untilText).catch(() => null) }),
   };
 }
 
-/** The page's address and, when the finish names one, the gone element's count: what a send compares. */
-async function reading(page, { untilGone }) {
-  return { url: await page.url().catch(() => null), ...(untilGone && { count: await page.count(untilGone).then(Number, () => NaN) }) };
+/** True when a read failed: the page is gone, or the browser didn't answer. */
+const unread = now => now.url === null || Number.isNaN(now.count) || now.text === null;
+
+/** The page's address, with what the finish names: what a send compares. */
+async function reading(page, state) {
+  return { url: await page.url().catch(() => null), ...(await seen(page, { ...state, until: null })) };
 }
 
 /** One read after the press: true once the finish is met. A failed read, or an address other than the press's
- * (`track.at`), marks the page `moved` for good: unknown is never "not yet", and nothing is put back on it. */
+ * (`track.at`), marks the page `moved` for good: unknown is never "not yet". */
 async function look(page, state, track) {
   const now = await reading(page, state);
-  if (now.url === null || Number.isNaN(now.count) || now.url !== track.at?.url) track.moved = true;
+  if (unread(now) || now.url !== track.at?.url) track.moved = true;
   track.last = now;
   return finished(state, now);
 }
 
-/** True once the site meets the finish; false when SEND_WAIT_MS passes after the press was sent, at `since`. */
-async function reachesFinish(page, state, track, since) {
+/** True once the site meets the finish; false when SEND_WAIT_MS passes after the press was sent, at `since`, or
+ * once `stopped()`. `poll` runs before each read. */
+async function reachesFinish(page, state, track, since, stopped = () => false, poll = async () => {}) {
   const end = since + SEND_WAIT_MS;
   for (;;) {
+    await poll();
     if (await look(page, state, track)) return true;
-    if (Date.now() >= end) return false;
+    if (Date.now() >= end || stopped()) return false;
     await sleep(SEND_POLL_MS);
   }
 }
 
 /** True when the page is as it was at the press: never moved, the same address, any gone element's count unchanged. */
-const keptStill = ({ moved, at, last }) => !moved && Boolean(at && last) && last.url === at.url && last.count === at.count;
+const keptStill = ({ moved, at, last }) => !moved && Boolean(at && last) && last.url === at.url && last.count === at.count && last.text === at.text;
 
-/** Reads an unconfirmed send's page every POLL_MS for WATCH_MS or until `stop`; each read keeps the page open. `done`
- * on the finish; `not-accepted`, boxes put back, only on a page that kept still, so not paying; else `unconfirmed`. */
-async function watchSite(page, state, track, { putBack, stop, stopped }) {
+/** Reads an unconfirmed send's page every POLL_MS for WATCH_MS or to `stop`: `done` on the finish, else `unconfirmed`
+ * (`no-answer` for a still page), never `not-accepted`, since a site that saved the card in place keeps still too. */
+async function watchSite(page, state, track, { stop, stopped }) {
   const end = Date.now() + WATCH_MS;
   while (!stopped() && Date.now() < end) {
-    if (await look(page, state, track)) return 'done';
+    if (await look(page, state, track)) return { result: 'done' };
     await Promise.race([sleep(POLL_MS), stop]);
   }
-  if (await look(page, state, track)) return 'done';
-  if (!keptStill(track)) return 'unconfirmed';
-  await putBack();
-  return 'not-accepted';
+  if (await look(page, state, track)) return { result: 'done' };
+  return { result: 'unconfirmed', ...(keptStill(track) && { reason: 'no-answer' }) };
 }
 
 /** The `--form` file's form, or null once it has said why not. */
@@ -370,10 +415,11 @@ async function givesWay(pid) {
   return !alive(pid);
 }
 
-/** Why a form or a view can not open on the session's page, or null: no page, or a finish already met (`met`). */
-async function pageFault(session, finish, met) {
-  const now = await seen(pageOf(session), finish);
-  if (now.url === null || Number.isNaN(now.count)) return 'No page is open in this browser session; open the site\'s page with browse.mjs first, or name its --session.';
+/** Why a link with a finish can not open on `page`, or null: no page, or a finish already met (`met`). */
+export async function pageFault(page, finish, met) {
+  const named = Boolean(finish.until || finish.untilGone || finish.untilText);
+  const now = named ? await seen(page, finish) : { url: await page.url().catch(() => null) };
+  if (unread(now)) return 'No page is open in this browser session; open the site\'s page with browse.mjs first, or name its --session.';
   return finished(finish, now) ? met : null;
 }
 
@@ -396,6 +442,13 @@ async function takePicture(session, { form, site }) {
   }
 }
 
+/** True when a form's press or a sign-in may show its site live: Linux, the view's tools in place, the browser on a
+ * screen. Whether another chat holds the one view is asked again at the press. */
+function viewPossible() {
+  const { unsupported, missing } = checkView();
+  return !unsupported && !missing.length && Boolean(screenOf());
+}
+
 /** Says this computer can not show the browser, and resolves to exit code 1. */
 function unsupported(reason) {
   console.log('HANDOVER_VIEW=unsupported');
@@ -414,14 +467,14 @@ function viewRefusal() {
   return 3;
 }
 
-/** A view's state for the session's page, its screen source started. Null, once it has said so, when the
- * browser has no screen. Throws when the source does not start. */
-async function openView(session, note) {
+/** A view's state for the session's page, its screen source started; one `keepOpen` reads no finish. Null, once it has
+ * said so, when the browser has no screen. Throws when the source does not start. */
+async function openView(session, note, keepOpen = false) {
   const display = screenOf();
   if (!display) return void unsupported('The browser has no screen to show.');
   const size = await pageOf(session).size();
   // The screen's socket stays in the computer's place: a long chat folder would pass the 108-character socket limit.
-  return { note: note ?? null, size, display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
+  return { note: note ?? null, ...(keepOpen && { keepOpen }), size, display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
 }
 
 /** Adds the live view's tools and says how it went; resolves to the exit code. */
@@ -509,19 +562,22 @@ async function startLink(values, keys, form) {
   let tunnelPid = null;
   let watcher = null;
   let view = null;
-  const finish = { until: values.until ?? null, untilGone: values['until-gone'] ?? null };
-  const session = form || values.view ? sessionName(values.session) : null;
+  const finish = { until: values.until ?? null, untilGone: values['until-gone'] ?? null, untilText: values['until-text'] ?? null };
+  const signIn = values['sign-in'] === undefined ? null : signInBoxes(values['sign-in']);
+  const session = form || values.view || signIn ? sessionName(values.session) : null;
   const fail = async message => {
     if (message) console.error(message);
     if (watcher) signal(watcher, 'SIGKILL');
     await teardown('error', { tunnelPid, view, session });
     return 1;
   };
-  const fault = session && (await pageFault(session, finish, form ? MET.form : MET.view));
+  const fault = session && (await pageFault(pageOf(session), finish, form ? MET.form : values.view ? MET.view : MET.passwords));
   if (fault) return fail(fault);
+  if (form) form.site ??= hostOf((await pageOf(session).url().catch(() => null)) ?? '') || 'The site';
+  const viewAfter = Boolean(form || signIn) && viewPossible();
   if (values.view) {
     try {
-      view = await openView(session, values.note);
+      view = await openView(session, values.note, values['keep-open']);
     } catch (error) {
       return fail(error.message);
     }
@@ -537,9 +593,9 @@ async function startLink(values, keys, form) {
   if (!tunnel.origin) return fail(tunnelDown);
   const completionId = randomBytes(16).toString('hex');
   const listing = listingOf({ completionId, key, keys, form, view, deadline }, tunnel.origin, values);
-  writeFileSync(FILES.state, `${JSON.stringify({ completionId, ...chatTarget(), tunnelPid, port, session, key, passwords: Boolean(values.passwords), keys, form, view, picture: pictured, ...finish, deadline })}\n`, { mode: 0o600 });
-  // The listing holds the site, so it rides in the watcher's environment, never in a file.
-  const env = { ...process.env, HANDOVER_LISTING: JSON.stringify(listing) };
+  writeFileSync(FILES.state, `${JSON.stringify({ completionId, ...chatTarget(), tunnelPid, port, session, key, passwords: Boolean(values.passwords), keys, form, view, viewAfter, signIn, picture: pictured, ...finish, deadline })}\n`, { mode: 0o600 });
+  // The listing and a sign-in's site hold the site, so they ride in the watcher's environment, never in a file.
+  const env = { ...process.env, HANDOVER_LISTING: JSON.stringify(listing), ...(signIn && { HANDOVER_SITE: hostOf(siteUrl(values.site)) }) };
   const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'watch'], { detached: true, stdio: 'ignore', env });
   watcher = child.pid;
   writeFileSync(FILES.pid, `${watcher}\n`);
@@ -557,7 +613,7 @@ async function startLink(values, keys, form) {
  * never a value, a note, or a picture. */
 export function listingOf({ completionId, key, keys, form, view, deadline }, origin, { site, 'email-first': emailFirst } = {}, cwd = process.cwd()) {
   const [what, title] = keys ? ['key', keys.keys.map(each => each.guide?.title ?? readableName(each.name)).join(', ')]
-    : form ? ['card', form.title] : view ? ['view', 'Help the browser past a check']
+    : form ? ['card', form.title] : view ? ['view', view.keepOpen ? 'Finish a step in the browser' : 'Help the browser past a check']
       : ['login', site ? `Save your ${hostOf(siteUrl(site))} login` : 'Save your logins'];
   const url = `${origin}/#${linkFragment(key, { site, 'email-first': emailFirst })}`;
   return { id: completionId, what, title: title.slice(0, 200), url, closesAt: deadline, workspace: basename(cwd).slice(0, 100) };
@@ -575,15 +631,30 @@ export function linkFragment(key, { site, username, 'email-first': emailFirst } 
   return new URLSearchParams({ key, ...(site && { site: site.trim() }), ...(username && { user: username.trim() }), ...(site && emailFirst && { emailFirst: '1' }) }).toString();
 }
 
-/** Serves the page until the link's own finish, `close`, or the deadline; an unanswered send then watches the site.
- * A send and a view's poll read only the address and a count; an idle page is kept open by one call a minute. */
+/** Runs `browse.mjs login` for the saved login `name` on `session`'s page, the one reader of passwords, in the
+ * `boxes` (username, password, submit); resolves to its BROWSE_LOGIN= result, or `failed`. */
+function signInWith(session, name, [username, password, submit]) {
+  const flags = [['--username', username], ['--password', password], ['--submit', submit]].filter(([, box]) => box).flat();
+  return new Promise(resolve => {
+    const child = spawn(process.execPath, [BROWSE, 'login', name, '--session', session, ...flags], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = '';
+    child.stdout.on('data', chunk => { out += chunk; });
+    child.on('error', () => resolve('failed'));
+    child.on('close', () => resolve(/^BROWSE_LOGIN=([a-z-]+)$/m.exec(out)?.[1] ?? 'failed'));
+  });
+}
+
+/** Serves the page until its finish, `close`, or the deadline; an unanswered send then watches the site, live where a
+ * view can open. Polls read only the address, a shown count, and named words; one call a minute keeps an idle page. */
 async function watch() {
   const state = readJson(FILES.state);
   if (!state) return 1;
   const listing = JSON.parse(process.env.HANDOVER_LISTING ?? 'null');
+  const site = state.form?.site ?? process.env.HANDOVER_SITE ?? 'The site';
   delete process.env.HANDOVER_LISTING;
+  delete process.env.HANDOVER_SITE;
   let done = false;
-  // open, then sending once the person sends, then watching once a send is unconfirmed.
+  // open, then sending once the person sends or saves, then viewing or watching once the site has not finished.
   let phase = 'open';
   let closePage = null;
   let stopCause = null;
@@ -591,8 +662,12 @@ async function watch() {
   const stop = new Promise(resolve => { endWatch = resolve; });
   const page = state.session ? pageOf(state.session) : null;
   const live = state.view ? liveView(state.view, page) : null;
-  const saved = page ? undefined : [];
+  // A form's or a sign-in's live view, once claimed at the press, and when it began.
+  let shown = null;
+  let shownSince = null;
+  const saved = state.form || state.view ? undefined : [];
   const record = entry => time(state.completionId, entry);
+  const saveState = () => writeFileSync(FILES.state, `${JSON.stringify(state)}\n`, { mode: 0o600 });
   // The inbox's listing of the link, once open has printed it: every end below closes it.
   let listed = null;
   // One 3 s limit for the listing and its close together: a stalled app never holds the link's end back.
@@ -611,15 +686,18 @@ async function watch() {
   let finishingPromise = null;
   // The page closed, the tunnel killed, and the receipt sent: a watch that ends sooner waits for it before exiting.
   let inputDown = Promise.resolve();
-  const finish = (result, { ready = result === 'done', watching = false, cause = 'send' } = {}) => {
+  /** Ends the link. `late` marks the final result of a send already reported as viewing. */
+  const finish = (result, { ready = result === 'done', watching = false, late = false, reason, cause = 'send' } = {}) => {
     if (finishingPromise) return finishingPromise;
     done = true;
-    record({ ended: result, cause });
+    record({ ended: result, cause, ...(reason && { reason }) });
     finishingPromise = (async () => {
       await closePage?.stopInput();
       await live?.end();
+      await shown?.end();
       const appKeys = state.keys && saved.filter(name => state.keys.keys.some(key => key.name === name && key.file === APP_FILE));
-      const outcome = await publish({ result, ready, ...(watching && { watching: true }), ...(saved && { saved }), ...(appKeys && { appKeys }), ...(state.keys && { opened: existsSync(FILES.opened) }), completionId: state.completionId }, ready || watching);
+      const completionId = late ? `${state.completionId}:late` : state.completionId;
+      const outcome = await publish({ result, ready, ...(reason && { reason }), ...(watching && { watching: true }), ...(saved && { saved }), ...(appKeys && { appKeys }), ...(state.keys && { opened: existsSync(FILES.opened) }), completionId }, ready || watching || late, { ...state, completionId });
       closePage?.setReceipt(outcome);
       // Receipt delivery is independent of the client: even a vanished client cannot retain input.
       const shutDown = sleep(1200).then(async () => {
@@ -635,46 +713,130 @@ async function watch() {
     })();
     return finishingPromise;
   };
-  /** After an unconfirmed send: watches the site, then reports the final result as a new completion and ends. */
-  const watchOn = async (track, putBack) => {
+  /** After an unconfirmed send with no view: watches the site, then reports the final result as a new completion. */
+  const watchOn = async track => {
     const started = Date.now();
     state.watching = { until: started + WATCH_MS, sentUrl: track.at?.url ?? null };
-    writeFileSync(FILES.state, `${JSON.stringify(state)}\n`, { mode: 0o600 });
-    const result = await watchSite(page, state, track, { putBack, stop, stopped: () => Boolean(stopCause) }).catch(() => 'unconfirmed');
+    saveState();
+    const { result, reason } = await watchSite(page, state, track, { stop, stopped: () => Boolean(stopCause) }).catch(() => ({ result: 'unconfirmed' }));
     record({ step: 'watch', ms: Date.now() - started, ok: result === 'done' });
-    record({ ended: result, cause: stopCause ?? 'watch' });
+    record({ ended: result, cause: stopCause ?? 'watch', ...(reason && { reason }) });
     const completionId = `${state.completionId}:late`;
-    await publish({ result, ready: result === 'done', completionId }, true, { ...state, completionId });
+    await publish({ result, ready: result === 'done', ...(reason && { reason }), completionId }, true, { ...state, completionId });
     await inputDown.catch(() => {});
     clearLink();
     process.exit(0);
   };
+  /** Claims the computer's one live view for a press and starts its screen source; null, showing nothing, when another
+   * chat holds it or it can not start. The page keeps its own size: a resize mid-payment can make a site reset. */
+  const claimView = async () => {
+    const display = state.viewAfter && !viewHolder() && screenOf();
+    if (!display) return null;
+    try {
+      state.view = { note: null, display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
+    } catch {
+      return null;
+    }
+    saveState();
+    closePage?.mountView(state.view);
+    shown = liveView(state.view, page);
+    await raise();
+    return shown;
+  };
+  let raisedAt = 0;
+  /** Raises the shown page's own window by the browser, at most once a poll: another chat's newer page can cover it
+   * and take the person's typing. `live.front()` finds a window by the size its fit set, and this view sets none. */
+  const raise = async () => {
+    if (!shown || done || Date.now() - raisedAt < POLL_MS) return;
+    raisedAt = Date.now();
+    await page.front().catch(() => {});
+  };
+  const showStep = (name, more) => {
+    if (name === 'viewing') shownSince ??= more.since;
+    closePage?.setStep(name, more);
+  };
+  /** After a send or a sign-in shown live that has not finished: tells the chat once, then reads the finish until it is
+   * met, the person's Done or `close`, or VIEW_WATCH_MS. The person's page stays live throughout. */
+  const viewOn = async () => {
+    phase = 'viewing';
+    const started = Date.now();
+    if (!stopCause) await publish({ result: 'unconfirmed', ready: false, watching: true, viewing: true, completionId: state.completionId }, true);
+    let met = false;
+    while (!met && !stopCause && Date.now() < started + VIEW_WATCH_MS) {
+      if (await shown.revive().catch(() => false)) saveState();
+      await raise();
+      met = finished(state, await seen(page, state));
+      if (!met) await Promise.race([sleep(POLL_MS), stop]);
+    }
+    record({ step: 'view', ms: Date.now() - started, ok: met });
+    return finish(met ? 'done' : 'unconfirmed', { late: true, ...(!met && { reason: 'viewed' }), cause: met ? 'send' : stopCause ?? 'watch' });
+  };
+  /** A send or sign-in the site has not finished: shown live on the person's page, else watched; resolves to a receipt.
+   * A view's receipt comes at once: its page has gone to the view, which reads the final one. */
+  const unfinished = async track => {
+    if (shown) {
+      void viewOn();
+      return { result: 'unconfirmed', viewing: true };
+    }
+    phase = 'watching';
+    const outcome = await finish('unconfirmed', { watching: true });
+    void watchOn(track);
+    return outcome;
+  };
+  // A view ends its wait for the finish at the person's Done or a close; a watch, which follows at once, ends then.
+  const stopped = () => Boolean(shown && stopCause);
   /** What sent a signal: the close command, a newer link this one gave way to, or the signal alone. */
   const causeOf = sig => (existsSync(FILES.closing) ? 'close-command' : readJson(FILES.replaced)?.completionId === state.completionId ? 'gave-way' : sig);
   // A send under way ends the link itself: stopping it midway could leave a card typed on the page. A signal
-  // during it is kept, so a watch that follows ends at once; a watch ends early.
+  // during it is kept, so a watch or a view that follows ends at once; a watch or a view ends early.
   for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => {
     if (phase === 'open') return finish('closed', { ready: false, cause: causeOf(sig) });
     stopCause ??= causeOf(sig);
-    if (phase === 'watching') endWatch();
+    if (phase !== 'sending') endWatch();
   });
   const onSend = async values => {
     phase = 'sending';
     const track = { moved: false };
     const sent = await sendForm(state.form, values, {
       browser: page,
-      reached: since => reachesFinish(page, state, track, since),
+      // The view starts once the page is ready, as the fills begin, so its screen is up by the press.
+      ready: async () => {
+        if (!(await formReady(state.form, page))) return false;
+        await claimView();
+        return true;
+      },
+      reached: since => reachesFinish(page, state, track, since, stopped, raise),
       beforePress: async () => { track.at = await reading(page, state); },
-      onStep: name => closePage?.setStep(name),
+      onStep: (name, more) => showStep(shown && more ? 'viewing' : name, more),
       record,
     });
-    if (sent.result !== 'unconfirmed') return finish(sent.result);
-    phase = 'watching';
-    const outcome = await finish('unconfirmed', { watching: true });
-    void watchOn(track, sent.putBack);
-    return outcome;
+    if (sent.result !== 'unconfirmed') return finish(sent.result, { reason: sent.reason });
+    return unfinished(track);
   };
-  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', { ready }), onContinue: () => finish('done'), onOpened: () => writeFileSync(FILES.opened, ''), onSend, onCancel: () => finish('closed', { ready: false, cause: 'cancel-route' }), fitted: () => live.describe(), onFit: kind => live.fit(kind) };
+  /** After a one-site password link's save, with a finish: signs in with the saved login `name`, live where a view
+   * can open, and waits for the finish as a send does. */
+  const signIn = async name => {
+    phase = 'sending';
+    await claimView();
+    const since = Date.now();
+    showStep(shown ? 'viewing' : 'signing', { since });
+    const track = { moved: false, at: await reading(page, state) };
+    void signInWith(state.session, name, state.signIn).then(result => record({ step: 'login', ms: Date.now() - since, ok: result === 'accepted' || result === 'next-step', result }));
+    const met = await reachesFinish(page, state, track, since, stopped, raise).catch(() => false);
+    record({ step: 'finish', ms: Date.now() - since, ok: met });
+    return met ? finish('done') : unfinished(track);
+  };
+  const onContinue = () => {
+    if (!state.signIn) return finish('done');
+    void signIn(saved.at(-1));
+    return { signing: true, site };
+  };
+  const liveInfo = () => ({ live: { site, kind: state.form ? 'pay' : 'sign-in', since: shownSince, waitMs: SEND_WAIT_MS }, fit: shown?.whole() ?? null, now: Date.now() });
+  const onViewed = () => {
+    stopCause ??= 'view-done';
+    endWatch();
+  };
+  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', { ready }), onContinue, onOpened: () => writeFileSync(FILES.opened, ''), onSend, onCancel: () => finish('closed', { ready: false, cause: 'cancel-route' }), onFinished: () => finish('done', { cause: 'finished-route' }), fitted: () => live.describe(), onFit: kind => live.fit(kind), ready: () => formReady(state.form, page), onChanged: () => finish('not-accepted', { reason: 'page-changed', cause: 'ready' }), liveInfo, onViewed };
   try {
     await live?.fit();
     // A close that came during the first fit has ended the link: no page is served after it.
@@ -682,15 +844,15 @@ async function watch() {
   } catch {
     return finish('error', { cause: 'error' });
   }
-  /** One poll of a live view: a screen source that exited is started again and recorded, the finish is
-   * read, and the page's window is raised. Resolves to the result that ends the view, or null. */
+  /** One poll of a live view: a screen source that exited is started again and recorded, the finish is read unless
+   * the view stays open, and the page's window is raised. Resolves to the result that ends the view, or null. */
   const pollView = async () => {
     try {
-      if (await live.revive()) writeFileSync(FILES.state, `${JSON.stringify(state)}\n`, { mode: 0o600 });
+      if (await live.revive()) saveState();
     } catch {
       return 'error';
     }
-    if (finished(state, await seen(page, state))) return 'done';
+    if (!state.view.keepOpen && finished(state, await seen(page, state))) return 'done';
     live.front();
     return null;
   };
@@ -718,9 +880,11 @@ function replacedBy(completionId) {
   return mine ? record.by.replace(/[\r\n]+/g, ' ') : null;
 }
 
-function report({ result, watching, saved, appKeys, opened, completionId, notification }) {
+function report({ result, reason, watching, viewing, saved, appKeys, opened, completionId, notification }) {
   console.log(`HANDOVER_RESULT=${result}`);
-  if (watching) console.log(`HANDOVER_WATCHING=${Math.ceil(WATCH_MS / 60_000)}`);
+  if (reason) console.log(`HANDOVER_REASON=${reason}`);
+  if (viewing) console.log('HANDOVER_VIEWING=yes');
+  else if (watching) console.log(`HANDOVER_WATCHING=${Math.ceil(WATCH_MS / 60_000)}`);
   if (Array.isArray(saved)) console.log(`HANDOVER_SAVED=${saved.join(',')}`);
   if (Array.isArray(appKeys)) console.log(`HANDOVER_APP_KEYS=${appKeys.join(',')}`);
   if (typeof opened === 'boolean') console.log(`HANDOVER_OPENED=${opened ? 'yes' : 'no'}`);
@@ -809,7 +973,7 @@ function usageError(message) {
 function parse(args) {
   let parsed;
   try {
-    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { form: { type: 'string' }, view: { type: 'boolean' }, note: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, passwords: { type: 'boolean' }, session: { type: 'string' }, site: { type: 'string' }, username: { type: 'string' }, 'email-first': { type: 'boolean' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { form: { type: 'string' }, view: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, note: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, 'until-text': { type: 'string' }, 'sign-in': { type: 'string' }, passwords: { type: 'boolean' }, session: { type: 'string' }, site: { type: 'string' }, username: { type: 'string' }, 'email-first': { type: 'boolean' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
   } catch (error) {
     usageError(error.message);
   }
@@ -835,11 +999,26 @@ function checkMode(values) {
   if (modes.length !== 1) usageError('open takes one of --form, --passwords, --keys, or --view');
   const [mode] = modes;
   const onPage = mode === 'form' || mode === 'view';
-  const finish = values.until !== undefined || values['until-gone'] !== undefined;
-  if (finish && !onPage) usageError('--until and --until-gone go with --form or --view only');
+  const finish = ['until', 'until-gone', 'until-text'].some(name => values[name] !== undefined);
+  const signsIn = mode === 'passwords' && values.site !== undefined;
+  if (values['keep-open'] && mode !== 'view') usageError('--keep-open goes with --view only');
+  if (values['keep-open'] && finish) usageError('--keep-open takes no --until, --until-gone, or --until-text: it ends only on the person\'s I\'m finished, close, or the time limit');
+  if (finish && !onPage && !signsIn) usageError('--until, --until-gone, and --until-text go with --form, --view, or --passwords --site only');
+  if (values['sign-in'] !== undefined && !signsIn) usageError('--sign-in goes with --passwords --site only');
+  if (signsIn && finish !== (values['sign-in'] !== undefined)) usageError('--passwords --site takes a finish and --sign-in together, or neither');
+  if (values['sign-in'] !== undefined && !signInBoxes(values['sign-in'])) usageError('--sign-in takes the username box, the password box, and the submit button, as e3,e4,e5; leave out one you don\'t need, as e3,,e5');
+  if (values['until-text'] !== undefined && !oneLine(values['until-text'], FORM_LIMITS.note)) usageError(`--until-text takes one line of up to ${FORM_LIMITS.note} characters`);
   if (values.session !== undefined && !onPage && mode !== 'passwords') usageError('--session goes with --form, --view, or --passwords only');
-  if (!finish && onPage) usageError(`--${mode} needs --until or --until-gone, to tell ${mode === 'form' ? 'sent from not accepted' : 'when the site lets the person through'}`);
+  if (!finish && onPage && !values['keep-open']) usageError(`--${mode} needs --until, --until-gone, or --until-text, to tell ${mode === 'form' ? 'sent from not accepted' : 'when the site lets the person through'}`);
   if (values.note !== undefined && (mode !== 'view' || !oneLine(values.note, FORM_LIMITS.note))) usageError(`--note goes with --view only, as one line of up to ${FORM_LIMITS.note} characters`);
+}
+
+/** `--sign-in`'s boxes, `[username, password, submit]`, each a ref or selector or null; null when it names neither a
+ * username nor a password box, or has more than three parts. */
+export function signInBoxes(text) {
+  const boxes = text.split(',').map(box => box.trim() || null);
+  const fits = boxes.length <= 3 && boxes.every(box => box === null || !box.startsWith('-')) && Boolean(boxes[0] || boxes[1]);
+  return fits ? [0, 1, 2].map(at => boxes[at] ?? null) : null;
 }
 
 /** True for one line of text, not blank, of at most `most` characters. */

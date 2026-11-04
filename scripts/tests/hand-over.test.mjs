@@ -59,10 +59,10 @@ const PRIVATE = /XKCD|QWZP|ZQ7/;
 const SESSION = 'card';
 // The X display the fake browser says it runs on, for a live view.
 const DISPLAY = ':97';
-// What a send does in the browser, in order, and what puts the page back. A dropdown's own choice is
-// read from a snapshot before the pick, which goes by the choice's text; a typed value is never part of a step's name.
-const FILL = ['type e12', 'snapshot', 'secrets', 'select e13 03 - March', 'snapshot', 'secrets', 'select e14 2028', 'type #cvv'];
-const CLEAR = ['type e12', 'select e13 01 - January', 'select e14 2027', 'type #cvv'];
+// What a send does in the browser, in order: a read that each target is still on the page, then the fills. A dropdown's
+// choice is read from a snapshot before the pick, which goes by the choice's text; a typed value is never in a step.
+const READY = ['snapshot', 'secrets', 'shown #cvv'];
+const FILL = [...READY, 'type e12', 'snapshot', 'secrets', 'select e13 03 - March', 'snapshot', 'secrets', 'select e14 2028', 'type #cvv'];
 const PRESS = 'click e31';
 // The read of the page just before the press, which a watch compares the page with later.
 const PRESSED = ['url', PRESS];
@@ -70,11 +70,18 @@ const PRESSED = ['url', PRESS];
 // What an expression the watcher or a reading evaluates is called as a step.
 const READS = { 'location.href': 'url', '[innerWidth, innerHeight]': 'size', 1: 'keep-alive', [`[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`]: 'secrets' };
 
+/** An evaluated read as a step: a shown count or a count by its selector, or a words check. */
+function readOf(expression) {
+  if (expression.startsWith('(function hasWords(')) return 'words';
+  if (expression.startsWith('(function shownCount(')) return `shown ${JSON.parse(/\)\(document, ("(?:[^"\\]|\\.)*")/.exec(expression)[1])}`;
+  return `count ${JSON.parse(/\((".*")\)/.exec(expression)[1])}`;
+}
+
 /** One browser request as a step: its route and target, with a pick's choice or a page's size, never a typed value. */
 function stepOf({ method, path, body }) {
   const route = path.split('/').at(-1);
   const target = body?.ref ?? body?.selector;
-  if (route === 'evaluate') return READS[body.expression] ?? `count ${JSON.parse(/\((".*")\)/.exec(body.expression)[1])}`;
+  if (route === 'evaluate') return READS[body.expression] ?? readOf(body.expression);
   if (route === 'viewport') return `viewport ${body.width}x${body.height}`;
   if (route === 'select') return `select ${target} ${body.option}`;
   return method === 'POST' && target ? `${route} ${target}` : route;
@@ -146,11 +153,14 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     camofox,
     tools,
     form: file('form.json'),
-    /** Opens the card page once, in `session` or the folder's own; the steps counted start after it. */
+    /** Opens the card page once, in `session` or the folder's own, and reads it, as the agent does before it writes
+     * the form; the steps counted start after it. */
     openPage(session = SESSION) {
       if (pageOpen) return;
-      const out = spawnSync(process.execPath, [browse, 'open', PAGE, ...(session ? ['--session', session] : [])], { cwd, env, encoding: 'utf8', timeout: 30_000 });
-      assert.equal(out.status, 0, out.stdout + out.stderr);
+      for (const command of ['open', 'snapshot']) {
+        const out = spawnSync(process.execPath, [browse, command, ...(command === 'open' ? [PAGE] : []), ...(session ? ['--session', session] : [])], { cwd, env, encoding: 'utf8', timeout: 30_000 });
+        assert.equal(out.status, 0, out.stdout + out.stderr);
+      }
       pageOpen = true;
       opening = camofox.requests().length;
     },
@@ -315,11 +325,11 @@ test('--form needs a finish, and a finish or a session goes with --form only', t
   const f = fixture(t);
   const none = f.run('open', '--form', f.form);
   assert.equal(none.status, 2);
-  assert.match(none.stderr, /--form needs --until or --until-gone/);
+  assert.match(none.stderr, /--form needs --until, --until-gone, or --until-text/);
   for (const args of [['--passwords', '--until', '**'], ['--passwords', '--until-gone', '#x'], ['--keys', 'MAPS_API_KEY', '--until', '**']]) {
     const out = f.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
-    assert.match(out.stderr, /--until and --until-gone go with --form or --view only/);
+    assert.match(out.stderr, /--until, --until-gone, and --until-text go with --form, --view, or --passwords --site only/);
   }
   const keys = f.run('open', '--keys', 'MAPS_API_KEY', '--session', 'card');
   assert.equal(keys.status, 2);
@@ -391,15 +401,15 @@ test('keyMatches accepts only the exact key', () => {
 test('open --form reads only the finish and takes one picture, then sends the browser nothing until the send', async t => {
   const f = fixture(t);
   const { port, key } = openedForm(f);
-  assert.deepEqual(f.steps(), ['url', 'screenshot'], 'one read of the address, to refuse a finish already met, and the picture');
+  assert.deepEqual(f.steps(), ['url', 'url', 'screenshot'], 'a read of the address to refuse a finish already met, one for the site\'s name, and the picture');
   assert.equal(f.calls().length, 1);
   assert.match(f.calls()[0], /^cloudflared tunnel /);
   const state = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
-  assert.deepEqual(state.form, CARD);
+  assert.deepEqual(state.form, { ...CARD, site: 'pay.example.com' }, 'the site\'s name, from its address, for the status line');
   assert.equal(state.until, '**/receipt/*');
   assert.equal(state.session, SESSION);
   await pause(300);
-  assert.deepEqual(f.steps(), ['url', 'screenshot'], 'no polling before a send');
+  assert.deepEqual(f.steps(), ['url', 'url', 'screenshot'], 'no polling before a send');
 
   assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Not now/);
   const css = await fetch(`http://127.0.0.1:${port}/page.css`);
@@ -422,6 +432,7 @@ test('open --form reads only the finish and takes one picture, then sends the br
   assert.equal(status, 200);
   assert.equal(json.closesAt, state.deadline);
   assert.equal(json.submit, 'Pay $45.00');
+  assert.equal(json.changed, undefined, 'every target is still on the page');
   assert.doesNotMatch(JSON.stringify(json), /@?e\d\d|#cvv|target/, 'the page never gets a target');
   for (const gone of ['fields', 'focus', 'select', 'check', 'action', 'navigate', 'viewport']) assert.equal((await route(port, key, gone, {})).status, 404, gone);
   const upgrade = await new Promise(done => {
@@ -429,8 +440,8 @@ test('open --form reads only the finish and takes one picture, then sends the br
     let text = '';
     socket.on('data', chunk => { text += chunk; socket.destroy(); }).on('close', () => done(text));
   });
-  assert.match(upgrade, /^HTTP\/1\.1 404/, 'no live view of the browser');
-  assert.deepEqual(f.steps(), ['url', 'screenshot'], 'no refused request reached the browser');
+  assert.equal(upgrade, '', 'no live view of the browser: the socket is closed unanswered');
+  assert.deepEqual(f.steps(), ['url', 'url', 'screenshot', ...READY], 'the form\'s read checks each target is on the page; no refused request reached the browser');
 });
 
 test('each private page loads the switch in its head, from its own site, and the closed page gets none', () => {
@@ -546,7 +557,7 @@ test('a sent value appears in no command line, environment, log, or file: only i
   assert.ok(!existsSync(join(dirname(f.hub), 'logins.json')), 'a card is never saved as a login');
 });
 
-test('a site that keeps its page is still checking for the watch, then not-accepted with the boxes emptied, the chat told twice', async t => {
+test('a site that keeps its page is still checking for the watch, then unconfirmed with no answer and nothing emptied, the chat told twice', async t => {
   const f = fixture(t, { paseo: 'ok' });
   f.env.HANDOVER_WATCH_MS = '2500';
   const link = openedForm(f);
@@ -564,17 +575,16 @@ test('a site that keeps its page is still checking for the watch, then not-accep
   assert.equal(again.status, 1, 'a watch holds the one link');
   assert.match(again.stderr, /already open/);
   const second = f.run('wait');
-  assert.equal(second.stdout, 'HANDOVER_RESULT=not-accepted\n');
+  assert.equal(second.stdout, 'HANDOVER_RESULT=unconfirmed\nHANDOVER_REASON=no-answer\n', 'a pressed send is never not-accepted');
   const steps = f.steps().slice(before);
   assert.deepEqual(steps.slice(0, FILL.length + PRESSED.length), [...FILL, ...PRESSED]);
-  assert.deepEqual(steps.slice(-4), CLEAR, 'each text box it typed into is emptied and each dropdown put back, last');
   assert.equal(steps.filter(step => step === PRESS).length, 1, 'pressed once, never again');
-  assert.ok(steps.slice(FILL.length + PRESSED.length, -4).length > 10 && steps.slice(FILL.length + PRESSED.length, -4).every(step => step === 'url'), 'the watch only reads the address');
-  assert.deepEqual(f.page().typed, { e12: '', '#cvv': '' }, 'nothing the person gave is left on the page');
-  assert.deepEqual(f.page().picked, { e13: '01 - January', e14: '2027' }, 'each dropdown shows the choice the site had');
+  assert.ok(steps.slice(FILL.length + PRESSED.length).length > 10 && steps.slice(FILL.length + PRESSED.length).every(step => step === 'url'), 'the watch only reads the address');
+  assert.deepEqual(f.page().typed, { e12: NUMBER, '#cvv': CODE }, 'the site may have saved the card in place, so nothing is taken back');
+  assert.deepEqual(f.page().picked, { e13: '03 - March', e14: '2028' });
   const messages = f.sent().map(message => JSON.parse(/\{.*\}/.exec(message[2])[0]));
   const { completionId } = JSON.parse(readFileSync(join(f.state, 'result.json'), 'utf8'));
-  assert.deepEqual(messages.map(({ completionId: id, result, watching }) => [id, result, watching]), [[completionId.replace(/:late$/, ''), 'unconfirmed', true], [completionId, 'not-accepted', undefined]], 'a late notice as a new completion');
+  assert.deepEqual(messages.map(({ completionId: id, result, reason, watching }) => [id, result, reason, watching]), [[completionId.replace(/:late$/, ''), 'unconfirmed', undefined, true], [completionId, 'unconfirmed', 'no-answer', undefined]], 'a late notice as a new completion');
   assert.match(completionId, /^[0-9a-f]{32}:late$/);
   assert.ok(!existsSync(join(f.state, 'watcher.pid')));
 });
@@ -613,17 +623,17 @@ test('a page that moved, or that the browser can no longer read, is never emptie
   }
 });
 
-test('close during a watch ends it at once by the same rule: an unmoved page is emptied, and the record names the close', async t => {
+test('close during a watch ends it at once by the same rule: an unmoved page keeps what was typed, and the record names the close', async t => {
   const f = fixture(t);
   f.env.HANDOVER_WATCH_MS = '60000';
   const link = openedForm(f);
   assert.equal((await send(f, link, { moves: false })).json.receipt.result, 'unconfirmed');
   f.run('wait');
   const started = Date.now();
-  assert.equal(f.run('close').stdout, 'HANDOVER_RESULT=not-accepted\n');
+  assert.equal(f.run('close').stdout, 'HANDOVER_RESULT=unconfirmed\nHANDOVER_REASON=no-answer\n');
   assert.ok(Date.now() - started < 10_000, 'the close did not wait out the watch');
-  assert.deepEqual(f.page().typed, { e12: '', '#cvv': '' });
-  assert.deepEqual(f.timings().filter(entry => entry.ended).map(({ ended, cause }) => [ended, cause]), [['unconfirmed', 'send'], ['not-accepted', 'close-command']]);
+  assert.deepEqual(f.page().typed, { e12: NUMBER, '#cvv': CODE });
+  assert.deepEqual(f.timings().filter(entry => entry.ended).map(({ ended, cause }) => [ended, cause]), [['unconfirmed', 'send'], ['unconfirmed', 'close-command']]);
 });
 
 test('a watch that ends before the link\'s page closes still kills the tunnel and closes the page before it exits', async t => {
@@ -635,7 +645,7 @@ test('a watch that ends before the link\'s page closes still kills the tunnel an
     assert.equal((await send(f, link, { moves: false })).json.receipt.result, 'unconfirmed', how);
     if (how === 'finish') f.set('count', '0');
     const out = how === 'close' ? f.run('close') : (f.run('wait'), f.run('wait'));
-    assert.equal(out.stdout, `HANDOVER_RESULT=${how === 'close' ? 'not-accepted' : 'done'}\n`, how);
+    assert.equal(out.stdout, how === 'close' ? 'HANDOVER_RESULT=unconfirmed\nHANDOVER_REASON=no-answer\n' : 'HANDOVER_RESULT=done\n', how);
     assert.ok(!alive(tunnel), `${how}: the tunnel is not left running`);
     assert.ok(!(await answers(link.port)), `${how}: the page is closed`);
   }
@@ -654,10 +664,10 @@ test('close during a send is kept: the watch that follows ends at once by the sa
   await pause(300);
   f.unset('hold-click');
   assert.equal((await sending).json.receipt.result, 'unconfirmed');
-  assert.equal((await closing).stdout, 'HANDOVER_RESULT=not-accepted\n');
+  assert.equal((await closing).stdout, 'HANDOVER_RESULT=unconfirmed\nHANDOVER_REASON=no-answer\n');
   assert.ok(Date.now() - started < 10_000, 'the close did not wait out the watch');
-  assert.deepEqual(f.page().typed, { e12: '', '#cvv': '' });
-  assert.deepEqual(f.timings().filter(entry => entry.ended).map(({ ended, cause }) => [ended, cause]), [['unconfirmed', 'send'], ['not-accepted', 'close-command']]);
+  assert.deepEqual(f.page().typed, { e12: NUMBER, '#cvv': CODE });
+  assert.deepEqual(f.timings().filter(entry => entry.ended).map(({ ended, cause }) => [ended, cause]), [['unconfirmed', 'send'], ['unconfirmed', 'close-command']]);
 });
 
 test('/receipt names only the step a send is on, never a value or a target', async t => {
@@ -666,7 +676,11 @@ test('/receipt names only the step a send is on, never a value or a target', asy
   f.set('hold-click', '');
   const sending = send(f, link);
   await eventually(() => f.steps().includes(PRESS));
-  assert.deepEqual(await route(link.port, link.key, 'receipt'), { status: 202, json: { finishing: false, step: 'pressing' } });
+  const { status, json } = await route(link.port, link.key, 'receipt');
+  assert.equal(status, 202);
+  assert.deepEqual(Object.keys(json).sort(), ['finishing', 'now', 'since', 'step'], 'the press\'s time and the link\'s clock, for the page\'s counter');
+  assert.deepEqual([json.finishing, json.step], [false, 'pressing']);
+  assert.ok(json.since <= json.now);
   f.unset('hold-click');
   assert.equal((await sending).json.receipt.result, 'done');
 });
@@ -680,7 +694,7 @@ test('a send keeps a timing record of each step and how the link ended, with no 
   const link8 = lines[0].link;
   assert.match(link8, /^[0-9a-f]{8}$/);
   assert.ok(lines.every(line => line.link === link8 && !Number.isNaN(Date.parse(line.at))));
-  assert.deepEqual(lines.filter(line => line.step).map(({ step, index, kind, ok }) => [step, index, kind, ok]).sort(), [['fill', 0, 'cc-number', true], ['fill', 1, 'cc-exp-month', true], ['fill', 2, 'cc-exp-year', true], ['fill', 3, 'cc-csc', true], ['finish', undefined, undefined, true], ['press', undefined, undefined, true]].sort());
+  assert.deepEqual(lines.filter(line => line.step).map(({ step, index, kind, ok }) => [step, index, kind, ok]).sort(), [['ready', undefined, undefined, true], ['fill', 0, 'cc-number', true], ['fill', 1, 'cc-exp-month', true], ['fill', 2, 'cc-exp-year', true], ['fill', 3, 'cc-csc', true], ['finish', undefined, undefined, true], ['press', undefined, undefined, true]].sort());
   assert.ok(lines.filter(line => line.step).every(line => Number.isInteger(line.ms) && line.ms >= 0), 'each step has its time');
   assert.deepEqual(lines.filter(line => line.ended).map(({ ended, cause }) => [ended, cause]), [['done', 'send']]);
   const file = join(f.hub, 'timings.jsonl');
@@ -725,7 +739,8 @@ test('a field that can not be filled presses nothing, empties what was typed, an
   f.set('fail-select', '');
   const { json } = await send(f, link);
   assert.equal(json.receipt.result, 'not-accepted');
-  assert.deepEqual(f.steps().slice(before), [...FILL.slice(0, 4), 'type e12', 'select e13 01 - January'], 'a pick that timed out may still have landed');
+  assert.match(f.run('wait').stdout, /^HANDOVER_RESULT=not-accepted\nHANDOVER_REASON=fill\n/);
+  assert.deepEqual(f.steps().slice(before), [...FILL.slice(0, READY.length + 4), 'type e12', 'select e13 01 - January'], 'a pick that timed out may still have landed');
   assert.deepEqual(f.page().typed, { e12: '' }, 'nothing past the failed field was typed, and the first box is empty again');
 });
 
@@ -738,18 +753,41 @@ test('a press whose step fails still waits for the site, which may have taken it
   f.set('count', '0');
   assert.equal((await sending).json.receipt.result, 'done');
   const after = f.steps().slice(f.steps().indexOf(PRESS) + 1);
-  assert.ok(after.length && after.every(step => ['url', 'count #card-form'].includes(step)), 'only the address and the named finish are read');
+  assert.ok(after.length && after.every(step => ['url', 'shown #card-form'].includes(step)), 'only the address and the named finish are read');
   assert.equal(f.steps().filter(step => step === PRESS).length, 1, 'a failed press is never tried again');
+});
+
+test('a finish counts only a shown match, and words wait until the page shows them', async t => {
+  const f = fixture(t);
+  const frame = openedForm(f, '--until-gone', '#card-form');
+  const saving = send(f, frame, { moves: false });
+  await eventually(() => f.steps().includes(PRESS));
+  f.set('hidden-count', '1');
+  assert.equal((await saving).json.receipt.result, 'done', 'the site hid its card frame once it saved the card');
+  assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=done\n');
+  f.unset('hidden-count');
+  const words = openedForm(f, '--until-text', 'Review your order');
+  const paying = send(f, words, { moves: false });
+  await eventually(() => f.steps().filter(step => step === PRESS).length === 2);
+  await pause(200);
+  assert.ok(!existsSync(join(f.state, 'result.json')), 'not met while the page lacks the words');
+  f.set('page-text', 'Step 2\n  REVIEW your order');
+  assert.equal((await paying).json.receipt.result, 'done');
+  assert.ok(f.steps().includes('words'));
 });
 
 test('a tab the browser lost mid-send is not reopened: nothing is typed or pressed twice', async t => {
   const f = fixture(t);
   const link = openedForm(f);
   const before = f.steps().length;
+  f.set('hold-type', '');
+  const sending = send(f, link);
+  await eventually(() => f.steps().includes('type e12'));
   f.set('gone-once', '');
-  const { json } = await send(f, link);
+  f.unset('hold-type');
+  const { json } = await sending;
   assert.equal(json.receipt.result, 'not-accepted');
-  assert.deepEqual(f.steps().slice(before), ['type e12', 'type e12'], 'the one step and its undo, and no new tab');
+  assert.deepEqual(f.steps().slice(before), [...READY, 'type e12', 'snapshot', 'type e12'], 'the read that found the tab gone, the undo, and no new tab');
 });
 
 test('a form whose browser stopped before the send types nothing, presses nothing, and starts no browser', async t => {
@@ -819,7 +857,8 @@ test('a closed link refuses every route before invoking the browser', async t =>
   t.after(close);
   await close.stopInput();
   for (const [path, body] of [['form'], ['send', { values: VALUES }], ['done', {}]]) assert.equal((await route(port, 'closed-key', path, body)).status, 410, path);
-  assert.deepEqual(await route(port, 'closed-key', 'receipt'), { status: 202, json: { finishing: true } });
+  const receipt = await route(port, 'closed-key', 'receipt');
+  assert.deepEqual([receipt.status, receipt.json.finishing], [202, true]);
   assert.equal(sends, 0);
 });
 
@@ -828,8 +867,8 @@ test('a private form keeps its page open with one constant a minute, and stops a
   f.env.HANDOVER_KEEPALIVE_MS = '100';
   const link = openedForm(f);
   await eventually(() => f.steps().filter(step => step === 'keep-alive').length >= 3);
-  assert.deepEqual([...new Set(f.steps())], ['url', 'screenshot', 'keep-alive'], 'the one read and the picture at open, then only the constant');
-  assert.equal(f.steps().filter(step => step === 'url').length, 1, 'nothing on the page is read');
+  assert.deepEqual([...new Set(f.steps())], ['url', 'screenshot', 'keep-alive'], 'the reads and the picture at open, then only the constant');
+  assert.equal(f.steps().filter(step => step === 'url').length, 2, 'nothing on the page is read but its address, at open');
   const before = f.steps().length;
   f.set('hold-click', '');
   const sending = send(f, link);
@@ -885,7 +924,7 @@ test('--view needs a finish, and --note goes with --view only, as one line', t =
   const f = fixture(t, { view: true });
   const none = f.run('open', '--view');
   assert.equal(none.status, 2);
-  assert.match(none.stderr, /--view needs --until or --until-gone, to tell when the site lets the person through/);
+  assert.match(none.stderr, /--view needs --until, --until-gone, or --until-text, to tell when the site lets the person through/);
   for (const args of [['--passwords', '--note', 'x'], ['--form', f.form, '--until', '**', '--note', 'x'], ['--view', '--until', '**', '--note', 'two\nlines'], ['--view', '--until', '**', '--note', ' '], ['--view', '--until', '**', '--note', 'x'.repeat(141)]]) {
     const out = f.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
@@ -894,11 +933,12 @@ test('--view needs a finish, and --note goes with --view only, as one line', t =
   assert.equal(f.run('open', '--view', '--passwords', '--until', '**').status, 2);
   assert.equal(f.run('install-view', 'now').status, 2);
   const help = f.run('--help').stdout;
-  assert.match(help, /open --view \(--until <glob> \| --until-gone <selector>\) \[--session <name>\] \[--note <line>\] \[--minutes N\]/);
+  assert.match(help, /open --view <finish> \[--session <name>\] \[--note <line>\] \[--minutes N\]/);
+  assert.match(help, /open --view --keep-open \[--session <name>\]/);
   assert.match(help, /wait \| close \| install-view/);
   assert.match(help, /HANDOVER_NEEDS=live-view/);
   assert.match(help, /a check that asks whether a person is\s+there, or a stuck login/);
-  assert.match(help, /--passwords \[--site <url> \[--email-first\]\]/);
+  assert.match(help, /--passwords \[--site <url> \[--email-first\] \[<finish> --sign-in <user-ref>,<password-ref>\[,<submit-ref>\]\]\]/);
   assert.deepEqual(f.calls(), []);
   assert.deepEqual(f.tools.calls('x11vnc'), []);
 });
@@ -962,7 +1002,7 @@ test('where the browser has no screen to show, open --view says unsupported and 
   assert.match(out.stderr, /^The browser has no screen to show\. Give the person steps for their own device instead\.$/m);
   assert.deepEqual(f.tools.calls('x11vnc'), []);
   assert.ok(!f.calls().some(line => line.startsWith('cloudflared tunnel')));
-  assert.deepEqual(f.steps(), ['count #check'], 'the page was read for the finish, and not resized');
+  assert.deepEqual(f.steps(), ['shown #check'], 'the page was read for the finish, and not resized');
   assert.ok(!existsSync(join(f.state, 'watcher.pid')));
 });
 
@@ -978,7 +1018,7 @@ test('a screen source that opens a network port fails the open, and is not left 
   assert.ok(!alive(f.tools.sourcePid()), 'it was stopped');
   assert.deepEqual(screenFolders(f), [], 'its folder is removed');
   assert.ok(!f.calls().some(line => line.startsWith('cloudflared tunnel')), 'before any tunnel');
-  assert.deepEqual(f.steps(), ['count #check', 'size'], 'the page was never resized');
+  assert.deepEqual(f.steps(), ['shown #check', 'size'], 'the page was never resized');
   assert.deepEqual(f.result(), { result: 'error' });
 });
 
@@ -996,7 +1036,7 @@ test('open --view starts the screen source on a private socket, fits the page, a
   assert.ok(alive(view.sourcePid));
   assert.deepEqual(f.tools.calls('x11vnc'), [SOURCE_ARGS(view.dir)], 'both network ports switched off');
   assert.ok((state.deadline - Date.now()) / 60_000 <= 480 && (state.deadline - before) / 60_000 >= 480, 'open for eight hours');
-  assert.deepEqual(f.steps().slice(0, 4), ['count #check', 'size', 'viewport 1280x720', 'viewport 1280x663'], 'the finish and the size are read; then the bar is measured and the page fitted wide');
+  assert.deepEqual(f.steps().slice(0, 4), ['shown #check', 'size', 'viewport 1280x720', 'viewport 1280x663'], 'the finish and the size are read; then the bar is measured and the page fitted wide');
   assert.equal(f.calls().length, 1);
 
   assert.match(await (await fetch(`http://127.0.0.1:${port}/`)).text(), /Tap a box above, then type here/);
@@ -1044,7 +1084,7 @@ test('the screen answers only the link\'s key, sent as the subprotocol, and carr
   assert.equal((await ws.bytes(GREETING.length)).toString(), GREETING, 'the screen source\'s own greeting');
   ws.send(2, Buffer.from('a tap'));
   await eventually(() => f.tools.input().toString() === 'a tap');
-  assert.ok(f.steps().every(step => /^(count #check|size|viewport \d+x\d+)$/.test(step)), 'the tap went through the screen, not through a command to the browser');
+  assert.ok(f.steps().every(step => /^(shown #check|size|viewport \d+x\d+)$/.test(step)), 'the tap went through the screen, not through a command to the browser');
   ws.end();
 });
 
@@ -1052,8 +1092,8 @@ test('while a view is open the watcher only reads the finish and keeps the page\
   const f = fixture(t, { view: true });
   openedView(f);
   await eventually(() => f.steps().length > 6);
-  assert.deepEqual([...new Set(f.steps().slice(4))], ['count #check'], 'only the named finish is read');
-  assert.ok(f.steps().every(step => /^(count #check|size|viewport \d+x\d+)$/.test(step)), 'no click, type, press, navigate, snapshot, or screenshot');
+  assert.deepEqual([...new Set(f.steps().slice(4))], ['shown #check'], 'only the named finish is read');
+  assert.ok(f.steps().every(step => /^(shown #check|size|viewport \d+x\d+)$/.test(step)), 'no click, type, press, navigate, snapshot, or screenshot');
   const tool = f.tools.calls('xdotool');
   assert.ok(tool.some(args => args.join(' ') === 'search --classname Navigator'));
   assert.ok(!tool.some(args => args.includes('--class')), '--class finds no browser window');
@@ -1132,7 +1172,7 @@ test('a live view keeps its page open by setting its fit again, and sends nothin
   f.env.HANDOVER_KEEPALIVE_MS = '100';
   openedView(f);
   await eventually(() => f.steps().filter(step => step === 'viewport 1280x663').length >= 3);
-  assert.deepEqual([...new Set(f.steps())].sort(), ['count #check', 'size', 'viewport 1280x663', 'viewport 1280x720']);
+  assert.deepEqual([...new Set(f.steps())].sort(), ['shown #check', 'size', 'viewport 1280x663', 'viewport 1280x720']);
   assert.equal(f.steps().filter(step => step === 'viewport 1280x720').length, 1, 'the bar is read once');
   assert.equal(f.steps().filter(step => step === 'size').length, 1, 'and the size to put back');
 });
@@ -1211,7 +1251,8 @@ test('a closed view refuses every route and the screen', async t => {
   for (const [path, body] of [['view'], ['fit', { fit: 'phone' }], ['done', {}]]) assert.equal((await route(port, 'closed-key', path, body)).status, 410, path);
   assert.equal((await upgrade(port, '/screen', { protocol: 'closed-key' })).status, 410);
   assert.equal((await upgrade(port, '/screen')).status, 401);
-  assert.deepEqual(await route(port, 'closed-key', 'receipt'), { status: 202, json: { finishing: true } });
+  const receipt = await route(port, 'closed-key', 'receipt');
+  assert.deepEqual([receipt.status, receipt.json.finishing], [202, true]);
   assert.equal(fits, 0);
 });
 

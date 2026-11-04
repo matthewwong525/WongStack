@@ -1,5 +1,5 @@
-// The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs). A CSV export is read on this
-// device and stays local. The page loads picture-view.mjs first; `parseExport` and `siteUrl` are exported for tests.
+// The password page's script (see hand-over.mjs `open --passwords` and passwords.mjs); a CSV export stays on device.
+// A link that signs in after the save shows *Signing in…*, then the site live on its view page, under live/.
 
 const SITE = ['url', 'login_uri', 'website', 'web site'];
 const USER = ['username', 'login_username', 'login', 'email', 'user name'];
@@ -75,6 +75,11 @@ export function parseExport(text) {
   return logins.sort((a, b) => a.host.localeCompare(b.host) || a.username.localeCompare(b.username));
 }
 
+/** The line while a saved login signs in with no live view: the site and the seconds since the save. */
+export function signingText(site, seconds) {
+  return seconds < 60 ? `Signing in to ${site} · ${Math.max(0, seconds)} s` : `${site} hasn't finished signing in. Your chat will say how it went.`;
+}
+
 const plural = (n, one) => `${n} ${one}${n === 1 ? '' : 's'}`;
 const byHost = (a, b) => a.host.localeCompare(b.host) || a.username.localeCompare(b.username);
 const SEARCH_FROM = 9;
@@ -109,6 +114,19 @@ function start() {
     $('#closed h1').textContent = receipt?.notification === 'notified' ? 'Your assistant was notified' : 'Saved; return to your chat';
     $('#closed .hint').textContent = receipt?.notification === 'notified' ? 'You can return to the chat.' : "Your entries are saved. Return to chat and say continue.";
   };
+  /** Follows a sign-in after the save: the site live once its view is up, or the line until the receipt. */
+  async function followSignIn(site) {
+    show('signing');
+    for (;;) {
+      const response = await fetch('receipt', { cache: 'no-store', headers: { 'x-hand-over-key': key } }).catch(() => null);
+      if (response?.status === 200) return completed(await response.json().catch(() => null));
+      if (response?.status !== 202) return closed();
+      const { step, since, now } = (await response.json().catch(() => null)) ?? {};
+      if (step === 'viewing') return location.replace(`live/#${new URLSearchParams({ key })}`);
+      $('#signing-line').textContent = signingText(site, since ? Math.floor((now - since) / 1000) : 0);
+      await new Promise(done => setTimeout(done, 500));
+    }
+  }
   const stillOpen = () => fetch('page.mjs', { cache: 'no-store' }).then(response => response.ok, () => false);
 
   /** Saves the logins; resolves to `{saved, failed}`, or an error message, or null once the link has closed. */
@@ -277,6 +295,7 @@ function start() {
     const sites = list.filter(login => failed.has(idOf(login))).map(login => login.host);
     note('#list-error', sites.length ? `Couldn't save ${[...new Set(sites)].join(', ')}. Try again.` : '');
     draw();
+    if (result.ready && result.receipt?.signing) return followSignIn(result.receipt.site);
     if (result.ready && result.receipt) completed(result.receipt);
   });
 

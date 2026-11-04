@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — A card form shows the site live from the press
+
+- **When you press Pay, you see the site.** The same private form link shows the store's page live, under one line such as *Paying Example Shop · 4 s*. If the site stops on a step, you tap through it there. Where no live view can open, such as on a Mac, the form shows the same line and a counter ([the private form](wiki/development/private-form.md#what-you-see)).
+- **A saved card no longer reads as "not confirmed".** A card box the site hides counts as gone. A form can also wait for words the site shows once it accepts, such as *Review your order*.
+- **A page that changed before you typed says so.** The form checks the boxes and the button before it types. If one is gone, it types nothing, says *Nothing was sent*, and the assistant sends a new form with no second question.
+- **The form keeps a card the site already took.** After the press, it leaves the boxes as they are, because the site's next step can check them again.
+- **After an unclear end, the assistant checks for you.** It reads the page as text, where each card box shows as hidden, and tells you if the site took the card, declined it, or it still can't tell ([check an unclear payment](wiki/development/private-form.md#check-an-unclear-payment)).
+- **Saving a password can sign you in, live.** The password link can sign in to the site when you save, and shows the site while it does ([passwords](wiki/development/passwords.md)).
+- **A stuck step gets a live view that stays open.** It stays open until you tap *I'm finished*. A click that only the page's own script took is reported, so the assistant sends this view instead of clicking again. It waits up to 30 seconds before it calls a step stuck ([live view](wiki/development/live-view.md#when-it-opens)).
+- **PayPal is a second way to pay.** Where a store takes PayPal, you sign in and approve in a live view ([other ways to pay](wiki/development/private-form.md#other-ways-to-pay)).
+
+**Updating.** Nothing to do by hand. The running browser gets the new way to bring a page to the front the next time it starts; until then, the live view works without it.
+
 ## 48.0.0 — The browser runs Camoufox 158
 
 - **The browser is Camoufox 158 and tells sites its true version.** The personal browser now runs the build that the official [Camoufox](https://github.com/daijro/camoufox) library pins, with a disguise made for that build. A site that checks the browser version, such as an online store's admin, sees the version that really runs, so it shows no "unsupported browser" page ([browsing](wiki/development/browsing.md)).

@@ -108,7 +108,8 @@ test('the page fits a phone and loads only the viewer\'s core, never its own pag
   assert.match(tags[0], /if \(tries < 2\) location\.reload\(\);/, 'a viewer that fails to load is tried again twice');
   assert.doesNotMatch(markup + source, /vnc\.html|vnc_lite|app\/|ui\.js|noVNC_clipboard|navigator\.clipboard/, 'the viewer\'s own page and clipboard panel are never loaded');
   for (const label of ['Tap a box above, then type here', CONNECTING]) assert.ok(markup.includes(label), label);
-  assert.equal(/<button/.test(markup), false, 'no button: the page is the browser and one box');
+  assert.deepEqual(markup.match(/<button[^>]*>/g), ['<button type="button" id="viewed">'], 'one button, in the line a kept-open or paying view shows');
+  assert.match(markup, /<div id="line" hidden>/, 'a plain view is the browser and one box');
 });
 
 test('while it connects the page shows one line, reports its shape, and opens the screen with the key as the subprotocol', async t => {
@@ -272,10 +273,8 @@ test('a screen that drops while the link is open connects again', async t => {
   assert.equal(p.paths().filter(path => path === 'fit').length, 1, 'the shape is not reported again');
 
   await p.viewers[1].emit('disconnect');
-  assert.equal(p.viewers.length, 3, 'a link that is ending is asked again');
-  await p.viewers[2].emit('disconnect');
-  assert.deepEqual(p.shown(), { live: false, line: DONE });
-  assert.equal(p.viewers.length, 3);
+  assert.deepEqual(p.shown(), { live: false, line: DONE }, 'a link that is finishing is asked again until its result comes');
+  assert.equal(p.viewers.length, 2, 'with no new screen meanwhile');
 });
 
 test('between viewers the box types nothing', async t => {

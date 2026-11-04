@@ -6,7 +6,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { JSDOM } from 'jsdom';
-import { addTyped, boxAt, boxChanged, boxesIn, CAMOUFOX, countScript, frameOf, FRAMES_SCRIPT, frameSites, installedLine, labelFrames, leftPage, MARK_SCRIPT, NO_REF_NOTE, passwordShown, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, mainDomain, selectorError, sessionName, targetOf, typedMark, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { addTyped, BAD_SELECTOR, boxAt, boxChanged, boxesIn, CAMOUFOX, countScript, frameOf, FRAMES_SCRIPT, frameSites, hasWords, installedLine, labelFrames, leftPage, MARK_SCRIPT, NO_REF_NOTE, passwordShown, refNames, relabel, sameSite, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, mainDomain, selectorError, sessionName, shownCount, targetOf, typedMark, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { hostOf, readLogins, writeLogins } from '../../.agents/skills/browser/scripts/logins.mjs';
 import { BROWSE_ENV, fakeCamofox, fakePython } from './fixtures/fake-camofox.mjs';
 
@@ -1283,4 +1283,49 @@ test('a selector the page can not read says to use the box\'s ref, not a code er
   assert.equal(selectorError('#x').message.endsWith('use the box\'s ref'), true);
   const broken = { querySelectorAll: () => { throw new TypeError('broken page'); } };
   assert.throws(() => new Function('document', `return ${countScript('#x')}`)(broken), TypeError, 'only a selector error becomes the plain stop');
+});
+
+test('a shown count leaves out a hidden match, as a saved card\'s kept frame', () => {
+  const box = (width, visibility = 'visible') => ({ getBoundingClientRect: () => ({ width, height: width }), visibility });
+  const page = matches => ({ querySelectorAll: () => matches, defaultView: { getComputedStyle: element => ({ visibility: element.visibility }) } });
+  assert.equal(shownCount(page([box(300), box(0)]), 'iframe#ccFrame', BAD_SELECTOR), 1);
+  assert.equal(shownCount(page([box(0), box(300, 'hidden')]), 'iframe#ccFrame', BAD_SELECTOR), 0);
+  const bad = { querySelectorAll() { throw Object.assign(new Error('bad'), { name: 'SyntaxError' }); } };
+  assert.equal(shownCount(bad, 'iframe >> input', BAD_SELECTOR), BAD_SELECTOR);
+});
+
+test('page words match with case and spaces aside', () => {
+  const page = text => ({ body: { innerText: text } });
+  assert.equal(hasWords(page('Step 3\n  REVIEW   your\torder'), 'Review your order'), true);
+  assert.equal(hasWords(page('Payment details'), 'Review your order'), false);
+  assert.equal(hasWords({}, 'Review your order'), false);
+});
+
+test('each ref names its box by role and name; page text holding a ref is no box', () => {
+  const page = ['- button "Accept" [e1]', '- textbox "Card number" [e2]: [hidden]', '- link [e3]', '- text: see [e4]'].join('\n');
+  assert.deepEqual(refNames(page), { e1: ['button', 'Accept'], e2: ['textbox', 'Card number'], e3: ['link', ''] });
+});
+
+test('a click says BROWSE_CLICK=script only when the page\'s own script took it', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP);
+  for (const via of ['mouse', 'forced']) {
+    f.camofox.set('click-via', via);
+    assert.equal(ok(f, 'click', '#continue'), 'BROWSE_DONE=click\n', via);
+  }
+  f.camofox.set('click-via', 'script');
+  const out = f.run('click', '#continue');
+  assert.equal(out.status, 0, out.stdout + out.stderr);
+  assert.equal(out.stdout, 'BROWSE_CLICK=script\nBROWSE_DONE=click\n');
+  assert.match(out.stderr, /live view that stays open/);
+});
+
+test('a snapshot keeps each ref\'s box in the tab file, and a new page drops them', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP, '--session', 'names');
+  const names = () => JSON.parse(readFileSync(join(f.home, '.wong-stack/camoufox/tabs/names.json'), 'utf8')).names;
+  ok(f, 'snapshot', '--session', 'names');
+  assert.deepEqual(names(), { e1: ['textbox', 'Name'], e2: ['button', 'Go'] });
+  ok(f, 'open', ACCOUNT, '--session', 'names');
+  assert.equal(names(), undefined);
 });
