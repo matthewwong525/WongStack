@@ -13,6 +13,14 @@
 
 **Updating.** On the Access page, tick Knowledge for the people who should read company pages. Then, once this update is live, run setup's Access step once, so pages marked public open with no sign-in. Not before: until then the publish check doesn't know the new route and refuses every publish ([public pages](wiki/stack/knowledge-reader.md#public-pages)). Until you do, each publish warns, and public pages stay behind the sign-in.
 
+## 45.9.0 — Close finished chats only when you pick them
+
+- **The daily stops closing chats by itself.** A chat whose work is live now stays open until you close it, mark it Done on the board, or it sits idle for 3 days. A live chat that is still open is usually one you kept open: for a follow-up, to check the result, or after a break. What it learned still reaches memory and the wiki without a close.
+- **Ask the Daily chat what's going on, and close the finished ones.** It marks each chat whose work is live and that has nothing new, and asks which ones to close. Each chat you pick gets `/close`; a chat you do not pick stays open ([close finished chats](wiki/development/daily.md#close-finished-chats)).
+- **The small wiki tidy stays.** It is now the daily's one default job.
+
+**Updating.** Nothing to do. A jobs file that turns `wrap-up` off keeps working.
+
 ## 45.8.0 — Company knowledge in its own repo
 
 - **Company pages go live at once.** The team's own pages, such as people, customers and how the company works, now live in a repository of their own in Cloudflare, not in the code repository. A save makes them live for the team at once, with no pull request and no wait for checks. Pages about the code stay in `wiki/` ([company knowledge](wiki/stack/company-knowledge.md)).
