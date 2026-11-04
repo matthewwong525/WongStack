@@ -7,18 +7,14 @@ import { fileURLToPath } from 'node:url';
 import { linkCopy, place } from '../../memory/scripts/knowledge.mjs';
 import { headlessCommand } from '../../memory/scripts/lib/headless.mjs';
 import { runNode } from './addons.mjs';
-import { HOLD_MS, beat, chiefDay, dailyAgent, readJson, sameRepo, sendText, serviceAlive, userAt, watch, watchStops, watched,
-  writeJson } from './chief.mjs';
+import { HOLD_MS, beat, dailyAgent, readJson, sameRepo, sendText, serviceAlive, userAt, watch, watchStops, writeJson } from './chief.mjs';
 import { RUN_AGENTS, SETTINGS_DIR, localDay } from './config.mjs';
 import { addLine, prune, readLines } from './journal.mjs';
-import { wrapUp } from './wrap-up.mjs';
 
 const REFERENCES = fileURLToPath(new URL('../references/', import.meta.url));
 export const SKILL_BRIEFS = join(REFERENCES, 'briefs');
 export const DEFAULT_SWEEPS = join(REFERENCES, 'sweeps.json');
 export const RUN_MS = 30 * 60e3;
-/** The jobs the worker runs as its own code, with no AI run: a sweep's `do`. */
-export const BUILTINS = ['wrap-up'];
 /** A timed job's `at` time still counts this long after it; a later pass skips it, as a missed routine. */
 export const AT_GRACE_MIN = 15;
 const DAY_MS = 24 * 3600e3;
@@ -34,18 +30,18 @@ const plain = value => value !== null && typeof value === 'object' && !Array.isA
 const repoPath = value => typeof value === 'string' && value.length > 0 && !value.startsWith('/') && !value.split(/[\\/]/).includes('..');
 const BRIEF = /^[a-z0-9][a-z0-9-]*\.md$/;
 
-// A timed job: an `off` entry only names a default to remove; any other runs its `do` or its brief.
-function badSweep(sweep, builtins) {
+// A timed job: an `off` entry only names a default to remove; any other runs its brief.
+function badSweep(sweep) {
   if (!plain(sweep) || typeof sweep.id !== 'string') return true;
   if (sweep.off === true) return false;
-  return !(sweep.do === undefined ? BRIEF.test(sweep.brief) : builtins.includes(sweep.do))
+  return !BRIEF.test(sweep.brief)
     || (sweep.check !== undefined && !repoPath(sweep.check)) || (sweep.place !== undefined && sweep.place !== 'copy')
     || (sweep.minutes !== undefined && !(Number.isFinite(sweep.minutes) && sweep.minutes > 0));
 }
 
 /** The default list with the install's merged over it: its `events` over the default's, and its timed `sweeps` by
  * `id`, where an entry replaces the default of its `id` and `"off": true` removes it. */
-export function loadSweeps({ project, file, base = DEFAULT_SWEEPS, builtins = BUILTINS }) {
+export function loadSweeps({ project, file, base = DEFAULT_SWEEPS }) {
   const read = path => JSON.parse(readFileSync(path, 'utf8'));
   const defaults = read(base);
   const own = file ? read(resolve(project, file)) : {};
@@ -53,7 +49,7 @@ export function loadSweeps({ project, file, base = DEFAULT_SWEEPS, builtins = BU
   merged.events = { ...defaults.events, ...own.events };
   const lists = [defaults.sweeps ?? [], own.sweeps ?? []];
   const bad = Object.entries(merged.events).find(([, entry]) => !plain(entry) || !BRIEF.test(entry.brief))?.[0]
-    ?? lists.flat().find(sweep => badSweep(sweep, builtins))?.id;
+    ?? lists.flat().find(badSweep)?.id;
   if (bad !== undefined) throw new Error(`The sweep list has a bad entry: ${bad}. See wiki/development/daily.md#your-own-jobs.`);
   const byId = new Map(lists.flat().map(sweep => [sweep.id, sweep]));
   merged.sweeps = [...byId.values()].filter(sweep => sweep.off !== true);
@@ -175,11 +171,11 @@ export function quietLine(event) {
 // ---------------------------------------------------------------------------
 // The worker
 
-/** The worker over one state folder: `dispatch` routes events, `sweep` queues due jobs and runs built-in ones, `pump`
+/** The worker over one state folder: `dispatch` routes events, `sweep` queues due jobs, `pump`
  * ends stale runs and starts what the queue allows, `boot` journals runs a restart stopped and removes their copies. */
 export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AGENTS[0], context = {}, call, env = process.env,
   briefs = briefFolders(project), launch = spawnRun, typedAt = userAt, isAlive = alive, kill = stopGroup, now = () => Date.now(),
-  sendDaily, runCheck, builtins = {}, git = runGit, dryRun = false, print = () => {}, wake = () => {} }) {
+  sendDaily, runCheck, git = runGit, dryRun = false, print = () => {}, wake = () => {} }) {
   const file = join(stateDir, 'worker-queue.json');
   const dueFile = join(stateDir, 'sweeps.json');
   const runs = join(stateDir, 'runs');
@@ -321,19 +317,6 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     }
   }
 
-  // A run's work, as one built-in job sees it: a judge run for that chat running or queued.
-  const busyLane = state => lane => state.running.some(run => run.lane === lane) || state.queue.some(item => item.lane === lane);
-
-  async function builtin(sweep, due, state) {
-    if (dryRun) { print({ wouldDo: sweep.do, due }); return; }
-    try {
-      if (!builtins[sweep.do]) throw new Error(`no built-in job ${sweep.do}`);
-      await builtins[sweep.do]({ busy: busyLane(state), journal, now: date() });
-    } catch (error) {
-      journal(`Not read: job ${sweep.title ?? sweep.id} — ${oneLine(error)}`, { kind: 'not-read' });
-    }
-  }
-
   // Copies a crash left behind: no running run holds them.
   function sweepCopies(state) {
     if (dryRun) return;
@@ -364,7 +347,6 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
         if (!due || done[sweep.id] === due) continue;
         done[sweep.id] = due;
         writeJson(dueFile, done);
-        if (sweep.do) { await builtin(sweep, due, state); continue; }
         if (dryRun && sweep.check) { print({ wouldCheck: sweep.id, due }); continue; }
         const fields = await checked(sweep);
         if (!fields) continue;
@@ -494,30 +476,15 @@ export async function serveDaily({ config, project, stateDir, call, env = proces
   dryRun = false, print = item => console.log(JSON.stringify(item)), log, launch, watcher, sleep, agent = RUN_AGENTS[0], ownRepo = sameRepo(project) }) {
   const signal = { heard: false };
   const timezone = config.timezone;
-  // The pass's own Paseo lists, as the watch read them: a built-in job reads them, not Paseo again.
-  let seen = {};
-  const seeing = async args => {
-    const answer = await call(args);
-    const name = { 'ls --global': 'list', 'permit ls': 'pending' }[args.join(' ')];
-    if (name) seen[name] = answer;
-    return answer;
-  };
   const ignore = () => [daily.read().agentId].filter(Boolean);
-  const builtins = {
-    'wrap-up': ({ busy, journal, now }) => (Array.isArray(seen.list) && Array.isArray(seen.pending) ? wrapUp({ stateDir, project, busy, journal, now,
-      list: seen.list, pending: seen.pending, send: agentId => sendText(call, agentId, '/close'), inspect: agentId => call(['inspect', agentId]),
-      rows: watched({ stateDir, day: chiefDay({ stateDir, started, timezone, now }), started, timezone, list: seen.list, self: null, ignore: ignore() }) })
-      : null),
-  };
   const worker = makeWorker({ stateDir, project, timezone, sweeps: loadSweeps({ project, file: config.sweeps }),
-    agent: config.runs?.agent ?? agent, call, env, dryRun, print, launch, builtins, context: { person: config.person, timezone, repo: project },
+    agent: config.runs?.agent ?? agent, call, env, dryRun, print, launch, context: { person: config.person, timezone, repo: project },
     sendDaily: async text => sendText(call, await dailyAgent({ daily, call }), text),
     runCheck: ({ sweep, context }) => runNode({ file: resolve(project, sweep.check), cwd: project, input: context }),
     wake: () => { signal.heard = true; } });
   const watchOnce = async () => {
     const events = [];
-    seen = {};
-    await watch({ stateDir, started, timezone, call: seeing, ...watching, env, self: null, ignore: ignore(),
+    await watch({ stateDir, started, timezone, call, ...watching, env, self: null, ignore: ignore(),
       service: true, once: true, ownRepo, print: text => events.push(JSON.parse(text)) });
     if (dryRun) for (const event of events) print({ event });
     return events;
