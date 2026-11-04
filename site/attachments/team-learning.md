@@ -23,6 +23,7 @@ Add shared team learning to my AI setup. Build it in this project and ask me bef
 > Each teammate gets a page: their email, their preferences, and how they like work done
 > When a chat ends, write its result and what is left as facts, then move lasting facts onto the pages
 > Pages about the company sit in their own repository: a save goes live for the team at once and prints how to undo it
+> An edit a teammate makes to a page while it moves there is carried over, or stopped when both copies changed
 > Catch chats nobody wrapped up with a background run, so nothing is lost
 > Open questions name who checks them next, so the next teammate picks them up
 > Newest wins between facts about the same person or the whole team

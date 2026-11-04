@@ -12,6 +12,32 @@
 
 **Updating.** Nothing to do.
 
+## 46.0.0 — Your own pages move to the knowledge repo
+
+- **One update moves your pages, after one yes.** The update plan lists each of your own pages that moves from the code repo to the knowledge repo, by folder, with counts. Pages that WongStack ships stay in the code repo.
+- **Every link to a moved page is fixed.** Links in skills, rules, code comments, specs and other pages now point to the new place. A link that the update can't fix safely, such as a path that code builds as it runs, is a step on the plan for you to do.
+- **Pages your app reads stay with the code.** A page that the app or a script reads as it runs goes next to the code that reads it, so the app works the same.
+- **No edit is lost while the update waits.** Just before the update goes live, it copies each page that changed in the code repo since the move. If the same page changed in both places, it stops and names the page.
+- **An old chat can't bring a page back.** The wiki check fails on a page at a moved path and names its new place. `.agents/knowledge-moves.json` maps each old path to its new place, and `memory.mjs areas <old path>` prints it.
+
+**Updating.** Say yes to the list of pages in the update plan. The update moves the pages and fixes the links. Look at the steps it lists for you, do them, then publish. If your app shows your pages from the code repo, the pages wait: they move in the update that brings the live reader.
+
+## 45.10.1 — Try a changed reply link without stopping the running one
+
+- **The reply-link guide says how to try a changed copy safely.** Run it with a temporary home folder and a stand-in `paseo`, so the computer's running helper and its open pages stay as they are ([reply links](wiki/development/reply-links.md#open-one-for-another-page)).
+
+## 45.10.0 — Review pages that ask and run the real thing
+
+- **A live card runs the real page inside the review page.** The chat makes a page, such as a shop page or a small tool, and it runs sealed in its card, with no internet. Switch it between *Phone* and *Computer* width, or open it full screen. A card can have the chat's own control, such as *put these in order*, and your pick goes to the chat with your notes ([the live card](wiki/review-pages.md#the-live-card)).
+- **A website is planned as a live prototype, and built from it.** For a site this app doesn't run, the chat writes the real files in the plan's `prototypes/` folder. Your notes change them, the build starts from the files you approved, and the check after it shows *Approved* beside *Built* ([a website prototype](wiki/review-pages.md#a-website-prototype)).
+- **A page can ask you questions.** Words, a choice, a date, a tick, or a file. Your answers go with your notes or with *Build it*, so the chat doesn't ask again in the chat. A question that asks for a password, key, or card stops the page's build ([questions and files](wiki/review-pages.md#questions-and-files)).
+- **Send files from the page.** Drop a file, or tap to pick one on a phone: 25 MB a file and 100 MB a page. It goes to the computer the chat runs on. From your Inbox it waits in your company app until the computer takes it. No one can open it after 24 hours, and the app deletes it the next time the Inbox is used ([files from a page](wiki/development/reply-links.md#files-from-a-page)).
+- **Every plan says what the build needs.** Each key, login, file, or answer says *Ready* or *Needs you*. While one needs you, the build buttons say how many and show the first, so a build never stops halfway to ask ([what the build needs](wiki/review-pages.md#what-the-build-needs)).
+- **An answered page looks answered at once.** After you tap a button in the Inbox and the chat gets it, the page shows your answer and its time above it, as the Archive does. It has no *Send notes* bar and no *Remove* on a sent file.
+- **A page can be larger.** A review page can be 1.5 MB, not 500 KB, and the builder warns over 800 KB, because a page that big opens slowly on a phone.
+
+**Updating.** Nothing to do by hand. The app's next deploy adds two tables to its database, which hold files sent from the Inbox until your computer takes them.
+
 ## 45.9.0 — Close finished chats only when you pick them
 
 - **The daily stops closing chats by itself.** A chat whose work is live now stays open until you close it, mark it Done on the board, or it sits idle for 3 days. A live chat that is still open is usually one you kept open: for a follow-up, to check the result, or after a break. What it learned still reaches memory and the wiki without a close.

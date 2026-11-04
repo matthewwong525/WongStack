@@ -550,3 +550,79 @@ test('an inbox that never answers delays no reply link: it prints first, and the
   assert.match(f.reply('close', form).stdout, /^REPLY_CLOSED=yes$/m);
   assert.ok(Date.now() - closing < 6000, `close took ${Date.now() - closing} ms`);
 });
+
+const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(40, 7)]);
+/** Sends one file to the page, as its file question does. */
+async function sendFile({ port, id, key }, name, bytes, question = 'Card #3, "Logo"') {
+  const response = await fetch(`http://127.0.0.1:${port}/p/${id}/file`, { method: 'POST', body: bytes,
+    headers: { ...(key && { 'x-reply-key': key }), 'x-file-name': encodeURIComponent(name), 'x-file-question': encodeURIComponent(question) } });
+  return { status: response.status, json: await response.json().catch(() => null) };
+}
+const filesIn = dir => (existsSync(dir) ? readdirSync(dir) : []);
+
+test('a file sent from the page is saved for this user alone, and the chat gets its question, name, size and place', async t => {
+  const f = fixture(t);
+  const link = f.open(f.page('one.html'), '--action', `build=${BUILD}`);
+  const folder = join(f.root, '.scratch', `${basename(f.root)}-uploads`);
+  assert.equal(f.registration(link.id).uploads, folder, 'outside a checkout, the page\'s files go under its own folder');
+  const saved = await sendFile(link, 'my logo.png', PNG);
+  assert.equal(saved.status, 200);
+  assert.match(saved.json.id, /^[0-9a-f]{32}$/);
+  const path = join(folder, `${saved.json.id}-my_logo.png`);
+  assert.deepEqual(readFileSync(path), PNG);
+  assert.equal(spawnSync('stat', ['-c', '%a', path], { encoding: 'utf8' }).stdout.trim(), '600');
+  assert.equal(f.sent().length, 0, 'a file alone wakes no chat');
+  assert.equal((await ask(link, 'send', { body: { text: '- Card #3, "Logo": my logo.png', files: [saved.json.id] } })).status, 200);
+  assert.deepEqual(f.sent()[0][2], `${HEADER}\n- Card #3, "Logo": my logo.png\nFiles:\n- Card #3, "Logo": my logo.png, 1 KB, at ${path}`);
+  // An action carries files too; a sent file stays when the link closes.
+  const brief = await sendFile(link, 'brief.pdf', Buffer.from('%PDF-1.7 a brief'), 'Need #1, "Brief"');
+  const version = (await ask(link, 'alive')).json.version;
+  await sleep(5);
+  assert.equal((await ask(link, 'act', { body: { action: 'build', version, files: [brief.json.id] } })).status, 200);
+  assert.match(f.sent()[1][2], new RegExp(`^${BUILD.replace(/[.()/]/g, '\\$&')}\\nFiles:\\n- Need #1, "Brief": brief.pdf, 1 KB, at .*${brief.json.id}-brief\\.pdf$`));
+  assert.match(f.reply('close', join(f.root, 'one.html')).stdout, /^REPLY_CLOSED=yes$/m);
+  assert.equal(filesIn(folder).length, 2, 'files in the chat stay for it');
+});
+
+test('a file without the key, of another type than its name, too large, or never sent is refused or removed', async t => {
+  const f = fixture(t, { env: { REPLY_LINK_FILE_BYTES: '1000' } });
+  const file = f.page('one.html');
+  const folder = join(f.root, 'up');
+  const link = f.open(file, '--uploads', folder);
+  assert.equal(f.registration(link.id).uploads, folder);
+  assert.equal((await sendFile({ ...link, key: null }, 'logo.png', PNG)).status, 403);
+  assert.equal((await sendFile({ ...link, key: 'f'.repeat(64) }, 'logo.png', PNG)).status, 403);
+  assert.deepEqual(filesIn(folder), [], 'nothing is saved without the key');
+  const wrong = await sendFile(link, 'logo.png', Buffer.from('just some words'));
+  assert.deepEqual([wrong.status, wrong.json], [400, { error: 'logo.png is not what its name says' }]);
+  assert.equal((await sendFile(link, 'tool.exe', PNG)).status, 400, 'a type a page may not send');
+  assert.equal((await sendFile(link, 'notes.txt', Buffer.from('a\0b'))).status, 400, 'text holds no NUL');
+  const big = await sendFile(link, 'logo.png', Buffer.concat([PNG, Buffer.alloc(1000)]));
+  assert.deepEqual([big.status, big.json], [413, { error: 'logo.png is over 25 MB' }]);
+  assert.deepEqual(filesIn(folder), [], 'each refused file is removed');
+  assert.equal((await ask(link, 'send', { body: { text: 'x', files: ['a'.repeat(32)] } })).status, 400, 'an id this page never saved');
+  const kept = await sendFile(link, 'logo.png', PNG);
+  assert.equal(kept.status, 200);
+  assert.equal(filesIn(folder).length, 1);
+  assert.equal(f.sent().length, 0);
+  assert.match(f.reply('close', file).stdout, /^REPLY_CLOSED=yes$/m);
+  assert.deepEqual(filesIn(folder), [], 'a file never sent goes when its link closes');
+  assert.equal(existsSync(join(f.state, 'uploads', `${link.id}.json`)), false);
+  assert.match(f.reply('list', '--uploads', folder).stderr, /--uploads takes a folder, with open only/);
+});
+
+test('an upload cut off partway leaves no part of itself on disk', async t => {
+  const f = fixture(t);
+  const folder = join(f.root, 'up');
+  const link = f.open(f.page('one.html'), '--uploads', folder);
+  const { request } = await import('node:http');
+  const sending = request({ host: '127.0.0.1', port: link.port, path: `/p/${link.id}/file`, method: 'POST',
+    headers: { 'x-reply-key': link.key, 'x-file-name': 'logo.png', 'x-file-question': 'Logo', 'content-length': String(PNG.length + 100_000) } });
+  sending.on('error', () => {});
+  sending.write(PNG);
+  await until(() => filesIn(folder).length === 1, 'the upload starts writing');
+  sending.destroy();
+  await until(() => filesIn(folder).filter(name => name.endsWith('.png')).length === 0, 'the cut-off file is removed');
+  assert.deepEqual(filesIn(folder), []);
+  assert.equal((await sendFile(link, 'logo.png', PNG)).status, 200, 'the link still takes files');
+});

@@ -111,7 +111,7 @@ function validateDescriptions(action: Action) {
 function validateLimits(action: Action) {
   const limits = action.limits ?? defaults;
   if (Object.values(limits).some(value => !Number.isSafeInteger(value) || value < 1) ||
-    limits.inputBytes > 1048576 || limits.outputBytes > 4194304 || limits.timeoutMs > 60000) {
+    limits.inputBytes > 4194304 || limits.outputBytes > 4194304 || limits.timeoutMs > 60000) {
     throw new Error(`Invalid action limits: ${action.operationId}`);
   }
 }

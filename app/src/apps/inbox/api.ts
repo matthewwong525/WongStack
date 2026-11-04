@@ -7,7 +7,7 @@ const tap = z.object({ id: z.string(), item: z.string(), action: z.string(), tex
 // A closed review page: when it closed, and each answer that reached the chat.
 const archived = z.object({ endedAt: z.number(), answers: z.array(z.object({ action: z.string(), text: z.string(), at: z.number() })) })
 const item = z.object({ id: z.string(), kind: z.string(), title: z.string(), workspace: z.string(), actions: z.array(z.string()),
-  version: z.string(), body: z.string(), tap: tap.nullable(), archived: archived.optional() })
+  version: z.string(), body: z.string(), tap: tap.nullable(), files: z.array(z.string()), archived: archived.optional() })
 const review = z.object({ id: z.string(), title: z.string(), workspace: z.string(), createdAt: z.number(), closesAt: z.number(),
   endedAt: z.number().nullable(), answered: z.boolean() })
 const reviews = z.object({ waiting: z.array(review), archived: z.array(review), more: z.boolean() })
@@ -20,8 +20,8 @@ export type Plan = z.infer<typeof one>
 export type Archived = NonNullable<Plan['item']['archived']>
 export type Review = z.infer<typeof review>
 /** Why a tap was not queued: the page changed, the action was already sent, too soon after the last, the item closed,
- *  or anything else. */
-export type Refusal = 'changed' | 'done' | 'soon' | 'closed' | 'failed'
+ *  a file it names is no longer held, or anything else. */
+export type Refusal = 'changed' | 'done' | 'soon' | 'closed' | 'gone' | 'failed'
 
 /** An action's name as its button says it: `approve` → *Approve*. */
 export const label = (action: string) => action.charAt(0).toUpperCase() + action.slice(1)
@@ -70,16 +70,42 @@ export const readReviews = (q: string, before?: Review) => call(reviews, `review
 export const readTap = (id: string) => call(tapped, `tap?id=${id}`).then(answer => answer.tap)
 export const cancelTap = (id: string) => call(tapped, 'tap-cancel', { id }).then(answer => answer.tap)
 
-/** Queues a tap on the version the person saw; it waits there until their computer delivers it. */
-export async function sendTap(input: { item: string; action: string; version: string; text: string }): Promise<Tap | Refusal> {
+/** Queues a tap on the version the person saw; it waits there until their computer delivers it, with any files sent. */
+export async function sendTap(input: { item: string; action: string; version: string; text: string; files?: string[] }): Promise<Tap | Refusal> {
   try {
     const response = await fetch('/apps/inbox/api/tap', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) })
     const body: unknown = await response.json()
     if (response.ok) return tapped.parse(body).tap
     const code = refused.safeParse(body).data?.error.code
+    if (code === 'files_gone') return 'gone'
     return code === 'changed' || code === 'done' ? code : response.status === 429 ? 'soon' : response.status === 410 ? 'closed' : 'failed'
   } catch {
     return 'failed'
+  }
+}
+
+const MB = 1024 * 1024
+/** The most one file may be: the app's own limit, checked before a byte is sent. The app holds an item's files to its
+ *  limit, counting only those it still has. */
+export const FILE_MAX = 25 * MB
+/** Why a file was not sent, in the words its page shows. */
+export const FILE_REFUSALS = { too_large: 'too big: 25 MB at most', item: 'the files for this page pass 100 MB',
+  full: 'the app is full for now; try again later', bad_file: 'this is not a file the page takes', failed: 'it was not sent; try again', closed: 'this page has closed' }
+const fileId = z.object({ file: z.object({ id: z.string().regex(/^[0-9a-f]{32}$/) }) })
+
+/** Sends one file for the item's page; resolves to its id, or the reason it was refused. */
+export async function sendFile(input: { item: string; name: string; question: string; data: ArrayBuffer }): Promise<{ id: string } | string> {
+  try {
+    const query = new URLSearchParams({ item: input.item, name: input.name, question: input.question })
+    const response = await fetch(`/apps/inbox/api/file?${query}`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: input.data })
+    const body: unknown = await response.json()
+    if (response.ok) return fileId.parse(body).file
+    const code = refused.safeParse(body).data?.error.code
+    // The view holds a file to 25 MB before it sends, so one the app finds too large passes the item's 100 MB.
+    if (code === 'too_large') return FILE_REFUSALS.item
+    return code === 'full' || code === 'bad_file' || code === 'closed' ? FILE_REFUSALS[code] : FILE_REFUSALS.failed
+  } catch {
+    return FILE_REFUSALS.failed
   }
 }
 

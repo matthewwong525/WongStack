@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { dropFiles } from "./files.ts";
 import { fail, findTap, inboxAction, itemId, mine, settleTaps, tap } from "./store.ts";
 
 /** POST tap-cancel → takes back a tap still waiting for the computer. One it has collected stays as it is. */
@@ -11,6 +12,7 @@ export const tapCancel = inboxAction<{ id: string }>({
       WHERE installation_id = ?1 AND email = ?2 AND id = ?3 AND state = 'waiting' RETURNING id`, id, at.now).first();
     const found = await findTap(at, id);
     if (!found) return fail("not_found", 404);
+    if (cancelled) await dropFiles(at);
     if (cancelled) await at.wake(null);
     return cancelled ? Response.json({ tap: found }) : fail("not_waiting", 409);
   },
