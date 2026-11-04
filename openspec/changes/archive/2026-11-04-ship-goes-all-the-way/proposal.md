@@ -72,3 +72,4 @@ Non-goals: `/apply`, `/save` and `/verify` typed on their own still ask as today
 - **2026-11-04** — Archived at ship as 45.11.0, after main's 45.9.0 and 45.10.0 merged in; local checks pass; saved on `ship-finish-without-asking`.
 - **2026-11-04** — Numbered again as 45.11.0 from 45.10.1 after main's 45.10.1 took the base; local checks pass after one rerun of a slow app test (`Welcome.test.tsx`, 5,089 ms on a 5,000 ms limit).
 - **2026-11-04** — Numbered again as 46.1.0 from 46.0.0 after main's 46.0.0 took the base; local checks pass. The CI rerun of the known `hand-over.test.mjs` timing flake passed.
+- **2026-11-04** — Numbered again as 46.2.0 after main's 46.1.0 (chat names show their step) took the base. Shortened the *Inside `/ship`* wiki paragraph and the `/apply` archive-path clause to keep the size budget after that merge; local checks pass.

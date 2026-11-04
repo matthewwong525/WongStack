@@ -109,7 +109,7 @@ One test decides what an agent fixes alone: **does the plan already settle what 
 
 #### Inside `/ship`
 
-In `/ship` and the steps it runs, rules 1 and 5 take the recommendation unasked when it stays inside the work and can be undone. Each pick gets an `Assumed` Decision-log line and a line under *Choices I made* in the ship report. Rules 2–4 still ask, and so do an outward action (sends, posts, business records, real data, deletes outside the change, terms) and a question with no clear best answer. A step you type alone still asks.
+In `/ship` and its steps, rules 1 and 5 take a recommendation that stays in the work and can be undone, logged as an `Assumed` line and listed under *Choices I made*. Rules 2–4, an outward action (sends, posts, business records, real data, deletes outside the change, terms) and no clear best answer still ask, as does a step typed alone.
 
 ### `/apply` never saves to stop, but may save to finish a task
 

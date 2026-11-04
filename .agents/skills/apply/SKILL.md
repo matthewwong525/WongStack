@@ -14,7 +14,7 @@ Build [the chosen plan](../../../wiki/development/the-change-loop.md). First run
 
 ## Resolve the plan first
 
-Build the change this chat is about, found by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). An argument naming no existing change is intent for a new plan. In `/ship`, an archive path is that change: skip status, add the failures as one task in its `tasks.md`, and build.
+Build the change this chat is about, found by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). An argument naming no existing change is intent for a new plan. In `/ship`, an archive path is that change: skip status, add the failures as a task, and build.
 
 Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep building.
 
