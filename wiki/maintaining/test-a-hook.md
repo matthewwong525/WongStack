@@ -29,13 +29,14 @@ This session loads every project hook, memory included, like a real chat.
 
 ## In Codex
 
-Codex runs a project hook only after you trust it. Point `CODEX_HOME` at a scratch folder holding a copy of `~/.codex/auth.json` and a `config.toml` that trusts your probe hooks, run `codex exec "<a prompt that triggers it>"` in a scratch project, then delete both folders. Your own Codex setup stays untouched.
+Codex runs a project hook only after you trust it. Point `CODEX_HOME` at a scratch folder holding a copy of `~/.codex/auth.json` and a `config.toml` that trusts your probe hooks, run `codex exec "<a prompt that triggers it>"` in a scratch project, then delete both folders. Your own Codex setup stays untouched. For a one-off probe, `codex exec --dangerously-bypass-hook-trust` runs the scratch project's hooks with no trust step; use it only on hooks you wrote.
 
 ## What you'll see
 
 - A helper's stop fires `SubagentStop`, with `agent_transcript_path`, `last_assistant_message` and `stop_hook_active`; the main chat's end fires `Stop`. Both hosts work this way (Claude Code 2.1.287, Codex 0.159.2), so [the helper stop check](../../.agents/skills/apply/scripts/helper-stop-check.mjs) serves both.
 
 - A `Stop` hook that blocks with `{"decision":"block","reason":…}` sends the reason back to the agent, and Claude Code shows the person a *Stop hook error* notice. Say so in the change's report, so nobody takes it for a fault.
-- A second stop in the same turn arrives with `stop_hook_active: true`; let it end, or the session loops.
+- A second stop in the same turn arrives with `stop_hook_active: true`; let it end, or the session loops. A hook that carries a chat on more than once, as [the check-in](../../.agents/skills/daily/scripts/stop-check.mjs) does, needs its own limit.
+- Codex records a block's reason as a `user` message, `<hook_prompt hook_run_id="…">reason</hook_prompt>`; Claude Code records it as a meta row, `Stop hook feedback:` then the reason. A reader that looks for the person's own words skips both.
 
 Part of [Maintaining WongStack](README.md).

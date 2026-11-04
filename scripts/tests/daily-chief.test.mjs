@@ -6,8 +6,8 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
-import { actions, agentEvents, allow, answer, beat, chiefDay, chiefEnv, close, dailyAgent, doneAgent, hand, linkAllowed, mark, messageMark, noteEnd,
-  reply, remind, remindKey, status, streak, todoLink, userAt, watch, watchStops, watched } from '../../.agents/skills/daily/scripts/chief.mjs';
+import { actions, agentEvents, allow, answer, chiefDay, chiefEnv, close, dailyAgent, doneAgent, hand, linkAllowed, mark, messageMark, noteEnd,
+  reply, remind, remindKey, commonDir, sameRepo, status, streak, todoLink, userAt, watch, watchStops, watched } from '../../.agents/skills/daily/scripts/chief.mjs';
 
 const ZONE = 'America/New_York';
 const SELF = 'agent-self';
@@ -181,7 +181,7 @@ test('a board not read is said one time, and a done task is said once the board 
   assert.deepEqual(t.taken(), [['done', 'agent-job']]);
 });
 
-test('the watch keeps its day after midnight, counts its hours from the first watch, and ends when the next daily starts', async () => {
+test('the watch keeps its day after midnight, and ends when the next daily starts', async () => {
   const t = day();
   await t.once(START);
   t.taken();
@@ -190,8 +190,6 @@ test('the watch keeps its day after midnight, counts its hours from the first wa
   assert.equal(t.dayAt(night), '2026-10-21');
   await t.once(night);
   assert.deepEqual(t.taken(), []);
-  await t.once(night, { hours: 2 });
-  assert.deepEqual(t.taken(), [['end', 'time']]);
   // More than 24 hours after the first watch, today holds nothing.
   assert.equal(t.dayAt(START + 25 * HOUR), '2026-10-22');
   // A running watch ends once the next day's daily starts a task.
@@ -202,14 +200,14 @@ test('the watch keeps its day after midnight, counts its hours from the first wa
   assert.equal(t.dayAt(night + 2 * HOUR), '2026-10-22');
 });
 
-test('a watch with nothing left to watch ends', async () => {
+test('a watched chat that is gone leaves the list, one time', async () => {
   const t = day();
   t.paseo.list = t.paseo.list.filter(agent => !['agent-job', 'agent-email'].includes(agent.id));
   await t.once(START);
   // The email row, recorded before agent ids, is found only by its folder: with its chat gone, it leaves the list.
   assert.deepEqual(t.taken(), [['gone', 'agent-job']]);
   await t.once(START + 60e3);
-  assert.deepEqual(t.taken(), [['end', 'empty']]);
+  assert.deepEqual(t.taken(), []);
   assert.ok(existsSync(join(t.stateDir, '2026-10-21.watch.json')));
 });
 
@@ -281,6 +279,27 @@ test('the watch admits every top-level chat that worked in the last 24 hours, on
   assert.deepEqual((await status({ ...t.at, day: '2026-10-21', env })).agents.map(row => row.agent), ['agent-job', 'agent-email', 'agent-mine', 'agent-older']);
   assert.equal((await reply({ ...t.at, day: '2026-10-21', agent: 'agent-helper', text: 'Keep going.', bucket: 'keep-going', label: 'x', env })).reason, 'unwatched');
   assert.ok(!inspected().includes(SELF));
+});
+
+test('the watch takes only chats in this repo or its worktrees; a started row stays from any folder, and a gone folder is skipped', async () => {
+  const t = day();
+  const git = (cwd, ...args) => assert.equal(spawnSync('git', args, { cwd, encoding: 'utf8' }).status, 0, args.join(' '));
+  const base = tempHome(), mine = join(base, 'mine'), tree = join(base, 'tree'), other = join(base, 'other');
+  for (const dir of [mine, other]) { mkdirSync(dir); git(dir, 'init', '-q'); }
+  git(mine, '-c', 'user.email=a@b.co', '-c', 'user.name=A', 'commit', '-q', '--allow-empty', '-m', 'one');
+  git(mine, 'worktree', 'add', '-q', tree);
+  t.own('agent-tree', 'In a worktree', { cwd: tree });
+  t.own('agent-sub', 'In a subfolder', { cwd: join(mine, '.git', '..') });
+  t.own('agent-other', 'Another repo', { cwd: other });
+  t.own('agent-gone', 'Folder gone', { cwd: join(base, 'gone') });
+  const asked = [];
+  const own = sameRepo(mine, cwd => { asked.push(cwd); return commonDir(cwd); });
+  await t.once(START, { ownRepo: own });
+  await t.once(START + MIN, { ownRepo: own });
+  const rows = watched({ ...t.at, day: '2026-10-21', list: t.paseo.list, self: SELF }).map(row => row.agentId);
+  assert.deepEqual(rows, ['agent-job', 'agent-email', 'agent-tree', 'agent-sub']);
+  assert.equal(asked.filter(cwd => cwd === other).length, 1, 'each folder is asked once');
+  assert.equal(sameRepo(join(base, 'gone'))(mine), false);
 });
 
 test("a stop right after the person's own message waits 15 minutes, and a stop he answers in that time is never said", async () => {
@@ -524,19 +543,6 @@ test('done-agent marks the chat\'s to-do done with its proof, keeps a board task
   assert.equal(JSON.parse(readFileSync(join(t.stateDir, 'todos.json'), 'utf8'))['agent-two'].proof, 'PR #12 merged');
 });
 
-test("a chat's own watch ends with reason service while the service runs, and watches once the service stops", async () => {
-  const t = day();
-  await t.once(START);
-  t.taken();
-  beat({ stateDir: t.stateDir, seconds: 60, now: START });
-  await t.once(START + MIN);
-  assert.deepEqual(t.taken(), [['end', 'service']]);
-  assert.equal(JSON.parse(readFileSync(join(t.stateDir, `${DAY}.watch.json`), 'utf8')).ended, undefined);
-  // No pass for 10 minutes: the service is down, and the chat watches by itself.
-  await t.once(START + 10 * MIN);
-  assert.ok(!t.taken().some(([event]) => event === 'end'));
-});
-
 test("a chief command takes the Daily agent's id when its chat has none, and its parent's id when it is the Daily agent's helper", async () => {
   const inspect = { helper: { ParentAgentId: 'agent-daily' }, judge: { ParentAgentId: 'agent-worker' }, other: { ParentAgentId: null } };
   const call = async ([name, id]) => (name === 'inspect' ? inspect[id] : null);
@@ -595,10 +601,11 @@ async function stopTimes(report) {
   let clock = START, notice, closed = false, fired = false;
   const times = [];
   const call = async args => { if (args[0] === 'ls') times.push(clock - START); return t.call(args); };
-  const sleep = async ms => { if (!fired) { fired = true; notice(report); } clock += ms; };
+  const enough = new Error('two minutes');
+  const sleep = async ms => { if (!fired) { fired = true; notice(report); } clock += ms; if (clock - START >= 2 * MIN) throw enough; };
   const stops = listen => { notice = listen; return { close() { closed = true; } }; };
-  await watch({ ...t.at, call, board: async week => ({ week, tasks: [] }), env, print: () => {}, seconds: 60, hours: 2 / 60,
-    now: () => clock, sleep, stops });
+  await assert.rejects(watch({ ...t.at, call, board: async week => ({ week, tasks: [] }), env, print: () => {}, seconds: 60,
+    now: () => clock, sleep, stops }), error => error === enough);
   assert.equal(closed, true);
   return times;
 }

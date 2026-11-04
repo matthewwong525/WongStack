@@ -1,6 +1,7 @@
 // The watch over the person's chats for the Daily chat's helpers, their replies, the chat to-dos and reminders. Its
 // limits live here, not in a model: only watched agents, 5 own actions in a row, outward commands wait for the person.
-import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync,
+import { execFileSync } from 'node:child_process';
+import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync,
   watch as fsWatch } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { homedir, tmpdir } from 'node:os';
@@ -83,9 +84,28 @@ export function watched({ stateDir, day, started, timezone, list = [], self, ign
 // The Daily chat is the watch's own chat: never watched.
 const OWN_NAMES = ['Daily'];
 
-// Admits each live top-level chat that worked in the last 24 hours, once; `inspect` runs again only on a new status.
-// A skipped chat leaves, and joins again only when it works after the skip ends.
-async function admit({ rows, list, state, call, self, ignore = [], now, skip = new Set() }) {
+/** A folder's git common dir, real path, or null when it is gone or not in git. */
+export function commonDir(cwd) {
+  try {
+    const dir = execFileSync('git', ['-C', cwd, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+      { encoding: 'utf8', timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return realpathSync(dir);
+  } catch { return null; }
+}
+
+/** `cwd => bool`: true for a folder in `project`'s repo or one of its worktrees; each folder is asked once. */
+export function sameRepo(project, read = commonDir) {
+  const mine = read(project);
+  const seen = new Map();
+  return cwd => {
+    if (!seen.has(cwd)) seen.set(cwd, Boolean(mine) && read(cwd) === mine);
+    return seen.get(cwd);
+  };
+}
+
+// Admits each live top-level chat in this repo that worked in the last 24 hours, once; `inspect` runs again only on a
+// new status. A skipped chat leaves, and joins again only when it works after the skip ends.
+async function admit({ rows, list, state, call, self, ignore = [], now, skip = new Set(), ownRepo = () => true }) {
   for (const row of state.chats.filter(each => skip.has(each.agentId))) {
     state.known[row.agentId] = { parent: null, status: null, skipped: true };
     delete state.agents[row.agentId];
@@ -93,7 +113,7 @@ async function admit({ rows, list, state, call, self, ignore = [], now, skip = n
   state.chats = state.chats.filter(row => !skip.has(row.agentId));
   for (const agent of list.filter(live)) {
     if (agent.id === self || ignore.includes(agent.id) || OWN_NAMES.includes(agent.name) || rows.some(row => row.agentId === agent.id)
-      || state.chats.some(row => row.agentId === agent.id)) continue;
+      || state.chats.some(row => row.agentId === agent.id) || !ownRepo(folder(agent.cwd))) continue;
     if (skip.has(agent.id)) { state.known[agent.id] = { parent: null, status: agent.status, skipped: true }; continue; }
     const known = state.known[agent.id];
     if (known?.skipped ? !working(agent.status) : known && (known.parent || known.status === agent.status)) continue;
@@ -135,18 +155,21 @@ export function streak(log, agentId, since = null) {
 
 const AGENT_ID = /^(?!\.{1,2}$)[A-Za-z0-9._-]{1,128}$/;
 
-/** When the person last typed in a chat, from Paseo's own agent record (its CLI does not show it); null when unread. */
-export function userAt(agentId, home = homedir()) {
-  if (!AGENT_ID.test(String(agentId ?? ''))) return null;
+/** Paseo's own record of a chat, read from its folder; {} when unread. */
+export function paseoRecord(agentId, home = homedir()) {
+  if (!AGENT_ID.test(String(agentId ?? ''))) return {};
   const root = join(home, '.paseo', 'agents');
   try {
     for (const project of readdirSync(root)) {
       const file = join(root, project, `${agentId}.json`);
-      if (existsSync(file)) return readJson(file, {}).lastUserMessageAt ?? null;
+      if (existsSync(file)) return readJson(file, {}) ?? {};
     }
   } catch { /* no record */ }
-  return null;
+  return {};
 }
+
+/** When the person last typed in a chat, from Paseo's own agent record (its CLI does not show it); null when unread. */
+export const userAt = (agentId, home = homedir()) => paseoRecord(agentId, home).lastUserMessageAt ?? null;
 
 /** The listed agents a name means: its id, an id prefix of 4 or more, its title, or its workspace folder, in order. */
 export function findAgents(list, name) {
@@ -319,7 +342,7 @@ async function passAddons({ addons, state, line, missed }) {
 }
 
 // Notices, never acts on an agent: one JSON line per event, kept in `<day>.watch.json` so a restart repeats nothing.
-// It ends with nothing to watch, at the hour limit, or on a later Daily; a chat's own watch ends when the service runs.
+// It ends on a later Daily.
 export async function watch({ stops = () => null, ...args }) {
   const wake = { heard: false, ids: new Set() };
   const watcher = stops(name => { if (!name || wake.ids.has(name)) wake.heard = true; });
@@ -327,8 +350,8 @@ export async function watch({ stops = () => null, ...args }) {
 }
 
 async function passes({ stateDir, started, timezone, call, board, todos = null, addons = null, env = process.env, self = env.PASEO_AGENT_ID,
-  ignore = [], service = false, print = console.log, seconds = 60, hours = 24, once = false, now = () => Date.now(),
-  sleep = ms => new Promise(done => setTimeout(done, ms)), wake, typedAt = userAt, shell }) {
+  ignore = [], service = false, print = console.log, seconds = 60, once = false, now = () => Date.now(),
+  sleep = ms => new Promise(done => setTimeout(done, ms)), wake, typedAt = userAt, shell, ownRepo = () => true }) {
   let printed = [];
   const line = event => { printed.push(event); print(JSON.stringify(event)); };
   if (!service && !self) { line({ event: 'unsupported', reason: UNSUPPORTED }); return null; }
@@ -337,7 +360,6 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
   if (service) endEarlier(stateDir, day);
   for (;;) {
     wake.heard = false;
-    if (!service && serviceAlive(stateDir, now())) { line({ event: 'end', reason: 'service' }); return day; }
     const state = { startedAt: new Date(now()).toISOString(), agents: {}, gone: [], done: [], notRead: [], chats: [], known: {}, skip: [],
       ...readJson(file, {}) };
     if (state.ended) return day;
@@ -351,7 +373,6 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
       return day;
     };
     if (newerDaily({ stateDir, started, timezone, day })) return end('next-daily');
-    if (now() - Date.parse(state.startedAt) >= hours * 3600e3) return end('time');
     printed = [];
     const addonsRead = addons ? await passAddons({ addons, state, line, missed }) : true;
     let read = null;
@@ -365,10 +386,9 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
     if (read) {
       const list = { stateDir, day, started, timezone, list: read.list, self, ignore };
       const skip = new Set(state.skip);
-      await admit({ rows: watched({ ...list, chats: [], skip }), list: read.list, state, call, self, ignore, now: now(), skip });
+      await admit({ rows: watched({ ...list, chats: [], skip }), list: read.list, state, call, self, ignore, now: now(), skip, ownRepo });
       const rows = watched({ ...list, chats: state.chats, skip }).filter(row => !state.gone.includes(row.agentId));
       wake.ids = new Set(rows.map(row => row.agentId));
-      if (!rows.length && !service) return end('empty');
       const log = actions({ stateDir, day });
       await notice({ rows, ...read, state, log, record: action => logAction(stateDir, day, action), call, line, now, typedAt });
       const week = rows.some(row => row.task && !state.done.includes(row.task)) ? await readWeek({ day, state, board, missed }) : null;
@@ -429,10 +449,10 @@ async function pause({ seconds, sleep, heard }) {
   } while (waited < seconds * 1000 && !heard());
 }
 
-// The service writes this beat each pass: a chat's own watch runs only while it is stale.
+// The worker writes this beat each pass: `D ensure` starts no second worker while it is fresh.
 const beatFile = stateDir => join(stateDir, 'serve.json');
 export const beat = ({ stateDir, seconds, now = Date.now() }) => writeJson(beatFile(stateDir), { pid: process.pid, at: new Date(now).toISOString(), seconds });
-const serviceAlive = (stateDir, now) => {
+export const serviceAlive = (stateDir, now = Date.now()) => {
   const last = readJson(beatFile(stateDir), null);
   return Boolean(last) && now - Date.parse(last.at) < Math.max(3 * (last.seconds ?? 60) * 1000, 5 * 60e3);
 };
