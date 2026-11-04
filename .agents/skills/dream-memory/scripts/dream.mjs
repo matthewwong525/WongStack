@@ -28,12 +28,14 @@ const CHANGES = 'openspec/changes';
 const SHIPPED_GROUPS = ['core', 'ui', 'pack', 'scaffold'];
 
 const day = stamp => String(stamp).slice(0, 10);
+// A dream's record, or a small wiki tidy's: `/dream-memory --small` writes `Wiki tidy <date>: …`.
+const RECORD = /^(?:Dream|Wiki tidy) \d{4}-\d{2}-\d{2}:/;
 const newestFirst = (a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.id - a.id;
 
 // A dream's record: upkeep tags `dream` any fact naming this folder, so the tag alone is not enough. A date ahead or
 // not plain UTC, or a `#N` at or above its own id, marks a forgery. One argument: `facts.filter` passes an index.
 export function isDreamFact(fact) {
-  if (!/^Dream \d{4}-\d{2}-\d{2}:/.test(String(fact.body))) return false;
+  if (!RECORD.test(String(fact.body))) return false;
   // Format first, so a date that parses as past can't sort first; then `!(<=)`, so an impossible day fails too.
   if (!PLAIN_UTC.test(String(fact.created_at)) || !(Date.parse(fact.created_at) <= Date.now())) return false;
   const read = /#(\d+)/.exec(String(fact.body))?.[1];
@@ -53,7 +55,7 @@ export function lastDream(facts, today = new Date()) {
     return { since: day(start.toISOString()), afterFact: 0, pages: [], dream: null };
   }
   // A long list of checked pages is split over several facts that start the same way.
-  const start = /^Dream \S+/.exec(fact.body)?.[0];
+  const start = RECORD.exec(fact.body)?.[0];
   const parts = facts.filter(isDreamFact).filter(part => start && part.body.startsWith(start));
   const ids = parts.map(part => Number(/#(\d+)/.exec(part.body)?.[1] ?? 0));
   return { since: day(fact.created_at), afterFact: Math.max(0, ...ids), pages: [...new Set(parts.flatMap(part => pagesNamed(part.body)))].sort(), dream: fact.id };

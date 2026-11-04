@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readJson, writeJson } from '../../.agents/skills/daily/scripts/chief.mjs';
-import { finishTodo, keepTodos, repoOf, todoKey, todosFile } from '../../.agents/skills/daily/scripts/todos.mjs';
+import { finishTodo, keepTodos, repoOf, todoKey, todosFile, wrapUpFile } from '../../.agents/skills/daily/scripts/todos.mjs';
 
 const ZONE = 'America/New_York';
 // 10:00 on Wednesday 2026-10-21 in New York.
@@ -223,6 +223,18 @@ test("a Done marked mid-day is seen within 5 minutes, and the idle chat gets /cl
   await t.pass(START + 7 * MIN, close.more);
   assert.equal(t.kept()['agent-mine'].state, 'done');
   assert.equal(t.box.tasks.get('t1').status, 'done');
+});
+
+test('a Done chat that wrap-up already asked to close gets no second /close', async () => {
+  const t = setup();
+  const close = fakeSend();
+  await t.pass(START, close.more);
+  writeJson(wrapUpFile(t.stateDir), { asked: { 'agent-mine': { at: new Date(START).toISOString(), head: 'abc', title: 'Fix the Notes page', tries: 0 } } });
+  t.box.tasks.get('t1').status = 'done';
+  await t.pass(START + 5 * MIN, close.more);
+  await t.pass(START + 30 * MIN, close.more);
+  assert.deepEqual(close.sent, []);
+  assert.equal(t.kept()['agent-mine'].closeAsked, new Date(START).toISOString());
 });
 
 test('a Done chat waits while it works and for 15 minutes after the person wrote; the chief never closes its own chats', async () => {

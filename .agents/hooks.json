@@ -37,6 +37,11 @@
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark",
             "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/stop-check.mjs\" stop --agent codex",
+            "timeout": 300
           }
         ]
       }

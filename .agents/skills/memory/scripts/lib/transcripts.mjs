@@ -65,7 +65,7 @@ function claudeMessages(lines) {
     for (const part of parts) {
       if (part?.type === 'text') {
         const text = record.type === 'user' ? cleanClaudeText(part.text || '') : (part.text || '').trim();
-        if (text) out.push({ line, role: record.type, text });
+        if (text) out.push({ line, role: record.type, text, at: record.timestamp ?? null, ...(record.origin && { origin: record.origin.kind ?? 'other' }) });
       } else if (part?.type === 'tool_result' && part.is_error) {
         out.push({ line, role: 'error', text: blockText(part.content).slice(0, ERROR_CHARS) });
       }
@@ -90,7 +90,7 @@ function codexMessages(lines) {
     if (!item) continue;
     if (item.type === 'message' && ['user', 'assistant'].includes(item.role)) {
       const text = blockText(item.content).trim();
-      if (text && !(item.role === 'user' && CODEX_INJECTED.test(text))) out.push({ line, role: item.role, text });
+      if (text && !(item.role === 'user' && CODEX_INJECTED.test(text))) out.push({ line, role: item.role, text, at: record.timestamp ?? null });
     } else if ((item.type || '').endsWith('_call_output') && typeof item.output === 'string' && codexFailed(item.output)) {
       out.push({ line, role: 'error', text: item.output.slice(0, ERROR_CHARS) });
     }

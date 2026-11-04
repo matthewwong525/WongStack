@@ -16,6 +16,8 @@ const TIDY = join(HERE, '../../schedule/scripts/tidy.mjs');
 // Moves a clean teammate's copy forward in the background: wiki/stack/employee-project.md#update-the-copy
 const UPDATE = join(HERE, '../../save/scripts/update-copy.mjs');
 const KNOWLEDGE = join(HERE, 'knowledge.mjs');
+// Starts the daily's worker when the person has a job for it: wiki/development/daily.md#the-daily-on-a-computer
+const DAILY = join(HERE, '../../daily/scripts/daily.mjs');
 
 const fallbackInstruction = sessionId => `Memory: past sessions wait for capture, and a background run could not start on its own. Start one background subagent with the smallest capable model. Tell it to follow the "Background run" section of .claude/skills/memory/SKILL.md and to exclude session ${sessionId}. Do not wait for it.`;
 
@@ -26,6 +28,18 @@ function startRun(ctx, agent, sessionId) {
       cwd: ctx.root, detached: true, stdio: 'ignore',
       env: { ...process.env, WONG_MEMORY_RUN_STARTED: new Date().toISOString(), WONG_MEMORY_EXCLUDE: sessionId },
     });
+    child.on('error', () => {});
+    child.unref();
+    return true;
+  } catch { return false; }
+}
+
+/** `D ensure`, detached and silent: a background run, or WONG_DAILY_WORKER=0, starts none. True when it started. */
+export function ensureDaily(ctx, agent, { env = process.env, start = spawn } = {}) {
+  if (!existsSync(DAILY) || env.WONG_DAILY_WORKER === '0'
+    || ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK'].some(name => env[name])) return false;
+  try {
+    const child = start(process.execPath, [DAILY, 'ensure', '--agent', agent], { cwd: ctx.root, detached: true, stdio: 'ignore' });
     child.on('error', () => {});
     child.unref();
     return true;
@@ -95,6 +109,7 @@ async function main(agent) {
   const background = process.env.WONG_MEMORY_RUN === '1';
   registerSession(ctx, { id: sessionId, agent, transcript: input.transcript_path || null, cwd: input.cwd || ctx.root, startedAt: new Date().toISOString(), ...(background ? { background } : {}) });
   if (background) return '';
+  ensureDaily(ctx, agent);
   await import(pathToFileURL(UPDATE).href).then(module => module.updateCopy(ctx.root), () => {});
 
   // The digest fetch runs while local discovery reads the disk.

@@ -146,7 +146,7 @@ function here(cwd = process.cwd()) {
 }
 
 /** The worktree's own branch, tip, and saved-state inputs. */
-function worktreeState(dir) {
+export function worktreeState(dir) {
   return {
     porcelain: tryGit(dir, 'status', '--porcelain'),
     unpushed: tryGit(dir, 'rev-list', 'HEAD', '--not', '--remotes'),
@@ -156,7 +156,7 @@ function worktreeState(dir) {
 }
 
 /** The pull request for `branch`, as `gh pr view` shows it, or null without `gh` or a match. */
-function pullRequest(dir, branch) {
+export function pullRequest(dir, branch) {
   if (!branch) return null;
   try {
     return JSON.parse(execFileSync('gh', ['pr', 'view', branch, '--json', 'number,state,headRefOid'], {
