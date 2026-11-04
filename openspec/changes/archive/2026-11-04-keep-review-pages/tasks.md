@@ -36,4 +36,4 @@
 ## 6. Verification
 
 - [x] 6.1 Run `node .github/scripts/checks.mjs --worktree` and fix what it finds.
-- [ ] 6.2 `/save`, then on the preview with seed data: open *Reviews*, search, open an archived page (read-only, answer line, no buttons), and open a waiting one and send notes; it moves to the Archive with *Answered*.
+- [x] 6.2 `/save`, then on the preview with seed data: open *Reviews*, search, open an archived page (read-only, answer line, no buttons), and open a waiting one and send notes; it moves to the Archive with *Answered*.

@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** built; preview check pending
+**Status:** ready-to-ship
 **Branch:** maniacal-chicken
 **Open questions:** none
 
@@ -66,3 +66,5 @@ Non-goals: no move of pictures to file storage (pages stay at most 512 KB each);
 - **2026-11-03** — Assumed: the page hides its own controls on a read-only greeting, not the app hiding them with injected styles, because the app would then depend on the page's class names, which change often; an older page keeps its *Send notes*, and the Inbox refuses that tap as closed.
 - **2026-11-03** — Assumed: the prototype pictures are at desktop width, because the browser tool has no phone size; the build's checks cover phone width.
 - **2026-11-04** — Built inside /ship. The second look found two read-only gaps in the review page (a test that could not fail, and the drawing view still offering notes); both fixed. Local checks pass; a timeout in the access app's welcome test passed on rerun.
+- **2026-11-04** — Walked the preview at phone width as a signed-in person, with pages put through the app's own routes, because the sample pages belong to Fay: the list, a search and its no-match line, an archived page read-only with its answer line and no buttons, *Back* to the list, and a waiting page whose notes, once delivered, moved it to the Archive with *Answered*. A page built before this change still shows its own note buttons, as planned.
+- **2026-11-04** — Archived inside /ship as release 45.5.0, after every task was checked.
