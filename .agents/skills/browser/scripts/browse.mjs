@@ -3,10 +3,10 @@
 // talks to its server. Exit codes: 0 ok · 1 failed · 2 usage · 3 the browser is not installed. Node built-ins only.
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { hostOf, readLogins, writeLogins } from './logins.mjs';
@@ -20,6 +20,9 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   type <ref-or-selector> <text>
   press <key>
   select <ref-or-selector> <option>
+  upload <ref-or-selector> <path> [<path>...]
+                                give these files to a file box, a drop area's one file box, or the picker
+                                a button opens; prints BROWSE_UPLOADED=<count> and BROWSE_UPLOAD_VIA=box|picker
   get url | get count <selector> | get value <ref-or-selector>
                                 a selector reads only the main page; a box in a frame needs its ref
   screenshot [--if-changed] [--full-page]
@@ -74,6 +77,30 @@ export class BrowseError extends Error {
     super(reason);
     Object.assign(this, { status, timedOut, needs });
   }
+}
+
+/** Why `real`, a path with links followed, is private, or null: a hidden part anywhere above the chats' work
+ * folders, or a `.env` file anywhere. A place, not the home folder's path: a bind mount or a copy has another path. */
+export function privatePath(real) {
+  const name = basename(real);
+  const example = name === '.env.example';
+  if (/^\.env(?:\.|$)/.test(name) && !example) return 'a .env file';
+  const parts = real.split(sep).slice(0, example ? -1 : undefined);
+  const work = parts.findIndex((part, at) => part === '.paseo' && parts[at + 1] === 'worktrees');
+  return parts.slice(0, work < 0 ? undefined : work).some(part => part.startsWith('.')) ? 'a hidden file or folder' : null;
+}
+
+/** Each named file with links followed, `base` resolving a relative one; stops at the first that is missing, not a
+ * file, or private, so a page gets all the files or none. */
+export function uploadPaths(paths, { base = process.cwd() } = {}) {
+  return paths.map(given => {
+    let real;
+    try { real = realpathSync(resolve(base, given)); } catch { throw new BrowseError(`${given} does not exist`); }
+    if (!statSync(real).isFile()) throw new BrowseError(`${given} is not a file`);
+    const why = privatePath(real);
+    if (why) throw new BrowseError(`${given} is private (${why}), so it is never uploaded`);
+    return real;
+  });
 }
 
 /** The session a task's tab is keyed by: the name given, else the checkout's folder name. */
@@ -582,8 +609,11 @@ async function call(server, method, path, body, { wait = COMMAND_MS, quiet = fal
   throw new BrowseError(reason || `the browser refused the step (HTTP ${response.status})`, { status: response.status, timedOut: /timed out|Timeout/.test(reason) });
 }
 
+// A server that started before a route was added answers this, and a new tab gets the same answer.
+const NO_ROUTE = 'no such route';
+export const OLD_BROWSER = 'the running browser is older than the upload command; it gets it at its next start';
 /** True when the tab is gone, or a click hung: both end by reopening the page. */
-const reopens = (error, click) => error instanceof BrowseError && (error.status === 404 || error.status === 410 || (click && error.timedOut));
+const reopens = (error, click) => error instanceof BrowseError && ((error.status === 404 && error.message !== NO_ROUTE) || error.status === 410 || (click && error.timedOut));
 
 /** The driver for one session's tab. `retry` reopens a lost tab and tries the step once more; `start`
  * starts the server when none runs. Each method throws a BrowseError on failure. */
@@ -689,6 +719,14 @@ export function client(given, { retry = true, start = true } = {}) {
     },
     type: (target, text) => act('type', target, { text }, { quiet: true }),
     select: (target, option) => act('select', target, { option }),
+    /** Gives the target's file box, or the picker it opens, the files at `paths`; resolves to `{count, via}`. */
+    async upload(target, paths) {
+      try {
+        return await (await act('upload', target, { files: paths })).json();
+      } catch (error) {
+        throw error instanceof BrowseError && error.message === NO_ROUTE ? new BrowseError(OLD_BROWSER) : error;
+      }
+    },
     press: key => onTab(tabId => send('POST', `/tabs/${tabId}/press`, { userId: USER, key })),
     /** Presses Enter in a box, focused first: a key pressed on the page alone misses a box in another site's frame. */
     enter: target => act('type', target, { text: '', mode: 'keyboard', pressEnter: true }),
@@ -862,6 +900,10 @@ const COMMANDS = {
     console.log(`BROWSE_LOGIN=${result}`);
     if (saved !== undefined) console.log(`BROWSE_SAVED=${saved ? 'yes' : 'no'}`);
   },
+  async upload(page, [target, ...paths]) {
+    const { count, via } = await page.upload(target, uploadPaths(paths));
+    console.log(`BROWSE_UPLOADED=${count}\nBROWSE_UPLOAD_VIA=${via}`);
+  },
   async get(page, [what, target]) {
     console.log(await { url: () => page.url(), count: () => page.count(target), value: () => page.value(target) }[what]());
   },
@@ -875,6 +917,10 @@ function runnerFor(command, words, flags) {
   if (command === 'login') {
     if (words.length !== 1 || !(flags.username || flags.password)) usage('login takes a name and --username, --password, or both');
     return COMMANDS.login;
+  }
+  if (command === 'upload') {
+    if (words.length < 2) usage('upload takes a ref or selector and at least one path');
+    return COMMANDS.upload;
   }
   if (command === 'get') {
     const fits = words[0] === 'url' ? words.length === 1 : ['count', 'value'].includes(words[0]) && words.length === 2;

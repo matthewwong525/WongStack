@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -14,21 +14,25 @@ const { joinPieces } = await import('../../.agents/skills/browser/scripts/browse
 
 const KEY = 'test-key';
 
-/** A frame whose text is `yaml`; its locators record each step in `calls`. A click throws each `clickFails` error. */
+/** A frame whose text is `yaml`; its locators log each step in `calls`. A click throws each `clickFails` error after
+ * its timeout on `clock`. `elements` gives a locator's element, for `evaluate`; `counts` its match count. */
 function stubFrame(calls, { url = 'about:blank', name = '', yaml = '' } = {}) {
-  const frame = { yaml, clickFails: [], detached: false };
+  const frame = { yaml, clickFails: [], detached: false, elements: {}, counts: {}, clock: 0, scriptAt: null };
+  const button = desc => ({ tagName: 'BUTTON', querySelectorAll: () => [], click: () => { calls.push(['dom click', desc]); frame.scriptAt = frame.clock; } });
   const locator = desc => ({
     nth: n => locator(`${desc}#${n}`),
+    locator: selector => locator(`${desc} >> css:${selector}`),
     ariaSnapshot: async () => frame.yaml,
     click: async options => {
       calls.push(['click', desc, options]);
       const fail = frame.clickFails.shift();
-      if (fail) throw new Error(fail);
+      if (fail) { frame.clock += options.timeout; throw new Error(fail); }
     },
-    evaluate: async () => { calls.push(['dom click', desc]); },
+    evaluate: async (script, arg) => script(frame.elements[desc] ?? button(desc), arg),
+    setInputFiles: async paths => { calls.push(['set files', desc, paths]); },
     fill: async text => { calls.push(['fill', desc, text]); },
     focus: async () => { calls.push(['focus', desc]); },
-    count: async () => 1,
+    count: async () => frame.counts[desc] ?? 1,
     selectOption: async choice => {
       calls.push(['select', desc, choice]);
       if (choice.label === 'by-value') throw new Error('no such label');
@@ -67,6 +71,18 @@ function stubPage(calls, yaml, frames = []) {
     evaluate: async expression => ({ expression }),
     setViewportSize: async size => { calls.push(['viewport', size]); },
     bringToFront: async () => { calls.push(['front']); },
+    // A click that opens the picker sets `chooser` first; it opens at the first click, or with `pickerOnScript` at the
+    // page's own click. One that opens after the wait's timeout on the frame's clock is missed, as Playwright's is.
+    chooser: null,
+    pickerOnScript: false,
+    async waitForEvent(event, options) {
+      calls.push(['wait', event, options]);
+      Object.assign(main, { clock: 0, scriptAt: null });
+      await new Promise(done => setTimeout(done, 10));
+      const openedAt = this.pickerOnScript ? main.scriptAt : 0;
+      if (!this.chooser || openedAt === null || openedAt > options.timeout) throw new Error(`Timeout ${options.timeout}ms exceeded while waiting for event "${event}"`);
+      return this.chooser;
+    },
     screenshot: async options => Buffer.from(`png full=${options.fullPage}`),
     close: async () => { closed = true; listeners.close?.(); },
     on: (event, listener) => { listeners[event] = listener; },
@@ -324,4 +340,110 @@ test('a step that never ends times out, and the next step on that tab still runs
     assert.match(stuck.body.error, /timed out/);
     assert.deepEqual((await call('POST', `/tabs/${tabId}/press`, { userId: 'me', key: 'Enter' })).body, { ok: true });
   } finally { await close(); }
+});
+
+/** A file box element as the page's script sees it. */
+const fileBox = (multiple = true) => ({ tagName: 'INPUT', type: 'file', multiple, querySelectorAll: () => [] });
+
+/** Two STL files outside the home folder, the saved-logins file inside it, and a link to that file. */
+function uploadFiles() {
+  const dir = mkdtempSync(join(tmpdir(), 'browser-server-upload-'));
+  const files = ['model.stl', 'part.stl'].map(name => join(dir, name));
+  for (const file of files) writeFileSync(file, 'solid model\n');
+  mkdirSync(join(process.env.HOME, '.wong-stack'), { recursive: true });
+  const logins = join(process.env.HOME, '.wong-stack', 'logins.json');
+  writeFileSync(logins, '[]');
+  const link = join(dir, 'link.stl');
+  symlinkSync(logins, link);
+  return { dir, files, logins, link };
+}
+
+test('upload gives a hidden file box the files with no click, and a drop area its one file box', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context);
+  const { dir, files } = uploadFiles();
+  try {
+    const { tabId } = (await open(call)).body;
+    const page = context.pages[0];
+    page.main.elements['css:input[type=file]'] = fileBox();
+    const upload = body => call('POST', `/tabs/${tabId}/upload`, { userId: 'me', ...body });
+    assert.deepEqual((await upload({ selector: 'input[type=file]', files })).body, { ok: true, count: 2, via: 'box' });
+    assert.deepEqual(page.calls.at(-1), ['set files', 'css:input[type=file]', files]);
+    assert.ok(!page.calls.some(([step]) => step === 'click' || step === 'wait'), 'a file box gets no click');
+    page.main.elements['css:.drop'] = { tagName: 'DIV', querySelectorAll: () => [fileBox()] };
+    assert.deepEqual((await upload({ selector: '.drop', files })).body, { ok: true, count: 2, via: 'box' });
+    assert.deepEqual(page.calls.at(-1), ['set files', 'css:.drop >> css:input[type=file]', files]);
+  } finally { await close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("a button's file picker gets the files; no box and no picker sets nothing and says why", async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context);
+  const { dir, files } = uploadFiles();
+  try {
+    const { tabId } = (await open(call)).body;
+    const page = context.pages[0];
+    const upload = body => call('POST', `/tabs/${tabId}/upload`, { userId: 'me', ...body });
+    const picked = [];
+    page.chooser = { isMultiple: () => true, setFiles: async paths => { picked.push(paths); } };
+    assert.deepEqual((await upload({ selector: 'button.add', files })).body, { ok: true, count: 2, via: 'picker' });
+    assert.deepEqual(picked, [files]);
+    assert.ok(page.calls.some(([step, desc]) => step === 'click' && desc === 'css:button.add'));
+    page.pickerOnScript = true;
+    page.main.clickFails.push('Timeout 3000ms exceeded', 'Timeout 3000ms exceeded');
+    assert.deepEqual((await upload({ selector: 'button.late', files })).body, { ok: true, count: 2, via: 'picker' });
+    assert.deepEqual(picked, [files, files], 'a picker that opens only on the last, script click still counts');
+    assert.ok(page.calls.some(([step, desc]) => step === 'dom click' && desc === 'css:button.late'));
+    page.pickerOnScript = false;
+    page.chooser = null;
+    const none = await upload({ selector: 'button.other', files });
+    assert.equal(none.status, 409);
+    assert.equal(none.body.error, 'button.other is not a file box and opened no file picker');
+    assert.equal(picked.length, 2);
+    assert.ok(!page.calls.some(([step]) => step === 'set files'));
+  } finally { await close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('two files for a one-file box, several matches, or several file boxes are refused with no file set', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context);
+  const { dir, files } = uploadFiles();
+  try {
+    const { tabId } = (await open(call)).body;
+    const page = context.pages[0];
+    const upload = body => call('POST', `/tabs/${tabId}/upload`, { userId: 'me', ...body });
+    page.main.elements['css:#one'] = fileBox(false);
+    assert.deepEqual(await upload({ selector: '#one', files }).then(({ status, body }) => [status, body.error]), [409, '#one takes one file, not 2']);
+    page.chooser = { isMultiple: () => false, setFiles: async () => { throw new Error('set on a single picker'); } };
+    assert.equal((await upload({ selector: 'button.one', files })).body.error, 'button.one takes one file, not 2');
+    page.main.counts['css:input'] = 3;
+    assert.match((await upload({ selector: 'input', files })).body.error, /^input matches 3 elements/);
+    page.main.elements['css:form'] = { tagName: 'FORM', querySelectorAll: () => [fileBox(), fileBox()] };
+    assert.equal((await upload({ selector: 'form', files })).body.error, 'form holds 2 file boxes; name one of them');
+    assert.ok(!page.calls.some(([step]) => step === 'set files'));
+    assert.deepEqual((await upload({ selector: '#one', files: [files[0]] })).body, { ok: true, count: 1, via: 'box' });
+  } finally { await close(); rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('a private, missing, relative or folder path, or a link into ~/.wong-stack, is a 400 naming it, and no file is set', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context);
+  const { dir, files, logins, link } = uploadFiles();
+  try {
+    const { tabId } = (await open(call)).body;
+    const page = context.pages[0];
+    page.main.elements['css:input[type=file]'] = fileBox();
+    const refused = async paths => {
+      const { status, body } = await call('POST', `/tabs/${tabId}/upload`, { userId: 'me', selector: 'input[type=file]', files: paths });
+      assert.equal(status, 400);
+      return body.error;
+    };
+    assert.match(await refused([files[0], logins]), new RegExp(`^${logins} is private`));
+    assert.match(await refused([files[0], link]), new RegExp(`^${link} is private`));
+    assert.equal(await refused([join(dir, 'gone.stl')]), `${join(dir, 'gone.stl')} does not exist`);
+    assert.equal(await refused([dir]), `${dir} is not a file`);
+    assert.match(await refused(['model.stl']), /absolute paths/);
+    assert.match(await refused([]), /nonempty list/);
+    assert.ok(!page.calls.some(([step]) => step === 'set files'));
+  } finally { await close(); rmSync(dir, { recursive: true, force: true }); }
 });

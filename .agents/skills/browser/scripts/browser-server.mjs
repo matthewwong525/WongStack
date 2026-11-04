@@ -6,8 +6,8 @@ import { timingSafeEqual } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
-import { join } from 'node:path';
-import { FILES, LAUNCH_MS, OLD_PROFILES, launchConfig } from './browse.mjs';
+import { isAbsolute, join } from 'node:path';
+import { FILES, LAUNCH_MS, OLD_PROFILES, launchConfig, uploadPaths } from './browse.mjs';
 import { startForwarder } from './forwarder.mjs';
 import { moveLogins } from './login-move.mjs';
 import { MAX_FRAMES, buildSnapshot, frameHasBoxes, frameLabel, frameSkipped, windowSnapshot } from './refs.mjs';
@@ -23,6 +23,9 @@ const IDLE_MS = 5 * 60_000;
 // The longest one step may hold its tab: a page that never answers would block every later step on it.
 const STEP_MS = 50_000;
 const BODY_LIMIT = 5 * 1024 * 1024;
+// clickOn's three tries can take 9 s, so the picker wait outlasts them all: one the page's own click opens counts.
+const CLICK_TRY_MS = 3000;
+const CHOOSER_MS = 3 * CLICK_TRY_MS + 3000;
 
 /** A refusal with its HTTP status. */
 const refusal = (status, message) => Object.assign(new Error(message), { status });
@@ -88,18 +91,52 @@ async function clickTarget(page, selector) {
  * Resolves to how it landed: `mouse`, `forced`, or `script`, an event the page can tell from a person's. */
 async function clickOn(locator) {
   try {
-    await locator.click({ timeout: 3000 });
+    await locator.click({ timeout: CLICK_TRY_MS });
     return 'mouse';
   } catch (error) {
     if (!/intercepts pointer events|not visible|timeout/i.test(error.message)) throw error;
   }
   try {
-    await locator.click({ timeout: 3000, force: true });
+    await locator.click({ timeout: CLICK_TRY_MS, force: true });
     return 'forced';
   } catch {
-    await locator.evaluate(element => element.click(), undefined, { timeout: 3000 });
+    await locator.evaluate(element => element.click(), undefined, { timeout: CLICK_TRY_MS });
     return 'script';
   }
+}
+
+/** Runs in the page: whether the element is a file box, and how many it holds, with the first one's `multiple`. */
+const fileBoxes = element => {
+  if (element.tagName === 'INPUT' && element.type === 'file') return { own: true, held: 1, multiple: element.multiple };
+  const held = element.querySelectorAll('input[type=file]');
+  return { own: false, held: held.length, multiple: held[0]?.multiple ?? false };
+};
+
+/** The one element a selector names; none or several stop with a plain reason, not Playwright's strict-mode text. */
+async function oneElement(page, selector) {
+  const locator = page.locator(selector);
+  const count = await locator.count();
+  if (count !== 1) throw refusal(409, count ? `${selector} matches ${count} elements; name one, with a narrower selector or a ref` : `${selector} is not on the page`);
+  return locator;
+}
+
+const tooMany = (name, count) => refusal(409, `${name} takes one file, not ${count}`);
+
+/** Sets `paths` on the target's own file box, else its one held box, else the picker its click opens. Resolves to the
+ * route taken, `box` or `picker`. */
+async function setFiles(page, locator, name, paths) {
+  const { own, held, multiple } = await locator.evaluate(fileBoxes);
+  if (held > 1) throw refusal(409, `${name} holds ${held} file boxes; name one of them`);
+  if (held === 1) {
+    if (paths.length > 1 && !multiple) throw tooMany(name, paths.length);
+    await (own ? locator : locator.locator('input[type=file]')).setInputFiles(paths, { timeout: 10_000 });
+    return 'box';
+  }
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser', { timeout: CHOOSER_MS }).catch(() => null), clickOn(locator)]);
+  if (!chooser) throw refusal(409, `${name} is not a file box and opened no file picker`);
+  if (paths.length > 1 && !chooser.isMultiple()) throw tooMany(name, paths.length);
+  await chooser.setFiles(paths, { timeout: 10_000 });
+  return 'picker';
 }
 
 /** Each action on one tab, by its route name. */
@@ -133,6 +170,16 @@ const ACTIONS = {
     const locator = ref ? await refLocator(tab, ref) : tab.page.locator(selector);
     await locator.selectOption({ label: option }, { timeout: 5000 }).catch(() => locator.selectOption({ value: option }, { timeout: 5000 }));
     return { ok: true };
+  },
+  async upload(tab, { ref, selector, files }) {
+    if (!ref && !selector) throw refusal(400, 'ref or selector required');
+    if (!Array.isArray(files) || !files.length || !files.every(file => typeof file === 'string' && isAbsolute(file))) throw refusal(400, 'files must be a nonempty list of absolute paths');
+    // browse.mjs checks the paths too; this check stops a direct call to the route from reading a private file.
+    let paths;
+    try { paths = uploadPaths(files); } catch (error) { throw refusal(400, error.message); }
+    const via = await setFiles(tab.page, ref ? await refLocator(tab, ref) : await oneElement(tab.page, selector), ref ?? selector, paths);
+    await tab.page.waitForTimeout(500);
+    return { ok: true, count: paths.length, via };
   },
   async press(tab, { key }) {
     await tab.page.keyboard.press(pressKey(key));
