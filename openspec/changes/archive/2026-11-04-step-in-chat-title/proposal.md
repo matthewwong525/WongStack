@@ -1,6 +1,6 @@
 # Show the step in the chat title
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** unusual-hamster
 **Open questions:** none
 
@@ -77,3 +77,4 @@ None.
 - **2026-11-04** — Assumed: the Claude Code hook sends the name only when the stored title changed, and always on start or resume, so it does not write the name again at every message.
 - **2026-11-04** — Assumed: the Paseo and Codex writes run in a background process when called from a hook, because each `paseo` call takes about 0.8 s and the hook must return at once.
 - **2026-11-04** — Assumed: five sentences in `the-change-loop.md` were cut to fit its word cap and the `named-secret-save` route; checks.mjs, `required-tools.md` and the payload manifest also cover those facts.
+- **2026-11-04** — Archived for publish as 46.1.0, after a second look found five problems (a lost plan title in Claude Code or Codex alone, APPLY missed on a to-do, and three wording cuts that dropped rules), all fixed.

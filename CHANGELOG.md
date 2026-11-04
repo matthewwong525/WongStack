@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Show the step in the chat title
+## 46.1.0 — Show the step in the chat title
 
 - **Each chat's name starts with its step.** The five words are EXPLORE, PLAN, APPLY, SHIP and DONE, then the task: `APPLY: Fix the invoice total`. You see what each chat is doing without opening it ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
 - **The name moves with the chat.** A new chat starts in PLAN, or EXPLORE when you ask it only to think. It moves to APPLY when you say build, SHIP when you say publish, and DONE when the work is live or a to-do is finished. A step inside another step does not move the name back.

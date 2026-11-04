@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · step-in-chat-title</title>
+<title>Review · 2026-11-04-step-in-chat-title</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -296,7 +296,7 @@
   .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:grid; grid-template-columns:repeat(var(--cols, 1), minmax(0, 1fr)); align-items:stretch; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--background); border-top:1px solid var(--border); }
   .bar > button, #ready > button { min-width:0; height:64px; padding:6px; white-space:normal; line-height:1.3; }
   body.docked .bar, body.viewing .bar { display:none; }
-  body.read-only .bar, body.read-only .add, body.read-only .verdict, body.read-only .hint, body.read-only .vhint .note-it, body.read-only #chip { display:none; }
+  body.read-only .bar, body.read-only .add, body.read-only .verdict, body.read-only .hint, body.read-only .vhint .note-it, body.read-only #chip, body.read-only .drop, body.read-only .files button { display:none; }
   #ready { display:contents; }
   #ready-confirm { position:absolute; right:12px; bottom:calc(100% + 8px); width:272px; max-width:calc(100vw - 24px); max-height:calc(100dvh - var(--bar, 76px) - 24px); overflow:auto; padding:12px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--border); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-lg); }
   #ready-confirm .row { display:flex; gap:8px; margin-top:10px; }
@@ -313,6 +313,31 @@
   #toast { position:fixed; left:50%; bottom:calc(var(--bar, 76px) - 4px); z-index:7; max-width:90vw; transform:translateX(-50%); padding:8px 14px; border-radius:var(--radius); background:var(--primary); color:var(--primary-foreground); box-shadow:var(--look-shadow-lg); font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
   #toast.show { opacity:1; }
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
+  /* Live cards, forms, files, and the needs list: the look's parts, with inputs at 16px so a phone never zooms. */
+  .item > .live, .item > .form { grid-column:1 / -1; margin-top:10px; min-width:0; }
+  .live-tools { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px; }
+  .live-tools [aria-pressed="true"] { background:var(--secondary); color:var(--secondary-foreground); }
+  .live-box { overflow:hidden; border:1px solid var(--border); border-radius:var(--radius); background:var(--muted); }
+  .live iframe { display:block; border:0; transform-origin:0 0; background:var(--background); }
+  .live.full { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; margin:0; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; background:var(--background); }
+  .live.full .live-box { flex:1; min-height:0; overflow:auto; }
+  .live.full iframe { margin:0 auto; }
+  .live-said { margin:6px 0 0; }
+  .form { display:grid; gap:14px; }
+  .need .form { margin-top:10px; }
+  .q { min-width:0; margin:0; padding:0; border:0; }
+  .q-label { display:block; margin:0 0 4px !important; font-weight:500; }
+  .q :is(input:not([type=checkbox], [type=radio], [type=file]), textarea) { display:block; width:100%; padding:8px 10px; font:inherit; font-size:16px; }
+  .opt { display:flex; align-items:center; gap:8px; min-height:40px; }
+  .opt input { width:20px; height:20px; margin:0; }
+  .drop { position:relative; display:flex; align-items:center; justify-content:center; min-height:64px; padding:12px; border:1px dashed var(--input); border-radius:var(--radius); text-align:center; cursor:pointer; }
+  .drop.over, .drop:focus-within { border-color:var(--ring); background:var(--accent); }
+  .drop input { position:absolute; width:1px; height:1px; opacity:0; }
+  .files { list-style:none; margin:6px 0 0; padding:0; }
+  .files li { display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:14px; }
+  .files .why { color:var(--destructive); }
+  .needs { list-style:none; margin:0; padding:0; }
+  .need { scroll-margin-top:8px; }
   @media (min-width:701px) {
     body { --pad:16px; font-size:20px; }
     h1 { font-size:30px; }
@@ -383,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="step-in-chat-title" data-own-back>
+<body data-change="2026-11-04-step-in-chat-title" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>step-in-chat-title</h1>
+  <h1>2026-11-04-step-in-chat-title</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -425,6 +450,13 @@
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: plain Claude Code shows a move the chat makes by itself at the next message, because Claude Code lets a hook set the name only when a message is sent or a chat starts.</li>
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-04</p>Asked whether a mark typed by hand, such as <code>WAITING: </code>, gets replaced → chose to just overwrite: each step writes the whole name, with no special case for a hand-typed mark.</li>
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: there is no off switch, because a name change does no harm and the person asked for it everywhere.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: Codex is renamed through its own <code>codex app-server</code> <code>thread/name/set</code> call, with the <code>session_index.jsonl</code> line as a fallback, because 0.159.2's chat list reads the name from <code>state_5.sqlite</code> and the jsonl line alone does not show.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: a Paseo chat in the main folder, a Daily chat (<code>daily-chat=1</code>), an internal chat, or a daily, memory or stop-check run sets no name; plain Claude Code or Codex in the main folder still does, because a person working alone often works there.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: <code>/explore</code> sets EXPLORE as a typed step, because a new chat already starts at PLAN and the rank guard would block it.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: the Claude Code hook sends the name only when the stored title changed, and always on start or resume, so it does not write the name again at every message.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: the Paseo and Codex writes run in a background process when called from a hook, because each <code>paseo</code> call takes about 0.8 s and the hook must return at once.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-04</p>Assumed: five sentences in <code>the-change-loop.md</code> were cut to fit its word cap and the <code>named-secret-save</code> route; checks.mjs, <code>required-tools.md</code> and the payload manifest also cover those facts.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Archived for publish as 46.1.0, after a second look found five problems (a lost plan title in Claude Code or Codex alone, APPLY missed on a to-do, and three wording cuts that dropped rules), all fixed.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -484,7 +516,7 @@
   const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
 
   // ── storage: a refused store keeps notes for this session ──
-  let store = null, data = { notes: [], drafts: {}, ok: {} };
+  let store = null, data = { notes: [], drafts: {}, ok: {}, answers: {}, said: {}, files: {} };
   // A note on words keeps its quote; a note on a picture spot keeps the picture, the spot in percent, and its name.
   const EXTRA = { quote: 'string', k: 'number', x: 'number', y: 'number', on: 'string' };
   const ok = function (r, id) {
@@ -496,6 +528,7 @@
     Object.keys(EXTRA).forEach(function (f) { if (rec && rec[f] !== undefined) x[f] = rec[f]; });
     return x;
   }
+  const QID = /^(?:item|need)-\d+-(?:q|live)-\d+$/;
   try { store = window.localStorage; store.getItem(KEY); } catch (e) { store = null; }
   function load(text) {
     try {
@@ -506,6 +539,17 @@
         data.ok = {};
         Object.keys(saved.ok).forEach(function (id) { if (/^item-\d+$/.test(id) && (saved.ok[id] === true || saved.ok[id] === 'sent')) data.ok[id] = saved.ok[id]; });
       }
+      const kept = function (name, fits) {
+        if (!saved || !saved[name] || typeof saved[name] !== 'object') return;
+        data[name] = {};
+        Object.keys(saved[name]).forEach(function (id) { if (QID.test(id) && fits(saved[name][id])) data[name][id] = saved[name][id]; });
+      };
+      const words = function (v) { return typeof v === 'string' && v.length <= 2000; };
+      kept('answers', function (v) { return words(v) || typeof v === 'boolean' || (Array.isArray(v) && v.every(words)); });
+      kept('said', function (v) { return typeof v === 'string'; });
+      kept('files', function (v) {
+        return Array.isArray(v) && v.every(function (f) { return f && /^[0-9a-f]{32}$/.test(f.id) && typeof f.name === 'string' && typeof f.size === 'number' && typeof f.sent === 'boolean'; });
+      });
     } catch (e) { /* unreadable notes start empty */ }
   }
   load(store ? store.getItem(KEY) : null);
@@ -624,6 +668,18 @@
       v.querySelector('[data-ok]').setAttribute('aria-label', (state ? 'Undo OK on ' : 'OK ') + NOUN.toLowerCase() + ' ' + n);
       v.querySelector('[data-open]').hidden = !!state;
     });
+    const answers = replies();
+    Object.keys(data.answers).forEach(function (id) {
+      const q = document.querySelector('[data-q="' + id + '"], [data-live="' + id + '"]');
+      if (!q || q.getAttribute('data-kind') === 'tick') return;
+      if (!$('note-list').querySelector('.group.answers')) $('note-list').insertAdjacentHTML('beforeend', '<li class="group answers">Answers</li>');
+      const line = q.hasAttribute('data-live') ? asker(id) + ' answer' : asker(id) + ', "' + q.getAttribute('data-label') + '"', v = data.answers[id];
+      const sent = !answers.some(function (a) { return a.id === id; });
+      $('note-list').insertAdjacentHTML('beforeend', '<li class="entry"><span class="where">' + esc(line) + (sent ? '<span class="tag">Sent</span>' : '') + '</span>'
+        + esc(Array.isArray(v) ? v.join(', ') : v) + '</li>');
+    });
+    if (ids.length || $('note-list').querySelector('.answers')) { const none = $('note-list').querySelector('li.muted'); if (none) none.remove(); }
+    fill(); drawFiles();
     drawings.forEach(function (d) {
       const k = d.art.querySelectorAll('.pin').length;
       d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
@@ -634,7 +690,7 @@
 
   // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
   let chipFor = null, chipExtra = null, tap = null;
-  // True once the inbox opens this page from its Archive: it takes no note.
+  // True once the inbox opens this page closed, or a tap on it reaches the chat: it takes no note.
   let readOnly = false;
   const pointers = {};
   // `extra` makes the chip start a new note on selected words or a picture spot.
@@ -809,8 +865,8 @@
     closeEditor(true); persist();
     if (act === 'save' && live) toast('Saved. Tap Send notes to send it to the chat.');
     else if (act === 'save') {
-      const n = unsent().length, k = oks().length;
-      copyNotes(function () { toast('Saved and copied ' + plural2(n, k) + '. Paste them into chat.'); },
+      const n = unsent().length, k = oks().length, a = replies().length;
+      copyNotes(function () { toast('Saved and copied ' + plural2(n, k, a) + '. Paste them into chat.'); },
         function () { toast('Saved. Tap Copy notes to copy them.'); });
     }
   });
@@ -915,7 +971,11 @@
   function oks() {
     return Object.keys(data.ok).filter(function (id) { return data.ok[id] === true; }).sort(function (a, b) { return a.slice(5) - b.slice(5); });
   }
-  function acknowledge(notes, okd) {
+  function acknowledge(notes, okd, ans) {
+    ans.forEach(function (a) {
+      if (a.said) data.said[a.id] = a.said;
+      (data.files[a.id] || []).forEach(function (f) { if (a.files.indexOf(f.id) >= 0) f.sent = true; });
+    });
     notes.forEach(function (submitted) {
       data.notes.forEach(function (current) {
         if (current.id === submitted.id && current.label === submitted.label && current.text === submitted.text) current.sent = true;
@@ -931,21 +991,26 @@
     });
   }
   // What goes to the chat: each OK on its own line, then the notes.
-  function lines(notes, okd) {
-    return okd.map(function (id) { return NOUN + ' #' + id.slice(5) + ': OK'; }).concat(bullets(notes)).join('\n');
+  function lines(notes, okd, ans) {
+    return okd.map(function (id) { return NOUN + ' #' + id.slice(5) + ': OK'; }).concat(ans.map(function (a) { return a.line; }), bullets(notes)).join('\n');
   }
   function notesText() {
     const header = REVIEW ? document.body.getAttribute('data-header')
       : PREVIEW ? 'Notes on the preview of ' + NAME + ' from its review page. Don\'t publish yet.'
       : 'Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.';
-    return header + '\n' + lines(unsent(), oks());
+    return header + '\n' + lines(unsent(), oks(), replies());
   }
   function toast(text) {
     $('toast').textContent = text; $('toast').classList.add('show');
     setTimeout(function () { $('toast').classList.remove('show'); }, 2000);
   }
   function plural(n) { return n + (n === 1 ? ' note' : ' notes'); }
-  function plural2(n, k) { return !k ? plural(n) : (n ? plural(n) + ' and ' : '') + k + (k === 1 ? ' OK' : ' OKs'); }
+  function plural2(n, k, a) {
+    const parts = n || !(k || a) ? [plural(n)] : [];
+    if (k) parts.push(k + (k === 1 ? ' OK' : ' OKs'));
+    if (a) parts.push(a + (a === 1 ? ' answer' : ' answers'));
+    return parts.join(' and ');
+  }
   // One routine for Copy notes and Save: the Clipboard API, else select #copybuf and execCommand, then hand focus back.
   function copyNotes(done, failed) {
     const buf = $('copybuf');
@@ -961,7 +1026,7 @@
   }
   // Nothing to copy or send: say why. True when it spoke.
   function nothing(verb) {
-    if (unsent().length || oks().length) return false;
+    if (unsent().length || oks().length || replies().length) return false;
     toast(data.notes.length ? 'Every note is already sent.' : 'No saved notes yet. Drafts are not ' + verb + '.');
     return true;
   }
@@ -995,35 +1060,37 @@
     return fetch(path, { method: body ? 'POST' : 'GET', cache: 'no-store', headers: headers, body: body ? JSON.stringify(body) : undefined });
   }
   async function sendNotes() {
-    const notes = snapshot(), okd = oks(), n = notes.length, k = okd.length;
+    const notes = snapshot(), okd = oks(), ans = replies(), n = notes.length, k = okd.length, a = ans.length;
     if (pending || connecting || nothing('sent')) return;
     busy('send'); says('Sending your notes…');
     // A closed link or an unreachable chat: the same tap copies, and the page goes back to Copy notes.
     const closed = function () {
       setLive(null); says('This link has closed. Copy your notes into chat.');
-      copyNotes(function () { toast('This link has closed. Copied ' + plural2(n, k) + ': paste them into chat.'); },
+      copyNotes(function () { toast('This link has closed. Copied ' + plural2(n, k, a) + ': paste them into chat.'); },
         function () { toast('This link has closed. Tap Copy notes to copy them.'); });
     };
     try {
-      const r = await ask('send', live, { text: lines(notes, okd) });
+      const body = { text: lines(notes, okd, ans) };
+      if (fileIds(ans).length) body.files = fileIds(ans);
+      const r = await ask('send', live, body);
       const changed = 'The ' + PAGE + ' changed. Reload to read it first.';
       if (r.status === 429) { says('Wait a few seconds, then tap Send notes again.'); toast('Wait a few seconds, then tap Send notes again.'); return; }
-      if (r.status === 409) { says(changed); toast(changed); return; }
+      if (r.status === 409) { const why = ((await r.json()) || {}).gone ? GONE : changed; says(why); toast(why); return; }
       if (!r.ok) { closed(); return; }
       const answer = await r.json();
       if (!answer || answer.sent !== true) { closed(); return; }
-      acknowledge(notes, okd);
-      says('Sent ' + plural2(n, k) + ' to the chat.');
-      toast('Sent ' + plural2(n, k) + ' to the chat.');
+      acknowledge(notes, okd, ans);
+      says('Sent ' + plural2(n, k, a) + ' to the chat.');
+      toast('Sent ' + plural2(n, k, a) + ' to the chat.');
     } catch (e) { closed(); }
     finally { busy(null); }
   }
   $('copy').addEventListener('click', function () {
     if (pending || connecting) return;
     if (live) { sendNotes(); return; }
-    const n = unsent().length, k = oks().length;
+    const n = unsent().length, k = oks().length, a = replies().length;
     if (nothing('copied')) return;
-    copyNotes(function () { toast('Copied ' + plural2(n, k) + '. Paste them into chat.'); },
+    copyNotes(function () { toast('Copied ' + plural2(n, k, a) + '. Paste them into chat.'); },
       function () { toast('Copy failed. Copy the notes list by hand.'); });
   });
 
@@ -1103,6 +1170,10 @@
     $('copy').setAttribute('aria-busy', String(connecting || pending === 'send'));
     root.style.setProperty('--choices', $('ready-confirm').offsetHeight + 'px');
     $('ready-says').querySelector('.spinner').hidden = !waiting;
+    const gate = drawNeeds();
+    all('#ready > [data-ready]', function (b) {
+      if (!b.querySelector('.spinner')) b.textContent = gate || b.getAttribute('data-label');
+    });
     all('[data-ready]', function (b) {
       const step = b.getAttribute('data-ready'), spinner = b.querySelector('.spinner');
       const active = !!spinner && pending === (step === 'yes' ? confirming && confirming.name : step);
@@ -1110,7 +1181,7 @@
       b.setAttribute('aria-busy', String(active));
       if (spinner) {
         spinner.hidden = !active;
-        b.querySelector('span:last-child').textContent = active ? 'Sending…' : b.getAttribute('data-label');
+        b.querySelector('span:last-child').textContent = active ? 'Sending…' : (b.parentNode === $('ready') && gate) || b.getAttribute('data-label');
       }
     });
     const shown = $('ready').hidden ? 0 : $('ready').querySelectorAll('#ready > button:not([hidden])').length;
@@ -1132,29 +1203,38 @@
   }
   async function act(name) {
     if (pending || connecting || !live) return;
-    const notes = snapshot(), okd = oks();
+    const notes = snapshot(), okd = oks(), ans = replies();
     busy(name); says('Sending your request…');
     const closed = function () { setLive(null); says('This link has closed. Copy your notes and choose in the chat.'); toast('This link has closed. Copy your notes and choose in the chat.'); };
     try {
       const body = { action: name, version: version };
-      if (notes.length || okd.length) body.text = lines(notes, okd);
+      if (notes.length || okd.length || ans.length) body.text = lines(notes, okd, ans);
+      if (fileIds(ans).length) body.files = fileIds(ans);
       const r = await ask('act', live, body);
       if (r.status === 429) { says('Wait a few seconds, then tap again.'); return; }
       const a = await r.json() || {};
       const line = r.status === 200 && a.sent === true ? actionOf(name).done
         : r.status === 409 && a.changed === true ? 'The ' + PAGE + ' changed. Reload to read it first.'
-        : r.status === 409 && a.done === true ? 'The chat was already asked.' : '';
+        : r.status === 409 && a.done === true ? 'The chat was already asked.' : r.status === 409 && a.gone === true ? GONE : '';
       if (r.status === 410 || r.status === 403) { closed(); return; }
       if (!line) { says('The request was not confirmed. Your notes are saved. Try again.'); return; }
-      if (r.status === 200 && a.sent === true) acknowledge(notes, okd);
-      hideActions(); says(line);
+      if (r.status === 200 && a.sent === true) acknowledge(notes, okd, ans);
+      // A gone file keeps the buttons, as a 429 does: the person picks it again and taps once more.
+      if (line !== GONE) hideActions();
+      says(line);
     } catch (e) { says('The request was not confirmed. Your notes are saved. Try again.'); }
     finally { busy(null); }
   }
   $('ready').addEventListener('click', function (e) {
     const button = e.target.closest('[data-ready]');
     if (!button || pending || connecting) return;
-    const step = button.getAttribute('data-ready'), a = actionOf(step);
+    const step = button.getAttribute('data-ready'), a = actionOf(step), gaps = needsOpen();
+    // While the build needs the person, a go button leads to the first thing it needs instead.
+    if (a && gaps.length) {
+      all('.hit', function (n) { n.classList.remove('hit'); });
+      gaps[0].classList.add('hit'); gaps[0].scrollIntoView({ block: 'center' });
+      return;
+    }
     if (step === 'yes') act(confirming.name);
     else if (step === 'cancel' || a.confirm) {
       says('');
@@ -1166,6 +1246,251 @@
     } else act(step);
   });
 
+  // ── answers: a form's inputs and a live card's answer, kept with the notes and sent with them under their card ──
+  // `said` holds each answer as the chat last got it, so a changed answer goes again and an unchanged one never does.
+  const asker = function (id) { const m = /^(item|need)-(\d+)/.exec(id); return (m[1] === 'item' ? NOUN : 'Need') + ' #' + m[2]; };
+  function inputValue(q) {
+    const kind = q.getAttribute('data-kind'), boxes = q.querySelectorAll('input:checked');
+    if (kind === 'tick') return !!boxes.length;
+    if (kind === 'choice') return boxes.length ? boxes[0].value : undefined;
+    if (kind === 'choices') return boxes.length ? Array.prototype.map.call(boxes, function (b) { return b.value; }) : undefined;
+    const v = q.querySelector('input, textarea').value.slice(0, 2000);
+    return v.trim() ? v : undefined;
+  }
+  function fill() {
+    all('.form [data-q]', function (q) {
+      const v = data.answers[q.getAttribute('data-q')], kind = q.getAttribute('data-kind');
+      if (kind === 'file') return;
+      Array.prototype.forEach.call(q.querySelectorAll('input, textarea'), function (el) {
+        if (el.type === 'radio' || el.type === 'checkbox') el.checked = kind === 'tick' ? v === true : kind === 'choice' ? v === el.value : Array.isArray(v) && v.indexOf(el.value) >= 0;
+        else if (el.value !== (v || '')) el.value = v || '';
+      });
+    });
+  }
+  function answered(q) {
+    const id = q.getAttribute('data-q'), v = data.answers[id];
+    if (q.getAttribute('data-kind') === 'file') return !!(data.files[id] && data.files[id].length);
+    return q.getAttribute('data-kind') === 'tick' ? v === true : v !== undefined;
+  }
+  // Each answer the chat has not got yet, in page order: its id, its line, and the files it names.
+  function replies() {
+    const out = [];
+    all('.form [data-q], .live[data-live]', function (q) {
+      const id = q.getAttribute('data-q') || q.getAttribute('data-live'), v = data.answers[id];
+      if (q.getAttribute('data-kind') === 'file') {
+        const fresh = (data.files[id] || []).filter(function (f) { return !f.sent; });
+        if (fresh.length) out.push({ id: id, files: fresh.map(function (f) { return f.id; }),
+          line: '- ' + asker(id) + ', "' + q.getAttribute('data-label') + '": ' + fresh.map(function (f) { return f.name; }).join(', ') });
+        return;
+      }
+      if (v === undefined || data.said[id] === JSON.stringify(v)) return;
+      const text = v === true ? 'Yes' : v === false ? 'No' : Array.isArray(v) ? v.join(', ') : v.replace(/\s*\n\s*/g, ' ');
+      out.push({ id: id, said: JSON.stringify(v), files: [],
+        line: '- ' + asker(id) + (q.hasAttribute('data-live') ? ' answer: ' : ', "' + q.getAttribute('data-label') + '": ') + text });
+    });
+    return out;
+  }
+  const fileIds = function (ans) { return ans.reduce(function (ids, a) { return ids.concat(a.files); }, []); };
+  function typed(e) {
+    const q = e.target.closest ? e.target.closest('.form [data-q]') : null;
+    if (!q || q.getAttribute('data-kind') === 'file') return;
+    const v = inputValue(q), id = q.getAttribute('data-q');
+    if (v === undefined) delete data.answers[id]; else data.answers[id] = v;
+    persist();
+  }
+  document.addEventListener('input', typed);
+  document.addEventListener('change', typed);
+
+  // ── files: checked here first, then sent at once through the link or the inbox; a send later names them by id ──
+  const MB = 1024 * 1024, uploads = {}, waiting = {};
+  let refs = 0;
+  function upload(file, question) {
+    if (hosted) {
+      return file.arrayBuffer().then(function (buf) {
+        return new Promise(function (resolve) {
+          const ref = 'f' + (refs += 1);
+          waiting[ref] = resolve;
+          port.postMessage({ type: 'inbox:file', ref: ref, name: file.name, question: question, data: buf }, [buf]);
+        });
+      });
+    }
+    return fetch('file', { method: 'POST', cache: 'no-store', body: file,
+      headers: { 'x-reply-key': live, 'x-file-name': encodeURIComponent(file.name), 'x-file-question': encodeURIComponent(question) } })
+      .then(function (r) { return r.json().then(function (a) { return r.ok && a && /^[0-9a-f]{32}$/.test(a.id) ? { id: a.id } : { error: (a && a.error) || 'it was not sent; try again' }; }); })
+      .catch(function () { return { error: 'it was not sent; try again' }; });
+  }
+  // The app deletes a file a day after it came, or with a tap that failed or was cancelled: one this page holds unsent
+  // and the app no longer does goes back to its question, to be picked again.
+  const GONE = 'A file is no longer held. Pick it again, then send.';
+  function keepHeld(held) {
+    let gone = 0;
+    Object.keys(data.files).forEach(function (id) {
+      data.files[id] = data.files[id].filter(function (f) {
+        if (f.sent || held.indexOf(f.id) >= 0) return true;
+        gone += 1;
+        (uploads[id] = uploads[id] || []).push({ name: f.name, size: f.size, state: 'refused', why: 'the app no longer holds it; pick it again' });
+        return false;
+      });
+    });
+    if (gone) persist();
+  }
+  function bytesHeld() {
+    return Object.keys(data.files).concat(Object.keys(uploads)).reduce(function (sum, id) {
+      return sum + (data.files[id] || []).concat(uploads[id] || []).reduce(function (s, f) { return s + (f.state === 'refused' ? 0 : f.size); }, 0);
+    }, 0);
+  }
+  function refusal(q, file) {
+    const id = q.getAttribute('data-q'), ext = (/\.([a-z0-9]+)$/i.exec(file.name) || [])[1];
+    const kept = (data.files[id] || []).length + (uploads[id] || []).filter(function (f) { return f.state === 'sending'; }).length;
+    if (!live) return 'open this page from the chat\'s link to send files';
+    if (!ext || q.getAttribute('data-types').split(',').indexOf(ext.toLowerCase()) < 0) return 'this question does not take this type of file';
+    if (file.size > 25 * MB) return 'too big: 25 MB at most';
+    if (kept >= +q.getAttribute('data-count')) return 'this question takes ' + q.getAttribute('data-count') + ' at most';
+    if (bytesHeld() + file.size > 100 * MB) return 'the files for this page pass 100 MB';
+    return '';
+  }
+  function send(q, entry) {
+    const id = q.getAttribute('data-q');
+    entry.state = 'sending'; entry.why = ''; render();
+    upload(entry.file, asker(id) + ', "' + q.getAttribute('data-label') + '"').then(function (a) {
+      if (a.id) {
+        uploads[id] = uploads[id].filter(function (f) { return f !== entry; });
+        (data.files[id] = data.files[id] || []).push({ id: a.id, name: entry.file.name, size: entry.file.size, sent: false });
+        persist();
+      } else { entry.state = 'refused'; entry.why = String(a.error); entry.retry = true; render(); }
+    });
+  }
+  function pick(q, list) {
+    const id = q.getAttribute('data-q');
+    Array.prototype.forEach.call(list, function (file) {
+      const why = refusal(q, file), entry = { file: file, name: file.name, size: file.size, state: why ? 'refused' : 'sending', why: why };
+      (uploads[id] = uploads[id] || []).push(entry);
+      if (!why) send(q, entry);
+    });
+    render();
+  }
+  const sizeText = function (n) { return n < MB ? Math.max(1, Math.ceil(n / 1024)) + ' KB' : (n / MB).toFixed(1) + ' MB'; };
+  function drawFiles() {
+    all('.form [data-kind="file"]', function (q) {
+      const id = q.getAttribute('data-q'), list = q.querySelector('.files');
+      list.innerHTML = (data.files[id] || []).map(function (f, i) {
+        return '<li>' + esc(f.name) + ' · ' + sizeText(f.size) + ' <span class="tag">Sent</span><button type="button" class="btn-ghost" data-file="' + i + '">Remove</button></li>';
+      }).concat((uploads[id] || []).map(function (f, i) {
+        return '<li>' + esc(f.name) + ' · ' + sizeText(f.size) + (f.state === 'sending' ? ' <span class="muted">Sending…</span>'
+          : ' <span class="why">Refused: ' + esc(f.why) + '</span>' + (f.retry ? '<button type="button" class="btn-ghost" data-retry="' + i + '">Retry</button>' : '')
+            + '<button type="button" class="btn-ghost" data-drop="' + i + '">Remove</button>') + '</li>';
+      })).join('');
+    });
+  }
+  all('.form [data-kind="file"]', function (q) {
+    const drop = q.querySelector('.drop'), input = drop.querySelector('input');
+    input.addEventListener('change', function () { pick(q, input.files); input.value = ''; });
+    drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', function () { drop.classList.remove('over'); });
+    drop.addEventListener('drop', function (e) { e.preventDefault(); drop.classList.remove('over'); pick(q, e.dataTransfer.files); });
+    q.querySelector('.files').addEventListener('click', function (e) {
+      const b = e.target.closest('button'), id = q.getAttribute('data-q');
+      if (!b) return;
+      if (b.hasAttribute('data-file')) { data.files[id].splice(+b.getAttribute('data-file'), 1); persist(); return; }
+      const entry = uploads[id][+(b.getAttribute('data-retry') || b.getAttribute('data-drop'))];
+      if (b.hasAttribute('data-retry')) send(q, entry);
+      else { uploads[id] = uploads[id].filter(function (f) { return f !== entry; }); render(); }
+    });
+  });
+
+  // ── what the build needs: an item that needs you counts until each of its questions has an answer ──
+  function needsOpen() {
+    return Array.prototype.filter.call(document.querySelectorAll('.need[data-need="needs"]'), function (n) {
+      const qs = n.querySelectorAll('[data-q]');
+      return !qs.length || Array.prototype.some.call(qs, function (q) { return !answered(q); });
+    });
+  }
+  function drawNeeds() {
+    const gaps = needsOpen();
+    all('.need[data-need="needs"]', function (n) {
+      const done = gaps.indexOf(n) < 0, tag = n.querySelector('.tag-outline, .tag');
+      tag.className = done ? 'tag' : 'tag-outline';
+      tag.textContent = done ? 'Answered' : 'Needs you';
+    });
+    return gaps.length ? gaps.length + (gaps.length === 1 ? ' thing needs you' : ' things need you') : '';
+  }
+
+  // ── live cards: the chat's own page in a sealed frame, talking to this page only through the port it is handed ──
+  // A frame loads once; a second load means its page went somewhere else, so it starts again from its own copy.
+  const cards = [];
+  function mount(c) {
+    if (c.port) c.port.close();
+    c.port = null;
+    const f = document.createElement('iframe');
+    let loads = 0;
+    f.setAttribute('sandbox', 'allow-scripts'); f.title = c.title; f.setAttribute('srcdoc', c.doc);
+    f.addEventListener('load', function () {
+      loads += 1;
+      if (loads === 1) {
+        const ch = new MessageChannel();
+        c.port = ch.port1;
+        ch.port1.onmessage = function (e) { heardCard(c, e.data); };
+        f.contentWindow.postMessage({ type: 'review:hello' }, '*', [ch.port2]);
+        return;
+      }
+      c.resets += 1;
+      c.said.hidden = false;
+      c.said.textContent = 'This card tried to leave the page.' + (c.resets > 2 ? ' Reload the page to try it again.' : '');
+      if (c.resets > 2) { f.remove(); c.port.close(); c.port = null; } else mount(c);
+    });
+    c.stage.replaceChildren(f);
+    c.frame = f;
+    fitCard(c);
+  }
+  function heardCard(c, m) {
+    if (!m || m.type !== 'review:answer' || typeof m.text !== 'string') return;
+    const text = m.text.slice(0, 2000);
+    if (text.trim()) data.answers[c.id] = text; else delete data.answers[c.id];
+    persist();
+  }
+  // Phone and Computer draw the page at that width, scaled to the card; full screen shows it at true size.
+  function fitCard(c) {
+    if (!c.frame) return;
+    const full = c.box.classList.contains('full'), k = full ? 1 : Math.min(1, c.stage.clientWidth / c.width);
+    c.frame.style.width = c.width + 'px';
+    c.frame.style.height = full ? '100%' : c.height + 'px';
+    c.frame.style.transform = k < 1 ? 'scale(' + k + ')' : '';
+    c.stage.style.height = full ? '' : Math.ceil(c.height * k) + 'px';
+  }
+  function full(c, on) {
+    c.box.classList.toggle('full', on);
+    document.body.classList.toggle('viewing', on);
+    c.tools.querySelector('[data-full]').textContent = on ? 'Close' : 'Full screen';
+    fitCard(c);
+    if (!on) bar();
+  }
+  all('.live[data-live]', function (box) {
+    const old = box.querySelector('iframe'), tools = document.createElement('div'), said = document.createElement('p');
+    tools.className = 'live-tools';
+    tools.innerHTML = '<button type="button" class="btn-ghost" data-width="390" aria-pressed="true">Phone</button>'
+      + '<button type="button" class="btn-ghost" data-width="1280" aria-pressed="false">Computer</button><button type="button" class="btn-ghost" data-full>Full screen</button>';
+    said.className = 'muted live-said'; said.setAttribute('role', 'status'); said.hidden = true;
+    const c = { box: box, id: box.getAttribute('data-live'), height: +box.getAttribute('data-height') || 640, width: 390, doc: old.getAttribute('srcdoc'),
+      title: old.title, stage: box.querySelector('.live-box'), tools: tools, said: said, port: null, frame: null, resets: 0 };
+    box.insertBefore(tools, c.stage); box.appendChild(said);
+    tools.addEventListener('click', function (e) {
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.hasAttribute('data-full')) { full(c, !box.classList.contains('full')); return; }
+      c.width = +b.getAttribute('data-width');
+      all('[data-live="' + c.id + '"] [data-width]', function (w) { w.setAttribute('aria-pressed', String(w === b)); });
+      fitCard(c);
+    });
+    cards.push(c);
+    mount(c);
+    // A stage first laid out at no width, as in an Inbox frame still opening, fits again once it gets its width.
+    if (window.ResizeObserver) new ResizeObserver(function () { if (c.stage.clientWidth !== c.seen) { c.seen = c.stage.clientWidth; fitCard(c); } }).observe(c.stage);
+  });
+  window.addEventListener('load', function () { cards.forEach(fitCard); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') cards.forEach(function (c) { if (c.box.classList.contains('full')) full(c, false); });
+  });
+
   let width = root.clientWidth;
   window.addEventListener('resize', function () {
     if (root.clientWidth !== width) {
@@ -1173,22 +1498,25 @@
       if (view) { const d = view; closeViewer(false); openViewer(d); }
     }
     drawings.forEach(fit);
+    cards.forEach(fitCard);
     if (open) place();
     bar();
   });
   // ── hosted: in the live app's inbox, a sealed frame that reaches the inbox only through the port its first greeting carries ──
   let hosted = null, port = null;
-  const CODES = { sent: 200, changed: 409, done: 409, soon: 429, closed: 410, expired: 410 };
+  const CODES = { sent: 200, changed: 409, done: 409, gone: 409, soon: 429, closed: 410, expired: 410 };
   function post(message) { port.postMessage(message); }
   // The inbox answers a tap only once the chat has it, or once it is refused, cancelled or failed.
   function hostedAsk(path, body) {
     return new Promise(function (resolve) {
       hosted.reply = function (state) {
         const status = Object.prototype.hasOwnProperty.call(CODES, state) ? CODES[state] : 502;
-        const answer = status === 200 ? { sent: true } : state === 'changed' ? { changed: true } : state === 'done' ? { done: true } : { sent: false };
+        const answer = status === 200 ? { sent: true } : state === 'changed' || state === 'done' || state === 'gone' ? { [state]: true } : { sent: false };
         resolve({ ok: status === 200, status: status, json: function () { return Promise.resolve(answer); } });
       };
-      post({ type: 'inbox:tap', action: path === 'send' ? 'send' : body.action, text: body.text || '' });
+      const tap = { type: 'inbox:tap', action: path === 'send' ? 'send' : body.action, text: body.text || '' };
+      if (body.files) tap.files = body.files;
+      post(tap);
     });
   }
   // The inbox's switch owns the look: this frame can't remember a choice, so its own switch goes. Unknown looks change nothing.
@@ -1196,8 +1524,20 @@
   function heard(m) {
     if (!m || typeof m !== 'object') return;
     if (m.type === 'inbox:theme') look(m.theme);
-    else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
-    else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
+    else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) {
+      load(m.value);
+      if (hosted.held) keepHeld(hosted.held);
+      hosted.held = null; render();
+    } else if (hosted.reply && m.type === 'inbox:result') {
+      if (Array.isArray(m.files)) keepHeld(m.files);
+      const reply = hosted.reply; hosted.reply = null; reply(m.state);
+      // A tap that reached the chat closes the page in the inbox, so it reads as answered now, as its Archive shows it.
+      if (m.state === 'sent') closePage();
+    } else if (m.type === 'inbox:file-result' && waiting[m.ref]) {
+      const done = waiting[m.ref];
+      delete waiting[m.ref];
+      done(typeof m.id === 'string' && /^[0-9a-f]{32}$/.test(m.id) ? { id: m.id } : { error: typeof m.error === 'string' ? m.error : 'it was not sent; try again' });
+    }
   }
   // Back and the workspace sit first in the page, so they scroll away with its words; the inbox's own bar stays put.
   function backRow(workspace) {
@@ -1211,11 +1551,18 @@
     }
     document.querySelector('main > header').prepend(row);
   }
+  // A closed or answered page in the inbox is read-only: no button, no note, no answer or file.
+  function closePage() {
+    readOnly = true; document.body.classList.add('read-only');
+    all('.form input, .form textarea', function (el) { el.disabled = true; });
+    render();
+  }
   window.addEventListener('message', function (e) {
     const m = e.data;
     if (hosted || window.parent === window || e.source !== window.parent || !e.ports || !e.ports[0] || !m || m.type !== 'inbox:hello'
       || typeof m.version !== 'string' || !Array.isArray(m.actions)) return;
-    hosted = { reply: null };
+    // The files the app still holds for this page, checked once its notes arrive.
+    hosted = { reply: null, held: Array.isArray(m.files) ? m.files : null };
     port = e.ports[0];
     port.onmessage = function (ev) { heard(ev.data); };
     document.querySelectorAll('.theme-toggle').forEach(function (button) { button.remove(); });
@@ -1224,8 +1571,7 @@
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
     backRow(m.workspace);
-    // A closed page in the inbox's Archive opens read-only: no button, no note.
-    if (m.readOnly === true) { readOnly = true; document.body.classList.add('read-only'); render(); return; }
+    if (m.readOnly === true) { closePage(); return; }
     setLive('inbox'); offer(m); render();
   });
   // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.
