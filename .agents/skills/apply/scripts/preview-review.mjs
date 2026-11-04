@@ -11,7 +11,7 @@ const USAGE = `usage: preview-review.mjs <change-name> [--approved "<title>|<app
   Builds .scratch/<change-name>-preview/review.html: each changed screen live now beside its preview.
   A new screen has no live picture: --pair "<title>||<preview picture>".
   --approved  the plan's After picture beside the built screen, labelled Approved and Built; at least one of it or --pair.
-  Take each picture at phone width, the visible part only (no --full-page): a page over 500 KB stops.
+  Take each picture at phone width, the visible part only (no --full-page): a page over 1.5 MB stops.
   --link  print the page's reply link, whose Publish button runs /ship; the file where none can open`;
 export const PREVIEW_ON_PAGE = 'Look at the preview, then tap Publish or Send notes on its page.';
 export const PREVIEW_IN_CHAT = 'Look at the preview. When you\'re ready, say "publish it", or send notes.';
