@@ -441,7 +441,8 @@ export function commands({ config, project, stateDir, values, call, board, origi
     serve: async () => {
       const dryRun = Boolean(values['dry-run']);
       const dir = dryRun ? mkdtempSync(join(tmpdir(), 'daily-serve-')) : stateDir;
-      if (dryRun && existsSync(stateDir)) cpSync(stateDir, dir, { recursive: true });
+      // A job's copy of the repo stays out: the dry run never runs in it.
+      if (dryRun && existsSync(stateDir)) cpSync(stateDir, dir, { recursive: true, filter: from => from !== join(stateDir, 'copies') });
       try {
         await serveDaily({ config, project, stateDir: dir, call, env, seconds: values.seconds, once: Boolean(values.once), dryRun, print: item => print(JSON.stringify(item)),
           started: () => startedRecord(dir).read(), daily: dailyRecord(dir),

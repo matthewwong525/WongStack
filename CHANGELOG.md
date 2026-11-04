@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Wrap up finished chats, and tidy the wiki after memory
+
+- **A finished chat wraps itself up.** Where the daily runs on a computer, a chat whose work is merged gets `/close` after you have been quiet there for 15 minutes. The chat saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat with new work since the merge, or one you write in again, stays open. Each chat gets `/close` one time, counting a Done on the board ([wrap up a finished chat](wiki/development/daily.md#wrap-up-a-finished-chat)).
+- **The wiki gets a small tidy each time memory tidies itself.** After each memory consolidation, about once a day, a background run puts each lasting fact saved since the last tidy on the page that owns it, and publishes that change through the normal checks. It works in its own copy of the repo, never in your checkout. It never edits a page WongStack ships, a spec, a plan or a saved fact. `/dream-memory` still runs only when you type it ([the small wiki tidy](wiki/development/wiki-dream.md#the-small-wiki-tidy)).
+- **You see what they did when you ask.** Each wrap-up and each tidy writes one line to the journal: ask the Daily chat *what's going on?*.
+- **Default jobs merge with your own.** Your `sweeps` file keeps the default timed jobs. An entry with a default's `id` replaces it, and `"off": true` turns it off. A job can take `"minutes"` for a longer run, `"place": "copy"` to run in its own copy of the repo, and `"do"` for one of the daily's own jobs ([your own jobs](wiki/development/daily.md#your-own-jobs)).
+
+**Updating.** Nothing to do: both jobs start with the next run of `daily.mjs serve`. To turn one off, add `{"id": "wrap-up", "off": true}` or `{"id": "wiki-tidy", "off": true}` to the `sweeps` list in your own jobs file. Before you go back to an earlier version, remove those `off` entries: an earlier version refuses them.
+
 ## 45.4.0 — Small fixes from WongOS
 
 - **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)).
