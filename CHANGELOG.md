@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Check-ins for everyone, with or without Paseo
+## 45.7.0 — Check-ins for everyone, with or without Paseo
 
 - **Each chat checks its own stops.** When a chat in Claude Code or Codex stops and your last message there is more than 15 minutes old, one read-only AI run sorts the stop. A next step or a safe pick goes back to the chat, and it carries on. Everything else waits for you, as before. It works with or without Paseo, and no Daily chat has to stay open ([check-ins](wiki/development/daily.md#check-ins)).
 - **No settings file needed for check-ins.** With none, they use your email and this computer's time zone. Routines, the board and the morning list still need your file.
