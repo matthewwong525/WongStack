@@ -1,7 +1,7 @@
 # Ship goes all the way
 
-**Status:** planned
-**Branch:** silly-duck
+**Status:** ready-to-ship
+**Branch:** ship-finish-without-asking
 **Open questions:** none
 
 ## Why
@@ -68,3 +68,5 @@ Non-goals: `/apply`, `/save` and `/verify` typed on their own still ask as today
 - **2026-11-04** — Assumed: Step 4's one fix hands `/apply` the archived change's path (`prepare`'s `ARCHIVE`) with the failing scenarios, and `/apply` given an archive path inside `/ship` fixes that archived change with no `/plan` and no new change, logging in the archived proposal's Decision log; the second `/save` takes Step 3's same `CHANGE` and `ARCHIVE`, because by then the change is archived and committed, so a plain request would start a new plan that the merge carries into main unarchived.
 - **2026-11-04** — Assumed: `--move-others` prints `MOVED=` for each push as it works, and reuses a remote branch whose head already holds exactly the change folder, because a later failed push otherwise hid the first branch and a rerun pushed a duplicate `-plan` copy.
 - **2026-11-04** — Assumed: to fit the size budget for these fixes, `/ship` Step 2's no-selection line defers to `prepare`'s `NEXT:` (which already names the route table) and Step 5 drops restated detail of what `finish` does, because the script owns both.
+- **2026-11-04** — Assumed: after the second review, `/apply` on an archive path inside `/ship` skips the status check and adds the failures as one task in the archive's `tasks.md`, and the second walk takes the fix-round save's receipt, because an archived change has every task ticked and no status, so the fix round would build nothing.
+- **2026-11-04** — Archived at ship as 45.11.0, after main's 45.9.0 and 45.10.0 merged in; local checks pass; saved on `ship-finish-without-asking`.

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Ship goes all the way
+## 45.11.0 — Ship goes all the way
 
 - **Ship goes with its own best answer.** When a question comes up while `/ship` builds, saves, checks or publishes, and the recommended answer stays inside the work and can be undone, ship takes it and keeps going. It still stops before it uses a key, signs in, changes access, spends money, sends or posts, changes a business record or real data, deletes something outside the change, accepts terms or weakens a check, and when something still fails after two fixes or no answer is clearly best ([fix it or ask inside `/ship`](wiki/development/the-change-loop.md#inside-ship)). `/apply`, `/save` and `/verify` typed on their own still ask.
 - **You see every choice it made.** The ship report gets a *Choices I made* list, and the plan's Decision log keeps each one as an `Assumed` line. To change one, ask for one more small change.
