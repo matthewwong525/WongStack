@@ -13,8 +13,8 @@ The personal browser runs an old Camoufox build through camofox. camofox can't r
 - **The browser runs Camoufox 158 and tells sites its true version.** It runs the build that the official Camoufox library pins, with a disguise made for that build. A site that checks the version sees the version that really runs.
   ```mermaid
   flowchart LR
-    now["old build, wrong version"] --> new["Camoufox 158, true version"]
-    new --> s["no unsupported-browser page"]
+    now["old build"] --> new["158, true version"]
+    new --> s["no warning page"]
   ```
 - **Our own small browser server replaces camofox.** You and the agent use the same commands as before. Only the program behind them changes. It keeps the browser open between commands, gives each task its own page, and keeps one profile folder on disk with one kept identity.
   ```mermaid
@@ -53,3 +53,4 @@ None.
 - **2026-11-03** — Assumed: port only the general part of WongOS's change (server, install, pins, refs, login move, wiki); its proxy, language and email-browser parts stay in WongOS, because they need WongOS's own setup.
 - **2026-11-04** — Asked: Matthew asked to add WongOS's general browsing rule that a test never copies a Facebook or Messenger login to another browser or network, without WongOS's account details.
 - **2026-11-04** — Assumed: this plan was written at ship time from WongOS's archived plan and this branch's diff, because the branch came from WongOS with no plan folder.
+- **2026-11-04** — Archive checkpoint: tasks done, merged main (47.0.0), numbered 48.0.0; the spec was already in main specs, so the archive skipped the spec update.

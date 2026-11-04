@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — The browser runs Camoufox 158
+## 48.0.0 — The browser runs Camoufox 158
 
 - **The browser is Camoufox 158 and tells sites its true version.** The personal browser now runs the build that the official [Camoufox](https://github.com/daijro/camoufox) library pins, with a disguise made for that build. A site that checks the browser version, such as an online store's admin, sees the version that really runs, so it shows no "unsupported browser" page ([browsing](wiki/development/browsing.md)).
 - **Our own small browser server replaces camofox.** [`browser-server.mjs`](.agents/skills/browser/scripts/browser-server.mjs) drives the browser, with the same `browse.mjs` commands as before. Your skills and scripts need no change.
