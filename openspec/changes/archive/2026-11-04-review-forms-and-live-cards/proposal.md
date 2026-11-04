@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** dynamic-review-pages-uploads
 **Open questions:** none
 
@@ -135,3 +135,5 @@ Non-goals: a live card gets nothing from the internet while you view it: the cha
 - **2026-11-04** — Fixed, from the live check: a *Ready* need read as one run of words, because the builder dropped the comma after the state; the name now keeps a colon before its detail.
 - **2026-11-04** — Fixed, from the live check: after *Approve* in the Inbox, the page kept *Send notes*, *Remove* on a sent file, and a bare *Sent* line. The line and the bar came from main, the *Remove* from this change. A tap that reaches the chat now turns the page read-only under its answer, as the Archive shows it, because the computer closes the page right after.
 - **2026-11-04** — Checkpoint: the preview walk passed 7.3 and found four faults in 7.2 (live card empty at first open, protocol not raised, Ready need lost its separator, answered page still open); all four fixed with tests; 7.2 runs again on this save.
+- **2026-11-04** — Checkpoint: 7.2 passed on the preview at 9c69a13 (live card sized on 5 of 5 first opens, file delivered and gone from the app, answered page read-only) and 7.3 passed (needs list held Approve; an unsent file was deleted when its link closed).
+- **2026-11-04** — Archive checkpoint: archived for release 45.9.0 after main (45.8.0) came in; the only local failure was the known `Welcome.test.tsx` timeout in the untouched Access app, which passes alone; the last local round could not run because another chat held the checks, so CI decides.

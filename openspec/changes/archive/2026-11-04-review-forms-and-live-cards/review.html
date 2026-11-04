@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · review-forms-and-live-cards</title>
+<title>Review · 2026-11-04-review-forms-and-live-cards</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="review-forms-and-live-cards" data-own-back>
+<body data-change="2026-11-04-review-forms-and-live-cards" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>review-forms-and-live-cards</h1>
+  <h1>2026-11-04-review-forms-and-live-cards</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -497,6 +497,8 @@
 <li class="decision card" id="decision-40" data-note="decision-40" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Fixed, from the live check: a <i>Ready</i> need read as one run of words, because the builder dropped the comma after the state; the name now keeps a colon before its detail.</li>
 <li class="decision card" id="decision-41" data-note="decision-41" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Fixed, from the live check: after <i>Approve</i> in the Inbox, the page kept <i>Send notes</i>, <i>Remove</i> on a sent file, and a bare <i>Sent</i> line. The line and the bar came from main, the <i>Remove</i> from this change. A tap that reaches the chat now turns the page read-only under its answer, as the Archive shows it, because the computer closes the page right after.</li>
 <li class="decision card" id="decision-42" data-note="decision-42" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Checkpoint: the preview walk passed 7.3 and found four faults in 7.2 (live card empty at first open, protocol not raised, Ready need lost its separator, answered page still open); all four fixed with tests; 7.2 runs again on this save.</li>
+<li class="decision card" id="decision-43" data-note="decision-43" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Checkpoint: 7.2 passed on the preview at 9c69a13 (live card sized on 5 of 5 first opens, file delivered and gone from the app, answered page read-only) and 7.3 passed (needs list held Approve; an unsent file was deleted when its link closed).</li>
+<li class="decision card" id="decision-44" data-note="decision-44" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-04</p>Archive checkpoint: archived for release 45.9.0 after main (45.8.0) came in; the only local failure was the known <code>Welcome.test.tsx</code> timeout in the untouched Access app, which passes alone; the last local round could not run because another chat held the checks, so CI decides.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

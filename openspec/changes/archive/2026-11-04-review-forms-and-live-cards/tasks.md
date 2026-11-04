@@ -39,5 +39,5 @@
 ## 7. Verification
 
 - [x] 7.1 Pre-check: `node .github/scripts/checks.mjs --worktree` and the app's tests pass
-- [ ] 7.2 `/save`, then on the preview: an ads review page in the Inbox with a live card, a form, and a logo file; tap *Approve*; the chat gets the answers and the file's path, and the app no longer holds the file
-- [ ] 7.3 The same page through a tunnel reply link on a phone-sized browser: a file sent, the needs list holding *Build it* until answered
+- [x] 7.2 `/save`, then on the preview: an ads review page in the Inbox with a live card, a form, and a logo file; tap *Approve*; the chat gets the answers and the file's path, and the app no longer holds the file
+- [x] 7.3 The same page through a tunnel reply link on a phone-sized browser: a file sent, the needs list holding *Build it* until answered
