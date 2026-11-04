@@ -1,6 +1,6 @@
 # A guided first day for a new teammate
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** shaggy-liger
 **Open questions:** none
 

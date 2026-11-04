@@ -1,7 +1,7 @@
 # first-day-lessons Specification
 
 ## Purpose
-TBD - created by archiving change first-day-lessons. Update Purpose after archive.
+Give a new teammate two guided lessons, opened by name in a new chat: Lesson 1 teaches skills and one task per chat, and Lesson 2 takes one real change up to a save that the owner or an admin publishes.
 
 ## Requirements
 

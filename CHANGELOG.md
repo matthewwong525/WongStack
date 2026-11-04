@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A guided first day for a new teammate
+## 48.1.0 — A guided first day for a new teammate
 
 - **Setup now says what to do next.** After setup puts the project on a new teammate's computer for the first time, its last words tell them to open a new chat in the project's folder and type `lesson 1`. Inside Paseo, the words say to open a new workspace on *New worktree* from *main*. An update, or a person who gets the apps only, still reads *Nothing else is needed* ([install in one step](wiki/stack/employee-project.md#install-in-one-step)).
 - **Lesson 1 teaches skills.** In about 20 minutes, the assistant learns who the person is and saves a short page about them in the company knowledge. It shows what a skill is, how `/` lists them, how to answer a question card, and one task per chat. The person runs one real skill for their job, and no project file changes ([use skills](wiki/development/first-day/use-skills.md)).
