@@ -19,7 +19,7 @@ import { codeUsers } from './lib/callers.mjs';
 import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
 import { MEMBER_COMMANDS } from './lib/members.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
-import { isMain, loadConfig, loadEnv, memoryOrigin, openStore, signIn, readJson, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
+import { isMain, loadConfig, loadEnv, memoryOrigin, openStore, signIn, readJson, CONSOLIDATED, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
 import { FormatError, inside, parseTranscriptText, pending, pruneRegistry, readRegistry, recentTranscripts, sessionFile, strip } from './lib/transcripts.mjs';
 import { ADMIN_WRITES, FTS_HITS, supersedeSql, WRITES } from '../worker/statements.mjs';
 import { MAX_TRANSCRIPT_BYTES } from '../worker/memory-worker.mjs';
@@ -742,7 +742,16 @@ async function finishRun(ctx, { values, tally: tallyFile }) {
   ]);
   plan.finish(results);
   pruneRegistry(ctx);
+  if (values.kind === 'consolidation' && status === 'ok') markConsolidated(ctx);
   console.log(`recorded ${values.kind} run: ${status}`);
+}
+
+// The wiki tidy's start signal; its `claimed` stays. A failed write only delays the tidy to the next consolidation.
+function markConsolidated(ctx) {
+  try {
+    const file = statePath(ctx, CONSOLIDATED);
+    writeJson(file, { ...readJson(file, {}), at: now() });
+  } catch { /* the run stays recorded */ }
 }
 
 async function due(ctx) {
