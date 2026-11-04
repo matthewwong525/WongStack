@@ -30,6 +30,12 @@ Give the agent the logins you choose through a private link, so it logs in for y
 
   Once `wait` prints `HANDOVER_SAVED`, the agent logs in with it as with [any saved login](browsing.md#saved-browser-logins).
 
+  **Sign in and show it.** When the task's page is that site's login, give the link a finish and the page's boxes, from the agent's own snapshot, with `--sign-in` (username, password, submit; leave out one the page lacks, as `e4,,e6`). Your *Save and continue* then signs in with `browse.mjs login`, and the same link shows the site live while it does, as [the private form](private-form.md#what-you-see) does after its press: *Signing in to netflix.com · 4 s*. If the site asks for a code or shows a check, you finish it there. Where no [live view](live-view.md) can open, the page shows the line alone. `wait` reads as a form's does: `done` on the finish; `unconfirmed` with `HANDOVER_VIEWING=yes` or `HANDOVER_WATCHING` when it hasn't finished in a minute, and a second `wait` for the final result.
+
+  ```bash
+  node .claude/skills/hand-over/scripts/hand-over.mjs open --passwords --site https://www.netflix.com/login --until "https://www.netflix.com/browse*" --sign-in e4,e5,e6
+  ```
+
   It then names the saved sites in the chat, looked up by name in `browse.mjs logins`, never a password. Each chat has one [private link](browsing.md#how-private-links-work) open at a time; a [key link](secrets.md#receive-a-key-through-a-private-link) from the same chat that nobody has opened gives way to this one.
 
 The link has [every private link's safety](browsing.md#how-private-links-work): a new address and secret key each time, closed after successful completion, cancellation, or after 24 hours by default. Each password travels once, from your device to that file, and never lands in the chat, a log, a command line, or a file in the repo.

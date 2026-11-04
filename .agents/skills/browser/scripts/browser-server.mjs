@@ -84,13 +84,21 @@ async function clickTarget(page, selector) {
   return (await visible.count()) === 1 ? visible : page.locator(selector);
 }
 
-/** A click as camofox made it: a normal one, then a forced one past an overlay or a wait, then the page's own. */
+/** A click as camofox made it: a normal one, then a forced one past an overlay or a wait, then the page's own.
+ * Resolves to how it landed: `mouse`, `forced`, or `script`, an event the page can tell from a person's. */
 async function clickOn(locator) {
   try {
     await locator.click({ timeout: 3000 });
+    return 'mouse';
   } catch (error) {
     if (!/intercepts pointer events|not visible|timeout/i.test(error.message)) throw error;
-    try { await locator.click({ timeout: 3000, force: true }); } catch { await locator.evaluate(element => element.click(), undefined, { timeout: 3000 }); }
+  }
+  try {
+    await locator.click({ timeout: 3000, force: true });
+    return 'forced';
+  } catch {
+    await locator.evaluate(element => element.click(), undefined, { timeout: 3000 });
+    return 'script';
   }
 }
 
@@ -102,9 +110,9 @@ const ACTIONS = {
   },
   async click(tab, { ref, selector }) {
     if (!ref && !selector) throw refusal(400, 'ref or selector required');
-    await clickOn(ref ? await refLocator(tab, ref) : await clickTarget(tab.page, selector));
+    const via = await clickOn(ref ? await refLocator(tab, ref) : await clickTarget(tab.page, selector));
     await tab.page.waitForTimeout(500);
-    return { ok: true, url: tab.page.url() };
+    return { ok: true, url: tab.page.url(), via };
   },
   async type(tab, { ref, selector, text, mode = 'fill', delay = 30, pressEnter = false, submit = false }) {
     if (mode !== 'fill' && mode !== 'keyboard') throw refusal(400, "mode must be 'fill' or 'keyboard'");
@@ -142,9 +150,13 @@ const ACTIONS = {
     await tab.page.waitForTimeout(150);
     return { ok: true, ...size };
   },
+  async front(tab) {
+    await tab.page.bringToFront();
+    return { ok: true };
+  },
 };
 // Only these actions keep the refs: the rest can change the page.
-const KEEPS_REFS = new Set(['type', 'select', 'evaluate', 'viewport']);
+const KEEPS_REFS = new Set(['type', 'select', 'evaluate', 'viewport', 'front']);
 
 /** The request's JSON body, or {} with none. */
 async function readBody(request) {

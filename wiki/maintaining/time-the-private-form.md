@@ -5,12 +5,12 @@ You time a [private form](../development/private-form.md) send on a practice che
 ## Run a timed send
 
 1. **Start the checkout.** `node scripts/tests/fixtures/practice-checkout.mjs` prints `CHECKOUT_URL=`. Its card boxes sit in a cross-origin frame, like Stripe's.
-2. **Pick the site's speed** with `?delay=`: `5000` takes the payment in 5 seconds, `90000` outlasts the form's first minute, and `never` declines it and keeps the page.
+2. **Pick the site's speed** with `?delay=`: `5000` takes the payment in 5 seconds, `90000` outlasts the form's first minute, and `never` declines it and keeps the page, so the form says the site hasn't finished.
 3. **Open it in your own browser session**, such as `browse.mjs --session walk open "$CHECKOUT_URL?delay=5000"`, then take a snapshot for the refs. The browser is shared with other chats: close only your session's tab, and never stop the browser server.
 4. **Open a form** on that session with `--until '**/receipt/**'`, and send through the link's `/send` with made-up card values, or from a phone.
 5. **Read the times** at the end of `~/.wong-stack/hand-over/timings.jsonl`: each box, the press, the wait, and how the link ended.
 
-`HANDOVER_SEND_WAIT_MS` and `HANDOVER_WATCH_MS` shorten the first minute and the ten-minute watch, so a `never` site ends *Not accepted* in seconds.
+`HANDOVER_SEND_WAIT_MS` and `HANDOVER_WATCH_MS` shorten the first minute and the ten-minute watch, and `HANDOVER_VIEW_WATCH_MS` the 30-minute live view. A `never` site then ends in seconds as `unconfirmed`, with `HANDOVER_REASON=no-answer`, or `viewed` while a live view is open: a pressed send is never *Not accepted*.
 
 ## What to expect
 

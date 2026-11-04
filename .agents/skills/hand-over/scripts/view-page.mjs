@@ -1,5 +1,5 @@
-// The live view's script (see hand-over.mjs `open --view` and view.mjs): shows the assistant's browser and carries
-// the person's taps and typing to it. view-page.html's one script tag must load the noVNC viewer before this script.
+// The live view's script (see hand-over.mjs `open --view` and view.mjs), also under live/ for a press or sign-in.
+// view-page.html's one script tag must load the noVNC viewer before this script.
 
 const CONNECTING = 'Opening the browser...';
 const ENDINGS = {
@@ -8,6 +8,8 @@ const ENDINGS = {
   closed: 'This link has closed. Ask in the chat for a new one.',
   unloaded: 'The browser\'s picture didn\'t load. Reload this page to try again.',
 };
+/** A view that stays open: its line, when the agent gave no note, and its one button. */
+export const KEEP_OPEN = { line: 'Tap through the steps you need, then tap I\'m finished.', button: 'I\'m finished' };
 const PHONE_BELOW = 700;
 const RETRY_MS = 500;
 /** The keys pressed as they are, by the name a keydown gives: each one's X keysym. */
@@ -28,6 +30,18 @@ export function shapeOf(width) {
   return width < PHONE_BELOW ? 'phone' : 'wide';
 }
 
+/** The line above a form's or a sign-in's view, for its `site` and `kind` (`pay` or `sign-in`): what it does and for
+ * how many `seconds`, then after `waitS` not to pay again; with a `receipt`, how it ended. */
+export function liveLine({ site, kind }, seconds, waitS, receipt) {
+  const paying = kind === 'pay';
+  if (receipt !== undefined) {
+    if (receipt?.result !== 'done') return 'Closed. Your chat will say how it went.';
+    return paying ? `${site} accepted. Done.` : `Signed in to ${site}. Done.`;
+  }
+  if (seconds < waitS) return `${paying ? 'Paying' : 'Signing in to'} ${site} · ${Math.max(0, seconds)} s`;
+  return paying ? `${site} hasn't finished. Don't pay again unless it shows an error.` : `${site} hasn't finished signing in. Finish it here.`;
+}
+
 /** The closing line for a receipt: done only when the site let the person through. */
 export function ending(receipt) {
   if (receipt?.result !== 'done') return ENDINGS.closed;
@@ -41,6 +55,8 @@ function start(RFB = globalThis.RFB) {
   let viewer = null;
   let fit = null;
   let over = false;
+  // A form's or a sign-in's view: its site, kind, press time, and wait, on the link's clock (`ahead` of this one).
+  let live = null;
 
   const call = (path, body) => fetch(path, {
     method: body ? 'POST' : 'GET',
@@ -59,6 +75,28 @@ function start(RFB = globalThis.RFB) {
     viewer?.disconnect();
     empty();
     show(line);
+  };
+  /** Writes a form's or a sign-in's line: counting, late, or, with a `receipt`, how it ended. */
+  const writeLine = receipt => {
+    const seconds = Math.floor((Date.now() + live.ahead - live.since) / 1000);
+    const waitS = live.waitMs / 1000;
+    $('#line-text').textContent = liveLine(live, seconds, waitS, receipt);
+    $('#line').classList.toggle('late', receipt === undefined && seconds >= waitS);
+  };
+  /** Ends a form's or a sign-in's view: its line says how, the last picture stays, and nothing takes taps or typing. */
+  const endLive = receipt => {
+    if (over) return;
+    over = true;
+    viewer?.disconnect();
+    empty();
+    writeLine(receipt ?? null);
+    $('#viewed').hidden = $('#type').hidden = true;
+  };
+  /** Keeps the screen's last picture in place of the screen that dropped, `rfb`. */
+  const freeze = rfb => {
+    let url = null;
+    try { url = rfb?.toDataURL('image/jpeg', 0.85); } catch { /* no picture */ }
+    if (url) $('#screen').replaceChildren(Object.assign(document.createElement('img'), { src: url, alt: 'The site\'s last picture' }));
   };
 
   /** Scales the viewer's box so the fit's strip fills the stage, by width or height; the holder cuts off the rest. */
@@ -79,27 +117,34 @@ function start(RFB = globalThis.RFB) {
     layout();
   }
 
-  /** The screen dropped: end on the link's result, or connect again while it is still open. */
-  async function dropped() {
+  /** The screen `rfb` dropped: end on the link's result, or connect again while it is still open; a link that is
+   * finishing is asked again until its result comes. A form's or a sign-in's view keeps its last picture meanwhile. */
+  async function dropped(rfb) {
     viewer = null;
     if (over) return;
-    show(CONNECTING);
+    if (live) freeze(rfb);
+    else show(CONNECTING);
     const response = await call('receipt');
-    if (response?.status === 200) return end(ending(await response.json().catch(() => null)));
-    if (response?.status !== 202) return end(ENDINGS.closed);
+    const ended = receipt => (live ? endLive(receipt) : end(ending(receipt)));
+    if (response?.status === 200) return ended(await response.json().catch(() => null));
+    if (response?.status !== 202) return ended(null);
+    const { finishing } = (await response.json().catch(() => null)) ?? {};
     await new Promise(done => setTimeout(done, RETRY_MS));
-    if (!over) connect();
+    if (over) return;
+    if (finishing) return dropped(null);
+    connect();
   }
 
   function connect() {
     $('#screen').replaceChildren();
-    viewer = new RFB($('#screen'), `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/screen`, { wsProtocols: [key] });
-    viewer.scaleViewport = true;
-    viewer.addEventListener('connect', () => {
+    const rfb = new RFB($('#screen'), `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/screen`, { wsProtocols: [key] });
+    viewer = rfb;
+    rfb.scaleViewport = true;
+    rfb.addEventListener('connect', () => {
       show('');
       layout();
     });
-    viewer.addEventListener('disconnect', dropped);
+    rfb.addEventListener('disconnect', () => dropped(rfb));
   }
 
   let typed = '';
@@ -129,8 +174,14 @@ function start(RFB = globalThis.RFB) {
 
   addEventListener('resize', () => {
     if (over || !fit) return;
-    if (shapeOf(innerWidth) === fit.kind) layout();
+    if (live || shapeOf(innerWidth) === fit.kind) layout();
     else report();
+  });
+
+  // The person says they're finished: the link ends and the chat reads the page.
+  $('#viewed').addEventListener('click', () => {
+    $('#viewed').disabled = true;
+    call('done', {});
   });
 
   (async () => {
@@ -143,7 +194,20 @@ function start(RFB = globalThis.RFB) {
     fit = view.fit;
     // A browser keeps a timer's wait in 32 bits, so a limit long past could wrap to weeks: a past limit waits 0.
     if (closesAt) setTimeout(() => end(ENDINGS.closed), Math.max(0, closesAt - (now ?? Date.now())));
-    await report();
+    if (view.live) {
+      live = { ...view.live, ahead: (now ?? Date.now()) - Date.now() };
+      document.title = live.site;
+      $('#line').hidden = false;
+      const tick = () => { if (!over) { writeLine(); setTimeout(tick, 1000); } };
+      tick();
+    } else {
+      if (view.keepOpen) {
+        $('#line').hidden = false;
+        $('#line-text').textContent = note || KEEP_OPEN.line;
+        $('#viewed').textContent = KEEP_OPEN.button;
+      }
+      await report();
+    }
     if (!over) connect();
   })();
 }

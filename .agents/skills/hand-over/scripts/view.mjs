@@ -227,9 +227,10 @@ function pageWindows(display) {
   }
 }
 
-/** Sets the page's first size back and stops the screen source: what every end of a view does. */
+/** Sets the page's first size back, when the view changed it, and stops the screen source: what every end of a view
+ * does. A form's or a sign-in's view never resizes the page, so it has no first size. */
 export async function endView(view, page) {
-  await page.resize(...view.size).catch(() => {});
+  if (view.size) await page.resize(...view.size).catch(() => {});
   await stopSource(view);
 }
 
@@ -264,6 +265,15 @@ export function liveView(view, page) {
   return {
     describe,
     front,
+    /** The whole screen as a fit, read without resizing the page: what a form's or a sign-in's view shows. */
+    whole: () => {
+      try {
+        screen ??= screenSize(view.display);
+      } catch {
+        return null;
+      }
+      return { kind: 'wide', width: screen.width, screen: [screen.width, screen.height] };
+    },
     /** Fits the page as `next`, `phone` or `wide`, or as it was; resolves to the fit. */
     fit: (next = kind) => inTurn(async () => {
       if (ended) return describe();
@@ -297,17 +307,17 @@ export function viewerFile(pathname, dir = viewerDir()) {
   return statSync(file, { throwIfNoEntry: false })?.isFile() ? file : null;
 }
 
-/** The view's routes for the link's `{note}`. `fitted()` gives the fit now; `onFit(kind)` refits and
- * resolves to the new one; `onCancel()` runs once `/done`'s reply has gone. */
-export function viewRoutes({ note }, { fitted = () => null, onFit = async () => null, onCancel = () => {}, closesAt } = {}) {
+/** The view's routes for the link's `{note, keepOpen}`. `fitted()` gives the fit; `onFit(kind)` refits to a new one.
+ * After `/done`'s reply, `onFinished()` runs for a view kept open, else `onCancel()`. */
+export function viewRoutes({ note, keepOpen = false }, { fitted = () => null, onFit = async () => null, onCancel = () => {}, onFinished = () => {}, closesAt } = {}) {
   let ended = false;
   return async (pathname, request, response) => {
-    if (pathname === '/view') return request.method === 'GET' ? reply(response, 200, { ...(note && { note }), fit: fitted(), closesAt, now: Date.now() }) : reply(response, 405);
+    if (pathname === '/view') return request.method === 'GET' ? reply(response, 200, { ...(note && { note }), ...(keepOpen && { keepOpen }), fit: fitted(), closesAt, now: Date.now() }) : reply(response, 405);
     if (request.method !== 'POST') return reply(response, 405);
     if (pathname === '/done') {
       if (ended) return reply(response, 409);
       ended = true;
-      response.once('finish', () => onCancel());
+      response.once('finish', () => (keepOpen ? onFinished() : onCancel()));
       return reply(response, 200, { ok: true });
     }
     const kind = (await readBody(request))?.fit;

@@ -156,13 +156,13 @@ test('Sent says to say continue when the chat was not woken', async t => {
   }
 });
 
-test('a site that keeps its page ends on Not accepted, with the boxes emptied and nothing sent again', async t => {
+test('a fill that fails ends on Not sent, with the boxes emptied and nothing sent again', async t => {
   const p = page(t, sent('not-accepted', 'not-requested'));
   await settle();
   p.fill();
   p.submit();
   await settle();
-  assert.deepEqual(p.shown(), { form: false, title: 'Not accepted', hint: 'The site kept its page. Back to your chat to see what it said.', status: '' });
+  assert.deepEqual(p.shown(), { form: false, title: 'Not sent', hint: 'A box could not be filled, so nothing was pressed. Back to your chat.', status: '' });
   assert.doesNotMatch(p.shown().hint, /nothing is sent/, 'never read as "you were not charged"');
   assert.deepEqual(p.boxes().map(box => box.value), ['', '', '', '']);
   p.submit();
@@ -170,13 +170,13 @@ test('a site that keeps its page ends on Not accepted, with the boxes emptied an
   assert.equal(p.sends().length, 1);
 });
 
-test('a site that has not answered ends on still checking, saying not to pay again', async t => {
+test('a site that has not answered ends on not finished, saying not to pay again unless it shows an error', async t => {
   const p = page(t, (_body, answer) => answer(200, { receipt: { result: 'unconfirmed', watching: true, ready: false, notification: 'notified' } }));
   await settle();
   p.fill();
   p.submit();
   await settle();
-  assert.deepEqual(p.shown(), { form: false, title: 'Sent, waiting for the site', hint: 'Don\'t pay again. Your chat will say how it went.', status: '' });
+  assert.deepEqual(p.shown(), { form: false, title: 'The site hasn\'t finished', hint: 'Don\'t pay again unless it shows an error. Your chat will say how it went.', status: '' });
   assert.deepEqual(p.boxes().map(box => box.value), ['', '', '', '']);
 });
 
@@ -239,7 +239,7 @@ test('a reply that never arrives is looked up until the link says how it went', 
   await settle();
   assert.equal(p.shown().form, true, 'still waiting on the first look-up');
   await new Promise(done => setTimeout(done, 600));
-  assert.equal(p.shown().title, 'Not accepted');
+  assert.equal(p.shown().title, 'Not sent');
   assert.equal(p.calls.filter(call => call.path === 'receipt').length, 2);
   assert.equal(p.sends().length, 1, 'looked up, never sent again');
 
@@ -346,8 +346,8 @@ test('the pure helpers: time left, rows, and the closing screen', () => {
 
   assert.equal(ending({ result: 'done', notification: 'notified' }).hint, 'Back to your chat.');
   assert.equal(ending({ result: 'done', notification: 'unconfirmed' }).hint, 'Back to your chat, and say continue.');
-  assert.equal(ending({ result: 'not-accepted' }).title, 'Not accepted');
-  assert.equal(ending({ result: 'unconfirmed', watching: true }).title, 'Sent, waiting for the site');
+  assert.equal(ending({ result: 'not-accepted' }).title, 'Not sent');
+  assert.equal(ending({ result: 'unconfirmed', watching: true }).title, 'The site hasn\'t finished');
   assert.deepEqual(['typing', 'pressing', 'waiting', null, 'other'].map(step => stepText(step, 'Verify')), ['Typing your details…', 'Pressing Verify…', 'Waiting for the site…', 'Sending…', 'Sending…']);
   for (const result of ['timeout', 'closed', 'error']) assert.equal(ending({ result }).hint, 'Ask your assistant for a new one.', result);
   for (const none of [null, undefined]) assert.equal(ending(none).hint, 'Back to your chat to see how it went.');

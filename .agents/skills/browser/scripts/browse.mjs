@@ -16,7 +16,7 @@ import { INTERACTIVE_ROLES, MAX_REFS, SKIP_PATTERNS, parseLine } from './refs.mj
 const USAGE = `usage: browse.mjs <command> [--session <name>]
   open <url>                    open the page in this task's tab; prints BROWSE_URL=
   snapshot                      the page as text with refs (e1, e2…)
-  click <ref-or-selector>
+  click <ref-or-selector>       prints BROWSE_CLICK=script when only the page's own script took it
   type <ref-or-selector> <text>
   press <key>
   select <ref-or-selector> <option>
@@ -39,6 +39,7 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
  * launch-config.py refuses a start when the library, its pin and the installed build disagree. */
 export const CAMOUFOX = { python: '0.5.9', build: 'v158.0.1-beta.41' };
 const CHECKS = ['checkbox', 'radio', 'switch', 'menuitemcheckbox'];
+const SCRIPT_CLICK_NOTE = 'The click reached the page only through its own script, which a site may ignore: read the page again, then offer the live view that stays open, not more clicks.';
 export const NO_REF_NOTE = '- note: some boxes have no ref; read the page again or use a selector';
 const NEEDS = 'the browser, Camoufox, is not installed. It needs Python 3.10 or newer, about 3 GB of disk, and about 700 MB of memory while it runs. Ask the person, then run `browse.mjs install`.';
 const PYTHON_NEEDS = 'the browser needs Python 3.10 or newer with its venv module, and this computer has none. Install it (Debian or Ubuntu: `sudo apt install python3 python3-venv`), then run `browse.mjs install`.';
@@ -127,6 +128,23 @@ export const selectorError = selector => new BrowseError(`${selector} is not a s
 export const fieldScript = selector => `(() => { let field; try { field = document.querySelector(${JSON.stringify(selector)}); } catch (error) { if (error.name === 'SyntaxError') return ${JSON.stringify(BAD_SELECTOR)}; throw error; } return (field => field && (field.tagName === 'SELECT' ? field.selectedOptions[0]?.label ?? '' : field.value && (field.matches(${JSON.stringify(SECRET_FIELDS)}) || ${SECRET_NAME}.test([field.getAttribute('aria-label'), field.placeholder, field.title, ...(field.getAttribute('aria-labelledby') ?? '').split(/\\s+/).filter(Boolean).map(id => field.getRootNode().getElementById?.(id)?.textContent), ...[...(field.labels ?? [])].map(label => label.textContent)].join(' '))) ? '[hidden]' : field.value))(field) ?? null; })()`;
 /** Counts a selector's matches in the main page. */
 export const countScript = selector => `(() => { try { return document.querySelectorAll(${JSON.stringify(selector)}).length; } catch (error) { if (error.name === 'SyntaxError') return ${JSON.stringify(BAD_SELECTOR)}; throw error; } })()`;
+
+/** Counts a selector's shown matches in the main page, by the click pick's test: a size, and `visibility: visible`. A
+ * `display: none` box, or one inside it, has no size. It runs in the page, so it uses nothing outside itself. */
+export function shownCount(document, selector, bad) {
+  let found;
+  try { found = [...document.querySelectorAll(selector)]; } catch (error) { if (error.name === 'SyntaxError') return bad; throw error; }
+  return found.filter(element => {
+    const { width, height } = element.getBoundingClientRect();
+    return width > 0 && height > 0 && document.defaultView.getComputedStyle(element).visibility === 'visible';
+  }).length;
+}
+
+/** True when the main page's shown text holds `words`, case and spaces aside. It runs in the page. */
+export function hasWords(document, words) {
+  const plain = text => String(text ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
+  return plain(document.body?.innerText).includes(plain(words));
+}
 
 /** A box's text as the snapshot quotes it, unquoted, with its spaces as Playwright collapses them. */
 function plain(text) {
@@ -321,6 +339,17 @@ export function boxesIn(snapshot) {
     boxes[ref] = [role, name, ticked ? ticked[1] ?? true : false];
   }
   return boxes;
+}
+
+/** Each ref's box in a snapshot, `{e12: [role, name]}`: a later snapshot with another box at a ref has renumbered. */
+export function refNames(snapshot) {
+  const names = {};
+  for (const line of snapshot.split('\n')) {
+    const ref = refOf(line);
+    const { role, name } = ref ? parseLine(line) : {};
+    if (ref) names[ref] = [role, name];
+  }
+  return names;
 }
 
 /** A selector's element as `[role, '', ticked]` when it is a tick box, radio, or switch, else null, also when the
@@ -626,7 +655,7 @@ export function client(given, { retry = true, start = true } = {}) {
           const moved = await json('POST', `/tabs/${tab.tabId}/navigate`, { userId: USER, url }, { wait: COMMAND_MS + SETTLE_MS });
           await settle(tab.tabId);
           // The last page's tick boxes don't hold here.
-          writeTab({ ...tab, url: moved.url ?? url, refs: undefined });
+          writeTab({ ...tab, url: moved.url ?? url, refs: undefined, names: undefined });
           return moved.url ?? url;
         } catch (error) {
           if (!reopens(error, false)) throw error;
@@ -635,26 +664,28 @@ export function client(given, { retry = true, start = true } = {}) {
       return (await newTab(url)).url;
     },
     /** The page as text, every secret box's value hidden; `settle` alone reads it raw, to compare. The tab file keeps
-     * its tick boxes, so a click on one knows what it clicks. */
+     * its tick boxes, so a click on one knows what it clicks, and each ref's box, for `names`. */
     async snapshot() {
       const { url, snapshot, found } = await onTab(async tabId => ({ ...(await read(tabId)), found: await evaluateOn(tabId, `[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`) }));
       const [secrets = [], frames = []] = found ?? [];
       const tab = readTab();
       const hidden = hideSecrets(snapshot, secrets, tab?.typed ?? [], tab?.typed?.length ? apiKey() : '');
       const seen = { url, snapshot: labelFrames(hidden, frameSites(hidden, frames)) };
-      writeTab({ ...tab, ...(url && { url }), refs: boxesIn(seen.snapshot) });
+      writeTab({ ...tab, ...(url && { url }), refs: boxesIn(seen.snapshot), names: refNames(seen.snapshot) });
       return seen;
     },
-    /** Clicks; a tick box, radio, or switch that didn't change gets Space, as a person would press, then a stop. */
+    /** Clicks; a tick box, radio, or switch that didn't change gets Space, as a person would press, then a stop.
+     * Resolves to how the click landed: `mouse`, `forced`, or `script`. */
     async click(target) {
       const { ref, selector } = targetOf(target);
       const box = async () => (ref ? boxesIn((await page.snapshot()).snapshot)[ref] : await evaluate(`(${boxAt})(document, ${JSON.stringify(selector)}, ${JSON.stringify(CHECKS)})`)) ?? null;
       const before = ref ? readTab()?.refs?.[ref] : await box();
-      await act('click', target);
-      if (!before || boxChanged(before, await box())) return;
+      const { via } = await (await act('click', target)).json().catch(() => ({}));
+      if (!before || boxChanged(before, await box())) return via;
       await act('type', target, { text: '', mode: 'keyboard' });
       await page.press('Space');
       if (!boxChanged(before, await box())) throw new BrowseError('the box did not change');
+      return via;
     },
     type: (target, text) => act('type', target, { text }, { quiet: true }),
     select: (target, option) => act('select', target, { option }),
@@ -663,8 +694,16 @@ export function client(given, { retry = true, start = true } = {}) {
     enter: target => act('type', target, { text: '', mode: 'keyboard', pressEnter: true }),
     url: async () => noteUrl(await evaluate('location.href')),
     count: selector => bySelector(selector, countScript(selector)),
+    /** The selector's matches a person can see: a hidden card frame counts 0. */
+    countShown: selector => bySelector(selector, `(${shownCount})(document, ${JSON.stringify(selector)}, ${JSON.stringify(BAD_SELECTOR)})`),
+    /** True when the page shows `words`; it reads no text back. */
+    hasText: async words => (await evaluate(`(${hasWords})(document, ${JSON.stringify(words)})`)) === true,
     /** The page's size, `[width, height]`. */
     size: () => evaluate('[innerWidth, innerHeight]'),
+    /** Each ref's box at the last snapshot, as `refNames` gives it; `{}` before one. */
+    names: () => readTab()?.names ?? {},
+    /** Raises the page's own window and gives it the keyboard, without a resize. */
+    front: () => onTab(tabId => send('POST', `/tabs/${tabId}/front`, { userId: USER })),
     /** Sets the page's size. */
     resize: (width, height) => onTab(tabId => send('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),
     /** A use the server counts, so it keeps an idle page open; it reads and changes nothing on the page. */
@@ -802,7 +841,11 @@ function forget(name) {
 const COMMANDS = {
   open: [1, async (page, [url]) => console.log(`BROWSE_URL=${await page.open(url)}`)],
   snapshot: [0, async page => { const { url, snapshot } = await page.snapshot(); console.log(`BROWSE_URL=${url}\n${snapshot}`); }],
-  click: [1, (page, [target]) => page.click(target)],
+  click: [1, async (page, [target]) => {
+    if ((await page.click(target)) !== 'script') return;
+    console.log('BROWSE_CLICK=script');
+    console.error(SCRIPT_CLICK_NOTE);
+  }],
   type: [2, (page, [target, text]) => page.type(target, text)],
   press: [1, (page, [key]) => page.press(key)],
   select: [2, (page, [target, option]) => page.select(target, option)],

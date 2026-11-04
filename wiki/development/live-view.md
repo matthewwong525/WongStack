@@ -1,13 +1,22 @@
 # Live view
 
-A live view is a private link that shows the agent's browser on one page, so you can pass a check a site uses to ask whether a person is there, or sign in where a login is stuck. It is the one time the agent shows you its browser, and the fourth [private link](browsing.md#how-private-links-work) in [browsing](browsing.md).
+A live view is a private link that shows the agent's browser on one page, so you can pass a check a site uses to ask whether a person is there, sign in where a login is stuck, or tap through a stuck step. It is the one time the agent shows you its browser, and the fourth [private link](browsing.md#how-private-links-work) in [browsing](browsing.md).
 
 ## When it opens
 
-For two things only:
+On its own link, for three things only:
 
 - **A robot check:** a tick box such as *I'm not a robot*, or a picture puzzle. It can stand at a site's front door or come right after a sign-in. The agent never ticks, solves, or answers one itself, even when asked.
 - **A stuck login**, after the agent's own routes: [a saved login](browsing.md#saved-browser-logins), [the password link](passwords.md), and [a code](login-codes.md). After each submit the agent reads the page again. The login is stuck when the page stays on the login, comes back to it, or just reloads, with no error message, no check, and no code or approval page. Shopify taking the saved email, then reloading its login page, is stuck. A message such as *wrong password* is not: it gets the password link again. A saved login that sticks gets the view straight away, since the agent has nothing else to try.
+- **A stuck site step or payment step**, such as DigiKey's *Continue*, when the agent's clicks don't move it after [a 30-second wait](browsing.md#saved-browser-logins) or print `BROWSE_CLICK=script`. This view stays open with `--keep-open`: it reads no finish, so it stays through every page until you tap *I'm finished*, say *done* in the chat, or the time limit passes. Robot checks and stuck logins keep their finish, since each ends at one clear step.
+
+It also opens inside two other links, with no question of its own:
+
+- **A payment:** at the press of [a private form](private-form.md#what-you-see), the same link shows the site live under a status line, until the site finishes or you tap *Done*. The page keeps its own size, scaled to your screen.
+- **A sign-in from [the password link](passwords.md)** opened with `--sign-in`: from your save, the same link shows the site while the saved login signs in.
+- **PayPal**, as [another way to pay](private-form.md#other-ways-to-pay): a view of its own, opened as below.
+
+These take the computer's one view only from the press or the save; when another chat holds it, the link shows its status line alone.
 
 A password you type in the view goes to the site a key press at a time. The view saves nothing, so it isn't added to [your saved logins](passwords.md).
 
@@ -30,7 +39,7 @@ The agent's browser fills the page, already on the check, with one box under it:
 - **It fits what you hold.** Narrow on a phone, wide on a laptop, with the whole puzzle and its button in view. The page gets its own size back when the link closes.
 - **Tap straight on the browser.** Your taps go to it as they are. On a laptop your keyboard does too.
 - **Type in the box and it types in the browser.** A phone's keyboard doesn't reach the browser. Tap a box in the browser, then type in ours: each letter, delete, Enter, and paste lands in the browser at once, with no send. Text already in the browser's box stays: you add to it, or keep deleting.
-- **No close button.** Close the tab when you're finished, or say *done* in the chat to close the link.
+- **No close button.** Close the tab when you're finished, or say *done* in the chat to close the link. A view that stays open has one: *I'm finished*.
 - **It ends by itself.** Once the site lets you through, the page says *Done. Go back to the chat.* and the agent carries on. A link that has closed says *This link has closed. Ask in the chat for a new one.*
 
 ## What the link can do
@@ -55,19 +64,20 @@ The agent's browser fills the page, already on the check, with one box under it:
    node $H open --view --until-gone "iframe[title*=challenge]"                                      # a check that goes away in place
    node $H open --view --until "**/store/**" --note "Shopify's login keeps reloading. Sign in here."              # a stuck login
    node $H open --view --until-gone "input[type=email], input[type=password]"                         # a login whose address after is unknown
+   node $H open --view --keep-open --note "DigiKey's Continue didn't go through for me. Tap through the steps you need."   # a stuck step
    node $H wait                                                                                      # prints HANDOVER_RESULT=...
    ```
 
    Name where the site goes once the check is passed, as for [a private form](browsing.md#the-private-form): not "left this page", since an error page would count too. At a login, name the signed-in address when you know it, such as `**/store/**` for Shopify's admin, or `https://www.messenger.com/t/**` for Messenger, whose password box goes away at its approval step, before the sign-in is done. When you don't know it, use `--until-gone` with every login box, email and password both, from the snapshot: the email box alone goes away at a site's password page, which would close the view before you're signed in. `--note` is the one line the page shows. A task that passes `--session <name>` to [`browse.mjs`](../../.agents/skills/browser/scripts/browse.mjs) passes it here too. Exit 1 means the task has no page open, the page already meets the finish, another link is open in this chat, or a live view is open in any chat. No page open usually means you took a while to say *Ready* and the browser closed the idle page: the agent opens the site's page again, then the view.
-4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures: the page is yours. The link's helper reads only the page's address, or whether a named part is still there. It keeps the page's window in front, and once a minute sets the page's size again, since the browser closes a page left alone for 5 minutes and your taps don't count ([`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs)).
+4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures: the page is yours. The link's helper reads only the page's address, whether a named part is still there, or whether named words show (`--until-text`). It keeps the page's window in front, and once a minute sets the page's size again, since the browser closes a page left alone for 5 minutes and your taps don't count ([`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs)).
 5. **Read how it ended.**
-   - `done`: the site moved on. The agent takes a fresh snapshot, shows [a picture](browsing.md#show-what-the-browser-is-doing), and carries on. It says it's signed in only once the page shows it.
+   - `done`: the site moved on, or you tapped *I'm finished* in a view that stays open. The agent takes a fresh snapshot, shows [a picture](browsing.md#show-what-the-browser-is-doing), and carries on. It says it's signed in only once the page shows it.
    - `closed` or `timeout`: the check or the login is still there. If you never got to it, the agent offers a new link. If you tried and the site refused you, that was [the site's one view](#one-view-per-site).
    - `error`: the browser's screen stopped. The agent says so and gives [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
 
 ## One view per site
 
-Each site gets one live view per task, for a check and a stuck login together: one real try. When your try doesn't clear the check or sign you in, or the site shows a second check after it, the agent stops and [gives you steps](browsing.md#when-a-site-refuses-the-browser) for your own device. A site that turns a real person away in this browser will do it again, and repeats can lock your account.
+Each site gets one live view per task, for a check and a stuck login together: one real try. When your try doesn't clear the check or sign you in, or the site shows a second check after it, the agent stops and [gives you steps](browsing.md#when-a-site-refuses-the-browser) for your own device. A site that turns a real person away in this browser will do it again, and repeats can lock your account. A payment's or a sign-in's view inside its link doesn't count: this rule guards against repeated robot checks, not payments.
 
 ## The first one installs three small tools
 
