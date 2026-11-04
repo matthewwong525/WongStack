@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 45.6.1 — Check your own screens on a preview
+
+- **Access page.** It now says how a browser check signs in as you on a preview, and that your own lists start empty there, because the sample data belongs to a made-up person.
+
+**Updating.** Nothing to do.
+
 ## 45.6.0 — Review pages kept in the Inbox
 
 - **Reviews in the Inbox.** A new *Reviews* choice beside *Day* and *Week* lists the review pages that wait on you, with the time left, then the *Archive* of closed ones, newest first. Search finds a page by its title ([in your inbox first](wiki/development/reply-links.md#in-your-inbox-first)).
