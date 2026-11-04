@@ -3,6 +3,11 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 46.3.1 — Pages marked public can be saved
+
+- **A page may start with its settings block.** A knowledge or wiki page can open with a short block between two `---` lines, such as `public: true`. The page check reads past that block and wants the title right after it, so a save of a public page goes through ([wiki style](wiki/wiki-style.md#every-page-stands-on-its-own)). Before, the save refused every page marked public.
+- **Moving older pages keeps the block.** A page that moves to the knowledge repo arrives with its settings block as it was.
+
 ## 46.3.0 — Ship goes all the way
 
 - **Ship goes with its own best answer.** When a question comes up while `/ship` builds, saves, checks or publishes, and the recommended answer stays inside the work and can be undone, ship takes it and keeps going. It still stops before it uses a key, signs in, changes access, spends money, sends or posts, changes a business record or real data, deletes something outside the change, accepts terms or weakens a check, and when something still fails after two fixes or no answer is clearly best ([fix it or ask inside `/ship`](wiki/development/the-change-loop.md#inside-ship)). `/apply`, `/save` and `/verify` typed on their own still ask.
