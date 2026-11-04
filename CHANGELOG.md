@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 47.3.0 — Small lessons from WongOS that help every install
+## 47.5.0 — Small lessons from WongOS that help every install
 
 - **Any chat can clean up your board.** Ask *clean up my board*: the chat can rename, move or delete any task on your week board, not only a chat's to-do. Before it deletes, it lists the tasks and asks you one time, because a deleted task can't be brought back ([the week board](wiki/development/daily.md#the-week-board)).
 - **A delete with no data is no longer refused.** The live app refused a request to delete a task or a backlog group as if it carried data, which also blocks the Inbox's Delete buttons. An empty request now passes; one with data is still refused.
