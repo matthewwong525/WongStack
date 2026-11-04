@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Company knowledge in its own repo
+## 45.8.0 — Company knowledge in its own repo
 
 - **Company pages go live at once.** The team's own pages, such as people, customers and how the company works, now live in a repository of their own in Cloudflare, not in the code repository. A save makes them live for the team at once, with no pull request and no wait for checks. Pages about the code stay in `wiki/` ([company knowledge](wiki/stack/company-knowledge.md)).
 - **One copy on each computer.** The pages are at `knowledge/` in every workspace: one copy in the main checkout, and a link to it in each workspace. When a chat starts, the copy moves to the newest version in the background. A copy with unsaved edits is left as it is, and the chat names those pages.

@@ -237,8 +237,9 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     return dir;
   }
   function removeCopy(dir) {
-    // The link goes first: the removal must never reach into the one copy of company knowledge.
-    try { if (lstatSync(join(dir, 'knowledge')).isSymbolicLink()) unlinkSync(join(dir, 'knowledge')); } catch { /* no link */ }
+    // The link goes first: the removal must never reach into the computer's one knowledge copy.
+    const link = join(dir, 'knowledge');
+    try { if (lstatSync(link).isSymbolicLink()) unlinkSync(link); } catch { /* no link */ }
     try { git(project, ['worktree', 'remove', '--force', dir]); } catch { /* not a worktree any more */ }
     rmSync(dir, { recursive: true, force: true });
     try { git(project, ['worktree', 'prune']); } catch { /* the next removal prunes */ }

@@ -1,6 +1,6 @@
 # Company knowledge in its own repo
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** pale-parrot
 **Open questions:** none
 
@@ -116,3 +116,4 @@ Non-goals: the app's live reader (part 2); moving existing installs (part 3); cu
 - **2026-11-04** — Assumed: the preview check (old task 11.2) runs in `/ship`'s own save and walk, not in a save before filing, because CI fails on `memory-areas.test.mjs` until the change is filed. Check on the preview: `/api/access/knowledge/git/info/refs?service=git-upload-pack` answers `code_unavailable`, and the code route still hands out and saves.
 - **2026-11-04** — Check after publish (old task 11.3), in the primary checkout, after only the knowledge address is opened on the live sign-in wall: `knowledge.mjs link` and `update` give `knowledge/` with Matthew's page; a new chat's digest shows it; `memory.mjs recall` finds a knowledge page; a test save and its undo go live through the app.
 - **2026-11-04** — Assumed: the small wiki tidy that came from `main` during the publish saves company knowledge like a dream does, with the knowledge copy linked into its own copy of the repo and unlinked before that copy is removed, because a tidy that went through a pull request would leave the knowledge pages behind.
+- **2026-11-04** — Archive checkpoint: filed at `openspec/changes/archive/2026-11-04-company-knowledge-repo/` on branch `pale-parrot`, with `main` merged in (45.5.0 to 45.7.0).
