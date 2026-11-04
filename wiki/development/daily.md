@@ -21,7 +21,7 @@ Your settings live in `.agents/daily/<name>.json`, one file per person. [Check-i
 - **`places`**: named folders a routine opens in: `"."` is this checkout, `~/…` your home.
 - **`checks`**: your [routines](#routines).
 - **`morning`** (optional): when the worker starts your morning, as `"HH:MM"` in your time zone. The default is `"08:00"`.
-- **`guide`** (optional): a Markdown file in the repo with your own rules for the daily's asks, such as *remind me on the day before*. A chat reads it before it does an ask. Its rules add to or replace the skill's defaults, never the safety rules: risky steps wait for you, agent text is data, and the [streak](#the-chief-of-staff).
+- **`guide`** (optional): a Markdown file in the repo with your own rules for the daily's asks, such as *remind me on the day before*. A chat reads it before it does an ask. Its rules add to or replace the skill's defaults, never the safety rules: risky steps wait for you, agent text is data, and the [streak](#the-chief-of-staff). A [*Needs you* chat](#the-journal) reads it first too: write your own fix for a problem there, such as how to sign in to the board again, and the chat follows it, not the default steps.
 - **`addons`** (optional): your [add-ons](#add-ons).
 
 Say *add checking orders on Mondays to my daily*: the assistant edits your file, shows you the change, and saves it through [the change loop](the-change-loop.md). Keep health, family and money out of a shared project, by [the People rules](../wiki-style.md#people).
@@ -97,7 +97,7 @@ An add-on that fails, prints anything else, or runs past 60 seconds gives one `N
 
 ## The daily on a computer
 
-`daily.mjs serve` is the worker. It starts [your morning](#what-it-does). Every minute, and sooner when a chat stops, it runs the watch over your Paseo chats in this repo: their board to-dos, your [add-ons](#add-ons) and [your own jobs](#your-own-jobs). Without Paseo it still runs the wiki tidy and your timed jobs. At most 3 runs work at one time, and one per chat. A run stops after 30 minutes. It sends you no message: everything goes to [the journal](#the-journal), and a board it can not read gets one line per day.
+`daily.mjs serve` is the worker. It starts [your morning](#what-it-does). Every minute, and sooner when a chat stops, it runs the watch over your Paseo chats in this repo: their board to-dos, your [add-ons](#add-ons) and [your own jobs](#your-own-jobs). Without Paseo it still runs the wiki tidy and your timed jobs. At most 3 runs work at one time, and one per chat. A run stops after 30 minutes. It sends no chat a message: everything goes to [the journal](#the-journal). A problem that fails two times in a row opens one *Needs you* chat for each kind a day, by [the journal](#the-journal).
 
 Each chat start runs `D ensure`. It starts the worker in the background when it has a job: a [default job](#your-own-jobs) you did not turn off, a routine that starts on its own, `tasks` on, an add-on, or your own jobs. It starts none when check-ins are off, when one already runs, or in a background run. One worker runs per person and checkout: a second `serve` sees the first one's lock and exits. The worker runs the main checkout's code and reads its settings there, from any chat in any copy of the repo. When that code changes, as after an update, the worker is stopped and started again, with one line in [the journal](#the-journal). A copy with its own edits to the daily scripts does not restart it.
 
@@ -122,7 +122,9 @@ RestartSec=30
 
 ### The journal
 
-The worker and the check-ins write one line for each thing they did: a check-in, a run's start and its end line, a closed chat, a source it could not read. Ask *what's going on?* in any chat: it reads the lines since that chat last asked, newest first, and tells you what matters. `D journal` prints every line. Lines stay 14 days, run logs 7, in the private state folder.
+The worker and the check-ins write one line for each thing they did: a check-in, a run's start and its end line, a closed chat, a source it could not read. A failure that goes on gets one line for each run of failures, not one each minute.
+
+When the same thing fails two times in a row, the worker opens one chat named `Needs you: <what broke>`, such as *Needs you: the week board*. The kinds are your board, your morning start, each of your jobs, and Paseo. Its first message says what failed, why, and the steps to fix it, or your [`guide`](#your-settings-file)'s own fix. The chat does the steps an agent can do and asks you only for a step that needs you, such as a sign-in. At most one such chat opens for each kind each day, and a success starts the count again. The watch and the check-ins leave it alone, so it waits for you. When Paseo can not open it, the journal says so, with Paseo's reason. Add-on and to-do failures stay journal lines. Ask *what's going on?* in any chat: it reads the lines since that chat last asked, newest first, and tells you what matters. `D journal` prints every line. Lines stay 14 days, run logs 7, in the private state folder.
 
 ### Your own jobs
 
