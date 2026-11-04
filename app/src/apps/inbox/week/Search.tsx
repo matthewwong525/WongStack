@@ -11,10 +11,12 @@ import type { SearchState } from './hooks'
 import { formatWeek, planGroups, splitOnWords } from './plan'
 
 /** A box that searches as you type. Escape clears it, or closes the search when it is empty already. */
-export function SearchField({ value, onChange, onEscape }: { value: string; onChange: (value: string) => void; onEscape: () => void }) {
+export function SearchField({ value, onChange, onEscape, label = 'Search every week', autoFocus = true }: {
+  value: string; onChange: (value: string) => void; onEscape: () => void; label?: string; autoFocus?: boolean
+}) {
   return <div className="relative">
     <SearchIcon aria-hidden="true" className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-    <Input type="search" aria-label="Search every week" placeholder="Search every week" value={value} autoFocus
+    <Input type="search" aria-label={label} placeholder={label} value={value} autoFocus={autoFocus}
       onChange={event => onChange(event.target.value)}
       onKeyDown={event => {
         if (event.key !== 'Escape') return

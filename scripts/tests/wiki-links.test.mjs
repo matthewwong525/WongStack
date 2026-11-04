@@ -158,3 +158,25 @@ test('a list or a heading straight after the title fails: the page opens with a 
   const bare = repo(t, { ...WIKI, 'wiki/README.md': '# Wiki\nStart here.\n- [Voice](voice.md)\n- [Stack](stack/)\n- [Empty](empty.md)\n', 'wiki/empty.md': '# Empty\n' });
   assert.deepEqual(checkWiki(bare), ['wiki/empty.md: has no sentence after its # title saying what the page is']);
 });
+
+test('knowledge/ is checked by the same rules, and its links to code resolve from the workspace', t => {
+  const root = repo(t, {
+    ...WIKI,
+    'knowledge/README.md': '# Knowledge\nThe company.\n- [Ops](ops.md)\n',
+    'knowledge/ops.md': '# Ops\n\nUp: [hub](README.md). See [the skill](../.agents/skills/x/SKILL.md#run) and [gone](gone.md).\n',
+    'knowledge/lost.md': '# Lost\n\n[up](README.md)\n',
+  });
+  assert.deepEqual(checkWiki(root, 'knowledge'), [
+    'knowledge/ops.md:3: links to gone.md, which does not exist',
+    'knowledge/lost.md: no other wiki page links to it',
+    'knowledge/README.md: does not link lost.md',
+  ]);
+  assert.deepEqual(checkWiki(root), [], 'the wiki check reads only wiki/');
+});
+
+test('a wiki link into knowledge/ is skipped with no copy, as in CI, and checked with one', t => {
+  const voice = '# Voice\n\nUp: [the wiki](README.md). See [ops](../knowledge/ops.md).\n';
+  assert.deepEqual(checkWiki(repo(t, { ...WIKI, 'wiki/voice.md': voice })), []);
+  const withCopy = repo(t, { ...WIKI, 'wiki/voice.md': voice, 'knowledge/README.md': '# Knowledge\nThe company.\n' });
+  assert.deepEqual(checkWiki(withCopy), ['wiki/voice.md:3: links to ../knowledge/ops.md, which does not exist']);
+});

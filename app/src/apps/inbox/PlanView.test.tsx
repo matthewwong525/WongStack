@@ -2,10 +2,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import type { Tap } from './api'
+import { when, type Tap } from './api'
 import { App } from './App'
 import { LINE_REFRESH_MS, REFRESH_MS } from './line'
-import { line } from './line.test.kit'
+import { FakeSocket, line } from './line.test.kit'
 import { TAP_POLL_MS } from './TapLine'
 
 const PLAN = 'c'.repeat(32)
@@ -52,8 +52,8 @@ const greeted = async () => {
 }
 
 // Opens the plan and loads its frame. `say` speaks as the page on the port it was handed; `heard` is every answer.
-const open = async () => {
-  render(<MemoryRouter initialEntries={[`/apps/inbox/?item=${PLAN}`]}><Routes><Route path="/apps/:name/*" element={<App />} /></Routes></MemoryRouter>)
+const open = async (entry = `/apps/inbox/?item=${PLAN}`) => {
+  render(<MemoryRouter initialEntries={[entry]}><Routes><Route path="/apps/:name/*" element={<App />} /></Routes></MemoryRouter>)
   const frame = await screen.findByTitle<HTMLIFrameElement>('One inbox')
   const port = await greeted()
   const posted = frameWindow.postMessage
@@ -324,4 +324,47 @@ it('reloads a plan that changed, and says when a plan has closed or the inbox is
   answer = () => Response.json({ item: plan(), computerOnline: true })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry' })) })
   expect(await screen.findByTitle('One inbox')).toBeTruthy()
+})
+
+// A closed plan as the inbox gives it: notes and Build and publish reached the chat, named by the page's own buttons.
+const READY = '<div id="ready" data-actions="[{&quot;name&quot;:&quot;publish&quot;,&quot;label&quot;:&quot;Build and publish&quot;}]" hidden></div>'
+const archived = (answers: { action: string; text: string; at: number }[]) => () => Response.json({ item: { ...plan('v1', waiting),
+  body: BODY.replace('<p>The plan</p>', READY), archived: { endedAt: 9_000, answers } }, computerOnline: true })
+
+it('opens an archived page read-only under what reached the chat, and starts no line, poll or tap line', async () => {
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+  answer = archived([{ action: 'send', text: 'Shorter, please', at: 3_000 }, { action: 'publish', text: '', at: 4_000 }])
+  const { posted, port } = await open()
+  expect(posted).toHaveBeenCalledWith({ type: 'inbox:hello', item: PLAN, version: 'v1', actions: [], readOnly: true, workspace: 'lousy-dingo',
+    theme: 'light' }, '*', [port])
+  expect(screen.getByRole('status').textContent).toBe(`Archived · Notes sent, ${when(3_000)}With notes: “Shorter, please”` +
+    `Archived · Build and publish, ${when(4_000)}`)
+  await act(async () => { await vi.advanceTimersByTimeAsync(REFRESH_MS * 2) })
+  expect(FakeSocket.all).toEqual([])
+  expect(calls.map(call => call.path)).toEqual([`/apps/inbox/api/item?id=${PLAN}`])
+})
+
+it('says an archived page had no answer and when it closed, and an action the page does not name by its own label', async () => {
+  answer = archived([])
+  await open()
+  expect(screen.getByRole('status').textContent).toBe(`Archived · No answer, ${when(9_000)}`)
+  cleanup()
+  answer = archived([{ action: 'build', text: '', at: 3_000 }])
+  await open()
+  expect(screen.getByRole('status').textContent).toBe(`Archived · Build, ${when(3_000)}`)
+})
+
+it('answers any tap from an archived page with closed, sends none, keeps no notes, and goes Back to the Reviews list', async () => {
+  answer = archived([])
+  const { heard, say, port } = await open(`/apps/inbox/?item=${PLAN}&from=reviews`)
+  await say({ type: 'inbox:tap', action: 'send', text: 'More notes' })
+  await say({ type: 'inbox:tap', action: 'build', text: '' })
+  expect(heard).toEqual([{ type: 'inbox:result', state: 'closed' }, { type: 'inbox:result', state: 'closed' }])
+  expect(calls.filter(call => call.path === '/apps/inbox/api/tap')).toEqual([])
+  await say({ type: 'inbox:notes-set', key: NOTES, value: '{"notes":[]}' })
+  expect(localStorage.getItem(NOTES)).toBeNull()
+  expect(screen.getByRole('link', { name: 'Back' }).getAttribute('href')).toBe('/apps/inbox/?view=reviews')
+  port.postMessage({ type: 'inbox:back' })
+  await until(() => calls.some(call => call.path.startsWith('/apps/inbox/api/reviews')))
+  expect(screen.queryByTitle('One inbox')).toBeNull()
 })

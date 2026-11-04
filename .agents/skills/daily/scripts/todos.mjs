@@ -19,6 +19,8 @@ const KEEP_MS = 60 * 24 * 3600e3;
 const DEFAULT_BRANCHES = new Set(['main', 'master', 'HEAD']);
 
 export const todosFile = stateDir => join(stateDir, 'todos.json');
+/** Wrap-up's record of the chats it asked to close: Done on the board never asks one twice. */
+export const wrapUpFile = stateDir => join(stateDir, 'wrap-up.json');
 export const todoKey = agentId => `chat:${agentId}`;
 
 const run = promisify(execFile);
@@ -82,7 +84,10 @@ export async function keepTodos({ stateDir, rows, list, started, board, timezone
     }
     const entry = kept[agentId];
     if (entry.state !== 'open' && now - Date.parse(entry.endedAt ?? entry.at) > KEEP_MS) { delete kept[agentId]; save(); }
-    else if (entry.state === 'done-open') update(agentId, await closeDone({ agentId, entry, agent, weekOf, send, typedAt, line, never: never.has(agentId) || skip.has(agentId), now }));
+    else if (entry.state === 'done-open') {
+      const wrapped = read(wrapUpFile(stateDir)).asked?.[agentId];
+      update(agentId, await closeDone({ agentId, entry, agent, weekOf, send, typedAt, line, wrapped, never: never.has(agentId) || skip.has(agentId), now }));
+    }
   }
 }
 
@@ -124,10 +129,12 @@ async function tend({ entry, agent, today, board, weekOf, shell, now }) {
 const doneOpen = now => ({ state: 'done-open', closeAsked: null, closeTries: 0, endedAt: now.toISOString() });
 
 // A Done to-do's live chat gets `/close` once, idle and quiet 15 minutes, after the board still shows Done. A gone or
-// never-closed chat ends `done`; 3 failed sends give `Not closed: <title>`.
-async function closeDone({ agentId, entry, agent, weekOf, send, typedAt, line, never, now }) {
+// never-closed chat ends `done`; 3 failed sends give `Not closed: <title>`. A chat wrap-up asked counts as asked.
+async function closeDone({ agentId, entry, agent, weekOf, send, typedAt, line, wrapped, never, now }) {
   if (!live(agent) || never) return { state: 'done' };
-  if (entry.closeAsked || !send || working(agent)) return null;
+  if (entry.closeAsked) return null;
+  if (wrapped && !wrapped.failed) return { closeAsked: wrapped.at };
+  if (!send || working(agent)) return null;
   const typed = Date.parse(typedAt(agentId) ?? 0) || 0;
   if (now - typed < QUIET_MS) return null;
   const tasks = await weekOf(mondayOf(entry.day));

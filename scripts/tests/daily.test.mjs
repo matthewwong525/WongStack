@@ -1,16 +1,18 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readOutput, runAddons, runNode } from '../../.agents/skills/daily/scripts/addons.mjs';
 import { BoardError, boardCalls, boardClient } from '../../.agents/skills/daily/scripts/board.mjs';
-import { SettingsError, loadSettings, mondayOf, occurrence, placePath, settingsFor, slotOf, validateConfig, validateTeam }
+import { SettingsError, defaultSettings, loadSettings, mondayOf, occurrence, placePath, settingsFor, slotOf, validateConfig, validateTeam }
   from '../../.agents/skills/daily/scripts/config.mjs';
-import { commands, dueTasks, firstMessage, holds, openDaily, picture, readArgs, start, startReport, startTask, startedRecord, stateDirectory, taskMessage, who }
-  from '../../.agents/skills/daily/scripts/daily.mjs';
+import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
+import { checkinsOff, commandSettings, commands, dueTasks, ensure, firstMessage, holds, offFile, openDaily, personSettings, picture, readArgs, start,
+  startReport, startTask, startedRecord, stateDirectory, stateOf, taskMessage, who } from '../../.agents/skills/daily/scripts/daily.mjs';
+import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 
 const SKILL = fileURLToPath(new URL('../../.agents/skills/daily/', import.meta.url));
 const EXAMPLE = JSON.parse(readFileSync(join(SKILL, 'references/example.json'), 'utf8'));
@@ -109,16 +111,26 @@ test('who names the settings, the team file and the guide; with no app it uses t
   assert.match(who({ repo: root, ctx: {}, origin: null, config: join(root, '.agents/daily/sam.json') }).error, /Invalid daily settings/);
 });
 
-test('a job list beside the one settings file is no settings file: who still takes the only one', () => {
+test('a job list beside the one settings file is no settings file: who still finds the person by email', () => {
   const root = repo({ config: settings({ sweeps: '.agents/daily/sweeps.json' }) });
   writeFileSync(join(root, '.agents/daily/sweeps.json'), JSON.stringify({ events: {}, sweeps: [] }));
-  const me = who({ repo: root, ctx: { author: 'x@example.com' }, origin: null });
+  const me = who({ repo: root, ctx: { author: 'alex@example.com' }, origin: null });
   assert.equal(me.file, join(root, '.agents/daily/alex.json'));
   assert.equal(me.person, 'alex');
 });
 
+test("a teammate with no file is never the only file's person: check-ins, the off switch and the worker use their own defaults", () => {
+  const root = repo();
+  const mate = personSettings({ repo: root, ctx: { author: 'jo@example.com' }, origin: null });
+  assert.deepEqual([mate.me.file, mate.me.person, mate.config.person], [null, null, 'jo']);
+  const signed = personSettings({ repo: root, ctx: { author: 'jo@example.com' }, origin: 'https://app.example.com',
+    signedIn: () => ({ state: 'valid', email: 'ALEX@example.com' }) });
+  assert.equal(signed.me.file, join(root, '.agents/daily/alex.json'), 'the sign-in email finds the file');
+  assert.throws(() => commandSettings('start', mate), /No daily settings for jo@example\.com/);
+});
+
 test('a settings file with a misspelled person still fails on its bad field, not as no settings', () => {
-  const root = repo({ config: { version: 1, Person: 'alex' } });
+  const root = repo({ config: { version: 1, Person: 'alex', emails: ['x@example.com'] } });
   assert.match(who({ repo: root, ctx: { author: 'x@example.com' }, origin: null }).error, /Invalid daily settings/);
 });
 
@@ -281,11 +293,15 @@ test('open-daily finds or makes the Daily workspace, archives idle Daily chats a
 test('readArgs takes each command with its flags, chief-service as serve, and refuses the rest', () => {
   assert.deepEqual(readArgs(['todo', 'link', '--agent', 'a', '--url', 'https://x']).command, 'todo link');
   assert.equal(readArgs(['chief-service']).command, 'serve');
-  assert.deepEqual(readArgs(['watch', '--seconds', '30']).values.seconds, 30);
+  assert.deepEqual(readArgs(['serve', '--seconds', '30']).values.seconds, 30);
   assert.equal(readArgs(['serve', '--dry-run']).values['dry-run'], true);
+  assert.equal(readArgs(['serve', '--agent', 'codex']).values.agent, 'codex');
+  assert.equal(readArgs(['ensure']).command, 'ensure');
+  assert.deepEqual(['off', 'on'].map(word => readArgs(['checkins', word]).command), ['checkins off', 'checkins on']);
   assert.equal(readArgs(['journal', '--new']).values.new, true);
   assert.deepEqual([readArgs(['journal', '--line', 'x', '--run', 'y']).values.line, readArgs(['journal', '--line', 'x', '--run', 'y']).values.run], ['x', 'y']);
-  for (const bad of [['nope'], ['start', '--agent', 'a'], ['hand'], ['watch', '--hours', '30'], ['allow', '--agent', 'a', '--request', 'r', '--bucket', 'pick', '--label', 'x'],
+  for (const bad of [['nope'], ['start', '--agent', 'a'], ['hand'], ['watch'], ['serve', '--hours', '3'], ['ensure', '--agent', 'gpt'], ['checkins'],
+    ['checkins', 'maybe'], ['allow', '--agent', 'a', '--request', 'r', '--bucket', 'pick', '--label', 'x'],
     ['hand', '--agent', 'a', '--source', 'stranger'], ['journal', '--agent', 'a'], ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'maybe', '--label', 'x']]) {
     const run = spawnSync(process.execPath, ['-e', `import(${JSON.stringify(join(SKILL, 'scripts/daily.mjs'))}).then(m => m.readArgs(${JSON.stringify(bad)}))`],
       { encoding: 'utf8' });
@@ -306,4 +322,91 @@ test('commands wire the settings to the board: remind adds a task on its day, an
   assert.equal((await run('status', {})).status, 'unsupported');
   assert.equal((await run('todo link', { agent: 'a', url: 'https://evil.test/' })).status, 'unsupported');
   assert.equal(stateDirectory('/w/main', 'alex', '/s'), stateDirectory('/w/main/', 'alex', '/s'));
+});
+
+// ---------------------------------------------------------------------------
+// Check-ins for everyone
+
+test('default settings take the email before the @ as the person, check-ins only, in the given time zone', () => {
+  const made = defaultSettings({ email: 'Jo.Lee+work@Example.com', timezone: ZONE });
+  assert.deepEqual(made, { version: 1, person: 'jo-lee-work', emails: ['Jo.Lee+work@Example.com'], timezone: ZONE, sources: { tasks: false, chats: true },
+    places: {}, checks: [], teamFile: null });
+  assert.equal(defaultSettings({ email: 'team@example.com' }).person, 'team-member');
+  assert.equal(defaultSettings({ email: '...@example.com' }).person, 'me');
+  assert.equal(typeof defaultSettings({ email: 'a@b.co' }).timezone, 'string');
+});
+
+test("person settings: the file wins; else the sign-in email while it is good, else the git email; the routines' commands keep the error", () => {
+  const root = repo();
+  const found = personSettings({ repo: root, ctx: { author: 'alex@example.com' }, origin: null });
+  assert.equal(found.config.person, 'alex');
+  const empty = temp('empty');
+  const signed = personSettings({ repo: empty, ctx: { author: 'git@example.com' }, origin: 'https://app.example.com',
+    signedIn: () => ({ state: 'near', email: 'Sam.Lee@example.com', days: 3 }) });
+  assert.deepEqual([signed.me.file, signed.config.person, signed.config.emails], [null, 'sam-lee', ['Sam.Lee@example.com']]);
+  const expired = personSettings({ repo: empty, ctx: { author: 'git@example.com' }, origin: 'https://app.example.com',
+    signedIn: () => ({ state: 'expired', email: 'sam@example.com' }) });
+  assert.equal(expired.config.person, 'git');
+  const nobody = personSettings({ repo: empty, ctx: { author: '' }, origin: null });
+  assert.equal(nobody.config, null);
+  for (const command of ['start', 'picture', 'start-task', 'remind']) assert.throws(() => commandSettings(command, signed), /No daily settings for Sam\.Lee@example\.com/);
+  assert.equal(commandSettings('journal', signed).person, 'sam-lee');
+  assert.equal(commandSettings('start', found).person, 'alex');
+  assert.throws(() => commandSettings('journal', nobody), SettingsError);
+});
+
+/** A git checkout and a private state root for `ensure` and the off switch. */
+function checkout() {
+  const root = realpathSync(temp('checkout')), states = temp('states');
+  assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
+  return { root, states };
+}
+
+test('ensure starts the worker only when the person has a job, none runs, check-ins are on, and this is no background run', () => {
+  const { root, states } = checkout();
+  const spawned = [];
+  const go = (config, more = {}) => ensure({ repo: root, root: states, env: {}, agent: 'codex', resolve: () => ({ config }), isAlive: () => false,
+    spawnServe: args => spawned.push(args), ...more }).state;
+  const jobs = validateConfig(settings());
+  const plain = defaultSettings({ email: 'alex@example.com', timezone: ZONE });
+  assert.equal(go(jobs, { env: { WONG_STOP_CHECK: '1' } }), 'run');
+  assert.equal(go(jobs, { env: { WONG_MEMORY_RUN: '1' } }), 'run');
+  assert.equal(go(null), 'no-person');
+  // The default list's wrap-up and wiki tidy are jobs, so the defaults start it until the person turns both off.
+  const own = sweeps => { writeFileSync(join(root, 'jobs.json'), JSON.stringify({ sweeps })); return { ...plain, sweeps: 'jobs.json' }; };
+  assert.equal(go(own([{ id: 'wrap-up', off: true }, { id: 'wiki-tidy', off: true }])), 'no-jobs');
+  assert.equal(go(own([{ id: 'wrap-up', off: true }])), 'started');
+  assert.equal(go(plain), 'started');
+  assert.equal(go(jobs), 'started');
+  assert.deepEqual(spawned.map(each => [each.repo, each.agent]), [[root, 'codex'], [root, 'codex'], [root, 'codex']]);
+  const stateDir = stateOf(jobs, root, states);
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(join(stateDir, 'serve.lock'), '4242\n');
+  assert.equal(go(jobs, { isAlive: pid => pid === 4242 }), 'running');
+  assert.equal(go(jobs), 'started', 'a dead pid holds nothing');
+  beat({ stateDir, seconds: 60 });
+  assert.equal(go(jobs), 'running');
+  writeFileSync(offFile(stateDir), 'x');
+  assert.equal(go(jobs), 'off');
+  assert.equal(spawned.length, 4);
+});
+
+test('checkins off writes the off file, stops the running worker and journals it; on removes it and runs ensure', async () => {
+  const { root, states } = checkout();
+  const config = validateConfig(settings());
+  const stateDir = stateOf(config, root, states);
+  mkdirSync(stateDir, { recursive: true });
+  writeFileSync(join(stateDir, 'serve.lock'), '4242\n');
+  const killed = [];
+  assert.deepEqual(checkinsOff({ stateDir, timezone: ZONE, isAlive: () => true, kill: pid => killed.push(pid) }), { state: 'off', stopped: 4242 });
+  assert.deepEqual(killed, [4242]);
+  rmSync(join(stateDir, 'serve.lock'));
+  assert.ok(existsSync(offFile(stateDir)));
+  assert.equal(ensure({ repo: root, root: states, env: {}, resolve: () => ({ config }), spawnServe: () => assert.fail('started while off') }).state, 'off');
+  const run = command => commands({ config, project: root, stateDir, values: {}, call: async () => [], board: fakeBoard().board, env: {},
+    keep: () => ({ state: 'started' }) })[command]();
+  assert.deepEqual(await run('checkins on'), { state: 'on', worker: 'started' });
+  assert.ok(!existsSync(offFile(stateDir)));
+  assert.equal((await run('checkins off')).state, 'off');
+  assert.deepEqual(readLines({ stateDir }).map(entry => entry.kind), ['checkins', 'checkins', 'checkins']);
 });

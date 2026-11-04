@@ -158,7 +158,9 @@ export async function provisionAccess(cf, { account, appName, names, subdomain, 
 export const HUMAN_SESSION_DURATION = '720h';
 // The routes the Worker checks the sign-in on itself: git sends it as a password, which the edge can not read.
 const GIT_OVERRIDE = { behavior: 'public', path_pattern: '/api/access/code/git/*' };
-const LIVE_OVERRIDES = [{ behavior: 'public', path_pattern: '/_memory/*' }, GIT_OVERRIDE];
+// Company knowledge is kept on the live app alone: wiki/stack/company-knowledge.md
+const KNOWLEDGE_OVERRIDE = { behavior: 'public', path_pattern: '/api/access/knowledge/git/*' };
+const LIVE_OVERRIDES = [{ behavior: 'public', path_pattern: '/_memory/*' }, GIT_OVERRIDE, KNOWLEDGE_OVERRIDE];
 
 /** Activate the new unavailable production anchor once; later publication choices stay untouched. */
 async function bootstrapLogin(cf, { account, access, state, checkpoint, note }) {

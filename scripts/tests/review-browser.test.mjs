@@ -1181,6 +1181,49 @@ browserTest('in the inbox frame a section link scrolls the plan and never leaves
   await context.close();
 });
 
+browserTest('a closed page in the inbox frame opens read-only: no note, button or bar, and a saved note opens no editor', async () => {
+  const { dir } = fixture();
+  const html = readFileSync(join(dir, 'review.html'), 'utf8');
+  const context = await browser.newContext({ viewport: { width: 390, height: 700 }, hasTouch: true });
+  await context.route('https://inbox.test/**', route => route.fulfill({ contentType: 'text/html', body:
+    '<!doctype html><body style="margin:0"><iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" style="border:0;width:100vw;height:100vh"></iframe></body>' }));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('https://inbox.test/apps/inbox/?item=i1&from=reviews');
+  const holder = page.locator('iframe');
+  await holder.evaluate((el, body) => new Promise(done => { el.onload = done; el.srcdoc = body; }), html);
+  const frame = await (await holder.elementHandle()).contentFrame();
+  assert.ok(await frame.locator('.add').count() > 0, 'an open page offers + Note');
+  const id = await frame.locator('[data-note]').first().getAttribute('data-note');
+  // The inbox greets an archived page with no actions and readOnly, as PlanView does, and answers with a saved note.
+  await holder.evaluate((el, saved) => {
+    const { port1, port2 } = new MessageChannel();
+    window.heard = [];
+    port1.onmessage = event => {
+      window.heard.push(event.data.type);
+      if (event.data.type === 'inbox:notes-get') port1.postMessage({ type: 'inbox:notes', value: saved });
+    };
+    el.contentWindow.postMessage({ type: 'inbox:hello', item: 'i1', version: 'v1', actions: [], readOnly: true, workspace: 'desk',
+      theme: 'light' }, '*', [port2]);
+  }, JSON.stringify({ notes: [{ id, label: 'a line', text: 'Kept from before' }] }));
+  await frame.waitForFunction(() => document.body.classList.contains('read-only'));
+  for (const part of ['.bar', '.add', '.verdict', '.hint', '#chip']) {
+    assert.equal(await frame.locator(part).filter({ visible: true }).count(), 0, `${part} is hidden`);
+  }
+  assert.equal(await frame.locator('#viewer .vhint .note-it').evaluate(el => getComputedStyle(el).display), 'none',
+    'the full-screen drawing does not offer to note a line');
+  // A saved note still shows under Your notes, but opening it offers no Save or Delete note.
+  const row = frame.locator('#note-list .entry', { hasText: 'Kept from before' });
+  await row.waitFor();
+  await row.click();
+  await page.waitForTimeout(200);
+  assert.equal(await frame.locator('#editor').filter({ visible: true }).count(), 0, 'no note editor opens');
+  assert.deepEqual(await page.evaluate(() => window.heard), ['inbox:notes-get'], 'the page asks only for its notes');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 // ── a preview page: the built screens, live now beside the preview, with Send notes and Publish ──
 // A small solid PNG, so the page shows a real picture.
 function solidPng(width, height) {

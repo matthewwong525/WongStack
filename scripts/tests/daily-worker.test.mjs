@@ -1,14 +1,17 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { headlessCommand } from '../../.agents/skills/memory/scripts/lib/headless.mjs';
+import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
+import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
 import { commands } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { addLine, readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
-import { DEFAULT_SWEEPS, SKILL_BRIEFS, briefFolders, briefFor, dueKey, fillText, loadSweeps, makeWorker, runEnv, runOf, serveDaily, serveWorker,
-  workerPass }
+import { DEFAULT_SWEEPS, SKILL_BRIEFS, briefFolders, briefFor, dropServeLock, dueKey, fillText, loadSweeps, lockHolder, makeWorker, runEnv, runOf,
+  serveDaily, serveWorker, takeServeLock, workerPass }
   from '../../.agents/skills/daily/scripts/worker.mjs';
 
 const TZ = 'America/Toronto';
@@ -20,7 +23,9 @@ function folder() {
   writeFileSync(join(dir, 'daily-workspace.json'), JSON.stringify({ agentId: 'daily-1' }));
   return dir;
 }
-const defaults = () => loadSweeps({ project: '/repo' });
+// The judge jobs an install may keep in its own list; the default list has none since each chat checks its own stops.
+const JUDGE_EVENTS = { stopped: { brief: 'judge.md', title: 'Judge {{title}}', hold: true }, asking: { brief: 'judge.md', title: 'Judge {{title}}', hold: true } };
+const defaults = () => { const merged = loadSweeps({ project: '/repo' }); return { ...merged, events: { ...JUDGE_EVENTS, ...merged.events } }; };
 
 /** A worker with fake runs, clock, Paseo and Daily chat. `world` holds what each fake saw. */
 function rig({ stateDir = folder(), sweeps = defaults(), start = '2026-10-31T14:00:00Z', briefs = [SKILL_BRIEFS], agent } = {}) {
@@ -38,6 +43,7 @@ function rig({ stateDir = folder(), sweeps = defaults(), start = '2026-10-31T14:
     },
     sendDaily: async text => { world.sent.push(text); },
     runCheck: async input => { world.checks.push(input); return world.checkOut; },
+    builtins: { 'wrap-up': async () => {} },
   };
   const make = (more = {}) => makeWorker({ ...options, ...more });
   return { world, stateDir, worker: make(), make, at: text => { world.t = Date.parse(text); },
@@ -243,9 +249,10 @@ test("the install's list merges over the default, and its brief folder wins over
   writeFileSync(join(project, '.agents/daily/jobs.json'), JSON.stringify({ maxRuns: 2,
     events: { invoice: { brief: 'invoice.md' } }, sweeps: [{ id: 'pay', at: ['09:00'], brief: 'pay.md' }] }));
   const merged = loadSweeps({ project, file: '.agents/daily/jobs.json' });
-  assert.deepEqual(Object.keys(merged.events), ['stopped', 'asking', 'invoice']);
-  assert.deepEqual([merged.maxRuns, merged.journalDays, merged.sweeps.map(sweep => sweep.id)], [2, 14, ['pay']]);
-  assert.deepEqual(defaults().sweeps, []);
+  assert.deepEqual(Object.keys(merged.events), ['invoice']);
+  assert.deepEqual(loadSweeps({ project: '/repo' }).events, {});
+  assert.deepEqual([merged.maxRuns, merged.journalDays, merged.sweeps.map(sweep => sweep.id)], [2, 14, ['wrap-up', 'wiki-tidy', 'pay']]);
+  assert.deepEqual(defaults().sweeps.map(sweep => sweep.id), ['wrap-up', 'wiki-tidy']);
   assert.equal(JSON.parse(readFileSync(DEFAULT_SWEEPS, 'utf8')).journalDays, 14);
   assert.match(briefFor({ brief: 'judge.md', fields: { title: 'x' } }, 'r1', briefFolders(project)), /Our own judge for x\./);
   writeFileSync(join(project, '.agents/daily/bad.json'), JSON.stringify({ sweeps: [{ id: 'evil', brief: 'pay.md', check: '../outside.mjs' }] }));
@@ -323,4 +330,212 @@ test('serve --dry-run prints what it would do, starts nothing, and leaves the li
   assert.deepEqual(printed.at(-1), { dryRun: true, waiting: [] });
   assert.equal(existsSync(join(stateDir, 'serve.json')), false);
   assert.equal(existsSync(join(stateDir, 'worker-queue.json')), false);
+});
+
+// ---------------------------------------------------------------------------
+// One worker per person and repo, with or without Paseo
+
+test('with no job of its own for them, a stop and a question start nothing and write no journal line', async () => {
+  const { world, stateDir, make } = rig({ sweeps: loadSweeps({ project: '/repo' }) });
+  const worker = make();
+  await worker.dispatch([stop('a'), ask('b', 'r1'), { event: 'gone', agent: 'x', title: 'old-chat' }]);
+  await worker.pump();
+  assert.deepEqual(world.spawned, []);
+  assert.deepEqual(lines(stateDir), ['Closed: old-chat']);
+});
+
+test('serve.lock: the first worker takes it, a second is refused, and a dead or silent holder is taken over', () => {
+  const stateDir = folder();
+  const now = Date.now();
+  assert.equal(takeServeLock({ stateDir, pid: 11, now }), true);
+  assert.equal(lockHolder(stateDir), 11);
+  assert.equal(takeServeLock({ stateDir, pid: 11, now }), true, 'its own lock');
+  assert.equal(takeServeLock({ stateDir, pid: 12, isAlive: () => true, now }), false);
+  assert.equal(takeServeLock({ stateDir, pid: 12, isAlive: pid => pid !== 11, now }), true, 'a dead pid');
+  assert.equal(lockHolder(stateDir), 12);
+  // A live pid with no beat for 10 minutes may be another program's now.
+  const old = (now - 10 * 60e3) / 1000;
+  utimesSync(join(stateDir, 'serve.lock'), old, old);
+  beat({ stateDir, seconds: 60, now: now - 10 * 60e3 });
+  assert.equal(takeServeLock({ stateDir, pid: 13, isAlive: () => true, now }), true, 'a stale beat');
+  beat({ stateDir, seconds: 60, now });
+  utimesSync(join(stateDir, 'serve.lock'), old, old);
+  assert.equal(takeServeLock({ stateDir, pid: 14, isAlive: () => true, now }), false, 'a beating worker keeps it');
+  dropServeLock(stateDir, 14);
+  assert.equal(lockHolder(stateDir), 13);
+  dropServeLock(stateDir, 13);
+  assert.equal(existsSync(join(stateDir, 'serve.lock')), false);
+});
+
+test('serve.lock: two takers racing over a dead lock never both win', async () => {
+  const worker = new URL('../../.agents/skills/daily/scripts/worker.mjs', import.meta.url).href;
+  // Each taker stays alive a moment, so the other sees a live holder.
+  const taker = stateDir => new Promise(done => {
+    const child = spawn(process.execPath, ['--input-type=module', '-e', `import { takeServeLock } from ${JSON.stringify(worker)};
+      console.log(takeServeLock({ stateDir: ${JSON.stringify(stateDir)} })); setTimeout(() => {}, 1500);`], { stdio: ['ignore', 'pipe', 'inherit'] });
+    let out = '';
+    child.stdout.on('data', chunk => { out += chunk; });
+    child.on('close', () => done(out.trim()));
+  });
+  for (let round = 0; round < 5; round++) {
+    const stateDir = folder();
+    writeFileSync(join(stateDir, 'serve.lock'), '2147483646\n');
+    const won = await Promise.all([taker(stateDir), taker(stateDir), taker(stateDir)]);
+    assert.equal(won.filter(each => each === 'true').length, 1, won.join(' '));
+  }
+  // A taker that finds another's takeover under way is refused; a takeover left by a dead taker is taken after 10 s.
+  const stateDir = folder();
+  writeFileSync(join(stateDir, 'serve.lock'), '2147483646\n');
+  mkdirSync(join(stateDir, 'serve.lock.take'));
+  assert.equal(takeServeLock({ stateDir, pid: 21 }), false);
+  const old = (Date.now() - 20e3) / 1000;
+  utimesSync(join(stateDir, 'serve.lock.take'), old, old);
+  assert.equal(takeServeLock({ stateDir, pid: 21, isAlive: pid => pid === 21 }), true);
+  assert.deepEqual([lockHolder(stateDir), existsSync(join(stateDir, 'serve.lock.take'))], [21, false]);
+});
+
+test('a second serve prints one line and returns, starting nothing', async () => {
+  const stateDir = folder();
+  writeFileSync(join(stateDir, 'serve.lock'), `${process.ppid}\n`);
+  const warned = [], printed = [];
+  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
+    places: {}, checks: [] });
+  const call = async () => { throw new Error('no call expected'); };
+  const result = await commands({ config, project: folder(), stateDir, values: { seconds: 60, once: true }, call, board: { tasks: call }, env: {},
+    print: text => printed.push(text), warn: text => warned.push(text) }).serve();
+  assert.deepEqual([result, printed, warned], [undefined, [], ['Another daily worker runs for this person and repo.']]);
+  assert.equal(existsSync(join(stateDir, 'serve.json')), false);
+});
+
+test('without Paseo the worker still runs a timed job, with the AI tool serve names unless the settings name one, and wrap-up waits', async () => {
+  const project = folder();
+  mkdirSync(join(project, '.agents/daily/briefs'), { recursive: true });
+  writeFileSync(join(project, '.agents/daily/briefs/pay.md'), 'Pay what is due.\n');
+  // The default wrap-up stays on; it needs Paseo to send /close, so it writes nothing here.
+  writeFileSync(join(project, '.agents/daily/jobs.json'), JSON.stringify({ sweeps: [{ id: 'pay', every: '15m', brief: 'pay.md' },
+    { id: 'wiki-tidy', off: true }] }));
+  const call = async () => { throw new PaseoError(EXIT.noPaseo, 'Paseo is not installed.'); };
+  const serve = async runs => {
+    const stateDir = folder(), spawned = [], logs = [];
+    const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: true, chats: true },
+      places: {}, checks: [], sweeps: '.agents/daily/jobs.json', ...(runs && { runs }) });
+    await serveDaily({ config, project, stateDir, call, env: { HOME: folder() }, agent: 'codex', once: true, log: text => logs.push(text),
+      watching: { board: call, todos: { tasks: call } }, started: () => ({}), daily: { read: () => ({}) }, watcher: () => ({ close() {} }),
+      launch: run => { spawned.push(run.command); return { pid: process.pid, on: () => {} }; } });
+    assert.deepEqual(logs, []);
+    return { spawned, journal: lines(stateDir) };
+  };
+  const plain = await serve();
+  assert.deepEqual(plain.spawned, ['codex']);
+  assert.deepEqual(plain.journal, ['Started: pay']);
+  assert.deepEqual((await serve({ agent: 'claude' })).spawned, ['claude']);
+});
+
+test("an install's timed job replaces the default of its id, and an off entry removes one; an unknown do fails the list", () => {
+  const project = folder();
+  const own = sweeps => {
+    writeFileSync(join(project, 'jobs.json'), JSON.stringify({ sweeps }));
+    return loadSweeps({ project, file: 'jobs.json' }).sweeps;
+  };
+  const merged = own([{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'wrap-up', off: true }, { id: 'pay', at: ['09:00'], brief: 'pay.md' }]);
+  assert.deepEqual(merged, [{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'pay', at: ['09:00'], brief: 'pay.md' }]);
+  assert.deepEqual(own([{ id: 'wiki-tidy', off: true }]).map(sweep => sweep.id), ['wrap-up']);
+  assert.throws(() => own([{ id: 'nap', every: '5m', do: 'sleep' }]), /bad entry: nap/);
+  assert.throws(() => own([{ id: 'far', every: '5m', brief: 'far.md', place: 'away' }]), /bad entry: far/);
+  assert.throws(() => own([{ id: 'long', every: '5m', brief: 'long.md', minutes: 0 }]), /bad entry: long/);
+});
+
+test('a built-in job runs in the pass with no AI run; a failing one journals; a dry run only prints it', async () => {
+  const sweeps = { ...defaults(), sweeps: [defaults().sweeps[0]] };
+  const { world, make, at, stateDir } = rig({ sweeps });
+  const seen = [];
+  const worker = make({ builtins: { 'wrap-up': async ({ busy, now }) => { seen.push([busy('a'), now.toISOString()]); } } });
+  await worker.dispatch([stop('a')]);
+  await worker.sweep();
+  await worker.sweep();
+  await worker.pump();
+  assert.deepEqual(seen, [[true, '2026-10-31T14:00:00.000Z']]);
+  assert.equal(world.spawned.length, 1);
+  at('2026-10-31T14:05:00Z');
+  await make({ builtins: { 'wrap-up': async () => { throw new Error('Paseo is down'); } } }).sweep();
+  assert.ok(lines(stateDir).includes('Not read: job Wrap up finished chats — Paseo is down'));
+  at('2026-10-31T14:10:00Z');
+  const printed = [];
+  await make({ dryRun: true, print: item => printed.push(item), builtins: { 'wrap-up': async () => { seen.push('ran'); } } }).sweep();
+  assert.deepEqual(printed, [{ wouldDo: 'wrap-up', due: '2026-10-31T10:10' }]);
+  assert.equal(seen.length, 1);
+});
+
+/** A git that records each command and makes or removes the copy's folder as git would. */
+function fakeGit(calls, { fail = null } = {}) {
+  return (cwd, args) => {
+    const command = args.join(' ');
+    calls.push(command);
+    if (fail && command.startsWith(fail)) throw new Error(`git ${fail} failed`);
+    if (command.startsWith('worktree add')) mkdirSync(args[4], { recursive: true });
+    if (command.startsWith('worktree remove')) rmSync(args[3], { recursive: true, force: true });
+    return '';
+  };
+}
+
+test('the wiki tidy runs in its own copy for up to 90 minutes, and the copy goes when the run ends, is stopped, or at boot', async () => {
+  const calls = [];
+  const { world, make, at, end, stateDir } = rig();
+  const worker = make({ git: fakeGit(calls) });
+  world.checkOut = '{"run":{"consolidated":"2026-10-31T13:00:00Z"}}';
+  await worker.sweep();
+  await worker.pump();
+  assert.equal(world.spawned.length, 1);
+  const copy = world.spawned[0].project;
+  assert.match(copy, /\/copies\/sweep-\d{8}T\d{6}-\w+$/);
+  assert.ok(copy.startsWith(stateDir) && existsSync(copy));
+  assert.deepEqual(calls, ['fetch -q origin main', `worktree add -q --detach ${copy} origin/main`]);
+  assert.match(world.spawned[0].args.join(' '), /Memory consolidated at 2026-10-31T13:00:00Z\./);
+  // A linked company-knowledge copy outlives the job's copy.
+  const knowledge = join(stateDir, 'knowledge-copy');
+  mkdirSync(knowledge);
+  writeFileSync(join(knowledge, 'page.md'), '# Page\n');
+  symlinkSync(knowledge, join(copy, 'knowledge'), 'dir');
+  end(world.spawned[0].pid);
+  await worker.pump();
+  assert.equal(existsSync(copy), false);
+  assert.ok(existsSync(join(knowledge, 'page.md')));
+  assert.deepEqual(calls.slice(2), [`worktree remove --force ${copy}`, 'worktree prune']);
+  // The next consolidation's run: past 30 minutes it still runs; at 90 it is stopped and its copy goes.
+  at('2026-10-31T14:30:00Z');
+  await worker.sweep();
+  await worker.pump();
+  const second = world.spawned[1];
+  at('2026-10-31T15:59:00Z');
+  await worker.pump();
+  assert.deepEqual(world.killed, []);
+  at('2026-10-31T16:00:00Z');
+  await worker.pump();
+  assert.deepEqual(world.killed, [second.pid]);
+  assert.equal(existsSync(second.project), false);
+  assert.ok(lines(stateDir).includes('Not finished: Wiki tidy — stopped after 90 minutes'));
+  // A copy a crash left behind goes at the next boot.
+  mkdirSync(join(stateDir, 'copies', 'sweep-left'), { recursive: true });
+  make({ git: fakeGit(calls) }).boot();
+  assert.equal(existsSync(join(stateDir, 'copies', 'sweep-left')), false);
+});
+
+test('a copy that git can not make starts no run, and a dry run makes no copy', async () => {
+  const calls = [];
+  const { world, make, at, stateDir } = rig();
+  world.checkOut = '{"run":{"consolidated":"2026-10-31T13:00:00Z"}}';
+  const worker = make({ git: fakeGit(calls, { fail: 'fetch' }) });
+  await worker.sweep();
+  await worker.pump();
+  assert.equal(world.spawned.length, 0);
+  assert.ok(lines(stateDir).includes('Not started: Wiki tidy — git fetch failed'));
+  at('2026-10-31T14:30:00Z');
+  calls.length = 0;
+  const printed = [];
+  const dry = make({ dryRun: true, print: item => printed.push(item), git: fakeGit(calls) });
+  dry.boot();
+  await dry.sweep();
+  await dry.pump();
+  assert.deepEqual(calls, []);
+  assert.deepEqual(printed.map(item => item.wouldDo ?? item.wouldCheck), ['wrap-up', 'wiki-tidy']);
 });

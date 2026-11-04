@@ -2,9 +2,10 @@
 // counts too. An Admin is a current person the owner gave the built-in role: same gate, never the owner.
 import type { AccessIdentity } from "../access.ts";
 import type { CodeEnv } from "./code.ts";
+import type { KnowledgeEnv } from "./knowledge.ts";
 import { ADMIN_ROLE, checkerOwns, humanEmail, ownerEmail, type PolicyEnv } from "./policy.ts";
 
-export interface ConnectionEnv extends PolicyEnv, CodeEnv {
+export interface ConnectionEnv extends PolicyEnv, CodeEnv, KnowledgeEnv {
   CF_ACCESS_APP_ID?: string;
   CF_ACCESS_WORKER_ID?: string;
   /** Production only: setup's key for this app's own sign-in list. Never on staging. */

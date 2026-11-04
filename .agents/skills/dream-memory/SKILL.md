@@ -1,6 +1,6 @@
 ---
 name: dream-memory
-description: Tidy memory, then check the wiki, saved facts, specs, and plans against each other and the code; only when a person types it. Takes --dry-run.
+description: Tidy memory, then check the wiki, saved facts, specs, and plans against each other and the code; only when a person types it. Takes --dry-run; --small is the daily's wiki tidy.
 user-invocable: true
 disable-model-invocation: true
 ---
@@ -19,8 +19,10 @@ disable-model-invocation: true
 8. **Check sources.** Before replacing a line or a fact that quotes a person, read `M source <fact-id>`; with no stored chat, treat the fact as the assistant's reading.
 9. **Correct facts.** For each `fact` line of `D drift`, and each live fact the repo contradicts, read the repo, then supersede it by the write gate with what is true now. Never edit or delete one; on a teammate's key, only this installation's own.
 10. **Report a product fault.** When a page or spec is right by a recorded decision and the code breaks it, change neither: one `thread` tagged `improve` naming the rule and where the code breaks it.
-11. **Publish** an edit: `git fetch origin main`, `git switch -c dream-<date> origin/main` (`-2`, `-3` when taken), then `/ship` minus its closing question.
+11. **Publish** a `knowledge/` edit by [its save](../../../wiki/stack/company-knowledge.md#save-a-page); any other: `git fetch origin main`, `git switch -c dream-<date> origin/main` (`-2`, `-3` when taken), then `/ship` minus its closing question.
 12. **Record** by the write gate on slug `wiki-dream`: a `project` fact tagged `dream`, `Dream <date>: read facts up to #<id>. Checked: <pages and specs>.`, even with no edit, split into facts that each start that way when over 400 characters; one `thread` tagged `dream` with step 7's list, superseding the last one, an older one tagged `improve` included; and a fact superseding each note this dream fixed.
 13. **Report** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): each page changed with its fact, each fact corrected, step 7's list, any fault, what the limits skipped.
+
+`/dream-memory --small` is [the small wiki tidy](../../../wiki/development/wiki-dream.md#the-small-wiki-tidy) after a consolidation: steps 1, 4, 5, 8, 11, 12 and 13 only, step 6 for the pages step 5 edited and those `M areas` gives for its facts' paths. Branch `wiki-tidy-<date>`; record `Wiki tidy <date>: read facts up to #<id>. Checked: <pages>.`; no thread.
 
 `/dream-memory --dry-run` runs steps 2 and 4 to 10 anywhere, prints each edit, correction, and listed mismatch with its evidence, and writes nothing: no file, no memory, no write-gate command.

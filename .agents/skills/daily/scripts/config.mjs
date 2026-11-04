@@ -118,6 +118,14 @@ export function loadSettings(file, repo) {
   return { ...config, checks: [...shared, ...config.checks], teamFile: team ? teamFile : null };
 }
 
+/** Settings for a person with no file: check-ins only, as the email's local part, in this computer's time zone. */
+export function defaultSettings({ email, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone }) {
+  const id = String(email).split('@')[0].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 72) || 'me';
+  const person = id === 'team' ? 'team-member' : id;
+  return { ...validateConfig({ version: 1, person, emails: [email], timezone, sources: { tasks: false, chats: true }, places: {}, checks: [] }),
+    teamFile: null };
+}
+
 export const placePath = (config, name, project) => {
   if (!Object.hasOwn(config.places, name)) throw new Error(`No place ${name} in your settings.`);
   const path = config.places[name];

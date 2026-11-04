@@ -17,7 +17,7 @@ Cloudflare turns on Zero Trust only once the account has a card on file. [`/wong
 - **The switch is committed config, not a secret.** Production's and staging's `vars` carry `WORKSPACE_LOGIN: "off"`, with the `CF_ACCESS_*` ids blank, so a reviewer sees it. A secret would hide it from review.
 - **The Worker honors it only while no Access id is set.** Once `CF_ACCESS_TEAM_DOMAIN` or `CF_ACCESS_AUD` has a value, a request without a valid assertion is refused, so a leftover switch can't weaken a private site.
 - **The deploy check accepts only this exact state.** Both environments must carry the switch and no Access ids; the Worker names and the secrets rule still hold. Every publish prints one warning that the site is open. The switch beside Access ids fails the check.
-- **Memory and the project's Git address stay private.** The Worker checks the sign-in on `/_memory/*` and `/api/access/code/git/*` either way.
+- **Memory and the Git addresses stay private.** The Worker checks the sign-in on `/_memory/*`, `/api/access/code/git/*` and `/api/access/knowledge/git/*` either way.
 - **Anyone with the link sees production, staging, and previews.** Staging binds no production data or memory.
 
 **Turning it private later:** the person adds the card from [the card list](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#the-card-list), and the runbook's [adding the card later](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#adding-the-card-later) reruns `provision`. It makes the Access app over the deployed Workers, fills the ids, and removes the switch in `app/wrangler.jsonc`, ready for `/save` to publish. The deploy check then runs in full.
@@ -26,8 +26,8 @@ Cloudflare turns on Zero Trust only once the account has a card on file. [`/wong
 
 ```text
 visitor → Access email or machine authentication → Worker signed-JWT verification → app
-memory client → production /_memory/* ────────┐
-git           → /api/access/code/git/* ───────┴→ Worker checks the same sign-in itself
+memory client → production /_memory/* ─────────────┐
+git           → /api/access/{code,knowledge}/git/* ─┴→ Worker checks the same sign-in itself
 ```
 
 Native Worker destinations cover each actual Worker ID, including default addresses, custom domains, and old/new version previews. The Worker also verifies the signed assertion's audience, issuer, signature, and expiration. A forged email header gives no identity.
@@ -85,14 +85,15 @@ New applications and human policies default to `720h` (30 days). This is the app
 
 ### 4. Bypass the public surface
 
-Two routes skip the wall, and the Worker checks the company sign-in on each itself, before any other work. Anyone else gets a 401.
+Three routes skip the wall, and the Worker checks the company sign-in on each itself, before any other work. Anyone else gets a 401.
 
 | Route | Where | Why it skips the wall |
 |---|---|---|
 | `/_memory/*` | the production Worker and its default-hostname anchor | memory clients send the sign-in in a `cf-access-token` header |
 | `/api/access/code/git/*` | every Worker and the anchor | Git sends the sign-in as a password, which the wall can't read |
+| `/api/access/knowledge/git/*` | the production Worker and its anchor | the same; [company knowledge](company-knowledge.md) is on the live app alone |
 
-The Worker verifies the same signed token the wall would: from the wall's header, the browser cookie, a `cf-access-token` header, or a Git password ([`access.ts`](../../app/worker/access.ts)). A Git call with none gets a 401 that asks for a password, so Git asks [the copy's credential helper](employee-project.md#update-the-copy), and its text names the sign-in step. Staging binds no memory and opens only the Git route. A destination override lets a request reach the Worker; it never skips the Worker's check.
+The Worker verifies the same signed token the wall would: from the wall's header, the browser cookie, a `cf-access-token` header, or a Git password ([`access.ts`](../../app/worker/access.ts)). A Git call with none gets a 401 that asks for a password, so Git asks [the copy's credential helper](employee-project.md#update-the-copy), and its text names the sign-in step. Staging binds no memory and opens only the code Git route. A destination override lets a request reach the Worker; it never skips the Worker's check.
 
 One address under it is not memory: `/_memory/setup.mjs`, [the setup file](employee-project.md#the-setup-files-fixed-link) *Connect your assistant* names. It answers anyone, holds no key, and reads no store. It sits there so no install needs a second override: the publish check matches the destinations exactly.
 
@@ -104,7 +105,7 @@ Setup creates one verification service token per app, each with its own machine 
 
 The preview checker authenticates automated preview checks, so a branch walk never holds a pass the live app accepts. Each token's lifetime is separate from human sessions. `/verify` can recover missing machine access using its authorized heal; it must reuse the owned app, preserve people, and never broaden unrelated policies.
 
-**An app that serves only the signed-in person**, such as the inbox, refuses the service token, so a preview check signs in as you: `cloudflared access login <preview address>` reuses your existing Cloudflare sign-in without a prompt. To send it items from this computer, `node scripts/company-api.mjs login --origin <preview address>` points one worktree at the preview; remove that sign-in when the check ends.
+**An app that serves only the signed-in person**, such as the inbox, refuses the service token, so a preview check signs in as you: `cloudflared access login <preview address>` reuses your existing Cloudflare sign-in without a prompt. To send it items from this computer, `node scripts/company-api.mjs login --origin <preview address>` points one worktree at the preview; remove that sign-in when the check ends. In a browser, send the sign-in as a header: `agent-browser open <address> --headers '{"cf-access-token":"<token>"}'`, with the token from `cloudflared access token -app=<preview address>`. The sample data belongs to a made-up person, so your own lists start empty: put your own items first.
 
 ## Verify it works — in a browser
 

@@ -6,6 +6,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, copyFileSync, existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
+import { linkCopy, place } from "../../memory/scripts/knowledge.mjs";
 import { isMain } from "../../memory/scripts/lib/cli.mjs";
 import { primaryRoot } from "../../memory/scripts/lib/primary-root.mjs";
 
@@ -83,9 +84,14 @@ function seedSettings(ctx) {
   return "copied";
 }
 
+// Company knowledge is one copy per computer, in the primary checkout; a workspace links to it, never copies it.
+function knowledgeLink(ctx) {
+  try { return linkCopy(place(ctx.root)); } catch (error) { return `not linked: ${error.message}`; }
+}
+
 function seed(ctx) {
   const base = loadBase(ctx) ?? { files: {} };
-  const result = { seeded: [], adopted: [], unseeded: [], skipped: [], settings: seedSettings(ctx) };
+  const result = { seeded: [], adopted: [], unseeded: [], skipped: [], settings: seedSettings(ctx), knowledge: knowledgeLink(ctx) };
 
   for (const rel of liveFiles(ctx.primary)) {
     if (base.files[rel]) continue;

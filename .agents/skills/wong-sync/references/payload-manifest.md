@@ -25,7 +25,7 @@ On Windows, link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`,
 
 [Catch-up](catch-up.md) moves pre-19.0.0 real agent folders and reversed `AGENTS.md` links, plus other missed migrations.
 
-`components.skills` preserves local skill names. Explore dependencies beyond the copying inventory. Never copy target-owned notes, app code, business docs or OpenSpec records; seed no knowledge sections, including `wiki/people/`.
+`components.skills` preserves local skill names. Explore dependencies beyond the copying inventory. Never copy target-owned notes, app code, business docs, `knowledge/` or OpenSpec records; seed no knowledge sections, including `wiki/people/`.
 
 Setup also copies the source's values-blank `.env.example`. It is not in `payload-files.json`, so a sync never updates it.
 
@@ -68,7 +68,7 @@ Every sync reads this source page. Add these report instructions to its explore/
 
 ## The memory store and its hooks
 
-**memory** ships scripts/migrations/Worker route/[writing bar](../../memory/references/writing-facts.md). [Retrieval](../../../../wiki/development/document-retrieval.md) ships fallback and pinned setup metadata, never caches. Merge hooks into target settings/hooks, never replace; Codex asks once to trust them. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require an admin `memory.mjs migrate` after merge/deploy. Machine ownership also needs trusted replacement credentials; old private history stays unassigned. [Memory](../../../../wiki/development/memory.md) owns other details.
+**memory** ships scripts/migrations/Worker route/[writing bar](../../memory/references/writing-facts.md). [Retrieval](../../../../wiki/development/document-retrieval.md) ships fallback and pinned setup metadata, never caches. Merge hooks into target settings/hooks, never replace; Codex asks once to trust them. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require an admin `memory.mjs migrate` after merge/deploy. Machine ownership needs trusted replacement credentials; old private history stays unassigned. [Memory](../../../../wiki/development/memory.md) owns other details.
 
 ## The Paseo project file
 

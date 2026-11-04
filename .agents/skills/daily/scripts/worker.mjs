@@ -1,23 +1,30 @@
 // The daily's service on a computer (`daily.mjs serve`): each pass runs the watch, then starts one background AI run
 // per job in the sweep list, and writes the rest to the journal. wiki/development/daily.md#the-daily-on-a-computer
-import { spawn } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { execFileSync, spawn } from 'node:child_process';
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { linkCopy, place } from '../../memory/scripts/knowledge.mjs';
 import { headlessCommand } from '../../memory/scripts/lib/headless.mjs';
 import { runNode } from './addons.mjs';
-import { HOLD_MS, beat, dailyAgent, readJson, sendText, userAt, watch, watchStops, writeJson } from './chief.mjs';
+import { HOLD_MS, beat, chiefDay, dailyAgent, readJson, sameRepo, sendText, serviceAlive, userAt, watch, watchStops, watched,
+  writeJson } from './chief.mjs';
 import { RUN_AGENTS, SETTINGS_DIR, localDay } from './config.mjs';
 import { addLine, prune, readLines } from './journal.mjs';
+import { wrapUp } from './wrap-up.mjs';
 
 const REFERENCES = fileURLToPath(new URL('../references/', import.meta.url));
 export const SKILL_BRIEFS = join(REFERENCES, 'briefs');
 export const DEFAULT_SWEEPS = join(REFERENCES, 'sweeps.json');
 export const RUN_MS = 30 * 60e3;
+/** The jobs the worker runs as its own code, with no AI run: a sweep's `do`. */
+export const BUILTINS = ['wrap-up'];
 /** A timed job's `at` time still counts this long after it; a later pass skips it, as a missed routine. */
 export const AT_GRACE_MIN = 15;
 const DAY_MS = 24 * 3600e3;
 const BOARD_SOURCES = ['board', 'to-dos'];
+// With no job of the install's own for them, these go to each chat's own stop step, not the journal.
+const STOP_EVENTS = ['stopped', 'asking'];
 const oneLine = value => String(value?.message ?? value).split('\n')[0].slice(0, 200);
 
 // ---------------------------------------------------------------------------
@@ -27,17 +34,29 @@ const plain = value => value !== null && typeof value === 'object' && !Array.isA
 const repoPath = value => typeof value === 'string' && value.length > 0 && !value.startsWith('/') && !value.split(/[\\/]/).includes('..');
 const BRIEF = /^[a-z0-9][a-z0-9-]*\.md$/;
 
-/** The default list with the install's merged over it: its `events` over the default's, and its timed `sweeps`. */
-export function loadSweeps({ project, file, base = DEFAULT_SWEEPS }) {
+// A timed job: an `off` entry only names a default to remove; any other runs its `do` or its brief.
+function badSweep(sweep, builtins) {
+  if (!plain(sweep) || typeof sweep.id !== 'string') return true;
+  if (sweep.off === true) return false;
+  return !(sweep.do === undefined ? BRIEF.test(sweep.brief) : builtins.includes(sweep.do))
+    || (sweep.check !== undefined && !repoPath(sweep.check)) || (sweep.place !== undefined && sweep.place !== 'copy')
+    || (sweep.minutes !== undefined && !(Number.isFinite(sweep.minutes) && sweep.minutes > 0));
+}
+
+/** The default list with the install's merged over it: its `events` over the default's, and its timed `sweeps` by
+ * `id`, where an entry replaces the default of its `id` and `"off": true` removes it. */
+export function loadSweeps({ project, file, base = DEFAULT_SWEEPS, builtins = BUILTINS }) {
   const read = path => JSON.parse(readFileSync(path, 'utf8'));
+  const defaults = read(base);
   const own = file ? read(resolve(project, file)) : {};
-  const merged = { ...read(base), ...own };
-  merged.events = { ...read(base).events, ...own.events };
-  merged.sweeps = own.sweeps ?? [];
+  const merged = { ...defaults, ...own };
+  merged.events = { ...defaults.events, ...own.events };
+  const lists = [defaults.sweeps ?? [], own.sweeps ?? []];
   const bad = Object.entries(merged.events).find(([, entry]) => !plain(entry) || !BRIEF.test(entry.brief))?.[0]
-    ?? merged.sweeps.find(sweep => !plain(sweep) || typeof sweep.id !== 'string' || !BRIEF.test(sweep.brief)
-      || (sweep.check !== undefined && !repoPath(sweep.check)))?.id;
+    ?? lists.flat().find(sweep => badSweep(sweep, builtins))?.id;
   if (bad !== undefined) throw new Error(`The sweep list has a bad entry: ${bad}. See wiki/development/daily.md#your-own-jobs.`);
+  const byId = new Map(lists.flat().map(sweep => [sweep.id, sweep]));
+  merged.sweeps = [...byId.values()].filter(sweep => sweep.off !== true);
   return merged;
 }
 
@@ -135,6 +154,9 @@ export function runEnv(env, runId, { agent = 'claude', root = process.getuid?.()
     WONG_MEMORY_NO_HEADLESS: '1', WONG_TIDY: '0' };
 }
 
+/** One git command in `cwd`; it throws when git fails or runs past 2 minutes. */
+export const runGit = (cwd, args) => execFileSync('git', ['-C', cwd, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120e3 });
+
 const runIdOf = (kind, date) => `${kind}-${date.toISOString().replace(/[-:.]/g, '').slice(0, 15)}-${Math.random().toString(36).slice(2, 6)}`;
 
 /** One event with no job, as its journal line. */
@@ -153,14 +175,15 @@ export function quietLine(event) {
 // ---------------------------------------------------------------------------
 // The worker
 
-/** The worker over one state folder: `dispatch` routes events, `sweep` queues due jobs, `pump` ends stale runs and
- * starts what the queue allows, `boot` journals runs that a restart stopped. */
+/** The worker over one state folder: `dispatch` routes events, `sweep` queues due jobs and runs built-in ones, `pump`
+ * ends stale runs and starts what the queue allows, `boot` journals runs a restart stopped and removes their copies. */
 export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AGENTS[0], context = {}, call, env = process.env,
   briefs = briefFolders(project), launch = spawnRun, typedAt = userAt, isAlive = alive, kill = stopGroup, now = () => Date.now(),
-  sendDaily, runCheck, dryRun = false, print = () => {}, wake = () => {} }) {
+  sendDaily, runCheck, builtins = {}, git = runGit, dryRun = false, print = () => {}, wake = () => {} }) {
   const file = join(stateDir, 'worker-queue.json');
   const dueFile = join(stateDir, 'sweeps.json');
   const runs = join(stateDir, 'runs');
+  const copies = join(stateDir, 'copies');
   const exited = new Set();
   const date = () => new Date(now());
   const today = () => localDay(date(), timezone);
@@ -203,16 +226,37 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
 
   const ended = run => readLines({ stateDir }).some(entry => entry.run === run.runId && entry.kind === 'end');
 
+  // A job's own copy of the repo: a detached worktree of `origin/main`, removed with its run.
+  function makeCopy(runId) {
+    const dir = join(copies, runId);
+    git(project, ['fetch', '-q', 'origin', 'main']);
+    mkdirSync(copies, { recursive: true, mode: 0o700 });
+    git(project, ['worktree', 'add', '-q', '--detach', dir, 'origin/main']);
+    // Company knowledge, when this computer holds a copy, so a job saves its pages there.
+    try { linkCopy(place(dir)); } catch { /* the job works without it */ }
+    return dir;
+  }
+  function removeCopy(dir) {
+    // The link goes first: the removal must never reach into the computer's one knowledge copy.
+    const link = join(dir, 'knowledge');
+    try { if (lstatSync(link).isSymbolicLink()) unlinkSync(link); } catch { /* no link */ }
+    try { git(project, ['worktree', 'remove', '--force', dir]); } catch { /* not a worktree any more */ }
+    rmSync(dir, { recursive: true, force: true });
+    try { git(project, ['worktree', 'prune']); } catch { /* the next removal prunes */ }
+  }
+
+  // A dry run's state is a copy, but its pids and copies are the live service's.
   function reap(state, gone) {
     state.running = state.running.filter(run => {
-      if (exited.has(run.runId) || !isAlive(run.pid)) {
-        if (!ended(run)) journal(`Not finished: ${run.title} — ${gone}`, { kind: 'not-finished', run: run.runId });
-        return false;
+      const limit = run.minutes ?? RUN_MS / 60e3;
+      const living = !exited.has(run.runId) && isAlive(run.pid);
+      if (living && now() - Date.parse(run.startedAt) < limit * 60e3) return true;
+      if (!living && !ended(run)) journal(`Not finished: ${run.title} — ${gone}`, { kind: 'not-finished', run: run.runId });
+      if (living) {
+        if (dryRun) print({ wouldStop: run.title, run: run.runId }); else kill(run.pid);
+        journal(`Not finished: ${run.title} — stopped after ${limit} minutes`, { kind: 'not-finished', run: run.runId });
       }
-      if (now() - Date.parse(run.startedAt) < RUN_MS) return true;
-      // A dry run's state is a copy, but its pids are the live service's runs.
-      if (dryRun) print({ wouldStop: run.title, run: run.runId }); else kill(run.pid);
-      journal(`Not finished: ${run.title} — stopped after 30 minutes`, { kind: 'not-finished', run: run.runId });
+      if (run.copy && !dryRun) removeCopy(run.copy);
       return false;
     });
   }
@@ -225,15 +269,27 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
       return;
     }
     if (dryRun) { print({ wouldStart: item.kind, title: item.title, lane: item.lane, brief: item.brief }); return; }
+    let copy = null;
+    if (item.place === 'copy') {
+      try { copy = makeCopy(runId); } catch (error) {
+        removeCopy(join(copies, runId));
+        journal(`Not started: ${item.title} — ${oneLine(error)}`, { kind: 'not-started' });
+        return;
+      }
+    }
     const [command, args] = headlessCommand({ agent, prompt: brief, access: { full: true } });
     let child = null;
     try {
-      child = launch({ command, args, project, logFile: join(runs, `${runId}.jsonl`), env: runEnv(env, runId, { agent }) });
+      child = launch({ command, args, project: copy ?? project, logFile: join(runs, `${runId}.jsonl`), env: runEnv(env, runId, { agent }) });
     } catch { /* journaled below */ }
-    if (!child?.pid) { journal(`Not started: ${item.title} — ${command} did not start`, { kind: 'not-started' }); return; }
+    if (!child?.pid) {
+      if (copy) removeCopy(copy);
+      journal(`Not started: ${item.title} — ${command} did not start`, { kind: 'not-started' });
+      return;
+    }
     child.on?.('exit', () => { exited.add(runId); wake(); });
     state.running.push({ runId, pid: child.pid, kind: item.kind, title: item.title, lane: item.lane, ownPlace: item.ownPlace,
-      startedAt: date().toISOString() });
+      startedAt: date().toISOString(), ...(item.minutes && { minutes: item.minutes }), ...(copy && { copy }) });
     journal(`Started: ${item.title}`, { kind: 'start', run: runId, title: item.fields.title ?? undefined, workspace: item.fields.workspace ?? undefined });
   }
 
@@ -265,15 +321,37 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     }
   }
 
+  // A run's work, as one built-in job sees it: a judge run for that chat running or queued.
+  const busyLane = state => lane => state.running.some(run => run.lane === lane) || state.queue.some(item => item.lane === lane);
+
+  async function builtin(sweep, due, state) {
+    if (dryRun) { print({ wouldDo: sweep.do, due }); return; }
+    try {
+      if (!builtins[sweep.do]) throw new Error(`no built-in job ${sweep.do}`);
+      await builtins[sweep.do]({ busy: busyLane(state), journal, now: date() });
+    } catch (error) {
+      journal(`Not read: job ${sweep.title ?? sweep.id} — ${oneLine(error)}`, { kind: 'not-read' });
+    }
+  }
+
+  // Copies a crash left behind: no running run holds them.
+  function sweepCopies(state) {
+    if (dryRun) return;
+    let names = [];
+    try { names = readdirSync(copies); } catch { return; }
+    const held = new Set(state.running.map(run => run.copy));
+    for (const name of names) if (!held.has(join(copies, name))) removeCopy(join(copies, name));
+  }
+
   return {
-    boot() { const state = load(); reap(state, 'the service restarted'); save(state); },
+    boot() { const state = load(); reap(state, 'the service restarted'); sweepCopies(state); save(state); },
 
     async dispatch(events) {
       const state = load();
       for (const event of events.filter(each => each?.event && each.event !== 'unsupported')) {
         const item = itemOf(event);
         if (item) enqueue(state, item);
-        else await quiet(state, event);
+        else if (!STOP_EVENTS.includes(event.event)) await quiet(state, event);
       }
       save(state);
     },
@@ -286,12 +364,13 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
         if (!due || done[sweep.id] === due) continue;
         done[sweep.id] = due;
         writeJson(dueFile, done);
+        if (sweep.do) { await builtin(sweep, due, state); continue; }
         if (dryRun && sweep.check) { print({ wouldCheck: sweep.id, due }); continue; }
         const fields = await checked(sweep);
         if (!fields) continue;
         enqueue(state, { key: `sweep:${sweep.id}:${due}`, kind: 'sweep', brief: sweep.brief, title: sweep.title ?? sweep.id,
           fields: { ...fields, sweep: sweep.id, due }, lane: `sweep:${sweep.id}`, ownPlace: Boolean(sweep.ownPlace), hold: false, request: null,
-          at: date().toISOString() });
+          place: sweep.place ?? null, minutes: sweep.minutes ?? null, at: date().toISOString() });
       }
       save(state);
     },
@@ -328,11 +407,67 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
 }
 
 // ---------------------------------------------------------------------------
+// One worker per person and repo
+
+const lockFile = stateDir => join(stateDir, 'serve.lock');
+// A new worker writes its first beat within a pass; until then its lock counts as held.
+const LOCK_GRACE_MS = 5 * 60e3;
+
+/** The pid in the worker's lock, or null. */
+export function lockHolder(stateDir) {
+  try { const pid = Number(readFileSync(lockFile(stateDir), 'utf8').trim()); return Number.isInteger(pid) && pid > 0 ? pid : null; } catch { return null; }
+}
+
+/** The live worker's pid: the lock's, while it beats or is under 5 minutes old; else null, as its pid may be another
+ * program's now. */
+export function lockedBy(stateDir, { isAlive = alive, now = Date.now() } = {}) {
+  const holder = lockHolder(stateDir);
+  if (!holder || !isAlive(holder)) return null;
+  let age;
+  try { age = now - statSync(lockFile(stateDir)).mtimeMs; } catch { return null; }
+  return serviceAlive(stateDir, now) || age < LOCK_GRACE_MS ? holder : null;
+}
+
+const TAKE_STALE_MS = 10e3;
+
+/** Makes the folder `dir` as a one-holder claim; a claim older than 10 seconds is a dead taker's, and is taken. */
+function claimDir(dir) {
+  try { mkdirSync(dir, { mode: 0o700 }); return true; } catch (error) { if (error.code !== 'EEXIST') throw error; }
+  try {
+    if (Date.now() - statSync(dir).mtimeMs < TAKE_STALE_MS) return false;
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { mode: 0o700 });
+    return true;
+  } catch { return false; }
+}
+
+/** Takes `<state>/serve.lock` for `pid`; false while another live worker holds it, else it takes the lock over. */
+export function takeServeLock({ stateDir, pid = process.pid, isAlive = alive, now = Date.now() }) {
+  mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+  const file = lockFile(stateDir), taking = `${file}.take`;
+  try { writeFileSync(file, `${pid}\n`, { flag: 'wx', mode: 0o600 }); return true; } catch (error) { if (error.code !== 'EEXIST') throw error; }
+  if (lockHolder(stateDir) === pid) return true;
+  // One taker at a time looks again and swaps the lock in one rename, so two racing workers never both win.
+  if (lockedBy(stateDir, { isAlive, now }) || !claimDir(taking)) return false;
+  try {
+    if (lockedBy(stateDir, { isAlive, now })) return false;
+    writeFileSync(`${file}.${pid}`, `${pid}\n`, { mode: 0o600 });
+    renameSync(`${file}.${pid}`, file);
+    return lockHolder(stateDir) === pid;
+  } finally { rmSync(taking, { recursive: true, force: true }); }
+}
+
+/** Removes the lock when `pid` holds it. */
+export function dropServeLock(stateDir, pid = process.pid) {
+  if (lockHolder(stateDir) === pid) rmSync(lockFile(stateDir), { force: true });
+}
+
+// ---------------------------------------------------------------------------
 // The loop
 
 const STEP_MS = 1000;
 
-/** One pass: the beat that keeps the chat's own watch off, the watch, then the worker. */
+/** One pass: the beat that tells `D ensure` this worker runs, the watch, then the worker. */
 export async function workerPass({ worker, watchOnce, stateDir, seconds, now = () => Date.now() }) {
   beat({ stateDir, seconds, now: now() });
   await worker.dispatch(await watchOnce());
@@ -353,20 +488,37 @@ export async function serveWorker({ worker, pass, signal, seconds = 60, once = f
   }
 }
 
-/** `daily.mjs serve`: the service over the person's settings. `watching` holds the watch's board, to-dos and add-ons;
- * a dry run works on a copy of the state, starts nothing, and prints what it would do. */
+/** `daily.mjs serve`: the service over the person's settings, with `agent` unless the settings name one. `watching`
+ * holds the watch's board, to-dos and add-ons; a dry run works on a state copy, starts nothing, and prints its plan. */
 export async function serveDaily({ config, project, stateDir, call, env = process.env, watching, started, daily, seconds = 60, once = false,
-  dryRun = false, print = item => console.log(JSON.stringify(item)), log, launch, watcher, sleep }) {
+  dryRun = false, print = item => console.log(JSON.stringify(item)), log, launch, watcher, sleep, agent = RUN_AGENTS[0], ownRepo = sameRepo(project) }) {
   const signal = { heard: false };
-  const worker = makeWorker({ stateDir, project, timezone: config.timezone, sweeps: loadSweeps({ project, file: config.sweeps }),
-    agent: config.runs?.agent, call, env, dryRun, print, launch, context: { person: config.person, timezone: config.timezone, repo: project },
+  const timezone = config.timezone;
+  // The pass's own Paseo lists, as the watch read them: a built-in job reads them, not Paseo again.
+  let seen = {};
+  const seeing = async args => {
+    const answer = await call(args);
+    const name = { 'ls --global': 'list', 'permit ls': 'pending' }[args.join(' ')];
+    if (name) seen[name] = answer;
+    return answer;
+  };
+  const ignore = () => [daily.read().agentId].filter(Boolean);
+  const builtins = {
+    'wrap-up': ({ busy, journal, now }) => (Array.isArray(seen.list) && Array.isArray(seen.pending) ? wrapUp({ stateDir, project, busy, journal, now,
+      list: seen.list, pending: seen.pending, send: agentId => sendText(call, agentId, '/close'), inspect: agentId => call(['inspect', agentId]),
+      rows: watched({ stateDir, day: chiefDay({ stateDir, started, timezone, now }), started, timezone, list: seen.list, self: null, ignore: ignore() }) })
+      : null),
+  };
+  const worker = makeWorker({ stateDir, project, timezone, sweeps: loadSweeps({ project, file: config.sweeps }),
+    agent: config.runs?.agent ?? agent, call, env, dryRun, print, launch, builtins, context: { person: config.person, timezone, repo: project },
     sendDaily: async text => sendText(call, await dailyAgent({ daily, call }), text),
     runCheck: ({ sweep, context }) => runNode({ file: resolve(project, sweep.check), cwd: project, input: context }),
     wake: () => { signal.heard = true; } });
   const watchOnce = async () => {
     const events = [];
-    await watch({ stateDir, started, timezone: config.timezone, call, ...watching, env, self: null, ignore: [daily.read().agentId].filter(Boolean),
-      service: true, once: true, print: text => events.push(JSON.parse(text)) });
+    seen = {};
+    await watch({ stateDir, started, timezone, call: seeing, ...watching, env, self: null, ignore: ignore(),
+      service: true, once: true, ownRepo, print: text => events.push(JSON.parse(text)) });
     if (dryRun) for (const event of events) print({ event });
     return events;
   };

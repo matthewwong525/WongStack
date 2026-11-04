@@ -90,7 +90,7 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.
   --action "approve=Approve|Approved: run the 3 ads as shown." --action "launch=Launch|Launch the 3 ads now." --confirm launch --link
 ```
 
-Each `--action` is a name, the label the button shows, and the one-line message the chat gets, 6 at most. A name is lowercase letters, digits, and hyphens; `yes`, `cancel`, and `send` are the bar's own. A `--confirm` name asks once more on the page, such as *Launch? This can't be undone.* The page opens in the person's Inbox when one answers, else through [a reply link](development/reply-links.md). Its notes come under *Notes on the review page "<ask>". Don't go on yet.*
+Each `--action` is a name, the label the button shows, and the one-line message the chat gets, 6 at most. A name is lowercase letters, digits, and hyphens; `yes`, `cancel`, and `send` are the bar's own. A `--confirm` name asks once more on the page, such as *Launch? This can't be undone.* The page opens in the person's Inbox when one answers, else through [a reply link](development/reply-links.md). Once it closes, it stays in the Inbox's Archive, read-only with the answer ([in your inbox first](development/reply-links.md#in-your-inbox-first)). Its notes come under *Notes on the review page "<ask>". Don't go on yet.*
 
 ## The ad card
 

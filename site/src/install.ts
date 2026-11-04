@@ -23,7 +23,7 @@ export const STEPS = {
   answer: "Answer a few questions",
 };
 
-/** The free accounts the install asks for: each one's name, website, logo in public/logos/, and what it does. */
+/** The accounts the install asks for: each one's name, website, logo in public/logos/, and what it does. */
 export const ACCOUNTS = [
   {
     name: "GitHub",
@@ -51,11 +51,6 @@ const list = (items: string[]) => new Intl.ListFormat("en", { style: "long", typ
 /** The computers, as a sentence names them: "Mac, Windows, and Linux". */
 export const computers = (names = COMPUTERS) => list(names);
 
-/** The accounts, as a sentence names them: "free GitHub and Cloudflare accounts", or "a free Cloudflare account". */
-export function freeAccounts(names = ACCOUNTS.map((account) => account.name)) {
-  return names.length === 1 ? `a free ${list(names)} account` : `free ${list(names)} accounts`;
-}
-
 /** What Cloudflare's paid plan costs: the one figure on the site. The README and the getting-started guide say the
  * same words, and scripts/tests/install-cost.test.mjs fails when one stops: change all three in the same change. */
 export const PAID_COST = "about $5 a month";
@@ -69,16 +64,15 @@ export const agents = (names = AGENTS.map((agent) => agent.name)) => either(name
 /** A company's paid plan and what it costs, as a sentence names them. */
 const paidPlan = (account: string, cost: string) => `${account}'s paid plan, ${cost}`;
 
-/** The way that costs nothing: one account keeps the project, the other runs the apps. */
-function freeWay(accounts: [string, string], computers: string[]) {
+/** The way with two accounts: one keeps the project, the other runs the apps on its paid plan. */
+function githubWay(accounts: [string, string], computers: string[], cost: string) {
   const [keeps, runs] = accounts;
-  const cost = "free";
   return {
-    name: "Free",
+    name: `With ${keeps}`,
     accounts,
     computers,
     cost,
-    line: `Free: your project is kept in a ${cost} ${keeps} account, and your apps run in a ${cost} ${runs} account.`,
+    line: `With ${keeps}, on ${either(computers)}: your project is kept in a ${keeps} account, and your apps run on ${paidPlan(runs, cost)}.`,
   };
 }
 
@@ -94,24 +88,23 @@ function aloneWay(account: string, computers: string[], cost: string) {
 }
 
 const PAID_ACCOUNT = "Cloudflare";
-const FREE = freeWay(["GitHub", PAID_ACCOUNT], COMPUTERS);
+const GITHUB = githubWay(["GitHub", PAID_ACCOUNT], COMPUTERS, PAID_COST);
 const ALONE = aloneWay(PAID_ACCOUNT, ["Mac", "Linux"], PAID_COST);
 const PAID_PLAN = paidPlan(PAID_ACCOUNT, PAID_COST);
-const PAID_COMPUTERS = either(ALONE.computers);
 
-/** The two ways to install, the free one first. `line` is the sentence the page prints in the setup question,
- * built from its own entry, so the two can not disagree. */
-export const WAYS = [FREE, ALONE];
+/** The two ways to install, the one with GitHub first; both need the paid plan. `line` is the sentence the page
+ * prints in the setup question, built from its own entry, so the two can not disagree. */
+export const WAYS = [GITHUB, ALONE];
 
-/** Beside the setup routes: nobody is charged by surprise. */
-export const ASKS_FIRST = `On ${PAID_COMPUTERS}, setup asks which you want before anything costs money.`;
+/** Beside the setup routes: nothing is made on an account without the plan. */
+export const ASKS_FIRST = `Setup checks for ${PAID_ACCOUNT}'s paid plan before it makes anything.`;
 
-/** The sentence each answer adds about the paid way: "Is WongStack free?", then "What does it cost, with AI?". */
+/** The sentence each answer adds about the paid plan: "Is WongStack free?", then "What does it cost, with AI?". */
 export const COST_ANSWERS = {
-  free: `On ${PAID_COMPUTERS} you can keep everything in ${ALONE.name} instead, on ${PAID_PLAN}.`,
-  cost: `${PAID_PLAN}, is needed only to keep everything in ${ALONE.name} or to run jobs on a schedule.`,
+  free: `Every way to install needs ${PAID_PLAN}.`,
+  cost: `Every install also needs ${PAID_PLAN}.`,
 };
 
 /** Every sentence on the site that speaks of a cost. Site.test.tsx allows these exact strings and no other word
  * about a price or a paid plan, so a new cost sentence is added here or it fails. */
-export const COST_LINES = [ALONE.line, ASKS_FIRST, COST_ANSWERS.free, COST_ANSWERS.cost];
+export const COST_LINES = [GITHUB.line, ALONE.line, ASKS_FIRST, COST_ANSWERS.free, COST_ANSWERS.cost];

@@ -17,17 +17,17 @@ Want new projects to start with your own tools and site? [Make WongStack your ow
 
 ## What it costs
 
-WongStack is free. You install it one of two ways, and one of them costs money:
+The software is free. Both ways to install need Cloudflare's paid plan, about $5 a month, because your company knowledge is kept in Cloudflare:
 
-| | Free way | Cloudflare alone |
+| | With GitHub | Cloudflare alone |
 |---|---|---|
-| Accounts | a free GitHub account and a free Cloudflare account | a Cloudflare account |
-| Cost | free | Cloudflare's paid plan, about $5 a month |
+| Accounts | a GitHub account and a Cloudflare account | a Cloudflare account |
+| Cost | Cloudflare's paid plan, about $5 a month | Cloudflare's paid plan, about $5 a month |
 | Computers | Mac, Windows, or Linux | Mac or Linux |
 
-On Mac or Linux, setup offers Cloudflare alone first, and asks which you want before anything costs money. [The Artifacts route](artifacts-route.md#what-it-costs) has the detail.
+On Mac or Linux, setup offers Cloudflare alone first. On both ways, setup checks for the paid plan before it makes anything. [The Artifacts route](artifacts-route.md#what-it-costs) has the detail.
 
-You bring your own assistant, on a plan of your own, such as Claude or ChatGPT. For future work, [host schedules](host-schedules.md) use an existing clock after checking its access and uptime needs. Setup may also install a few free tools it needs — Git, Node.js, OpenSpec, a browser for the agent, a tool that sends you a private link to that browser, and, on the free way, GitHub's app — and it asks before it installs any.
+You bring your own assistant, on a plan of your own, such as Claude or ChatGPT. For future work, [host schedules](host-schedules.md) use an existing clock after checking its access and uptime needs. Setup may also install a few free tools it needs — Git, Node.js, OpenSpec, a browser for the agent, a tool that sends you a private link to that browser, and, when you choose GitHub, GitHub's app — and it asks before it installs any.
 
 ## After that: how you work
 
@@ -60,10 +60,10 @@ Setup needs these steps. Each needs you, and the ones marked *browser* open a we
 3. On Windows, approve its permission window if setup needs to turn on the setting for your assistant's folder links. The agent handles the change; you type no command. If your workplace blocks it, ask your IT team for help ([Windows links](../development/required-tools.md#symbolic-links-in-the-agent-folder)).
 4. Sign up for [Cloudflare](https://cloudflare.com) (*browser*)
 5. Open [the token link](cloudflare-credentials.md#create-the-token), check the two rows, press Create, and paste the token into the chat (*browser*). Cloudflare shows it **once**, so copy it before leaving the page.
-6. On Mac or Linux, choose where your project is kept when setup asks: turn on Cloudflare's paid plan (*browser*, needs a card), or say GitHub. [What it costs](#what-it-costs) compares the two.
-7. On the free way, sign up for [GitHub](https://github.com/signup), and approve the sign-in code the agent shows you (*browser*). On Windows, or when you asked for GitHub at the start, this comes before step 4.
+6. Turn on Cloudflare's paid plan when setup asks (*browser*, needs a card). On Mac or Linux, also say where your project is kept: Cloudflare alone, or GitHub. [What it costs](#what-it-costs) compares the two.
+7. On the way with GitHub, sign up for [GitHub](https://github.com/signup), and approve the sign-in code the agent shows you (*browser*). On Windows, or when you asked for GitHub at the start, this comes before step 4.
 
-The first happens before the chat exists; the rest happen in one sitting, while the agent waits. Nobody does all seven: step 3 is for Windows, step 6 for Mac or Linux, and step 7 for the free way. A chat app is optional: [required tools](../development/required-tools.md) says what one adds. There's no "connect your repository" step and setup configures protection automatically. A new Zero Trust account may need its dashboard onboarding completed before setup can continue.
+The first happens before the chat exists; the rest happen in one sitting, while the agent waits. Step 3 is for Windows, and step 7 for the way with GitHub. A chat app is optional: [required tools](../development/required-tools.md) says what one adds. There's no "connect your repository" step and setup configures protection automatically. A new Zero Trust account may need its dashboard onboarding completed before setup can continue.
 
 ## If you want a login wall
 
