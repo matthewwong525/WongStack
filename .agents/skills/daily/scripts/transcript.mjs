@@ -4,7 +4,6 @@ import { parseTranscriptText } from '../../memory/scripts/lib/transcripts.mjs';
 
 // Another chat's message sent through Paseo: an agent's words, not the person's.
 const AGENT_MESSAGE = /^<paseo-system\b[^>]*\bkind="agent-message"/;
-const DAILY = /^\/daily(?:\s|$)/;
 // The host's own wrap of a stop step's reply: Claude Code's feedback line, or Codex's hook prompt. A bare reply is the
 // person's: neither host records one, and the person may type "Keep going." themselves.
 const WRAPS = [/^Stop hook feedback:\s*([\s\S]*)$/i, /^<hook_prompt\b[^>]*>([\s\S]*)<\/hook_prompt>$/];
@@ -18,9 +17,3 @@ export function readChat(file, sent = []) {
   return { messages, person: messages.filter(message => message.role === 'user' && !message.origin && !AGENT_MESSAGE.test(message.text)
     && !ours(message.text)) };
 }
-
-/** True for a message that starts `/daily`. */
-export const isDaily = text => DAILY.test(String(text ?? '').trim());
-
-/** True for the Daily chat: its first own message, or with none yet this `prompt`, is `/daily`. */
-export const dailyChat = (chat, prompt = '') => isDaily(chat.person[0]?.text ?? prompt);

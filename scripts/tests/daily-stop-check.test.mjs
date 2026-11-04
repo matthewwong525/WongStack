@@ -147,14 +147,16 @@ test('a pick goes back as the option; needs-you, a timeout, a bad end line and a
   }
 });
 
-test('no check-in while off, in the Daily chat, in a background run, with no person, or when ask-check sends the reply back', async () => {
+test('no check-in while off, in a background run, with no person, or when ask-check sends the reply back; an old Daily chat gets one', async () => {
   const off = world();
   mkdirSync(off.stateDir, { recursive: true });
   writeFileSync(offFile(off.stateDir), 'x');
   assert.equal((await off.stop()).why, 'off');
+  // A chat that began with /daily before the update is judged like any other.
   const daily = world({ rows: [['user', '<command-message>daily</command-message>\n<command-name>/daily</command-name>', NOW - 60 * MIN],
     ['assistant', NEXT, NOW - MIN]] });
-  assert.equal((await daily.stop()).why, 'daily');
+  await daily.stop();
+  assert.equal(daily.judged.length, 1);
   const runs = world();
   for (const name of ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK']) assert.equal((await runs.stop({ env: { [name]: '1' } })).why, 'run');
   const nobody = await stopCheck({ input: { transcript_path: '/x' }, env: {}, resolve: () => ({ config: null }), judge: () => assert.fail('judged') });
@@ -163,7 +165,7 @@ test('no check-in while off, in the Daily chat, in a background run, with no per
   const typed = 'Which one next?\n- Build the page (Recommended)\n- Write the docs';
   const asked = world();
   assert.equal((await asked.stop({ input: { stop_hook_active: false, last_assistant_message: typed } })).why, 'ask-check');
-  for (const w of [off, daily, runs, asked]) assert.deepEqual([w.judged, w.journal()], [[], []]);
+  for (const w of [off, runs, asked]) assert.deepEqual([w.judged, w.journal()], [[], []]);
 });
 
 test('the tail is the last 40 messages, cut to 60,000 characters and 100,000 bytes, with the last reply when the file lacks it', () => {

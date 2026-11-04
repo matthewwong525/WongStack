@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
-import { actions, agentEvents, allow, answer, chiefDay, chiefEnv, close, dailyAgent, doneAgent, hand, linkAllowed, mark, messageMark, noteEnd,
+import { RUN_ID, actions, agentEvents, allow, answer, chiefDay, chiefEnv, doneAgent, hand, linkAllowed, mark, messageMark, noteEnd,
   reply, remind, remindKey, commonDir, sameRepo, status, streak, todoLink, userAt, watch, watchStops, watched } from '../../.agents/skills/daily/scripts/chief.mjs';
 
 const ZONE = 'America/New_York';
@@ -31,7 +31,7 @@ function day() {
   const paseo = {
     list: [agent('agent-job', 'Task: Post the editor job', '/w/bold-otter'), agent('agent-email', 'Answer email', '~/w/calm-cat', 'running'),
       agent('agent-old', 'Task: Old task', '/w/old-owl'), agent('agent-team', 'Team plan', '/w/team-yak'), agent('agent-stranger', 'Other work', '/w/sly-fox'),
-      agent(SELF, 'Daily', '/w/daily')],
+      agent(SELF, 'This chat', '/w/daily')],
     pending: [{ id: 'req-x', agentId: 'agent-stranger', name: 'AskUserQuestion', description: 'Yes / No' }],
     logs: { 'agent-job': 'I made the draft. Next I check the copy.', 'agent-team': 'Which plan do you want?' },
     inspect: {}, calls: [], sent: [], workspaces: [], tools: {},
@@ -86,8 +86,8 @@ test('the watch list is today\'s started rows, by id or by folder, and the hands
   const today = '2026-10-21';
   assert.deepEqual(watched({ ...at, day: today, list: paseo.list, self: SELF }).map(row => [row.agentId, row.source, row.task]),
     [['agent-job', 'started', 'job'], ['agent-email', 'started', undefined]]);
-  assert.deepEqual(await hand({ ...at, day: today, agent: 'Team plan', source: 'asked', env, now: new Date(START) }),
-    { status: 'handed', agent: 'agent-team', title: 'Team plan', workspace: 'team-yak', source: 'asked' });
+  assert.deepEqual(await hand({ ...at, day: today, agent: 'Team plan', env, now: new Date(START) }),
+    { status: 'handed', agent: 'agent-team', title: 'Team plan', workspace: 'team-yak', source: 'handed' });
   assert.deepEqual(watched({ ...at, day: today, list: paseo.list, self: SELF }).map(row => row.agentId), ['agent-job', 'agent-email', 'agent-team']);
   // A stranger's chat is never sent anything.
   const refused = await reply({ ...at, day: today, agent: 'agent-stranger', text: 'Keep going.', bucket: 'keep-going', label: 'x', env });
@@ -196,7 +196,7 @@ test('the watch keeps its day after midnight, and ends when the next daily start
   const loop = watch({ ...t.at, board: async () => ({ tasks: [] }), env, now: () => night, print: line => t.lines.push(JSON.parse(line)),
     sleep: async () => { t.record['email:2026-10-22'] = { workspace: 'new-elk', cwd: '/w/new-elk', agentId: 'agent-new', at: new Date(night + HOUR).toISOString() }; } });
   await loop;
-  assert.deepEqual(t.taken(), [['end', 'next-daily']]);
+  assert.deepEqual(t.taken(), [['end', 'next-day']]);
   assert.equal(t.dayAt(night + 2 * HOUR), '2026-10-22');
 });
 
@@ -441,55 +441,9 @@ test('a stopped line carries a one-line preview of at most 200 characters, its m
 
 const DAY = '2026-10-21';
 
-test('close archives a workspace this Daily opened on request, takes it off the watch, and never closes the person\'s chats', async () => {
-  const t = day();
-  t.own('agent-fix', 'Fix the plan bug', { cwd: '/w/quick-elk', status: 'running', ago: 0 });
-  t.paseo.workspaces = [{ workspaceId: 'ws-elk', cwd: '/w/quick-elk', name: 'quick-elk' }, { workspaceId: 'ws-daily', cwd: '/w/daily', name: 'Daily' }];
-  t.own('agent-mine', 'My own chat');
-  assert.equal((await hand({ ...t.at, day: DAY, agent: 'agent-fix', source: 'asked', env, now: new Date(START) })).status, 'handed');
-  await t.once(START);
-  const go = agent => close({ ...t.at, day: DAY, agent, env, now: new Date(START + MIN) });
-  for (const name of ['agent-job', 'agent-mine']) assert.equal((await go(name)).status, 'refused', name);
-  assert.equal((await go('agent-stranger')).status, 'unknown');
-  assert.deepEqual(await go('quick-elk'), { status: 'closed', agent: 'agent-fix', title: 'Fix the plan bug', workspace: 'quick-elk', source: 'asked' });
-  assert.ok(t.paseo.calls.some(args => args.join(' ') === 'workspace archive ws-elk'));
-  // It leaves the watch with no gone line, and the watch never sends it anything again.
-  await t.once(START + 2 * MIN);
-  assert.ok(!t.lines.splice(0).some(line => line.agent === 'agent-fix'));
-  assert.ok(!watched({ ...t.at, day: DAY, list: t.paseo.list, self: SELF }).some(row => row.agentId === 'agent-fix'));
-  // A chat with no workspace of its own: only its agent is archived. No Paseo: unsupported.
-  t.own('agent-here', 'Here', { cwd: '/w/daily' });
-  await hand({ ...t.at, day: DAY, agent: 'agent-here', source: 'asked', env, now: new Date(START) });
-  assert.equal((await go('agent-here')).status, 'closed');
-  assert.ok(t.paseo.calls.some(args => args.join(' ') === 'archive agent-here --force'));
-  assert.equal((await close({ ...t.at, day: DAY, agent: 'agent-job', env: {} })).status, 'unsupported');
-});
-
-test('a workspace a watch pass admitted before its hand still counts as one this Daily opened, so close archives it', async () => {
-  const t = day();
-  t.own('agent-new', 'New task', { cwd: '/w/new-elk', status: 'running', ago: 0 });
-  t.paseo.workspaces = [{ workspaceId: 'ws-new', cwd: '/w/new-elk', name: 'new-elk' }];
-  await t.once(START);
-  const row = () => watched({ ...t.at, day: DAY, list: t.paseo.list, self: SELF }).find(each => each.agentId === 'agent-new');
-  assert.equal(row().source, 'own');
-  // Only an asked hand takes over an own row; a second hand finds it already watched.
-  assert.equal((await hand({ ...t.at, day: DAY, agent: 'agent-new', env, now: new Date(START) })).status, 'already');
-  assert.equal((await hand({ ...t.at, day: DAY, agent: 'agent-new', source: 'asked', env, now: new Date(START) })).status, 'handed');
-  assert.equal((await hand({ ...t.at, day: DAY, agent: 'agent-new', source: 'asked', env, now: new Date(START) })).status, 'already');
-  assert.equal(row().source, 'asked');
-  assert.equal((await close({ ...t.at, day: DAY, agent: 'agent-new', env, now: new Date(START + MIN) })).status, 'closed');
-  assert.ok(t.paseo.calls.some(args => args.join(' ') === 'workspace archive ws-new'));
-});
-
 // ---------------------------------------------------------------------------
 // The chief on the host
 
-/** The saved Daily agent, as `daily-workspace.json` keeps it. */
-function dailyStore(saved = { workspaceId: 'wks_daily', agentId: SELF }) {
-  const store = { saved };
-  store.daily = { read: () => ({ ...store.saved }), write: value => { store.saved = value; } };
-  return store;
-}
 const todos = (t, value) => writeFileSync(join(t.stateDir, 'todos.json'), JSON.stringify(value));
 /** A fake board for one command: `calls` keeps each body; `fail` makes each call throw. */
 function oneBoard() {
@@ -543,17 +497,17 @@ test('done-agent marks the chat\'s to-do done with its proof, keeps a board task
   assert.equal(JSON.parse(readFileSync(join(t.stateDir, 'todos.json'), 'utf8'))['agent-two'].proof, 'PR #12 merged');
 });
 
-test("a chief command takes the Daily agent's id when its chat has none, and its parent's id when it is the Daily agent's helper", async () => {
-  const inspect = { helper: { ParentAgentId: 'agent-daily' }, judge: { ParentAgentId: 'agent-worker' }, other: { ParentAgentId: null } };
-  const call = async ([name, id]) => (name === 'inspect' ? inspect[id] : null);
-  const ids = { daily: 'agent-daily' };
-  const idOf = async (env, own = ids, read = call) => (await chiefEnv(env, own, read)).PASEO_AGENT_ID;
-  assert.equal(await idOf({}), 'agent-daily');
-  assert.equal(await idOf({ PASEO_AGENT_ID: 'helper' }), 'agent-daily');
-  assert.equal(await idOf({ PASEO_AGENT_ID: 'judge' }), 'judge', 'an old helper is not the Daily agent');
-  assert.equal(await idOf({ PASEO_AGENT_ID: 'other' }), 'other');
-  assert.equal(await idOf({ PASEO_AGENT_ID: 'other' }, {}), 'other');
-  assert.equal(await idOf({ PASEO_AGENT_ID: 'x' }, ids, async () => { throw new Error('gone'); }), 'x');
+test("a chief command keeps its chat's own id; a background run with none acts under the stand-in; a plain terminal has none", async () => {
+  assert.equal(chiefEnv({ PASEO_AGENT_ID: 'agent-7', WONG_DAILY_RUN: '1' }).PASEO_AGENT_ID, 'agent-7');
+  assert.equal(chiefEnv({ WONG_DAILY_RUN: '1' }).PASEO_AGENT_ID, RUN_ID);
+  assert.equal(chiefEnv({}).PASEO_AGENT_ID, undefined);
+  const t = day();
+  await t.once(START);
+  // The stand-in matches no chat: it watches every chat this chat would, and hands any of them.
+  const run = await status({ ...t.at, day: DAY, env: chiefEnv({ WONG_DAILY_RUN: '1' }) });
+  assert.deepEqual(run.agents.map(row => row.agent), ['agent-job', 'agent-email']);
+  assert.equal((await hand({ ...t.at, day: DAY, agent: 'agent-team', env: chiefEnv({ WONG_DAILY_RUN: '1' }), now: new Date(START) })).status, 'handed');
+  assert.equal((await status({ ...t.at, day: DAY, env: chiefEnv({}) })).status, 'unsupported');
 });
 
 // ---------------------------------------------------------------------------
@@ -741,7 +695,7 @@ test("status shows the watched chats and the chief's last 5 actions and end line
   assert.deepEqual(noteEnd({ ...t.at, day: DAY, line: 'Judge: kept going on Post the editor job', now: new Date(START + 9000) }),
     { status: 'noted', line: 'Judge: kept going on Post the editor job' });
   for (const line of ['', 'a\nb', 'x'.repeat(301)]) assert.equal(noteEnd({ ...t.at, day: DAY, line }).status, 'refused');
-  const read = await status({ ...t.at, day: DAY, env, dailyId: SELF });
+  const read = await status({ ...t.at, day: DAY, env });
   assert.equal(read.outbox, undefined);
   assert.deepEqual(read.recent, ['Answered 1', 'Answered 2', 'Answered 3', 'Answered 4', 'Judge: kept going on Post the editor job']);
   assert.ok(!read.agents.some(row => row.agent === SELF));
@@ -758,17 +712,6 @@ test('status marks a finished chat with no open card, and asks nothing about a c
   assert.ok(none.agents.every(row => !('finished' in row)));
 });
 
-
-test('dailyAgent gives the saved live Daily chat, else finds one by its label and saves it, else throws', async () => {
-  const t = day();
-  assert.equal(await dailyAgent({ daily: dailyStore().daily, call: t.call }), SELF);
-  const none = dailyStore({ workspaceId: 'wks_daily' });
-  t.paseo.list = t.paseo.list.filter(agent => agent.id !== SELF);
-  await assert.rejects(dailyAgent({ daily: none.daily, call: t.call }), /No Daily chat is open/);
-  t.paseo.list.push({ id: SELF, name: 'Daily', status: 'idle', cwd: '/w/daily', created: '2026-10-21T15:00:00Z', labels: { 'daily-chat': '1' } });
-  assert.equal(await dailyAgent({ daily: none.daily, call: t.call }), SELF);
-  assert.equal(none.saved.agentId, SELF);
-});
 
 test('pass add-ons post lines, pass events through, skip chats, and a failed one is one not-read', async () => {
   const t = day();

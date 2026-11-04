@@ -42,11 +42,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/daily.mjs\" journal --hook",
-            "timeout": 5
-          },
-          {
-            "type": "command",
             "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/explore/scripts/step-title.mjs\" hook --agent claude",
             "timeout": 3
           }

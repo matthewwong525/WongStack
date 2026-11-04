@@ -29,6 +29,9 @@ test('a stopped chat merged at its last commit, with a clean folder, is finished
   assert.equal(await check(), true);
   world.agent.status = 'error';
   assert.equal(await check(), true);
+  // An old Daily chat outside the main checkout is judged like any other.
+  world.agent.name = 'Daily';
+  assert.equal(await check(), true);
 });
 
 const unfinished = [
@@ -40,7 +43,6 @@ const unfinished = [
   ['a working chat', world => { world.agent.status = 'running'; }],
   ['the main checkout', world => { world.agent.cwd = '/repo'; Object.assign(world.folders['/repo'], { branch: 'flashy-crab', tip: 'abc' }); }],
   ['the default branch', world => { world.folders['/wt/flashy-crab'].branch = 'main'; }],
-  ['the Daily chat', world => { world.agent.name = 'Daily'; }],
   ['a sub-agent', world => { world.detail = { ParentAgentId: 'boss' }; }],
   ['a chat Paseo can not inspect', world => { world.detail = new Error('gone'); }],
   ['an archived chat', world => { world.agent.archivedAt = '2026-11-04T10:00:00Z'; }],

@@ -14,7 +14,7 @@ import { BUCKETS, HOLD_MS, STREAK, paseoRecord, readJson, writeJson } from './ch
 import { RUN_AGENTS } from './config.mjs';
 import { RUN_FLAGS, hookInput, offFile, personSettings, stateOf } from './daily.mjs';
 import { addLine } from './journal.mjs';
-import { dailyChat, readChat } from './transcript.mjs';
+import { readChat } from './transcript.mjs';
 import { fillText, runEnv, stopGroup } from './worker.mjs';
 
 const USAGE = 'usage: stop-check.mjs stop --agent claude|codex   the Stop hook; reads the hook\'s JSON on stdin';
@@ -83,7 +83,6 @@ export async function stopCheck({ input, agent = RUN_AGENTS[0], env = process.en
   const file = streakFile(stateDir, input);
   const saved = { count: 0, since: null, sent: [], ...readJson(file, {}) };
   const chat = readChat(input.transcript_path, saved.sent);
-  if (dailyChat(chat)) return skip('daily');
   if (agent === 'claude' && stopDecision(input, env)) return skip('ask-check');
   const since = chat.person.at(-1)?.at ?? null;
   const streak = saved.since === since ? saved : { ...saved, count: 0, since, told: false };

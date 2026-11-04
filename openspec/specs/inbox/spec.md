@@ -35,7 +35,7 @@ A tap on an item SHALL wait in the app until the person's computer delivers it t
 
 #### Scenario: Delivered
 
-- **WHEN** the person taps *Approve* and the computer wakes the daily chat with it
+- **WHEN** the person taps *Approve* and the computer wakes the chat that made the item with it
 - **THEN** the inbox marks the tap *Sent*
 
 #### Scenario: The chat is gone
