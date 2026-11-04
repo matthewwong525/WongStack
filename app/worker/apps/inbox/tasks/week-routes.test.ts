@@ -1,6 +1,10 @@
 import { expect, it } from "vitest";
 import { taskBand, taskStatuses } from "../../../../src/lib/board.ts";
 import { bandOrder } from "./positions.ts";
+import { discovery } from "../../../api/discovery.ts";
+import { appActions } from "../../index.ts";
+import { body } from "../../../../tests/body.ts";
+import { fakeEnv } from "../../../../tests/env.ts";
 import { board, checker, NEXT, OWNER, person, WEEK } from "../../../../tests/board.ts";
 
 it("lets the owner alone at the board, and the checker on staging", async () => {
@@ -98,6 +102,19 @@ it("deletes a task softly, once", async () => {
   expect((await call("DELETE", "task", { id: task.id })).json).toEqual({ id: task.id });
   expect(await titles("mon")).toEqual([]);
   expect((await call("DELETE", "task", { id: task.id })).status).toBe(404);
+});
+
+it("lists a task's change and delete to the owner's agent, and refuses a teammate's delete", async () => {
+  const { db, call, add, titles } = board();
+  const inbox = appActions.filter(({ app }) => app === "inbox");
+  const find = async (path: string) => body(await discovery(new Request(`https://business.example.com/api/actions${path}`),
+    fakeEnv({ DB: db.DB, WONG_OWNER_EMAIL: OWNER }), person(OWNER), inbox));
+  const found = (await find("?q=task&limit=50")).actions.map(action => action.operationId);
+  expect(found).toEqual(expect.arrayContaining(["inbox.task-change", "inbox.task-delete"]));
+  for (const id of ["inbox.task-change", "inbox.task-delete"]) expect((await find(`?id=${id}`)).confirmWith, id).toBe("inbox.daily-tasks");
+  const task = await add("keep");
+  expect((await call("DELETE", "task", { id: task.id }, person("sam@example.com"))).status).toBe(403);
+  expect(await titles("mon")).toEqual(["keep"]);
 });
 
 it("searches every week by each word, the backlog first", async () => {

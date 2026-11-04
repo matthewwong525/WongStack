@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Small lessons from WongOS that help every install
+
+- **Any chat can clean up your board.** Ask *clean up my board*: the chat can rename, move or delete any task on your week board, not only a chat's to-do. Before it deletes, it lists the tasks and asks you one time, because a deleted task can't be brought back ([the week board](wiki/development/daily.md#the-week-board)).
+- **Google sign-in gets two tips.** When Google asks for a passkey first, the assistant taps *Try another way* and picks the password. While it waits for your phone, it checks the start of the page address, so a sign-in page that only names the site does not count as signed in ([approve on your phone](wiki/development/login-codes.md#approve-on-your-phone)).
+- **A renamed database change no longer leaves staging stuck.** When a change's database file gets a new name after its preview ran, the next preview fails with *duplicate column name*. The recovery page now says how to fix it on staging only; your live database is not touched ([D1 recovery](wiki/stack/d1-recovery.md#production-schema-drifted-from-d1_migrations)).
+- **Messenger's live view stays open until you are signed in.** The live view page names Messenger's signed-in address as the finish, because its password box goes away before the sign-in is done ([live view](wiki/development/live-view.md)).
+
 ## 47.0.0 — Your day runs without a Daily chat
 
 - **The morning starts by itself.** At `morning` in your settings file, 08:00 by default, the helper that runs in the background starts your due routines and morning add-ons, one time per day. You open no chat for it, and you get no morning list: your tasks are on your week in the Inbox ([the daily routine](wiki/development/daily.md#what-it-does)).

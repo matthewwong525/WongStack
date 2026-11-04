@@ -40,6 +40,7 @@ Your tasks live on your week board, in [the Inbox](reply-links.md#in-your-inbox-
 
 - *Remind me Friday to call Kim back* adds a task on Friday's column. The same words on the same day add it one time.
 - *Start the supplier list* opens an undone task of today in its own workspace, one time ever, and marks it in progress.
+- *Clean up my board* is work any chat does for you. It reads the week and the backlog with `inbox.daily-tasks`, then renames or moves a task with `inbox.task-change` and deletes one with `inbox.task-delete`, through [`company-api.mjs call`](../stack/company-api.md#connect-and-call). Before it deletes, it lists the tasks and asks you one time: a deleted task can't be brought back. The daily's own `inbox.daily-task-remove` takes only a chat's to-do.
 
 ## The chief of staff
 

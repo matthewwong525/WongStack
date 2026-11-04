@@ -48,6 +48,9 @@ The code stays in the stored chat and on one command line. That's fine, not a le
 
 For an *approve in the app* prompt, the agent says *Tap Yes in the Google app on your phone.* and checks the address with `browse.mjs get url` until it leaves the approval page. After about 2 minutes, the site's own limit, it says it timed out and offers to try again.
 
+- **Google asks for a passkey first.** A passkey can't reach the agent's browser. So the agent taps *Try another way*, picks the password, and then waits for this phone prompt.
+- **Check the start of the address, not any part of it.** Google's sign-in address holds the target site in its `continue=` part, so `mail.google.com` anywhere in it matches too early. Match the site's own address at the start, such as `https://mail.google.com` for Gmail.
+
 ## A wrong or expired code
 
 The agent says so, taps the site's *Resend* when it has one, and asks again. After three failures, it stops and gives you [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
