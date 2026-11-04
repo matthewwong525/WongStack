@@ -162,8 +162,11 @@ async function journalNew(w, env, hasFile = true) {
 
 test("D journal --new keeps the hook's place by the host's session id", async () => {
   const w = hookWorld();
-  addLine({ stateDir: w.stateDir, timezone: TZ, line: 'Kept going: a', now: at('2026-11-03T13:00:00Z') });
-  assert.match(w.hook({ session_id: 's1', transcript_path: transcript(w.repo, DAILY_TYPED), prompt: '/daily' }), /Kept going: a/);
+  // The real clock: `D journal --new` reads it, and a key new to the journal starts at today, so a fixed date fails
+  // once that day is past.
+  const now = new Date();
+  addLine({ stateDir: w.stateDir, timezone: TZ, line: 'Kept going: a', now });
+  assert.match(w.hook({ session_id: 's1', transcript_path: transcript(w.repo, DAILY_TYPED), prompt: '/daily' }, { now }), /Kept going: a/);
   assert.doesNotMatch(await journalNew(w, { CLAUDE_CODE_SESSION_ID: 's1', PASEO_AGENT_ID: 'p1' }), /Kept going/);
   assert.match(await journalNew(w, { CODEX_THREAD_ID: 't1', PASEO_AGENT_ID: 'p1' }), /Kept going: a/);
   assert.doesNotMatch(await journalNew(w, { CODEX_THREAD_ID: 't1' }), /Kept going/);

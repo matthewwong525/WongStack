@@ -102,7 +102,7 @@ Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result
 - A failing command is evidence, not a crash. `--bail` stops a browser journey there, so earlier evidence shows how far it got.
 - A screenshot that looks like the previous page → check the landed URL in `<id>.url`; a missing wait is the journey's defect: add it and re-walk.
 - `[redacted:.env]` in text evidence stands for a `.env` value the driver replaced; read the screenshot for it.
-- **Ambiguous → unverified**: retain evidence/`THEN`, offer readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks) at handoff; finish independent checks first.
+- **Ambiguous → unverified**: retain evidence/`THEN`, offer readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks) at handoff; finish independent checks first. [In `/ship`](../../../../wiki/development/the-change-loop.md#inside-ship), grade by the recommended reading and return it as assumed.
 
 ## e — after a failure
 

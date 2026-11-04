@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Ship goes all the way
+
+- **Ship goes with its own best answer.** When a question comes up while `/ship` builds, saves, checks or publishes, and the recommended answer stays inside the work and can be undone, ship takes it and keeps going. It still stops before it uses a key, signs in, changes access, spends money, sends or posts, changes a business record or real data, deletes something outside the change, accepts terms or weakens a check, and when something still fails after two fixes or no answer is clearly best ([fix it or ask inside `/ship`](wiki/development/the-change-loop.md#inside-ship)). `/apply`, `/save` and `/verify` typed on their own still ask.
+- **You see every choice it made.** The ship report gets a *Choices I made* list, and the plan's Decision log keeps each one as an `Assumed` line. To change one, ask for one more small change.
+- **Other plans no longer stop a publish.** A plan that the main branch already has is left alone, with no question. A second plan that only this branch adds moves to its own saved branch: `ship.mjs prepare --move-others`.
+- **A failed check on the preview gets one fix first.** Ship fixes the problem once, saves, and checks again. It asks *fix more, or publish anyway?* only if the check still fails.
+- **An old test that breaks for its own reason gets one fix inside ship.** When a check fails in code the change never touched, ship fixes it once, if the fix keeps the check as strong. A plain `/save` still stops, as before.
+
+**Updating.** Nothing to do.
+
 ## 45.8.0 — Company knowledge in its own repo
 
 - **Company pages go live at once.** The team's own pages, such as people, customers and how the company works, now live in a repository of their own in Cloudflare, not in the code repository. A save makes them live for the team at once, with no pull request and no wait for checks. Pages about the code stay in `wiki/` ([company knowledge](wiki/stack/company-knowledge.md)).
