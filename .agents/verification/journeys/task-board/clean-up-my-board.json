@@ -1,0 +1,36 @@
+{
+  "format": "verify-journey-1",
+  "id": "clean-up-my-board",
+  "scenario": {
+    "capability": "task-board",
+    "requirement": "An agent cleans up the board when the owner asks",
+    "scenario": "Clean up my board"
+  },
+  "thenDigest": "5a94f9bbf45356d579712fc10d29cec6e3bb848b93b049241e61b7c9bf61caea",
+  "probe": "request",
+  "writes": false,
+  "sourcePaths": [
+    "app/worker/api/contract.ts",
+    "app/worker/apps/inbox/tasks/board.ts",
+    "app/worker/apps/inbox/tasks/week-routes.ts"
+  ],
+  "recordedAt": "9f3122f61eb2e8f68be8a8851acf8a6e697b680f",
+  "steps": [
+    [
+      "GET",
+      "/api/actions?q=task&limit=50"
+    ]
+  ],
+  "expect": [
+    {
+      "step": 1,
+      "status": 200,
+      "includes": "inbox.task-delete"
+    },
+    {
+      "step": 1,
+      "status": 200,
+      "includes": "inbox.task-change"
+    }
+  ]
+}
