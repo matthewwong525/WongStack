@@ -1,6 +1,6 @@
 # A guided first day for a new teammate
 
-**Status:** ready-to-ship
+**Status:** archived
 **Branch:** shaggy-liger
 **Open questions:** none
 
@@ -88,3 +88,4 @@ Adding a teammate already works: you add them in Access, send the message it giv
 - **2026-11-04** — Assumed: 5.1's local checks count as passed before the archive, because every check passed with the new spec in place except the area test, which waits for the archive to add `openspec/specs/first-day-lessons/spec.md`; `/ship` reruns them after the archive.
 - **2026-11-04** — Assumed: 5.3 is `/ship`'s own checkpoint save, because CI can not pass before the archive adds the new spec; `/ship` stops before the merge if CI fails.
 - **2026-11-04** — Seen in a new chat on this checkout: `lesson 3` said there are two lessons and offered both; `lesson 1` stopped after step 1 (who you are), step 2 (type `/`) and step 3 (plain words), each waiting for an answer; it wrote no page when asked not to, and no project file changed.
+- **2026-11-04** — Archive checkpoint: archived by `/ship` on branch shaggy-liger; the new spec's Purpose was written after the archive so the spec check passes.
