@@ -13,7 +13,7 @@ It uses your own assistant's model allowance, so it costs what a long chat costs
 
 ## The small wiki tidy
 
-Where [the daily runs on a computer](daily.md#the-daily-on-a-computer), each memory [consolidation](memory.md#consolidation) starts one small tidy, about once a day. A background run, in its own copy of the repo, takes the facts saved since the last tidy or dream. It puts each lasting one on the page that owns it, by [placing a fact on a page](#placing-a-fact-on-a-page). It fixes only those pages and the pages those facts name. Then it publishes the change through the normal checks, with no question.
+On each computer, [the daily's worker](daily.md#the-daily-on-a-computer) starts one small tidy after each memory [consolidation](memory.md#consolidation), about once a day. A background run, in its own copy of the repo, takes the facts saved since the last tidy or dream. It puts each lasting one on the page that owns it, by [placing a fact on a page](#placing-a-fact-on-a-page). It fixes only those pages and the pages those facts name. Then it publishes the change through the normal checks, with no question.
 
 It is `/dream-memory --small`. It never tidies memory again (consolidation just did), never checks specs or plans, and never corrects a saved fact. It never edits [a page WongStack ships](#your-pages-and-shipped-pages). Its record counts as the last dream, so the next tidy or dream starts after the facts it read. Ask the Daily chat *what's going on?* to see `Wiki tidy: 3 facts on 2 pages (…)` or `Wiki tidy: nothing to add`. To turn it off, [add an `off` entry](daily.md#your-own-jobs) for `wiki-tidy`.
 

@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 45.7.0 — Check-ins for everyone, with or without Paseo
+
+- **Each chat checks its own stops.** When a chat in Claude Code or Codex stops and your last message there is more than 15 minutes old, one read-only AI run sorts the stop. A next step or a safe pick goes back to the chat, and it carries on. Everything else waits for you, as before. It works with or without Paseo, and no Daily chat has to stay open ([check-ins](wiki/development/daily.md#check-ins)).
+- **No settings file needed for check-ins.** With none, they use your email and this computer's time zone. Routines, the board and the morning list still need your file.
+- **One off switch.** Say *stop check-ins* in the Daily chat, or run `daily.mjs checkins off`. *Start check-ins* turns them back on.
+- **The Daily chat stays open for days.** It no longer watches chats itself. On a new day, your first message there starts the day before it answers.
+- **The worker starts itself.** Each chat start starts `daily.mjs serve` in the background, and only one runs per person and checkout. The wrap-up and the wiki tidy from 45.5.0 are default jobs, so they now run for everyone, not only where someone set up the daily on a computer. It does not start when check-ins are off, or when you turned both jobs off and have no other job. It watches only chats in this repo. Without Paseo it still runs the wiki tidy and your timed jobs; the wrap-up waits for Paseo, because it sends `/close` through Paseo ([the daily on a computer](wiki/development/daily.md#the-daily-on-a-computer)).
+
+**Updating.** If your settings file does not list the email you commit with or sign in with, add it to `emails`: the daily now finds a file only by its emails, never because it is the only one. Check-ins now come from each chat's stop step, so `daily.mjs watch` is gone: `/daily` runs `daily.mjs ensure` instead. A computer that runs `daily.mjs serve` as a service keeps it; the new lock stops a second copy. The wrap-up and the wiki tidy now start for every person at their next chat; to keep one off, add its `off` entry from 45.5.0 to your own jobs file. An install that added its own `stopped` or `asking` job in its `sweeps` file keeps it. If another checkout on the same computer still runs an older WongStack worker, update it too, or run `node .claude/skills/daily/scripts/daily.mjs checkins off` in one of them, so a chat does not get two check-ins.
+
 ## 45.6.1 — Check your own screens on a preview
 
 - **Access page.** It now says how a browser check signs in as you on a preview, and that your own lists start empty there, because the sample data belongs to a made-up person.

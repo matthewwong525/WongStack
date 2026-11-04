@@ -1,12 +1,13 @@
 // The daily's service on a computer (`daily.mjs serve`): each pass runs the watch, then starts one background AI run
 // per job in the sweep list, and writes the rest to the journal. wiki/development/daily.md#the-daily-on-a-computer
 import { execFileSync, spawn } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { headlessCommand } from '../../memory/scripts/lib/headless.mjs';
 import { runNode } from './addons.mjs';
-import { HOLD_MS, beat, chiefDay, dailyAgent, readJson, sendText, userAt, watch, watchStops, watched, writeJson } from './chief.mjs';
+import { HOLD_MS, beat, chiefDay, dailyAgent, readJson, sameRepo, sendText, serviceAlive, userAt, watch, watchStops, watched,
+  writeJson } from './chief.mjs';
 import { RUN_AGENTS, SETTINGS_DIR, localDay } from './config.mjs';
 import { addLine, prune, readLines } from './journal.mjs';
 import { wrapUp } from './wrap-up.mjs';
@@ -21,6 +22,8 @@ export const BUILTINS = ['wrap-up'];
 export const AT_GRACE_MIN = 15;
 const DAY_MS = 24 * 3600e3;
 const BOARD_SOURCES = ['board', 'to-dos'];
+// With no job of the install's own for them, these go to each chat's own stop step, not the journal.
+const STOP_EVENTS = ['stopped', 'asking'];
 const oneLine = value => String(value?.message ?? value).split('\n')[0].slice(0, 200);
 
 // ---------------------------------------------------------------------------
@@ -342,7 +345,7 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
       for (const event of events.filter(each => each?.event && each.event !== 'unsupported')) {
         const item = itemOf(event);
         if (item) enqueue(state, item);
-        else await quiet(state, event);
+        else if (!STOP_EVENTS.includes(event.event)) await quiet(state, event);
       }
       save(state);
     },
@@ -398,11 +401,67 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
 }
 
 // ---------------------------------------------------------------------------
+// One worker per person and repo
+
+const lockFile = stateDir => join(stateDir, 'serve.lock');
+// A new worker writes its first beat within a pass; until then its lock counts as held.
+const LOCK_GRACE_MS = 5 * 60e3;
+
+/** The pid in the worker's lock, or null. */
+export function lockHolder(stateDir) {
+  try { const pid = Number(readFileSync(lockFile(stateDir), 'utf8').trim()); return Number.isInteger(pid) && pid > 0 ? pid : null; } catch { return null; }
+}
+
+/** The live worker's pid: the lock's, while it beats or is under 5 minutes old; else null, as its pid may be another
+ * program's now. */
+export function lockedBy(stateDir, { isAlive = alive, now = Date.now() } = {}) {
+  const holder = lockHolder(stateDir);
+  if (!holder || !isAlive(holder)) return null;
+  let age;
+  try { age = now - statSync(lockFile(stateDir)).mtimeMs; } catch { return null; }
+  return serviceAlive(stateDir, now) || age < LOCK_GRACE_MS ? holder : null;
+}
+
+const TAKE_STALE_MS = 10e3;
+
+/** Makes the folder `dir` as a one-holder claim; a claim older than 10 seconds is a dead taker's, and is taken. */
+function claimDir(dir) {
+  try { mkdirSync(dir, { mode: 0o700 }); return true; } catch (error) { if (error.code !== 'EEXIST') throw error; }
+  try {
+    if (Date.now() - statSync(dir).mtimeMs < TAKE_STALE_MS) return false;
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { mode: 0o700 });
+    return true;
+  } catch { return false; }
+}
+
+/** Takes `<state>/serve.lock` for `pid`; false while another live worker holds it, else it takes the lock over. */
+export function takeServeLock({ stateDir, pid = process.pid, isAlive = alive, now = Date.now() }) {
+  mkdirSync(stateDir, { recursive: true, mode: 0o700 });
+  const file = lockFile(stateDir), taking = `${file}.take`;
+  try { writeFileSync(file, `${pid}\n`, { flag: 'wx', mode: 0o600 }); return true; } catch (error) { if (error.code !== 'EEXIST') throw error; }
+  if (lockHolder(stateDir) === pid) return true;
+  // One taker at a time looks again and swaps the lock in one rename, so two racing workers never both win.
+  if (lockedBy(stateDir, { isAlive, now }) || !claimDir(taking)) return false;
+  try {
+    if (lockedBy(stateDir, { isAlive, now })) return false;
+    writeFileSync(`${file}.${pid}`, `${pid}\n`, { mode: 0o600 });
+    renameSync(`${file}.${pid}`, file);
+    return lockHolder(stateDir) === pid;
+  } finally { rmSync(taking, { recursive: true, force: true }); }
+}
+
+/** Removes the lock when `pid` holds it. */
+export function dropServeLock(stateDir, pid = process.pid) {
+  if (lockHolder(stateDir) === pid) rmSync(lockFile(stateDir), { force: true });
+}
+
+// ---------------------------------------------------------------------------
 // The loop
 
 const STEP_MS = 1000;
 
-/** One pass: the beat that keeps the chat's own watch off, the watch, then the worker. */
+/** One pass: the beat that tells `D ensure` this worker runs, the watch, then the worker. */
 export async function workerPass({ worker, watchOnce, stateDir, seconds, now = () => Date.now() }) {
   beat({ stateDir, seconds, now: now() });
   await worker.dispatch(await watchOnce());
@@ -423,10 +482,10 @@ export async function serveWorker({ worker, pass, signal, seconds = 60, once = f
   }
 }
 
-/** `daily.mjs serve`: the service over the person's settings. `watching` holds the watch's board, to-dos and add-ons;
- * a dry run works on a copy of the state, starts nothing, and prints what it would do. */
+/** `daily.mjs serve`: the service over the person's settings, with `agent` unless the settings name one. `watching`
+ * holds the watch's board, to-dos and add-ons; a dry run works on a state copy, starts nothing, and prints its plan. */
 export async function serveDaily({ config, project, stateDir, call, env = process.env, watching, started, daily, seconds = 60, once = false,
-  dryRun = false, print = item => console.log(JSON.stringify(item)), log, launch, watcher, sleep }) {
+  dryRun = false, print = item => console.log(JSON.stringify(item)), log, launch, watcher, sleep, agent = RUN_AGENTS[0], ownRepo = sameRepo(project) }) {
   const signal = { heard: false };
   const timezone = config.timezone;
   // The pass's own Paseo lists, as the watch read them: a built-in job reads them, not Paseo again.
@@ -445,7 +504,7 @@ export async function serveDaily({ config, project, stateDir, call, env = proces
       : null),
   };
   const worker = makeWorker({ stateDir, project, timezone, sweeps: loadSweeps({ project, file: config.sweeps }),
-    agent: config.runs?.agent, call, env, dryRun, print, launch, builtins, context: { person: config.person, timezone, repo: project },
+    agent: config.runs?.agent ?? agent, call, env, dryRun, print, launch, builtins, context: { person: config.person, timezone, repo: project },
     sendDaily: async text => sendText(call, await dailyAgent({ daily, call }), text),
     runCheck: ({ sweep, context }) => runNode({ file: resolve(project, sweep.check), cwd: project, input: context }),
     wake: () => { signal.heard = true; } });
@@ -453,7 +512,7 @@ export async function serveDaily({ config, project, stateDir, call, env = proces
     const events = [];
     seen = {};
     await watch({ stateDir, started, timezone, call: seeing, ...watching, env, self: null, ignore: ignore(),
-      service: true, once: true, print: text => events.push(JSON.parse(text)) });
+      service: true, once: true, ownRepo, print: text => events.push(JSON.parse(text)) });
     if (dryRun) for (const event of events) print({ event });
     return events;
   };
