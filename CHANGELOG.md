@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Connect your tools after install
+## 48.3.0 — Connect your tools after install
 
 - **Install goes on to connecting your tools.** After setup's closing report, the same chat asks which tools you use for your work, such as Stripe, Notion or Figma. When they are connected, or you say *skip*, it gives the usual last step: open your site and paste the *Make it yours* request ([connect your tools](wiki/stack/connect-your-tools.md)).
 - **Say *connect my tools* or *connect my Figma* at any time.** A new helper puts each tool in one of three groups. A tool the app can already use gets one look-up that changes nothing, so you see it work. A tool the app does not know yet gets added. A website with no API, a tool that offers only a sign-in, or your own mail is *not connected yet*: the helper opens no browser and sends no password link. It ends with a short list.

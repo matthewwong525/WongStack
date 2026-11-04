@@ -1,6 +1,6 @@
 # Connect your tools after install
 
-**Status:** built
+**Status:** ready-to-ship
 **Branch:** powerful-hippo
 **Open questions:** none
 
@@ -91,3 +91,4 @@ When someone installs WongStack, usually the owner, setup ends with a report and
 - **2026-11-04** — Assumed: the connect helper records its change through the OpenSpec CLI, not `/plan`, and the change loop's *Just ask* gets one exception sentence for a skill whose own page fixes a small change's shape, because `/plan` asks exit-round questions and ends on a review page, which Matthew's one-yes choice rules out.
 - **2026-11-04** — Assumed: a new tool whose key does not come through the key link stays in the change, its line says *waiting for your key*, and the next run sends only its link, because the dry run (task 4.3) found the page gave no line for that case, and a saved entry with no key already takes the *in the list, not saved* row.
 - **2026-11-04** — Assumed: shortened the `update-dependencies` and `connect` descriptions, because `lesson` (48.1.0) reached `main` first and left 8 start-up words, fewer than the new description needs.
+- **2026-11-04** — Assumed: archived at ship after the checks passed; the merge from `main` brought in `lesson` (48.1.0) and the card form (48.2.0), and the connect skill's lines were cut to keep the instruction budget.
