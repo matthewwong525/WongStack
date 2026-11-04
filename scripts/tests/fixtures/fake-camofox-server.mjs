@@ -1,5 +1,5 @@
-// A stand-in for camofox's server.js, answering browse.mjs's routes with camofox 1.18.1's shapes; tabs live in memory.
-// Tests steer it with files in `globalThis.FAKE_CAMOFOX_DIR`: each `has`, `once`, `text` or `held` call names one.
+// A stand-in for browser-server.mjs, answering browse.mjs's routes in camofox's shapes; tabs live in memory.
+// Tests steer it with files in `$HOME/fake-camofox`: each `has`, `once`, `text` or `held` call names one.
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { once as heard } from 'node:events';
@@ -8,7 +8,9 @@ import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { FRAMES_SCRIPT, MARK_SCRIPT, SECRETS_SCRIPT } from '../../../.agents/skills/browser/scripts/browse.mjs';
 
-const DIR = globalThis.FAKE_CAMOFOX_DIR;
+const DIR = join(process.env.HOME, 'fake-camofox');
+// The server reads the API key from its folder, as browser-server.mjs does; browse.mjs starts it there.
+const KEY = readFileSync('api-key', 'utf8').trim();
 const file = name => join(DIR, name);
 const has = name => existsSync(file(name));
 const text = name => readFileSync(file(name), 'utf8').trim();
@@ -21,7 +23,7 @@ const writeWhole = (name, value) => { writeFileSync(file(`${name}.${process.pid}
 process.on('uncaughtException', error => { appendFileSync(file('errors.log'), `${error.stack}\n`); process.exit(1); });
 
 const tabs = new Map();
-const KEPT = ['CAMOFOX_PORT', 'CAMOFOX_BIND_HOST', 'CAMOFOX_CRASH_REPORT_ENABLED', 'CAMOFOX_CRASH_REPORT_URL', 'SENTRY_DSN', 'CAMOFOX_PROFILE_DIR', 'CAMOFOX_API_KEY', 'TMPDIR', ...Object.keys(process.env).filter(name => name.startsWith('PROXY_'))];
+const KEPT = ['BROWSE_SERVER_PORT', 'TMPDIR'];
 writeWhole('env.json', JSON.stringify({ ...Object.fromEntries(KEPT.map(name => [name, process.env[name]])), cwd: process.cwd(), pid: process.pid, argv: process.argv.slice(1) }));
 // The pretend browser ends with this server: its input closes when the server goes, however it goes.
 const browser = has('display') ? spawn(process.execPath, ['-e', "process.title = 'camoufox-bin'; console.log('named'); process.stdin.resume().on('end', () => process.exit());"], { stdio: ['pipe', 'pipe', 'ignore'], env: { ...process.env, DISPLAY: text('display') } }) : null;
@@ -189,7 +191,7 @@ const server = createServer(async (request, response) => {
   for await (const chunk of request) chunks.push(chunk);
   const body = chunks.length ? JSON.parse(Buffer.concat(chunks).toString('utf8')) : null;
   appendFileSync(file('requests.jsonl'), `${JSON.stringify({ method: request.method, path: pathname, query: searchParams.toString(), body, auth: request.headers.authorization ?? null })}\n`);
-  if (request.headers.authorization !== `Bearer ${process.env.CAMOFOX_API_KEY}`) return refuse(response, 403, 'Forbidden');
+  if (request.headers.authorization !== `Bearer ${KEY}`) return refuse(response, 401, 'unauthorized');
   try {
     await route(request, response, pathname, body, searchParams);
   } catch (error) {
@@ -200,7 +202,7 @@ const server = createServer(async (request, response) => {
 if (browser) await heard(browser.stdout, 'data');
 // `die-once` stands in for a taken port: the start exits before listening. starts.log counts starts that listened.
 if (once('die-once')) process.exit(1);
-server.listen(Number(process.env.CAMOFOX_PORT), process.env.CAMOFOX_BIND_HOST, () => appendFileSync(file('starts.log'), `${process.pid}\n`));
+server.listen(Number(process.env.BROWSE_SERVER_PORT), '127.0.0.1', () => appendFileSync(file('starts.log'), `${process.pid}\n`));
 
 process.on('SIGTERM', () => {
   writeFileSync(file('stopped'), 'SIGTERM');

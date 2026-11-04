@@ -73,7 +73,7 @@ export function checkValues(body, form) {
 }
 
 /** Puts one value in its field, first giving `undo` what puts it back: an emptied box, or the shown choice. A pick
- * goes by text: camofox tries it first, waiting out its timeout on a miss. Throws if a step fails. */
+ * goes by text: the browser server tries it first, waiting out its timeout on a miss. Throws if a step fails. */
 async function fillField(field, value, { browser, undo }) {
   if (field.options) {
     const was = await browser.value(field.target);
@@ -110,7 +110,7 @@ export async function sendForm(form, values, { browser, reached, onStep = () => 
   await beforePress().catch(() => {});
   onStep('pressing');
   const pressedAt = Date.now();
-  // The wait's clock starts as the press is sent: camofox may hold the press for its whole 30 s handler.
+  // The wait's clock starts as the press is sent: the browser server may hold the press for its whole 30 s handler.
   browser.click(form.submit.target).then(() => true, () => false).then(ok => {
     record({ step: 'press', ms: Date.now() - pressedAt, ok });
     onStep('waiting');

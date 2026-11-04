@@ -138,6 +138,8 @@
   {"name": "inbox:scroll", "replacement": "`inbox:back` from the plan page's own Back", "allow": ["app/src/apps/inbox/frame.test.ts", "app/src/apps/inbox/PlanView.test.tsx"], "why": "each test sends the message an older plan still posts, to show the inbox ignores it"},
   {"name": "tuckBars", "replacement": "the pinned top bar in `app/src/Layout.tsx`"},
   {"name": "Watch · <day>", "replacement": "the daily's journal, `D journal --new`"},
+  {"name": "@askjo/camofox-browser", "replacement": "the Camoufox library, pinned by `CAMOUFOX` in `.agents/skills/browser/scripts/browse.mjs`"},
+  {"name": "#installing-camofox", "replacement": "`#installing-camoufox` in `wiki/development/required-tools.md`"},
   {"name": "daily.mjs watch", "replacement": "each chat's stop check (`stop-check.mjs`) and `D ensure`"},
   {"name": "wrap-up.mjs", "replacement": "`finished.mjs`, which marks finished chats in `D status`"},
   {"name": "open-daily", "replacement": "the worker's morning start, which runs the due routines at `morning` with no chat", "allow": ["scripts/tests/daily.test.mjs"], "why": "the test checks that the old command is refused"},

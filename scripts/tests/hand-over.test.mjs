@@ -542,7 +542,7 @@ test('a sent value appears in no command line, environment, log, or file: only i
   assert.doesNotMatch(f.calls().join('\n') + JSON.stringify(f.sent()), PRIVATE, 'the tunnel\'s and the chat tool\'s command lines');
   assert.doesNotMatch(f.stateFiles(), PRIVATE, 'the link\'s own files');
   const kept = dir => readdirSync(dir, { recursive: true, withFileTypes: true }).filter(entry => entry.isFile()).map(entry => readFileSync(join(entry.parentPath, entry.name), 'utf8')).join('\n');
-  assert.doesNotMatch(kept(join(dirname(f.hub), 'camofox')), PRIVATE, 'the files browse.mjs keeps');
+  assert.doesNotMatch(kept(join(dirname(f.hub), 'camoufox')), PRIVATE, 'the files browse.mjs keeps');
   assert.ok(!existsSync(join(dirname(f.hub), 'logins.json')), 'a card is never saved as a login');
 });
 
