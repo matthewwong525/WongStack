@@ -132,6 +132,7 @@
   .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:grid; grid-template-columns:repeat(var(--cols, 1), minmax(0, 1fr)); align-items:stretch; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--background); border-top:1px solid var(--border); }
   .bar > button, #ready > button { min-width:0; height:64px; padding:6px; white-space:normal; line-height:1.3; }
   body.docked .bar, body.viewing .bar { display:none; }
+  body.read-only .bar, body.read-only .add, body.read-only .verdict, body.read-only .hint, body.read-only .vhint .note-it, body.read-only #chip { display:none; }
   #ready { display:contents; }
   #ready-confirm { position:absolute; right:12px; bottom:calc(100% + 8px); width:272px; max-width:calc(100vw - 24px); max-height:calc(100dvh - var(--bar, 76px) - 24px); overflow:auto; padding:12px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--border); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-lg); }
   #ready-confirm .row { display:flex; gap:8px; margin-top:10px; }
@@ -190,7 +191,7 @@
 <div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
   <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
   <div class="vframe"></div>
-  <p class="vhint">Drag to move · pinch or + to zoom · tap a line or picture to note it</p>
+  <p class="vhint">Drag to move · pinch or + to zoom<span class="note-it"> · tap a line or picture to note it</span></p>
 </div>
 <div class="bar" data-busy="false"><button type="button" class="primary" id="copy"><span class="spinner" hidden aria-hidden="true"></span><span id="copy-label">Copy notes</span></button>
   <div id="ready" hidden>
@@ -380,9 +381,12 @@
 
   // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
   let chipFor = null, chipExtra = null, tap = null;
+  // True once the inbox opens this page from its Archive: it takes no note.
+  let readOnly = false;
   const pointers = {};
   // `extra` makes the chip start a new note on selected words or a picture spot.
   function showChip(el, x, y, keyboard, extra) {
+    if (readOnly) return;
     const id = el.getAttribute('data-note');
     chipFor = el; chipExtra = extra || null;
     chip.textContent = extra && extra.quote ? 'Note' : !extra && (noteOf(id) || data.drafts[id]) ? 'Edit note' : 'Add note';
@@ -464,6 +468,7 @@
   // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
   let open = null;
   function openEditor(id, el, extra) {
+    if (readOnly) return;
     closeViewer(false); closeEditor(false); hideChip();
     if (el) reveal(el);
     const note = noteOf(id), draft = data.drafts[id];
@@ -966,6 +971,8 @@
     store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
     post({ type: 'inbox:notes-get', key: KEY });
     backRow(m.workspace);
+    // A closed page in the inbox's Archive opens read-only: no button, no note.
+    if (m.readOnly === true) { readOnly = true; document.body.classList.add('read-only'); render(); return; }
     setLive('inbox'); offer(m); render();
   });
   // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.

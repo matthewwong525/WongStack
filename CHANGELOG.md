@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Review pages kept in the Inbox
+
+- **Reviews in the Inbox.** A new *Reviews* choice beside *Day* and *Week* lists the review pages that wait on you, with the time left, then the *Archive* of closed ones, newest first. Search finds a page by its title ([in your inbox first](wiki/development/reply-links.md#in-your-inbox-first)).
+- **A closed review page stays.** It opens read-only, under a line that says what reached the chat and when, with your notes. Before, it went a day after it closed. Other items, such as an approval, still go after a day.
+- **Sample pages.** The sample data has waiting and archived review pages, so a check can open each kind.
+
+**Updating.** Nothing to do. The app's database gets new indexes the next time you publish the app.
+
 ## 45.4.0 — Small fixes from WongOS
 
 - **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)).

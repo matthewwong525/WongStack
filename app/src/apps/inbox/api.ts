@@ -4,20 +4,29 @@ import type { BacklogGroup, SweepDestination, Task, TaskSearchResult, TaskSlot, 
 // The inbox's own routes, read in the shapes app/worker/apps/inbox/ writes.
 const tap = z.object({ id: z.string(), item: z.string(), action: z.string(), text: z.string(),
   state: z.enum(['waiting', 'delivering', 'sent', 'failed', 'changed', 'cancelled', 'expired']) })
+// A closed review page: when it closed, and each answer that reached the chat.
+const archived = z.object({ endedAt: z.number(), answers: z.array(z.object({ action: z.string(), text: z.string(), at: z.number() })) })
 const item = z.object({ id: z.string(), kind: z.string(), title: z.string(), workspace: z.string(), actions: z.array(z.string()),
-  version: z.string(), body: z.string(), tap: tap.nullable() })
+  version: z.string(), body: z.string(), tap: tap.nullable(), archived: archived.optional() })
+const review = z.object({ id: z.string(), title: z.string(), workspace: z.string(), createdAt: z.number(), closesAt: z.number(),
+  endedAt: z.number().nullable(), answered: z.boolean() })
+const reviews = z.object({ waiting: z.array(review), archived: z.array(review), more: z.boolean() })
 const list = z.object({ computerOnline: z.boolean() })
 const one = z.object({ item, computerOnline: z.boolean() })
 const tapped = z.object({ tap })
 const refused = z.object({ error: z.object({ code: z.string() }) })
 export type Tap = z.infer<typeof tap>
 export type Plan = z.infer<typeof one>
+export type Archived = NonNullable<Plan['item']['archived']>
+export type Review = z.infer<typeof review>
 /** Why a tap was not queued: the page changed, the action was already sent, too soon after the last, the item closed,
  *  or anything else. */
 export type Refusal = 'changed' | 'done' | 'soon' | 'closed' | 'failed'
 
 /** An action's name as its button says it: `approve` → *Approve*. */
 export const label = (action: string) => action.charAt(0).toUpperCase() + action.slice(1)
+/** A moment as a list or an answer line shows it: *3 Nov, 14:02*. */
+export const when = (at: number) => new Date(at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 /** Whether a tap is still on its way: waiting for the computer, or taken by it. */
 export const pending = (tap: Tap) => tap.state === 'waiting' || tap.state === 'delivering'
 /** The list carries this many characters of an answer; a longer one is read in full from its tap. */
@@ -55,6 +64,9 @@ const call = async <T>(schema: z.ZodType<T>, route: string, input?: object) =>
 
 export const readInbox = () => call(list, 'items')
 export const readPlan = (id: string) => call(one, `item?id=${encodeURIComponent(id)}`)
+/** The person's review pages matching `q`; `before` reads the Archive's next page after that row. */
+export const readReviews = (q: string, before?: Review) => call(reviews, `reviews?${new URLSearchParams({
+  ...(q.trim() && { q: q.trim() }), ...(before && { before: `${before.createdAt}:${before.id}` }) })}`)
 export const readTap = (id: string) => call(tapped, `tap?id=${id}`).then(answer => answer.tap)
 export const cancelTap = (id: string) => call(tapped, 'tap-cancel', { id }).then(answer => answer.tap)
 

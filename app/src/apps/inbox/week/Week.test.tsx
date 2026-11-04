@@ -80,6 +80,8 @@ it('moves by day and by week, opens today, and drops a slow answer for a week no
   await press(button('Previous day'))
   await press(screen.getByRole('radio', { name: 'Week' }))
   expect(where(router)).toBe('?day=2026-10-27&view=week')
+  await press(screen.getByRole('radio', { name: 'Reviews' }))
+  expect(where(router)).toBe('?view=reviews')
 })
 
 it('opens this week in the Week view when the address names no day or a day that is not real', async () => {
