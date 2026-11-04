@@ -32,7 +32,7 @@ it("validates definitions, schemas, examples, routes and global operation unique
   expect(() => action({ input: z.string() })).toThrow("Invalid input");
   expect(() => action({ encoding: "none" })).toThrow("Invalid input");
   expect(() => action({ input: z.strictObject({ nested: z.array(z.string()) }) })).toThrow("scalar");
-  for (const limits of [{ inputBytes: 0, outputBytes: 1, timeoutMs: 1 }, { inputBytes: 1048577, outputBytes: 1, timeoutMs: 1 },
+  for (const limits of [{ inputBytes: 0, outputBytes: 1, timeoutMs: 1 }, { inputBytes: 4194305, outputBytes: 1, timeoutMs: 1 },
     { inputBytes: 1, outputBytes: 4194305, timeoutMs: 1 }, { inputBytes: 1, outputBytes: 1, timeoutMs: 60001 }]) expect(() => action({ limits })).toThrow("limits");
   expect(() => action({ examples: [{ input: { name: 5 }, output: { value: "x" } }] })).toThrow();
   expect(() => action({ examples: [{ input: {}, output: {} }] })).toThrow();

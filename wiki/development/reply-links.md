@@ -38,6 +38,16 @@ A link stays open for 24 hours from when the chat printed it, in the inbox and a
 - **Say *new link*.** The chat runs the plan's build command again and prints a fresh link. Notes you saved at the old address stay there: send or copy them before you ask.
 - **A dead connection shows Cloudflare's error page**, not ours. Say *new link*.
 
+## Files from a page
+
+A page's [file question](../review-pages.md#questions-and-files) sends each file to the computer the chat runs on, as soon as you pick it. The send or button then names the files, and the chat gets a `Files:` line for each, with its question, name, size, and the path where it is saved.
+
+- **Through a tunnel, the file goes straight to this computer.** It needs the link's key, as a send does. The computer saves it in `.scratch/<page folder>-uploads/`, readable only by you; `reply-link.mjs open --uploads <dir>` picks another folder.
+- **From your Inbox, the file waits in your company app.** The app keeps it until the computer takes your tap. The computer reads it, checks it, and saves it as a tunnel's file; an item with no page file uses `.scratch/inbox-uploads/`. Then the app deletes it. It deletes it too when you cancel the tap or the chat can't be woken. No one can open a file 24 hours after it came, whether or not the computer comes back; the app deletes it the next time the Inbox is used. The database's restore history can keep deleted data for up to 30 days. A file the app deleted before your page sent it shows again under its question, marked to pick again, and its need opens again. The app keeps 300 MB of waiting files at most, for all its people together, and refuses more until the computer takes some.
+- **Each file is checked twice**, on the page and on the computer: 25 MB a file, 100 MB a link's files, sent or not, and a type its question takes. The first bytes must match the name's type, so a `logo.png` that is not a PNG is refused.
+- **A file you never sent goes when the link closes.** A sent file stays in its folder for the chat to use; git never takes `.scratch/`.
+- **Never send a password, a key, or a card in a file.** It reaches the chat like your words do.
+
 ## Where no link opens
 
 The chat prints the page's file, and the page copies notes as it always has. It asks you to install nothing. That happens when:

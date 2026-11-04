@@ -478,7 +478,7 @@ export function commands({ config, project, stateDir, values, call, board, origi
         : readLines({ stateDir }).map(entry => format(entry, config.timezone)).join('\n');
       if (text) print(text);
     },
-    status: async () => status(await chief()),
+    status: async () => status({ ...(await chief()), project }),
     hand: async () => hand({ ...(await chief()), agent: values.agent, source: values.source }),
     close: async () => close({ ...(await chief()), agent: values.agent }),
     reply: async () => reply({ ...(await chief()), ...said(), mark: values.mark }),

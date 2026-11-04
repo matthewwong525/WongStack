@@ -747,6 +747,17 @@ test("status shows the watched chats and the chief's last 5 actions and end line
   assert.ok(!read.agents.some(row => row.agent === SELF));
 });
 
+test('status marks a finished chat with no open card, and asks nothing about a chat with one', async () => {
+  const t = day();
+  t.paseo.pending.push({ id: 'req-e', agentId: 'agent-email', name: 'AskUserQuestion', description: 'Send it?' });
+  const asked = [];
+  const read = await status({ ...t.at, day: '2026-10-21', env, finishedOf: async agent => { asked.push(agent.id); return true; } });
+  assert.deepEqual(read.agents.map(row => [row.agent, row.asking, row.finished ?? false]), [['agent-job', 0, true], ['agent-email', 1, false]]);
+  assert.deepEqual(asked, ['agent-job']);
+  const none = await status({ ...t.at, day: '2026-10-21', env, finishedOf: async () => false });
+  assert.ok(none.agents.every(row => !('finished' in row)));
+});
+
 
 test('dailyAgent gives the saved live Daily chat, else finds one by its label and saves it, else throws', async () => {
   const t = day();
