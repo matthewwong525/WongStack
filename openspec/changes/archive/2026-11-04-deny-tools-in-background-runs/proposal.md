@@ -61,3 +61,4 @@ None.
 - **2026-11-04** — Assumed: the list reaches every run the worker starts (events and timed jobs), not the memory or stop-check runs, because those already run with a short list of allowed tools.
 - **2026-11-04** — Assumed: morning routines do not get the list, and the page says so, because each opens its own chat through Paseo, which has no option to refuse tools; the second look found the docs said every run did.
 - **2026-11-04** — Archived for publish as 47.3.0, after a second look found one problem (the docs said morning routines get the list), fixed by wording.
+- **2026-11-04** — Renumbered to 47.4.0 after #505 took 47.3.0; merged its `worker.mjs` edits, and a Codex run blocked by the deny list now counts as a job failure there.
