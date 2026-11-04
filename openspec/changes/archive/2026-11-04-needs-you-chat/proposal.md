@@ -64,3 +64,4 @@ Nothing from you: no key, no account, no sample data. The worker runs on this co
 - **2026-11-04** — Assumed: the service watch also says `read` on a source's first good read each day, because its failure list starts empty each day, so a failure yesterday and good reads today would otherwise leave the count at 1.
 - **2026-11-04** — Assumed: `serveDaily` takes the `guide` from the settings it read last each pass, with the start's settings as the default, so `daily.mjs serve` passes only `openChat`; a guide added after the start counts.
 - **2026-11-04** — Archived for publishing (archive checkpoint) by /ship on branch cold-vampirebat, release 47.1.0, after the build, one review fix and a clean second review.
+- **2026-11-04** — Archive checkpoint again after main reached 47.1.0 first (chat names and thinking, #487); main merged in, now 47.2.0, local checks pass.
