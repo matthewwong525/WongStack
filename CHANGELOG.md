@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Show the step in the chat title
+
+- **Each chat's name starts with its step.** The five words are EXPLORE, PLAN, APPLY, SHIP and DONE, then the task: `APPLY: Fix the invoice total`. You see what each chat is doing without opening it ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **The name moves with the chat.** A new chat starts in PLAN, or EXPLORE when you ask it only to think. It moves to APPLY when you say build, SHIP when you say publish, and DONE when the work is live or a to-do is finished. A step inside another step does not move the name back.
+- **With or without Paseo.** In Paseo, the chat and its workspace change at once. In Codex, the list of past chats changes at once. In Claude Code alone, a step you type shows at once; a move the chat makes shows at your next message.
+- **Each step writes the whole name.** A name you typed by hand is replaced at the next step. The Daily chat, routines and helper chats keep their names.
+
+**Updating.** Nothing to do.
+
 ## 45.9.0 — Close finished chats only when you pick them
 
 - **The daily stops closing chats by itself.** A chat whose work is live now stays open until you close it, mark it Done on the board, or it sits idle for 3 days. A live chat that is still open is usually one you kept open: for a follow-up, to check the result, or after a break. What it learned still reaches memory and the wiki without a close.
