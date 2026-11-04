@@ -81,6 +81,8 @@ Every business-app request needs a permitted identity. Existing intentionally pu
 
 The human policy uses exact reachable owner and teammate emails, deduplicated with the owner retained. A separate machine policy accepts only the workspace's verification service token. Membership changes edit the human policy and preserve machine access. Once the owner opens [Access](employee-access.md), the app keeps that policy's email list itself, from the people saved there.
 
+Each app's people policy is its own, never a shared (`reusable`) policy that other apps can use too. The app refuses to manage a shared list: an edit made for another app would change who signs in here. When the policy on record is shared and only this app uses it, setup replaces it. It renames the shared policy, makes the app's own policy with the same people and session length, and swaps the two on the app in one write, so the app always has a people policy. Then it deletes the shared policy. Nobody signs in again, and the machine policy and its service token stay as they are. When another app uses the shared policy too, setup stops, names the policy, and changes nothing.
+
 New applications and human policies default to `720h` (30 days). This is the app's login/session-token lifetime. A reviewed existing shorter application or human-policy duration stays intact; it does not change machine or API lifetimes. Memory's sign-in is this session, so it lasts as long. A removed teammate's email permission is removed and both applications' existing sessions are revoked, so a still-unexpired token does not wait for its natural expiration. Provider propagation is asynchronous, and failed updates remain visibly pending.
 
 ### 4. Bypass the public surface

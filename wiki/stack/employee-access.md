@@ -40,7 +40,7 @@ Permissions start by themselves the first time the owner opens Access, and take 
 
 1. Until then, every signed-in person keeps every app, as before Access, except a person you remove.
 2. On the live app, the first open reads the sign-in list, lists each person on it with every built app, and turns permissions on, in one step.
-3. With no key, or a list that can not be read, nothing changes and permissions stay off: nobody is locked out.
+3. With no key, or a list that can not be read, nothing changes and permissions stay off: nobody is locked out. A shared list, one that other apps can use too, counts as a list that can not be read. Run [Finish Access setup](#finish-access-setup) again: it gives the app its own list ([how](cloudflare-access.md#3-add-the-gating-policy)).
 4. [Key levels](#key-levels) start next, in the same open, with nobody given one: an app needs none. Nobody is given a role, [Admin](#admin) included. A step that can not be saved changes nothing, and levels stay off.
 
 On an app that already had people, key levels start at the owner's next open. A level a person or a role already holds is kept.

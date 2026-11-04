@@ -255,7 +255,8 @@ async function reviewApp(cf, root, record) {
   const path = `${root}/apps/${record.appId}`;
   const app = await cf('GET', path);
   const policies = await accessList(cf, `${path}/policies`);
-  const expectedIds = new Set([record.humanPolicyId, record.machinePolicyId].filter(Boolean));
+  // A shared people list being replaced stays expected until it is deleted, whatever it is named by then.
+  const expectedIds = new Set([record.humanPolicyId, record.machinePolicyId, record.replacingPolicyId].filter(Boolean));
   const expectedNames = new Set([`${app.name} people`, `${app.name} verification`]);
   if (policies.some(policy => !expectedIds.has(policy.id) && !expectedNames.has(policy.name))) {
     throw new AccessSetupError('the owned Access application contains an unreviewed policy; review it before continuing');
@@ -263,15 +264,42 @@ async function reviewApp(cf, root, record) {
   return { path, app, policies };
 }
 
-/** One app's exact people list and its own checker token, each in a policy of its own. */
+const REPLACED = ' (replaced)';
+
+/** A recorded shared (`reusable`) people list, to be replaced: the app refuses one another app's edits could change.
+ * Reads only, so a list another app uses too stops setup before anything is written. */
+async function sharedPeople(cf, root, side) {
+  const { record, policies } = side;
+  const id = record.replacingPolicyId ?? (policies.find(policy => policy.id === record.humanPolicyId)?.reusable ? record.humanPolicyId : null);
+  if (!id) return;
+  const shared = await notFound(() => cf('GET', `${root}/policies/${id}`));
+  if (!record.replacingPolicyId && shared?.app_count !== 1) {
+    throw new AccessSetupError(`people policy ${id} is a shared list that ${shared?.app_count ?? 'an unknown number of'} Access applications use; setup never changes another application's list, so give that application its own list, then run setup again`);
+  }
+  side.replacing = shared ?? { id };
+}
+
+/** One app's exact people list and its own checker token, each in a policy of its own. A shared people list is
+ * renamed, then a new app-only one with the same people and session is made; placeApp swaps them in one write. */
 async function appPolicies(cf, { root, side, emails, checkpoint, credentials, saveCredentials, note }) {
-  const { path, app, policies, record } = side;
+  const { path, app, policies, record, replacing } = side;
   const machine = await machineCredential(cf, { root, record, prefix: side.prefix, label: side.label, keep: side.keep, checkpoint, credentials, saveCredentials, note });
   const people = { name: `${app.name} people`, decision: 'allow', include: emails.map(email => ({ email: { email } })), exclude: [], require: [] };
   const verification = { name: `${app.name} verification`, decision: 'non_identity', include: [{ service_token: { token_id: machine.id } }], exclude: [], require: [] };
+  if (replacing) {
+    record.replacingPolicyId = replacing.id;
+    checkpoint();
+    // Renamed first, so the new list's name is free; the name changes nobody's sign-in.
+    if (replacing.name && !replacing.name.endsWith(REPLACED)) {
+      const { name, decision, include, exclude = [], require = [], session_duration } = replacing;
+      await cf('PUT', `${root}/policies/${replacing.id}`, { name: `${name}${REPLACED}`, decision, include, exclude, require, ...(session_duration && { session_duration }) });
+      note('updated', `shared Access policy ${name} renamed${REPLACED}`);
+    }
+  }
   const human = await ownedPolicy(cf, {
-    path: `${path}/policies`, policies, name: people.name, id: record.humanPolicyId, note,
-    body: { ...people, session_duration: app.session_duration ?? HUMAN_SESSION_DURATION },
+    path: `${path}/policies`, policies: policies.filter(policy => policy.id !== replacing?.id), name: people.name,
+    id: record.humanPolicyId === replacing?.id ? undefined : record.humanPolicyId, note,
+    body: { ...people, session_duration: replacing?.session_duration ?? app.session_duration ?? HUMAN_SESSION_DURATION },
   });
   record.humanPolicyId = human.id;
   checkpoint();
@@ -287,7 +315,10 @@ async function placeApp(cf, { side, idps, note }) {
   const { path, app, worker, overrides } = side;
   const destinations = [{ type: 'worker', worker_id: worker.id, overrides }, { type: 'public', uri: app.domain, overrides }];
   side.desired = { name: app.name, type: 'self_hosted', domain: app.domain, destinations, session_duration: app.session_duration ?? HUMAN_SESSION_DURATION, allowed_idps: idps };
-  if (Object.entries(side.desired).some(([key, value]) => !isDeepStrictEqual(app[key], value))) {
+  // Policy ids that differ, as when a shared people list is replaced, are swapped in this one write.
+  const held = new Set(side.policies.map(({ id }) => id));
+  const swapped = held.size !== side.expected.length || side.expected.some(({ id }) => !held.has(id));
+  if (swapped || Object.entries(side.desired).some(([key, value]) => !isDeepStrictEqual(app[key], value))) {
     await cf('PUT', path, { ...side.desired, policies: side.expected.map(({ id }) => ({ id })) });
     note('updated', side.placed);
   }
@@ -306,6 +337,16 @@ async function confirmApp(cf, side) {
   return checked;
 }
 
+/** Deletes the shared people list an app no longer holds; one already gone counts as deleted. */
+async function dropReplaced(cf, { root, side, checkpoint, note }) {
+  const id = side.record.replacingPolicyId;
+  if (!id) return;
+  await notFound(() => cf('DELETE', `${root}/policies/${id}`));
+  delete side.record.replacingPolicyId;
+  checkpoint();
+  note('updated', `shared Access policy ${id} replaced by the app's own people list and deleted`);
+}
+
 /** Each app gets the same people and login methods, its own checker token and Worker; the staging Worker moves last,
  * as Access refuses a Worker two apps claim. `keepLiveChecker` leaves the live checker token as it is. */
 export async function provisionAccessPolicies(cf, { account, ownerEmail, teammateEmails, access, state, checkpoint, credentials, saveCredentials, note, keepLiveChecker = false }) {
@@ -314,6 +355,7 @@ export async function provisionAccessPolicies(cf, { account, ownerEmail, teammat
   const live = { record: state.access, worker: production, overrides: LIVE_OVERRIDES, prefix: 'CF_ACCESS', label: 'workspace', keep: keepLiveChecker, placed: 'memory and project-download exceptions and workspace email login' };
   const previews = { record: state.access.staging, worker: staging, overrides: [GIT_OVERRIDE, PUBLIC_OVERRIDE], prefix: 'CF_ACCESS_STAGING', label: 'preview', placed: `previews sign-in on ${staging.name}` };
   for (const side of [live, previews]) Object.assign(side, await reviewApp(cf, root, side.record));
+  for (const side of [live, previews]) await sharedPeople(cf, root, side);
   const existingHuman = live.policies.find(policy => policy.id === state.access.humanPolicyId);
   const teammates = teammateEmails ?? (existingHuman?.include ?? []).map(rule => rule.email?.email).filter(Boolean);
   const emails = humanEmails(ownerEmail, teammates);
@@ -323,8 +365,11 @@ export async function provisionAccessPolicies(cf, { account, ownerEmail, teammat
   for (const side of [live, previews]) await placeApp(cf, { side, idps, note });
   const checked = await confirmApp(cf, live);
   await confirmApp(cf, previews);
+  for (const side of [live, previews]) await dropReplaced(cf, { root, side, checkpoint, note });
   await bootstrapLogin(cf, { account, access, state, checkpoint, note });
-  return { ...access, ...state.access, sessionDuration: checked.session_duration };
+  // `access` is a copy from before this run, so a finished replace's mark is dropped here too.
+  const { replacingPolicyId: _replaced, ...done } = { ...access, ...state.access };
+  return { ...done, sessionDuration: checked.session_duration };
 }
 
 /** The production Worker secret Access reads its sign-in list key from. Staging never holds it. */

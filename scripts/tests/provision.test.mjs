@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
+import { isDeepStrictEqual } from 'node:util';
 
 import {
   ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, KNOWLEDGE_PROVISION, PAID_PLAN, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
@@ -906,6 +907,105 @@ test('a rerun reuses the sign-in list key, and an interrupted or lost one is rol
   assert.equal(keys(), 1);
   assert.deepEqual(env.record().components.accessKey, restored.accessKey);
   assertNoSecret(env, JSON.stringify([finished, again, restored]));
+});
+
+/** Turns the live app's people list into a shared (`reusable`) one, as an older setup or a dashboard edit can leave it,
+ * with a session the app does not have. Returns the app, the shared list, and copies of what must not change. */
+function shareLivePeople(env) {
+  const [app, previews] = env.fake.state.accessApps;
+  const people = app.policies.find((policy) => policy.decision === 'allow');
+  Object.assign(people, { reusable: true, session_duration: '730h' });
+  env.fake.state.accessPolicies.push(people);
+  const machine = app.policies.find((policy) => policy.decision === 'non_identity');
+  return {
+    app, people, machine, include: structuredClone(people.include), kept: structuredClone({ machine, previews, tokens: env.fake.state.serviceTokens }),
+  };
+}
+
+/** The live app holds its own people list, with the shared one's people and session, and the same checker; the shared
+ * list is gone, and the record, the provisioning state, and the sign-in list key all name the new one. */
+function assertOwnList(env, { app, people, include, kept }) {
+  const { state } = env.fake;
+  const { access, accessKey } = env.record().components;
+  const [own, machine] = app.policies;
+  assert.deepEqual(app.policies.map((policy) => policy.id), [access.humanPolicyId, kept.machine.id]);
+  assert.notEqual(own.id, people.id);
+  assert.deepEqual([own.name, own.reusable, own.include, own.session_duration], [`${app.name} people`, false, include, '730h']);
+  assert.deepEqual([machine, state.accessApps[1], state.serviceTokens], [kept.machine, kept.previews, kept.tokens], 'the checker, its token, and the previews app stay');
+  assert.ok(!state.accessPolicies.some((policy) => policy.id === people.id), 'the shared list is deleted');
+  assert.ok(!state.accessApps.some((each) => each.policies.some((policy) => policy.id === people.id)));
+  assert.equal(env.fake.count(`PUT /accounts/${ACCOUNT}/access/apps/${app.id}/policies/${people.id}`), 0, 'a shared list is never edited through the app');
+  const saved = JSON.parse(readFileSync(join(env.dir, '.git/wong-stack-provision.json'), 'utf8'));
+  assert.deepEqual([access.replacingPolicyId, saved.access.replacingPolicyId], [undefined, undefined]);
+  assert.equal(JSON.parse(state.workerSecrets['recipe-box'].WONG_ACCESS_LOGIN_MANAGEMENT).policyId, own.id);
+  assert.equal(accessKey.policyId, own.id);
+}
+
+test('the access step gives an app whose people list is shared, by this app alone, its own in one swap, and deletes the old list', async (t) => {
+  const env = await setup(t);
+  // The access command, as the live fix runs it.
+  const access = async () => {
+    const lines = [];
+    assert.equal(await cli(['access', '--dir', env.dir], { env: env.env, out: (text) => lines.push(text), err: () => {} }), 0, lines.join('\n'));
+    return JSON.parse(lines.join('\n'));
+  };
+  await env.provision({ teammateEmails: ['friend@example.com'] });
+  const shared = shareLivePeople(env);
+  const start = env.fake.calls.length;
+  const report = await access();
+  assertOwnList(env, shared);
+  assert.deepEqual(shared.include, [{ email: { email: EMAIL } }, { email: { email: 'friend@example.com' } }], 'the people are the same');
+  const appPuts = env.fake.calls.slice(start).filter((call) => call.method === 'PUT' && call.path === `/accounts/${ACCOUNT}/access/apps/${shared.app.id}`);
+  assert.equal(appPuts.length, 1, 'one write swaps the lists, so the app always has a people list');
+  assert.ok(report.updated.includes(`shared Access policy ${shared.people.id} replaced by the app's own people list and deleted`));
+  assert.ok(report.updated.includes('sign-in list key recipe-box-access, stored in the live app only'), 'the key is rolled for the new list');
+  const again = await access();
+  assert.deepEqual([again.created, again.updated, again.todo], [[], [], []]);
+  assertNoSecret(env, JSON.stringify([report, again]));
+});
+
+test('a shared people list another app uses too stops setup, naming the list, before any write', async (t) => {
+  const env = await setup(t);
+  await env.provision();
+  const shared = shareLivePeople(env);
+  env.fake.state.accessApps.push({ id: 'other-app', name: 'Other', destinations: [], policies: [shared.people] });
+  const before = structuredClone({ apps: env.fake.state.accessApps, policies: env.fake.state.accessPolicies, secrets: env.fake.state.workerSecrets, record: env.record() });
+  const start = env.fake.calls.length;
+  await assert.rejects(env.provision(), (error) => error.reason === 'access' && error.message.includes(shared.people.id) && /2 Access applications use/.test(error.message));
+  assert.deepEqual(env.fake.calls.slice(start).filter((call) => call.method !== 'GET'), [], 'nothing is written');
+  assert.deepEqual({ apps: env.fake.state.accessApps, policies: env.fake.state.accessPolicies, secrets: env.fake.state.workerSecrets, record: env.record() }, before);
+});
+
+for (const [where, refused, posts] of [['the rename', 'POST', 2], ['the swap', 'DELETE', 1]]) {
+  test(`a shared people list replace stopped after ${where} finishes on the next run, with one new list`, async (t) => {
+    const env = await setup(t);
+    await env.provision();
+    const shared = shareLivePeople(env);
+    const create = `POST /accounts/${ACCOUNT}/access/apps/${shared.app.id}/policies`;
+    const made = env.fake.count(create);
+    env.fake.state.refuse = [refused === 'POST' ? create : `DELETE /accounts/${ACCOUNT}/access/policies/`];
+    await assert.rejects(env.provision());
+    assert.match(shared.people.name, / \(replaced\)$/);
+    // Stopped, the app still lets the same people in: through the old list, or already through the new one.
+    assert.equal(shared.app.policies.length, 2);
+    assert.ok(shared.app.policies.some((policy) => isDeepStrictEqual(policy.include, shared.include)));
+    env.fake.state.refuse = [];
+    await env.provision();
+    assertOwnList(env, shared);
+    assert.equal(env.fake.count(create) - made, posts, 'no second new list: a refused create counts as a call');
+    assert.equal(env.fake.count(`PUT /accounts/${ACCOUNT}/access/policies/${shared.people.id}`), 1, 'renamed once');
+  });
+}
+
+test('an app-only people list is left as it is: no account-level look-up and no write', async (t) => {
+  const env = await setup(t);
+  await env.provision();
+  const [app] = env.fake.state.accessApps;
+  const policies = structuredClone(app.policies);
+  const again = await env.provision();
+  assert.deepEqual([again.created, again.updated], [[], []]);
+  assert.deepEqual(app.policies, policies);
+  assert.equal(env.fake.count(`GET /accounts/${ACCOUNT}/access/policies/`), 0);
 });
 
 test('setup gives the live app alone a read-only key for Cloudflare look-ups, made from the allow-list alone', async (t) => {

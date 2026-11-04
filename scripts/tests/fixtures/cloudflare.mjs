@@ -95,6 +95,8 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
     organization: { auth_domain: 'ada.cloudflareaccess.com', name: 'Existing organization', session_duration: '24h' },
     identityProviders: [{ id: 'pin-existing', type: 'onetimepin' }, { id: 'oidc-existing', type: 'oidc' }],
     accessApps: [],
+    // Shared (`reusable`) Access policies, made at account level: an app's `policies` holds the same objects.
+    accessPolicies: [],
     serviceTokens: [],
     workerDetails: {},
     workerSubdomains: {},
@@ -219,21 +221,41 @@ export async function fakeCloudflare({ r2 = true, subdomain = 'ada', accounts = 
           if (claimed(app.id)) return no(400, 12130, 'a Worker destination is already used by another application');
           const previous = app.policies;
           Object.assign(app, body);
-          app.policies = body.policies.map(ref => previous.find(policy => policy.id === ref.id));
+          app.policies = body.policies.map(ref => previous.find(policy => policy.id === ref.id) ?? state.accessPolicies.find(policy => policy.id === ref.id));
           return ok(app);
         }
       } else {
         if (method === 'GET') return ok(app.policies);
         if (method === 'POST') {
-          const policy = { ...body, id: `policy-${++serial}` };
+          const policy = { ...body, id: `policy-${++serial}`, reusable: false };
           app.policies.push(policy);
           return ok(policy);
         }
         if (method === 'PUT') {
           const policy = app.policies.find(item => item.id === accessApp[3]);
+          if (!policy) return no(404);
+          // Cloudflare edits a shared policy only at account level.
+          if (policy.reusable) return no(400, 12130, 'reusable policies can only be updated through the account-level endpoint');
           Object.assign(policy, body);
           return ok(policy);
         }
+      }
+    }
+    // Account-level Access policies: the reusable ones, and how many apps hold each.
+    const accessPolicy = url.pathname.match(new RegExp(`^${account}/access/policies/([^/]+)$`));
+    if (accessPolicy) {
+      const holders = state.accessApps.filter(app => app.policies?.some(policy => policy?.id === accessPolicy[1]));
+      const policy = state.accessPolicies.find(item => item.id === accessPolicy[1]) ?? holders[0]?.policies.find(item => item.id === accessPolicy[1]);
+      if (!policy) return no(404, 12130, 'policy not found');
+      if (method === 'GET') return ok({ ...policy, app_count: holders.length });
+      if (method === 'PUT') {
+        Object.assign(policy, body);
+        return ok({ ...policy, app_count: holders.length });
+      }
+      if (method === 'DELETE') {
+        if (holders.length) return no(400, 12130, 'the policy is used by an application');
+        state.accessPolicies = state.accessPolicies.filter(item => item.id !== policy.id);
+        return ok({ id: policy.id });
       }
     }
     if (route === `GET ${account}/d1/database`) {

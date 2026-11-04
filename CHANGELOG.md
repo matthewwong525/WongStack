@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Setup gives each private app its own sign-in list
+
+- **Access can start when the sign-in list was shared.** If an app's list of who may sign in was a shared list, which other apps can use too, Access could not read it, and per-person access never started. Setup's Access step now gives the app its own list, with the same people and session length, and deletes the shared one. It swaps the two in one write, so nobody is signed out and nobody new gets in. The checker token stays as it is ([the gating policy](wiki/stack/cloudflare-access.md#3-add-the-gating-policy)).
+- **A list another app uses stops setup.** Setup names the list and changes nothing, because it never edits a list that another app uses.
+
+**Updating.** If Access says the sign-in list could not be read, run setup's Access step again.
+
 ## 48.2.0 — A card form shows the site live from the press
 
 - **When you press Pay, you see the site.** The same private form link shows the store's page live, under one line such as *Paying Example Shop · 4 s*. If the site stops on a step, you tap through it there. Where no live view can open, such as on a Mac, the form shows the same line and a counter ([the private form](wiki/development/private-form.md#what-you-see)).
