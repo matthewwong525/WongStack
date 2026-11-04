@@ -43,7 +43,6 @@ function rig({ stateDir = folder(), sweeps = defaults(), start = '2026-10-31T14:
     },
     sendDaily: async text => { world.sent.push(text); },
     runCheck: async input => { world.checks.push(input); return world.checkOut; },
-    builtins: { 'wrap-up': async () => {} },
   };
   const make = (more = {}) => makeWorker({ ...options, ...more });
   return { world, stateDir, worker: make(), make, at: text => { world.t = Date.parse(text); },
@@ -251,8 +250,8 @@ test("the install's list merges over the default, and its brief folder wins over
   const merged = loadSweeps({ project, file: '.agents/daily/jobs.json' });
   assert.deepEqual(Object.keys(merged.events), ['invoice']);
   assert.deepEqual(loadSweeps({ project: '/repo' }).events, {});
-  assert.deepEqual([merged.maxRuns, merged.journalDays, merged.sweeps.map(sweep => sweep.id)], [2, 14, ['wrap-up', 'wiki-tidy', 'pay']]);
-  assert.deepEqual(defaults().sweeps.map(sweep => sweep.id), ['wrap-up', 'wiki-tidy']);
+  assert.deepEqual([merged.maxRuns, merged.journalDays, merged.sweeps.map(sweep => sweep.id)], [2, 14, ['wiki-tidy', 'pay']]);
+  assert.deepEqual(defaults().sweeps.map(sweep => sweep.id), ['wiki-tidy']);
   assert.equal(JSON.parse(readFileSync(DEFAULT_SWEEPS, 'utf8')).journalDays, 14);
   assert.match(briefFor({ brief: 'judge.md', fields: { title: 'x' } }, 'r1', briefFolders(project)), /Our own judge for x\./);
   writeFileSync(join(project, '.agents/daily/bad.json'), JSON.stringify({ sweeps: [{ id: 'evil', brief: 'pay.md', check: '../outside.mjs' }] }));
@@ -407,11 +406,10 @@ test('a second serve prints one line and returns, starting nothing', async () =>
   assert.equal(existsSync(join(stateDir, 'serve.json')), false);
 });
 
-test('without Paseo the worker still runs a timed job, with the AI tool serve names unless the settings name one, and wrap-up waits', async () => {
+test('without Paseo the worker still runs a timed job, with the AI tool serve names unless the settings name one', async () => {
   const project = folder();
   mkdirSync(join(project, '.agents/daily/briefs'), { recursive: true });
   writeFileSync(join(project, '.agents/daily/briefs/pay.md'), 'Pay what is due.\n');
-  // The default wrap-up stays on; it needs Paseo to send /close, so it writes nothing here.
   writeFileSync(join(project, '.agents/daily/jobs.json'), JSON.stringify({ sweeps: [{ id: 'pay', every: '15m', brief: 'pay.md' },
     { id: 'wiki-tidy', off: true }] }));
   const call = async () => { throw new PaseoError(EXIT.noPaseo, 'Paseo is not installed.'); };
@@ -431,39 +429,19 @@ test('without Paseo the worker still runs a timed job, with the AI tool serve na
   assert.deepEqual((await serve({ agent: 'claude' })).spawned, ['claude']);
 });
 
-test("an install's timed job replaces the default of its id, and an off entry removes one; an unknown do fails the list", () => {
+test("an install's timed job replaces the default of its id, an off entry removes one, and one that names no default is ignored", () => {
   const project = folder();
   const own = sweeps => {
     writeFileSync(join(project, 'jobs.json'), JSON.stringify({ sweeps }));
     return loadSweeps({ project, file: 'jobs.json' }).sweeps;
   };
+  // `wrap-up` was once a default job: an install list that still turns it off keeps working.
   const merged = own([{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'wrap-up', off: true }, { id: 'pay', at: ['09:00'], brief: 'pay.md' }]);
   assert.deepEqual(merged, [{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'pay', at: ['09:00'], brief: 'pay.md' }]);
-  assert.deepEqual(own([{ id: 'wiki-tidy', off: true }]).map(sweep => sweep.id), ['wrap-up']);
+  assert.deepEqual(own([{ id: 'wiki-tidy', off: true }]), []);
   assert.throws(() => own([{ id: 'nap', every: '5m', do: 'sleep' }]), /bad entry: nap/);
   assert.throws(() => own([{ id: 'far', every: '5m', brief: 'far.md', place: 'away' }]), /bad entry: far/);
   assert.throws(() => own([{ id: 'long', every: '5m', brief: 'long.md', minutes: 0 }]), /bad entry: long/);
-});
-
-test('a built-in job runs in the pass with no AI run; a failing one journals; a dry run only prints it', async () => {
-  const sweeps = { ...defaults(), sweeps: [defaults().sweeps[0]] };
-  const { world, make, at, stateDir } = rig({ sweeps });
-  const seen = [];
-  const worker = make({ builtins: { 'wrap-up': async ({ busy, now }) => { seen.push([busy('a'), now.toISOString()]); } } });
-  await worker.dispatch([stop('a')]);
-  await worker.sweep();
-  await worker.sweep();
-  await worker.pump();
-  assert.deepEqual(seen, [[true, '2026-10-31T14:00:00.000Z']]);
-  assert.equal(world.spawned.length, 1);
-  at('2026-10-31T14:05:00Z');
-  await make({ builtins: { 'wrap-up': async () => { throw new Error('Paseo is down'); } } }).sweep();
-  assert.ok(lines(stateDir).includes('Not read: job Wrap up finished chats — Paseo is down'));
-  at('2026-10-31T14:10:00Z');
-  const printed = [];
-  await make({ dryRun: true, print: item => printed.push(item), builtins: { 'wrap-up': async () => { seen.push('ran'); } } }).sweep();
-  assert.deepEqual(printed, [{ wouldDo: 'wrap-up', due: '2026-10-31T10:10' }]);
-  assert.equal(seen.length, 1);
 });
 
 /** A git that records each command and makes or removes the copy's folder as git would. */
@@ -537,5 +515,5 @@ test('a copy that git can not make starts no run, and a dry run makes no copy', 
   await dry.sweep();
   await dry.pump();
   assert.deepEqual(calls, []);
-  assert.deepEqual(printed.map(item => item.wouldDo ?? item.wouldCheck), ['wrap-up', 'wiki-tidy']);
+  assert.deepEqual(printed.map(item => item.wouldCheck), ['wiki-tidy']);
 });

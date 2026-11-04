@@ -8,6 +8,7 @@ import { homedir, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { EXIT, PaseoError, findPaseo, paseo } from '../../schedule/scripts/lib/paseo.mjs';
 import { localDay, mondayOf, slotOf, validDay } from './config.mjs';
+import { finished } from './finished.mjs';
 import { finishTodo, keepTodos, todoOf } from './todos.mjs';
 
 export const BUCKETS = ['keep-going', 'pick', 'person'];
@@ -598,22 +599,23 @@ export async function allow({ request, ...args }) {
   return { status: 'allowed', ...log({ kind: 'allow', request: ask.id }, args.label) };
 }
 
-/** Each watched agent with its status, open cards and last action; the last 5 actions. */
-export async function status({ stateDir, day, started, timezone, call, env = process.env, dailyId = null }) {
+/** Each watched agent with its status, open cards and last action, and `finished` on one with no card that
+ * `finishedOf` passes; the last 5 actions. */
+export async function status({ stateDir, day, started, timezone, call, env = process.env, dailyId = null, project = process.cwd(),
+  finishedOf = agent => finished({ agent, project, inspect: id => call(['inspect', id]) }) }) {
   if (!env.PASEO_AGENT_ID) return unsupported;
   let read;
   try { read = await readPaseo(call); } catch (error) { return notPaseo(error) ? unsupported : { state: 'not-read', error: oneLine(error.message) }; }
   const log = actions({ stateDir, day });
-  return {
-    state: 'read', day,
-    agents: watched({ stateDir, day, started, timezone, list: read.list, self: env.PASEO_AGENT_ID, ignore: [dailyId].filter(Boolean) }).map(row => ({
-      ...describe(row),
-      status: read.list.find(entry => entry.id === row.agentId && live(entry))?.status ?? 'gone',
-      asking: read.pending.filter(ask => ask.agentId === row.agentId).length,
-      last: log.filter(entry => entry.agent === row.agentId).at(-1) ?? null,
-    })),
-    recent: log.filter(entry => entry.label).slice(-5).map(entry => entry.label),
-  };
+  const rows = watched({ stateDir, day, started, timezone, list: read.list, self: env.PASEO_AGENT_ID, ignore: [dailyId].filter(Boolean) });
+  const agents = [];
+  for (const row of rows) {
+    const agent = read.list.find(entry => entry.id === row.agentId && live(entry));
+    const asking = read.pending.filter(ask => ask.agentId === row.agentId).length;
+    agents.push({ ...describe(row), status: agent?.status ?? 'gone', asking, last: log.filter(entry => entry.agent === row.agentId).at(-1) ?? null,
+      ...(!asking && agent && await finishedOf(agent) && { finished: true }) });
+  }
+  return { state: 'read', day, agents, recent: log.filter(entry => entry.label).slice(-5).map(entry => entry.label) };
 }
 
 const END_CHARS = 300;
