@@ -17,3 +17,7 @@
 ## 3. Verification
 
 - [x] 3.1 Run `node .github/scripts/checks.mjs --worktree`; verify it exits 0.
+
+## 4. Fix from the preview check
+
+- [x] 4.1 `app/worker/api/contract.ts`: a query-encoded action (such as `DELETE /apps/inbox/api/task?id=…`) refuses only a non-empty body, because the deployed Worker gives a `DELETE` an empty, non-null body and every such delete answered 400 `This action takes no request body.` on the preview; add a test in `app/worker/api/contract.test.ts` with an empty-stream body that passes and a non-empty one still refused; verify `npm test` in `app/`.
