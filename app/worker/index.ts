@@ -5,12 +5,14 @@ import { discovery } from "./api/discovery.ts";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { services } from "./api/services.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
+import { PUBLIC_KNOWLEDGE, publicKnowledge } from "./apps/knowledge/public.ts";
 import { getAccessIdentity, type AccessEnv } from "./access.ts";
 import { memoryCaller } from "./memory-caller.ts";
 import type { ConnectionEnv } from "./employee-access/core.ts";
 import { appPageDenied } from "./employee-access/apps.ts";
 import { CODE_GIT, gitSignIn } from "./employee-access/code.ts";
 import { KNOWLEDGE_GIT } from "./employee-access/knowledge.ts";
+import { knowledgeReader } from "./employee-access/knowledge-reader.ts";
 import { SETUP_PATH } from "./employee-access/prompt.ts";
 import { refreshOnSchedule } from "./employee-access/pushers.ts";
 import { handleAccess } from "./employee-access/router.ts";
@@ -30,6 +32,11 @@ export default {
     // neither and answers 404. The company sign-in authenticates each call: wiki/development/memory.md.
     if (url.pathname.startsWith(MEMORY_PREFIX)) {
       return handleMemory(request, env, memoryCaller);
+    }
+
+    // Company knowledge's pages marked public, and only those, open with no sign-in: wiki/stack/knowledge-reader.md
+    if (url.pathname.startsWith(PUBLIC_KNOWLEDGE)) {
+      return publicKnowledge(request, knowledgeReader(env));
     }
 
     const identity = await getAccessIdentity(request, env);
