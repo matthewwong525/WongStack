@@ -43,7 +43,9 @@ export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.en
     // Only the live app may ever hold it; an older status leaves it out.
     liveOnly: z.boolean().optional(),
     // What the key's service is for, and its API guide when the key is used directly; an older status has neither.
-    direct: z.boolean().optional(), purpose: z.string().optional(), docs: z.string().optional() })),
+    direct: z.boolean().optional(), purpose: z.string().optional(), docs: z.string().optional(),
+    // A tool added from a chat, and the requests it counts as reads beyond GET; an older status has neither.
+    chat: z.boolean().optional(), reads: z.array(z.string()).optional() })),
   roles: z.array(z.object({ id: z.string(), name: z.string(), builtIn: z.boolean().optional(), apps: z.array(z.string()), keys: levels })),
   people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
     role: z.string().nullable(), apps: z.array(z.string()), keys: levels })),

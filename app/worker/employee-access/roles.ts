@@ -3,6 +3,7 @@ import { z } from "zod";
 import { type Core, AccessError } from "./core.ts";
 import { type Sets, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
 import { ADMIN_ROLE } from "./policy.ts";
+import { registryOf } from "./key-levels.ts";
 
 // `from` starts a new role from one person's current access; `removed` takes a role away.
 const roleSchema = z.object({ id: z.string().min(1).optional(), name: z.string().trim().min(1).max(60).optional(),
@@ -46,6 +47,6 @@ export async function changeRole(core: Core, value: unknown): Promise<void> {
       VALUES (?, ?, ?, (SELECT revision FROM wong_access_installation WHERE installation_id = ?))
       ON CONFLICT(installation_id, role_id) DO UPDATE SET name = excluded.name, revision = excluded.revision`)
       .bind(installation, role, name, installation),
-    ...setWrites(core, "roles", role, changedSet(base, change)),
+    ...setWrites(core, "roles", role, changedSet(registryOf(core.env), base, change)),
   ]);
 }

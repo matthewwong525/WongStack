@@ -214,6 +214,18 @@ test('an undeclared or ambiguous name opens no tunnel', t => {
   assert.ok(!existsSync(f.state), 'no link state');
 });
 
+test('a tool\'s key from a chat needs no declaration and goes to the app\'s own file, for the live app', async t => {
+  const f = fixture(t);
+  const { port, key } = opened(f, 'TOOL_NOTION');
+  assert.deepEqual((await route(port, key, 'keys')).json.keys, [{ name: 'TOOL_NOTION', hint: 'The key for a tool added from a chat.', set: false }]);
+  await route(port, key, 'save', { keys: { TOOL_NOTION: SECRET } });
+  assert.equal(f.read(f.primary, 'app/.dev.vars'), `TOOL_NOTION=${SECRET}\n`);
+  assert.equal(f.read(f.primary, '.env'), 'A=1\n');
+  assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=done\nHANDOVER_SAVED=TOOL_NOTION\nHANDOVER_APP_KEYS=TOOL_NOTION\nHANDOVER_OPENED=yes\n');
+  // Only the tool shape skips the declaration: a bare `TOOL_` name, or one with no letter first, is still undeclared.
+  for (const name of ['TOOL_', 'TOOL_1X']) assert.equal(f.run('open', '--keys', name).stdout, `KEYS_UNDECLARED=${name}\n`, name);
+});
+
 test('a destination the checkout does not ignore opens no link', t => {
   const f = fixture(t, { ignore: '.env*\n!.env.example\n' });
   const out = f.run('open', '--keys', 'STRIPE_SECRET_KEY');

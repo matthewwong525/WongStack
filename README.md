@@ -27,7 +27,7 @@ All three build up as you work, so the next task, and the next teammate, starts 
 
 You end with a working assistant, a starter site online, and memory that carries between chats.
 
-- **Make it yours.** Open the site and paste its *Make it yours* message.
+- **Make it yours.** The same chat connects your tools, then offers a first app built on them. Skip it, and the site's *Make it yours* box starts it later.
 - **Your files** live in a [GitHub](https://github.com/signup) account, or in Cloudflare alone on Mac or Linux. Both ways need Cloudflare's paid plan, about $5 a month: [the two ways](wiki/stack/artifacts-route.md).
 - **Any folder works.** If yours already has files, setup makes a `wongstack` folder in your home folder.
 - **More:** [Getting started](wiki/stack/getting-started.md) covers costs, what you do by hand, and fixes when something goes wrong.

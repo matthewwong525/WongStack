@@ -41,7 +41,7 @@ Rotate values in durable `.env`. Change `.env.example` only when the name, purpo
 
 ## API token website steps
 
-The person handles website steps to obtain, reveal, copy, rotate, change permissions for, or revoke API keys/tokens in their own browser. The agent uses no automation, saved login, screenshot, extraction, or private form for those steps.
+The person handles website steps to obtain, reveal, copy, rotate, change permissions for, or revoke API keys/tokens in their own browser. The agent uses no automation, saved login, screenshot, extraction, or private form for those steps. Except: [connecting tools](../stack/connect-your-tools.md#use-your-own-chrome) may make keys in the person's own Chrome, with their yes.
 
 If an ordinary browsing task reaches a token step, stop before taking a picture or extracting page content, then:
 
@@ -49,7 +49,7 @@ If an ordinary browsing task reaches a token step, stop before taking a picture 
 2. **Write short steps**: what to create or change, and which permissions the task needs.
 3. **Put them where the person acts, and wait.** For a new or replacement value they go on [the private key link's page](#receive-a-key-through-a-private-link), and the chat carries only that link; wait until the key is saved. For a permission edit, revocation, or other change with no new value, give them in the chat and wait for the person to confirm.
 
-Ordinary browsing, saved website logins, use of stored credentials, and existing authorized token management through APIs continue as usual.
+Other browsing, saved logins, stored credentials, and token management through APIs are unchanged.
 
 **Scheduled credentials.** [Host schedules](../stack/host-schedules.md) use existing host connections. Verify future-session tool/memory scope; keep credentials out of prompts/records. Preserve legacy keys until [explicit migration/teardown](../stack/legacy-cloud-schedules.md).
 
@@ -83,9 +83,9 @@ When a task lacks a key, or the person asks for *the key link*, send a private l
    ```
 
    `KEYS_UNDECLARED=` or `KEYS_AMBIGUOUS=` (exit 2) means step 1 isn't done, and `KEYS_GUIDE=` names the guide entry to fix. Exit 1 means a destination isn't git-ignored, so fix [the protection](#the-two-files) first, or this chat has another link open. `HANDOVER_NEEDS=cloudflared` works as for [every private link](browsing.md#how-private-links-work).
-4. **After it closes**, handle its completion identity once, as [workspace return](browsing.md#how-private-links-work) says, even when both `wait` and the workspace notification arrive. Both carry names, never values. Name the saved keys in the chat, never a value. A non-empty `HANDOVER_APP_KEYS` means the Worker reads those keys: run `npm run secrets:push` so the live app gets them. Previews read only `app/.dev.vars.staging`, so say they need their own test key. On `timeout`, or a `closed` nobody asked for, say what happened before offering a new link. `HANDOVER_OPENED=no`: nobody opened it, so ask whether it loaded. `yes`: ask where they got stuck.
+4. **After it closes**, handle its completion identity once, as [workspace return](browsing.md#how-private-links-work) says, even when both `wait` and the workspace notification arrive. Both carry names, never values. Name the saved keys, never a value. A non-empty `HANDOVER_APP_KEYS` means the Worker reads those keys: run `npm run secrets:push` so the live app gets them. Previews read only `app/.dev.vars.staging`, so say they need their own test key. On `timeout`, or a `closed` nobody asked for, say what happened before offering a new link. `HANDOVER_OPENED=no`: nobody opened it, so ask whether it loaded. `yes`: ask where they got stuck.
 
-Each chat has one link at a time; other chats' links don't block it. In one chat, a key link nobody has opened gives way to a newer one: its `wait` prints `closed` and `HANDOVER_REPLACED_BY=`, this chat's folder. Offer a new link if still needed. An opened one keeps its place.
+Each chat has one link at a time. In one chat, a key link nobody has opened gives way to a newer one: its `wait` prints `closed` and `HANDOVER_REPLACED_BY=`, this chat's folder. Offer a new link if still needed. An opened one keeps its place.
 
 A key over several lines is stored on one: JSON compacted, other text in double quotes with each line break as `\n`, which dotenv and wrangler read back and a shell's `source` does not. Each save writes the primary worktree's file and, in a linked worktree, its seeded branch copy, like any [add or rotation](#worktrees-and-branch-copies). Private input ends on completion, cancellation, or after 24 hours by default, and has [every private link's safety](browsing.md#how-private-links-work). No value reaches a command line, a log, the link's own files, or the chat.
 
@@ -99,7 +99,7 @@ A linked worktree works on its own **branch copy** of each live file, at the sam
 node .claude/skills/ship/scripts/worktree-secrets.mjs seed
 ```
 
-Wire that command into your worktree tool's setup step; this repo's `paseo.json` does. `seed` copies each primary live file the worktree ignores, never overwrites a file the worktree has, and records a baseline of key names and value hashes in the worktree's own Git directory — never in the working tree, and never a value. It also copies your local chat settings, `.claude/settings.local.json`, once; `status` and `promote` skip them.
+Wire that command into your worktree tool's setup step. `seed` copies each primary live file the worktree ignores, never overwrites a file the worktree has, and records a baseline of key names and value hashes in the worktree's own Git directory — never in the working tree, and never a value. It also copies your local chat settings, `.claude/settings.local.json`, once; `status` and `promote` skip them.
 
 Route each edit by its kind, so `main` sees an edit only when it is safe:
 
@@ -111,7 +111,7 @@ Route each edit by its kind, so `main` sees an edit only when it is safe:
 
 [`/ship`](../../.agents/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies to the primary only what this branch changed, compared three ways against the baseline, so a key another branch added to the primary is kept and a rotation made there is not reverted. A key both sides changed is skipped and named for you to resolve. Without a baseline it applies adds only and names the rest. Every command prints key names, never values; `status` shows what is still pending.
 
-WongStack tools read primary `.env` first; branch-only settings belong to the app. After merging outside `/ship`, run `promote` before deleting the worktree. Abandoned worktrees need no promotion; their deferred edits disappear with them.
+WongStack tools read primary `.env` first; branch-only settings belong to the app. After merging outside `/ship`, run `promote` before deleting the worktree. Abandoned worktrees need no promotion.
 
 ## Unseeded linked-worktree copies
 

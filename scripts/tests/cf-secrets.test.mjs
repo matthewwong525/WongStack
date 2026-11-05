@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { logger, pack } from './fixtures/pack.mjs';
@@ -420,4 +421,74 @@ test('the setup-made Cloudflare read key is refused in the production file too',
     assert.ok(result.out.includes('.dev.vars must not declare WONG_CLOUDFLARE_READ: setup stores it itself.'), result.out);
     assert.doesNotMatch(result.out, /read-synthetic/);
   }
+});
+
+// A fake `npx` for put-tool: it logs its words and a digest of its stdin, never the stdin; REFUSE answers a plain put
+// with 10215, and BROKEN fails every call.
+const putList = `#!/usr/bin/env bash
+input=$(cat)
+echo "$* stdin:$(printf '%s' "$input" | sha256sum | cut -c1-12)" >> "$FAKE_LOG"
+[ -n "$BROKEN" ] && { echo "fetch failed" >&2; exit 1; }
+case "$*" in *"versions secret put"*) exit 0 ;; *"secret put"*) [ -n "$REFUSE" ] && { echo "Secret edit failed [code: 10215]" >&2; exit 1; } ;; esac
+exit 0
+`;
+// Made up for the test: no service ever issued it.
+const TOOL_KEY = 'rk_' + 'live_MADEUPkey0000aaaaBBBB4f2a';
+const digest = createHash('sha256').update(TOOL_KEY).digest('hex').slice(0, 12);
+
+test('put-tool sends one tool key from stdin to the live app alone, never in a command line or the output', t => {
+  const f = scaffold(t, { env: { staging: {} } }, { tools: { npx: putList } });
+  const saved = f.run('cf-secrets.mjs', ['put-tool', 'TOOL_STRIPE'], { input: `${TOOL_KEY}\n` });
+  assert.equal(saved.status, 0, saved.out);
+  assert.deepEqual(saved.calls, [`wrangler secret put TOOL_STRIPE stdin:${digest}`]);
+  assert.match(saved.out, /TOOL_STRIPE saved on the live app/);
+  const refused = f.run('cf-secrets.mjs', ['put-tool', 'TOOL_STRIPE'], { input: TOOL_KEY, env: { REFUSE: '1' } });
+  assert.equal(refused.status, 0, refused.out);
+  assert.deepEqual(refused.calls, [`wrangler secret put TOOL_STRIPE stdin:${digest}`, `wrangler versions secret put TOOL_STRIPE stdin:${digest}`]);
+  assert.match(refused.out, /TOOL_STRIPE is on a new version, not on the live app yet: it reaches the live app at the next publish/);
+  assert.doesNotMatch(refused.out, /saved on the live app/);
+  const broken = f.run('cf-secrets.mjs', ['put-tool', 'TOOL_STRIPE'], { input: TOOL_KEY, env: { BROKEN: '1' } });
+  assert.equal(broken.status, 1);
+  assert.match(broken.out, /could not save TOOL_STRIPE on the live app/);
+  const both = f.run('cf-secrets.mjs', ['put-tool', 'TOOL_STRIPE'], { input: TOOL_KEY, env: { BROKEN: '1', REFUSE: '1' } });
+  assert.equal(both.status, 1);
+  for (const result of [saved, refused, broken, both]) assert.ok(!`${result.out}${result.calls.join('\n')}`.includes(TOOL_KEY));
+});
+
+test('put-tool refuses another name, an empty or spaced key, and a missing name, before any call', t => {
+  const f = scaffold(t, { env: { staging: {} } }, { tools: { npx: putList } });
+  for (const [args, input, problem] of [
+    [['put-tool', 'STRIPE_SECRET_KEY'], TOOL_KEY, /not a tool's key name/],
+    [['put-tool', 'TOOL_stripe'], TOOL_KEY, /not a tool's key name/],
+    [['put-tool', 'TOOL_STRIPE'], '', /no key on stdin/],
+    [['put-tool', 'TOOL_STRIPE'], 'two words', /no key on stdin/],
+  ]) {
+    const result = f.run('cf-secrets.mjs', args, { input });
+    assert.equal(result.status, 1, result.out);
+    assert.match(result.out, problem);
+    assert.deepEqual(result.calls, []);
+  }
+  assert.equal(f.run('cf-secrets.mjs', ['put-tool']).status, 2);
+  assert.equal(f.run('cf-secrets.mjs', ['check', 'TOOL_STRIPE']).status, 2);
+});
+
+test('a tool key never reaches staging: its file may not name one, a push removes one, and check fails on one', t => {
+  const { primary, push } = pushFixture(t);
+  writeFileSync(join(primary, 'app/.dev.vars'), 'API_KEY=live-1\nTOOL_STRIPE=live-tool\n');
+  writeFileSync(join(primary, 'app/.dev.vars.staging'), 'API_KEY=test-1\nTOOL_STRIPE=test-tool\n');
+  const refused = push();
+  assert.equal(refused.status, 1, refused.output);
+  assert.match(refused.output, /must not declare TOOL_STRIPE: only the live app may hold it/);
+  assert.deepEqual(refused.calls, []);
+  writeFileSync(join(primary, 'app/.dev.vars.staging'), 'API_KEY=test-1\n');
+  const pruned = push({ STAGING: 'API_KEY,TOOL_STRIPE' });
+  assert.equal(pruned.status, 0, pruned.output);
+  assert.ok(pruned.calls.includes('wrangler secret delete TOOL_STRIPE --env staging'), pruned.calls.join('\n'));
+  assert.doesNotMatch(pruned.output, /live-tool|test-tool/);
+  const held = checkSecrets(t, { PROD: 'API_KEY,TOOL_STRIPE', STAGING: 'API_KEY,TOOL_STRIPE' });
+  assert.equal(held.status, 1, held.out);
+  assert.match(held.out, /secret 'TOOL_STRIPE' must never be set on staging/);
+  const live = checkSecrets(t, { PROD: 'API_KEY,TOOL_STRIPE', STAGING: 'API_KEY' });
+  assert.equal(live.status, 0, live.out);
+  assert.doesNotMatch(live.out, /previews lack|TOOL_STRIPE' is set but not declared/);
 });

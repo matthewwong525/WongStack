@@ -10,6 +10,7 @@ import { setupStatus } from "./setup.ts";
 import { management } from "./management.ts";
 import { CODE_PUBLISH, codePublish } from "./publish.ts";
 import { PUSHERS, pushersRoute } from "./pushers.ts";
+import { TOOLS, toolsRoute } from "./tools-route.ts";
 import type { ConnectionEnv } from "./core.ts";
 
 /** `wait` keeps work running after the answer: the Worker's `waitUntil`. */
@@ -24,6 +25,7 @@ export async function handleAccess(request: Request, env: ConnectionEnv,
   if (path.startsWith(KNOWLEDGE_GIT)) return (await codeDenied(env, identity, "read", knowledgeSource(env) !== null)) ?? knowledgeGit(request, env, humanEmail(identity));
   if (path.startsWith(CODE_CHANGE)) return (await codeDenied(env, identity)) ?? codeChange(request, env, humanEmail(identity) ?? "the preview check");
   if (path === PUSHERS || path.startsWith(`${PUSHERS}/`)) return pushersRoute(request, env, identity, wait);
+  if (path.startsWith(TOOLS)) return toolsRoute(request, env, identity);
   return management(request, env, identity);
 }
 

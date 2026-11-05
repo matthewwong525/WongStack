@@ -17,6 +17,9 @@ export const DESTINATIONS = [
 ];
 /** The Worker's own file: a key saved here reaches the live app through `npm run secrets:push`. */
 export const APP_FILE = 'app/.dev.vars';
+/** A tool's key added from a chat, as `scripts/lib-staging-secrets.mjs` names it: no example file declares it, and
+ * `secrets:push` sends it to the live app alone. */
+export const TOOL_KEY = /^TOOL_[A-Z][A-Z0-9_]*$/;
 // Written bare, a value of only these reads back unchanged in dotenv, wrangler, the memory parser, and a
 // shell's `source`; `~` is left out, since a shell expands it.
 const BARE = /^[A-Za-z0-9_\-.:/+=@]+$/;
@@ -62,8 +65,8 @@ function branchCopy(ctx, rel) {
   }
 }
 
-/** Where each name goes, from the active checkout's example files. The link may open only when
- * `undeclared`, `ambiguous`, and `unignored` are all empty. `ctx` is primary-root.mjs's result. */
+/** Where each name goes, from the active checkout's example files; an undeclared tool's key goes to the app's file.
+ * The link opens only when `undeclared`, `ambiguous`, and `unignored` are empty. `ctx` is primary-root.mjs's result. */
 export function resolveKeys(names, ctx) {
   const declared = DESTINATIONS.map(destination => ({ ...destination, names: declarations(readText(join(ctx.root, destination.example))) }));
   const keys = [];
@@ -71,7 +74,8 @@ export function resolveKeys(names, ctx) {
   const ambiguous = [];
   for (const name of names) {
     const where = declared.filter(destination => destination.names.has(name));
-    if (!where.length) undeclared.push(name);
+    if (!where.length && TOOL_KEY.test(name)) keys.push({ name, file: APP_FILE, hint: 'The key for a tool added from a chat.' });
+    else if (!where.length) undeclared.push(name);
     else if (where.length > 1) ambiguous.push(name);
     else keys.push({ name, file: where[0].live, hint: where[0].names.get(name) });
   }

@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { type Core, AccessError, now } from "./core.ts";
 import { catalogue } from "./catalogue.ts";
-import { everyKey, heldLevels, offered, registered, type Level } from "./key-levels.ts";
+import { everyKey, heldLevels, offered, registered, registryOf, type Level, type Registry } from "./key-levels.ts";
 import { ADMIN_ROLE } from "./policy.ts";
 
 type Levels = Record<string, Level>;
@@ -71,8 +71,8 @@ const storedApps = (value: string): string[] => {
 };
 type StoredRow = { apps: string; unticked: string; keys: string };
 /** A stored set as it counts now: a key no longer registered is ignored too. */
-const storedSet = (row: StoredRow) => ({
-  unticked: storedApps(row.unticked), set: { apps: storedApps(row.apps), keys: Object.fromEntries(heldLevels(stored(row.keys))) } });
+const storedSet = (registry: Registry, row: StoredRow) => ({
+  unticked: storedApps(row.unticked), set: { apps: storedApps(row.apps), keys: Object.fromEntries(heldLevels(registry, stored(row.keys))) } });
 const setColumns = (kind: SetKind, alias: string) => {
   const { apps, keys, owner } = stores[kind];
   const mine = `installation_id = ${alias}.installation_id AND ${owner} = ${alias}.${owner}`;
@@ -84,11 +84,12 @@ const setColumns = (kind: SetKind, alias: string) => {
 
 /** What Admin gives: every app a person can be given and every key at its highest level, worked out on each read
  *  and never stored, so an app or key added later is in it. */
-const everything = (): AccessSet => ({ apps: businessApps(), keys: Object.fromEntries(everyKey()) });
+const everything = (registry: Registry): AccessSet => ({ apps: businessApps(), keys: Object.fromEntries(everyKey(registry)) });
 
 /** Everyone and every role, each with the set stored for it, Admin first with the set worked out for it.
  *  `settled`: the sign-in list matches the person's last change. */
 export async function readSets(core: Core): Promise<Sets> {
+  const registry = registryOf(core.env);
   const id = core.installationId;
   const [people, roles] = await Promise.all([
     core.db.prepare(`SELECT m.email, m.status,
@@ -104,11 +105,11 @@ export async function readSets(core: Core): Promise<Sets> {
   ]);
   return {
     people: people.results.map(person => {
-      const { set, unticked } = storedSet(person);
+      const { set, unticked } = storedSet(registry, person);
       return { email: person.email, status: person.status, settled: person.settled === 1, role: person.role, own: set, unticked };
     }),
     roles: roles.results.map(({ id, name, ...row }) => id === ADMIN_ROLE
-      ? { id, name, builtIn: true, set: everything(), unticked: [] } : { id, name, builtIn: false, ...storedSet(row) }),
+      ? { id, name, builtIn: true, set: everything(registry), unticked: [] } : { id, name, builtIn: false, ...storedSet(registry, row) }),
   };
 }
 
@@ -117,17 +118,17 @@ export const heldSet = (person: PersonRow, roles: RoleRow[]): AccessSet =>
   roles.find(role => role.id === person.role)?.set ?? person.own;
 
 /** Refuse an app that is not built, a key nobody registered, and a level the key does not offer. */
-function checkChange({ apps, keys }: Required<SetChange>): void {
+function checkChange(registry: Registry, { apps, keys }: Required<SetChange>): void {
   if (Object.keys(apps).some(app => !businessApps().includes(app))) throw new AccessError("unknown_app", 400);
   for (const [key, asked] of Object.entries(keys)) {
-    if (!registered(key)) throw new AccessError("unknown_key", 400);
-    if (asked && !offered(key).includes(asked)) throw new AccessError("level_not_offered", 400);
+    if (!registered(registry, key)) throw new AccessError("unknown_key", 400);
+    if (asked && !offered(registry, key).includes(asked)) throw new AccessError("level_not_offered", 400);
   }
 }
 
 /** The set after a change. Apps and keys are apart: giving an app changes no key level. */
-export function changedSet(base: AccessSet, { apps = {}, keys = {} }: SetChange): AccessSet {
-  checkChange({ apps, keys });
+export function changedSet(registry: Registry, base: AccessSet, { apps = {}, keys = {} }: SetChange): AccessSet {
+  checkChange(registry, { apps, keys });
   const levels = { ...base.keys };
   for (const [id, asked] of Object.entries(keys)) {
     if (asked) levels[id] = asked; else delete levels[id];

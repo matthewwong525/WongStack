@@ -130,6 +130,8 @@ const USAGE = `usage: company-api.mjs <command> [--state <private directory>]
   call <id> --file <JSON file or -> [--full]
   mcp <key> tools [<name>]           an MCP service's tools, or one tool's arguments
   mcp <key> tool <name> --file <JSON arguments or -> [--full]
+  tool add <id> --file <JSON or ->   add a tool to the live app, owner or Admin: wiki/stack/connect-your-tools.md
+  tool remove <id>
 call and mcp print at most 20 KB; a longer answer is saved to a private file it names. --full prints it all.`;
 
 async function services(client, values) {
@@ -138,6 +140,16 @@ async function services(client, values) {
   if (!Array.isArray(value.services)) throw new Error('Invalid services list');
   const answer = withNotes(value);
   console.log(values.json ? JSON.stringify(answer, null, 2) : serviceLines(answer).join('\n'));
+}
+
+/** Adds or removes a tool kept in the app's data, with no publish. The app checks the entry and who asks. */
+async function toolCommand(client, action, [id, ...rest], input) {
+  if (!['add', 'remove'].includes(action) || !/^[a-z][a-z0-9-]*$/.test(id ?? '') || rest.length) throw new Error(USAGE);
+  const origin = client.target();
+  const init = action === 'add' ? { method: 'PUT', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(input()) }
+    : { method: 'DELETE', headers: { Origin: origin } };
+  const { value } = await client.http(`/api/access/tools/${id}`, init, origin, undefined, { check: ' Check with `services --all` before repeating.' });
+  return value;
 }
 
 function printCall(id, result, values) {
@@ -164,13 +176,14 @@ if (isMain(import.meta.url)) {
     ...Object.fromEntries(['origin', 'state', 'scope', 'q', 'app', 'limit', 'offset', 'file'].map(name => [name, { type: 'string' }])),
     ...Object.fromEntries(['all', 'json', 'full'].map(name => [name, { type: 'boolean' }])) } });
   try {
-    if (extra.length && command !== 'mcp') throw new Error(USAGE);
+    if (extra.length && !['mcp', 'tool'].includes(command)) throw new Error(USAGE);
     const client = companyClient({ stateDir: values.state, onLoginUrl: link => console.error(signInNotice(link)) });
     const input = () => parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8'));
     if (command === 'services') await services(client, values);
     else if (command === 'mcp') {
       printAnswer(await mcpCommand(client, id, extra, input), values);
     }
+    else if (command === 'tool') printCall(command, await toolCommand(client, id, extra, input), values);
     else {
       let result;
       if (command === 'login') result = await client.login(values.origin);

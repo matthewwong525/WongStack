@@ -11,6 +11,10 @@ export const SOURCE = '.dev.vars';
 export const STAGING_SOURCE = `${SOURCE}.staging`;
 /** Keys only the live app may hold: branch code runs on staging, so a copy there reaches production. */
 export const PRODUCTION_ONLY_SECRETS = new Set(['WONG_ACCESS_LOGIN_MANAGEMENT', 'WONG_CODE_WRITE', 'WONG_CLOUDFLARE_READ']);
+/** A tool's key added from a chat, `TOOL_<ID>`: the live app alone holds it, as previews hold no such tool. */
+export const TOOL_SECRET = /^TOOL_[A-Z][A-Z0-9_]*$/;
+/** Whether only the live app may hold this name. */
+export const liveOnly = (name) => PRODUCTION_ONLY_SECRETS.has(name) || TOOL_SECRET.test(name);
 
 /** The KEY names in a dotenv file. Values are dropped here, so nothing downstream can print them. */
 export function readKeyNames(file) {
@@ -42,5 +46,5 @@ export function secretsDir(appDir, root) {
 /** The names staging may keep: those its own file declares, never a live-app-only one; none with no file. */
 export function stagingKeeps(dir) {
   const file = join(dir, STAGING_SOURCE);
-  return existsSync(file) ? readKeyNames(file).filter((name) => !PRODUCTION_ONLY_SECRETS.has(name)) : [];
+  return existsSync(file) ? readKeyNames(file).filter((name) => !liveOnly(name)) : [];
 }

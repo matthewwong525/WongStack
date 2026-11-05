@@ -85,9 +85,9 @@ afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); });
 it("registers Project code as a key with Read to install and Write to publish, offered with no app, that no route lists and no app tick gives", () => {
   expect(keys.code).toEqual({ title: "Project code", purpose: "This project's own code and company knowledge, to install, read and save them", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"],
     liveOnly: true });
-  expect([offered("code"), everyKey().get("code")]).toEqual([["read", "write"], "write"]);
+  expect([offered(keys, "code"), everyKey(keys).get("code")]).toEqual([["read", "write"], "write"]);
   expect(keyUse.some(use => use.keys.includes("code"))).toBe(false);
-  expect(changedSet({ apps: [], keys: {} }, { apps: { orders: true } })).toEqual({ apps: ["orders"], keys: {} });
+  expect(changedSet(keys, { apps: [], keys: {} }, { apps: { orders: true } })).toEqual({ apps: ["orders"], keys: {} });
   // Saved follows whether the project can be handed out: a Cloudflare-kept one needs no secret.
   const row = (bindings: object) => keyCatalogue(bindings).find(key => key.id === "code");
   expect(row({})).toEqual({ id: "code", title: "Project code", purpose: "This project's own code and company knowledge, to install, read and save them", levels: ["read", "write"], saved: false, setup: false, liveOnly: true, alone: true, direct: false });

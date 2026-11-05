@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -90,6 +90,19 @@ test('a repo with no registry, or with no apps, has nothing to check', t => {
   const empty = check(t, {});
   assert.equal(empty.status, 0, empty.out);
   assert.match(empty.out, /0 app\(s\)/);
+});
+
+test('a key that breaks a direct-use rule fails, naming the key and the rule, by the rules the app holds', t => {
+  const worker = join(scripts, '..', 'app', 'worker');
+  const rules = { 'key-rules.ts': readFileSync(join(worker, 'key-rules.ts'), 'utf8'), 'api/mcp.ts': readFileSync(join(worker, 'api', 'mcp.ts'), 'utf8') };
+  const registry = forward => `export const keys = { notion: { title: "Notion", purpose: "Team notes", docs: "https://developers.notion.example",
+  secrets: ["NOTION_TOKEN"], forward: ${JSON.stringify(forward)} } };\n`;
+  const good = { base: 'https://api.notion.example/v1/', secret: 'NOTION_TOKEN', header: 'Authorization' };
+  assert.equal(check(t, rules, registry(good)).status, 0);
+  const bad = check(t, rules, registry({ ...good, lookups: ['POST ../admin'] }));
+  assert.equal(bad.status, 1);
+  assert.match(bad.out, /app\/worker\/keys\.ts: notion: the look-up "POST \.\.\/admin" must be METHOD path/);
+  assert.match(bad.out, /1 key rule\(s\) broken/);
 });
 
 test('this repo lists every key its own apps and handlers name', () => {

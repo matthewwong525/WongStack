@@ -2,7 +2,7 @@
 
 Company actions let an employee’s assistant use the same approved work as an app, while service keys stay on the company’s server. Ask for the work you want available, such as “let the team look up an order.” The assistant builds a specific action, describes it, and follows [the usual change loop](../development/the-change-loop.md).
 
-A saved key cannot explain which business actions are safe, their inputs, or who may use a record. Each integration needs a deliberately implemented handler. The supplied health and [Hello greeting](../../app/worker/apps/hello/greeting.ts) demonstrate the pattern with synthetic data; they prove no outside service connection. To find what a chat can use, actions and keys used directly, start with [the services list](service-catalogue.md).
+A saved key cannot explain which business actions are safe, their inputs, or who may use a record. Each integration needs a handler built on purpose. The supplied health and [Hello greeting](../../app/worker/apps/hello/greeting.ts) show the pattern with made-up data and reach no outside service. To find what a chat can use, actions and keys used directly, start with [the services list](service-catalogue.md).
 
 ## Define an action once
 
@@ -53,7 +53,7 @@ The level such a call needs comes from what it does: an action with `effect: "re
 - **This account only, and no stored data.** Another account's path is refused. So are paths under D1, KV, R2, Queues, Vectorize, Hyperdrive, Durable Objects, Secrets Store, Stream and Images, and the key has no permission for them: two locks on the app's database, files and memory. A path with `.` or `..` is refused too.
 - **It changes nothing, and its answer is bounded.** One method, `GET`, and a key with no write permission. An answer over about 1 MB says to narrow the request.
 
-Read & write is not offered for Cloudflare: a write key held by the live app would be close to full control of the account.
+Cloudflare offers no Read & write: a live write key would nearly control the account.
 
 ## Use a key directly
 
@@ -64,11 +64,13 @@ A saved key can be used with no built action, once its service is set up. The ca
 - **A look-up is a `GET`, a `HEAD`, or a request the key's setup names.** `<key>.read` answers `not_a_lookup` to anything else.
 - **It reaches only its own service.** A path that leaves the address is refused and no redirect is followed. An answer over about 1 MB says to narrow the request, and one holding the key is never returned. Each request is logged with who sent it, never its query or body.
 
-Before a direct call, read the service's [notes page](service-catalogue.md#notes-on-each-key-based-service), and add a call you worked out there.
+Before a direct call, read the service's [notes page](service-catalogue.md#notes-on-each-key-based-service); add a call you worked out.
 
 **Build an action instead** for work done again and again, or that touches money or customers: only a built action can limit a person to one record. Direct use opens everything the key can see; make a narrower key at the service when that is too wide.
 
-**Set a service up when you save its key.** Doing so opens the service to the owner, and to everyone who holds a level for that key. Add `forward` and `docs`, the guide's HTTPS link, to its entry in [the key registry](../../app/worker/keys.ts), from the service's own API guide, as the commented entries there show. The registry's comments say what each field is. `lookups` names, as `METHOD path` with `*` for one path part, only requests the guide documents as read-only: a wrong entry lets Read change things. A service that works through one `POST`, such as GraphQL, gets none, so it needs Read & write. A key renewed through a sign-in, such as Google's, can't be set up: build an action. The app's tests fail on an entry that breaks a rule.
+**Set a service up when you save its key.** This opens the service to the owner and to everyone with a level for that key. A chat [adds a new tool](connect-your-tools.md#add-a-new-tool-with-no-publish) live. A [registry](../../app/worker/keys.ts) key adds `forward` and `docs`, the guide's HTTPS link, as its comments show. `lookups` names, as `METHOD path` with `*` for one path part, only requests the guide documents as read-only: a wrong entry lets Read change things. A service that works through one `POST`, such as GraphQL, gets none, so it needs Read & write. A key renewed through a sign-in, such as Google's, can't be set up: build an action. The app's tests, and the app on `tool add`, refuse an entry that breaks a rule.
+
+**A tool added in a chat moves into the code when an app first uses it**: that change copies its entry into the key registry and declares `TOOL_<ID>` in `app/.dev.vars.example`. The saved key keeps working, and the code's entry wins.
 
 ## Use an MCP server through the app
 
@@ -86,7 +88,7 @@ A service-specific helper may wrap [`scripts/mcp-session.mjs`](../../scripts/mcp
 
 ## Connect and call
 
-From an empty folder, use the [setup message](employee-project.md#install-in-one-step). A copy that [Connect your assistant installed](employee-project.md#install-in-one-step) is an installed project: run the helper from inside it with no `--state`. It finds the sign-in setup saved for the origin the copy records, and setup checks this before it names the first lesson or says *Nothing else is needed*. A reused sign-in starts the summary with *Used this computer's existing sign-in as <email>*: a shared computer never connects as someone else unnoticed. Installed projects run [the helper](../../scripts/company-api.mjs) from the repository root; `--state` can select the same private connection, while existing private folder locators remain compatible. It reads only public install metadata for company routing. New installs record `components.companyApi.origin` in `.claude/.wong-stack.json`, using the production Worker name and the account hostname read back during provisioning. An older record names only `components.memory.worker`; a workspace then uses that app's sign-in, else its main copy's.
+From an empty folder, use the [setup message](employee-project.md#install-in-one-step). A copy that [Connect your assistant installed](employee-project.md#install-in-one-step) is an installed project: run the helper from inside it with no `--state`. It finds the sign-in setup saved for the origin the copy records, and setup checks this before it names the first lesson or says *Nothing else is needed*. A reused sign-in starts the summary with *Used this computer's existing sign-in as <email>*: a shared computer never connects as someone else unnoticed. Installed projects run [the helper](../../scripts/company-api.mjs) from the repository root; `--state` can select the same private connection, while existing private folder locators remain compatible. New installs record `components.companyApi.origin` in `.claude/.wong-stack.json`, using the production Worker name and the account hostname read back during provisioning. An older record names only `components.memory.worker`; a workspace then uses that app's sign-in, else its main copy's.
 
 ```bash
 node scripts/company-api.mjs login --origin https://company.example.com
@@ -101,7 +103,7 @@ JSON
 
 Keep `~/.cloudflared` owned by the current OS user, mode 0700, with token files mode 0600. The helper captures token output privately and sends it only in request headers to the connected origin. Cloudflared caches the normal session; expiry or removal requires the employee’s own login again. Changed public routing requires an explicit connection. Redirects, arbitrary server URLs and outside schema references are refused. The helper never borrows owner, deploy, business, memory or verification credentials for company calls.
 
-`list` and `describe` perform no business action. `call` consults the live selected contract and executes it once. Each prints [a short answer](service-catalogue.md#short-answers-in-the-chat); `--full` prints a long one whole. A call that returns an error, company or memory, still prints the error and ends with a failing exit status, so a script stops there. Check a failed write’s outcome before repeating it; the helper never retries it automatically. When a write times out or its connection drops and it names a confirming read, the helper names that read in the error: run it first, and repeat the write only if the change is missing. Effect metadata helps explain work, while the assistant’s normal action authorization still applies.
+`list` and `describe` perform no business action. `call` consults the live selected contract and executes it once. Each prints [a short answer](service-catalogue.md#short-answers-in-the-chat); `--full` prints a long one whole. A call that returns an error, company or memory, still prints the error and ends with a failing exit status, so a script stops there. Check a failed write’s outcome before repeating it; the helper never retries it automatically. When a write times out or its connection drops and it names a confirming read, the helper names that read in the error: run it first, and repeat the write only if the change is missing.
 
 ## Build a skill on actions
 
@@ -109,7 +111,7 @@ A skill that reads or changes business data does it through company actions, nev
 
 When someone asks for such a skill:
 
-1. **Build or reuse the action first.** Find one with `list`, or [define it](#define-an-action-once) in the app: in a mini app's folder, or [behind a key](mini-apps.md#work-with-no-screen) when the work fits no app. A one-off job nobody has built may list a key's [direct actions](#use-a-key-directly), `<key>.read` or `<key>.change`.
+1. **Build or reuse the action first.** Find one with `list`, or [define it](#define-an-action-once) in the app: in a mini app's folder, or [behind a key](mini-apps.md#work-with-no-screen) when the work fits no app. A one-off job nobody has built may list a key's [direct actions](#use-a-key-directly), `<key>.read` or `<key>.change`. A chat-added tool [moves into the code](#use-a-key-directly) first.
 2. **List what the skill calls** in `actions.json` beside its `SKILL.md`: `{ "title": "Refund a customer", "actions": ["orders.lookup", "orders.refund"] }`.
 3. **Call each action through the helper**, as [above](#connect-and-call): `node scripts/company-api.mjs call <id> --file -`.
 4. **Never read a business key in the skill**: no `.env`, no `app/.dev.vars`, no secret's name.

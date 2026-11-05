@@ -83,7 +83,7 @@ A successful private-input completion opened by an identifiable workspace SHALL 
 
 ### Requirement: People handle API token websites in their own browser
 
-When a task needs a website to get, create, reveal, copy, rotate, edit permissions for, or revoke an API key or token, the agent SHALL ask the person to do that step in their own browser, providing the service's token-management link and short instructions including required permissions when relevant. When a new or replacement value is to come back, that link and those instructions SHALL be on the private key link's page; for a change needing no new value they SHALL be in the chat. It SHALL NOT use browser automation, saved logins, screenshots, page extraction, or a private form for that token step. A newly supplied or replacement value SHALL use the existing private key link; a change needing no new value SHALL wait for the person's confirmation. The agent SHALL resume dependent work only after the required value is saved or the person confirms completion. Ordinary website tasks, use of stored credentials, and existing authorized token management through APIs SHALL continue unchanged.
+When a task needs a website to get, create, reveal, copy, rotate, edit permissions for, or revoke an API key or token, the agent SHALL ask the person to do that step in their own browser, providing the service's token-management link and short instructions including required permissions when relevant. When a new or replacement value is to come back, that link and those instructions SHALL be on the private key link's page; for a change needing no new value they SHALL be in the chat. It SHALL NOT use its own browser, saved logins, screenshots, page extraction, or a private form for that token step. The one exception SHALL be connecting a tool, where the person said yes to the agent using their own open Chrome: the agent MAY then make the key in that Chrome by the own-browser connect requirements. A newly supplied or replacement value SHALL otherwise use the existing private key link; a change needing no new value SHALL wait for the person's confirmation. The agent SHALL resume dependent work only after the required value is saved or the person confirms completion. Ordinary website tasks, use of stored credentials, and existing authorized token management through APIs SHALL continue unchanged.
 
 #### Scenario: A token request with a saved service login
 
@@ -94,6 +94,11 @@ When a task needs a website to get, create, reveal, copy, rotate, edit permissio
 
 - **WHEN** an ordinary browsing task reaches a step requiring a token permission change or revocation
 - **THEN** the agent stops browser interaction for that step, gives the person the website link and instructions, waits for confirmation without taking token-page pictures or extracting its content, and resumes ordinary work afterward
+
+#### Scenario: Connecting in the person's own Chrome
+
+- **WHEN** the owner connects Stripe and says yes to the agent using their own Chrome
+- **THEN** the agent makes the Stripe key in that Chrome, and no key-page picture or reading holds the key
 
 ### Requirement: A login with no saved password gets a pre-filled password link
 

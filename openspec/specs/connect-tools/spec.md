@@ -8,7 +8,7 @@ Help a person connect the work tools they use to their assistant, step by step, 
 
 ### Requirement: A person connects their tools by asking in plain words
 
-A person SHALL be able to start connecting all their tools by asking in plain words, such as *connect my tools*, and one tool by naming it, such as *connect my Figma*. The helper SHALL ask which tools they use when none is named, and SHALL end with a short list of each tool as working, waiting, or not connected yet.
+A person SHALL be able to start connecting all their tools by asking in plain words, such as *connect my tools*, and one tool by naming it, such as *connect my Figma*. When none is named, the helper SHALL suggest the tools it already knows the person uses, from what setup and memory learned about them, and SHALL let them confirm or change the list; with nothing known, it SHALL ask which tools they use. It SHALL end with a short list of each tool as working, waiting, or not connected yet.
 
 #### Scenario: All tools
 
@@ -20,6 +20,11 @@ A person SHALL be able to start connecting all their tools by asking in plain wo
 - **WHEN** a person types *connect my Figma*
 - **THEN** the helper handles Figma only, and does not ask about other tools
 
+#### Scenario: Tools already known
+
+- **WHEN** setup learned from past chats that the owner uses Stripe and Notion
+- **THEN** the helper suggests Stripe and Notion and asks to confirm or change the list, before it asks anything else
+
 ### Requirement: A connected tool shows that it works
 
 For a tool the person's assistant can use through the company app, the helper SHALL show it working with one look-up that changes nothing, when it knows such a look-up.
@@ -29,28 +34,14 @@ For a tool the person's assistant can use through the company app, the helper SH
 - **WHEN** the person names a tool whose key is saved and they hold a level for it
 - **THEN** the helper shows one result from a look-up and changes nothing at the service
 
-### Requirement: The owner adds new tools with one key link and one yes
-
-On a computer that can store keys in the company app, the helper SHALL connect every named tool with a public API that the app does not know yet through one private key link and one change for all of them, and SHALL ask *publish it?* once, with no plan to review first. Keys SHALL reach the app only after that yes, and SHALL never be asked for in the chat.
-
-#### Scenario: Two new tools
-
-- **WHEN** the owner names Figma and Notion, which the app does not know, and gives both keys on the link
-- **THEN** one change adds both, the owner is asked *publish it?* once, and after the yes both tools show a look-up working
-
-#### Scenario: The owner says no
-
-- **WHEN** the owner answers no to *publish it?*
-- **THEN** nothing goes live, the keys reach no app, and the list says the tools wait for publish
-
 ### Requirement: The helper works out how to add a tool the app does not know
 
-For a tool the company app does not know, the helper SHALL find from the tool's own developer pages how the app can reach it with a fixed key, directly or through the tool's own MCP server, and SHALL write what it found on that tool's notes page. A tool that offers only a renewing sign-in SHALL be shown as not connected yet, with the reason.
+For a tool the company app does not know, the helper SHALL find from the tool's own developer pages how the app can reach it with a fixed key, directly or through the tool's own MCP server, SHALL add that to the app, and SHALL write what it found on that tool's notes page. A tool that offers only a renewing sign-in SHALL be shown as not connected yet, with the reason.
 
 #### Scenario: A tool with a personal token
 
 - **WHEN** the owner names Figma, which offers a personal access token
-- **THEN** the key link's steps say how to make that token, and Figma's notes page says how the app reaches it
+- **THEN** the helper makes that token in the owner's Chrome, or the key link's steps say how to make it, and Figma's notes page says how the app reaches it
 
 #### Scenario: A tool with only a sign-in
 
@@ -77,9 +68,23 @@ When the owner connects a tool for a named teammate, the helper SHALL end by tel
 
 ### Requirement: A website with no API is not connected yet
 
-For a tool the company app can not reach by a key, such as the person's own mail, the helper SHALL say it is not connected yet. It SHALL NOT open its browser or send a password link while connecting.
+For a tool the company app can not reach by a key, such as the person's own mail, the helper SHALL say it is not connected yet. It SHALL NOT sign in to that site, open its own browser, or send a password link while connecting.
 
 #### Scenario: The person's own mail
 
 - **WHEN** the person names their own Gmail
 - **THEN** the list shows it as not connected yet, and no browser page or password link opens
+
+### Requirement: The owner's new tools work with no publish
+
+On a computer that can store keys in the company app, the helper SHALL add every named tool the app does not know, and its key, to the live app with no code change, no checks, and no *publish it?*, and SHALL then show each one working with one look-up. Keys SHALL never be asked for in the chat.
+
+#### Scenario: Two new tools
+
+- **WHEN** the owner names Figma and Notion, which the app does not know, and their keys are made
+- **THEN** both tools show a look-up working on the live app in the same chat, and no change waits for publish
+
+#### Scenario: A key that does not come
+
+- **WHEN** the Notion key is not made, because the owner stopped
+- **THEN** the list says Notion waits for its key, Figma still works, and *connect my Notion* later picks it up
