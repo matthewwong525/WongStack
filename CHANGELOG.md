@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The chat name waits for a step, and a typed command names it at once
+
+- **A question or errand gets no step in its name.** The step word comes only when a step starts, such as `PLAN` when a plan starts. A chat that only answers you keeps its name ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **A command you type names the chat at once.** `/explore` shows `EXPLORE`, and `/plan` or `/improve-code` shows `PLAN`. Another command shows its own name in capitals: `/verify the invoice page` shows `VERIFY: The invoice page`. `/apply`, `/continue` and `/ship` still wait for the step that starts. A command that a step runs for you, such as the save inside a publish, does not change the name.
+- **A plan's title replaces a name copied from your first message.** When Paseo names a chat from the start of your first message, the plan's title now replaces it. A name that you gave the chat stays.
+
+**Updating.** Nothing to do by hand.
+
 ## 49.0.0 — Every schedule lives in the app
 
 - **Every schedule lives in your app, in one list.** Morning routines, weekly and monthly jobs, timed background jobs and one-time tasks all live in your company app. The app keeps what each one does, when it runs, whether it is on, its progress and every run. Your daily settings file holds no routines, and the repo holds no schedule files ([host schedules](wiki/stack/host-schedules.md)).

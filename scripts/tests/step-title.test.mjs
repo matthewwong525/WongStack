@@ -4,7 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { clauseOf, codexRename, goodTask, hookTurn, nextState, setStep, verbOf } from '../../.agents/skills/explore/scripts/step-title.mjs';
+import { clauseOf, codexRename, commandStep, copiedName, goodTask, hookTurn, nextState, setStep, verbOf } from '../../.agents/skills/explore/scripts/step-title.mjs';
 
 const cli = new URL('../../.agents/skills/explore/scripts/step-title.mjs', import.meta.url).pathname;
 const unix = { skip: process.platform === 'win32' && 'the fake paseo is a shell script' };
@@ -20,6 +20,10 @@ function world(t, { workspaces, fail = false, title = null, labels = {} } = {}) 
   git('init', '-q', '-b', 'main');
   git('-c', 'user.email=t@example.invalid', '-c', 'user.name=T', 'commit', '-q', '--allow-empty', '-m', 'start');
   git('worktree', 'add', '-q', '-b', 'fix-invoice', tree);
+  for (const skill of ['verify', 'wong-sync']) {
+    mkdirSync(path.join(main, '.claude', 'skills', skill), { recursive: true });
+    writeFileSync(path.join(main, '.claude', 'skills', skill, 'SKILL.md'), `# ${skill}\n`);
+  }
   const log = path.join(dir, 'paseo.log');
   const bin = path.join(dir, 'paseo');
   writeFileSync(bin, `#!/usr/bin/env node
@@ -97,8 +101,23 @@ test('a branch-like name takes --task; a good name keeps its words', unix, async
 test('a task from the first message gives way to the plan\'s heading', unix, async t => {
   const w = world(t);
   const { write } = hookTurn({ input: { prompt: 'fix the invoice total please', session_id: 's', cwd: w.tree }, agent: 'codex', env: w.env, home: w.home });
-  assert.equal(write, 'PLAN: Fix the invoice total please');
+  assert.equal(write, null);
+  assert.deepEqual(renames(w), []);
   assert.equal(await set(w, 'PLAN', { task: 'Fix the invoice total' }), 'STEP_TITLE=PLAN: Fix the invoice total');
+});
+
+test('a Paseo name copied from the first message gives way to the plan\'s title; a name not copied stays', unix, async t => {
+  const prompt = 'Also when i start a conversation it immediately goes to plan and the name never changes after that';
+  assert.ok(copiedName(prompt.slice(0, 60), prompt));
+  assert.ok(copiedName('also when i  start a conversation…', prompt));
+  assert.ok(!copiedName('Invoice fixes', prompt));
+  const copied = world(t, { title: prompt.slice(0, 60) });
+  const hook = (w, text) => hookTurn({ input: { prompt: text, session_id: 's', cwd: w.tree }, agent: 'codex', env: w.env, home: w.home });
+  assert.equal(hook(copied, prompt).write, null);
+  assert.equal(await set(copied, 'PLAN', { task: 'Fix the invoice total' }), 'STEP_TITLE=PLAN: Fix the invoice total');
+  const named = world(t, { title: 'Invoice fixes' });
+  assert.equal(hook(named, prompt).write, null);
+  assert.equal(await set(named, 'PLAN', { task: 'Fix the invoice total' }), 'STEP_TITLE=PLAN: Invoice fixes');
 });
 
 test('a bare /apply first shows no name, and /plan\'s set gives it the heading, which a later --task keeps', unix, async t => {
@@ -108,6 +127,24 @@ test('a bare /apply first shows no name, and /plan\'s set gives it the heading, 
   assert.equal(await setStep({ step: 'PLAN', task: 'X', env, cwd: w.main, home: w.home }), 'STEP_TITLE=PLAN: X');
   assert.equal(await setStep({ step: 'PLAN', task: 'Y', env, cwd: w.main, home: w.home }), 'STEP_TITLE=PLAN: X');
   assert.equal(await setStep({ step: 'APPLY', env, cwd: w.main, home: w.home }), 'STEP_TITLE=APPLY: X');
+});
+
+test('a Paseo name that is a bare command never becomes the task: /plan then set PLAN --task X is PLAN: X', unix, async t => {
+  const w = world(t, { title: '/plan' });
+  const hook = text => hookTurn({ input: { prompt: text, session_id: 's', cwd: w.tree }, agent: 'codex', env: w.env, home: w.home });
+  assert.equal(hook('/plan').write, null);
+  assert.equal(await set(w, 'PLAN'), 'STEP_TITLE=skipped no task words');
+  assert.equal(await set(w, 'PLAN', { task: 'X' }), 'STEP_TITLE=PLAN: X');
+});
+
+test('a Paseo name that starts with a command is weak: /verify, then /plan fix x is PLAN: Fix x, which --task replaces', unix, async t => {
+  const w = world(t, { title: '/verify' });
+  mkdirSync(path.join(w.tree, '.claude', 'skills', 'verify'), { recursive: true });
+  writeFileSync(path.join(w.tree, '.claude', 'skills', 'verify', 'SKILL.md'), '# verify\n');
+  const hook = text => hookTurn({ input: { prompt: text, session_id: 's', cwd: w.tree }, agent: 'codex', env: w.env, home: w.home });
+  assert.equal(hook('/verify').write, null);
+  assert.equal(hook('/plan fix x').write, 'PLAN: Fix x');
+  assert.equal(await set(w, 'PLAN', { task: 'Y' }), 'STEP_TITLE=PLAN: Y');
 });
 
 test('Paseo\'s main folder, the Daily chat, and an unattended run keep their names', unix, async t => {
@@ -151,26 +188,40 @@ test('Claude Code alone: a typed /ship names nothing; each set shows by the next
   assert.deepEqual(resumed.out, { hookSpecificOutput: { hookEventName: 'SessionStart', sessionTitle: 'DONE: Fix the invoice total' } });
 });
 
-test('/daily as a first message sets nothing, later plain messages keep it so, and a loop verb gives task words only', unix, async t => {
-  const w = world(t);
-  const env = { PATH: w.env.PATH, HOME: w.home, CLAUDE_CODE_SESSION_ID: 'c2' };
-  const hook = prompt => hookTurn({ input: { prompt, session_id: 'c2', cwd: w.main }, agent: 'claude', env, home: w.home });
-  const first = hook('/daily');
-  assert.equal(first.out, null);
-  assert.equal(first.write, null);
-  assert.equal(hook('what is going on').out, null);
-  assert.equal(hook('/plan fix the invoice total').out, null);
-  assert.equal(await setStep({ step: 'PLAN', env, cwd: w.main, home: w.home }), 'STEP_TITLE=PLAN: Fix the invoice total');
-});
-
-test('a first plain message starts at PLAN, and a later typed verb does not move it', unix, t => {
+test('a typed command names the chat at once: a repo skill in capitals, /explore EXPLORE; /ship and /compact change nothing', unix, t => {
   const w = world(t);
   const env = { PATH: w.env.PATH, HOME: w.home };
+  const hook = (prompt, id) => hookTurn({ input: { prompt, session_id: id, cwd: w.main }, agent: 'claude', env, home: w.home });
+  const title = turn => turn.out?.hookSpecificOutput.sessionTitle ?? null;
+  const verify = hook('/verify the invoice page', 'c5');
+  assert.equal(title(verify), 'VERIFY: The invoice page');
+  assert.equal(verify.write, 'VERIFY: The invoice page');
+  assert.equal(title(hook('/explore fix it', 'c6')), 'EXPLORE: Fix it');
+  assert.equal(title(hook('/ship', 'c5')), null);
+  assert.equal(hook('/ship', 'c5').write, null);
+  assert.equal(title(hook('/explore', 'c5')), 'EXPLORE: The invoice page');
+  assert.equal(hook('/compact', 'c5').write, null);
+  const compact = hook('/compact', 'c7');
+  assert.deepEqual([compact.out, compact.write], [null, null]);
+  assert.equal(title(hook('fix the invoice total', 'c7')), null);
+  assert.equal(commandStep('/wong-sync', w.main), 'SYNC');
+  assert.equal(commandStep('/improve-code', w.main), 'PLAN');
+  assert.equal(commandStep('$verify x', w.main), 'VERIFY');
+  assert.equal(commandStep('/a:verify', w.main), null);
+  assert.equal(commandStep('/daily', w.main), null);
+});
+
+test('a first plain message shows and writes nothing; a set then names it, shown at the next message', unix, async t => {
+  const w = world(t);
+  const env = { PATH: w.env.PATH, HOME: w.home, CLAUDE_CODE_SESSION_ID: 'c4' };
   const hook = prompt => hookTurn({ input: { prompt, session_id: 'c4', cwd: w.main }, agent: 'claude', env, home: w.home });
-  assert.equal(hook('fix the invoice total').out.hookSpecificOutput.sessionTitle, 'PLAN: Fix the invoice total');
+  const first = hook('fix the invoice total');
+  assert.deepEqual([first.out, first.write], [null, null]);
+  assert.equal(hook('what is going on').out, null);
+  assert.equal(await setStep({ step: 'PLAN', env, cwd: w.main, home: w.home }), 'STEP_TITLE=PLAN: Fix the invoice total');
+  assert.equal(hook('looks good').out.hookSpecificOutput.sessionTitle, 'PLAN: Fix the invoice total');
   const typed = hook('/ship');
-  assert.equal(typed.out, null);
-  assert.equal(typed.write, null);
+  assert.deepEqual([typed.out, typed.write], [null, null]);
 });
 
 test('Codex renames through its own app-server call', unix, async t => {
@@ -195,8 +246,11 @@ require('readline').createInterface({ input: process.stdin }).on('line', line =>
 test('with no Codex rename, the Codex hook appends one line to the chat-name list, in Codex\'s shape', unix, async t => {
   const w = world(t);
   const env = { PATH: w.env.PATH, HOME: w.home, CODEX_HOME: w.env.CODEX_HOME, STEP_TITLE_CODEX_BIN: path.join(w.home, 'no-codex') };
+  // A set with no Codex id stores the task; the hook's typed /explore then writes the new name.
+  assert.equal(await setStep({ step: 'PLAN', task: 'Fix the invoice total', env: { ...env, CLAUDE_CODE_SESSION_ID: 'th-1' }, cwd: w.main, home: w.home }),
+    'STEP_TITLE=PLAN: Fix the invoice total');
   const run = spawnSync(process.execPath, [cli, 'hook', '--agent', 'codex'], {
-    cwd: w.main, env, encoding: 'utf8', input: JSON.stringify({ prompt: 'fix the invoice total', session_id: 'th-1', cwd: w.main }),
+    cwd: w.main, env, encoding: 'utf8', input: JSON.stringify({ prompt: '/explore', session_id: 'th-1', cwd: w.main }),
   });
   assert.equal(run.status, 0, run.stderr);
   assert.equal(run.stdout, '');
@@ -205,7 +259,7 @@ test('with no Codex rename, the Codex hook appends one line to the chat-name lis
   assert.equal(lines.length, 1);
   assert.deepEqual(Object.keys(lines[0]), ['id', 'thread_name', 'updated_at']);
   assert.equal(lines[0].id, 'th-1');
-  assert.equal(lines[0].thread_name, 'PLAN: Fix the invoice total');
+  assert.equal(lines[0].thread_name, 'EXPLORE: Fix the invoice total');
   assert.ok(!Number.isNaN(Date.parse(lines[0].updated_at)));
 });
 
