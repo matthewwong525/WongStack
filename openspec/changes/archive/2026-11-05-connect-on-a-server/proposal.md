@@ -1,6 +1,6 @@
 # Connect your tools when the assistant runs on a server
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** pretty-frog
 **Open questions:** none
 
@@ -132,3 +132,4 @@ None.
 - **2026-11-05** — Live result of task 5.2: Notion was already signed in, so no link was needed; a read-only connection was made, `take-key` saved `TOOL_NOTION` (only `…83bj` shown), `tool add notion` with a fixed `Notion-Version` header succeeded, and `POST search` answered 200 with no pages, as Matthew chose to share none yet. Stripe: his sign-in through the link worked (`opened`, then `signed-in`), and Take over and Hand back worked, but his role has no API key access on that account, so he stopped Stripe.
 - **2026-11-05** — Assumed: removing the card, code and password forms in favour of the live view is its own change, planned in workspace *The live view is the one place for sensitive input*, because it could ship alone; this change keeps the key link as the last fallback.
 - **2026-11-05** — Assumed: the view drops the site's address with the tag, as the plan's sketches show only the one line, and the app's inbox names the link *Connect your tools*, not *Watch the assistant connect your tools*, because the link now opens mostly for a sign-in.
+- **2026-11-05** — Archived for ship as 49.1.0: tasks 6.1–6.3 built, a second look found a publishable Stripe key could be taken and a lost `HANDOVER_NEEDS` line, both fixed and reread clean; merged with main's 49.0.0 (CHANGELOG and retired names joined).

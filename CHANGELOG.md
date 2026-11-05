@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Connect your tools when the assistant runs on a server
+## 49.1.0 — Connect your tools when the assistant runs on a server
 
 - **On a server, the assistant makes each key in its own browser, at once.** Say *connect my Notion*. It asks no Chrome question when no Chrome can be there, and sends no link unless a tool asks you to sign in, or you ask to watch ([connect your tools](wiki/stack/connect-your-tools.md#use-the-assistants-browser)).
 - **Take over, hand back, or stop at any time while a link is open.** One short line at the top says what to do now. *Take over* pauses the assistant and gives you the browser. *Hand back* lets it go on. *Stop* ends the run. A stray tap never takes the browser.

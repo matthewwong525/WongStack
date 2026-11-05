@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · connect-on-a-server</title>
+<title>Review · 2026-11-05-connect-on-a-server</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="connect-on-a-server" data-own-back>
+<body data-change="2026-11-05-connect-on-a-server" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>connect-on-a-server</h1>
+  <h1>2026-11-05-connect-on-a-server</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -496,6 +496,8 @@
 <li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-05</p>Found in the live Notion run, and fixed: <code>take-key</code> refused because Notion's connection page shows a long name in a box and a connection id that also read as keys; with several, it now takes the one that starts like a known key (<code>ntn_</code>). <code>take-key</code> also could not save to the live app because it did not load the primary <code>.env</code> Cloudflare login for <code>wrangler</code>; it now does. A <code>connect-browser.test.mjs</code> case covers both.</li>
 <li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-05</p>Live result of task 5.2: Notion was already signed in, so no link was needed; a read-only connection was made, <code>take-key</code> saved <code>TOOL_NOTION</code> (only <code>…83bj</code> shown), <code>tool add notion</code> with a fixed <code>Notion-Version</code> header succeeded, and <code>POST search</code> answered 200 with no pages, as Matthew chose to share none yet. Stripe: his sign-in through the link worked (<code>opened</code>, then <code>signed-in</code>), and Take over and Hand back worked, but his role has no API key access on that account, so he stopped Stripe.</li>
 <li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-05</p>Assumed: removing the card, code and password forms in favour of the live view is its own change, planned in workspace <i>The live view is the one place for sensitive input</i>, because it could ship alone; this change keeps the key link as the last fallback.</li>
+<li class="decision card" id="decision-37" data-note="decision-37" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-05</p>Assumed: the view drops the site's address with the tag, as the plan's sketches show only the one line, and the app's inbox names the link <i>Connect your tools</i>, not <i>Watch the assistant connect your tools</i>, because the link now opens mostly for a sign-in.</li>
+<li class="decision card" id="decision-38" data-note="decision-38" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-05</p>Archived for ship as 49.1.0: tasks 6.1–6.3 built, a second look found a publishable Stripe key could be taken and a lost <code>HANDOVER_NEEDS</code> line, both fixed and reread clean; merged with main's 49.0.0 (CHANGELOG and retired names joined).</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
