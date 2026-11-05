@@ -13,6 +13,7 @@ The rest is for people who shape how WongStack works. [AI knowledge centers](age
 - [Contributing upstream](contributing.md) — how to send a workflow improvement back to WongStack by hand, and the generality bar it has to clear.
 - [Development](development/README.md) — how this repo plans, builds, checks, and ships changes.
 - [Maintaining WongStack](maintaining/README.md) — editing the toolkit itself: adding a skill, the folder links, and cutting a release.
+- [Services](services/README.md) — notes on each key-based service the app uses, such as Notion: how its key is made and the calls that work.
 
 > New section? Add a `wiki/<section>/README.md` hub, link it from the list above, and let
 > it break its own process down page by page. Don't manufacture depth — add a layer only
