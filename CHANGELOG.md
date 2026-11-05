@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Connect your tools in your own browser
+## 48.4.0 — Connect your tools in your own browser
 
 - **Your tools are suggested, then connected first.** After install, the chat suggests the tools it learned you use, such as *You seem to use Stripe, Notion and Figma. Connect these?* You say yes, or change the list ([connect your tools](wiki/stack/connect-your-tools.md)).
 - **The assistant makes each key in your own Chrome.** It asks first. You turn on one Chrome setting once, and Chrome asks you to allow it. The assistant works only in new tabs it opens, makes the narrowest key that only reads, and closes only its own tabs. When you are signed out, you sign in yourself in that tab: it never asks for a password. When your Chrome is on another computer, or you say no, the private key link works as before.

@@ -1,6 +1,6 @@
 # Connect your tools in your own browser
 
-**Status:** built; saving for the preview check inside /ship
+**Status:** shipped as 48.4.0
 **Branch:** onboarding-flow-after-setup
 **Open questions:** none
 
@@ -131,3 +131,4 @@ After install, connecting your work tools is the step that makes the assistant u
 - **2026-11-05** — Assumed: a tool save drops its levels when its address, look-ups, MCP reads or offered levels change, and keeps them for a new title, purpose, guide or header, because only the first set changes what a level allows.
 - **2026-11-05** — Assumed: a key page is one whose address, title or a heading names API, developer, integration, key, token or secret, and only there are long hex runs and UUIDs hidden, because ids of that shape are common on other pages.
 - **2026-11-05** — Assumed: a tool added in a chat whose key never came goes to the person's Chrome first, then the key link, because the key link is only the fallback; a code key that is not saved goes to the key link.
+- **2026-11-05** — Assumed: archived for 48.4.0 after CI passed and the preview held no tools and refused a tool save as live only.

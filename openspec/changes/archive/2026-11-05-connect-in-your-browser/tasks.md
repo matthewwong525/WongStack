@@ -33,4 +33,4 @@
 ## 6. Verification
 
 - [x] 6.1 Run `node .github/scripts/checks.mjs --worktree`, `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs` and `node scripts/measure-context.mjs --check`; cut skill text until the budget passes.
-- [ ] 6.2 `/save`, wait for CI, and on the preview confirm Services shows no tools and the existing keys still work.
+- [x] 6.2 `/save`, wait for CI, and on the preview confirm Services shows no tools and the existing keys still work.
