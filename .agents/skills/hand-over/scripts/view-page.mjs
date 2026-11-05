@@ -15,6 +15,27 @@ const RETRY_MS = 500;
 /** The keys pressed as they are, by the name a keydown gives: each one's X keysym. */
 const KEYS = { Backspace: 0xff08, Tab: 0xff09, Enter: 0xff0d };
 
+/** What a watch link shows while each holds the browser: its tag and look, its line when it has its own, its one button
+ * and how loud, and whether the person's taps and typing reach the browser. */
+export const WATCH = {
+  assistant: { tag: 'Assistant working', look: 'tag', button: 'Take over', main: true, hands: false },
+  person: { tag: 'You have the browser', look: 'tag-outline', line: 'The assistant waits. Tap the browser to use it.', button: 'Hand back', main: true, hands: true },
+  turn: { tag: 'Your turn', look: 'tag-outline', button: 'Hand back', main: false, hands: true },
+};
+const WATCH_ENDINGS = { done: 'All done. Go back to the chat.', stopped: 'Stopped. Go back to the chat.' };
+const WATCH_POLL_MS = 1000;
+/** The modifier keys a held Ctrl+V or Cmd+V leaves down in the browser, each with its key code. */
+const MODIFIERS = [[0xffe3, 'ControlLeft'], [0xffe4, 'ControlRight'], [0xffeb, 'MetaLeft'], [0xffec, 'MetaRight'], [0xffe7, 'MetaLeft'], [0xffe8, 'MetaRight']];
+
+/** What a watch link shows for the link's `{control, line, host}`: the person's own hold keeps its own line. */
+export function watchShows({ control, line, host } = {}) {
+  const shows = WATCH[control] ?? WATCH.assistant;
+  return { ...shows, text: shows.line ?? line ?? '', host: host ?? '' };
+}
+
+/** A watch link's closing line for a `receipt`. */
+export const watchEnding = receipt => WATCH_ENDINGS[receipt?.result] ?? ENDINGS.closed;
+
 /** The key presses that turn the box's text from `before` into `after`, as X keysyms: a Backspace for each
  * character past the shared start, then each new one. Above Latin-1 a keysym is X's Unicode form; a break is Enter. */
 export function strokes(before, after) {
@@ -57,6 +78,9 @@ function start(RFB = globalThis.RFB) {
   let over = false;
   // A form's or a sign-in's view: its site, kind, press time, and wait, on the link's clock (`ahead` of this one).
   let live = null;
+  // A watch link: who holds the browser, and whether the person's taps and typing reach it.
+  let watch = null;
+  let mayType = true;
 
   const call = (path, body) => fetch(path, {
     method: body ? 'POST' : 'GET',
@@ -125,7 +149,7 @@ function start(RFB = globalThis.RFB) {
     if (live) freeze(rfb);
     else show(CONNECTING);
     const response = await call('receipt');
-    const ended = receipt => (live ? endLive(receipt) : end(ending(receipt)));
+    const ended = receipt => (live ? endLive(receipt) : end(watch ? watchEnding(receipt) : ending(receipt)));
     if (response?.status === 200) return ended(await response.json().catch(() => null));
     if (response?.status !== 202) return ended(null);
     const { finishing } = (await response.json().catch(() => null)) ?? {};
@@ -140,6 +164,7 @@ function start(RFB = globalThis.RFB) {
     const rfb = new RFB($('#screen'), `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/screen`, { wsProtocols: [key] });
     viewer = rfb;
     rfb.scaleViewport = true;
+    rfb.viewOnly = !mayType;
     rfb.addEventListener('connect', () => {
       show('');
       layout();
@@ -165,6 +190,54 @@ function start(RFB = globalThis.RFB) {
   });
   // A tap on the screen moves the browser's cursor, so what the box holds no longer mirrors it.
   $('#holder').addEventListener('pointerdown', empty);
+  // The viewer takes Ctrl+V and Cmd+V as keys for the browser, whose clipboard is empty: let the page's paste happen.
+  let chord = false;
+  $('#screen').addEventListener('keydown', event => {
+    if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'v') return;
+    chord = true;
+    event.stopPropagation();
+  }, true);
+  // A paste anywhere on the view types into the browser, as the box does; nothing pasted is kept or sent elsewhere.
+  // A paste in the box is the box's own: its input handler types it, over the box's selection.
+  document.addEventListener('paste', event => {
+    const text = event.clipboardData?.getData('text/plain') ?? '';
+    if (!viewer || !mayType || !text || $('#text').contains(event.target)) return;
+    event.preventDefault();
+    if (chord) for (const [keysym, code] of MODIFIERS) viewer.sendKey(keysym, code, false);
+    chord = false;
+    press(strokes('', text));
+    empty();
+  });
+
+  /** Shows who holds a watch's browser, from the link's `info`; a stop ends the page. */
+  const render = info => {
+    if (over || !info) return;
+    if (info.control === 'stopped') return end(WATCH_ENDINGS.stopped);
+    const shows = watchShows(info);
+    watch = info.control;
+    mayType = shows.hands;
+    if (viewer) viewer.viewOnly = !mayType;
+    Object.assign($('#tag'), { textContent: shows.tag, className: shows.look });
+    $('#host').textContent = shows.host;
+    $('#line-text').textContent = shows.text;
+    Object.assign($('#hand'), { textContent: shows.button, className: shows.main ? 'btn-primary' : 'btn-ghost' });
+    $('#type').hidden = !mayType;
+    if (!mayType) empty();
+  };
+  const follow = async () => {
+    const response = await call('watch');
+    if (response?.ok) render(await response.json().catch(() => null));
+    if (!over) setTimeout(follow, WATCH_POLL_MS);
+  };
+  $('#hand').addEventListener('click', async () => {
+    const response = await call(watch === 'assistant' ? 'take' : 'give', {});
+    if (response?.ok) render(await response.json().catch(() => null));
+  });
+  $('#stop').addEventListener('click', async () => {
+    $('#stop').disabled = true;
+    if (await call('stop', {})) end(WATCH_ENDINGS.stopped);
+    else $('#stop').disabled = false;
+  });
   // A phone's keyboard covers the page's foot without resizing it: follow what is still in sight.
   globalThis.visualViewport?.addEventListener('resize', () => {
     $('#view').style.height = `${visualViewport.height}px`;
@@ -200,6 +273,15 @@ function start(RFB = globalThis.RFB) {
       $('#line').hidden = false;
       const tick = () => { if (!over) { writeLine(); setTimeout(tick, 1000); } };
       tick();
+    } else if (view.watch) {
+      watch = 'assistant';
+      mayType = false;
+      $('#line').hidden = false;
+      $('#line').classList.add('watch');
+      for (const part of ['#tag', '#host', '#stop', '#hand']) $(part).hidden = false;
+      $('#viewed').hidden = true;
+      await follow();
+      await report();
     } else {
       if (view.keepOpen) {
         $('#line').hidden = false;

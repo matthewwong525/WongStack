@@ -41,7 +41,7 @@ Rotate values in durable `.env`. Change `.env.example` only when the name, purpo
 
 ## API token website steps
 
-The person handles website steps to obtain, reveal, copy, rotate, change permissions for, or revoke API keys/tokens in their own browser. The agent uses no automation, saved login, screenshot, extraction, or private form for those steps. Except: [connecting tools](../stack/connect-your-tools.md#use-your-own-chrome) may make keys in the person's own Chrome, with their yes.
+The person handles website steps to obtain, reveal, copy, rotate, change permissions for, or revoke API keys/tokens in their own browser. The agent uses no automation, saved login, screenshot, extraction, or private form for those steps. Except: [connecting tools](../stack/connect-your-tools.md#pick-the-browser) may make keys in a watched browser, or in the person's Chrome with their yes.
 
 If an ordinary browsing task reaches a token step, stop before taking a picture or extracting page content, then:
 

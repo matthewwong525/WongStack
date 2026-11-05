@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Connect your tools when the assistant runs on a server
+
+- **On a server, the assistant makes each key in its own browser, while you watch.** Say *connect my Notion*. It asks no Chrome question when no Chrome can be there. It sends one private link, the watch link, and you see it click through the key pages ([connect your tools](wiki/stack/connect-your-tools.md#use-the-assistants-browser)).
+- **Take over, hand back, or stop at any time.** *Take over* pauses the assistant and gives you the browser. *Hand back* lets it go on. *Stop* ends the run. A stray tap never takes the browser.
+- **Signed out? You sign in on your turn.** The link says *Your turn* and the assistant waits. When you are in, it goes on by itself. Your sign-in stays in the assistant's browser for next time. A site that refuses that browser takes the key link at the end.
+- **Keys stay unseen, as in your Chrome.** The chat shows only a key's last four characters, and the assistant's view of the page hides the key.
+- **Paste works in every live view.** A paste on the browser or in the type box types the text into the browser ([live view](wiki/development/live-view.md#what-you-see)).
+
+**Updating.** Nothing to do by hand.
+
 ## 48.4.0 — Connect your tools in your own browser
 
 - **Your tools are suggested, then connected first.** After install, the chat suggests the tools it learned you use, such as *You seem to use Stripe, Notion and Figma. Connect these?* You say yes, or change the list ([connect your tools](wiki/stack/connect-your-tools.md)).

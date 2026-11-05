@@ -20,7 +20,9 @@ export const TOOLS = {
   novnc: `noVNC ${VIEWER.version} draws that screen on the link's page. It goes in your home folder.`,
 };
 export const OFF_LINUX = 'A live view needs Linux, where the browser runs on a virtual screen it can show.';
-export const VIEW_ROUTES = new Set(['/view', '/fit', '/done']);
+export const VIEW_ROUTES = new Set(['/view', '/fit', '/done', '/watch', '/take', '/give', '/stop']);
+/** A watch link's buttons, each its route: the person takes the browser, hands it back, or stops the run. */
+const WATCH_ACTIONS = new Set(['/take', '/give', '/stop']);
 const FITS = ['phone', 'wide'];
 const PHONE_WIDTH = 480;
 const PACKAGES = ['x11vnc', 'xdotool'];
@@ -307,13 +309,23 @@ export function viewerFile(pathname, dir = viewerDir()) {
   return statSync(file, { throwIfNoEntry: false })?.isFile() ? file : null;
 }
 
-/** The view's routes for the link's `{note, keepOpen}`. `fitted()` gives the fit; `onFit(kind)` refits to a new one.
- * After `/done`'s reply, `onFinished()` runs for a view kept open, else `onCancel()`. */
-export function viewRoutes({ note, keepOpen = false }, { fitted = () => null, onFit = async () => null, onCancel = () => {}, onFinished = () => {}, closesAt } = {}) {
+/** The view's routes: `onFit(kind)` refits; after `/done`, `onFinished()` runs for a view kept open, else `onCancel()`.
+ * `watch` hooks answer `/watch` and its buttons, each giving who holds the browser, or null when it does not apply. */
+export function viewRoutes({ note, keepOpen = false }, { fitted = () => null, onFit = async () => null, onCancel = () => {}, onFinished = () => {}, closesAt, watch = null } = {}) {
   let ended = false;
   return async (pathname, request, response) => {
-    if (pathname === '/view') return request.method === 'GET' ? reply(response, 200, { ...(note && { note }), ...(keepOpen && { keepOpen }), fit: fitted(), closesAt, now: Date.now() }) : reply(response, 405);
+    if (pathname === '/view') {
+      if (request.method !== 'GET') return reply(response, 405);
+      watch?.shown();
+      return reply(response, 200, { ...(note && { note }), ...(keepOpen && { keepOpen }), ...(watch && { watch: true }), fit: fitted(), closesAt, now: Date.now() });
+    }
+    if (!watch && (pathname === '/watch' || WATCH_ACTIONS.has(pathname))) return reply(response, 404);
+    if (pathname === '/watch') return request.method === 'GET' ? reply(response, 200, watch.info()) : reply(response, 405);
     if (request.method !== 'POST') return reply(response, 405);
+    if (WATCH_ACTIONS.has(pathname)) {
+      const now = watch[pathname.slice(1)]();
+      return now ? reply(response, 200, now) : reply(response, 409);
+    }
     if (pathname === '/done') {
       if (ended) return reply(response, 409);
       ended = true;

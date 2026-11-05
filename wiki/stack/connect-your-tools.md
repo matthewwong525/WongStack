@@ -8,9 +8,13 @@ flowchart TD
   sort --> ready[works now: one look-up]
   sort --> how[new: work out how]
   sort --> later[not connected yet]
-  how --> chrome{"use your Chrome?"}
-  chrome -->|yes| make[assistant makes each key]
+  how --> where{where is the assistant?}
+  where -->|on a server| server[its own browser, watched through one link]
+  where -->|on your computer| chrome{"use your Chrome?"}
+  server --> make[assistant makes each key]
+  chrome -->|yes| make
   chrome -->|no, or no Chrome| link[one key link]
+  server -->|a site it can't get through| link
   make --> add[tool add: live in seconds]
   link --> add
   add --> look[a look-up for each]
@@ -44,7 +48,7 @@ After install, setup then offers a first app built on the tools that work ([gett
 | `services` says | Can store (owner) | Can't store (teammate) |
 |---|---|---|
 | Saved, you have a level | Works now: one look-up | Works now: one look-up |
-| In the list, not saved, not in `app/worker/keys.ts` (added in a chat) | [Your own Chrome](#use-your-own-chrome) and `take-key`, else [the key link](#the-key-link) | Message: *save the key* |
+| In the list, not saved, not in `app/worker/keys.ts` (added in a chat) | [A browser](#pick-the-browser) and `take-key`, else [the key link](#the-key-link) | Message: *save the key* |
 | In the list, not saved, in `app/worker/keys.ts` | [The key link](#the-key-link), under its name in `app/.dev.vars.example`, with no code change | Message: *save the key* |
 | Saved, you have no level | Does not happen: the owner holds every key | Message: *give me a level on Access* |
 | No row | [Work out how](#work-out-how-to-add-a-new-tool), then [add it](#add-a-new-tool-with-no-publish) | Message: *connect <tool> for <name>* |
@@ -66,6 +70,32 @@ Most tools are new to the app, so this is the main step. For each tool with no r
 
 Write what you found on the tool's notes page: the kind of key, the page that makes it, the permissions, and one look-up. It goes in the next wiki save, like [any notes page](service-catalogue.md#notes-on-each-key-based-service). The next chat then reads it, and does not work it out again.
 
+## Pick the browser
+
+On the owner's computer, the assistant makes each new tool's key in a browser, through [`browser.mjs`](../../.agents/skills/connect/scripts/browser.mjs) only: never raw `agent-browser` or `browse.mjs`. Run `browser.mjs where` first. It connects to nothing and prints one line:
+
+- `WHERE=server`: the assistant runs on a server with no screen. [Use the assistant's browser](#use-the-assistants-browser), with no question: the request to connect is the go-ahead.
+- `WHERE=chrome`: the person's Chrome may be on this computer. Ask the [Chrome question](#use-your-own-chrome).
+- `WHERE=link`: no browser can show here. Use [the key link](#the-key-link).
+
+The key link is always the last way: for a tool the browser can not get through, or when the person picks it.
+
+## Use the assistant's browser
+
+On a server, the assistant makes each key in its own browser, Camoufox, while the person watches through one private link, the [watch link](../development/live-view.md#the-watch-link). Sign-ins stay in that browser for the next time. The person can take over, hand back, or stop at any time, and signs in only on their turn.
+
+1. **`attach --server`** prints `BROWSER=camoufox`. On `BROWSE_NEEDS=install`, ask once, by [the browser's install rule](../development/browsing.md).
+2. **`open <key page>`** for the first tool, then **`watch`**. It prints `HANDOVER_LINK`: run `hand-over.mjs wait` in the background, and end the turn with the link. The run starts when `wait` prints `opened`, or when the person says *go*. On `HANDOVER_NEEDS=live-view` or another chat's open view, follow the [live view's rules](../development/live-view.md#when-it-opens).
+3. **`read`**, then make the key, as in [your own Chrome](#use-your-own-chrome) steps 4 and 5. Each command sets the link's line, such as *Clicking New integration…*.
+4. **Signed out?** Run **`sign-in --tool <title>`** on the sign-in page. It prints `CONNECT_PAUSED=your-turn`: run `wait` in the background and end the turn, repeating the link if the person has not opened it. On `signed-in` or `handed-back`, `open` the key page again and `read`. Still a sign-in, a passkey, or a refusal: that tool takes the key link at the end.
+5. **`done`** closes the page and the watch link. The link says *All done. Go back to the chat.*
+
+Every command reads who holds the browser first:
+
+- `CONNECT_PAUSED=taken-over`: the person tapped *Take over*. Run `wait` in the background, send the browser nothing, and end the turn. On `handed-back`, `read` the page again.
+- `CONNECT_PAUSED=your-turn`: the person is signing in. Wait as in step 4.
+- `CONNECT_STOPPED`: the person tapped *Stop*. Run `done --stopped`. A *stop* in the chat runs it too.
+
 ## Use your own Chrome
 
 On the owner's computer, the assistant can make each key in the person's own Chrome, where they are already signed in. It asks first:
@@ -80,9 +110,9 @@ switch it on. Chrome then asks "Allow?"
 [ Use my Chrome ]  [ Send me the key link ]
 ```
 
-On a yes, work only through [`chrome.mjs`](../../.agents/skills/connect/scripts/chrome.mjs), never raw `agent-browser` and never the assistant's own browser:
+On a yes, work only through [`browser.mjs`](../../.agents/skills/connect/scripts/browser.mjs), in your Chrome alone:
 
-1. **`attach`.** When it prints `CHROME=none`, Chrome is on another computer or the switch is off: use [the key link](#the-key-link) for every tool.
+1. **`attach`.** When it prints `CHROME=none`, Chrome is on another computer or the switch is off. With `SERVER=possible` after it, go on in [the assistant's browser](#use-the-assistants-browser), with no second question; else use [the key link](#the-key-link) for every tool.
 2. **`open <key page>`** for one tool. It opens a new tab. The script acts and reads only in tabs it opened, so your other tabs stay unread.
 3. **Signed out?** Ask the person to sign in in that tab, and wait. Never type, save, or ask for a password or a sign-in code.
 4. **Make the narrowest key that only reads**, with `read`, `click`, `fill`, `select` and `wait`. Make a key that can change things only when the person asks for it by name. `read` hides any key on the page as `[key …abcd]`, and `picture` refuses while a key shows.
@@ -93,7 +123,7 @@ A key page the assistant can not get through, such as a robot check or a layout 
 
 ## The key link
 
-When the person says no, or `attach` finds no Chrome, open one [key link](../development/secrets.md#receive-a-key-through-a-private-link) for all the tools. Each new tool's secret is `TOOL_<ID>`, the id upper-cased with `-` as `_`, and needs no line in `app/.dev.vars.example`. A key in the code takes its declared name. Give each a guide entry: `url`, `steps` and a harmless `check`, by [the token steps](../development/secrets.md#api-token-website-steps). Wait until it closes, then `npm run secrets:push`: a `TOOL_` key goes to the live app alone, never to previews. A tool whose key did not come says *waiting for your key*: *connect my Notion* later picks it up.
+When the person says no, `where` prints `WHERE=link`, or no browser got a tool's key, open one [key link](../development/secrets.md#receive-a-key-through-a-private-link) for all the tools. Each new tool's secret is `TOOL_<ID>`, the id upper-cased with `-` as `_`, and needs no line in `app/.dev.vars.example`. A key in the code takes its declared name. Give each a guide entry: `url`, `steps` and a harmless `check`, by [the token steps](../development/secrets.md#api-token-website-steps). Wait until it closes, then `npm run secrets:push`: a `TOOL_` key goes to the live app alone, never to previews. A tool whose key did not come says *waiting for your key*: *connect my Notion* later picks it up.
 
 ## Add a new tool with no publish
 
