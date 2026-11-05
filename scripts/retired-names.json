@@ -143,5 +143,6 @@
   {"name": "daily.mjs watch", "replacement": "each chat's stop check (`stop-check.mjs`) and `D ensure`"},
   {"name": "wrap-up.mjs", "replacement": "`finished.mjs`, which marks finished chats in `D status`"},
   {"name": "open-daily", "replacement": "the worker's morning start, which runs the due routines at `morning` with no chat", "allow": ["scripts/tests/daily.test.mjs"], "why": "the test checks that the old command is refused"},
-  {"name": "daily-workspace.json", "replacement": "the stand-in id `daily-worker` that `chiefEnv` gives a background run"}
+  {"name": "daily-workspace.json", "replacement": "the stand-in id `daily-worker` that `chiefEnv` gives a background run"},
+  {"name": "--typed", "replacement": "a plain `step-title.mjs set <STEP>`, which moves the name back as well as forward"}
 ]

@@ -3,7 +3,7 @@ title: One change takes down your live website
 problem: Your AI edits the live site directly, and one bad change breaks it for everyone.
 fix: Every change is checked, then you see a test copy, then you say publish.
 order: 4
-checked: 2026-11-04
+checked: 2026-11-05
 sources:
   - wiki/development/the-change-loop.md
   - wiki/development/staging-walkthrough.md
