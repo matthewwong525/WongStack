@@ -15,22 +15,23 @@ const RETRY_MS = 500;
 /** The keys pressed as they are, by the name a keydown gives: each one's X keysym. */
 const KEYS = { Backspace: 0xff08, Tab: 0xff09, Enter: 0xff0d };
 
-/** What a watch link shows while each holds the browser: its tag and look, its line when it has its own, its one button
- * and how loud, and whether the person's taps and typing reach the browser. */
+/** What a watch link shows while each holds the browser: its line when it has its own, its one button and how loud,
+ * and whether the person's taps and typing reach the browser. */
 export const WATCH = {
-  assistant: { tag: 'Assistant working', look: 'tag', button: 'Take over', main: true, hands: false },
-  person: { tag: 'You have the browser', look: 'tag-outline', line: 'The assistant waits. Tap the browser to use it.', button: 'Hand back', main: true, hands: true },
-  turn: { tag: 'Your turn', look: 'tag-outline', button: 'Hand back', main: false, hands: true },
+  assistant: { button: 'Take over', main: true, hands: false },
+  person: { line: 'Tap Hand back when you\'re done.', button: 'Hand back', main: true, hands: true },
+  turn: { button: 'Hand back', main: false, hands: true },
 };
 const WATCH_ENDINGS = { done: 'All done. Go back to the chat.', stopped: 'Stopped. Go back to the chat.' };
 const WATCH_POLL_MS = 1000;
 /** The modifier keys a held Ctrl+V or Cmd+V leaves down in the browser, each with its key code. */
 const MODIFIERS = [[0xffe3, 'ControlLeft'], [0xffe4, 'ControlRight'], [0xffeb, 'MetaLeft'], [0xffec, 'MetaRight'], [0xffe7, 'MetaLeft'], [0xffe8, 'MetaRight']];
 
-/** What a watch link shows for the link's `{control, line, host}`: the person's own hold keeps its own line. */
-export function watchShows({ control, line, host } = {}) {
+/** What a watch link shows for the link's `{control, line}`: the agent's line, or the turn's note, as the link gives
+ * it; the person's own hold keeps its own line. */
+export function watchShows({ control, line } = {}) {
   const shows = WATCH[control] ?? WATCH.assistant;
-  return { ...shows, text: shows.line ?? line ?? '', host: host ?? '' };
+  return { ...shows, text: shows.line ?? line ?? '' };
 }
 
 /** A watch link's closing line for a `receipt`. */
@@ -217,8 +218,6 @@ function start(RFB = globalThis.RFB) {
     watch = info.control;
     mayType = shows.hands;
     if (viewer) viewer.viewOnly = !mayType;
-    Object.assign($('#tag'), { textContent: shows.tag, className: shows.look });
-    $('#host').textContent = shows.host;
     $('#line-text').textContent = shows.text;
     Object.assign($('#hand'), { textContent: shows.button, className: shows.main ? 'btn-primary' : 'btn-ghost' });
     $('#type').hidden = !mayType;
@@ -278,7 +277,7 @@ function start(RFB = globalThis.RFB) {
       mayType = false;
       $('#line').hidden = false;
       $('#line').classList.add('watch');
-      for (const part of ['#tag', '#host', '#stop', '#hand']) $(part).hidden = false;
+      for (const part of ['#stop', '#hand']) $(part).hidden = false;
       $('#viewed').hidden = true;
       await follow();
       await report();

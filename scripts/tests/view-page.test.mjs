@@ -359,18 +359,19 @@ test('Ctrl+V on the screen reaches the page\'s paste, not the viewer, and lets g
 
 const WATCHED = { note: 'The assistant is connecting your tools.', watch: true };
 const SHOWN = {
-  assistant: { tag: 'Assistant working', look: 'tag', line: 'Clicking New integration…', hand: 'Take over', main: 'btn-primary', hands: false },
-  person: { tag: 'You have the browser', look: 'tag-outline', line: 'The assistant waits. Tap the browser to use it.', hand: 'Hand back', main: 'btn-primary', hands: true },
-  turn: { tag: 'Your turn', look: 'tag-outline', line: 'Sign in to Notion. I go on once you\'re in.', hand: 'Hand back', main: 'btn-ghost', hands: true },
+  assistant: { line: 'Clicking New integration…', hand: 'Take over', main: 'btn-primary', hands: false },
+  person: { line: 'Tap Hand back when you\'re done.', hand: 'Hand back', main: 'btn-primary', hands: true },
+  turn: { line: 'Sign in to Notion. I go on once you\'re in.', hand: 'Hand back', main: 'btn-ghost', hands: true },
 };
 
-test('a watch link shows who holds the browser, on a phone and a wide screen', async t => {
+test('a watch link shows one short line, no tag, and the button for who holds the browser, on a phone and a wide screen', async t => {
   for (const [width, fit] of [[390, FITS.phone], [1280, FITS.wide]]) {
     for (const [control, want] of Object.entries(SHOWN)) {
       const line = control === 'turn' ? want.line : 'Clicking New integration…';
-      const p = await live(t, { width, view: { ...WATCHED, fit }, watch: { control, line, host: 'www.notion.so' } });
+      const p = await live(t, { width, view: { ...WATCHED, fit }, watch: { control, line } });
       const at = `${control} at ${width}`;
-      assert.deepEqual([p.$('#tag').textContent, p.$('#tag').className, p.$('#host').textContent, p.$('#line-text').textContent], [want.tag, want.look, 'www.notion.so', want.line], at);
+      assert.equal(p.$('#line-text').textContent, want.line, at);
+      assert.deepEqual([...p.$('#line').children].filter(part => !part.hidden).map(part => part.id), ['line-text', 'stop', 'hand'], `${at}: one line, no tag`);
       assert.deepEqual([p.$('#hand').textContent, p.$('#hand').className, p.$('#hand').hidden, p.$('#stop').hidden, p.$('#viewed').hidden], [want.hand, want.main, false, false, true], at);
       assert.equal(p.$('#type').hidden, !want.hands, `${at}: the type box only while the person holds it`);
       assert.equal(p.viewers[0].viewOnly, !want.hands, `${at}: taps reach the browser only while the person holds it`);
@@ -387,11 +388,11 @@ test('Take over, Hand back, and Stop post their route; Stop and the close each e
   p.$('#hand').click();
   await settle();
   assert.deepEqual([p.calls.at(-1).path, p.calls.at(-1).body, p.calls.at(-1).key], ['take', {}, 'secret']);
-  assert.deepEqual([p.$('#tag').textContent, p.$('#hand').textContent, p.viewers[0].viewOnly], ['You have the browser', 'Hand back', false]);
+  assert.deepEqual([p.$('#line-text').textContent, p.$('#hand').textContent, p.viewers[0].viewOnly], ['Tap Hand back when you\'re done.', 'Hand back', false]);
   p.$('#hand').click();
   await settle();
   assert.equal(p.calls.at(-1).path, 'give');
-  assert.deepEqual([p.$('#tag').textContent, p.viewers[0].viewOnly, p.$('#type').hidden], ['Assistant working', true, true]);
+  assert.deepEqual([p.$('#hand').textContent, p.viewers[0].viewOnly, p.$('#type').hidden], ['Take over', true, true]);
   p.$('#stop').click();
   await settle();
   assert.equal(p.calls.at(-1).path, 'stop');
@@ -406,8 +407,8 @@ test('the pure helpers: the shape a width reports, and the closing line', () => 
   assert.equal(watchEnding({ result: 'done' }), 'All done. Go back to the chat.');
   assert.equal(watchEnding({ result: 'stopped' }), 'Stopped. Go back to the chat.');
   assert.equal(watchEnding(null), CLOSED);
-  assert.deepEqual(watchShows({ control: 'person', line: 'Clicking Save…' }).text, 'The assistant waits. Tap the browser to use it.', 'the person\'s hold keeps its own line');
-  assert.equal(watchShows({}).tag, 'Assistant working');
+  assert.deepEqual(watchShows({ control: 'person', line: 'Clicking Save…' }).text, 'Tap Hand back when you\'re done.', 'the person\'s hold keeps its own line');
+  assert.equal(watchShows({ line: 'Clicking Save…' }).text, 'Clicking Save…', 'the agent\'s line while it works');
   assert.deepEqual([shapeOf(320), shapeOf(699), shapeOf(700), shapeOf(1440)], ['phone', 'phone', 'wide', 'wide']);
   assert.equal(ending({ result: 'done', notification: 'notified' }), DONE);
   assert.equal(ending({ result: 'done', notification: 'unconfirmed' }), 'Done. Go back to the chat, and say continue.');

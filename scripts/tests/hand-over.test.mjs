@@ -1104,7 +1104,6 @@ test('a watch link gives the browser to the person on Take over, back on Hand ba
   assert.equal(f.run('turn', '--until', '**/receipt/*', '--note', 'Sign in to Test.').status, 0);
   const turn = (await ask(port, key, 'watch')).json;
   assert.deepEqual([turn.control, turn.line], ['turn', 'Sign in to Test.'], 'a turn shows its own note');
-  assert.equal(await eventually(async () => (await ask(port, key, 'watch')).json.host), 'pay.example.com');
   const moved = spawnSync(process.execPath, [browse, 'open', RECEIPT, '--session', SESSION], { cwd: f.cwd, env: f.env, encoding: 'utf8', timeout: 30_000 });
   assert.equal(moved.status, 0, moved.stderr);
   assert.equal(nextEvent(f), 'HANDOVER_RESULT=signed-in');

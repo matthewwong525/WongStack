@@ -60,24 +60,24 @@ A raw value read needs a `client` method that returns a field's value with no se
 
 *Alternative:* always try Chrome first, as today. Rejected: on a server it asks the person to switch on a Chrome setting on another computer, which can never connect (the 2026-11-05 test).
 
-### 3. The watch link: one live view for the whole run
+### 3. The watch link: a live view only when the person is needed
 
 A new `hand-over.mjs open --watch --session connect-<hash> --note <line>` mode opens a live view that the agent drives. It holds the computer's one live view, the same tunnel, secret and 8-hour limit as `--view`, and the same page ([`view-page.html`](../../../.agents/skills/hand-over/scripts/view-page.html)) with a control state kept in the link's state file:
 
 | `control` | The page shows | Taps reach the browser | `browser.mjs` commands |
 |---|---|---|---|
-| `assistant` | the agent's line, *Stop*, *Take over* | no (noVNC `viewOnly`) | run |
-| `person` (take over) | *You have the browser*, *Stop*, *Hand back* | yes | refused: `CONNECT_PAUSED=taken-over` |
-| `turn` (sign-in) | *Your turn: sign in to <tool>*, the type box, *Stop* | yes | refused: `CONNECT_PAUSED=your-turn` |
+| `assistant` (only when the person asked to watch) | the agent's line, *Stop*, *Take over* | no (noVNC `viewOnly`) | run |
+| `person` (take over) | *Tap Hand back when you're done.*, *Stop*, *Hand back* | yes | refused: `CONNECT_PAUSED=taken-over` |
+| `turn` (sign-in) | *Sign in to <tool>. I go on once you're in.*, the type box, *Stop* | yes | refused: `CONNECT_PAUSED=your-turn` |
 | `stopped` | *Stopped. Go back to the chat.* | no | refused: `CONNECT_STOPPED` |
 
-- **Start.** `browser.mjs watch` (Camoufox only) opens the key-making page's session and runs `open --watch`; it prints `HANDOVER_LINK`. The agent runs `hand-over.mjs wait` in the background and ends its turn on the link. `wait` returns `opened` on the page's first load; a chat reply *go* starts the run too, and the agent then leaves the watch open and goes on.
+- **Start.** The agent starts at once, with no link. `browser.mjs watch` (Camoufox only) opens the link only when the person asks to watch; it runs `open --watch` and prints `HANDOVER_LINK`, and the agent goes on without waiting for `opened`. `sign-in` opens the link itself when none is open (Decision log, 2026-11-05: Matthew found watching *"kind of useless"*).
 - **The line.** Each `browser.mjs` command sets the line before it acts (`hand-over.mjs line <text>`, through the helper's state file): *Opening notion.so…*, *Clicking New integration…*, *Making a key that only reads…*, *Key saved, ends in …91c0*. A clicked part's name comes from the snapshot after `maskKeys()`, so the line never holds a key.
 - **Take over / Hand back / Stop.** The page posts to new helper routes (`take`, `give`, `stop`), which set `control`. `take` and `stop` also wake the chat ([`lib/wake.mjs`](../../../.agents/skills/hand-over/scripts/lib/wake.mjs)) so an idle agent hears it. Every `browser.mjs` command reads `control` first, so a take over between two commands stops the next one. On `CONNECT_PAUSED=taken-over` the agent runs `wait` in the background (`handed-back` or `stopped`) and ends its turn; on `handed-back` it reads the page afresh. A chat *stop* runs `browser.mjs done --stopped`.
-- **Sign-in turn.** `browser.mjs sign-in --tool <title>` checks the page is its own and shows a sign-in, then starts a turn as `hand-over.mjs turn` does, with `--until` the key page's own path, exact or with any query (`"<origin><path>"` or `"<origin><path>?**"`, never a wider `**`), `--until-gone "input[type=password], input[type=email], input[autocomplete~=username], input[autocomplete~=one-time-code]"`, and `--note "Sign in to <title>. I go on once you're in."`. Both finishes must hold, so an email-first step at the key page's own address, a key page at a site's root (`https://www.notion.so/` does not match `/login`), or a code page after the password does not end the turn. A turn whose finish already holds is refused, as a view's is, since it would end before the person signs in. When they hold, `control` goes back to `assistant` and `wait` returns `signed-in`. When the person did not open the watch link (they said *go*), the agent's turn-ending message repeats the link. A site that lands on its dashboard meets no finish: the person taps *Hand back*, which ends the turn too, and the helper's next `open` of the key page and `read` decide: signed in → make the key; a sign-in, a passkey prompt, or a refusal → the key link at the end.
+- **Sign-in turn.** `browser.mjs sign-in --tool <title>` checks the page is its own and shows a sign-in, then starts a turn as `hand-over.mjs turn` does, with `--until` the key page's own path, exact or with any query (`"<origin><path>"` or `"<origin><path>?**"`, never a wider `**`), `--until-gone "input[type=password], input[type=email], input[autocomplete~=username], input[autocomplete~=one-time-code]"`, and `--note "Sign in to <title>. I go on once you're in."`. Both finishes must hold, so an email-first step at the key page's own address, a key page at a site's root (`https://www.notion.so/` does not match `/login`), or a code page after the password does not end the turn. A turn whose finish already holds is refused, as a view's is, since it would end before the person signs in. When they hold, `control` goes back to `assistant` and `wait` returns `signed-in`. The agent's turn-ending message carries the link it printed. A site that lands on its dashboard meets no finish: the person taps *Hand back*, which ends the turn too, and the helper's next `open` of the key page and `read` decide: signed in → make the key; a sign-in, a passkey prompt, or a refusal → the key link at the end.
 - **End.** `browser.mjs done` closes the helper's page and the watch; the page says *All done. Go back to the chat.*
 
-The request to connect covers the watch and every turn; the skill asks no *Ready?*. A first-time install of Camoufox or the live view's tools still asks once, by their own rules. `HANDOVER_NEEDS=live-view` and the one-view refusal pass through `watch` unchanged; with another chat's view open, the run waits for it, or takes the key link if the person says so.
+The request to connect covers every turn; the skill asks no *Ready?*. A first-time install of Camoufox or the live view's tools still asks once, by their own rules. `HANDOVER_NEEDS=live-view` and the one-view refusal pass through `watch` unchanged; with another chat's view open, the run waits for it, or takes the key link if the person says so.
 
 *Alternative:* a separate `--view` link for each sign-in, and no watching. Rejected: Matthew asked to see it click around and to interrupt it, and one link per run is less to open.
 *Alternative:* turn the person's taps into a take over on their own. Rejected: a stray tap while scrolling on a phone would pause the run.
@@ -104,11 +104,11 @@ noVNC sends keys, not the clipboard, so a paste on the canvas is lost. `view-pag
 
 **Hierarchy.** One primary action per state: *Take over* while the assistant works, *Hand back* while you have it, none on your turn (signing in is the action). *Stop* is a quiet button in every working state.
 
-**Parts.** The live view's browser area and its type box, which, with the view itself, takes a paste; one status line (a tag for who has the browser, the site's address, the agent's line); two buttons. No new part.
+**Parts.** The live view's browser area and its type box, which, with the view itself, takes a paste; one short line at the top saying what to do now, with no tag for who has the browser; two buttons. No new part.
 
 ### Review
 
-The plan's [review page](review.html) sketches the three states, phone-first, under *You watch the assistant click through each tool* (assistant working; you have the browser) and *When you are signed out of a tool* (your turn).
+The plan's [review page](review.html) sketches two states, phone-first, under *When a link is open, you can take over or stop* (you have the browser) and *When you are signed out of a tool* (sign in).
 
 ## Risks / Trade-offs
 
@@ -118,7 +118,7 @@ The plan's [review page](review.html) sketches the three states, phone-first, un
 - [A take over arrives while a command is running] → that one command finishes; the next is refused. Each command is one click or one read, so nothing half-done is left but a page the person now holds.
 - [The watch holds the computer's one live view for the run] → another chat's view waits, and says which chat holds it; a run is minutes.
 - [An errand's page and the connect page share one screen] → the live view already raises its page and resizes it each minute.
-- [Matthew called a live browser link a bad experience on 2026-10-05] → the watch asks nothing of the person but a sign-in; it is one link, and the chat works without opening it.
+- [Matthew called a live browser link a bad experience on 2026-10-05, and watching useless on 2026-11-05] → a link opens only for a sign-in or when the person asks to watch.
 - [Sign-ins stay in the everyday browser] → the person chose it; the proposal says so in plain words.
 - [`client.valueOf` lets a script read a secret box] → it is not on the CLI; only `browser.mjs` and `take-key` call it, and the value never prints.
 

@@ -21,17 +21,14 @@
   #line.late #line-text { color: var(--destructive); }
   #line button { min-height: 2.5rem; padding: 0.4rem 0.9rem; }
   #line.watch { flex-wrap: wrap; }
-  #line.watch #line-text { order: 1; flex-basis: 100%; font-weight: 400; color: var(--muted-foreground); }
-  #line.watch button { order: 2; }
+  #line.watch #line-text { flex-basis: 100%; font-weight: 400; color: var(--muted-foreground); }
   #line.watch #hand { margin-left: auto; }
-  #host { flex: 1; min-width: 0; color: var(--muted-foreground); font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #screen img { display: block; width: 100%; height: 100%; }
 </style>
 </head>
 <body>
 <section id="view" hidden>
   <div id="line" hidden>
-    <span id="tag" hidden></span><span id="host" hidden></span>
     <p id="line-text" role="status"></p>
     <button type="button" id="stop" class="btn-ghost" hidden>Stop</button><button type="button" id="hand" hidden></button>
     <button type="button" id="viewed">Done</button>

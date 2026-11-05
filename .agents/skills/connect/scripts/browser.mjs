@@ -7,12 +7,13 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync }
 import { tmpdir, userInfo } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseEnv } from 'node:util';
 import { client, installed } from '../../browser/scripts/browse.mjs';
 import { finished, seen, setLine, startTurn, watchControl } from '../../hand-over/scripts/hand-over.mjs';
 import { checkView } from '../../hand-over/scripts/view.mjs';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
-import { findKeys, maskKeys, masked } from './mask-keys.mjs';
+import { findKeys, knownKey, maskKeys, masked } from './mask-keys.mjs';
 
 const USAGE = `usage: browser.mjs <command>
   where                        where to connect, connecting to nothing: WHERE=chrome|server|link
@@ -25,8 +26,9 @@ const USAGE = `usage: browser.mjs <command>
   take-key [<ref>] --tool <id> send a new tool's key, the page's one or the one at <ref>, to the live app;
                                prints only its last four characters
   picture <path>               a picture of the page, refused while a key shows
-  watch                        Camoufox only: open the watch link on its page; prints HANDOVER_LINK
-  sign-in --tool <title>       Camoufox only: give the person a turn to sign in on the watch link
+  watch                        Camoufox only: open the watch link when the person asks; prints HANDOVER_LINK
+  sign-in --tool <title>       Camoufox only: give the person a turn to sign in on the watch link, opening it first
+                               when none is open (HANDOVER_LINK, then CONNECT_PAUSED=your-turn)
   done [--stopped]             close the pages it opened and the watch link; the browser stays open
 Every command but where, attach and open acts on a page this helper opened, never another. While a watch link is
 open, a command the person holds the browser for prints CONNECT_PAUSED=taken-over|your-turn, or CONNECT_STOPPED.`;
@@ -254,12 +256,23 @@ export function setVar(file, name, value) {
   chmodSync(file, 0o600);
 }
 
-/** The one key the page shows; none or several is refused, so the person's choice is never guessed. */
+/** The one key the page shows, or among several the one that starts like a service's key; none or several is
+ *  refused, so the person's choice is never guessed. */
 async function onlyKey(tab) {
   const { text, url, title } = await backend().page(tab);
-  const keys = findKeys(text, { url, title });
+  const found = findKeys(text, { url, title });
+  const known = found.filter(knownKey);
+  const keys = found.length > 1 && known.length === 1 ? known : found;
   if (keys.length !== 1) throw new Error(`${keys.length ? 'Several keys show' : 'No key shows'} on this page: name its box, as take-key @e3 --tool <id>.`);
   return keys[0];
+}
+
+/** This computer's Cloudflare login from the primary `.env`, under the environment's own, so wrangler can save. */
+function cloudflareEnv(primary) {
+  const file = join(primary, '.env');
+  const saved = existsSync(file) ? parseEnv(readFileSync(file, 'utf8')) : {};
+  const login = Object.fromEntries(['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'].filter(name => saved[name]).map(name => [name, saved[name]]));
+  return { ...login, ...process.env };
 }
 
 /** Reads the key in this process, saves it in the primary checkout's ignored app/.dev.vars, and sends it on stdin to
@@ -273,7 +286,7 @@ async function takeKey(target, tool) {
   const { primary, root: worktree } = primaryRoot();
   setVar(join(primary, 'app', '.dev.vars'), name, value);
   const sent = spawnSync(process.execPath, [join(worktree, 'scripts', 'cf-secrets.mjs'), 'put-tool', name],
-    { cwd: worktree, input: value, encoding: 'utf8' });
+    { cwd: worktree, env: cloudflareEnv(primary), input: value, encoding: 'utf8' });
   if (sent.status !== 0) {
     const why = `${sent.stdout}${sent.stderr}`.split(value).join(masked(value)).trim().split('\n').at(-1);
     throw new Error(`${name} is saved on this computer, ends in …${value.slice(-4)}, but not on the live app: ${why}`);
@@ -290,11 +303,17 @@ function ownCamoufox() {
   return camoufox.check();
 }
 
-/** Opens the watch link on the helper's page, its output passed through; resolves to nothing to print. */
-function watch() {
-  ownCamoufox();
+/** Opens the watch link on the helper's page, its output passed through; true once it is open. */
+function openWatch() {
   const opened = spawnSync(process.execPath, [HAND_OVER, 'open', '--watch', '--session', session(), '--note', WATCH_NOTE], { stdio: 'inherit' });
   process.exitCode = opened.status ?? 1;
+  return opened.status === 0;
+}
+
+/** `watch`: the link, only when the person asks to watch; resolves to nothing to print. */
+function watch() {
+  ownCamoufox();
+  openWatch();
   return '';
 }
 
@@ -305,7 +324,8 @@ export function signInFinish(opened) {
   return { until: [`${origin}${pathname}`, `${origin}${pathname}?**`], untilGone: SIGN_IN_BOXES, untilText: null };
 }
 
-/** Gives the person a turn to sign in on the watch link, until the key page shows no sign-in box. */
+/** Gives the person a turn to sign in on the watch link, opened first when none is, until the key page shows no
+ * sign-in box. A link that does not open passes its own answer, such as HANDOVER_NEEDS, through. */
 async function signIn(tool) {
   if (!/^[^\n]{1,60}$/.test(tool ?? '')) throw new Error('sign-in needs --tool <title>, the tool\'s name as the person knows it.');
   const tab = ownCamoufox();
@@ -313,7 +333,8 @@ async function signIn(tool) {
   const finish = signInFinish(state().opened);
   // A turn that would end at once ends before the person signs in: refuse it, as a view whose finish holds is.
   if (finished(finish, await seen(page(), finish))) throw new Error('The page already meets the sign-in finish: it is the key page with no sign-in box. Read it again.');
-  if (!startTurn(finish, `Sign in to ${tool}. I go on once you're in.`)) throw new Error('No watch link is open: run `watch` first.');
+  if (!watchControl() && !openWatch()) return '';
+  if (!startTurn(finish, `Sign in to ${tool}. I go on once you're in.`)) throw new Error('The watch link did not stay open: run `sign-in` again.');
   return PAUSES.turn[0];
 }
 

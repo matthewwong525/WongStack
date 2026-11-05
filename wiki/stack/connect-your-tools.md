@@ -9,7 +9,9 @@ flowchart TD
   sort --> how[new: work out how]
   sort --> later[not connected yet]
   how --> where{where is the assistant?}
-  where -->|on a server| server[its own browser, watched through one link]
+  where -->|on a server| server[its own browser, at once]
+  server -->|signed out| signin[you sign in through a link]
+  signin --> server
   where -->|on your computer| chrome{"use your Chrome?"}
   server --> make[assistant makes each key]
   chrome -->|yes| make
@@ -82,13 +84,15 @@ The key link is always the last way: for a tool the browser can not get through,
 
 ## Use the assistant's browser
 
-On a server, the assistant makes each key in its own browser, Camoufox, while the person watches through one private link, the [watch link](../development/live-view.md#the-watch-link). Sign-ins stay in that browser for the next time. The person can take over, hand back, or stop at any time, and signs in only on their turn.
+On a server, the assistant makes each key in its own browser, Camoufox, and starts at once: no link, no question. It sends a private link, the [watch link](../development/live-view.md#the-watch-link), only when a tool asks the person to sign in, or when the person asks to watch. Sign-ins stay in that browser for the next time. While a link is open, the person can take over, hand back, or stop at any time.
 
 1. **`attach --server`** prints `BROWSER=camoufox`. On `BROWSE_NEEDS=install`, ask once, by [the browser's install rule](../development/browsing.md).
-2. **`open <key page>`** for the first tool, then **`watch`**. It prints `HANDOVER_LINK`: run `hand-over.mjs wait` in the background, and end the turn with the link. The run starts when `wait` prints `opened`, or when the person says *go*. On `HANDOVER_NEEDS=live-view` or another chat's open view, follow the [live view's rules](../development/live-view.md#when-it-opens).
-3. **`read`**, then make the key, as in [your own Chrome](#use-your-own-chrome) steps 4 and 5. Each command sets the link's line, such as *Clicking New integration…*.
-4. **Signed out?** Run **`sign-in --tool <title>`** on the sign-in page. It prints `CONNECT_PAUSED=your-turn`: run `wait` in the background and end the turn, repeating the link if the person has not opened it. On `signed-in` or `handed-back`, `open` the key page again and `read`. Still a sign-in, a passkey, or a refusal: that tool takes the key link at the end.
-5. **`done`** closes the page and the watch link. The link says *All done. Go back to the chat.*
+2. **`open <key page>`** for the first tool. Only when the person asks to watch, run **`watch`**: it prints `HANDOVER_LINK`; send the link and go on.
+3. **`read`**, then make the key, as in [your own Chrome](#use-your-own-chrome) steps 4 and 5. While a link is open, each command sets its line, such as *Clicking New integration…*.
+4. **Signed out?** Run **`sign-in --tool <title>`** on the sign-in page. With no link open, it opens one and prints `HANDOVER_LINK`; then it prints `CONNECT_PAUSED=your-turn`. Run `hand-over.mjs wait` in the background and end the turn with the link. On `opened`, `wait` again. On `signed-in` or `handed-back`, `open` the key page again and `read`. Still a sign-in, a passkey, or a refusal: that tool takes the key link at the end.
+5. **`done`** closes the page and any open link. The link says *All done. Go back to the chat.*
+
+When `watch` or `sign-in` prints `HANDOVER_NEEDS=live-view`, or another chat's view is open, follow the [live view's rules](../development/live-view.md#when-it-opens).
 
 Every command reads who holds the browser first:
 

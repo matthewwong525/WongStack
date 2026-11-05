@@ -9,7 +9,7 @@ On its own link, for four things only:
 - **A robot check:** a tick box such as *I'm not a robot*, or a picture puzzle. It can stand at a site's front door or come right after a sign-in. The agent never ticks, solves, or answers one itself, even when asked.
 - **A stuck login**, after the agent's own routes: [a saved login](browsing.md#saved-browser-logins), [the password link](passwords.md), and [a code](login-codes.md). After each submit the agent reads the page again. The login is stuck when the page stays on the login, comes back to it, or just reloads, with no error message, no check, and no code or approval page. Shopify taking the saved email, then reloading its login page, is stuck. A message such as *wrong password* is not: it gets the password link again. A saved login that sticks gets the view straight away, since the agent has nothing else to try.
 - **A stuck site step or payment step**, such as DigiKey's *Continue*, when the agent's clicks don't move it after [a 30-second wait](browsing.md#saved-browser-logins) or print `BROWSE_CLICK=script`. This view stays open with `--keep-open`: it reads no finish, so it stays through every page until you tap *I'm finished*, say *done* in the chat, or the time limit passes. Robot checks and stuck logins keep their finish, since each ends at one clear step.
-- **Watching the assistant connect your tools** on a server: [the watch link](#the-watch-link), one for the whole run.
+- **Connecting your tools** on a server: [the watch link](#the-watch-link), for a sign-in, or when you ask to watch.
 
 It also opens inside two other links, with no question of its own:
 
@@ -56,13 +56,13 @@ The agent's browser fills the page, already on the check, with one box under it:
 
 ## The watch link
 
-The watch link is a live view the agent drives while you watch, for [connecting your tools](../stack/connect-your-tools.md#use-the-assistants-browser) on a server. One line under the browser says who has it:
+The watch link is a live view the agent drives, for [connecting your tools](../stack/connect-your-tools.md#use-the-assistants-browser) on a server. It opens only when a tool asks you to sign in, or when you ask to watch. One short line above the browser says what to do now, with no tag for who has it:
 
-| Who has the browser | The line shows | Your taps reach it |
-|---|---|---|
-| The assistant | *Assistant working*, the site, what it does now, *Stop*, *Take over* | no |
-| You, after *Take over* | *You have the browser*, *Stop*, *Hand back*, the type box | yes |
-| You, on your turn to sign in | *Your turn*, *Sign in to Notion. I go on once you're in.*, *Stop*, *Hand back*, the type box | yes |
+| Who has the browser | The line | Also shown | Your taps reach it |
+|---|---|---|---|
+| The assistant | what it does now, such as *Clicking New integration…* | *Stop*, *Take over* | no |
+| You, after *Take over* | *Tap Hand back when you're done.* | *Stop*, *Hand back*, the type box | yes |
+| You, on your turn to sign in | *Sign in to Notion. I go on once you're in.* | *Stop*, *Hand back*, the type box | yes |
 
 A stray tap never takes the browser: only *Take over* does. *Stop* ends the run, and the page says *Stopped. Go back to the chat.* At the end it says *All done. Go back to the chat.*
 

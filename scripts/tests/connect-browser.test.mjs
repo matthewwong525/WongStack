@@ -8,7 +8,10 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { signInFinish, whereIs } from '../../.agents/skills/connect/scripts/browser.mjs';
 import { finished } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
+import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
+import { fakeViewer, fakeViewTools } from './fixtures/fake-view-tools.mjs';
 
 const CHROME = fileURLToPath(new URL('../../.agents/skills/connect/scripts/browser.mjs', import.meta.url));
 // Made up for the test: no service ever issued it.
@@ -48,7 +51,8 @@ save();
 const CF_SECRETS = `import { appendFileSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 const input = readFileSync(0, 'utf8');
-appendFileSync(process.env.CF_LOG, JSON.stringify({ argv: process.argv.slice(2), digest: createHash('sha256').update(input).digest('hex') }) + '\\n');
+appendFileSync(process.env.CF_LOG, JSON.stringify({ argv: process.argv.slice(2), digest: createHash('sha256').update(input).digest('hex'),
+  login: process.env.CLOUDFLARE_API_TOKEN ?? null }) + '\\n');
 if (process.env.CF_FAIL) { console.error('cf-secrets: ERROR — could not save it'); process.exit(1); }
 if (process.env.CF_LATER) { console.log('cf-secrets: TOOL_STRIPE is on a new version, not on the live app yet: it reaches the live app at the next publish.'); process.exit(0); }
 console.log('cf-secrets: saved on the live app');
@@ -207,10 +211,12 @@ const SECRET_PAGE = `- heading "Internal integration secret"\n- textbox "Secret 
 const SIGN_IN_PAGE = '- heading "Log in to Notion"\n- textbox "Email" [e1]\n- textbox "Password" [e2]\n- button "Continue" [e3]';
 const BROWSE = fileURLToPath(new URL('../../.agents/skills/browser/scripts/browse.mjs', import.meta.url));
 
-/** A fixture attached to the assistant's browser, with its page open at the integrations page. */
-function onServer(t, page = SECRET_PAGE) {
+/** A fixture attached to the assistant's browser, with its page open at the integrations page; `prepare` runs before
+ * the browser starts. */
+function onServer(t, page = SECRET_PAGE, prepare = () => {}) {
   const f = fixture(t, { camoufox: {} });
   f.camofox.set('snapshot', page);
+  prepare(f);
   assert.equal(f.run(['attach', '--server']).stdout, 'BROWSER=camoufox\n');
   const opened = f.run(['open', INTEGRATIONS]);
   assert.equal(opened.stdout, 'opened www.notion.so\n', `${opened.stderr}${f.camofox.errors()}`);
@@ -291,6 +297,25 @@ test('in the assistant\'s browser, take-key reads the key unseen and prints only
   assert.match(f.run(['take-key', '@e9', '--tool', 'notion']).stderr, /No key shows at @e9/);
 });
 
+// Notion's new connection page, as met live: the token is plain text with no ref, beside a long name and an id.
+const CONNECTION_PAGE = `- heading "WongStack (read only)"\n- link "Back" [e1]:\n  - /url: /developers/connections/3f0c2a9e-1b2c-4d5e-8f90-a1b2c3d4e5f6
+- textbox [e2]: WongStack (read only)\n- text: Claymoo API token ${NOTION_KEY}\n- button "Copy" [e3]`;
+
+test('take-key takes the one key that starts like a service\'s, and saves it with this computer\'s Cloudflare login', t => {
+  const f = onServer(t, CONNECTION_PAGE);
+  writeFileSync(join(f.primary, '.env'), 'CLOUDFLARE_API_TOKEN=cf-login\nOTHER=not-passed\n');
+  const result = f.run(['take-key', '--tool', 'notion']);
+  assert.equal(result.stdout, 'TOOL_NOTION saved, ends in …91c0\n', result.stderr);
+  const [sent] = readFileSync(f.cfLog, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(sent.digest, createHash('sha256').update(NOTION_KEY).digest('hex'));
+  assert.equal(sent.login, 'cf-login');
+});
+
+test('take-key never picks a publishable key that shows in full beside an account id', t => {
+  const f = onServer(t, `- heading "API keys"\n- text: Publishable key ${'pk_live_' + '51HxQwErTy0123456789AbCdEf'}\n- text: Account ${'acct_' + '1HxQwErTy0123456'}`);
+  assert.match(f.run(['take-key', '--tool', 'stripe']).stderr, /Several keys show on this page/);
+});
+
 test('in the assistant\'s browser, done closes only its own page and leaves another chat\'s', t => {
   const f = onServer(t);
   const errand = spawnSync(process.execPath, [BROWSE, 'open', 'https://mail.example.com/', '--session', 'errand'],
@@ -328,7 +353,6 @@ test('sign-in and watch work only in the assistant\'s browser, on its own page, 
   for (const args of [['sign-in', '--tool', 'Notion'], ['watch']]) assert.match(fresh.run(args).stderr, /No page is one this helper opened/, args.join(' '));
 
   const f = onServer(t, SIGN_IN_PAGE);
-  assert.match(f.run(['sign-in', '--tool', 'Notion']).stderr, /No watch link is open/);
   const watch = fakeWatch(t, f, { control: 'assistant', turnDone: 0 });
   const turn = f.run(['sign-in', '--tool', 'Notion']);
   assert.equal(turn.stdout, 'CONNECT_PAUSED=your-turn\n', turn.stderr);
@@ -337,6 +361,42 @@ test('sign-in and watch work only in the assistant\'s browser, on its own page, 
   const g = onServer(t, '- heading "Integrations"\n- button "New integration" [e1]');
   fakeWatch(t, g, { control: 'assistant', turnDone: 0 });
   assert.match(g.run(['sign-in', '--tool', 'Notion']).stderr, /shows no sign-in/);
+});
+
+/** A live view this server could open, from stand-ins: a tunnel, the view's tools, and the browser's screen, set
+ * before the browser starts; returns the environment that names them. */
+function viewable(f) {
+  fakeTunnel(join(f.dir, 'bin'), join(f.dir, 'tunnel.log'));
+  fakeViewer(f.dir, VIEWER.version);
+  f.camofox.set('display', ':97');
+  return { ...TUNNEL_ENV, ...fakeViewTools(f.dir, f.camofox.control).env() };
+}
+
+const linux = { skip: process.platform !== 'linux' && 'a live view runs on Linux only' };
+
+test('sign-in with no watch link open opens one and starts the turn, and watch still opens one on request', linux, async t => {
+  for (const command of [['sign-in', '--tool', 'Notion'], ['watch']]) {
+    let env;
+    const f = onServer(t, SIGN_IN_PAGE, g => { env = viewable(g); });
+    const dir = join(f.dir, '.wong-stack', 'hand-over', 'links', 'wt');
+    try {
+      const out = await f.runFree(command, env);
+      assert.equal(out.status, 0, out.stderr);
+      const link = new RegExp(`^HANDOVER_LINK=${ORIGIN}/#key=[0-9a-f]{64}$`, 'm');
+      assert.match(out.stdout, link, command.join(' '));
+      if (command[0] === 'watch') {
+        assert.doesNotMatch(out.stdout, /CONNECT_PAUSED/);
+        assert.equal(existsSync(join(dir, 'turn.json')), false, 'watch starts no turn');
+        continue;
+      }
+      assert.match(out.stdout, /\nCONNECT_PAUSED=your-turn\n$/, 'the link prints before the turn\'s marker');
+      assert.deepEqual(JSON.parse(readFileSync(join(dir, 'turn.json'), 'utf8')),
+        { n: 1, ...signInFinish(INTEGRATIONS), note: 'Sign in to Notion. I go on once you\'re in.' });
+      assert.equal((await f.runFree(['read'], env)).stdout, 'CONNECT_PAUSED=your-turn\n');
+    } finally {
+      await f.runFree(['done'], env);
+    }
+  }
 });
 
 test('each command sets the watch link\'s line, and no line holds a key', t => {

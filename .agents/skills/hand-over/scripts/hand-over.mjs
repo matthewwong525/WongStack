@@ -659,7 +659,7 @@ async function startLink(values, keys, form) {
  * never a value, a note, or a picture. */
 export function listingOf({ completionId, key, keys, form, view, deadline }, origin, { site, 'email-first': emailFirst } = {}, cwd = process.cwd()) {
   const [what, title] = keys ? ['key', keys.keys.map(each => each.guide?.title ?? readableName(each.name)).join(', ')]
-    : form ? ['card', form.title] : view ? ['view', view.watch ? 'Watch the assistant connect your tools' : view.keepOpen ? 'Finish a step in the browser' : 'Help the browser past a check']
+    : form ? ['card', form.title] : view ? ['view', view.watch ? 'Connect your tools' : view.keepOpen ? 'Finish a step in the browser' : 'Help the browser past a check']
       : ['login', site ? `Save your ${hostOf(siteUrl(site))} login` : 'Save your logins'];
   const url = `${origin}/#${linkFragment(key, { site, 'email-first': emailFirst })}`;
   return { id: completionId, what, title: title.slice(0, 200), url, closesAt: deadline, workspace: basename(cwd).slice(0, 100) };
@@ -926,7 +926,6 @@ async function watch() {
 function watchLink(state, page) {
   if (!state.view?.watch) return null;
   let control = { control: 'assistant', turnDone: 0, opened: false, event: null };
-  let host = null;
   const now = () => controlOf(control, readJson(FILES.turn));
   const change = (next, result) => {
     control = { ...control, ...next, event: { n: (control.event?.n ?? 0) + 1, result } };
@@ -938,7 +937,7 @@ function watchLink(state, page) {
   const info = () => {
     const holder = now();
     const line = holder === 'turn' ? readJson(FILES.turn)?.note : readJson(FILES.line)?.text ?? state.view.note;
-    return { control: holder, ...(line && { line }), ...(host && { host }) };
+    return { control: holder, ...(line && { line }) };
   };
   writeWhole(FILES.control, control);
   return {
@@ -949,9 +948,8 @@ function watchLink(state, page) {
       give: () => (['person', 'turn'].includes(now()) ? endTurn('handed-back') : null),
       stop: () => (now() === 'stopped' ? null : change({ control: 'stopped' }, 'stopped')),
     },
-    /** One poll: the page's site for the page's tag, and a turn ended once its finish holds. */
+    /** One poll: a turn ended once its finish holds. */
     async poll() {
-      host = hostOf((await page.url().catch(() => null)) ?? '') || host;
       const turn = readJson(FILES.turn);
       if (now() === 'turn' && finished(turn, await seen(page, turn))) endTurn('signed-in');
     },

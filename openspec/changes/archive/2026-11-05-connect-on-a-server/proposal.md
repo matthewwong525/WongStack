@@ -6,66 +6,55 @@
 
 ## Why
 
-When your assistant runs on a server, your Chrome is on another computer, so the assistant can not make your keys there. Today every tool then goes to the key link, and you make each key by hand. The assistant's own browser on the server can make the keys instead, while you watch it work, sign in yourself when a tool asks, and stop it at any time.
+When your assistant runs on a server, your Chrome is on another computer, so the assistant can not make your keys there. Today every tool then goes to the key link, and you make each key by hand. The assistant's own browser on the server can make the keys instead. It works at once and reports in the chat; you get a link only when a tool asks you to sign in.
 
 ## What Changes
 
-- **On a server, the assistant makes your keys in its own browser, with no question first.** You say *connect my Notion*, and the assistant sends one link to watch. It starts when you open the link, or at once if you say *go*. You do no key-link steps. It does not ask you to switch on a Chrome setting that can not help from a server. The key link is only the last way, for a tool the browser can not get through. On your own computer, the assistant still offers your Chrome first. When your Chrome does not connect, it goes on in its own browser, with no second question.
+- **On a server, the assistant makes your keys in its own browser, with no question first.** You say *connect my Notion*, and the assistant starts at once. You do no key-link steps, and you get no link unless a tool asks you to sign in, or you ask to watch. It does not ask you to switch on a Chrome setting that can not help from a server. The key link is only the last way, for a tool the browser can not get through. On your own computer, the assistant still offers your Chrome first. When your Chrome does not connect, it goes on in its own browser, with no second question.
   ```text
   You: connect my Notion
-  Assistant: Watch me make your Notion key:
-  https://…trycloudflare.com/…
-  I start when you open it, or say go.
-  ...
+  Assistant: Making your Notion key in my
+  browser. You're already signed in.
   ✓ Notion   key saved, ends in …91c0
   ```
   ```mermaid
   flowchart TD
     start[connect my Notion] --> where{"where is the assistant?"}
-    where -->|a server| watch[one link to watch]
-    watch --> make[its own browser makes the key]
+    where -->|a server| make[its browser makes it]
+    make -->|signed out| turn[you sign in]
+    turn --> make
     where -->|your computer| chrome["use your Chrome?"]
-    chrome -->|Chrome connects| mine[your Chrome makes the key]
-    chrome -->|Chrome does not connect| watch
+    chrome -->|Chrome connects| mine[your Chrome makes it]
+    chrome -->|Chrome does not connect| make
     chrome -->|key link| link[key link]
     make -->|"a passkey, or turned away"| link
-    make --> saved[key saved, unseen in the chat]
+    make --> saved[key saved, unseen]
     mine --> saved
     link --> saved
   ```
 
-- **You watch the assistant click through each tool, and you can take over or stop at any time.** The link shows the assistant's browser live, with one line that says what it is doing. While it works, your taps do nothing, so you can not knock it off course by mistake. *Take over* pauses it at once and gives you the browser; *Hand back* lets it go on from where you left the page. *Stop* ends the connecting: keys already made stay saved, and the rest wait. You can also say *stop* in the chat. This is not the link you got before for a stuck step, where you did the work yourself: here the assistant does the work, one link covers the whole run, and you only act to sign in, or when you choose to.
+- **When a link is open, you can take over or stop at any time.** The link shows the assistant's browser live, under one short line that says what to do now. You get it for a sign-in, or when you ask to watch. While the assistant works, your taps do nothing, so you can not knock it off course by mistake. *Take over* pauses it at once and gives you the browser; *Hand back* lets it go on from where you left the page. The assistant sees nothing you do until you hand back. *Stop* ends the connecting: keys already made stay saved, and the rest wait. You can also say *stop* in the chat.
   ```screen
   <div class="card col gap phone">
-    <div class="row gap"><span class="tag">Assistant working</span><span class="grow muted">notion.so</span></div>
+    <div class="row gap"><span class="grow muted">Tap Hand back when you're done.</span></div>
     <div class="skeleton">Notion: My integrations</div>
-    <div class="muted">Making a Notion key that only reads…</div>
-    <div class="row gap"><button class="btn-ghost">Stop</button><span class="grow"/><button class="btn-primary">Take over</button></div>
-  </div>
-  ```
-  ```screen
-  <div class="card col gap phone">
-    <div class="row gap"><span class="tag-outline">You have the browser</span><span class="grow muted">notion.so</span></div>
-    <div class="skeleton">Notion: My integrations</div>
-    <div class="muted">The assistant waits. Tap the browser to use it.</div>
     <div class="row gap"><button class="btn-ghost">Stop</button><span class="grow"/><button class="btn-primary">Hand back</button></div>
   </div>
   ```
 
-- **When you are signed out of a tool, the same link turns to you.** The line says *Your turn: sign in to Notion*, and your taps and typing go to the browser. You sign in with your own password and code, from your phone or laptop. Once you are in, the assistant goes on by itself. You get no question before your turn: your request to connect is enough. The assistant never types, saves, or asks for a password or a code.
+- **When you are signed out of a tool, the assistant sends you a link to sign in.** The line says *Sign in to Notion. I go on once you're in.*, and your taps and typing go to the browser. You sign in with your own password and code, from your phone or laptop. Once you are in, the assistant goes on by itself. You get no question before your turn: your request to connect is enough. The assistant never types, saves, or asks for a password or a code.
   ```screen
   <div class="card col gap phone">
-    <div class="row gap"><span class="tag-outline">Your turn</span><span class="grow muted">notion.so/login</span></div>
+    <div class="row gap"><span class="grow muted">Sign in to Notion. I go on once you're in.</span></div>
     <div class="skeleton">Notion: Log in</div>
     <div class="field">Type here, and it types in the browser</div>
-    <div class="muted">Sign in to Notion. I go on once you're in.</div>
     <div class="row gap"><button class="btn-ghost">Stop</button><span class="grow"/></div>
   </div>
   ```
 
-- **You can paste into any live view.** Today a paste works only in the box under the browser; a paste on the browser itself does nothing. After this, a paste anywhere on the view types into the box you tapped in the browser. You can copy a password from your own password manager and paste it in. Nothing you paste is saved. This works in the watch link and in every other live view.
+- **You can paste into any live view.** Today a paste works only in the box under the browser; a paste on the browser itself does nothing. After this, a paste anywhere on the view types into the box you tapped in the browser. You can copy a password from your own password manager and paste it in. Nothing you paste is saved. This works in the sign-in link and in every other live view.
 
-- **The same safety rules hold as in your Chrome.** The assistant works only on its own page for connecting. Its own reading of a page hides each key, and it takes no picture while a key shows. You see the key on the watch screen, as you would in your own browser; the link is private and closes at the end. Each key goes straight to your live app, and the chat shows only its last four characters. It never changes Access.
+- **The same safety rules hold as in your Chrome.** The assistant works only on its own page for connecting. Its own reading of a page hides each key, and it takes no picture while a key shows. When a link is open, you see the key there, as you would in your own browser; the link is private and closes at the end. Each key goes straight to your live app, and the chat shows only its last four characters. It never changes Access.
 
 - **Your sign-ins stay in the assistant's browser.** It is the same browser your errands use, so a tool you signed in to for an errand needs no sign-in, and a sign-in you make while connecting helps later errands too. A tool that asks for a passkey, or that turns your sign-in away, goes to the key link at the end.
   ```text
@@ -76,7 +65,7 @@ When your assistant runs on a server, your Chrome is on another computer, so the
                a passkey, so use the key link
   ```
 
-**Non-goals:** a tunnel from the server to your own Chrome; a second browser kept only for keys; the assistant typing a saved password on a key page; tools that offer only a sign-in that renews, such as Gmail. On a Mac the assistant's browser can not show a live view, so a Mac with no Chrome to connect keeps the key link. While a run is watched, another chat's live view waits, since the computer shows one at a time.
+**Non-goals:** a tunnel from the server to your own Chrome; a second browser kept only for keys; the assistant typing a saved password on a key page; tools that offer only a sign-in that renews, such as Gmail. On a Mac the assistant's browser can not show a live view, so a Mac with no Chrome to connect keeps the key link. While a link is open, another chat's live view waits, since the computer shows one at a time.
 
 ## What the build needs
 
@@ -91,8 +80,8 @@ None.
 
 ### Modified Capabilities
 
-- `own-browser-connect`: on a server, or when the person's Chrome does not connect, the assistant makes keys in its own browser by default, while the person watches through one link and can take over or stop; the person signs in there on their turn; the same key rules hold; the key link is the last fallback.
-- `browser-logins`: the token-website exception covers the assistant's own browser while connecting; a paste anywhere on a live view types into the browser; watching the assistant connect, with take over, and a sign-in while connecting are exceptions to *no live view for other steps*.
+- `own-browser-connect`: on a server, or when the person's Chrome does not connect, the assistant makes keys in its own browser by default, with no link unless a sign-in needs one or the person asks to watch; in an open link the person can take over or stop, and signs in there on their turn; the same key rules hold; the key link is the last fallback.
+- `browser-logins`: the token-website exception covers the assistant's own browser while connecting; a paste anywhere on a live view types into the browser; a sign-in while connecting, and watching when the person asks, with take over, are exceptions to *no live view for other steps*.
 
 ## Impact
 
@@ -136,3 +125,10 @@ None.
 - **2026-11-05** — Assumed: Ctrl+V or Cmd+V on the view's screen is kept from the viewer, and the keys it held are let go in the browser before the paste types, because noVNC sends the chord to the remote browser, whose clipboard is empty.
 - **2026-11-05** — Assumed: a sign-in turn ends only when the address is the key page's own path (with any query, never a wider `**`) and no email, password or one-time-code box shows, and a turn whose finish already holds is refused, because the second look found that an email-first page or a site-root address ended the turn before the person signed in; *Hand back* still ends a turn the finish misses.
 - **2026-11-05** — Saved for the live test: every task but 5.2 is built and checked locally; a second look found four problems (an early sign-in finish, a stale state on attach, a paste in the type box, a lost *with their yes*), all fixed and reread clean. Task 5.2, Matthew's *connect my Notion* through the watch link, comes next.
+- **2026-11-05** — Asked, in the live test, how the run should feel → Matthew: *"I actually don't need to watch you click around i think that's kind of useless i just need you to successfully connect notion the fastest way possible"*. Newer than his earlier choice to watch by default, so it wins: the assistant starts at once with no link; a link opens only for a sign-in, or when the person asks to watch. Take over, Hand back and Stop stay, as he found them working and secure: *"we can enter payment info and the bot wont see it until we handback"*.
+- **2026-11-05** — Asked what the top of the view shows, now that the link opens mostly for the person → chose one short line saying what to do now, such as *Sign in to Stripe. I go on once you're in.*, with no *Assistant working* or *Your turn* tag.
+- **2026-11-05** — Assumed: `sign-in` opens the link itself when none is open, because the link now opens only for a turn, and one command keeps the skill short.
+- **2026-11-05** — Found in the live Notion run, and fixed: `take-key` refused because Notion's connection page shows a long name in a box and a connection id that also read as keys; with several, it now takes the one that starts like a known key (`ntn_`). `take-key` also could not save to the live app because it did not load the primary `.env` Cloudflare login for `wrangler`; it now does. A `connect-browser.test.mjs` case covers both.
+- **2026-11-05** — Live result of task 5.2: Notion was already signed in, so no link was needed; a read-only connection was made, `take-key` saved `TOOL_NOTION` (only `…83bj` shown), `tool add notion` with a fixed `Notion-Version` header succeeded, and `POST search` answered 200 with no pages, as Matthew chose to share none yet. Stripe: his sign-in through the link worked (`opened`, then `signed-in`), and Take over and Hand back worked, but his role has no API key access on that account, so he stopped Stripe.
+- **2026-11-05** — Assumed: removing the card, code and password forms in favour of the live view is its own change, planned in workspace *The live view is the one place for sensitive input*, because it could ship alone; this change keeps the key link as the last fallback.
+- **2026-11-05** — Assumed: the view drops the site's address with the tag, as the plan's sketches show only the one line, and the app's inbox names the link *Connect your tools*, not *Watch the assistant connect your tools*, because the link now opens mostly for a sign-in.
