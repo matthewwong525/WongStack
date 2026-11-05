@@ -11,7 +11,7 @@ import { listRecords } from './records.mjs';
 import { paseoAdapter, startupPrompt } from './hosts.mjs';
 import { scheduleVersion } from './version.mjs';
 import { EXIT, PaseoError, findPaseo, paseo, runPaseo } from './paseo.mjs';
-import { childEnv, flooredThinking, workspaceTitle } from '../workspace.mjs';
+import { MODES, childEnv, flooredThinking, workspaceTitle } from '../workspace.mjs';
 
 const KEY = /^[a-z0-9][a-z0-9-]{0,63}$/, VERSION = /^[a-f0-9]{64}$/;
 /** The least gap between two starts of one schedule when it sets no `authority.minIntervalMs`. */
@@ -54,7 +54,9 @@ export async function openSession({ schedule, run, title, env = process.env }) {
   const [provider, model = null] = named.split('/');
   const thinking = await flooredThinking(more => paseo(bin, more, { env: childEnv(env) }), { provider, model, thinking: settings.thinking ?? null });
   if (thinking) args.push('--thinking', thinking);
-  if (settings.mode) args.push('--mode', settings.mode);
+  // No one is there to allow a step, so an unattended run takes the provider's full mode unless the schedule sets one.
+  const mode = settings.mode || MODES[provider];
+  if (mode) args.push('--mode', mode);
   const prompt = startupPrompt({ key: schedule.key, run: run.id, version: schedule.version });
   const { data } = await runPaseo(bin, [...args, '--', prompt], { env: childEnv(env) });
   return { agentId: data?.agentId ?? null, chatTitle: data?.title ?? title };

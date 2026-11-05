@@ -158,4 +158,6 @@ console.log(JSON.stringify({ agentId: 'agent-run', title: 'Weekly plan' }));
   assert.ok(!runs()[1].includes('--thinking'));
   await open([{ id: 'claude-high', defaultThinkingOptionId: 'high' }]);
   assert.equal(runs()[2][runs()[2].indexOf('--provider') + 1], 'claude', 'Paseo refuses a run with no provider');
+  assert.equal(runs()[2][runs()[2].indexOf('--mode') + 1], 'bypassPermissions', 'no one is there to allow a step');
+  assert.equal(runs()[0][runs()[0].indexOf('--mode') + 1], 'full-access');
 });
