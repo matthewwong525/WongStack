@@ -186,7 +186,7 @@ const pause = ms => new Promise(done => setTimeout(done, ms));
 
 /** Runs `open`, asserts it worked, and returns its link, the key, and the page's recorded loopback port. */
 function opened(f, ...args) {
-  if (args.includes('--form') || args.includes('--view')) f.openPage();
+  if (['--form', '--view', '--watch'].some(mode => args.includes(mode))) f.openPage();
   const out = f.run('open', ...args);
   assert.equal(out.status, 0, out.stderr);
   const link = /^HANDOVER_LINK=(.+)$/m.exec(out.stdout)?.[1];
@@ -313,7 +313,7 @@ test('a bad --minutes or command, no mode, two modes, or a removed flag is a usa
   assert.equal(f.run().status, 2);
   const bare = f.run('open');
   assert.equal(bare.status, 2);
-  assert.match(bare.stderr, /open takes one of --form, --passwords, --keys, or --view/);
+  assert.match(bare.stderr, /open takes one of --form, --passwords, --keys, --view, or --watch/);
   assert.equal(f.run('open', '--until', '**/inbox').status, 2, 'a finish alone is no mode');
   assert.equal(f.run('open', '--passwords', '--form', f.form, '--until', '**').status, 2);
   assert.equal(f.run('open', '--passwords', '--local').status, 2, 'the loopback link is gone');
@@ -333,7 +333,7 @@ test('--form needs a finish, and a finish or a session goes with --form only', t
   }
   const keys = f.run('open', '--keys', 'MAPS_API_KEY', '--session', 'card');
   assert.equal(keys.status, 2);
-  assert.match(keys.stderr, /--session goes with --form, --view, or --passwords only/);
+  assert.match(keys.stderr, /--session goes with --form, --view, --watch, or --passwords only/);
   for (const args of [['open', '--passwords', '--use', 'card'], ['fill', '--form', f.form, '--use', 'card', '--until', '**']]) assert.equal(f.run(...args).status, 2, `${args.join(' ')}: fill and --use are gone`);
   assert.deepEqual(f.calls(), []);
 });
@@ -928,14 +928,14 @@ test('--view needs a finish, and --note goes with --view only, as one line', t =
   for (const args of [['--passwords', '--note', 'x'], ['--form', f.form, '--until', '**', '--note', 'x'], ['--view', '--until', '**', '--note', 'two\nlines'], ['--view', '--until', '**', '--note', ' '], ['--view', '--until', '**', '--note', 'x'.repeat(141)]]) {
     const out = f.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
-    assert.match(out.stderr, /--note goes with --view only, as one line of up to 140 characters/);
+    assert.match(out.stderr, /--note goes with --view or --watch only, as one line of up to 140 characters/);
   }
   assert.equal(f.run('open', '--view', '--passwords', '--until', '**').status, 2);
   assert.equal(f.run('install-view', 'now').status, 2);
   const help = f.run('--help').stdout;
   assert.match(help, /open --view <finish> \[--session <name>\] \[--note <line>\] \[--minutes N\]/);
   assert.match(help, /open --view --keep-open \[--session <name>\]/);
-  assert.match(help, /wait \| close \| install-view/);
+  assert.match(help, /wait \| close \[--stopped\] \| install-view/);
   assert.match(help, /HANDOVER_NEEDS=live-view/);
   assert.match(help, /a check that asks whether a person is\s+there, or a stuck login/);
   assert.match(help, /--passwords \[--site <url> \[--email-first\] \[<finish> --sign-in <user-ref>,<password-ref>\[,<submit-ref>\]\]\]/);
@@ -1055,6 +1055,82 @@ test('open --view starts the screen source on a private socket, fits the page, a
   assert.deepEqual((await route(port, key, 'view')).json.fit, PHONE);
   assert.equal((await route(port, key, 'fit')).status, 405);
   for (const gone of ['form', 'send', 'save', 'keys', 'screen']) assert.equal((await route(port, key, gone, {})).status, 404, gone);
+});
+
+const WATCH_NOTE = 'The assistant is connecting your tools.';
+const openedWatch = f => opened(f, '--watch', '--session', SESSION, '--note', WATCH_NOTE);
+/** A route call, tried once more when the link's server dropped an idle connection as it was reused: a CLI step
+ * between two calls can take longer than the server keeps one open. */
+const ask = (...args) => route(...args).catch(() => route(...args));
+/** The watch event `wait` prints next. */
+const nextEvent = f => f.run('wait').stdout.trim();
+
+test('a watch reads no finish, and line and turn need an open watch the agent holds', linux, t => {
+  const f = fixture(t, { view: true });
+  assert.match(f.run('open', '--watch', '--until', '**').stderr, /go with --form, --view, or --passwords --site only/);
+  assert.equal(f.run('open', '--watch', '--view').status, 2);
+  assert.equal(f.run('line').status, 2);
+  assert.equal(f.run('turn', '--until', '**').status, 2, 'a turn needs its note');
+  assert.equal(f.run('turn', '--note', 'Sign in.').status, 2, 'a turn needs its finish');
+  assert.equal(f.run('wait', '--stopped').status, 2);
+  assert.match(f.run('line', 'Clicking Save…').stderr, /No watch link is open/);
+  assert.match(f.run('turn', '--until', '**', '--note', 'Sign in.').stderr, /No watch link is open/);
+});
+
+test('a watch link gives the browser to the person on Take over, back on Hand back, ends a turn on its finish, and stops', linux, async t => {
+  const f = fixture(t, { view: true, paseo: 'ok' });
+  const { port, key } = openedWatch(f);
+  assert.equal(stateOf(f).view.watch, true);
+  assert.ok(!f.steps().some(step => /^(shown|count|words)\b/.test(step)), 'a watch reads no finish');
+  assert.equal((await ask(port, null, 'watch')).status, 403);
+  for (const name of ['take', 'give', 'stop']) assert.equal((await ask(port, null, name, {})).status, 403, name);
+  assert.equal((await ask(port, key, 'watch')).json.control, 'assistant', 'a request without the key changes nothing');
+  assert.equal((await ask(port, key, 'view')).json.watch, true);
+  assert.equal(nextEvent(f), 'HANDOVER_RESULT=opened');
+  const shown = (await ask(port, key, 'watch')).json;
+  assert.deepEqual([shown.control, shown.line], ['assistant', WATCH_NOTE]);
+  assert.equal(f.run('line', 'Clicking New integration…').status, 0);
+  assert.equal((await ask(port, key, 'watch')).json.line, 'Clicking New integration…');
+
+  const taken = await ask(port, key, 'take', {});
+  assert.deepEqual([taken.status, taken.json.control], [200, 'person']);
+  assert.equal((await ask(port, key, 'take', {})).status, 409);
+  assert.equal(nextEvent(f), 'HANDOVER_RESULT=taken-over');
+  assert.match(f.run('turn', '--until', '**/receipt/*', '--note', 'Sign in to Test.').stderr, /not the assistant's now: person/);
+  assert.equal((await ask(port, key, 'give', {})).json.control, 'assistant');
+  assert.equal((await ask(port, key, 'give', {})).status, 409);
+  assert.equal(nextEvent(f), 'HANDOVER_RESULT=handed-back');
+
+  assert.equal(f.run('turn', '--until', '**/receipt/*', '--note', 'Sign in to Test.').status, 0);
+  const turn = (await ask(port, key, 'watch')).json;
+  assert.deepEqual([turn.control, turn.line], ['turn', 'Sign in to Test.'], 'a turn shows its own note');
+  const moved = spawnSync(process.execPath, [browse, 'open', RECEIPT, '--session', SESSION], { cwd: f.cwd, env: f.env, encoding: 'utf8', timeout: 30_000 });
+  assert.equal(moved.status, 0, moved.stderr);
+  assert.equal(nextEvent(f), 'HANDOVER_RESULT=signed-in');
+  assert.equal((await ask(port, key, 'watch')).json.control, 'assistant');
+
+  assert.equal(f.run('turn', '--until', '**/never/*', '--note', 'Sign in to Test.').status, 0);
+  assert.equal((await ask(port, key, 'give', {})).json.control, 'assistant', 'Hand back ends a turn too');
+  assert.equal(nextEvent(f), 'HANDOVER_RESULT=handed-back');
+
+  assert.equal((await ask(port, key, 'stop', {})).json.control, 'stopped');
+  assert.equal((await ask(port, key, 'stop', {})).status, 409);
+  assert.equal(nextEvent(f), 'HANDOVER_RESULT=stopped');
+  const woken = f.sent().map(message => message[2]);
+  assert.equal(woken.length, 2, 'Take over and Stop each wake the chat');
+  assert.match(woken[0], /"mode":"watch","result":"taken-over"/);
+  assert.match(woken[1], /"mode":"watch","result":"stopped"/);
+  for (const text of woken) assert.doesNotMatch(text, new RegExp(`https?:|trycloudflare|pay\\.example|${key}`));
+  assert.equal(f.run('close', '--stopped').stdout.trim(), 'HANDOVER_RESULT=stopped');
+});
+
+test('a watch closed by the chat ends done, and a second view is refused while it is open', linux, async t => {
+  const f = fixture(t, { view: true });
+  openedWatch(f);
+  const second = f.run('open', ...VIEW_ARGS);
+  assert.equal(second.status, 1);
+  assert.match(second.stderr, /A live view is already open in/);
+  assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=done');
 });
 
 test('the viewer\'s scripts are served without the key, and nothing beside or above them', linux, async t => {

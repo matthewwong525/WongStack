@@ -11,6 +11,16 @@
 
 **Updating.** Nothing to do by hand.
 
+## 49.1.0 — Connect your tools when the assistant runs on a server
+
+- **On a server, the assistant makes each key in its own browser, at once.** Say *connect my Notion*. It asks no Chrome question when no Chrome can be there, and sends no link unless a tool asks you to sign in, or you ask to watch ([connect your tools](wiki/stack/connect-your-tools.md#use-the-assistants-browser)).
+- **Take over, hand back, or stop at any time while a link is open.** One short line at the top says what to do now. *Take over* pauses the assistant and gives you the browser. *Hand back* lets it go on. *Stop* ends the run. A stray tap never takes the browser.
+- **Signed out? The assistant sends you a link to sign in.** The line says *Sign in to Notion. I go on once you're in.* When you are in, it goes on by itself. Your sign-in stays in the assistant's browser for next time. A site that refuses that browser takes the key link at the end.
+- **Keys stay unseen, as in your Chrome.** The chat shows only a key's last four characters, and the assistant's view of the page hides the key.
+- **Paste works in every live view.** A paste on the browser or in the type box types the text into the browser ([live view](wiki/development/live-view.md#what-you-see)).
+
+**Updating.** Nothing to do by hand.
+
 ## 49.0.0 — Every schedule lives in the app
 
 - **Every schedule lives in your app, in one list.** Morning routines, weekly and monthly jobs, timed background jobs and one-time tasks all live in your company app. The app keeps what each one does, when it runs, whether it is on, its progress and every run. Your daily settings file holds no routines, and the repo holds no schedule files ([host schedules](wiki/stack/host-schedules.md)).

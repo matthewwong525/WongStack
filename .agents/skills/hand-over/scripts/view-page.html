@@ -20,12 +20,19 @@
   #line-text { flex: 1; margin: 0; font-weight: 600; }
   #line.late #line-text { color: var(--destructive); }
   #line button { min-height: 2.5rem; padding: 0.4rem 0.9rem; }
+  #line.watch { flex-wrap: wrap; }
+  #line.watch #line-text { flex-basis: 100%; font-weight: 400; color: var(--muted-foreground); }
+  #line.watch #hand { margin-left: auto; }
   #screen img { display: block; width: 100%; height: 100%; }
 </style>
 </head>
 <body>
 <section id="view" hidden>
-  <div id="line" hidden><p id="line-text" role="status"></p><button type="button" id="viewed">Done</button></div>
+  <div id="line" hidden>
+    <p id="line-text" role="status"></p>
+    <button type="button" id="stop" class="btn-ghost" hidden>Stop</button><button type="button" id="hand" hidden></button>
+    <button type="button" id="viewed">Done</button>
+  </div>
   <div id="stage"><div id="holder"><div id="screen"></div></div></div>
   <div id="type">
     <input id="text" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="enter" placeholder="Tap a box above, then type here" aria-label="Type into the browser">
