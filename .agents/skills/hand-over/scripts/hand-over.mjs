@@ -4,7 +4,7 @@
 
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -31,10 +31,12 @@ export { keyMatches, tunnelOrigin } from './lib/tunnel.mjs';
 const USAGE = `usage: hand-over.mjs open --form <file> <finish> [--session <name>] [--minutes N]
        hand-over.mjs open --view <finish> [--session <name>] [--note <line>] [--minutes N]
        hand-over.mjs open --view --keep-open [--session <name>] [--note <line>] [--minutes N]
+       hand-over.mjs open --watch [--session <name>] [--note <line>] [--minutes N]
        hand-over.mjs open --passwords [--site <url> [--email-first] [<finish> --sign-in <user-ref>,<password-ref>[,<submit-ref>]]]
                           [--username <user>] [--session <name>] [--minutes N]
        hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--minutes N]
-       hand-over.mjs wait | close | install-view
+       hand-over.mjs wait | close [--stopped] | install-view
+       hand-over.mjs line <text> | turn <finish> --note <line>
   open    start the private link, print HANDOVER_LINK=<url> once it answers through
           Cloudflare, then HANDOVER_SEND=<reminder to end the turn with the link>, list its address
           (no username) in the app's inbox, and watch for the finish
@@ -56,6 +58,10 @@ const USAGE = `usage: hand-over.mjs open --form <file> <finish> [--session <name
           (done), close (closed), or the time limit (timeout); it reads no finish;
           HANDOVER_VIEW=unsupported where the browser has no screen to show, and
           HANDOVER_NEEDS=live-view (exit 3) with a line per missing tool
+          --watch: a live view the agent drives while the person watches, as one
+          for connecting tools: the person's taps reach the browser only after they
+          tap Take over, or on their turn; it reads no finish and ends at close;
+          open for 480 minutes, the one live view as --view is
           --passwords: save logins and continue, or cancel; --site and --username
           fill in the add-a-login form, carried only in the link; with --site, a
           picture of the --session page when it is on that site; --email-first,
@@ -81,7 +87,13 @@ const USAGE = `usage: hand-over.mjs open --form <file> <finish> [--session <name
           HANDOVER_APP_KEYS=<name>,<name> and HANDOVER_OPENED=yes|no (whether
           anyone opened it) for a key link, then HANDOVER_REPLACED_BY=<folder>
           for a key link that gave way to a newer link from this same chat
-  close   close an open link (the person said done)
+  close   close an open link (the person said done); --stopped ends a watch as stopped
+  line    set the one line a watch link shows: what the agent does now (exit 1 with no watch open)
+  turn    give a watch link's browser to the person, as for a sign-in, until the page meets the
+          finish or they tap Hand back; --note is what to do (exit 1 unless the agent holds it)
+  wait on a watch link prints each change once, as HANDOVER_RESULT=opened (the page's first
+          load), taken-over, handed-back, signed-in (a turn's finish), or stopped (Stop), and at the
+          end done (close), stopped (close --stopped), or timeout
   install-view
           add the live view's tools once the person agrees: prints
           HANDOVER_INSTALLED=live-view, or HANDOVER_INSTALL=manual and the one
@@ -102,7 +114,7 @@ const LINKS = join(DIR, 'links');
 const CHAT = sessionName().replace(/^\.+$/, 'default');
 const CHAT_DIR = join(LINKS, CHAT);
 /** A link's files in `dir`; older code kept them in DIR itself. The timing record stays one for the computer. */
-const filesIn = dir => ({ pid: join(dir, 'watcher.pid'), state: join(dir, 'state.json'), result: join(dir, 'result.json'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml'), opened: join(dir, 'opened'), replaced: join(dir, 'replaced.json'), picture: join(dir, 'picture.png'), reported: join(dir, 'reported'), closing: join(dir, 'closing'), shown: join(dir, 'shown') });
+const filesIn = dir => ({ pid: join(dir, 'watcher.pid'), state: join(dir, 'state.json'), result: join(dir, 'result.json'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml'), opened: join(dir, 'opened'), replaced: join(dir, 'replaced.json'), picture: join(dir, 'picture.png'), reported: join(dir, 'reported'), closing: join(dir, 'closing'), shown: join(dir, 'shown'), line: join(dir, 'line.json'), turn: join(dir, 'turn.json'), control: join(dir, 'control.json'), seen: join(dir, 'watch-seen') });
 let FILES = { ...filesIn(CHAT_DIR), timings: join(DIR, 'timings.jsonl') };
 /** The mark an opener leaves in its chat's folder while a view starts, before its state is written. */
 const OPENER = /^view-opener\.(\d+)$/;
@@ -112,7 +124,7 @@ const dropInput = () => { for (const file of [FILES.log, FILES.config, FILES.ope
  * so does the give-way record, which `wait` may read after this. */
 const clearLink = () => {
   dropInput();
-  for (const file of [FILES.state, FILES.reported, FILES.closing, FILES.shown, FILES.pid]) rmSync(file, { force: true });
+  for (const file of [FILES.state, FILES.reported, FILES.closing, FILES.shown, FILES.line, FILES.turn, FILES.control, FILES.seen, FILES.pid]) rmSync(file, { force: true });
 };
 /** Adds one line to the timing record; a record that can not be written never stops a link. */
 const time = (completionId, entry) => {
@@ -148,10 +160,11 @@ export function globToRegExp(glob) {
   return new RegExp(`^${body}$`);
 }
 
-/** True when the finish is met: every named check holds, and at least one was named. */
+/** True when the finish is met: every named check holds, and at least one was named. `until` is one glob, or a list
+ * of which any one matches, as a sign-in turn's exact key page with or without a query. */
 export function finished({ until, untilGone, untilText }, { url, count, text }) {
   if (!until && !untilGone && !untilText) return false;
-  if (until && !(url != null && globToRegExp(until).test(url))) return false;
+  if (until && !(url != null && [until].flat().some(glob => globToRegExp(glob).test(url)))) return false;
   if (untilGone && count !== 0) return false;
   if (untilText && text !== true) return false;
   return true;
@@ -168,6 +181,39 @@ const pageOf = session => browseClient(session, { retry: false, start: false });
 /** The link's mode from its state: the password link, the key link, a private form, or a live view. A form's
  * state names a view too once its press is shown live. */
 const modeOf = ({ passwords, keys, form, view } = {}) => (passwords ? 'passwords' : keys ? 'keys' : form ? 'form' : view ? 'view' : 'form');
+
+/** Writes `value` as JSON beside `file`, then renames it in: another process never reads half of it. */
+function writeWhole(file, value) {
+  writeFileSync(`${file}.${process.pid}.tmp`, `${JSON.stringify(value)}\n`, { mode: 0o600 });
+  renameSync(`${file}.${process.pid}.tmp`, file);
+}
+
+/** Who holds a watch's browser, from the watcher's `control` and the agent's last `turn`: a turn the watcher has not
+ * ended is the person's, and a stop outranks both. Each file has one writer, so neither loses the other's change. */
+export const controlOf = ({ control = 'assistant', turnDone = 0 } = {}, turn = null) => (control === 'stopped' ? 'stopped' : turn?.n > turnDone ? 'turn' : control);
+
+/** Who holds this chat's watch link's browser now: `assistant`, `person`, `turn`, or `stopped`; null with no watch. */
+export function watchControl() {
+  const state = readJson(FILES.state);
+  if (!state?.view?.watch || !alive(watcherPid())) return null;
+  return controlOf(readJson(FILES.control) ?? {}, readJson(FILES.turn));
+}
+
+/** Sets the line this chat's watch link shows; false with no watch open. */
+export function setLine(text) {
+  if (!watchControl()) return false;
+  writeWhole(FILES.line, { text: String(text).replace(/\s+/g, ' ').trim().slice(0, FORM_LIMITS.note) });
+  return true;
+}
+
+/** Gives the watch's browser to the person until the page meets `finish` or they hand it back, with `note` on the
+ * page; false unless the agent holds it. */
+export function startTurn(finish, note) {
+  if (watchControl() !== 'assistant') return false;
+  const n = Math.max(readJson(FILES.turn)?.n ?? 0, readJson(FILES.control)?.turnDone ?? 0) + 1;
+  writeWhole(FILES.turn, { n, ...finish, note });
+  return true;
+}
 
 /** Ends a link whose watcher can not: puts a view's page back and stops its screen source, kills the
  * tunnel, records the result, and clears the rest. The watcher closes its page first. */
@@ -467,14 +513,14 @@ function viewRefusal() {
   return 3;
 }
 
-/** A view's state for the session's page, its screen source started; one `keepOpen` reads no finish. Null, once it has
- * said so, when the browser has no screen. Throws when the source does not start. */
-async function openView(session, note, keepOpen = false) {
+/** A view's state for the session's page, its screen source started; one `keepOpen`, or a `watch`, reads no finish.
+ * Null, once it has said so, when the browser has no screen. Throws when the source does not start. */
+async function openView(session, note, keepOpen = false, watch = false) {
   const display = screenOf();
   if (!display) return void unsupported('The browser has no screen to show.');
   const size = await pageOf(session).size();
   // The screen's socket stays in the computer's place: a long chat folder would pass the 108-character socket limit.
-  return { note: note ?? null, ...(keepOpen && { keepOpen }), size, display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
+  return { note: note ?? null, ...(keepOpen && { keepOpen }), ...(watch && { watch }), size, display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
 }
 
 /** Adds the live view's tools and says how it went; resolves to the exit code. */
@@ -577,7 +623,7 @@ async function startLink(values, keys, form) {
   const viewAfter = Boolean(form || signIn) && viewPossible();
   if (values.view) {
     try {
-      view = await openView(session, values.note, values['keep-open']);
+      view = await openView(session, values.note, values['keep-open'], values.watch);
     } catch (error) {
       return fail(error.message);
     }
@@ -613,7 +659,7 @@ async function startLink(values, keys, form) {
  * never a value, a note, or a picture. */
 export function listingOf({ completionId, key, keys, form, view, deadline }, origin, { site, 'email-first': emailFirst } = {}, cwd = process.cwd()) {
   const [what, title] = keys ? ['key', keys.keys.map(each => each.guide?.title ?? readableName(each.name)).join(', ')]
-    : form ? ['card', form.title] : view ? ['view', view.keepOpen ? 'Finish a step in the browser' : 'Help the browser past a check']
+    : form ? ['card', form.title] : view ? ['view', view.watch ? 'Connect your tools' : view.keepOpen ? 'Finish a step in the browser' : 'Help the browser past a check']
       : ['login', site ? `Save your ${hostOf(siteUrl(site))} login` : 'Save your logins'];
   const url = `${origin}/#${linkFragment(key, { site, 'email-first': emailFirst })}`;
   return { id: completionId, what, title: title.slice(0, 200), url, closesAt: deadline, workspace: basename(cwd).slice(0, 100) };
@@ -662,6 +708,7 @@ async function watch() {
   const stop = new Promise(resolve => { endWatch = resolve; });
   const page = state.session ? pageOf(state.session) : null;
   const live = state.view ? liveView(state.view, page) : null;
+  const watchSide = watchLink(state, page);
   // A form's or a sign-in's live view, once claimed at the press, and when it began.
   let shown = null;
   let shownSince = null;
@@ -790,7 +837,7 @@ async function watch() {
   // A send under way ends the link itself: stopping it midway could leave a card typed on the page. A signal
   // during it is kept, so a watch or a view that follows ends at once; a watch or a view ends early.
   for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => {
-    if (phase === 'open') return finish('closed', { ready: false, cause: causeOf(sig) });
+    if (phase === 'open') return finish(watchSide ? watchSide.ending() : 'closed', { ready: false, cause: causeOf(sig) });
     stopCause ??= causeOf(sig);
     if (phase !== 'sending') endWatch();
   });
@@ -836,7 +883,7 @@ async function watch() {
     stopCause ??= 'view-done';
     endWatch();
   };
-  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', { ready }), onContinue, onOpened: () => writeFileSync(FILES.opened, ''), onSend, onCancel: () => finish('closed', { ready: false, cause: 'cancel-route' }), onFinished: () => finish('done', { cause: 'finished-route' }), fitted: () => live.describe(), onFit: kind => live.fit(kind), ready: () => formReady(state.form, page), onChanged: () => finish('not-accepted', { reason: 'page-changed', cause: 'ready' }), liveInfo, onViewed };
+  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', { ready }), onContinue, onOpened: () => writeFileSync(FILES.opened, ''), onSend, onCancel: () => finish('closed', { ready: false, cause: 'cancel-route' }), onFinished: () => finish('done', { cause: 'finished-route' }), fitted: () => live.describe(), onFit: kind => live.fit(kind), ready: () => formReady(state.form, page), onChanged: () => finish('not-accepted', { reason: 'page-changed', cause: 'ready' }), liveInfo, onViewed, watch: watchSide?.hooks };
   try {
     await live?.fit();
     // A close that came during the first fit has ended the link: no page is served after it.
@@ -852,7 +899,8 @@ async function watch() {
     } catch {
       return 'error';
     }
-    if (!state.view.keepOpen && finished(state, await seen(page, state))) return 'done';
+    if (watchSide) await watchSide.poll();
+    else if (!state.view.keepOpen && finished(state, await seen(page, state))) return 'done';
     live.front();
     return null;
   };
@@ -871,6 +919,54 @@ async function watch() {
     }
     await sleep(idle ? Math.min(POLL_MS, Math.max(0, state.deadline - Date.now())) : POLL_MS);
   }
+}
+
+/** A watch link's side of the watcher, or null for any other link: it alone writes `control`, ends a turn whose finish
+ * holds, and wakes the chat when the person takes the browser or stops. Each change is an event `wait` prints once. */
+function watchLink(state, page) {
+  if (!state.view?.watch) return null;
+  let control = { control: 'assistant', turnDone: 0, opened: false, event: null };
+  const now = () => controlOf(control, readJson(FILES.turn));
+  const change = (next, result) => {
+    control = { ...control, ...next, event: { n: (control.event?.n ?? 0) + 1, result } };
+    writeWhole(FILES.control, control);
+    if (result === 'taken-over' || result === 'stopped') void wakeChat(state, watchMessage(state, result));
+    return info();
+  };
+  const endTurn = result => change({ control: 'assistant', turnDone: readJson(FILES.turn)?.n ?? control.turnDone }, result);
+  const info = () => {
+    const holder = now();
+    const line = holder === 'turn' ? readJson(FILES.turn)?.note : readJson(FILES.line)?.text ?? state.view.note;
+    return { control: holder, ...(line && { line }) };
+  };
+  writeWhole(FILES.control, control);
+  return {
+    hooks: {
+      info,
+      shown: () => { if (!control.opened) change({ opened: true }, 'opened'); },
+      take: () => (now() === 'assistant' ? change({ control: 'person' }, 'taken-over') : null),
+      give: () => (['person', 'turn'].includes(now()) ? endTurn('handed-back') : null),
+      stop: () => (now() === 'stopped' ? null : change({ control: 'stopped' }, 'stopped')),
+    },
+    /** One poll: a turn ended once its finish holds. */
+    async poll() {
+      const turn = readJson(FILES.turn);
+      if (now() === 'turn' && finished(turn, await seen(page, turn))) endTurn('signed-in');
+    },
+    /** How a close ends the watch: stopped when the person or the chat stopped it, else done. */
+    ending: () => (now() === 'stopped' || readText(FILES.closing).trim() === 'stopped' ? 'stopped' : 'done'),
+  };
+}
+
+/** What wakes the chat when the person takes a watch's browser or stops it: the event alone, never the page. */
+const watchMessage = (state, result) => `The watch link changed: ${result === 'stopped' ? 'the person tapped Stop. Run browser.mjs done --stopped' : 'the person took over the browser. Run hand-over.mjs wait in the background, and send the browser nothing until it prints handed-back'}. ${JSON.stringify({ completionId: state.completionId, mode: 'watch', result })}`;
+
+/** The watch event `wait` has not printed yet, marked as printed; null when there is none. */
+function newWatchEvent() {
+  const event = readJson(FILES.control)?.event;
+  if (!event || event.n <= Number(readText(FILES.seen).trim() || 0)) return null;
+  writeFileSync(FILES.seen, `${event.n}\n`, { mode: 0o600 });
+  return event;
 }
 
 /** The folder name of the opener whose link took this one's place, on one line, or null. */
@@ -930,7 +1026,13 @@ function useOwnPlace() {
 async function wait({ final = false } = {}) {
   useOwnPlace();
   const mine = readJson(FILES.state)?.completionId;
+  const watchOpen = Boolean(readJson(FILES.state)?.view?.watch);
   for (;;) {
+    const event = watchOpen && !final && newWatchEvent();
+    if (event) {
+      console.log(`HANDOVER_RESULT=${event.result}`);
+      return 0;
+    }
     // The watcher writes its result, then removes its pid: look for the pid first, so a result between the two is read.
     const running = existsSync(FILES.pid);
     const outcome = readJson(FILES.result) ?? {};
@@ -947,7 +1049,7 @@ async function wait({ final = false } = {}) {
   }
 }
 
-async function close() {
+async function close({ stopped = false } = {}) {
   useOwnPlace();
   const pid = watcherPid();
   if (!pid) {
@@ -955,7 +1057,7 @@ async function close() {
     return 0;
   }
   if (alive(pid)) {
-    writeFileSync(FILES.closing, '', { mode: 0o600 });
+    writeFileSync(FILES.closing, stopped ? 'stopped' : '', { mode: 0o600 });
     process.kill(pid, 'SIGTERM');
     for (let i = 0; i < 50 && alive(pid); i++) await sleep(100);
   }
@@ -973,7 +1075,7 @@ function usageError(message) {
 function parse(args) {
   let parsed;
   try {
-    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { form: { type: 'string' }, view: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, note: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, 'until-text': { type: 'string' }, 'sign-in': { type: 'string' }, passwords: { type: 'boolean' }, session: { type: 'string' }, site: { type: 'string' }, username: { type: 'string' }, 'email-first': { type: 'boolean' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { form: { type: 'string' }, view: { type: 'boolean' }, watch: { type: 'boolean' }, stopped: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, note: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, 'until-text': { type: 'string' }, 'sign-in': { type: 'string' }, passwords: { type: 'boolean' }, session: { type: 'string' }, site: { type: 'string' }, username: { type: 'string' }, 'email-first': { type: 'boolean' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
   } catch (error) {
     usageError(error.message);
   }
@@ -983,34 +1085,62 @@ function parse(args) {
     process.exit(0);
   }
   const [command, ...rest] = parsed.positionals;
-  if (!['open', 'watch', 'wait', 'close', 'install-view'].includes(command) || rest.length) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
+  if (!['open', 'watch', 'wait', 'close', 'install-view', 'line', 'turn'].includes(command) || rest.length !== (command === 'line' ? 1 : 0)) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
+  if (values.stopped && command !== 'close') usageError('--stopped goes with close only');
   // A live view holds a browser open while it waits, so it keeps the shorter day.
-  const minutes = Number(values.minutes ?? (values.view ? 480 : 1440));
+  const minutes = Number(values.minutes ?? (values.view || values.watch ? 480 : 1440));
   if (!(minutes > 0)) usageError('--minutes must be a positive number');
   if (command === 'open') checkMode(values);
-  return { command, values: { ...values, minutes, ...(values.keys !== undefined && { keys: keyNames(values.keys) }) } };
+  if (command === 'line' && !oneLine(rest[0], 2000)) usageError('line takes one line of text');
+  if (command === 'turn') checkTurn(values);
+  // A watch is a live view the agent drives: every view rule holds for it.
+  return { command, values: { ...values, minutes, ...(values.watch && { view: true }), ...(command === 'line' && { text: rest[0] }), ...(values.keys !== undefined && { keys: keyNames(values.keys) }) } };
 }
 
 /** `open` takes one mode, and each flag goes with its own mode only, or a usage error. */
 function checkMode(values) {
   checkPrefill(values);
   if (values.guide !== undefined && values.keys === undefined) usageError('--guide goes with --keys only');
-  const modes = ['form', 'passwords', 'keys', 'view'].filter(mode => values[mode] !== undefined);
-  if (modes.length !== 1) usageError('open takes one of --form, --passwords, --keys, or --view');
+  const modes = ['form', 'passwords', 'keys', 'view', 'watch'].filter(mode => values[mode] !== undefined);
+  if (modes.length !== 1) usageError('open takes one of --form, --passwords, --keys, --view, or --watch');
   const [mode] = modes;
-  const onPage = mode === 'form' || mode === 'view';
+  const onPage = ['form', 'view', 'watch'].includes(mode);
   const finish = ['until', 'until-gone', 'until-text'].some(name => values[name] !== undefined);
   const signsIn = mode === 'passwords' && values.site !== undefined;
   if (values['keep-open'] && mode !== 'view') usageError('--keep-open goes with --view only');
   if (values['keep-open'] && finish) usageError('--keep-open takes no --until, --until-gone, or --until-text: it ends only on the person\'s I\'m finished, close, or the time limit');
-  if (finish && !onPage && !signsIn) usageError('--until, --until-gone, and --until-text go with --form, --view, or --passwords --site only');
+  if (finish && (mode === 'watch' || (!onPage && !signsIn))) usageError('--until, --until-gone, and --until-text go with --form, --view, or --passwords --site only');
   if (values['sign-in'] !== undefined && !signsIn) usageError('--sign-in goes with --passwords --site only');
   if (signsIn && finish !== (values['sign-in'] !== undefined)) usageError('--passwords --site takes a finish and --sign-in together, or neither');
   if (values['sign-in'] !== undefined && !signInBoxes(values['sign-in'])) usageError('--sign-in takes the username box, the password box, and the submit button, as e3,e4,e5; leave out one you don\'t need, as e3,,e5');
   if (values['until-text'] !== undefined && !oneLine(values['until-text'], FORM_LIMITS.note)) usageError(`--until-text takes one line of up to ${FORM_LIMITS.note} characters`);
-  if (values.session !== undefined && !onPage && mode !== 'passwords') usageError('--session goes with --form, --view, or --passwords only');
-  if (!finish && onPage && !values['keep-open']) usageError(`--${mode} needs --until, --until-gone, or --until-text, to tell ${mode === 'form' ? 'sent from not accepted' : 'when the site lets the person through'}`);
-  if (values.note !== undefined && (mode !== 'view' || !oneLine(values.note, FORM_LIMITS.note))) usageError(`--note goes with --view only, as one line of up to ${FORM_LIMITS.note} characters`);
+  if (values.session !== undefined && !onPage && mode !== 'passwords') usageError('--session goes with --form, --view, --watch, or --passwords only');
+  if (!finish && onPage && mode !== 'watch' && !values['keep-open']) usageError(`--${mode} needs --until, --until-gone, or --until-text, to tell ${mode === 'form' ? 'sent from not accepted' : 'when the site lets the person through'}`);
+  if (values.note !== undefined && (!['view', 'watch'].includes(mode) || !oneLine(values.note, FORM_LIMITS.note))) usageError(`--note goes with --view or --watch only, as one line of up to ${FORM_LIMITS.note} characters`);
+}
+
+/** `turn` takes a finish and a one-line `--note`, and nothing else, or a usage error. */
+function checkTurn(values) {
+  const finish = ['until', 'until-gone', 'until-text'].some(name => values[name] !== undefined);
+  const others = Object.keys(values).filter(name => !['until', 'until-gone', 'until-text', 'note'].includes(name));
+  if (!finish || others.length) usageError('turn takes --until, --until-gone, or --until-text, and --note');
+  if (values.note === undefined || !oneLine(values.note, FORM_LIMITS.note)) usageError(`turn takes --note, one line of up to ${FORM_LIMITS.note} characters`);
+}
+
+/** `line`: sets the watch link's line; exit 1 with no watch open. */
+function lineCommand({ text }) {
+  if (setLine(text)) return 0;
+  console.error('No watch link is open in this chat.');
+  return 1;
+}
+
+/** `turn`: gives the watch link's browser to the person; exit 1 unless the agent holds it. */
+function turnCommand(values) {
+  const finish = { until: values.until ?? null, untilGone: values['until-gone'] ?? null, untilText: values['until-text'] ?? null };
+  if (startTurn(finish, values.note)) return 0;
+  const holder = watchControl();
+  console.error(holder ? `The watch link's browser is not the assistant's now: ${holder}.` : 'No watch link is open in this chat.');
+  return 1;
 }
 
 /** `--sign-in`'s boxes, `[username, password, submit]`, each a ref or selector or null; null when it names neither a
@@ -1044,7 +1174,7 @@ function keyNames(list) {
 
 if (isMain(import.meta.url)) {
   const { command, values } = parse(process.argv.slice(2));
-  const run = { open: () => open(values), watch, wait, close, 'install-view': installViewTools }[command];
+  const run = { open: () => open(values), watch, wait, close: () => close(values), 'install-view': installViewTools, line: () => lineCommand(values), turn: () => turnCommand(values) }[command];
   const code = await run();
   process.exitCode = typeof code === 'number' ? code : 0;
 }
