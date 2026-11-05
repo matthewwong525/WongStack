@@ -19,7 +19,6 @@ Load each matching procedure before its actions; conditions combine:
 | Condition | Procedure |
 |---|---|
 | User supplied or rotated an explicitly named secret | [Named-secret persistence](references/named-secrets.md), before writing records |
-| Confirmed routine/goal registration or lifecycle checkpoint | [Record-only delivery](references/schedule-records.md), before code selection |
 | Only facts, including a to-do that changed no repo file | [Facts-only save](references/facts-save.md) |
 | Code or a code plan needs a new change | [New-plan fallback](references/new-plan.md) |
 | The exact selected handoff is archived | [The archived handoff](#the-archived-handoff) |

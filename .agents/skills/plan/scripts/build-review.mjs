@@ -79,9 +79,6 @@ let pele = null;
 const loadPele = () => (pele ??= createRequire(import.meta.url)('../vendor/pele.mjs'));
 
 const esc = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-const scheduledGoal = root => {
-  try { return /^schema:[ \t]*(?:scheduled-work|'scheduled-work'|"scheduled-work")[ \t]*(?:#.*)?$/m.test(readFileSync(join(root, '.openspec.yaml'), 'utf8')); } catch { return false; }
-};
 // Labels are text nodes, escaped by Pele: check only the markup, so a label like `src=x` stays a label.
 export const unsafeSvg = svg => UNSAFE_SVG.find(bad => svg.replace(/>[^<]*</g, '><').includes(bad));
 const safeHref = href => !/^[a-z][\w+.-]*:/i.test(href) || /^(?:https?|mailto):/i.test(href);
@@ -697,19 +694,6 @@ function askOf(markdown) {
   return ask;
 }
 
-function renderGoal(markdown, root) {
-  const found = sections(markdown);
-  const headings = ['goal', 'instructions', 'completion source', 'authority', 'timing', 'questions and cancellation'];
-  for (const name of headings) if (!found[name]) throw new Error(`proposal.md: missing ## ${name}`);
-  const paragraphs = section => blocks(section, 'paragraph').map((block, i) => `<p data-note="goal-${section.at}-${i + 1}" tabindex="0">${inline(block.text)}</p>`).join('\n');
-  const binding = JSON.parse(readFileSync(join(root, 'binding.json'), 'utf8'));
-  const destination = `<p class="card">Execution destination: ${esc(binding.execution?.host ?? 'unavailable')}. Live timing is read from that host.</p>`;
-  const limits = headings.slice(1).map(name => `<h3>${esc(found[name].title)}</h3><div class="card">${paragraphs(found[name])}</div>`).join('\n');
-  return `<section id="why"><h2>Goal</h2><div class="card">${paragraphs(found.goal)}</div>${destination}</section>`
-    + `<section id="changes"><h2>Instructions and limits</h2>${limits}</section>`
-    + `<section id="decisions"><h2>Published goal checklist</h2><pre class="card">${esc(readFileSync(join(root, 'tasks.md'), 'utf8'))}</pre><h2>Decisions</h2>${decisions(found['decision log']) ?? '<p class="card">No decision is recorded yet.</p>'}</section>`;
-}
-
 // The plan as chat Markdown, from the same parse as the page: Why, each change numbered, and the assumed decisions.
 // A chat shows no pictures, so Mermaid, SVG, screen, and picture fences point to the page; tables and text print.
 const PICTURE_LANGS = new Set(['mermaid', 'svg', 'screen', 'picture']);
@@ -859,17 +843,15 @@ export function buildReview(changeRoot, { requireCurrent = false, kind = 'plan',
   const name = basename(resolve(changeRoot));
   if (kind === 'review' && !/^[\w-]{1,100}$/.test(name)) throw new Error(`a review folder name is letters, digits, - and _, up to 100: ${name}`);
   const markdown = readFileSync(sourcePath, 'utf8');
-  const goal = kind === 'plan' && scheduledGoal(changeRoot);
   const page = existsSync(reviewPath) ? readFileSync(reviewPath, 'utf8') : null;
-  if (page === null && !requireCurrent && !goal && kind !== 'review') return { kind: 'no-page', changed: false, warnings: [] };
-  if (page !== null && !page.startsWith(FORMAT) && !goal && kind !== 'review') {
+  if (page === null && !requireCurrent && kind !== 'review') return { kind: 'no-page', changed: false, warnings: [] };
+  if (page !== null && !page.startsWith(FORMAT) && kind !== 'review') {
     return { kind: 'proposal-only', changed: writeIfDifferent(reviewPath, legacyRefresh(page, markdown)), warnings: [] };
   }
   const warnings = [];
   const ask = kind === 'review' ? askOf(markdown) : undefined;
   const extra = kind === 'review' ? { ask, header: workNotesHeader(ask), actions: actions.map(({ message: _message, ...shown }) => shown) } : {};
-  let next = assemble(name, goal ? renderGoal(markdown, changeRoot) : render(markdown, warnings, changeRoot, kind), undefined, kind, extra);
-  if (goal) next = next.replace('href="#why">Why', 'href="#why">Goal').replace('href="#changes">Changes', 'href="#changes">Instructions');
+  const next = assemble(name, render(markdown, warnings, changeRoot, kind), undefined, kind, extra);
   const size = Buffer.byteLength(next);
   if (size > PAGE_MAX) throw new Error(`the page is ${Math.ceil(size / KB)} KB; keep a page under 1.5 MB so the Inbox takes it: show fewer pictures, or ${SMALLER}`);
   if (size > PAGE_WARN) warnings.push(`the page is ${Math.ceil(size / KB)} KB; a page over 800 KB is slow on a phone: show fewer pictures, or ${SMALLER}`);
@@ -906,11 +888,10 @@ if (isMain(import.meta.url)) {
       for (const warning of result.warnings) console.error(`review: warning: ${warning}`);
       console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
       const page = resolve(root, 'review.html');
-      const goal = scheduledGoal(root);
       const name = basename(resolve(root));
-      const link = args.values.link && result.kind === 'current' ? await linked(page, notesHeader(name), goal ? null : planActions(name)) : page;
-      const next = goal ? 'Use `/schedule` to confirm this record and its execution destination.' : link === page ? REVIEW_IN_CHAT : REVIEW_ON_PAGE;
-      const copy = result.kind === 'current' && !goal ? chatCopy(name, readFileSync(join(root, 'proposal.md'), 'utf8')) : '';
+      const link = args.values.link && result.kind === 'current' ? await linked(page, notesHeader(name), planActions(name)) : page;
+      const next = link === page ? REVIEW_IN_CHAT : REVIEW_ON_PAGE;
+      const copy = result.kind === 'current' ? chatCopy(name, readFileSync(join(root, 'proposal.md'), 'utf8')) : '';
       // The link comes first: a chat that folds a long reply would hide a link at its end.
       if (result.kind !== 'no-page') console.log([planLink(link), copy, next].filter(Boolean).join('\n\n'));
     } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }

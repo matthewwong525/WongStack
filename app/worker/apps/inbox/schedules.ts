@@ -7,8 +7,8 @@ import { findSchedule, run, RUN_COLUMNS, type RunRow, runShown, schedule, SCHEDU
 export const schedules = inboxAction({
   operationId: "inbox.schedules", summary: "List your schedules", description: "The signed-in person's schedules, each with its last run and the one waiting.",
   input: z.strictObject({}), output: z.strictObject({ schedules: z.array(schedule), computerOnline: z.boolean() }), encoding: "none", effect: "read",
-  // Two hundred schedules at their longest words, each with two runs.
-  limits: { inputBytes: 65536, outputBytes: 1048576, timeoutMs: 15000 },
+  // Two hundred schedules at their longest words and instructions, each with two runs.
+  limits: { inputBytes: 65536, outputBytes: 4194304, timeoutMs: 15000 },
   async run(at) {
     await settleRuns(at);
     const { results } = await mine(at, `SELECT ${SCHEDULE_COLUMNS} FROM schedules s WHERE installation_id = ?1 AND email = ?2

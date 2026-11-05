@@ -1,5 +1,5 @@
-// A person's daily settings, `.agents/daily/<name>.json`, and the optional team file of shared routines.
-// The contract: wiki/development/daily.md#your-settings-file.
+// A person's daily settings, `.agents/daily/<name>.json`. Routines (`checks`) left in it, or in the team file, start
+// nothing: they wait for their move to the app. The contract: wiki/development/daily.md#your-settings-file.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -26,8 +26,9 @@ const inputItem = item => typeof item === 'boolean' || (typeof item === 'number'
   || (typeof item === 'string' && item.length <= 240 && !TOKENISH.test(item));
 const safeInputs = value => plain(value) && Object.keys(value).length <= 10
   && Object.entries(value).every(([key, item]) => idPattern.test(key) && !SECRETISH.test(key) && inputItem(item));
+// An install may have kept a routine's `thinking`; the move to the app carries it over.
 const CHECK_KEYS = ['id', 'enabled', 'title', 'place', 'scope', 'inputs', 'result', 'procedure', 'cadence', 'effects', 'activeFrom', 'start',
-  'missed', 'prompt'];
+  'missed', 'prompt', 'thinking'];
 
 /** One routine; `seen` holds the ids before it. */
 function validateCheck(check, seen) {
@@ -39,6 +40,7 @@ function validateCheck(check, seen) {
   if (!prompt(check.prompt) || !safePath(check.procedure) || !validDay(check.activeFrom)) fail(`routine ${check.id}`);
   if (!['run', 'offer'].includes(check.start) || !['skip', 'latest'].includes(check.missed)) fail(`routine ${check.id}'s start or missed`);
   if (check.inputs !== undefined && !safeInputs(check.inputs)) fail(`routine ${check.id}'s inputs`);
+  if (check.thinking !== undefined && !(typeof check.thinking === 'string' && idPattern.test(check.thinking))) fail(`routine ${check.id}'s thinking`);
   if (!keys(check.cadence, ['kind', 'weekdays']) || !['daily', 'weekly', 'monthly', 'manual'].includes(check.cadence.kind)) {
     fail(`routine ${check.id}'s cadence`);
   }
@@ -50,7 +52,7 @@ function validateCheck(check, seen) {
 }
 
 const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
-/** When the worker starts the day's routines and morning add-ons, local time. */
+/** When the worker runs the morning add-ons, local time. */
 export const MORNING = '08:00';
 export const morningOf = config => config.morning ?? MORNING;
 
@@ -77,6 +79,7 @@ export function validateConfig(config) {
   if (config.sweeps !== undefined && !(safePath(config.sweeps) && config.sweeps.endsWith('.json'))) fail('sweeps');
   if (config.morning !== undefined && !(typeof config.morning === 'string' && CLOCK.test(config.morning))) fail('morning, as "HH:MM"');
   if (config.runs !== undefined && !(keys(config.runs, ['agent']) && RUN_AGENTS.includes(config.runs.agent ?? 'claude'))) fail('runs');
+  if (config.checks === undefined) return config;
   if (!checksOk(config.checks)) fail('checks');
   const seen = new Set();
   for (const check of config.checks) validateCheck(check, seen);
@@ -120,16 +123,17 @@ export function loadSettings(file, repo) {
   const config = validateConfig(readSettings(file));
   const teamFile = join(repo, SETTINGS_DIR, TEAM_FILE);
   const team = existsSync(teamFile) ? validateTeam(readSettings(teamFile)) : null;
-  const own = new Set(config.checks.map(check => check.id));
+  const mine = config.checks ?? [];
+  const own = new Set(mine.map(check => check.id));
   const shared = (team?.checks ?? []).filter(check => !own.has(check.id)).map(check => ({ ...check, team: true }));
-  return { ...config, checks: [...shared, ...config.checks], teamFile: team ? teamFile : null };
+  return { ...config, checks: [...shared, ...mine], teamFile: team ? teamFile : null };
 }
 
 /** Settings for a person with no file: check-ins only, as the email's local part, in this computer's time zone. */
 export function defaultSettings({ email, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone }) {
   const id = String(email).split('@')[0].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 72) || 'me';
   const person = id === 'team' ? 'team-member' : id;
-  return { ...validateConfig({ version: 1, person, emails: [email], timezone, sources: { tasks: false, chats: true }, places: {}, checks: [] }),
+  return { ...validateConfig({ version: 1, person, emails: [email], timezone, sources: { tasks: false, chats: true }, places: {} }),
     teamFile: null };
 }
 
@@ -155,21 +159,3 @@ export const mondayOf = day => addDays(day, -((new Date(`${day}T12:00:00Z`).getU
 const SLOTS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
 /** The board day of a date: `2026-10-15` is `thu`. */
 export const slotOf = day => SLOTS[new Date(`${day}T12:00:00Z`).getUTCDay()];
-
-/** The occurrence of a routine that is due on `day`, or null. */
-export function occurrence(check, day) {
-  if (!validDay(day) || !validDay(check.activeFrom) || day < check.activeFrom || check.cadence.kind === 'manual') return null;
-  if (check.cadence.kind === 'daily') return day;
-  if (check.cadence.kind === 'monthly') {
-    const monthStart = `${day.slice(0, 7)}-01`;
-    return monthStart >= check.activeFrom && (check.missed === 'latest' || monthStart === day) ? monthStart : null;
-  }
-  const date = new Date(`${day}T12:00:00Z`);
-  for (let ago = 0; ago < (check.missed === 'latest' ? 7 : 1); ago++) {
-    const eligible = date.toISOString().slice(0, 10);
-    if (eligible < check.activeFrom) return null;
-    if (check.cadence.weekdays.includes(date.getUTCDay())) return eligible;
-    date.setUTCDate(date.getUTCDate() - 1);
-  }
-  return null;
-}

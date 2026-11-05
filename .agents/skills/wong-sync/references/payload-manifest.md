@@ -6,7 +6,7 @@
 
 Every install starts empty and takes **every** category.
 
-- **Core** ships every listed skill's scripts/references, including browser discovery, private/reply links, Camoufox, shopping through Shop, improvement, scheduling and memory. It also ships `scheduled-work`, Claude/Codex memory hooks, Claude ask hooks, project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test and guard workflows/change-scope action, and the `WONG-STACK` block.
+- **Core** ships every listed skill's scripts/references, including browser discovery, private/reply links, Camoufox, shopping through Shop, improvement, scheduling and memory. It also ships Claude/Codex memory hooks, Claude ask hooks, project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test and guard workflows/change-scope action, and the `WONG-STACK` block.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds scripts, [comment rule](../../../../scripts/lint-comment-length.mjs), workflow, schema, `wiki/stack/`, [check runner](../../../../scripts/check-runner/worker.mjs) and [company calls](../../../../scripts/company-api.mjs). Employee migrations are additive; memory imports need no app packages.
 - **Scaffold** adds `app/`, except `app/wrangler*.jsonc`, which hold source-repo database IDs.
@@ -88,11 +88,11 @@ The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide remo
 
 [Mini apps](../../../../wiki/stack/mini-apps.md): hello/access/inbox/knowledge ship; scaffold exclusions omit source-only apps. Preserve target apps/routes/branding/welcome removal/independent memory. Access bootstrap/migrations ship explicitly; repo access stays manual. Merge target key entries; never replace populated `app/worker/keys.ts`.
 
-## Scheduled-work records
+## Schedules
 
-[Host schedules](../../../../wiki/stack/host-schedules.md) use the app's or a host's clock. Core ships `schedule`, its definition format/host/legacy references, Node helpers, and `openspec/schemas/scheduled-work/`; no cloud runner/bootstrap/model setup.
+[Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `schedule`, its host and legacy references, and Node helpers; no cloud runner/bootstrap/model setup.
 
-An install owns its `schedules/<name>.json`, `.agents/daily/`, old `daily/team.md`, `daily/people/`, business goals and progress. Never add those live records to this inventory or overwrite them. Routines need no OpenSpec goal; finite goals stay open until verified closed. Save's record-only helper keeps the code gate, refusing code. Updates preserve deployed cloud resources and native host jobs. [Migration/teardown](../../../../wiki/stack/legacy-cloud-schedules.md) is explicit: no action runs twice.
+An install owns its `.agents/daily/`, old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records until the move at the update. Never add those live records to this inventory or overwrite them. A schedule's instructions, progress and runs live in the app, not in the repo. Updates preserve deployed cloud resources and native host jobs. [Migration/teardown](../../../../wiki/stack/legacy-cloud-schedules.md) is explicit: no action runs twice.
 
 ## OpenSpec integration and migration
 

@@ -58,16 +58,24 @@ export function NoticeLine({ notice, onClose }: { notice: Notice; onClose: () =>
   </Alert>
 }
 
-/** The Inbox's views: the week board by day or by week, and the person's review pages. */
-export function ViewToggle({ view, onView }: { view: ScheduleView | 'reviews'; onView: (view: ScheduleView) => void }) {
+/** The Inbox's views: the week board by day or by week, for someone with one, and the person's reviews and
+ *  schedules. */
+export function ViewToggle({ view, onView, board = true }: {
+  view: ScheduleView | 'reviews' | 'schedules'
+  onView: (view: ScheduleView) => void
+  board?: boolean
+}) {
   const navigate = useNavigate()
   return <ToggleGroup type="single" aria-label="Inbox view" value={view} onValueChange={value => {
-    if (value === 'reviews') void navigate('/apps/inbox/?view=reviews')
+    if (value === 'reviews' || value === 'schedules') void navigate(`/apps/inbox/?view=${value}`)
     else if (value) onView(scheduleView(value))
   }}>
-    <ToggleGroupItem className="min-h-11" value="day">Day</ToggleGroupItem>
-    <ToggleGroupItem className="min-h-11" value="week">Week</ToggleGroupItem>
+    {board && <>
+      <ToggleGroupItem className="min-h-11" value="day">Day</ToggleGroupItem>
+      <ToggleGroupItem className="min-h-11" value="week">Week</ToggleGroupItem>
+    </>}
     <ToggleGroupItem className="min-h-11" value="reviews">Reviews</ToggleGroupItem>
+    <ToggleGroupItem className="min-h-11" value="schedules">Schedules</ToggleGroupItem>
   </ToggleGroup>
 }
 

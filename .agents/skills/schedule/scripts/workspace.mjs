@@ -16,7 +16,7 @@ const USAGE = `usage: workspace.mjs open --title <part> --brief <file>
 const VALUE_FLAGS = ['title', 'brief', 'checkout', 'reviewed', 'agent', 'label'];
 // A tag a script puts on the chats it opens, so it can find them again.
 const LABEL = /^[a-z][a-z0-9-]{0,39}=[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
-const MODES = { claude: 'bypassPermissions', codex: 'full-access' };
+export const MODES = { claude: 'bypassPermissions', codex: 'full-access' };
 const PARENT_VARS = ['PASEO_AGENT_ID', 'PASEO_WORKSPACE_ID'];
 export const PLACEHOLDERS = new Set(['main', 'master', 'default', 'hello', 'hello world', 'test', 'testing', 'untitled',
   'new workspace', 'workspace', 'scratch', 'temp', 'tmp', 'wip']);

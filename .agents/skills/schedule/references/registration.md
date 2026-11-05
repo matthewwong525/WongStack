@@ -1,7 +1,8 @@
 # Registration
 
-Follow [CLI contract](../../plan/references/openspec-cli.md) root/store; prefer chosen/enclosing host, install none. Default fixed checks verify fresh-session/inspect/stop/progress/ownership/questions. Updates are optional; adaptation needs post-session clock proof. Outreach needs receipt inspection.
+1. Write JSON: `key`, `name`, `instructions`, `timing` (`once` with `dueAt`, or `recurring` with `cron` or `every`; `timezone`; `allowedLatenessMs`). As needed: `kind` (`chat` or `background`), `run` (`cwd` in a main checkout, `provider`, `thinking`, `mode`, `check`, `minutes`, `place`), `authority` (`actions`, `recipients`, `channels`, `minIntervalMs`), and `until` for a goal. No keys.
+2. Run `show --file <json>`. Show its text as it is and ask for an OK by [the shared ask](../../explore/references/asking-the-user.md).
+3. On OK: `save --file <json> --approve --version <sha>`. On `changed`, show it again.
+4. For a schedule changed elsewhere or a team copy: `show <key>`, ask, then `approve <key> --version <sha>`. Only the owner uses `save --team <emails>`.
 
-Select one host/memory/local read/write/claim/release route; local cannot be disposable/serve cloud. Verify later memory identity/grant; never copy keys/change ownership or steal timed-out claims.
-
-Prefer paused create; else publish guards, persist operation ID, create/read back, bind/publish/reconcile. Uncertain activation stays pending/reuses operation. Retain immutable publication reference. One-time needs absolute due/expiry/lateness, never annual cron alone.
+To change or end a schedule at a goal, save the same key again; never make a second one.

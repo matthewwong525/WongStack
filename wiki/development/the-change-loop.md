@@ -90,7 +90,7 @@ Every chat starts in plan; only you move it on. Each step may read, research, ru
 | Step | May change in the repo |
 |---|---|
 | `/explore` | nothing |
-| `/plan` and `/improve-code` | plans, wiki pages and [schedules](../stack/host-schedules.md) |
+| `/plan` and `/improve-code` | plans and wiki pages; a [schedule](../stack/host-schedules.md) goes to the app after your OK |
 | `/apply`, `/ship`, any other step you type | anything |
 
 You move it on by typing a step, tapping *Build it* or *Build and publish* on a plan's page, or picking build or publish when asked. A step run inside another, such as `/plan` inside `/ship`, keeps the outer step's reach. Add your own step as `.agents/skills/<name>/SKILL.md`, linked from this page.
@@ -183,7 +183,3 @@ The change folder on the feature branch *is* the plan, and `/continue <name>` fi
 Most changes are `proposal.md` and `tasks.md` only. A change writes delta specs **only** when it formally revises a capability's spec; `/save` folds them into `openspec/specs/`, and `/ship` archives with the specs synced.
 
 Part of [development](README.md).
-
-## Publishing scheduled records
-
-[Host scheduling](../stack/host-schedules.md) keeps routine definitions and open goal plans. Selected records resume before code or checkout; unchanged records do not block unrelated code. [Record-only delivery](../../.agents/skills/save/references/schedule-records.md) publishes one through the normal gate and owns the steps; mixed code uses the ordinary loop. Ordinary errands retain [their reach](#verbs-for-any-work).

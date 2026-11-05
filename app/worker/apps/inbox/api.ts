@@ -12,8 +12,10 @@ import { line } from "./line-open.ts";
 import { mirror } from "./mirror.ts";
 import { reviews } from "./reviews.ts";
 import { runResult } from "./run-result.ts";
-import { pause, resume, runCancel, runNow, scheduleDelete } from "./schedule-control.ts";
-import { schedulePut } from "./schedule-put.ts";
+import { scheduleApproved } from "./schedule-approved.ts";
+import { pause, resume, runCancel, runNow, scheduleDelete, scheduleEnd } from "./schedule-control.ts";
+import { scheduleProgress, scheduleProgressClaim, scheduleProgressPut } from "./schedule-progress.ts";
+import { schedulePut, teamSchedulePut } from "./schedule-put.ts";
 import { scheduleDetail, schedules } from "./schedules.ts";
 import { tapCancel } from "./tap-cancel.ts";
 import { tapResult } from "./tap-result.ts";
@@ -27,5 +29,7 @@ export const routes = new Map<string, Route>([
   ["PUT item", itemPut], ["POST item-close", itemClose], ["POST checkin", checkin], ["POST tap-result", tapResult], ["GET line", line],
   ["GET schedules", schedules], ["GET schedule", scheduleDetail], ["PUT schedule", schedulePut], ["POST pause", pause], ["POST resume", resume],
   ["POST delete", scheduleDelete], ["POST run-now", runNow], ["POST run-cancel", runCancel], ["POST claim", claim],
-  ["POST run-result", runResult], ["PUT mirror", mirror], ["POST file", fileUpload], ["GET file", fileRead], ...weekRoutes, ...dailyRoutes,
+  ["POST run-result", runResult], ["PUT team-schedule", teamSchedulePut], ["POST schedule-approved", scheduleApproved],
+  ["POST schedule-end", scheduleEnd], ["GET schedule-progress", scheduleProgress], ["PUT schedule-progress", scheduleProgressPut],
+  ["POST schedule-progress-claim", scheduleProgressClaim], ["PUT mirror", mirror], ["POST file", fileUpload], ["GET file", fileRead], ...weekRoutes, ...dailyRoutes,
 ]);

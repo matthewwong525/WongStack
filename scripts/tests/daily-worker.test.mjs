@@ -242,12 +242,12 @@ test("the install's list merges over the default, and its brief folder wins over
   const merged = loadSweeps({ project, file: '.agents/daily/jobs.json' });
   assert.deepEqual(Object.keys(merged.events), ['invoice']);
   assert.deepEqual(loadSweeps({ project: '/repo' }).events, {});
-  assert.deepEqual([merged.maxRuns, merged.journalDays, merged.sweeps.map(sweep => sweep.id)], [2, 14, ['wiki-tidy', 'pay']]);
+  assert.deepEqual([merged.maxRuns, merged.journalDays, merged.sweeps.map(sweep => sweep.id), merged.waiting], [2, 14, ['wiki-tidy'], ['pay']]);
   assert.deepEqual(defaults().sweeps.map(sweep => sweep.id), ['wiki-tidy']);
   assert.equal(JSON.parse(readFileSync(DEFAULT_SWEEPS, 'utf8')).journalDays, 14);
   assert.match(briefFor({ brief: 'judge.md', fields: { title: 'x' } }, 'r1', briefFolders(project)), /Our own judge for x\./);
-  writeFileSync(join(project, '.agents/daily/bad.json'), JSON.stringify({ sweeps: [{ id: 'evil', brief: 'pay.md', check: '../outside.mjs' }] }));
-  assert.throws(() => loadSweeps({ project, file: '.agents/daily/bad.json' }), /bad entry: evil/);
+  writeFileSync(join(project, '.agents/daily/bad.json'), JSON.stringify({ sweeps: [{ id: 'wiki-tidy', brief: 'pay.md', check: '../outside.mjs' }] }));
+  assert.throws(() => loadSweeps({ project, file: '.agents/daily/bad.json' }), /bad entry: wiki-tidy/);
 });
 
 test('a run uses the AI tool the settings name, with full permissions, and a root Claude run gets IS_SANDBOX', async () => {
@@ -438,12 +438,12 @@ test('a second serve prints one line and returns, starting nothing', async () =>
   assert.equal(existsSync(join(stateDir, 'serve.json')), false);
 });
 
-test('without Paseo the worker still runs a timed job, with the AI tool serve names unless the settings name one', async () => {
+test("without Paseo the worker still runs a default's replacement, with the AI tool serve names; an own timed job waits", async () => {
   const project = folder();
   mkdirSync(join(project, '.agents/daily/briefs'), { recursive: true });
   writeFileSync(join(project, '.agents/daily/briefs/pay.md'), 'Pay what is due.\n');
   writeFileSync(join(project, '.agents/daily/jobs.json'), JSON.stringify({ sweeps: [{ id: 'pay', every: '15m', brief: 'pay.md' },
-    { id: 'wiki-tidy', off: true }] }));
+    { id: 'wiki-tidy', every: '15m', brief: 'pay.md' }] }));
   const call = async () => { throw new PaseoError(EXIT.noPaseo, 'Paseo is not installed.'); };
   const serve = async runs => {
     const stateDir = folder(), spawned = [], logs = [];
@@ -457,23 +457,38 @@ test('without Paseo the worker still runs a timed job, with the AI tool serve na
   };
   const plain = await serve();
   assert.deepEqual(plain.spawned, ['codex']);
-  assert.deepEqual(plain.journal, ['Started: pay']);
+  assert.deepEqual(plain.journal, ['Timed jobs wait to move to the app, and do not run: pay', 'Started: wiki-tidy']);
   assert.deepEqual((await serve({ agent: 'claude' })).spawned, ['claude']);
 });
 
-test("an install's timed job replaces the default of its id, an off entry removes one, and one that names no default is ignored", () => {
+test("an install's timed job replaces the default of its id, an off entry removes one, and any other waits and does not run", () => {
   const project = folder();
   const own = sweeps => {
     writeFileSync(join(project, 'jobs.json'), JSON.stringify({ sweeps }));
-    return loadSweeps({ project, file: 'jobs.json' }).sweeps;
+    const merged = loadSweeps({ project, file: 'jobs.json' });
+    return [merged.sweeps, merged.waiting];
   };
-  // `wrap-up` was once a default job: an install list that still turns it off keeps working.
-  const merged = own([{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'wrap-up', off: true }, { id: 'pay', at: ['09:00'], brief: 'pay.md' }]);
-  assert.deepEqual(merged, [{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'pay', at: ['09:00'], brief: 'pay.md' }]);
-  assert.deepEqual(own([{ id: 'wiki-tidy', off: true }]), []);
-  assert.throws(() => own([{ id: 'nap', every: '5m', do: 'sleep' }]), /bad entry: nap/);
-  assert.throws(() => own([{ id: 'far', every: '5m', brief: 'far.md', place: 'away' }]), /bad entry: far/);
-  assert.throws(() => own([{ id: 'long', every: '5m', brief: 'long.md', minutes: 0 }]), /bad entry: long/);
+  // `wrap-up` was once a default job: an install list that still turns it off keeps working, and waits for nothing.
+  const merged = own([{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'wrap-up', off: true }, { id: 'pay', at: ['09:00'], brief: 'pay.md' },
+    { id: 'nap', every: '5m', do: 'sleep' }]);
+  assert.deepEqual(merged, [[{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }], ['pay', 'nap']]);
+  assert.deepEqual(own([{ id: 'wiki-tidy', off: true }]), [[], []]);
+  assert.throws(() => own([{ id: 'wiki-tidy', every: '5m', do: 'sleep' }]), /bad entry: wiki-tidy/);
+  assert.throws(() => own([{ id: 'wiki-tidy', every: '5m', brief: 'far.md', place: 'away' }]), /bad entry: wiki-tidy/);
+  assert.throws(() => own([{ id: 'wiki-tidy', every: '5m', brief: 'long.md', minutes: 0 }]), /bad entry: wiki-tidy/);
+});
+
+test('timed jobs that wait get one journal line a day, and a dry run writes none', async () => {
+  const { worker, stateDir, at, make } = rig({ sweeps: { ...defaults(), waiting: ['pay', 'nap'] } });
+  await worker.sweep();
+  at('2026-10-31T20:00:00Z');
+  await worker.sweep();
+  assert.deepEqual(lines(stateDir), ['Timed jobs wait to move to the app, and do not run: pay, nap']);
+  at('2026-11-01T14:00:00Z');
+  await make({ dryRun: true }).sweep();
+  assert.equal(lines(stateDir).length, 1);
+  await worker.sweep();
+  assert.equal(lines(stateDir).length, 2);
 });
 
 /** A git that records each command and makes or removes the copy's folder as git would. */
@@ -698,11 +713,9 @@ test("the service watch leaves a Needs you chat alone", async () => {
 // ---------------------------------------------------------------------------
 // The morning start, with no chat
 
-/** A settings file's routine and morning add-on, a fake launcher and add-ons, and one serve pass at `at`. */
+/** A settings file with a routine left in it and a morning add-on, fake add-ons, and one serve pass at `at`. */
 function morningRig({ morning, addonEvents = [] } = {}) {
-  const project = folder(), stateDir = folder(), launched = [], ran = [];
-  mkdirSync(join(project, '.agents/skills/news'), { recursive: true });
-  writeFileSync(join(project, '.agents/skills/news/SKILL.md'), '# News\n');
+  const project = folder(), stateDir = folder(), ran = [];
   mkdirSync(join(project, '.agents/daily'), { recursive: true });
   writeFileSync(join(project, '.agents/daily/jobs.json'), JSON.stringify({ sweeps: [{ id: 'wiki-tidy', off: true }] }));
   const raw = { version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
@@ -710,15 +723,14 @@ function morningRig({ morning, addonEvents = [] } = {}) {
     checks: [{ id: 'news', enabled: true, title: 'Morning news', place: 'home', scope: 'Today', result: 'A list', procedure: '.agents/skills/news/SKILL.md',
       cadence: { kind: 'daily' }, effects: 'Reads only', activeFrom: '2026-01-05', start: 'run', missed: 'latest' }] };
   const config = validateConfig(raw);
-  const launch = async ({ title }) => { launched.push(title); return { ok: true, cwd: '/w/little-giraffe', agentId: 'agent-news' }; };
   const addons = async ({ context }) => { ran.push(context.kind); return { lines: ['Two new orders'], events: addonEvents, skip: [],
     failed: [{ addon: 'bank.mjs', error: 'down' }] }; };
-  const startDay = options => start({ config, project, stateDir, launch, addons, ...options });
+  const startDay = options => start({ config, project, stateDir, addons, ...options });
   const call = async args => (args[0] === 'ls' || args[0] === 'permit' ? [] : { ok: true });
   const serve = (at, more = {}) => serveDaily({ config, project, stateDir, call, env: { HOME: folder() }, once: true, hasFile: true, start: startDay,
     watching: { board: async () => ({ tasks: [] }) }, started: () => ({}), watcher: () => ({ close() {} }), ownRepo: () => true,
     now: () => Date.parse(at), ...more });
-  return { raw, config, project, stateDir, launched, ran, launch, addons, startDay, serve };
+  return { raw, config, project, stateDir, ran, addons, startDay, serve };
 }
 
 /** One worker over `r` that reads the settings file each pass as `daily.mjs serve` does; `steps` run between passes. */
@@ -739,40 +751,41 @@ async function servePasses(r, steps) {
 }
 const writeSettings = (r, more) => writeFileSync(join(r.project, '.agents/daily/alex.json'), JSON.stringify({ ...r.raw, ...more }));
 
-test('the morning starts nothing before 8:00, and at 8:00 starts the routine and add-ons once, with their journal lines', async () => {
+test('the morning runs nothing before 8:00, and at 8:00 runs the add-ons once; a left routine starts nothing and gets one line', async () => {
   const r = morningRig();
   await r.serve('2026-11-03T12:59:00Z');
-  assert.deepEqual([r.launched, r.ran, lines(r.stateDir)], [[], [], []]);
+  assert.deepEqual([r.ran, lines(r.stateDir)], [[], []]);
   await r.serve('2026-11-03T13:00:00Z');
-  assert.deepEqual([r.launched, r.ran], [['Morning news'], ['morning']]);
-  assert.deepEqual(lines(r.stateDir), ['Started: Morning news in little-giraffe', 'Two new orders', 'Not read: add-on bank.mjs — down']);
-  // A second pass, and a second worker over the same state after a restart, start nothing again.
+  assert.deepEqual(r.ran, ['morning']);
+  assert.deepEqual(lines(r.stateDir), ['Routines wait to move to the app, and do not start: Morning news', 'Two new orders',
+    'Not read: add-on bank.mjs — down']);
+  // A second pass, and a second worker over the same state after a restart, run nothing again.
   await r.serve('2026-11-03T15:30:00Z');
-  await r.serve('2026-11-03T15:31:00Z', { start: options => start({ config: r.config, project: r.project, stateDir: r.stateDir, launch: r.launch,
+  await r.serve('2026-11-03T15:31:00Z', { start: options => start({ config: r.config, project: r.project, stateDir: r.stateDir,
     addons: r.addons, ...options }) });
-  assert.deepEqual([r.launched, r.ran], [['Morning news'], ['morning']]);
+  assert.deepEqual(r.ran, ['morning']);
   assert.equal(lines(r.stateDir).length, 3);
 });
 
 test('the first pass after a late start runs the morning, at the time the settings name', async () => {
   const r = morningRig({ morning: '10:30' });
   await r.serve('2026-11-03T15:29:00Z');
-  assert.deepEqual(r.launched, []);
+  assert.deepEqual(r.ran, []);
   await r.serve('2026-11-03T18:00:00Z');
-  assert.deepEqual(r.launched, ['Morning news']);
+  assert.deepEqual(r.ran, ['morning']);
 });
 
 test('with no settings file the morning starts nothing', async () => {
   const r = morningRig();
   await r.serve('2026-11-03T14:00:00Z', { hasFile: false });
-  assert.deepEqual([r.launched, r.ran, lines(r.stateDir)], [[], [], []]);
+  assert.deepEqual([r.ran, lines(r.stateDir)], [[], []]);
 });
 
 test('a settings file made after the worker started gets its morning at the next pass', async () => {
   const r = morningRig();
   const seen = [];
-  await servePasses(r, [() => { seen.push([...r.launched]); writeSettings(r); }]);
-  assert.deepEqual([seen, r.launched], [[[]], ['Morning news']]);
+  await servePasses(r, [() => { seen.push([...r.ran]); writeSettings(r); }]);
+  assert.deepEqual([seen, r.ran], [[[]], ['morning']]);
 });
 
 test("a changed morning time counts at the worker's next pass", async () => {
@@ -780,16 +793,16 @@ test("a changed morning time counts at the worker's next pass", async () => {
   writeSettings(r, { morning: '10:30' });
   const seen = [];
   await servePasses(r, [
-    clock => { seen.push([...r.launched]); clock.at = '2026-11-03T14:30:00Z'; },
-    () => { seen.push([...r.launched]); writeSettings(r, { morning: '09:00' }); }]);
-  assert.deepEqual([seen, r.launched], [[[], []], ['Morning news']]);
+    clock => { seen.push([...r.ran]); clock.at = '2026-11-03T14:30:00Z'; },
+    () => { seen.push([...r.ran]); writeSettings(r, { morning: '09:00' }); }]);
+  assert.deepEqual([seen, r.ran], [[[], []], ['morning']]);
 });
 
 test('a settings file the worker can not read is journaled once a day and skips the morning until it is fixed', async () => {
   const r = morningRig();
   writeSettings(r, { morning: '8am' });
   await servePasses(r, [() => {}, () => writeSettings(r)]);
-  assert.deepEqual(r.launched, ['Morning news']);
+  assert.deepEqual(r.ran, ['morning']);
   assert.equal(lines(r.stateDir).filter(line => line.startsWith('Not read: the settings file')).length, 1);
 });
 
@@ -808,12 +821,12 @@ test("a morning add-on's events go to dispatch, the same path as a pass add-on's
   assert.deepEqual(dispatched, [{ event: 'order', id: 7, addon: 'shop.mjs' }]);
 });
 
-test('a dry run prints the routine it would start, and starts nothing', async () => {
+test('a dry run prints the add-on it would run, and runs nothing', async () => {
   const r = morningRig();
   const printed = [];
   await r.serve('2026-11-03T13:05:00Z', { dryRun: true, print: item => printed.push(item) });
-  assert.deepEqual(printed.filter(item => item.wouldStart), [{ wouldStart: 'routine', title: 'Morning news' }]);
-  assert.deepEqual([r.launched, r.ran], [[], []]);
+  assert.deepEqual(printed.filter(item => item.wouldRun), [{ wouldRun: 'add-on', addon: 'shop.mjs' }]);
+  assert.deepEqual(r.ran, []);
   assert.equal(existsSync(join(r.stateDir, 'morning-2026-11-03.json')), false);
 });
 
@@ -837,7 +850,7 @@ test('a morning that throws is one line, the second pass opens one Needs you cha
 test('a morning that works between two failures opens no chat', async () => {
   const r = morningRig();
   const fails = [true, false, true];
-  const start = async options => { if (fails.shift()) throw new Error('no place'); return r.startDay({ ...options, dryRun: true }); };
+  const start = async options => { if (fails.shift()) throw new Error('no place'); return { ...(await r.startDay({ ...options, dryRun: true })), waiting: [] }; };
   const openChat = async () => assert.fail('opened');
   let sleeps = 0;
   const done = new Error('three passes');

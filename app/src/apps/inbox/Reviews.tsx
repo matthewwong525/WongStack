@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { readReviews, when, type Review } from './api'
+import { useBoard } from './week/hooks'
 import { ViewToggle } from './week/Parts'
 import { SearchField } from './week/Search'
 
@@ -49,6 +50,7 @@ function Archive({ rows, more, onMore, moreFailed }: { rows: Review[]; more: boo
 /** The person's review pages: those waiting on them, then the Archive of every one answered or closed, newest first. */
 export function Reviews() {
   const navigate = useNavigate()
+  const board = useBoard()
   const [query, setQuery] = useState('')
   const [list, setList] = useState<List | null>(null)
   const [failed, setFailed] = useState(false)
@@ -70,7 +72,7 @@ export function Reviews() {
   return <>
     <div className="mb-6 flex min-h-11 items-center gap-3"><h1 className="min-w-0 flex-1 truncate">Inbox</h1></div>
     <div className="mb-5 flex flex-col gap-3">
-      <ViewToggle view="reviews" onView={view => void navigate(`/apps/inbox/?view=${view}`)} />
+      <ViewToggle view="reviews" board={board} onView={view => void navigate(`/apps/inbox/?view=${view}`)} />
       <SearchField value={query} onChange={setQuery} onEscape={() => setQuery('')} label="Search reviews by title" autoFocus={false} />
     </div>
     {failed && <Alert variant="destructive">

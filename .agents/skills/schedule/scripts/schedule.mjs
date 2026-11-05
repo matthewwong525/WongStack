@@ -1,171 +1,179 @@
 #!/usr/bin/env node
-// Schedule records, verified host management, and fresh-session startup. No git or provisioning.
+// The person's schedules in the company app: show, save and approve here, manage, start a run, and the move to the
+// app. No git. wiki/stack/host-schedules.md
 import { parseArgs } from 'node:util';
-import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
-import { loadRecord, listRecords, checkpoint, createGoal, writeRoutine, ScheduleError, requireValue } from './lib/records.mjs';
-import { paseoAdapter, appAdapter, appHost, selectHost, unsupportedAdapter, validateReceipt, startupPrompt, validateCapabilities } from './lib/hosts.mjs';
-import { mirrorRound } from './lib/app-runs.mjs';
-import { moveToApp } from './lib/move.mjs';
-import { computerId } from '../../hand-over/scripts/lib/computer.mjs';
+import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
+import { computerId, helperService } from '../../hand-over/scripts/lib/computer.mjs';
 import { companyFor } from '../../hand-over/scripts/lib/inbox.mjs';
-import { progressRoute } from './lib/progress.mjs';
-import { readyToRun, answerQuestion, register, terminal, nextWake, adopt } from './lib/lifecycle.mjs';
+import { approveHere, approvalState, approver, appHost, definition, heldDefinition, readSchedule, saveDefinition, send, shownText } from './lib/app.mjs';
+import { checkRun, mirrorRound } from './lib/app-runs.mjs';
+import { paseoAdapter, selectHost, validateReceipt } from './lib/hosts.mjs';
 import { legacyAdapter, legacyContext, teardownLegacy } from './lib/legacy.mjs';
-export { validateBinding, validateRoutine, loadRecord, listRecords } from './lib/records.mjs';
+import { moveIn } from './lib/move-in.mjs';
+import { appProgress } from './lib/progress.mjs';
+import { listRecords, loadRecord, requireValue, ScheduleError } from './lib/records.mjs';
+import { scheduleVersion } from './lib/version.mjs';
 
-const USAGE = 'usage: schedule.mjs list | hosts | mirror | move <key> | inspect|resolve|start|register|adopt|bind|reconcile|release|pause|resume|run|cancel|answer|change --record <reference> [--store <id>] | create-routine|create-goal --file <json> | legacy list|inspect|pause|resume|cancel|teardown [native-id]';
-function adapterFor(name, world, item) {
-  if (world.hosts?.[name]) return world.hosts[name];
-  if (name === 'paseo') return paseoAdapter({ env: world.env });
-  if (name === 'app') return appAdapter({ client: () => (world.company ?? companyFor)(world.root), computer: () => world.computer ?? computerId(world.env), item, env: world.env });
-  return unsupportedAdapter(name);
+const USAGE = 'usage: schedule.mjs list | inspect|show <key> | show --file <json> | save --file <json> [--approve [--version <sha>]] [--team <emails>] | approve <key> --version <sha> | pause|resume|run <key> | cancel <key> [--run <id>] | end <key> --evidence <text> | start --key <key> --run <id> --version <sha> | progress --key <key> --run <id> --file <json> | release --key <key> --run <id> | move-in [--unattended] [--dry-run] [--keep <id>] [--drop <id>] | move <key> | hosts | mirror | legacy list|inspect|pause|resume|cancel|teardown [native-id]';
+const COMMANDS = ['list', 'ls', 'inspect', 'show', 'save', 'approve', 'pause', 'resume', 'run', 'cancel', 'end', 'start', 'progress', 'release', 'move-in', 'move',
+  'hosts', 'mirror', 'legacy'];
+const UNREACHABLE = 'The app can not be reached; no times are shown.';
+const iso = at => (Number.isFinite(at) ? new Date(at).toISOString() : null);
+const primaryOf = root => { try { return primaryRoot(root).primary; } catch { return root; } };
+const quote = text => text.split('\n').map(line => `> ${line}`).join('\n');
+
+async function connect(world) {
+  let client;
+  try { client = await (world.company ?? companyFor)(world.root); } catch { /* reported below */ }
+  if (!client) throw new ScheduleError('The company app does not answer from this checkout. Sign in first.', 3);
+  return client;
 }
-function hostFor(binding, world, item) { return world.host ?? adapterFor(binding.execution.host, world, item); }
+
+/** One list row: what it does, its state, where it runs, its next run, its last result, and whether it needs an OK. */
+function row(schedule, who, computer, env) {
+  return { key: schedule.key, name: schedule.name, kind: schedule.kind, host: schedule.host, state: schedule.ended ? 'ended' : schedule.state,
+    nextRunAt: iso(schedule.nextRunAt), lastRun: schedule.lastRun && { state: schedule.lastRun.state, result: schedule.lastRun.result, dueAt: iso(schedule.lastRun.dueAt) },
+    runsOn: schedule.computerName ?? null, ...approvalState(schedule, who, computer, env) };
+}
+
+/** The schedule as it would run here: a team copy with no folder runs in this primary checkout. */
+function localDefinition(schedule, primary) {
+  const def = heldDefinition(schedule);
+  return def.run.cwd ? def : { ...def, run: { ...def.run, cwd: primary } };
+}
+
 // The run's report reaches the app just after its chat opens, so a quick first start looks again before refusing.
-async function startedByApp(host, key, agentId, sleep) {
+async function startedByApp(client, key, run, agentId, sleep) {
   for (let tries = 0; tries < 3; tries += 1) {
     if (tries) await sleep(2000);
-    if ((await host.inspect(key)).runs?.some(run => run.state === 'started' && run.agentId === agentId)) return true;
+    if ((await readSchedule(client, key))?.runs?.some(each => each.id === run && each.state === 'started' && each.agentId === agentId)) return true;
   }
   return false;
 }
-export async function scheduleView(items, hostOf, { routes = {} } = {}) {
-  const rows = [];
-  for (const item of items) {
-    const row = { kind: item.kind, key: item.key, name: item.name, owner: item.owner, state: item.state, reference: item.reference, host: item.binding.execution.host, nativeId: item.binding.execution.nativeId, nextRunAt: null, lastResult: null, live: 'unavailable', stale: true };
-    if (row.nativeId) {
-      try {
-        const observed = await hostOf(item.binding).inspect(row.nativeId);
-        requireValue(observed.id === row.nativeId, 'Live identity differs.');
-        row.nextRunAt = observed.nextRunAt ?? null; row.lastResult = observed.runs?.at(-1) ?? observed.lastRun ?? null;
-        row.nativeState = observed.status; row.live = 'observed'; row.stale = false;
-        row.repairNeeded = (['paused', 'cancelled', 'completed'].includes(row.state) && observed.status === 'active') || (!item.published);
-      } catch { /* retain unavailable host truth */ }
-    }
-    try {
-      const progress = await progressRoute(item.binding, routes).read();
-      row.progress = 'available'; row.stateSource = 'checkpoint';
-      if (progress && (progress.revision !== item.binding.revision || progress.generation !== item.binding.execution.generation)) { row.progress = 'stale'; row.stale = true; }
-      else if (progress) {
-        row.stateSource = 'progress';
-        if (progress.terminal) { row.state = progress.cleanupPending ? 'cleanup-pending' : progress.terminal.reason; row.nextRunAt = progress.cleanupPending ? row.nextRunAt : null; }
-        else if (progress.pendingQuestion) { row.state = progress.reschedulePending ? 'cleanup-pending' : 'waiting'; row.questionId = progress.pendingQuestion.id; }
-        else if (progress.reschedulePending) row.state = 'cleanup-pending';
-        if (!progress.terminal && progress.nextAt) row.requestedNextAt = progress.nextAt;
-      }
-    } catch { row.progress = 'unavailable'; row.stateSource = 'checkpoint'; row.stale = true; }
-    if (row.live === 'observed') {
-      const next = Date.parse(row.nextRunAt), requested = Date.parse(row.requestedNextAt), expiry = Date.parse(item.binding.timing.expiresAt);
-      row.timingMismatch = Number.isFinite(next) && ((Number.isFinite(expiry) && next > expiry)
-        || (Number.isFinite(requested) && (next < requested || next > requested + (item.binding.timing.allowedLatenessMs ?? 0))));
-      if (row.timingMismatch) row.stale = true;
-      row.repairNeeded = row.timingMismatch || !item.published || (['paused', 'cancelled', 'completed', 'cleanup-pending'].includes(row.state) && row.nativeState === 'active');
-    }
-    rows.push(row);
+
+/** pause or resume: the app's routes, or the Paseo job of a schedule that still runs there. */
+async function control(command, key, world, client) {
+  try { return { schedule: (await send(client, command === 'run' ? 'run-now' : command, 'POST', { key })).schedule }; } catch (error) {
+    if (error.extra?.reason !== 'not_app' || command === 'run') throw error;
   }
-  return rows;
+  const item = loadRecord(world.root, `schedules/${key}.json`), id = item.binding.execution.nativeId;
+  const receipt = validateReceipt(await (world.paseo ?? paseoAdapter({ env: world.env }))[command](id), { host: 'paseo', nativeId: id, action: command });
+  return { host: 'paseo', receipt };
 }
+
+async function run(command, values, key, world) {
+  const { root, env } = world, primary = world.primary ?? primaryOf(root);
+  const computer = world.computer ?? computerId(env), email = world.email;
+  const options = { computer, env, email, ...(world.hostname ? { name: world.hostname } : {}) };
+  if (command === 'hosts') {
+    const app = await (world.appHost ?? appHost)({ service: () => helperService(env), client: () => connect(world) });
+    return { preferred: selectHost({ enclosing: 'paseo', available: [app, { name: 'paseo', supported: true }] }).name, app };
+  }
+  if (command === 'show' && values.file) {
+    const def = definition(JSON.parse(readFileSync(values.file, 'utf8')), { primary }), version = scheduleVersion(def);
+    return { key: def.key, version, text: shownText(def, version) };
+  }
+  if (command === 'move-in' || command === 'move') {
+    requireValue(command === 'move-in' || key, 'Name the schedule record to move.');
+    const me = (world.who ?? (await import('../../daily/scripts/daily.mjs')).who)({ repo: root });
+    const config = me.file ? (world.settings ?? (await import('../../daily/scripts/config.mjs')).loadSettings)(me.file, root) : null;
+    const client = values['dry-run'] ? null : await connect(world);
+    const note = world.note ?? (async line => {
+      const [{ stateOf }, { addLine }] = await Promise.all([import('../../daily/scripts/daily.mjs'), import('../../daily/scripts/journal.mjs')]);
+      if (config) addLine({ stateDir: stateOf(config, root), timezone: config.timezone, line, kind: 'move-in' });
+    });
+    return moveIn({ root, primary, me, config, records: listRecords(root), client, computer, env, email, paseo: world.paseo ?? paseoAdapter({ env }),
+      note, unattended: values.unattended, dryRun: values['dry-run'], keep: values.keep, drop: values.drop, only: command === 'move' ? `record:${key}` : null });
+  }
+  const client = await connect(world);
+  if (['list', 'ls'].includes(command)) {
+    let listed;
+    try { listed = await send(client, 'schedules'); } catch (error) { throw error.code === 3 ? new ScheduleError(UNREACHABLE, 3) : error; }
+    let who = null;
+    try { who = approver(client, { email }); } catch { /* not signed in: no row counts as approved */ }
+    return { schedules: listed.schedules.map(schedule => row(schedule, who, computer, env)), computerOnline: listed.computerOnline };
+  }
+  if (command === 'mirror') {
+    const mirrored = await mirrorRound(client, { computer, root, list: () => listRecords(root), ...(world.paseo && { inspect: id => world.paseo.inspect(id) }), env });
+    if (mirrored === null) throw new ScheduleError('The app did not take the mirror.', 1);
+    return { mirrored };
+  }
+  if (command === 'save') {
+    const def = definition(JSON.parse(readFileSync(values.file, 'utf8')), { primary, team: Boolean(values.team) });
+    if (values.team) return saveDefinition(client, def, { team: values.team.split(',').map(each => each.trim()).filter(Boolean) });
+    requireValue(!values.version || values.version === scheduleVersion(def), 'The file differs from the version the person saw; show it again.');
+    const { version, schedule } = await saveDefinition(client, def, { computer });
+    return { key: def.key, version, ...(values.approve ? await approveHere(client, schedule, version, options) : { needsOk: true }) };
+  }
+  requireValue(key, 'Name a schedule key.');
+  if (command === 'start') {
+    requireValue(values.run && values.version, 'A start names its run and version.');
+    const agentId = env.PASEO_AGENT_ID;
+    requireValue(agentId && await startedByApp(client, key, values.run, agentId, world.sleep), 'The current chat is not a run the app started for this schedule.');
+    const found = await checkRun({ key, revision: values.version }, { client, env, ...(email ? { email } : {}) });
+    if (!found.schedule) throw new ScheduleError(`This run may not start: ${found.reason}.`, 1, { reason: found.reason });
+    const progress = appProgress(client, key);
+    requireValue(await progress.claim(values.run), 'Another run holds this schedule\'s progress.');
+    const { schedule } = found;
+    return { key, run: values.run, version: schedule.version, authority: schedule.authority, until: schedule.until, progress: (await progress.read()).progress,
+      instructions: quote(schedule.instructions),
+      next: 'Do the quoted instructions within the authority shown. Save progress with progress, end a finished goal with end, then release.' };
+  }
+  if (command === 'progress') {
+    requireValue(values.run && values.file, 'Progress names its run and a JSON file.');
+    return appProgress(client, key).write(values.run, JSON.parse(readFileSync(values.file, 'utf8')));
+  }
+  if (command === 'release') { requireValue(values.run, 'Name the run that holds the progress.'); return { claimed: await appProgress(client, key).release(values.run) }; }
+  if (command === 'end') {
+    requireValue(values.evidence, 'Ending a schedule needs the proof that its work is done, or the person\'s request.');
+    return send(client, 'schedule-end', 'POST', { key, reason: values.evidence.slice(0, 300) });
+  }
+  if (command === 'cancel') {
+    if (values.run) return send(client, 'run-cancel', 'POST', { id: values.run });
+    return send(client, 'schedule-end', 'POST', { key, reason: (values.evidence ?? 'Cancelled at the person\'s request.').slice(0, 300) });
+  }
+  if (['pause', 'resume', 'run'].includes(command)) return control(command, key, world, client);
+  const found = await readSchedule(client, key);
+  if (!found) throw new ScheduleError('The app has no schedule with this key.', 2);
+  if (command === 'inspect') {
+    let who = null;
+    try { who = approver(client, { email }); } catch { /* shown as needing an OK */ }
+    return { schedule: found.schedule, runs: found.runs, approval: approvalState(found.schedule, who, computer, env) };
+  }
+  const def = localDefinition(found.schedule, primary), version = scheduleVersion(def);
+  if (command === 'show') return { key, version, text: shownText(def, version), ...(version !== found.schedule.version ? { binds: primary } : {}) };
+  // approve: the version the person saw, saved first when this computer fills in a team copy's folder.
+  requireValue(values.version, 'Name the version the person approved, from show.');
+  if (version !== values.version) throw new ScheduleError('The schedule changed since it was shown; show it again.', 1, { reason: 'changed' });
+  requireValue(!found.schedule.computer || found.schedule.computer === computer, `This schedule runs on ${found.schedule.computerName ?? 'another computer'}; approve it there.`);
+  const schedule = version === found.schedule.version ? found.schedule : (await saveDefinition(client, def, { computer })).schedule;
+  return { key, version, ...(await approveHere(client, schedule, version, options)) };
+}
+
 export async function main(argv = process.argv.slice(2), world = {}) {
   world = { root: process.cwd(), env: process.env, out: text => process.stdout.write(text), sleep: ms => new Promise(done => setTimeout(done, ms)), ...world };
   try {
     const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
-      record: { type: 'string' }, store: { type: 'string' }, root: { type: 'string' }, file: { type: 'string' }, 'native-id': { type: 'string' }, generation: { type: 'string' }, revision: { type: 'string' }, 'run-id': { type: 'string' }, owner: { type: 'string' }, question: { type: 'string' }, answer: { type: 'string' }, evidence: { type: 'string' }, resources: { type: 'string' }, help: { type: 'boolean' },
+      key: { type: 'string' }, file: { type: 'string' }, root: { type: 'string' }, version: { type: 'string' }, run: { type: 'string' }, evidence: { type: 'string' },
+      team: { type: 'string' }, approve: { type: 'boolean' }, unattended: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, keep: { type: 'string', multiple: true },
+      drop: { type: 'string', multiple: true }, resources: { type: 'string' }, help: { type: 'boolean' },
     } });
-    const [command = 'list', action, nativeId] = positionals, root = values.root ?? world.root;
-    world = { ...world, root };
-    const options = { store: values.store, openspec: world.openspec };
-    let result;
     if (values.help) { world.out(`${USAGE}\n`); return 0; }
-    requireValue(['legacy', 'list', 'ls', 'create-routine', 'create-goal', 'inspect', 'resolve', 'validate', 'start', 'register', 'adopt', 'bind', 'reconcile', 'release', 'pause', 'resume', 'run', 'cancel', 'answer', 'change', 'move', 'hosts', 'mirror'].includes(command), `Unknown schedule command ${command}.`);
+    const [command = 'list', action, nativeId] = positionals;
+    world = { ...world, root: values.root ?? world.root };
+    requireValue(COMMANDS.includes(command), `Unknown schedule command ${command}.`);
+    let result;
     if (command === 'legacy') {
-      const context = world.legacyContext ?? legacyContext(root, world.env);
+      const context = world.legacyContext ?? legacyContext(world.root, world.env);
       if (action === 'teardown') result = await teardownLegacy(context, values.resources?.split(','), world);
       else {
         const host = legacyAdapter(context, world);
         requireValue(['list', 'inspect', 'pause', 'resume', 'cancel'].includes(action), 'Legacy supports only list/inspect/pause/resume/cancel/explicit teardown.');
         result = action === 'list' ? await host.list() : await host[action](nativeId);
       }
-    } else if (['list', 'ls'].includes(command)) {
-      const found = await listRecords(root, options);
-      result = { records: await scheduleView(found.records, binding => hostFor(binding, world), { routes: world.routes }), errors: found.errors };
-    } else if (command === 'hosts') {
-      const app = await (world.appHost ?? appHost)({ env: world.env, root });
-      result = { preferred: selectHost({ enclosing: 'paseo', available: [app, { name: 'paseo', supported: true }] }).name, app };
-    } else if (command === 'mirror') {
-      const client = await (world.company ?? companyFor)(root);
-      requireValue(client, 'The company app does not answer from this checkout.');
-      const mirrored = await mirrorRound(client, { computer: world.computer ?? computerId(world.env), root, list: () => listRecords(root, options), ...(world.host && { inspect: id => world.host.inspect(id) }), env: world.env });
-      if (mirrored === null) throw new ScheduleError('The app did not take the mirror.', 1);
-      result = { mirrored };
-    } else if (command === 'create-routine') {
-      result = { reference: writeRoutine(root, JSON.parse(readFileSync(values.file, 'utf8'))), activation: 'pending' };
-    } else if (command === 'create-goal') {
-      const requested = JSON.parse(readFileSync(values.file, 'utf8'));
-      result = await createGoal(root, requested.name, { ...requested, ...options });
-    } else {
-      const reference = values.record ?? (command === 'move' && action ? `schedules/${action}.json` : undefined);
-      requireValue(reference, 'Select an exact schedule record.');
-      const item = await loadRecord(root, reference, options), binding = item.binding, host = hostFor(binding, world, item);
-      if (command === 'move') result = await moveToApp(item, { paseo: adapterFor('paseo', world, item), app: adapterFor('app', world, item) });
-      else if (['inspect', 'resolve', 'validate'].includes(command)) result = { record: item, live: (await scheduleView([item], () => host, { routes: world.routes }))[0] };
-      else {
-        const store = progressRoute(binding, world.routes);
-        if (command === 'start') {
-          const progress = await store.read();
-          const context = { nativeId: values['native-id'], generation: Number(values.generation), publishedRevision: values.revision };
-          readyToRun(item, progress, context);
-          if (binding.execution.host === 'paseo') {
-            const observed = await host.inspect(binding.execution.nativeId);
-            requireValue(world.env.PASEO_AGENT_ID && observed.runs?.some(run => run.agentId === world.env.PASEO_AGENT_ID && !run.endedAt), 'The current Paseo agent is not an observed active run of this binding.');
-          } else if (binding.execution.host === 'app') {
-            requireValue(world.env.PASEO_AGENT_ID && await startedByApp(host, binding.execution.nativeId, world.env.PASEO_AGENT_ID, world.sleep), 'The current chat is not a run the app started for this schedule.');
-          } else requireValue(world.executionProof?.verified === true && world.executionProof.nativeId === binding.execution.nativeId, 'The native host has supplied no verified current-run identity.');
-          const runId = values['run-id'] ?? randomUUID();
-          requireValue(await store.claim(runId), 'Another session owns this run.');
-          result = { record: item, progress, runId, next: 'Follow references/run.md. Keep claim through all outward steps; use the same authoritative store, then release.' };
-        } else if (command === 'register') result = await register(item, store, host);
-        else if (command === 'adopt') { requireValue(values.evidence, 'Adoption needs explicit selected-job authorization evidence.'); result = await adopt(item, host, store, values['native-id'], { approved: true }); }
-        else if (command === 'release') { requireValue(values['run-id'], 'Name the exact execution claim.'); await store.release(values['run-id']); result = { released: true }; }
-        else if (command === 'bind') {
-          const progress = await store.read();
-          requireValue(progress?.registration?.nativeId && progress.registration.receipt?.outcome === 'verified', 'Registration has no verified native identity.');
-          const observed = await host.inspect(progress.registration.nativeId);
-          requireValue(observed.id === progress.registration.nativeId, 'Native registration identity mismatch.');
-          result = checkpoint(item, { ...binding, execution: { ...binding.execution, nativeId: observed.id }, lifecycle: { ...binding.lifecycle, state: 'registering', published: false } });
-        } else if (command === 'reconcile') {
-          requireValue(item.published && binding.execution.nativeId, 'Publish the binding checkpoint before reconciliation.');
-          validateCapabilities(binding.execution.capabilities, { adaptive: binding.adaptive === true, outreach: binding.authority.actions.some(action => !['read', 'draft'].includes(action)), questions: Boolean(binding.questionSurface), once: binding.timing.mode === 'once' });
-          const observed = await host.inspect(binding.execution.nativeId);
-          requireValue(observed.id === binding.execution.nativeId && observed.prompt === startupPrompt(binding), 'Native binding/prompt does not match the published record.');
-          requireValue(observed.status === 'active' && observed.nextRunAt, 'Native registration is not active with a next wake-up.');
-          result = checkpoint(item, { ...binding, lifecycle: { ...binding.lifecycle, state: 'scheduled', reconciledAt: new Date().toISOString() } });
-        }
-        else if (command === 'answer') result = await answerQuestion(store, { questionId: values.question, owner: values.owner, answer: values.answer });
-        else if (command === 'cancel') {
-          requireValue(values.evidence, 'Cancellation needs the identified user request evidence.');
-          result = await terminal(item, (await store.read()) ?? { revision: binding.revision, generation: binding.execution.generation, receipts: [] }, store, host, 'cancelled', values.evidence);
-          checkpoint(item, { ...binding, lifecycle: { ...binding.lifecycle, ...result, progress: undefined } });
-        } else if (['pause', 'resume', 'run', 'change'].includes(command)) {
-          requireValue(item.published && binding.execution.nativeId && (item.state !== 'registering' || ['resume', 'change', 'pause'].includes(command)), 'Registration/binding publication is not complete.');
-          const progress = await store.read();
-          requireValue(!progress?.terminal && !['cancelled', 'completed', 'superseded'].includes(item.state), 'Terminal schedules cannot be resumed.');
-          if (command !== 'pause') validateCapabilities(binding.execution.capabilities, { adaptive: binding.adaptive === true, outreach: binding.authority.actions.some(action => !['read', 'draft'].includes(action)), questions: Boolean(binding.questionSurface), once: binding.timing.mode === 'once' });
-          if (command !== 'pause') requireValue(!progress?.pendingQuestion, 'The identified owner must answer the pending question first.');
-          if (command === 'resume' && item.state === 'registering') requireValue((await host.inspect(binding.execution.nativeId)).prompt === startupPrompt(binding), 'Inspect the approved guarded prompt before resuming registration.');
-          let change;
-          if (command === 'change') {
-            change = JSON.parse(readFileSync(values.file, 'utf8'));
-            requireValue(!change.prompt || change.prompt === startupPrompt(binding), 'Publish approved instruction changes before updating the guarded native prompt.');
-            if (change.timing?.dueAt) nextWake(binding, change.timing.dueAt);
-          }
-          const receipt = validateReceipt(await (command === 'change' ? host.update(binding.execution.nativeId, change) : host[command](binding.execution.nativeId)), { host: host.name, nativeId: binding.execution.nativeId, action: command === 'change' ? 'update' : command });
-          result = { receipt, state: receipt.outcome === 'verified' ? (command === 'pause' ? 'paused' : 'scheduled') : item.state };
-          if (receipt.outcome === 'verified' && ['pause', 'resume'].includes(command)) checkpoint(item, { ...binding, lifecycle: { ...binding.lifecycle, state: result.state } });
-        } else throw new ScheduleError(`Unknown schedule command ${command}.`);
-      }
-    }
+    } else result = await run(command, values, values.key ?? action, world);
     world.out(`${JSON.stringify({ ok: true, ...result }, null, 2)}\n`); return 0;
   } catch (error) {
     const code = error instanceof ScheduleError ? error.code : String(error.code).startsWith('ERR_PARSE_ARGS') ? 2 : 1;

@@ -94,20 +94,6 @@ When the work is a process that will run again, planning SHALL weigh determinist
 - **WHEN** a plan covers a task that will run every week
 - **THEN** the plan considers a script before a recurring AI step
 
-### Requirement: Publishing a schedule record preserves the code gate
-
-An explicitly confirmed schedule registration or lifecycle checkpoint SHALL be publishable through a record-only delivery route with the repo's normal checks or review gate. The route SHALL carry only the selected lightweight routine definition or finite scheduled-work goal and its review material where applicable, SHALL keep an unfinished finite goal open, and SHALL reject unrelated source changes or unfinished code plans. Publishing an ongoing routine definition SHALL not require a permanently open OpenSpec change. Registration SHALL not authorize publishing code in a future run.
-
-#### Scenario: A confirmed schedule registration
-
-- **WHEN** the user confirms the concrete schedule plan and its host destination
-- **THEN** the selected record can be saved and merged after its gate while the goal remains unfinished
-
-#### Scenario: Source changes ride with a record
-
-- **WHEN** a record-only publish also contains application changes or an incomplete code plan
-- **THEN** that route stops and the ordinary code change loop is required
-
 ### Requirement: A change asked with no verb stops at the plan and at the preview
 
 A code or process change asked for with no verb SHALL stop at the plan's review link, with no question: from that page the person builds it, or builds and publishes it in one go with no stop before the merge. After a build alone, it SHALL stop at the preview to ask whether to publish, running the next verb on yes. A verb the person types SHALL keep its own reach. A small change whose shape a skill's own page fixes, such as adding a new tool while connecting tools, SHALL instead be recorded and built on the person's request, with no plan review link, and SHALL stop only to ask whether to publish.
@@ -182,7 +168,7 @@ Before `/continue` switches the working tree to a saved branch, it SHALL list th
 
 ### Requirement: Each step limits what it may change
 
-Every chat SHALL be in one step, starting in plan. Explore SHALL change no repo file. Plan SHALL change only plans, wiki pages, and schedules (`schedules/`); a code change SHALL wait for the person's go. Apply, ship, and any other step the person types SHALL be free to change any repo file. Every step MAY read, research, run the repo's tests and scripts, and write throwaway files outside the tracked repo.
+Every chat SHALL be in one step, starting in plan. Explore SHALL change no repo file. Plan SHALL change only plans and wiki pages, and MAY save a schedule to the company app after the person's OK; a code change SHALL wait for the person's go. Apply, ship, and any other step the person types SHALL be free to change any repo file. Every step MAY read, research, run the repo's tests and scripts, and write throwaway files outside the tracked repo.
 
 #### Scenario: Exploring finds a fix
 
@@ -197,7 +183,7 @@ Every chat SHALL be in one step, starting in plan. Explore SHALL change no repo 
 #### Scenario: A reminder in a new chat
 
 - **WHEN** a new chat is asked to remind the person every Monday to send invoices
-- **THEN** the agent saves the schedule in plan, with no build step
+- **THEN** the agent shows the schedule, saves it to the app after the person's OK, and makes no repo change and no build step
 
 ### Requirement: Only the person moves a chat past plan
 

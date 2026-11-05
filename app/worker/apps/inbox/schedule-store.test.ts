@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { database } from "../../../tests/employee-access/connections";
-import { firstRun, nextRun, readable, tick, timing, type Timing } from "./schedule-store";
+import { firstRun, nextRun, readable, scheduleVersion, tick, timing, type Timing } from "./schedule-store";
 
 const at = (text: string) => Date.parse(text);
 const recurring = (extra: Partial<Timing>): Timing => ({ mode: "recurring", timezone: "UTC", allowedLatenessMs: 0, ...extra });
@@ -62,4 +62,21 @@ it("starts one run per due time when two ticks overlap, the later one writing af
   await late;
   expect(sql.prepare("SELECT state, due_at FROM schedule_runs").all()).toEqual([{ state: "due", due_at: due }]);
   expect(sql.prepare("SELECT next_run_at FROM schedules").get()).toEqual({ next_run_at: at("2026-10-22T10:00:00Z") });
+});
+
+it("versions what a schedule does, where, with what leave and until when, never its timing", async () => {
+  const plan = { key: "weekly-plan", kind: "chat" as const, instructions: "Plan the week.", run: { cwd: "/home/jo/repo", thinking: "high" },
+    authority: { minIntervalMs: 600_000 } };
+  // The schedule skill's version.mjs hashes this same text.
+  const VECTOR = "69794bedd405d57972bf86cdcbdecced8f9b0064acaafc22f4ada926f8ed4996";
+  expect(await scheduleVersion(plan)).toBe(VECTOR);
+  const timed = { ...plan, run: { thinking: "high", cwd: "/home/jo/repo", mode: undefined }, timing: recurring({ every: "1h" }) };
+  expect(await scheduleVersion(timed)).toBe(VECTOR);
+  expect(await scheduleVersion({ ...plan, kind: undefined, authority: undefined })).toBe(await scheduleVersion({ ...plan, authority: {} }));
+  for (const changed of [{ instructions: "Plan the month." }, { authority: { minIntervalMs: 60_000 } }, { run: { cwd: "/home/jo" } },
+    { kind: "background" as const }, { until: "The plan is done." }]) expect(await scheduleVersion({ ...plan, ...changed })).not.toBe(VECTOR);
+  expect(await scheduleVersion({ ...plan, until: "The plan is done." })).toBe("c9f38c023909c9f00590c8a0c3f41b5c3181a01ae252df3553720c231f05b0f1");
+  const leave = { ...plan, authority: { actions: ["read", "draft"], recipients: [] } };
+  expect(await scheduleVersion(leave)).toBe(await scheduleVersion({ ...plan, authority: { recipients: [], actions: ["read", "draft"] } }));
+  expect(await scheduleVersion(leave)).not.toBe(await scheduleVersion({ ...plan, authority: { actions: ["draft", "read"], recipients: [] } }));
 });

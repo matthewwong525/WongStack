@@ -24,10 +24,50 @@ export const run = z.strictObject({
   id: z.string(), key: z.string(), dueAt: z.number(), source: z.enum(["clock", "now"]), state: z.enum(RUN_STATES),
   result: z.string().nullable(), chatTitle: z.string().nullable(), agentId: z.string().nullable(),
 });
+const words = z.array(z.string().min(1).max(200)).max(50);
+/** Where and how a run goes: its folder, tool and effort, and for a background run its check, time limit and place. */
+const runSettings = z.strictObject({
+  cwd: z.string().min(1).max(1000).optional(), provider: z.string().min(1).max(100).optional(), thinking: z.string().min(1).max(40).optional(),
+  mode: z.string().min(1).max(100).optional(), check: z.string().min(1).max(1000).optional(), minutes: z.number().int().min(1).max(1440).optional(),
+  place: z.enum(["checkout", "copy"]).optional(),
+});
+/** What a run may do: its actions, recipients and channels, and the least time between two runs. */
+const authority = z.strictObject({
+  actions: words.optional(), recipients: words.optional(), channels: words.optional(), minIntervalMs: z.number().int().positive().optional(),
+});
+const KINDS = ["chat", "background"] as const;
 export const schedule = z.strictObject({
   key: z.string(), host: z.enum(["app", "paseo"]), name: z.string(), summary: z.string(), timing, state: z.enum(["on", "paused"]),
   nextRunAt: z.number().nullable(), computer: z.string(), lastRun: run.nullable(), waiting: run.nullable(),
+  kind: z.enum(KINDS), instructions: z.string(), run: runSettings, authority, until: z.string().nullable(),
+  ended: z.strictObject({ at: z.number(), reason: z.string() }).nullable(), version: z.string(), approvedVersion: z.string().nullable(),
+  approvedAt: z.number().nullable(), computerName: z.string().nullable(), madeBy: z.string().nullable(),
 });
+/** What a put sends besides its key and timing: the fields its version is made from, its name and its end. */
+export const definition = {
+  name: z.string().min(1).max(200).describe("Its name."), summary: z.string().max(300).describe("What it does, in a line."),
+  timing: timing.describe("When it runs."), kind: z.enum(KINDS).optional().describe("chat opens a workspace; background runs with no chat."),
+  instructions: z.string().min(1).max(8000).describe("What a run does: the chat's first message or the background brief."),
+  run: runSettings.describe("Where and how it runs."), authority: authority.optional().describe("What a run may do."),
+  until: z.string().min(1).max(500).optional().describe("The completion source of a goal; none for a schedule with no end."),
+};
+export type Definition = { key: string; name: string; summary: string; timing: Timing; kind?: (typeof KINDS)[number]; instructions: string;
+  run: z.infer<typeof runSettings>; authority?: z.infer<typeof authority>; until?: string };
+
+/** `value` with each object's keys sorted and undefined fields dropped, so two equal schedules hash alike. */
+const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : value === null || typeof value !== "object" ? value
+  : Object.fromEntries(Object.keys(value).filter(key => (value as Record<string, unknown>)[key] !== undefined).sort()
+    .map(key => [key, canonical((value as Record<string, unknown>)[key])]));
+
+/** The version a computer approves: what it does, where, with what leave and until when, never its timing. Same as
+ *  the computer's .agents/skills/schedule/scripts/lib/version.mjs. */
+export async function scheduleVersion({ key, kind = "chat", instructions, run = {}, authority = {}, until }:
+  Pick<Definition, "key" | "kind" | "instructions"> & { run?: Definition["run"]; authority?: Definition["authority"]; until?: string | null }) {
+  // A row's `until: null` is no end, as a missing one is.
+  const text = JSON.stringify(canonical({ key, kind, instructions, run, authority, until: until ?? undefined }));
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, "0")).join("");
+}
 
 /** Whether the app can work out the timing's due times: a known timezone, and a cron, an interval or a date. */
 export function readable(value: Timing) {
@@ -74,13 +114,16 @@ export const settleRuns = (at: Who) => at.db.batch([
       AND s.key = schedule_runs.key), 0) < ?3`, at.now),
 ]);
 
+/** A schedule the clock starts: on the app's clock, on, not ended, and bound to a computer. */
+export const runnable = (s = "") => `${s}host = 'app' AND ${s}state = 'on' AND ${s}ended_at IS NULL AND ${s}computer_id <> ''`;
+
 type DueRow = { key: string; computer_id: string; timing_json: string; next_run_at: number };
 
 /** Starts each run whose time came, missing the one still waiting, while `next_run_at` is still the one read: two
  *  overlapping ticks start one run. Resolves to the computers that have a run waiting. */
 export async function tick(at: Who): Promise<Set<string>> {
   const { results } = await mine(at, `SELECT key, computer_id, timing_json, next_run_at FROM schedules WHERE installation_id = ?1
-    AND email = ?2 AND host = 'app' AND state = 'on' AND next_run_at IS NOT NULL AND next_run_at <= ?3`, at.now).all<DueRow>();
+    AND email = ?2 AND ${runnable()} AND next_run_at IS NOT NULL AND next_run_at <= ?3`, at.now).all<DueRow>();
   const still = `EXISTS (SELECT 1 FROM schedules WHERE installation_id = ?1 AND email = ?2 AND key = ?3 AND host = 'app'
     AND state = 'on' AND next_run_at = ?4)`;
   for (const row of results) {
@@ -96,14 +139,15 @@ export async function tick(at: Who): Promise<Set<string>> {
   await settleRuns(at);
   const { results: waiting } = await mine(at, `SELECT DISTINCT s.computer_id FROM schedule_runs r JOIN schedules s
     ON s.installation_id = r.installation_id AND s.email = r.email AND s.key = r.key
-    WHERE r.installation_id = ?1 AND r.email = ?2 AND r.state = 'due' AND s.state = 'on' AND s.host = 'app'`).all<{ computer_id: string }>();
+    WHERE r.installation_id = ?1 AND r.email = ?2 AND r.state = 'due' AND ${runnable("s.")}`)
+    .all<{ computer_id: string }>();
   return new Set(waiting.map(row => row.computer_id));
 }
 
 /** When the person's clock next has work: the earliest next run of a schedule that is on, or null. */
 export async function nextWake(at: Who) {
   return (await mine(at, `SELECT MIN(next_run_at) AS at FROM schedules WHERE installation_id = ?1 AND email = ?2
-    AND host = 'app' AND state = 'on'`).first<{ at: number | null }>())!.at;
+    AND ${runnable()}`).first<{ at: number | null }>())!.at;
 }
 
 const RUN_JSON = `json_object('id', r.id, 'key', r.key, 'dueAt', r.due_at, 'source', r.source, 'state', r.state, 'result', r.result,
@@ -112,13 +156,19 @@ const runOf = (state: string) => `(SELECT ${RUN_JSON} FROM schedule_runs r WHERE
   AND r.email = s.email AND r.key = s.key AND r.state ${state} ORDER BY r.due_at DESC, r.rowid DESC LIMIT 1)`;
 /** A schedule's columns as the inbox shows them, with its last finished run and the one waiting, if any. */
 export const SCHEDULE_COLUMNS = `s.key, s.host, s.name, s.summary, s.timing_json, s.state, s.next_run_at, s.computer_id,
-  s.min_interval_ms, ${runOf("NOT IN ('due', 'taken')")} AS last_run, ${runOf("IN ('due', 'taken')")} AS waiting`;
+  s.min_interval_ms, s.kind, s.instructions, s.run_json, s.authority_json, s.until, s.ended_at, s.end_reason, s.revision, s.approved_version,
+  s.approved_at, s.computer_name, s.made_by, ${runOf("NOT IN ('due', 'taken')")} AS last_run, ${runOf("IN ('due', 'taken')")} AS waiting`;
 export type ScheduleRow = { key: string; host: "app" | "paseo"; name: string; summary: string; timing_json: string; state: "on" | "paused";
-  next_run_at: number | null; computer_id: string; min_interval_ms: number | null; last_run: string | null; waiting: string | null };
+  next_run_at: number | null; computer_id: string; min_interval_ms: number | null; kind: (typeof KINDS)[number]; instructions: string;
+  run_json: string; authority_json: string; until: string | null; ended_at: number | null; end_reason: string | null; revision: string;
+  approved_version: string | null; approved_at: number | null; computer_name: string | null; made_by: string | null; last_run: string | null; waiting: string | null };
 
 export const shown = (row: ScheduleRow): z.infer<typeof schedule> => ({ key: row.key, host: row.host, name: row.name, summary: row.summary,
   timing: JSON.parse(row.timing_json), state: row.state, nextRunAt: row.next_run_at, computer: row.computer_id,
-  lastRun: row.last_run === null ? null : JSON.parse(row.last_run), waiting: row.waiting === null ? null : JSON.parse(row.waiting) });
+  lastRun: row.last_run === null ? null : JSON.parse(row.last_run), waiting: row.waiting === null ? null : JSON.parse(row.waiting),
+  kind: row.kind, instructions: row.instructions, run: JSON.parse(row.run_json), authority: JSON.parse(row.authority_json), until: row.until,
+  ended: row.ended_at === null ? null : { at: row.ended_at, reason: row.end_reason! }, version: row.revision,
+  approvedVersion: row.approved_version, approvedAt: row.approved_at, computerName: row.computer_name, madeBy: row.made_by });
 
 /** The caller's schedule `key`, or null. */
 export const findSchedule = (at: Who, key: string) =>

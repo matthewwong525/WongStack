@@ -14,6 +14,8 @@ it("lets the owner alone at the board, and the checker on staging", async () => 
   expect((await call("GET", "week", { week: WEEK }, checker)).status).toBe(403);
   const staging = board({ WONG_OWNER_EMAIL: OWNER, WONG_ENVIRONMENT: "staging" });
   expect((await staging.call("GET", "week", { week: WEEK }, checker)).status).toBe(200);
+  // The Inbox list is a person's own and refuses the checker, so the screen keeps the board's Day and Week for it.
+  expect((await staging.call("GET", "items", undefined, checker)).status).toBe(403);
   // With no owner set, nobody's board is there.
   expect((await board({}).call("GET", "week", { week: WEEK })).status).toBe(403);
 });

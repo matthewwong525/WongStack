@@ -15,8 +15,9 @@ import { runAddons } from './addons.mjs';
 import { boardCalls, boardClient } from './board.mjs';
 import { BUCKETS, allow, answer, chiefDay, chiefEnv, doneAgent, hand, mark, noteEnd, paseoCli, readBeat, readJson, remind, reply,
   serviceAlive, status, todoLink, writeJson } from './chief.mjs';
-import { RUN_AGENTS, SettingsError, defaultSettings, loadSettings, localDay, mondayOf, occurrence, placePath, settingsFor, slotOf } from './config.mjs';
+import { RUN_AGENTS, SettingsError, defaultSettings, loadSettings, localDay, mondayOf, settingsFor, slotOf } from './config.mjs';
 import { addLine, format, newLines, readLines } from './journal.mjs';
+import { refuseRuns, scheduleApp, takeRuns, waitingRuns } from './schedule-runs.mjs';
 import { alive, codeStamp, dropServeLock, loadSweeps, lockedBy, morningFile, serveDaily, stopGroup, takeServeLock } from './worker.mjs';
 
 const LAUNCHER = fileURLToPath(new URL('../../schedule/scripts/workspace.mjs', import.meta.url));
@@ -68,7 +69,7 @@ export function personSettings({ repo = REPO, ctx = repoContext(repo), ...rest }
 export const stateOf = (config, repo = REPO, root) => stateDirectory(primaryRoot(repo).primary, config.person, root);
 
 // ---------------------------------------------------------------------------
-// The started record: one row per routine, task or morning that started, under a file lock
+// The started record: one row per task or morning that started, under a file lock
 
 const LOCK_RETRY_MS = 50, LOCK_STALE_MS = 10e3;
 /** A claim that never got its workspace: after this long it counts as failed, and the next run starts it again. */
@@ -156,34 +157,8 @@ const workspaceOf = opened => opened.workspaceName || (opened.cwd && basename(op
 // ---------------------------------------------------------------------------
 // start
 
-/** `.agents/skills/news/SKILL.md` is `/news`; a routine's `prompt` replaces it. */
+/** `.agents/skills/news/SKILL.md` is `/news`; a routine's `prompt` replaces it. The move to the app reads it. */
 export const firstMessage = task => task.prompt ?? `/${basename(dirname(task.procedure))}`;
-
-/** Each routine due on `day` with the key of its occurrence: `review:2026-10-12`, `finance:2026-11`. */
-export function dueTasks(config, project, day) {
-  return config.checks.filter(check => check.enabled && check.start === 'run').flatMap(check => {
-    const due = occurrence(check, day);
-    return due ? [{ ...check, destination: placePath(config, check.place, project), key: `${check.id}:${check.cadence.kind === 'monthly' ? due.slice(0, 7) : due}` }] : [];
-  });
-}
-
-/** One routine's row, or null when its occurrence started on an earlier day. */
-async function startOne(task, { record, day, timezone, now, launch, dryRun }) {
-  const message = firstMessage(task);
-  const held = holder => (localDay(new Date(holder.at), timezone) === day ? { title: task.title, state: 'already', workspace: holder.workspace ?? null } : null);
-  const before = record.read()[task.key];
-  if (holds(before, now)) return held(before);
-  if (!existsSync(join(task.destination, task.procedure))) {
-    return { title: task.title, state: 'failed', workspace: null, reason: `No skill at ${task.procedure} in ${task.destination}.` };
-  }
-  if (dryRun) return { title: task.title, state: 'due', workspace: null, message };
-  const { holder, entry, error } = await launchOnce({ record, key: task.key, now, claim: { title: task.title },
-    open: () => launch({ destination: task.destination, title: task.title, message }),
-    fill: opened => ({ workspace: workspaceOf(opened), cwd: opened.cwd ?? null, agentId: opened.agentId ?? null, title: task.title, at: now.toISOString() }) });
-  if (holder) return held(holder);
-  if (error) return { title: task.title, state: 'failed', workspace: null, reason: error };
-  return { title: task.title, state: 'started', workspace: entry.workspace };
-}
 
 /** What each add-on gets on stdin. */
 const addonContext = (config, project, day, kind) => ({ kind, day, person: config.person, timezone: config.timezone, repo: project });
@@ -200,32 +175,24 @@ async function morningAddons({ config, project, record, day, now, addons }) {
   return { lines: out.lines, events: out.events, notRead: out.failed.map(each => ({ source: `add-on ${each.addon}`, error: each.error })) };
 }
 
-/** Starts each due routine once, then the morning add-ons once per day; with `dryRun` it starts nothing. */
-export async function start({ config, project, stateDir, now = new Date(), launch = launchWorkspace, dryRun = false, addons = runAddons }) {
+/** The morning add-ons once per day; routines left in the settings start nothing, and `waiting` names them. */
+export async function start({ config, project, stateDir, now = new Date(), dryRun = false, addons = runAddons }) {
   const day = localDay(now, config.timezone);
-  const record = startedRecord(stateDir);
-  const rows = [];
-  for (const task of dueTasks(config, project, day)) {
-    const row = await startOne(task, { record, day, timezone: config.timezone, now, launch, dryRun });
-    if (row) rows.push(row);
-  }
-  if (dryRun) return { day, tasks: rows, guide: config.guide ?? null };
-  const morning = await morningAddons({ config, project, record, day, now, addons });
-  const saved = readJson(morningFile(stateDir, day), { tasks: [], lines: [], events: [], notRead: [] });
-  const report = { ...saved, ...morning, tasks: [...saved.tasks, ...rows.filter(row => row.state !== 'already')] };
+  const waiting = (config.checks ?? []).map(check => check.title);
+  if (dryRun) return { day, addons: config.addons?.morning ?? [], waiting, guide: config.guide ?? null };
+  const morning = await morningAddons({ config, project, record: startedRecord(stateDir), day, now, addons });
+  const saved = readJson(morningFile(stateDir, day), { lines: [], events: [], notRead: [] });
+  const report = { ...saved, ...morning };
   writeJson(morningFile(stateDir, day), report);
-  return { day, tasks: rows, lines: report.lines, events: report.events, notRead: report.notRead, guide: config.guide ?? null };
+  return { day, lines: report.lines, events: report.events, notRead: report.notRead, waiting, guide: config.guide ?? null };
 }
 
-/** What today's morning started, with no launch: the started rows, then the saved failed rows, lines and events. */
+/** What today's morning gave, with no launch: the saved lines, events and sources not read. */
 export function startReport({ config, stateDir, now = new Date() }) {
   const day = localDay(now, config.timezone);
-  const record = startedRecord(stateDir).read();
   const saved = readJson(morningFile(stateDir, day), null);
-  const started = Object.entries(record).filter(([, entry]) => entry?.at && !entry.pending && !entry.addons && localDay(new Date(entry.at), config.timezone) === day)
-    .map(([key, entry]) => ({ key, title: entry.title ?? key, state: 'started', workspace: entry.workspace ?? null }));
-  return { day, morning: saved ? 'done' : 'not run', tasks: [...started, ...(saved?.tasks ?? []).filter(row => row.state === 'failed')],
-    lines: saved?.lines ?? [], events: saved?.events ?? [], notRead: saved?.notRead ?? [], guide: config.guide ?? null };
+  return { day, morning: saved ? 'done' : 'not run', lines: saved?.lines ?? [], events: saved?.events ?? [], notRead: saved?.notRead ?? [],
+    guide: config.guide ?? null };
 }
 
 // ---------------------------------------------------------------------------
@@ -389,11 +356,10 @@ export function checkinsOff({ stateDir, timezone, kill = stopGroup, isAlive = al
   return { state: 'off', stopped };
 }
 
-/** True when the worker has work: a routine, board to-dos, add-ons, or a job on the default list merged with the
- * person's own. */
-function hasJobs(config, project) {
-  if (config.sources.tasks || config.checks.some(check => check.enabled && check.start === 'run') || config.addons?.morning?.length
-    || config.addons?.pass?.length) return true;
+/** True when the worker has work: board to-dos, add-ons, a background schedule run handed over, or a job on the
+ * default list merged with the person's own. */
+function hasJobs(config, project, env) {
+  if (config.sources.tasks || config.addons?.morning?.length || config.addons?.pass?.length || waitingRuns(env).length) return true;
   try { const jobs = loadSweeps({ project, file: config.sweeps }); return jobs.sweeps.length > 0 || Object.keys(jobs.events).length > 0; } catch { return false; }
 }
 
@@ -435,20 +401,39 @@ function waitGone(pid, isAlive) {
   for (let waited = 0; waited < 1000 && isAlive(pid); waited += LOCK_RETRY_MS) wait(LOCK_RETRY_MS);
 }
 
-/** `D ensure`: starts the main checkout's worker, detached, when the person has a job for it and none runs, and
- * restarts one whose code is not the main checkout's, never the chat's own copy's; returns at once. */
+/** Once a day, while the person's file still holds routines, starts the schedule skill's unattended move to the app,
+ * detached; best effort. */
+export function startMoveIn({ home, stateDir, env, now = Date.now(), timezone, run = spawn }) {
+  const script = join(home.dir, '..', '..', 'schedule', 'scripts', 'schedule.mjs');
+  const marker = join(stateDir, 'move-in.json'), day = localDay(new Date(now), timezone);
+  if (!existsSync(script) || readJson(marker, {}).day === day) return false;
+  writeJson(marker, { day });
+  const child = run(process.execPath, [script, 'move-in', '--unattended'], { cwd: home.repo, detached: true, stdio: 'ignore', env: workerEnv(env) });
+  child.on('error', () => {});
+  child.unref();
+  return true;
+}
+
+/** `D ensure`: starts the main checkout's worker, detached, when the person has a job and none runs, and restarts one
+ * whose code is not the main checkout's; returns at once. Off, it takes handed-over schedule runs as `refused`. */
 export function ensure({ repo = REPO, home = workerHome(repo), env = process.env, agent = RUN_AGENTS[0],
   resolve: settings = () => personSettings({ repo: home.repo }), spawnServe = startServe, root, now = Date.now(), isAlive = alive, kill = stopGroup,
-  code = codeStamp(home.dir), stamped = stamps(home.dir) } = {}) {
+  code = codeStamp(home.dir), stamped = stamps(home.dir), moveIn = startMoveIn } = {}) {
   if (RUN_FLAGS.some(name => env[name])) return { state: 'run' };
   const { config } = settings();
   if (!config) return { state: 'no-person' };
   const stateDir = stateOf(config, repo, root);
-  if (existsSync(offFile(stateDir))) return { state: 'off' };
+  if (config.checks?.length) {
+    try { moveIn({ home, stateDir, env, now, timezone: config.timezone }); } catch { /* best effort */ }
+  }
+  if (existsSync(offFile(stateDir))) {
+    const refused = waitingRuns(env).length ? takeRuns({ env, project: primaryRoot(repo).primary, emails: config.emails, stateDir, now }) : [];
+    return { state: 'off', ...(refused.length ? { refused } : {}) };
+  }
   const holder = lockedBy(stateDir, { isAlive, now });
   const changed = stamped && oldCode(stateDir, holder, code);
   if (!changed && (serviceAlive(stateDir, now) || holder)) return { state: 'running' };
-  if (!hasJobs(config, primaryRoot(repo).primary)) return { state: 'no-jobs' };
+  if (!hasJobs(config, primaryRoot(repo).primary, env)) return { state: 'no-jobs' };
   const stop = changed && holder && holder !== process.pid ? holder : null;
   if (stop) {
     kill(stop);
@@ -464,7 +449,7 @@ export function hookInput() {
   try { return JSON.parse(readFileSync(0, 'utf8') || '{}') ?? {}; } catch { return {}; }
 }
 
-/** Commands that need a settings file: the defaults hold no routines and no board. */
+/** Commands that need a settings file: the defaults hold no add-ons and no board. */
 const NEED_FILE = new Set(['start', 'start-task', 'remind']);
 
 /** The settings `command` runs with: the file's, else the defaults; it throws for a command that needs a file. */
@@ -478,7 +463,11 @@ async function main(args = process.argv.slice(2)) {
   if (args[0] === 'mark') { mark(); return; }
   if (args[0] === 'journal' && args.includes('--hook')) return;
   const { command, values } = readArgs(args);
-  if (command === 'ensure') { console.log(JSON.stringify(ensure({ agent: values.agent }))); return; }
+  if (command === 'ensure') {
+    const { refused = [], ...result } = ensure({ agent: values.agent });
+    if (refused.length) result.refused = await refuseRuns(refused, scheduleApp(primaryRoot(REPO).primary));
+    console.log(JSON.stringify(result)); return;
+  }
   const found = personSettings({ config: values.config });
   if (command === 'who') { console.log(JSON.stringify(found.me, null, 2)); return; }
   const config = commandSettings(command, found);
