@@ -232,16 +232,16 @@ Inside `/ship` and every step it runs, a question whose recommended answer stays
 - **WHEN** the person types `/apply` and its build meets the same design question
 - **THEN** `/apply` asks the person, as before
 
-### Requirement: A chat's name shows its step
+### Requirement: A chat's name shows the step that runs now
 
-Every chat that runs the change loop SHALL start its name with its current step as a full capital word followed by `: ` (`EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `), and the rest of the name SHALL name the task. The name SHALL change when the chat moves to another step, in Paseo, in Claude Code without Paseo, and in Codex without Paseo. A step run inside another step SHALL NOT move the name back; only a step the person types MAY. Each move SHALL write the whole name, keeping the task words the chat started with. The Daily chat, routines, helper chats, and a workspace shared by several chats SHALL keep their names.
+Every chat that runs the change loop SHALL start its name with the step that runs now, as a full capital word followed by `: ` (`EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `), and the rest of the name SHALL name the task. The name SHALL change when a step starts its own work, not when a step word is typed, in Paseo, in Claude Code without Paseo, and in Codex without Paseo. A step run inside another step SHALL move the name to itself, back as well as forward. Each move SHALL write the whole name, keeping the task words the chat started with. The Daily chat, routines, helper chats, and a workspace shared by several chats SHALL keep their names.
 
-#### Scenario: A chat goes from plan to live
+#### Scenario: Publish from a plan builds first
 
 - **WHEN** a chat named `PLAN: Fix the invoice total` is told to publish, builds first inside that publish, and its work goes live
-- **THEN** its name is `SHIP: Fix the invoice total` while it publishes, never `APPLY: `, and `DONE: Fix the invoice total` once the work is live
+- **THEN** its name is `APPLY: Fix the invoice total` while it builds, `SHIP: Fix the invoice total` while it publishes, and `DONE: Fix the invoice total` once the work is live
 
 #### Scenario: Claude Code without Paseo
 
 - **WHEN** a chat runs in Claude Code with no Paseo, and the person types `/ship`
-- **THEN** the chat's name starts with `SHIP: ` at once, and a move the chat makes by itself shows by the person's next message
+- **THEN** the name keeps its step until a step starts its work, and the step the chat is in shows by the person's next message

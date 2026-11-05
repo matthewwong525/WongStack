@@ -148,5 +148,6 @@
   {"name": "openspec/schemas/scheduled-work", "replacement": "a schedule with an end (`schedule.mjs end`, `wiki/stack/host-schedules.md#goals-with-an-end`)", "allow": ["scripts/tests/schedule-retirement.test.mjs"], "why": "the retirement test checks the schema is gone"},
   {"name": "references/definition.md", "replacement": "the schedule held in the app (`wiki/stack/host-schedules.md#where-a-schedule-lives`)", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the measured fixture keeps its before-state"},
   {"name": "create-routine", "replacement": "`schedule.mjs save`", "allow": ["scripts/tests/schedule-cli.test.mjs"], "why": "the test checks that the old command is refused"},
-  {"name": "create-goal", "replacement": "`schedule.mjs save` with `until`, and `schedule.mjs end`", "allow": ["scripts/tests/schedule-cli.test.mjs"], "why": "the test checks that the old command is refused"}
+  {"name": "create-goal", "replacement": "`schedule.mjs save` with `until`, and `schedule.mjs end`", "allow": ["scripts/tests/schedule-cli.test.mjs"], "why": "the test checks that the old command is refused"},
+  {"name": "--typed", "replacement": "a plain `step-title.mjs set <STEP>`, which moves the name back as well as forward"}
 ]
