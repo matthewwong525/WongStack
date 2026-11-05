@@ -1,7 +1,7 @@
 # The chat name waits for a step, and a typed command names it at once
 
-**Status:** planned
-**Branch:** regal-blowfish
+**Status:** ready-to-ship
+**Branch:** stop-auto-plan-title
 **Open questions:** none
 
 ## Why
@@ -69,3 +69,4 @@ None.
 - **2026-11-05** — Assumed: a command counts only when the repo has a skill of that name, and `wong-` is dropped from its name (`/wong-sync` shows SYNC), because a host command such as `/compact` is not a step and a shorter word reads better.
 - **2026-11-05** — Assumed: a `minor` release, because a typed command such as `/verify` now gives the name a new word.
 - **2026-11-05** — Assumed: a host name that starts with a command, such as `/verify` copied by Paseo from a bare first command, is also weak, so a later `/plan fix x` gives `Fix x`, not `/verify`; and a copied name may end in `…` or `...`, because a command or a cut mark is never a task the person gave.
+- **2026-11-05** — Archived for publish: the build plus two fixes from the second look (a bare command as the first message no longer becomes the chat's name; a test for a name that starts with a command); local checks pass.

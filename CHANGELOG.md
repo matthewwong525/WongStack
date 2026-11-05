@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The chat name waits for a step, and a typed command names it at once
+## 49.2.0 — The chat name waits for a step, and a typed command names it at once
 
 - **A question or errand gets no step in its name.** The step word comes only when a step starts, such as `PLAN` when a plan starts. A chat that only answers you keeps its name ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
 - **A command you type names the chat at once.** `/explore` shows `EXPLORE`, and `/plan` or `/improve-code` shows `PLAN`. Another command shows its own name in capitals: `/verify the invoice page` shows `VERIFY: The invoice page`. `/apply`, `/continue` and `/ship` still wait for the step that starts. A command that a step runs for you, such as the save inside a publish, does not change the name.
