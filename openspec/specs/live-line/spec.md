@@ -22,12 +22,12 @@ The person's computer SHALL reach the app only by connecting out, signed in as t
 
 ### Requirement: The line carries a wake-up, never a command
 
-The app SHALL send nothing down the line but a signal to look for waiting work. The computer SHALL fetch that work through its signed-in requests and SHALL act only on a tap on an item it made itself, sending only the message it fixed for that action, or on a run of a schedule whose instructions are saved in its repo and match the revision the owner approved. It SHALL never run a command, prompt, or code received from the app, and SHALL ignore and log anything else.
+The app SHALL send nothing down the line but a signal to look for waiting work. The computer SHALL fetch that work through its signed-in requests and SHALL act only on a tap on an item it made itself, sending only the message it fixed for that action, or on a run of a schedule whose exact version was approved on that computer. It SHALL read that schedule's instructions from the app and SHALL start nothing when they differ from the approved version. It SHALL never run any other command, prompt, or code received from the app, and SHALL ignore and log anything else.
 
 #### Scenario: Work the computer didn't set up
 
-- **WHEN** the app hands the computer a run for a schedule key its repo has no record of, or whose instructions changed since approval
-- **THEN** no chat starts, the run shows as blocked, and the computer's log records it
+- **WHEN** the app hands the computer a run for a schedule this computer never approved, or whose instructions changed since its approval
+- **THEN** no chat starts, the run shows as waiting for the person's OK on that computer, and the computer's log records it
 
 #### Scenario: A message that is not a wake-up
 
@@ -104,6 +104,7 @@ Moving the line out of the app SHALL leave every schedule, run, and inbox item a
 - **WHEN** an install whose app holds the line publishes this update
 - **THEN** its schedules and runs are unchanged, its computer reconnects to the new line, and the schedule clock resumes
 - **AND** the update note says the old line state is deleted and that the computer's reconnect restores it
+
 ### Requirement: The update retires the test line
 
 The update that removes the test line SHALL say in plain words to publish the release that lets staging run without a line first, and, once published, to delete the install's old test line Worker, saying that the delete can't be undone and that it held only test state.

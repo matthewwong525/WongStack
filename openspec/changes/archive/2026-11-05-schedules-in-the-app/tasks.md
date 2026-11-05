@@ -45,5 +45,5 @@
 ## 7. Verify
 
 - [x] 7.1 Run `node .github/scripts/checks.mjs --worktree`, including `check-payload-links.mjs`, `check-openspec-config.mjs`, `check-retired-names.mjs` and `measure-context.mjs --check`; cut skill text until it fits.
-- [ ] 7.2 `/save`, then on the preview: save one chat schedule and one background schedule from a chat, see both in Schedules, run each now, see one start a workspace and one a background run; change one's instructions with a direct app call and see *Needs your OK* and a blocked run; approve it in a chat and see it run; sign in as a teammate and see only that teammate's schedules.
+- [x] 7.2 `/save`, then on the preview: save one chat schedule and one background schedule from a chat, see both in Schedules, run each now, see one start a workspace and one a background run; change one's instructions with a direct app call and see *Needs your OK* and a blocked run; approve it in a chat and see it run; sign in as a teammate and see only that teammate's schedules.
 - [x] 7.3 Dry-run `move-in` against copies of WongOS's and ClaymooApp's settings files and `schedules/` in `.scratch/`, and check the converted times, the lateness, and that *Reconcile the books* and *Monthly books close* are flagged as a pair.
