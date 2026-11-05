@@ -3,7 +3,7 @@ title: It builds something you never asked for
 problem: You ask for one thing, and your AI guesses the rest and builds it.
 fix: It shows you a plan, with its guesses listed, and waits for your go.
 order: 3
-checked: 2026-11-04
+checked: 2026-11-05
 sources:
   - wiki/development/the-change-loop.md
   - .agents/skills/plan/SKILL.md

@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 48.4.1 — The chat name shows the step that runs now
+
+- **The name changes when a step starts its work, not when you type it.** Type publish from a plan, and the chat's name shows `APPLY` while it builds, then `SHIP` while it publishes, then `DONE` when the work is live. If the plan is not finished, it shows `PLAN` first ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **The name can go back to an earlier step**, so it always shows what the chat does now.
+- **A chat's first message still names the task**, and a first message with no step word still starts at `PLAN`. In Claude Code alone, a new step shows at your next message.
+
+**Updating.** Nothing to do by hand.
+
 ## 48.4.0 — Connect your tools in your own browser
 
 - **Your tools are suggested, then connected first.** After install, the chat suggests the tools it learned you use, such as *You seem to use Stripe, Notion and Figma. Connect these?* You say yes, or change the list ([connect your tools](wiki/stack/connect-your-tools.md)).

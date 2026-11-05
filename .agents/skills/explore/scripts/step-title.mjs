@@ -11,12 +11,12 @@ import { paseoRecord } from '../../daily/scripts/chief.mjs';
 import { findPaseo, runPaseo } from '../../schedule/scripts/lib/paseo.mjs';
 import { PLACEHOLDERS, renameArgs } from '../../schedule/scripts/workspace.mjs';
 
-const USAGE = `usage: step-title.mjs set <STEP> [--task <words>] [--typed]   a skill moves this chat to STEP
+const USAGE = `usage: step-title.mjs set <STEP> [--task <words>]   a skill moves this chat to STEP
        step-title.mjs hook --agent claude|codex [--event session-start]   a hook; reads the hook JSON on stdin
 STEP is one of EXPLORE, PLAN, APPLY, SHIP, DONE. Always exits 0 and prints STEP_TITLE=<title> or STEP_TITLE=skipped <reason>.`;
 
 export const STEPS = ['EXPLORE', 'PLAN', 'APPLY', 'SHIP', 'DONE'];
-const VERBS = { explore: 'EXPLORE', plan: 'PLAN', 'improve-code': 'PLAN', apply: 'APPLY', continue: 'APPLY', ship: 'SHIP' };
+const VERBS = new Set(['explore', 'plan', 'improve-code', 'apply', 'continue', 'ship']);
 const SKILL = /^[/$]([a-z][a-z0-9:-]*)(?=\s|$)/;
 const LEADING_STEP = new RegExp(`^(?:${STEPS.join('|')}):\\s*`);
 const BRANCH = /^[a-z0-9]+(-[a-z0-9]+)+$/;
@@ -24,11 +24,11 @@ const RUN_FLAGS = ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK'];
 const TASK_MAX = 50;
 const SELF = fileURLToPath(import.meta.url);
 
-/** The step a message asks for: `{ step }` for a loop verb, `{ other: true }` for another skill, else `{}`. */
+/** What a message starts with: `{ loop: true }` for a loop verb, `{ other: true }` for another skill, else `{}`. */
 export function verbOf(prompt) {
   const name = SKILL.exec(String(prompt ?? '').trim())?.[1];
   if (!name) return {};
-  return VERBS[name] ? { step: VERBS[name] } : { other: true };
+  return VERBS.has(name) ? { loop: true } : { other: true };
 }
 
 /** Words that name a task, or null for a branch-like name or a placeholder. */
@@ -50,14 +50,10 @@ export function clauseOf(prompt) {
   return goodTask(clause && clause.charAt(0).toUpperCase() + clause.slice(1));
 }
 
-/** The next state, or `{ skipped }`. The rank only rises unless typed; a lower step still fills weak task words. */
-export function nextState(state, { step, typed = false, task = null }) {
+/** The next state: any step, back as well as forward; given task words replace weak ones. */
+export function nextState(state, { step, task = null }) {
   const given = goodTask(task);
   const weak = !state?.task || state.taskFrom === 'prompt';
-  if (state?.step && !typed && STEPS.indexOf(step) < STEPS.indexOf(state.step)) {
-    if (!given || !weak) return { skipped: 'lower' };
-    step = state.step;
-  }
   const keep = state?.task && !(given && weak);
   return { step, task: keep ? state.task : given, taskFrom: keep ? state.taskFrom : given && 'task', shown: state?.shown ?? null };
 }
@@ -153,15 +149,14 @@ export async function writeHosts({ env, title, top, codexId }) {
 const chatId = env => env.PASEO_AGENT_ID || env.CLAUDE_CODE_SESSION_ID || env.CODEX_THREAD_ID || null;
 
 /** `set`: a skill moves the chat. Returns the line to print. */
-export async function setStep({ step, task, typed, env = process.env, cwd = process.cwd(), home = homedir() }) {
+export async function setStep({ step, task, env = process.env, cwd = process.cwd(), home = homedir() }) {
   const folder = folderOf(cwd);
   const record = paseoRecord(env.PASEO_AGENT_ID, home);
   const skip = skipReason({ env, folder, record });
   const id = chatId(env);
   if (skip || !id) return `STEP_TITLE=skipped ${skip ?? 'no chat id'}`;
   const before = readState(folder, id);
-  const next = nextState(before, { step, typed, task });
-  if (next.skipped) return `STEP_TITLE=skipped ${next.skipped}`;
+  const next = nextState(before, { step, task });
   if (!next.task && hostTask(record)) Object.assign(next, { task: hostTask(record), taskFrom: 'name' });
   writeState(folder, id, next);
   const title = titleOf(next);
@@ -172,12 +167,16 @@ export async function setStep({ step, task, typed, env = process.env, cwd = proc
   return [`STEP_TITLE=${title}`, ...failed.map(reason => `STEP_TITLE_WARNING=${reason}`)].join('\n');
 }
 
-/** The hook's move for a message: a typed verb, PLAN for a first message with no verb, else null. */
-function moveFor(prompt, before) {
-  const { step, other } = verbOf(prompt);
-  if (step) return { step, typed: true };
-  if (before || other) return null;
-  return { step: 'PLAN', typed: true };
+/** The hook's state for a message. Only skills move the step; a first plain message starts at PLAN.
+ * A loop verb gives a chat with no task words its words; another skill first stores an empty state. */
+function stateFor(prompt, before, record) {
+  const { loop, other } = verbOf(prompt);
+  const empty = { step: null, task: null, taskFrom: null, shown: null };
+  if (before && (!loop || before.task)) return before;
+  if (!before && other) return empty;
+  const task = hostTask(record) ?? clauseOf(prompt);
+  const step = before?.step ?? (loop ? null : 'PLAN');
+  return { ...(before ?? empty), step, task, taskFrom: task && (hostTask(record) ? 'name' : 'prompt') };
 }
 
 /** `hook`: `{ out, write }`, the hook's stdout and the title to write to Paseo and Codex, either null. */
@@ -193,19 +192,8 @@ export function hookTurn({ input, agent, event, env = process.env, home = homedi
   let state = before;
   let write = null;
   if (!start) {
-    const move = moveFor(input?.prompt, before);
-    if (!move && !before) {
-      writeState(folder, id, { step: null, task: null, taskFrom: null, shown: null });
-      return none;
-    }
-    if (move) {
-      state = nextState(before, move);
-      if (!state.task) {
-        const task = hostTask(record) ?? clauseOf(input?.prompt);
-        if (task) Object.assign(state, { task, taskFrom: hostTask(record) ? 'name' : 'prompt' });
-      }
-      if (titleOf(state) !== titleOf(before)) write = titleOf(state);
-    }
+    state = stateFor(input?.prompt, before, record);
+    if (titleOf(state) !== titleOf(before)) write = titleOf(state);
   }
   const title = titleOf(state);
   const show = agent === 'claude' && title && (start || title !== state.shown);
@@ -223,14 +211,14 @@ function writeLater({ title, top, codexId, env }) {
 async function main() {
   const { values, positionals } = parseCli({
     usage: USAGE, allowPositionals: true,
-    options: { task: { type: 'string' }, typed: { type: 'boolean' }, agent: { type: 'string' }, event: { type: 'string' },
+    options: { task: { type: 'string' }, agent: { type: 'string' }, event: { type: 'string' },
       title: { type: 'string' }, top: { type: 'string' }, codex: { type: 'string' } },
   });
   const [command, step] = positionals;
   if (command === 'set') {
     if (!STEPS.includes(step) || positionals.length !== 2) usageError(USAGE, `expected one step: ${STEPS.join(', ')}`);
     let line;
-    try { line = await setStep({ step, task: values.task, typed: values.typed }); } catch (error) { line = `STEP_TITLE=skipped ${error.message}`; }
+    try { line = await setStep({ step, task: values.task }); } catch (error) { line = `STEP_TITLE=skipped ${error.message}`; }
     console.log(line);
   } else if (command === 'hook') {
     if (!['claude', 'codex'].includes(values.agent) || positionals.length !== 1) usageError(USAGE, 'expected --agent claude or codex');

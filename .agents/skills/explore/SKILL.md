@@ -8,7 +8,7 @@ user-invocable: true
 
 Start [the change loop](../../../wiki/development/the-change-loop.md): compare options and settle scope before `/plan`. Find related work with `openspec list --json` and `openspec context --json` ([CLI contract](../plan/references/openspec-cli.md#select-one-root)); read their pointers.
 
-**Change no repo file** ([limits](../../../wiki/development/the-change-loop.md#what-each-step-may-change)); [`/plan`](../plan/SKILL.md) logs answers. Explore precedes planning except [review-page notes](../plan/SKILL.md#review-notes); use [bounded mode](#when-plan-invokes-explore) under `/plan`. Standalone, run `node .claude/skills/explore/scripts/step-title.mjs set EXPLORE --typed`.
+**Change no repo file** ([limits](../../../wiki/development/the-change-loop.md#what-each-step-may-change)); [`/plan`](../plan/SKILL.md) logs answers. Explore precedes planning except [review-page notes](../plan/SKILL.md#review-notes); use [bounded mode](#when-plan-invokes-explore) under `/plan`. Standalone, run `node .claude/skills/explore/scripts/step-title.mjs set EXPLORE`.
 
 ## Investigate the relevant flow
 
