@@ -1,5 +1,5 @@
 {
-  "$comment": "The daily's default jobs: which watch event starts which background run; each chat's stop step judges its own stops. An install adds its own list: wiki/development/daily.md#your-own-jobs.",
+  "$comment": "The daily's default jobs: which watch event starts which background run; each chat's stop step judges its own stops. An install's own list adds event jobs, or replaces or turns off a default; a timed job of its own is an app schedule: wiki/development/daily.md#your-own-jobs.",
   "journalDays": 14,
   "runLogDays": 7,
   "maxRuns": 3,

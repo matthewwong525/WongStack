@@ -10,7 +10,6 @@ import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
 import { EXIT, findPaseo, paseo } from '../../schedule/scripts/lib/paseo.mjs';
 import { delivery } from '../../save/scripts/delivery-route.mjs';
-import { goalSchema, operationalChange, publishedGoal } from '../../save/scripts/schedule-record.mjs';
 
 const USAGE = 'usage: other-work.mjs  prints this repo\'s other active work (worktrees, their plans, open pull requests) as JSON';
 const BUSY = new Set(['running', 'initializing']);
@@ -60,7 +59,7 @@ export function isLive(tree) {
 
 // Splits open pull requests: bots and the current branch are dropped, one on a listed worktree's
 // branch folds into it as `pr`, and the rest come back as entries.
-export function foldPullRequests(prs, workspaces, currentBranch, scheduledGoals = new Set()) {
+export function foldPullRequests(prs, workspaces, currentBranch) {
   const entries = [];
   for (const pr of prs) {
     if (isBot(pr.author) || (currentBranch && pr.headRefName === currentBranch)) continue;
@@ -69,8 +68,7 @@ export function foldPullRequests(prs, workspaces, currentBranch, scheduledGoals 
     const files = (pr.files ?? []).map(file => file.path).filter(Boolean);
     entries.push({
       number: pr.number, title: pr.title, branch: pr.headRefName, author: pr.author?.login ?? null, url: pr.url,
-      changes: changesIn(files).filter(name => !scheduledGoals.has(name)), files: files.slice(0, LIMIT),
-      ...(files.length && files.every(file => /^schedules\/[^/]+\.json$/.test(file) || scheduledGoals.has(/^openspec\/changes\/([^/]+)\//.exec(file)?.[1])) ? { kind: 'schedule-record' } : {}),
+      changes: changesIn(files), files: files.slice(0, LIMIT),
     });
   }
   return entries;
@@ -114,7 +112,7 @@ function changesOnDisk(dir) {
   const root = path.join(dir, 'openspec', 'changes');
   let entries;
   try { entries = readdirSync(root, { withFileTypes: true }); } catch { return []; }
-  return entries.filter(entry => entry.isDirectory() && entry.name !== 'archive' && !operationalChange(dir, path.join('openspec', 'changes', entry.name))).map(entry => {
+  return entries.filter(entry => entry.isDirectory() && entry.name !== 'archive').map(entry => {
     let title = null;
     try {
       title = /^#\s+(.+)$/m.exec(readFileSync(path.join(root, entry.name, 'proposal.md'), 'utf8'))?.[1].trim() ?? null;
@@ -133,14 +131,6 @@ export function archivedIn(files) {
   return [...dirs];
 }
 
-function publishedSchedulePath(dir, file) {
-  if (/^schedules\/[^/]+\.json$/.test(file)) {
-    try { return JSON.parse(readFileSync(path.join(dir, file), 'utf8')).binding?.lifecycle?.published === true; } catch { return false; }
-  }
-  const match = /^(openspec\/changes\/[^/]+)\//.exec(file);
-  return Boolean(match && publishedGoal(dir, match[1]));
-}
-
 // One worktree's unpublished state, compared with `base`. A branch whose archived change is already
 // on `base` shipped by squash merge, so its leftover commits count as none ahead.
 function worktreeState(dir, base) {
@@ -153,8 +143,8 @@ function worktreeState(dir, base) {
   }
   return {
     changes: changesOnDisk(dir),
-    changedFiles: changed.filter(file => !publishedSchedulePath(dir, file)).slice(0, LIMIT),
-    dirtyFiles: dirty.filter(file => !publishedSchedulePath(dir, file)).slice(0, LIMIT),
+    changedFiles: changed.slice(0, LIMIT),
+    dirtyFiles: dirty.slice(0, LIMIT),
     commitsAhead: Number.isFinite(ahead) ? ahead : 0,
   };
 }
@@ -168,7 +158,7 @@ export function savedBranches(git, base, skip = new Set()) {
     if (!base || branch === 'HEAD' || `origin/${branch}` === base || skip.has(branch)) continue;
     const files = lines(git('diff', '--name-only', `${base}...${ref}`));
     if (archivedIn(files).some(folder => git('cat-file', '-e', `${base}:${folder}`) !== null)) continue;
-    const changes = changesIn(files).filter(name => !goalSchema(git('show', `${ref}:openspec/changes/${name}/.openspec.yaml`))).map(name => {
+    const changes = changesIn(files).map(name => {
       const proposal = git('show', `${ref}:openspec/changes/${name}/proposal.md`);
       if (proposal === null) return null;
       return { name, title: /^#\s+(.+)$/m.exec(proposal)?.[1].trim() ?? null, status: /^\*\*Status:\*\*\s*(.+)$/m.exec(proposal)?.[1].trim() ?? null };
@@ -237,14 +227,6 @@ export async function otherWork(cwd = process.cwd(), env = process.env) {
   const base = baseRef(repo.primary, branch);
   if (!base) notes.push('The default branch was not found, so commits not yet published were not counted.');
   const facts = await paseoFacts(env, notes);
-  let schedules = [];
-  try {
-    const hasRecords = existsSync(path.join(repo.root, 'openspec')) || existsSync(path.join(repo.root, 'schedules'));
-    const listed = hasRecords ? await (await import('../../schedule/scripts/lib/records.mjs')).listRecords(repo.root) : { records: [], errors: [] };
-    schedules = listed.records.map(({ kind, name, owner, state, reference, published }) => ({ kind, name, owner, state, reference, published, live: 'unavailable (discovery does not inspect hosts)' }));
-    notes.push(...listed.errors.map(item => `Scheduled record ${item.reference}: ${item.error}`));
-  }
-  catch (error) { notes.push(`Scheduled work could not be listed: ${firstLine(error.message)}.`); }
 
   const workspaces = [];
   for (const tree of parseWorktrees(tryGit(repo.primary, 'worktree', 'list', '--porcelain') ?? '')) {
@@ -263,11 +245,11 @@ export async function otherWork(cwd = process.cwd(), env = process.env) {
 
   if (route !== 'github') {
     const listed = new Set([currentBranch, ...workspaces.map(ws => ws.branch)].filter(Boolean));
-    return { ok: true, workspaces, pullRequests: [], schedules, savedBranches: savedBranches((...args) => tryGit(repo.primary, ...args), base, listed), notes };
+    return { ok: true, workspaces, pullRequests: [], savedBranches: savedBranches((...args) => tryGit(repo.primary, ...args), base, listed), notes };
   }
   const prs = openPullRequests(repo.primary, notes);
-  const pullRequests = prs ? foldPullRequests(prs, workspaces, currentBranch, new Set(schedules.filter(item => item.kind === 'goal').map(item => path.basename(item.reference)))) : [];
-  return { ok: true, workspaces, pullRequests, schedules, notes };
+  const pullRequests = prs ? foldPullRequests(prs, workspaces, currentBranch) : [];
+  return { ok: true, workspaces, pullRequests, notes };
 }
 
 async function main(argv = process.argv.slice(2), env = process.env) {

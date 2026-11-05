@@ -1,5 +1,5 @@
-// The daily's service on a computer (`daily.mjs serve`): each pass runs the watch, then starts one background AI run
-// per job in the sweep list, and writes the rest to the journal. wiki/development/daily.md#the-daily-on-a-computer
+// The daily's service on a computer (`daily.mjs serve`): each pass runs the watch, then one background AI run per due
+// job or handed-over schedule run, and journals the rest. wiki/development/daily.md#the-daily-on-a-computer
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -11,6 +11,7 @@ import { runNode } from './addons.mjs';
 import { HOLD_MS, beat, readJson, sameRepo, serviceAlive, userAt, watch, watchStops, writeJson } from './chief.mjs';
 import { RUN_AGENTS, SETTINGS_DIR, localDay, morningOf } from './config.mjs';
 import { addLine, prune, readLines } from './journal.mjs';
+import { checkRun, scheduleApp, takeRuns as takeHandOvers } from './schedule-runs.mjs';
 
 const REFERENCES = fileURLToPath(new URL('../references/', import.meta.url));
 export const SKILL_BRIEFS = join(REFERENCES, 'briefs');
@@ -19,6 +20,8 @@ export const RUN_MS = 30 * 60e3;
 /** A timed job's `at` time still counts this long after it; a later pass skips it, as a missed routine. */
 export const AT_GRACE_MIN = 15;
 const DAY_MS = 24 * 3600e3;
+// A handed-over schedule run waits at most this long for a free run: the app calls it not started after 2 minutes.
+const HAND_OVER_MS = 100e3;
 // With no job of the install's own for them, these go to each chat's own stop step, not the journal.
 const STOP_EVENTS = ['stopped', 'asking'];
 const oneLine = value => String(value?.message ?? value).split('\n')[0].slice(0, 200);
@@ -39,15 +42,16 @@ function badSweep(sweep) {
     || (sweep.minutes !== undefined && !(Number.isFinite(sweep.minutes) && sweep.minutes > 0));
 }
 
-/** The default list with the install's merged over it: its `events` over the default's, and its timed `sweeps` by
- * `id`, where an entry replaces the default of its `id` and `"off": true` removes it. `deny` lists tool patterns. */
+/** The default list with the install's merged over it: its `events` over the default's, and a `sweeps` entry with a
+ * default's `id` replaces it, or with `"off": true` removes it. Any other timed job waits, by id, in `waiting`. */
 export function loadSweeps({ project, file, base = DEFAULT_SWEEPS }) {
   const read = path => JSON.parse(readFileSync(path, 'utf8'));
   const defaults = read(base);
   const own = file ? read(resolve(project, file)) : {};
   const merged = { ...defaults, ...own };
   merged.events = { ...defaults.events, ...own.events };
-  const lists = [defaults.sweeps ?? [], own.sweeps ?? []];
+  const ids = new Set((defaults.sweeps ?? []).map(sweep => sweep.id));
+  const lists = [defaults.sweeps ?? [], (own.sweeps ?? []).filter(sweep => ids.has(sweep?.id))];
   const goodDeny = merged.deny === undefined
     || (Array.isArray(merged.deny) && merged.deny.every(pattern => typeof pattern === 'string' && pattern.trim() !== ''));
   const bad = (goodDeny ? undefined : 'deny')
@@ -56,6 +60,7 @@ export function loadSweeps({ project, file, base = DEFAULT_SWEEPS }) {
   if (bad !== undefined) throw new Error(`The sweep list has a bad entry: ${bad}. See wiki/development/daily.md#your-own-jobs.`);
   const byId = new Map(lists.flat().map(sweep => [sweep.id, sweep]));
   merged.sweeps = [...byId.values()].filter(sweep => sweep.off !== true);
+  merged.waiting = (own.sweeps ?? []).filter(sweep => !ids.has(sweep?.id) && sweep?.off !== true).map(sweep => String(sweep?.id));
   return merged;
 }
 
@@ -74,7 +79,8 @@ export function fillText(template, fields, strict = true) {
   });
 }
 
-/** The whole prompt of one run: the header, then the item's brief, with its fields and the run id. */
+/** The whole prompt of one run: the header, then the item's brief or a schedule's own text, with its fields and the run
+ * id. */
 export function briefFor(item, runId, folders) {
   const fields = { ...item.fields, line: JSON.stringify(item.fields), run: runId };
   const read = name => {
@@ -82,7 +88,7 @@ export function briefFor(item, runId, folders) {
     if (!found) throw new Error(`no brief ${name}`);
     return readFileSync(found, 'utf8');
   };
-  return `${fillText(read('header.md'), fields)}\n${fillText(read(item.brief), fields)}`;
+  return `${fillText(read('header.md'), fields)}\n${item.text === undefined ? fillText(read(item.brief), fields) : fillText(item.text, fields, false)}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -203,11 +209,11 @@ const NEEDS_SOURCES = { board: 'board', workspaces: 'paseo' };
 // ---------------------------------------------------------------------------
 // The worker
 
-/** The worker over one state folder: `dispatch` routes events, `sweep` queues due jobs, `pump` starts runs, `boot`
- * cleans up after a restart; `failed` and `worked` count a kind's failures in a row, `ignored` names their chats. */
+/** The worker over one state folder: `dispatch` routes events, `sweep` queues due jobs and handed-over schedule runs,
+ * `pump` starts runs, `boot` cleans up; `failed` and `worked` count a kind's failures in a row, `ignored` its chats. */
 export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AGENTS[0], context = {}, call, env = process.env,
   briefs = briefFolders(project), launch = spawnRun, typedAt = userAt, isAlive = alive, kill = stopGroup, now = () => Date.now(),
-  runCheck, git = runGit, dryRun = false, print = () => {}, wake = () => {}, guide = () => null,
+  runCheck, git = runGit, dryRun = false, print = () => {}, wake = () => {}, guide = () => null, app = null, takeRuns = () => [],
   openChat = async () => { throw new Error('no way to open a chat here'); } }) {
   const file = join(stateDir, 'worker-queue.json');
   const dueFile = join(stateDir, 'sweeps.json');
@@ -319,8 +325,9 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
   async function start(item, state) {
     const runId = runIdOf(item.kind, date());
     const job = item.kind === 'sweep' ? `job:${item.fields.sweep}` : null;
-    const notStarted = reason => {
+    const notStarted = async reason => {
       const note = () => journal(`Not started: ${item.title} — ${reason}`, { kind: 'not-started' });
+      if (item.report) await app?.report(item.report, { state: 'failed', reason: 'not_started' });
       return job ? failed(job, { note, reason }) : note();
     };
     const deny = sweeps.deny ?? [];
@@ -343,7 +350,7 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     const [command, args] = headlessCommand({ agent, prompt: brief, access: { full: true }, deny });
     let child = null;
     try {
-      child = launch({ command, args, project: copy ?? project, logFile: join(runs, `${runId}.jsonl`), env: runEnv(env, runId, { agent }) });
+      child = launch({ command, args, project: copy ?? item.cwd ?? project, logFile: join(runs, `${runId}.jsonl`), env: runEnv(env, runId, { agent }) });
     } catch { /* journaled below */ }
     if (!child?.pid) {
       if (copy) removeCopy(copy);
@@ -351,6 +358,7 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
       return;
     }
     if (job) worked(job);
+    if (item.report) await app?.report(item.report, { state: 'started', chatTitle: item.title });
     child.on?.('exit', () => { exited.add(runId); wake(); });
     state.running.push({ runId, pid: child.pid, kind: item.kind, title: item.title, lane: item.lane, ownPlace: item.ownPlace,
       startedAt: date().toISOString(), ...(item.minutes && { minutes: item.minutes }), ...(copy && { copy }) });
@@ -390,6 +398,28 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     }
   }
 
+  // A background schedule run the helper handed over: refused, nothing to do, or queued in its schedule's lane.
+  async function handOver(event, state) {
+    const refuse = (outcome, reason) => {
+      journal(`Not started: schedule ${event.key} — ${reason}`, { kind: 'not-started' });
+      return app.report(event.run, { state: outcome, reason });
+    };
+    const { schedule, reason } = await checkRun(event, { app, project, env });
+    if (!schedule) return refuse(reason === 'no_app' ? 'failed' : 'blocked', reason);
+    const run = schedule.run;
+    let fields = {};
+    if (run.check) {
+      try {
+        fields = runOf(await runCheck({ sweep: { id: schedule.key, check: resolve(run.cwd, run.check) },
+          context: { ...context, kind: 'schedule-run', day: today(), schedule: schedule.key } }));
+      } catch { return refuse('failed', 'check_failed'); }
+      if (!fields) return app.report(event.run, { state: 'blocked', reason: 'no_work' });
+    }
+    enqueue(state, { key: `schedule:${event.run}`, kind: 'schedule-run', text: schedule.instructions, title: schedule.name ?? schedule.key,
+      fields: { ...fields, schedule: schedule.key }, lane: `schedule:${schedule.key}`, ownPlace: false, hold: false, request: null,
+      place: run.place === 'copy' ? 'copy' : null, minutes: run.minutes ?? null, cwd: run.cwd, report: event.run, at: date().toISOString() });
+  }
+
   // Copies a crash left behind: no running run holds them.
   function sweepCopies(state) {
     if (dryRun) return;
@@ -421,6 +451,12 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     async sweep() {
       const done = readJson(dueFile, {});
       const state = load();
+      if (sweeps.waiting?.length && done['#waiting'] !== today() && !dryRun) {
+        done['#waiting'] = today();
+        writeJson(dueFile, done);
+        journal(`Timed jobs wait to move to the app, and do not run: ${sweeps.waiting.join(', ')}`, { kind: 'waiting' });
+      }
+      for (const event of dryRun ? [] : takeRuns()) await handOver(event, state);
       for (const sweep of sweeps.sweeps ?? []) {
         const due = dueKey(sweep, date(), timezone);
         if (!due || done[sweep.id] === due) continue;
@@ -446,7 +482,10 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
       for (const item of state.queue) {
         const next = await verdict(item, state, permits);
         if (next === 'start') await start(item, state);
-        else if (next === 'wait') kept.push(item);
+        else if (next === 'wait' && item.report && now() - Date.parse(item.at) > HAND_OVER_MS) {
+          journal(`Not started: ${item.title} — too many runs at once`, { kind: 'not-started' });
+          await app?.report(item.report, { state: 'blocked', reason: 'busy' });
+        } else if (next === 'wait') kept.push(item);
       }
       state.queue = kept;
       save(state);
@@ -543,24 +582,20 @@ const STEP_MS = 1000;
 /** The file `start` writes once the day's morning ran. */
 export const morningFile = (stateDir, day) => join(stateDir, `morning-${day}.json`);
 
-/** One journal line per routine `start` started or could not, add-on line and source not read. */
+/** One journal line per add-on line and source not read, and one for routines still waiting in the settings file. */
 function morningLines(result, journal) {
-  for (const row of result.tasks) {
-    const where = { title: row.title, workspace: row.workspace ?? undefined };
-    if (row.state === 'started') journal(`Started: ${row.title}${row.workspace ? ` in ${row.workspace}` : ''}`, { kind: 'routine', ...where });
-    if (row.state === 'failed') journal(`Not started: ${row.title} — ${row.reason}`, { kind: 'not-started', ...where });
-  }
+  if (result.waiting?.length) journal(`Routines wait to move to the app, and do not start: ${result.waiting.join(', ')}`, { kind: 'waiting' });
   for (const line of result.lines ?? []) journal(line, { kind: 'post' });
   for (const each of result.notRead ?? []) journal(`Not read: ${each.source} — ${each.error}`, { kind: 'not-read' });
 }
 
 /** The day's morning, at or past `config.morning` with no morning file yet: `start` runs it, the journal keeps what it
- * did, and its add-on events go to `dispatch`. A dry run prints each routine it would start. */
+ * did, and its add-on events go to `dispatch`. A dry run prints each add-on it would run. */
 export async function morningPass({ config, stateDir, start, dispatch, date = new Date(), dryRun = false, print = () => {} }) {
   const { day, hour, minute } = clockOf(date, config.timezone);
   if (hour * 60 + minute < toMinutes(morningOf(config)) || existsSync(morningFile(stateDir, day))) return;
   if (dryRun) {
-    for (const row of (await start({ config, dryRun: true, now: date })).tasks) if (row.state === 'due') print({ wouldStart: 'routine', title: row.title });
+    for (const addon of (await start({ config, dryRun: true, now: date })).addons) print({ wouldRun: 'add-on', addon });
     return;
   }
   const result = await start({ config, now: date });
@@ -603,6 +638,7 @@ export async function serveDaily({ config, project, stateDir, call, env = proces
   const worker = makeWorker({ stateDir, project, timezone, sweeps: loadSweeps({ project, file: config.sweeps }),
     agent: config.runs?.agent ?? agent, call, env, dryRun, print, launch, context: { person: config.person, timezone, repo: project }, now,
     runCheck: ({ sweep, context }) => runNode({ file: resolve(project, sweep.check), cwd: project, input: context }),
+    app: scheduleApp(project), takeRuns: () => takeHandOvers({ env, project, emails: config.emails, stateDir }),
     wake: () => { signal.heard = true; }, guide: () => current?.config?.guide ?? null, ...(openChat && { openChat }) });
   const watchOnce = async () => {
     const events = [];

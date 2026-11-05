@@ -1,8 +1,6 @@
-// Versioned routine definitions and CLI-resolved finite goal records. No host mutations or git.
+// The old repo schedule records, read only for the move to the app, and the checks every schedule shares.
 import { createHash } from 'node:crypto';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';
 
 export const STATES = ['registering', 'scheduled', 'paused', 'waiting', 'completed', 'cancelled', 'cleanup-pending', 'superseded'];
@@ -19,22 +17,27 @@ export function credentialFree(value) {
   requireValue(!/(?:https?:\/\/[^\s"/]+@|\bBearer\s|\b(?:sk_live_|sk-ant-|github_pat_|ghp_|wongm_))/i.test(text), 'Credential-bearing instructions or URLs are forbidden.');
   return value;
 }
-export function validateTiming(timing, { kind = 'goal' } = {}) {
-  requireValue(timing && ['once', 'recurring', 'goal'].includes(timing.mode), 'A timing mode is required.');
-  requireValue(kind !== 'routine' || timing.mode === 'recurring', 'An ongoing routine must use recurring timing.');
+export function validateTiming(timing) {
+  requireValue(timing && ['once', 'recurring'].includes(timing.mode), 'A timing runs once or recurs.');
   try { new Intl.DateTimeFormat('en', { timeZone: timing.timezone }).format(); } catch { throw new ScheduleError('Unknown timezone.'); }
   requireValue(nonempty(timing.timezone), 'A timezone is required.');
   for (const field of ['dueAt', 'earliest', 'latest', 'expiresAt']) {
     if (timing[field] !== undefined) requireValue(nonempty(timing[field]) && /(?:Z|[+-]\d\d:\d\d)$/.test(timing[field]) && Number.isFinite(Date.parse(timing[field])), `${field} must be an absolute timestamp.`);
   }
   requireValue(Number.isFinite(timing.allowedLatenessMs) && timing.allowedLatenessMs >= 0, 'An allowed lateness bound is required.');
-  if (timing.mode === 'once') requireValue(timing.dueAt && timing.expiresAt && Date.parse(timing.expiresAt) >= Date.parse(timing.dueAt), 'One-time work needs dueAt and expiry, never annual cron alone.');
+  if (timing.mode === 'once') requireValue(timing.dueAt && (!timing.expiresAt || Date.parse(timing.expiresAt) >= Date.parse(timing.dueAt)), 'One-time work needs dueAt, never annual cron alone.');
   if (timing.mode !== 'once') requireValue(nonempty(timing.cron) || nonempty(timing.every), 'A cadence is required.');
   if (timing.every) requireValue(/^[1-9]\d*[smhd]$/.test(timing.every), 'Use a positive duration such as 5m or 1h.');
   if (timing.cron) {
     const fields = timing.cron.trim().split(/\s+/), bounds = [[0, 59], [0, 23], [1, 31], [1, 12], [0, 7]];
     requireValue(fields.length === 5, 'Use a five-field numeric cron expression.');
+    // `1#2` is the second Monday. The app's cron ORs a set day of month with a weekday, so `#` needs it `*`.
+    if (timing.cron.includes('#')) requireValue(fields[2] === '*', 'Leave day-of-month * with an nth-weekday (#) day-of-week.');
     fields.forEach((field, index) => field.split(',').forEach(part => {
+      if (part.includes('#')) {
+        requireValue(index === 4 && /^[0-7]#[1-5]$/.test(part), 'Use nth-weekday d#n (weekday 0-7, n 1-5) in the day-of-week field only.');
+        return;
+      }
       const parsed = /^(\*|\d+|\d+-\d+)(?:\/(\d+))?$/.exec(part);
       requireValue(parsed, 'Invalid cron field.');
       const [minimum, maximum] = bounds[index], [first, second] = parsed[1].split('-').map(Number);
@@ -46,7 +49,7 @@ export function validateTiming(timing, { kind = 'goal' } = {}) {
   if (timing.contactHours) requireValue(/^\d\d:\d\d$/.test(timing.contactHours.start) && /^\d\d:\d\d$/.test(timing.contactHours.end), 'Contact hours need start/end HH:mm.');
   return timing;
 }
-export function validateBinding(binding, { kind = 'goal' } = {}) {
+export function validateBinding(binding) {
   requireValue(binding?.version === 1, 'Unsupported binding version.');
   requireValue(slug(binding.key) && nonempty(binding.owner), 'Binding needs a stable key and owner.');
   requireValue(nonempty(binding.repository) && nonempty(binding.record), 'Binding needs its repository and exact record reference.');
@@ -66,9 +69,8 @@ export function validateBinding(binding, { kind = 'goal' } = {}) {
   if (binding.lifecycle.published) requireValue(nonempty(binding.lifecycle.publication), 'Published instructions need an immutable publication reference.');
   if (['completed', 'cancelled', 'superseded'].includes(binding.lifecycle.state)) requireValue(nonempty(binding.lifecycle.evidence) && binding.lifecycle.stopVerified === true, 'Terminal records need evidence and verified stopping.');
   requireValue(binding.authority && Array.isArray(binding.authority.actions) && Array.isArray(binding.authority.recipients) && Array.isArray(binding.authority.channels), 'Binding needs explicit action authority.');
-  if (kind === 'goal') requireValue(nonempty(binding.completionSource), 'Finite goals need an authoritative completion source.');
   if (binding.authority.actions.some(action => !['read', 'draft'].includes(action))) requireValue(Number.isFinite(binding.authority.minIntervalMs) && binding.authority.minIntervalMs >= 0, 'Outreach needs an explicit frequency bound.');
-  validateTiming(binding.timing, { kind });
+  validateTiming(binding.timing);
   return credentialFree(binding);
 }
 export function routineRevision(record) {
@@ -80,16 +82,12 @@ export function validateRoutine(record) {
   requireValue(record.execution && ['assistant', 'script'].includes(record.execution.type), 'Routine needs its executable reference.');
   if (record.execution.type === 'script') requireValue(nonempty(record.execution.reference), 'A script reference is required.');
   requireValue(record.authority && Array.isArray(record.authority.actions) && Array.isArray(record.authority.recipients) && Array.isArray(record.authority.channels), 'Routine needs explicit authority arrays.');
-  validateBinding(record.binding, { kind: 'routine' });
+  validateBinding(record.binding);
   requireValue(record.key === record.binding.key && record.owner === record.binding.owner, 'Routine identity differs from its binding.');
   requireValue(record.binding.revision === routineRevision(record), 'Routine instruction revision changed without approval.');
   requireValue(JSON.stringify(record.authority) === JSON.stringify(record.binding.authority), 'Routine authority differs from its binding.');
   requireValue(JSON.stringify(record.timing) === JSON.stringify(record.binding.timing), 'Routine timing policy differs from its binding.');
   return credentialFree(record);
-}
-export async function openspec(args, { cwd = process.cwd(), store } = {}) {
-  const { stdout } = await promisify(execFile)('openspec', [...args, ...(store ? ['--store', store] : [])], { cwd, encoding: 'utf8', maxBuffer: 4 * 1024 * 1024 });
-  return JSON.parse(stdout);
 }
 function inside(root, file) {
   const full = path.resolve(root, file);
@@ -98,100 +96,30 @@ function inside(root, file) {
   return full;
 }
 const parseFile = file => JSON.parse(readFileSync(file, 'utf8'));
-function normalized(root, reference, kind, name, binding, record, files, store) {
-  return { kind, name, key: binding.key, owner: binding.owner, state: binding.lifecycle.state, reference, root, store: store ?? null, published: binding.lifecycle.published, binding, record, files };
+function normalized(root, reference, kind, name, binding, record, files) {
+  return { kind, name, key: binding.key, owner: binding.owner, state: binding.lifecycle.state, reference, root, published: binding.lifecycle.published, binding, record, files };
 }
-export async function loadRecord(root, reference, options = {}) {
-  if (/^schedules\/[a-z0-9][a-z0-9-]*\.json$/.test(reference)) {
-    const file = inside(root, reference);
-    const record = validateRoutine(parseFile(file));
-    requireValue(record.binding.record === reference, 'Routine binding points at a different definition.');
-    return normalized(root, reference, 'routine', record.name, record.binding, record, [reference], options.store);
-  }
-  const cli = options.openspec ?? openspec;
-  if (/^[a-zA-Z0-9_./-]+\/archive\/[^/]+$/.test(reference)) {
-    const directory = inside(root, reference);
-    const metadata = readFileSync(path.join(directory, '.openspec.yaml'), 'utf8');
-    requireValue(/^schema:\s*scheduled-work\s*$/m.test(metadata), 'Archived record is not scheduled-work.');
-    const binding = validateBinding(parseFile(path.join(directory, 'binding.json')));
-    requireValue(['completed', 'cancelled', 'superseded'].includes(binding.lifecycle.state) && binding.lifecycle.stopVerified && binding.lifecycle.evidence, 'Archived goal lacks terminal evidence.');
-    const proposal = readFileSync(path.join(directory, 'proposal.md'), 'utf8');
-    requireValue(binding.revision === digest(proposal), 'Archived goal revision changed.');
-    const files = ['.openspec.yaml', 'proposal.md', 'tasks.md', 'binding.json', 'review.html'].filter(file => existsSync(path.join(directory, file))).map(file => `${reference}/${file}`);
-    requireValue(!readdirSync(directory).some(file => !files.includes(`${reference}/${file}`)), 'Archived goal contains unrelated artifacts.');
-    requireValue(path.dirname(binding.record) === path.dirname(path.dirname(reference)), 'Archive and original record differ from the selected planning root.');
-    return { ...normalized(root, reference, 'goal', path.basename(reference), binding, { proposal, tasks: readFileSync(path.join(directory, 'tasks.md'), 'utf8'), binding, schema: 'scheduled-work' }, files, options.store), archived: true };
-  }
-  const name = path.basename(reference);
-  requireValue(slug(name), 'Name an exact routine definition or scheduled goal.');
-  const status = await cli(['status', '--change', name, '--json'], { cwd: root, store: options.store });
-  requireValue(status.schemaName === 'scheduled-work', 'Selected record is an ordinary code change.');
-  const directory = status.changeRoot ?? status.changeDir;
-  requireValue(nonempty(directory), 'OpenSpec returned no change root.');
-  const paths = status.artifactPaths;
-  const artifact = id => {
-    const spec = paths?.[id];
-    const found = spec?.existingOutputPaths?.[0] ?? spec?.resolvedOutputPath;
-    requireValue(nonempty(found), `OpenSpec returned no ${id} artifact path.`);
-    return found;
-  };
-  const proposal = artifact('proposal'), bindingFile = artifact('binding'), tasks = artifact('tasks');
-  const binding = validateBinding(parseFile(bindingFile));
-  const exact = path.relative(root, directory).split(path.sep).join('/');
-  requireValue(binding.record === exact && binding.revision === digest(readFileSync(proposal, 'utf8')), 'Goal reference or approved proposal revision changed.');
-  const record = { proposal: readFileSync(proposal, 'utf8'), tasks: readFileSync(tasks, 'utf8'), binding, schema: 'scheduled-work' };
-  for (const heading of ['Goal', 'Instructions', 'Completion source', 'Authority', 'Timing', 'Questions and cancellation']) requireValue(record.proposal.includes(`## ${heading}\n`), `Goal proposal lacks ${heading}.`);
-  const files = [proposal, bindingFile, tasks].map(file => path.relative(root, file).split(path.sep).join('/'));
-  if (existsSync(path.join(directory, 'review.html'))) files.push(`${exact}/review.html`);
-  if (existsSync(path.join(directory, '.openspec.yaml'))) files.push(`${exact}/.openspec.yaml`);
-  return normalized(root, exact, 'goal', name, binding, record, files, options.store);
+/** One `schedules/<key>.json` record, checked; a goal record or a change folder is refused. */
+export function loadRecord(root, reference) {
+  requireValue(/^schedules\/[a-z0-9][a-z0-9-]*\.json$/.test(reference), 'Name a schedules/<key>.json record.');
+  const record = validateRoutine(parseFile(inside(root, reference)));
+  requireValue(record.binding.record === reference, 'Routine binding points at a different definition.');
+  return normalized(root, reference, 'routine', record.name, record.binding, record, [reference]);
 }
-export async function listRecords(root, options = {}) {
-  const rows = [], errors = [];
-  const dir = path.join(root, 'schedules');
-  const references = existsSync(dir) ? readdirSync(dir).filter(file => file.endsWith('.json')).map(file => `schedules/${file}`) : [];
-  const cli = options.openspec ?? openspec;
-  const listed = await cli(['list', '--json'], { cwd: root, store: options.store });
-  for (const change of listed.changes ?? []) {
-    const status = await cli(['status', '--change', change.name, '--json'], { cwd: root, store: options.store });
-    if (status.schemaName === 'scheduled-work') references.push(change.name);
-  }
-  for (const reference of references) {
-    try { rows.push(await loadRecord(root, reference, options)); } catch (error) { errors.push({ reference, error: error.message }); }
+
+/** Every record in `schedules/`, with each unreadable one as an error. */
+export function listRecords(root) {
+  const rows = [], errors = [], dir = path.join(root, 'schedules');
+  for (const file of existsSync(dir) ? readdirSync(dir).filter(name => name.endsWith('.json')) : []) {
+    const reference = `schedules/${file}`;
+    try { rows.push(loadRecord(root, reference)); } catch (error) { errors.push({ reference, error: error.message }); }
   }
   return { records: rows, errors };
 }
-export async function createGoal(root, name, { proposal, binding, tasks, store, openspec: cli = openspec }) {
-  requireValue(slug(name), 'Invalid goal name.');
-  await cli(['new', 'change', name, '--schema', 'scheduled-work', '--json'], { cwd: root, store });
-  const status = await cli(['status', '--change', name, '--json'], { cwd: root, store });
-  const directory = status.changeRoot ?? status.changeDir;
-  requireValue(directory, 'OpenSpec returned no change root.');
-  const metadata = path.join(directory, '.openspec.yaml');
-  const existingMetadata = readFileSync(metadata, 'utf8');
-  if (!/^skip_specs:/m.test(existingMetadata)) writeFileSync(metadata, `${existingMetadata.trimEnd()}\nskip_specs: true\n`);
-  binding = { ...binding, store: store ?? binding.store, record: path.relative(root, directory).split(path.sep).join('/'), revision: digest(proposal) };
-  validateBinding(binding);
-  for (const [id, value] of Object.entries({ proposal, binding: `${JSON.stringify(binding, null, 2)}\n`, tasks })) {
-    const instructions = await cli(['instructions', id, '--change', name, '--json'], { cwd: root, store });
-    const file = instructions.resolvedOutputPath ?? instructions.outputPath;
-    requireValue(file, `OpenSpec returned no ${id} output path.`);
-    mkdirSync(path.dirname(file), { recursive: true }); writeFileSync(file, value);
-  }
-  return loadRecord(root, name, { store, openspec: cli });
-}
-export function writeRoutine(root, record) {
-  validateRoutine(record);
-  const file = inside(root, record.binding.record);
-  requireValue(/^schedules\/[a-z0-9][a-z0-9-]*\.json$/.test(record.binding.record), 'Invalid routine path.');
-  mkdirSync(path.dirname(file), { recursive: true }); writeFileSync(file, `${JSON.stringify(record, null, 2)}\n`);
-  return record.binding.record;
-}
+
+/** Writes a record's new binding, as the Paseo move steps in it. */
 export function checkpoint(item, binding) {
-  validateBinding(binding, { kind: item.kind });
-  const file = item.kind === 'routine' ? path.join(item.root, item.reference) : path.join(item.root, item.files.find(file => file.endsWith('/binding.json')));
-  const value = item.kind === 'routine' ? { ...item.record, binding } : binding;
-  if (item.kind === 'routine') validateRoutine(value);
-  writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
-  return { ...item, binding, state: binding.lifecycle.state, published: binding.lifecycle.published, record: item.kind === 'routine' ? value : { ...item.record, binding } };
+  const value = validateRoutine({ ...item.record, binding });
+  writeFileSync(path.join(item.root, item.reference), `${JSON.stringify(value, null, 2)}\n`);
+  return { ...item, binding, state: binding.lifecycle.state, published: binding.lifecycle.published, record: value };
 }

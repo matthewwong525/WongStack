@@ -1,16 +1,20 @@
 // The helper's schedule rounds: start the runs the app hands this computer, and mirror Paseo's schedules to the page.
-// A run starts only from the repo's own record; the app sends just its id, key and revision. wiki/stack/live-line.md
+// A run starts only on a version approved here; the app's text never reaches the prompt. wiki/stack/live-line.md
+import { spawn as spawnChild } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { helperFiles } from '../../../hand-over/scripts/lib/computer.mjs';
-import { loadRecord, listRecords } from './records.mjs';
-import { appCall, appFields, paseoAdapter, startupPrompt } from './hosts.mjs';
+import { agentEvents } from '../../../daily/scripts/chief.mjs';
+import { approvedVersion, signedInAs } from './approvals.mjs';
+import { appCall, appTiming, heldDefinition, readSchedule, runnableFolder } from './app.mjs';
+import { listRecords } from './records.mjs';
+import { paseoAdapter, startupPrompt } from './hosts.mjs';
+import { scheduleVersion } from './version.mjs';
 import { EXIT, PaseoError, findPaseo, paseo, runPaseo } from './paseo.mjs';
-import { childEnv, flooredThinking, workspaceTitle } from '../workspace.mjs';
+import { MODES, childEnv, flooredThinking, workspaceTitle } from '../workspace.mjs';
 
-const KEY = /^[a-z0-9][a-z0-9-]{0,63}$/;
-const DISABLED = ['registering', 'paused', 'cancelled', 'completed', 'superseded', 'cleanup-pending'];
-/** The least gap between two starts of one schedule when its record sets no `authority.minIntervalMs`. */
+const KEY = /^[a-z0-9][a-z0-9-]{0,63}$/, VERSION = /^[a-f0-9]{64}$/;
+/** The least gap between two starts of one schedule when it sets no `authority.minIntervalMs`. */
 export const RUN_FLOOR_MS = 10 * 60_000;
 const KEEP_MS = 30 * 86_400_000;
 
@@ -22,55 +26,63 @@ async function ask(client, route, method, body) {
   } catch { return null; }
 }
 
-/** The record a claimed run may start from, or the reason it may not. */
-export async function checkRun(run, root) {
-  if (!KEY.test(run?.key ?? '')) return { reason: 'unknown_key' };
-  const reference = `schedules/${run.key}.json`;
-  if (!existsSync(join(root, reference))) return { reason: 'unknown_key' };
-  let item;
-  try { item = await loadRecord(root, reference); } catch { return { reason: 'changed' }; }
-  const binding = item.binding, cwd = binding.execution.context.cwd;
-  if (binding.revision !== run.revision) return { reason: 'changed' };
-  if (binding.execution.host !== 'app' || binding.execution.nativeId !== run.key) return { reason: 'not_app' };
-  if (!binding.lifecycle.published) return { reason: 'not_published' };
-  if (DISABLED.includes(binding.lifecycle.state)) return { reason: 'disabled' };
-  if (!cwd || /[/\\]worktrees[/\\]/.test(cwd)) return { reason: 'worktree' };
-  return { item };
+/** `{schedule, origin, email}` when the claimed run may start, else `{reason}`: the app's schedule, its version
+ *  recomputed here, the signed-in person's OK on that version, not ended, and a real folder. */
+export async function checkRun(run, { client, env = process.env, email = signedInAs }) {
+  if (!KEY.test(run?.key ?? '') || !VERSION.test(run?.revision ?? '')) return { reason: 'unknown_key' };
+  let found;
+  try { found = await readSchedule(client, run.key); } catch { return { reason: 'no_app' }; }
+  const schedule = found?.schedule;
+  if (!schedule) return { reason: 'unknown_key' };
+  if (schedule.host !== 'app') return { reason: 'not_app' };
+  if (schedule.ended) return { reason: 'ended' };
+  const version = scheduleVersion(heldDefinition(schedule));
+  if (version !== schedule.version || version !== run.revision) return { reason: 'changed' };
+  const origin = client.target(), who = origin && email(origin);
+  if (!who || approvedVersion({ origin, email: who, key: run.key }, env) !== version) return { reason: 'not_approved' };
+  if (!runnableFolder(schedule.run?.cwd)) return { reason: 'no_folder' };
+  return { schedule, origin, email: who };
 }
 
-/** Opens the run's chat as a Paseo schedule would: in the record's checkout, with the guarded startup prompt. */
-export async function openSession({ binding, title, env = process.env }) {
-  const context = binding.execution.context;
+/** Opens a chat run's workspace through Paseo, in its folder, with the fixed startup prompt. */
+export async function openSession({ schedule, run, title, env = process.env }) {
+  const settings = schedule.run;
   const bin = findPaseo(env, 'WONG_PASEO_BIN');
-  const args = ['run', '-d', '--cwd', context.cwd, '--title', title];
-  if (context.provider) args.push('--provider', context.provider);
-  // A provider may name its model (`codex/gpt-6.1-sol`); Paseo's default provider is Claude.
-  const [provider, model = null] = String(context.provider || 'claude').split('/');
-  const thinking = await flooredThinking(more => paseo(bin, more, { env: childEnv(env) }), { provider, model, thinking: null });
+  // Paseo refuses a run with no provider; a schedule that names none runs on Claude.
+  const named = settings.provider || 'claude';
+  const args = ['run', '-d', '--cwd', settings.cwd, '--title', title, '--provider', named];
+  const [provider, model = null] = named.split('/');
+  const thinking = await flooredThinking(more => paseo(bin, more, { env: childEnv(env) }), { provider, model, thinking: settings.thinking ?? null });
   if (thinking) args.push('--thinking', thinking);
-  if (context.mode) args.push('--mode', context.mode);
-  const { data } = await runPaseo(bin, [...args, '--', startupPrompt(binding)], { env: childEnv(env) });
+  // No one is there to allow a step, so an unattended run takes the provider's full mode unless the schedule sets one.
+  const mode = settings.mode || MODES[provider];
+  if (mode) args.push('--mode', mode);
+  const prompt = startupPrompt({ key: schedule.key, run: run.id, version: schedule.version });
+  const { data } = await runPaseo(bin, [...args, '--', prompt], { env: childEnv(env) });
   return { agentId: data?.agentId ?? null, chatTitle: data?.title ?? title };
 }
 
-function titleOf(item) {
-  try { return workspaceTitle(item.name); } catch { return `Scheduled work: ${item.key}`; }
+/** Hands a background run to the worker in its checkout: one event file, then `D ensure`. The worker reports the
+ *  run's result; when the file can not be written, no worker will. */
+export function handOver({ schedule, run, origin, email }, { env = process.env, spawn = spawnChild, now = Date.now } = {}) {
+  const cwd = schedule.run.cwd, file = join(agentEvents(env), `schedule-run-${run.id}.json`);
+  const event = { event: 'schedule-run', key: schedule.key, run: run.id, version: schedule.version, origin, email, cwd };
+  try {
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(`${file}.tmp`, `${JSON.stringify({ event, at: new Date(now()).toISOString() })}\n`, { mode: 0o600 });
+    renameSync(`${file}.tmp`, file);
+  } catch { return { state: 'failed', reason: 'no_worker' }; }
+  try {
+    spawn(process.execPath, [join(cwd, '.agents/skills/daily/scripts/daily.mjs'), 'ensure'], { cwd, detached: true, stdio: 'ignore', env: childEnv(env) }).unref();
+  } catch { /* the worker's own start picks the file up */ }
+  return { state: 'handed' };
+}
+
+function titleOf(schedule) {
+  try { return workspaceTitle(schedule.name); } catch { return `Scheduled work: ${schedule.key}`; }
 }
 
 const placeOf = dir => { try { return realpathSync(dir); } catch { return dir; } };
-const sameDir = (a, b) => { try { return realpathSync(a) === realpathSync(b); } catch { return false; } };
-
-/** Checks the run against every folder signed in to its app: the one whose binding names it wins, else the first
- *  that holds a startable record, else the first refusal. */
-async function checkIn(run, roots) {
-  const checked = [];
-  for (const root of roots) {
-    const found = { ...(await checkRun(run, root)), root };
-    if (found.item && sameDir(found.item.binding.execution.context.cwd, root)) return found;
-    checked.push(found);
-  }
-  return checked.find(found => found.item) ?? checked.find(found => found.reason !== 'unknown_key') ?? { reason: 'unknown_key' };
-}
 
 /** The ledger of started runs, or null when it can not be read: then nothing starts. */
 function readLedger(file) {
@@ -79,14 +91,14 @@ function readLedger(file) {
 }
 
 /** Notes the run as started before it opens, or says why it may not: an app can not start one run twice, nor one
- *  schedule more often than its record allows. */
-function admit(run, { item }, { ledger, now }) {
+ *  schedule more often than it allows. */
+function admit(run, schedule, { ledger, now }) {
   const kept = readLedger(ledger);
   if (!kept) return 'no_ledger';
   if (kept.ids[run.id]) return 'repeat';
-  const least = item.binding.authority?.minIntervalMs;
-  // Keyed by the folder the chat opens in, so a clone holding the same record can't reset the gap.
-  const slot = `${placeOf(item.binding.execution.context.cwd)}:${run.key}`;
+  const least = schedule.authority?.minIntervalMs;
+  // Keyed by the folder the run opens in, so a second app with the same key can't reset the gap.
+  const slot = `${placeOf(schedule.run.cwd)}:${run.key}`;
   if (now - (kept.keys[slot] ?? -Infinity) < (Number.isFinite(least) ? least : RUN_FLOOR_MS)) return 'too_soon';
   for (const [id, at] of Object.entries(kept.ids)) if (now - at > KEEP_MS) delete kept.ids[id];
   kept.ids[run.id] = now;
@@ -100,42 +112,44 @@ function admit(run, { item }, { ledger, now }) {
   return null;
 }
 
-async function startRun(run, { roots, open, env, ledger, now }) {
-  const found = await checkIn(run, roots);
-  if (!found.item) return { state: 'blocked', reason: found.reason };
-  const refused = admit(run, found, { ledger, now: now() });
+async function startRun(run, { client, open, hand, env, ledger, now, email }) {
+  const found = await checkRun(run, { client, env, email });
+  if (!found.schedule) return { state: 'blocked', reason: found.reason };
+  const refused = admit(run, found.schedule, { ledger, now: now() });
   if (refused) return { state: 'blocked', reason: refused };
+  if (found.schedule.kind === 'background') return hand({ ...found, run }, { env });
   try {
-    const { agentId, chatTitle } = await open({ binding: found.item.binding, title: titleOf(found.item), env });
+    const { agentId, chatTitle } = await open({ schedule: found.schedule, run, title: titleOf(found.schedule), env });
     return { state: 'started', agentId: agentId ?? undefined, chatTitle: chatTitle ?? undefined };
   } catch (error) {
     return { state: 'failed', reason: error instanceof PaseoError && error.code === EXIT.noPaseo ? 'no_opener' : 'open_failed' };
   }
 }
 
-/** Claims this computer's due runs and starts or refuses each, from whichever of `roots` holds its record; returns
- *  how many it handled. */
-export async function runRound(client, { computer, root, roots = [root], log = () => {}, open = openSession, env = process.env,
-  ledger = helperFiles(env).runs, now = Date.now }) {
+/** Claims this computer's due runs and starts, hands over or refuses each; returns how many it handled. */
+export async function runRound(client, { computer, log = () => {}, open = openSession, hand = handOver, env = process.env,
+  ledger = helperFiles(env).runs, now = Date.now, email = signedInAs }) {
   const runs = (await ask(client, 'claim', 'POST', { computer }))?.runs ?? [];
   for (const run of runs) {
-    const result = await startRun(run, { roots, open, env, ledger, now });
-    await ask(client, 'run-result', 'POST', { id: run.id, ...result });
+    const result = await startRun(run, { client, open, hand, env, ledger, now, email });
+    // A handed run's worker reports it.
+    if (result.state !== 'handed') await ask(client, 'run-result', 'POST', { id: run.id, ...result });
     log({ event: 'run', key: run.key, run: run.id, outcome: result.state, reason: result.reason, chat: result.chatTitle });
   }
   return runs.length;
 }
 
 const ENDED = ['cancelled', 'completed', 'superseded'];
+const firstLine = text => String(text ?? '').split('\n').map(part => part.trim()).find(Boolean) ?? '';
 
 /** One page row for a record Paseo runs, with its next run as Paseo reports it. */
 async function mirrorRow(item, inspect) {
-  const fields = appFields(item);
   let observed = null;
   try { observed = await inspect(item.binding.execution.nativeId); } catch { /* the record's own state stands in */ }
   const paused = observed ? observed.status === 'paused' : item.binding.lifecycle.state === 'paused';
   const next = Date.parse(observed?.nextRunAt);
-  return { key: item.key, name: fields.name, summary: fields.summary, timing: fields.timing, nextRunAt: Number.isFinite(next) ? next : null, state: paused ? 'paused' : 'on' };
+  return { key: item.key, name: firstLine(item.name ?? item.key).slice(0, 200), summary: firstLine(item.record?.summary ?? item.record?.instructions).slice(0, 300),
+    timing: appTiming(item.binding.timing), nextRunAt: Number.isFinite(next) ? next : null, state: paused ? 'paused' : 'on' };
 }
 
 /** Uploads one row per repo record bound to Paseo, from every folder signed in to the app, replacing this computer's

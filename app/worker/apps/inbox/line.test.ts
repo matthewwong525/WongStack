@@ -81,6 +81,7 @@ function line() {
 const later = (ms: number) => vi.setSystemTime(Date.now() + ms);
 const looks = (socket: Socket) => socket.sent.filter(message => message === LOOK).length;
 const putSchedule = (computer: string, nextRunAt: number | null, state = "on", host = "app") => db.sql.prepare(`INSERT INTO schedules
+  (installation_id, email, key, host, computer_id, name, summary, timing_json, revision, state, next_run_at, min_interval_ms, updated_at)
   VALUES ('', 'sam@example.com', ?, ?, ?, 'Digest', '', '{"mode":"recurring","every":"1h","timezone":"UTC","allowedLatenessMs":600000}',
   '', ?, ?, NULL, 0)`).run(`digest-${computer.slice(0, 4)}-${host}-${state}`, host, computer, state, nextRunAt);
 

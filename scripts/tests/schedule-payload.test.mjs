@@ -7,12 +7,11 @@ const read = rel => readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8
 const inventory = JSON.parse(read('.agents/skills/wong-sync/references/payload-files.json'));
 const listed = Object.values(inventory).filter(value => value && typeof value === 'object').flatMap(value => [...(value.files || []), ...(value.dirs || [])]);
 
-test('all installs receive schedule helpers and the finite-goal schema without live definitions', () => {
+test('all installs receive schedule helpers without live definitions or the retired goal schema', () => {
   assert.ok(inventory.core.skillDirs.includes('schedule'));
   assert.ok(!inventory.core.skillDirs.includes('routine'));
-  assert.ok(inventory.core.dirs.includes('openspec/schemas/scheduled-work'));
+  assert.deepEqual(listed.filter(path => path.startsWith('openspec/schemas/')), [], 'a goal is a schedule with an end, not an OpenSpec change');
   assert.ok(existsSync(new URL('../../.agents/skills/schedule/scripts/schedule.mjs', import.meta.url)));
-  assert.ok(existsSync(new URL('../../openspec/schemas/scheduled-work/schema.yaml', import.meta.url)));
   assert.deepEqual(listed.filter(path => /^schedules(?:\/|$)|^openspec\/changes\//.test(path)), [], 'definitions and business goal plans belong to the target');
   assert.deepEqual(listed.filter(path => path.startsWith('scripts/routine-runner/')), [], 'an update must not distribute a cloud runner again');
 });

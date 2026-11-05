@@ -94,20 +94,6 @@ When the work is a process that will run again, planning SHALL weigh determinist
 - **WHEN** a plan covers a task that will run every week
 - **THEN** the plan considers a script before a recurring AI step
 
-### Requirement: Publishing a schedule record preserves the code gate
-
-An explicitly confirmed schedule registration or lifecycle checkpoint SHALL be publishable through a record-only delivery route with the repo's normal checks or review gate. The route SHALL carry only the selected lightweight routine definition or finite scheduled-work goal and its review material where applicable, SHALL keep an unfinished finite goal open, and SHALL reject unrelated source changes or unfinished code plans. Publishing an ongoing routine definition SHALL not require a permanently open OpenSpec change. Registration SHALL not authorize publishing code in a future run.
-
-#### Scenario: A confirmed schedule registration
-
-- **WHEN** the user confirms the concrete schedule plan and its host destination
-- **THEN** the selected record can be saved and merged after its gate while the goal remains unfinished
-
-#### Scenario: Source changes ride with a record
-
-- **WHEN** a record-only publish also contains application changes or an incomplete code plan
-- **THEN** that route stops and the ordinary code change loop is required
-
 ### Requirement: A change asked with no verb stops at the plan and at the preview
 
 A code or process change asked for with no verb SHALL stop at the plan's review link, with no question: from that page the person builds it, or builds and publishes it in one go with no stop before the merge. After a build alone, it SHALL stop at the preview to ask whether to publish, running the next verb on yes. A verb the person types SHALL keep its own reach. A small change whose shape a skill's own page fixes, such as adding a new tool while connecting tools, SHALL instead be recorded and built on the person's request, with no plan review link, and SHALL stop only to ask whether to publish.
@@ -182,7 +168,7 @@ Before `/continue` switches the working tree to a saved branch, it SHALL list th
 
 ### Requirement: Each step limits what it may change
 
-Every chat SHALL be in one step, starting in plan. Explore SHALL change no repo file. Plan SHALL change only plans, wiki pages, and schedules (`schedules/`); a code change SHALL wait for the person's go. Apply, ship, and any other step the person types SHALL be free to change any repo file. Every step MAY read, research, run the repo's tests and scripts, and write throwaway files outside the tracked repo.
+Every chat SHALL be in one step, starting in plan. Explore SHALL change no repo file. Plan SHALL change only plans and wiki pages, and MAY save a schedule to the company app after the person's OK; a code change SHALL wait for the person's go. Apply, ship, and any other step the person types SHALL be free to change any repo file. Every step MAY read, research, run the repo's tests and scripts, and write throwaway files outside the tracked repo.
 
 #### Scenario: Exploring finds a fix
 
@@ -197,7 +183,7 @@ Every chat SHALL be in one step, starting in plan. Explore SHALL change no repo 
 #### Scenario: A reminder in a new chat
 
 - **WHEN** a new chat is asked to remind the person every Monday to send invoices
-- **THEN** the agent saves the schedule in plan, with no build step
+- **THEN** the agent shows the schedule, saves it to the app after the person's OK, and makes no repo change and no build step
 
 ### Requirement: Only the person moves a chat past plan
 
@@ -246,16 +232,16 @@ Inside `/ship` and every step it runs, a question whose recommended answer stays
 - **WHEN** the person types `/apply` and its build meets the same design question
 - **THEN** `/apply` asks the person, as before
 
-### Requirement: A chat's name shows its step
+### Requirement: A chat's name shows the step that runs now
 
-Every chat that runs the change loop SHALL start its name with its current step as a full capital word followed by `: ` (`EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `), and the rest of the name SHALL name the task. The name SHALL change when the chat moves to another step, in Paseo, in Claude Code without Paseo, and in Codex without Paseo. A step run inside another step SHALL NOT move the name back; only a step the person types MAY. Each move SHALL write the whole name, keeping the task words the chat started with. The Daily chat, routines, helper chats, and a workspace shared by several chats SHALL keep their names.
+Every chat that runs the change loop SHALL start its name with the step that runs now, as a full capital word followed by `: ` (`EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `), and the rest of the name SHALL name the task. The name SHALL change when a step starts its own work, not when a step word is typed, in Paseo, in Claude Code without Paseo, and in Codex without Paseo. A step run inside another step SHALL move the name to itself, back as well as forward. Each move SHALL write the whole name, keeping the task words the chat started with. The Daily chat, routines, helper chats, and a workspace shared by several chats SHALL keep their names.
 
-#### Scenario: A chat goes from plan to live
+#### Scenario: Publish from a plan builds first
 
 - **WHEN** a chat named `PLAN: Fix the invoice total` is told to publish, builds first inside that publish, and its work goes live
-- **THEN** its name is `SHIP: Fix the invoice total` while it publishes, never `APPLY: `, and `DONE: Fix the invoice total` once the work is live
+- **THEN** its name is `APPLY: Fix the invoice total` while it builds, `SHIP: Fix the invoice total` while it publishes, and `DONE: Fix the invoice total` once the work is live
 
 #### Scenario: Claude Code without Paseo
 
 - **WHEN** a chat runs in Claude Code with no Paseo, and the person types `/ship`
-- **THEN** the chat's name starts with `SHIP: ` at once, and a move the chat makes by itself shows by the person's next message
+- **THEN** the name keeps its step until a step starts its work, and the step the chat is in shows by the person's next message

@@ -10,7 +10,7 @@ Invoking `/ship` authorizes every step below unprompted: archive, checkpoint, wa
 
 [The change loop](../../../wiki/development/the-change-loop.md) owns the record, the pull-in, and [the gate](../../../wiki/development/the-change-loop.md#the-gate). `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
 
-Each command ends with a `NEXT:` line; do what it says:
+Each command ends with a `NEXT:` line; follow it:
 
 ```bash
 SHIP="$(git rev-parse --show-toplevel)/.claude/skills/ship/scripts/ship.mjs"
@@ -18,19 +18,15 @@ node "$SHIP" prepare --change "$CHANGE_NAME"
 node "$SHIP" finish
 ```
 
-## Scheduled records
-
-A selected routine definition or finite goal follows [record-only delivery](../save/references/schedule-records.md) before code preflight. Use `prepare` and `finish` with `--schedule-record <reference>`; terminal goals use `prepare --archive-record <reference>`. Keep the normal checkpoint and gate.
-
 ## Step 1 — preflight
 
 Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep publishing.
 
-Run `node .claude/skills/explore/scripts/step-title.mjs set SHIP`; `set DONE` once `finish` merges. Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
+Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
 
 ### The pull-in: nothing to ship yet
 
-**Invoke the [`apply` skill](../apply/SKILL.md)**, saying it runs inside `/ship`, then go on to Step 2 in the same tree.
+**Invoke the [`apply` skill](../apply/SKILL.md)**, saying it runs inside `/ship`, then go to Step 2 in the same tree.
 
 - **`/ship <intent>`** → pass the intent **verbatim**.
 - **No argument** → invoke `/apply` bare when [its resolve order](../apply/SKILL.md#resolve-the-plan-first) lands before `sole-active`, or the session states clear intent with no change yet.
@@ -38,11 +34,11 @@ Run `node .claude/skills/explore/scripts/step-title.mjs set SHIP`; `set DONE` on
 
 `/plan` pauses, tasks stay pending, or a task-driven `/save` fails or is unverifiable → report the blocker and stop before Step 2: [no verb merges to stop](../../../wiki/development/the-change-loop.md).
 
-**Work that changes no repo file** finishes in `/apply`: say so in one line and stop, with no git change.
+**Work that changes no repo file** finishes in `/apply`: say so in one line and stop; no git change.
 
 ## Step 2 — archive the change
 
-`CHANGE_NAME` is separate from `BRANCH`. Pass `--change` for a change the person or this chat named; without it `prepare` picks by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). None selects → follow `NEXT:`; a new change comes from [the new-plan fallback](../save/references/new-plan.md).
+Run `node .claude/skills/explore/scripts/step-title.mjs set SHIP`, again after each `apply` until `finish` merges, then `set DONE`. `CHANGE_NAME` is separate from `BRANCH`. Pass `--change` for a change the person or this chat named; without it `prepare` picks by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). None selects → follow `NEXT:`; a new change comes from [the new-plan fallback](../save/references/new-plan.md).
 
 `prepare` archives by [the CLI contract](../plan/references/openspec-cli.md#validate-and-archive), which owns `--skip-specs`, after two stops:
 
@@ -51,7 +47,7 @@ Run `node .claude/skills/explore/scripts/step-title.mjs set SHIP`; `set DONE` on
 
 ## Step 3 — delegate the checkpoint to /save
 
-`prepare` numbers the `## Next` changelog entry, merging `main` in first when behind, then reruns the local checks: allow 15 minutes. `NEXT:` carries any repair.
+`prepare` numbers the `## Next` changelog entry, merging `main` first when behind, then reruns the local checks: allow 15 minutes. `NEXT:` carries any repair.
 
 **Invoke the `save` skill once (plus one after Step 4's fix) as ordinary `/save` inside `/ship` and follow it verbatim**, with `prepare`'s `CHANGE` and `ARCHIVE` if any. Proceed only on `SUCCESS` or `NONE`. Any other result → stop before merge and report `/save`'s reason; never repeat, bypass, or reinterpret the gate.
 
@@ -59,7 +55,7 @@ Run `node .claude/skills/explore/scripts/step-title.mjs set SHIP`; `set DONE` on
 
 **Invoke `verify` once with Step 3's exact checkpoint receipt**, plus one with the fix's receipt, never for a better verdict. No `verify` skill → say so in one line and go on; never install it.
 
-Any verdict but `FAILURE` → report it and merge. `FAILURE` after `/verify`'s own fixes → one fix: `apply` inside `/ship` with `ARCHIVE` and the failures, then `/save` as in Step 3, and `verify`. Still `FAILURE`, or the fix must stop → say what fails and **ask**: fix more *(Recommended)*, or *publish anyway*, recorded. If the walk's fixes, or its one `/save` of [kept checks](../verify/references/walkthrough.md#g--kept-checks), advanced `HEAD`, merge that commit only when that `/save` result is `SUCCESS` or `NONE`.
+Any verdict but `FAILURE` → report it and merge. `FAILURE` after `/verify`'s own fixes → one fix: `apply` inside `/ship` with `ARCHIVE` and the failures, then `/save` as in Step 3, and `verify`. Still `FAILURE`, or the fix must stop → say what fails and **ask**: fix more *(Recommended)*, or *publish anyway*, recorded. If the walk's fixes, or its one `/save` of [kept checks](../verify/references/walkthrough.md#g--kept-checks), advanced `HEAD`, merge that commit only when that `/save` returns `SUCCESS` or `NONE`.
 
 ## Step 5 — merge and sync
 
@@ -69,7 +65,7 @@ Merge, not rebase, unless asked. Never check out, switch, stash, reset, or force
 
 ### Look at the live app
 
-`LIVE_LOOK=ok`/`unknown` → `REASON` as one report line. `failed` → say what is not working, then invoke `apply` **once** with `REASON` and `URL` as the request; it ends at its preview and *publish it?*. No retry or revert.
+`LIVE_LOOK=ok`/`unknown` → `REASON` as one report line. `failed` → say what fails, then invoke `apply` **once** with `REASON` and `URL` as the request; it ends at its preview and *publish it?*. No retry or revert.
 
 ## Step 6 — report
 

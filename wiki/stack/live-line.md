@@ -9,19 +9,19 @@ The app sends one message down the line: *look now*. Nothing else.
 1. You tap in the inbox, or a [schedule](host-schedules.md) comes due.
 2. The app says *look now* to your computer.
 3. Your computer asks the app for its work, signed in as you, through the same requests it used before the line existed.
-4. It acts only on what it set up itself: a tap on a page it made, sending the message it fixed for that button ([reply links](../development/reply-links.md#in-your-inbox-first)), or a run of a schedule whose instructions are saved in your repo and match the revision you approved.
+4. It acts only on what it set up itself: a tap on a page it made, sending the message it fixed for that button ([reply links](../development/reply-links.md#in-your-inbox-first)), or a run of a schedule whose instructions it reads from the app, only when that exact version was approved on this computer ([the OK](host-schedules.md#the-ok-on-each-computer)).
 
-The app never sends a command, a prompt, or code. Your computer ignores any other message and writes it in [its log](#the-log). So someone who broke into the app could at most send a tap or start an approved schedule early, as before, and both show on your screens.
+The app never sends a command, a prompt, or code. Your computer ignores any other message and writes it in [its log](#the-log). So someone who broke into the app could at most send a tap or start an approved schedule early, and both show on your screens. A schedule they change waits for your OK and does not run.
 
 Your computer also keeps its own limits, so even a broken-into app can't open chat after chat:
 
 - **A run starts once.** The helper notes each run it starts in `~/.wong-stack/helper/runs.json` and refuses the same run again (`repeat`).
-- **A schedule starts no more often than its record allows**: its `authority.minIntervalMs`, or every 10 minutes at most when the record sets none (`too_soon`). A schedule meant to run more often needs that field set.
+- **A schedule starts no more often than it allows**: its `authority.minIntervalMs`, or every 10 minutes at most when it sets none (`too_soon`). A schedule meant to run more often needs that field set.
 - **Rounds stay 1 second apart**, however many *look now* messages arrive.
 
 A refused run is kept as not started, with its reason, and goes in [the log](#the-log). When the helper can't read or write `runs.json`, it starts nothing (`no_ledger`).
 
-The helper starts a run from whichever of your project folders signed in to that app holds the schedule's record, preferring the folder the record names. Paseo schedules from all of them go up to the app together.
+The helper starts a run in the folder the schedule names, which must exist on this computer and not be a temporary workspace (`no_folder`). Paseo schedules from all your project folders signed in to that app go up to the app together.
 
 A line belongs to one person in one app. Ana's tap never wakes Ben's computer. The line closes when your sign-in expires, and your computer opens it again with a fresh one. A web page from another site can't open yours: the app checks where the request came from.
 

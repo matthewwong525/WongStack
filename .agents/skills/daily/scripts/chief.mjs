@@ -439,7 +439,8 @@ export const agentEvents = env => join(env.HOME || homedir(), '.wong-stack', 'ag
 /** A chat's stop report: touches its file so a watch looks now. Outside Paseo it does nothing. */
 export function mark({ env = process.env, now = new Date() } = {}) {
   const id = env.PASEO_AGENT_ID;
-  if (!AGENT_ID.test(id ?? '')) return { status: 'skipped' };
+  // A schedule run's hand-over shares the folder: a chat id never takes its name.
+  if (!AGENT_ID.test(id ?? '') || id.startsWith('schedule-run-')) return { status: 'skipped' };
   try {
     mkdirSync(agentEvents(env), { recursive: true });
     writeFileSync(join(agentEvents(env), id), `${now.toISOString()}\n`);

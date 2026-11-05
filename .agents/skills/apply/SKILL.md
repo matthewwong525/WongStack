@@ -6,9 +6,7 @@ user-invocable: true
 
 # /apply
 
-**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout.
-
-Build [the chosen plan](../../../wiki/development/the-change-loop.md). First run `node .claude/skills/explore/scripts/step-title.mjs set APPLY`.
+Build [the chosen plan](../../../wiki/development/the-change-loop.md). Run `node .claude/skills/explore/scripts/step-title.mjs set APPLY` just before a build, to-do, or preview.
 
 **No repo file** → [work the to-do](#work-that-changes-no-repo-file). Repo code or process, [mini apps](../../../wiki/stack/mini-apps.md) included → resolve the plan.
 
@@ -61,7 +59,7 @@ Repeat under the same alias for more edits; added tasks go to a new helper.
 
 ## Work that changes no repo file
 
-Work the conversation's numbered to-do in order, writing one if missing ([verbs for any work](../../../wiki/development/the-change-loop.md#verbs-for-any-work)). Only an outward step asks, showing exactly what it will do (recipient, full text, amount, target) in [the shared ask format](../explore/references/asking-the-user.md): one confirmation, one action, unless the person asked for a batch. Skip and report a declined step. Report without `/save`; nothing is committed. Done → `step-title.mjs set DONE`.
+Work the conversation's numbered to-do in order, writing one if missing ([verbs for any work](../../../wiki/development/the-change-loop.md#verbs-for-any-work)). Only an outward step asks, showing exactly what it will do (recipient, full text, amount, target) in [the shared ask format](../explore/references/asking-the-user.md): one confirmation, one action, unless the person asked for a batch. Skip and report a declined step. Report without `/save`. Done → `step-title.mjs set DONE`.
 
 ## Boundaries
 

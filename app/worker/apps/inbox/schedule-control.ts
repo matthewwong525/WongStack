@@ -12,27 +12,43 @@ async function appSchedule(at: Scope, key: string): Promise<ScheduleRow | Respon
   return row.host === "app" ? row : fail("not_app", 409);
 }
 
-/** One schedule action on the app's clock: `change` runs on the found schedule, then its computer hears look. */
-const control = (name: string, summary: string, description: string, change: (at: Scope, row: ScheduleRow) => Promise<unknown>) =>
-  inboxAction<{ key: string }>({
-    operationId: `inbox.schedule-${name}`, summary, description, input: byKey, output: z.strictObject({ schedule }), encoding: "json", effect: "write",
-    async run(at, { key }) {
+/** One schedule action on the app's clock: `change` runs on the found schedule, then its computer hears look. An ended
+ *  schedule takes only what `ended` allows. */
+const control = <Input extends { key: string }>(name: string, summary: string, description: string,
+  change: (at: Scope, row: ScheduleRow, input: Input) => Promise<unknown>, { input = byKey, ended = false }: { input?: z.ZodType; ended?: boolean } = {}) =>
+  inboxAction<Input>({
+    operationId: `inbox.schedule-${name}`, summary, description, input, output: z.strictObject({ schedule }), encoding: "json", effect: "write",
+    async run(at, given) {
+      const key = given.key;
       const row = await appSchedule(at, key);
       if (row instanceof Response) return row;
-      await change(at, row);
-      await at.wake(row.computer_id);
+      if (row.ended_at !== null && !ended) return fail("ended", 409);
+      await change(at, row, given);
+      await at.wake(row.computer_id || null);
       return Response.json({ schedule: shown((await findSchedule(at, key))!) });
     },
   });
 
+/** Stops a schedule's clock and cancels its waiting run; `ending` also ends it for good, with why. */
+const stop = (at: Scope, row: ScheduleRow, ending?: string) => at.db.batch([
+  // A second end keeps the first one's time and reason.
+  mine(at, `UPDATE schedules SET state = 'paused', next_run_at = NULL, ended_at = CASE WHEN ?5 IS NULL THEN ended_at ELSE COALESCE(ended_at, ?4) END,
+    end_reason = CASE WHEN ?5 IS NULL OR ended_at IS NOT NULL THEN end_reason ELSE ?5 END, updated_at = ?4
+    WHERE installation_id = ?1 AND email = ?2 AND key = ?3`, row.key, at.now, ending ?? null),
+  mine(at, `UPDATE schedule_runs SET state = 'cancelled', updated_at = ?4 WHERE installation_id = ?1 AND email = ?2 AND key = ?3
+    AND state = 'due'`, row.key, at.now),
+]);
+
 /** POST pause → stops a schedule's clock and cancels its waiting run. */
 export const pause = control("pause", "Pause a schedule", "Stop a schedule until it is resumed; a run waiting for the computer is cancelled.",
-  (at, row) => at.db.batch([
-    mine(at, `UPDATE schedules SET state = 'paused', next_run_at = NULL, updated_at = ?4 WHERE installation_id = ?1 AND email = ?2
-      AND key = ?3`, row.key, at.now),
-    mine(at, `UPDATE schedule_runs SET state = 'cancelled', updated_at = ?4 WHERE installation_id = ?1 AND email = ?2 AND key = ?3
-      AND state = 'due'`, row.key, at.now),
-  ]));
+  (at, row) => stop(at, row), { ended: true });
+
+/** POST schedule-end → a finished one-time task or goal, or a stopped schedule: it never runs again and stays
+ *  listed. */
+export const scheduleEnd = control<{ key: string; reason: string }>("end", "End a schedule",
+  "End a schedule for good once its work is done; it stays listed with its runs, and a run waiting for the computer is cancelled.",
+  (at, row, { reason }) => stop(at, row, reason),
+  { ended: true, input: z.strictObject({ key: scheduleKey.describe("The schedule's key."), reason: z.string().min(1).max(300).describe("Why it ended, as proof.") }) });
 
 /** POST resume → starts a schedule's clock again from now: times passed while paused start nothing. */
 export const resume = control("resume", "Resume a schedule", "Start a paused schedule's clock again from now.",
@@ -50,7 +66,7 @@ export const scheduleDelete = inboxAction<{ key: string }>({
       mine(at, "DELETE FROM schedule_runs WHERE installation_id = ?1 AND email = ?2 AND key = ?3", key),
       mine(at, "DELETE FROM schedules WHERE installation_id = ?1 AND email = ?2 AND key = ?3", key),
     ]);
-    await at.wake(row.computer_id);
+    await at.wake(row.computer_id || null);
     return Response.json({ deleted: true });
   },
 });
@@ -71,13 +87,14 @@ export const runNow = inboxAction<{ key: string }>({
     await settleRuns(at);
     const row = await appSchedule(at, key);
     if (row instanceof Response) return row;
+    if (row.ended_at !== null) return fail("ended", 409);
     if (row.state === "paused") return fail("paused", 409);
     if (row.waiting !== null) return fail("already_waiting", 409);
     if (await tooSoon(at, row)) return fail("too_soon", 429);
     const id = newId();
     await mine(at, `INSERT INTO schedule_runs (installation_id, email, id, key, due_at, source, state, updated_at)
       VALUES (?1, ?2, ?3, ?4, ?5, 'now', 'due', ?5)`, id, key, at.now).run();
-    await at.wake(row.computer_id);
+    await at.wake(row.computer_id || null);
     return Response.json({ run: runShown((await findRun(at, id))!) });
   },
 });

@@ -1,9 +1,10 @@
 // Whose rows a call reads. The live line's Worker imports only this, never `store.ts`, whose actions pull in the app's
 // list of mini apps, which only the app's build can bundle. wiki/stack/live-line.md
 
-/** Whose rows a call reads, and `wake`: after a write, tell the person's open inbox, and their computer, to look now.
- *  `wake()` reaches every computer, `wake(id)` that one, `wake(null)` the inbox alone. */
-export type Scope = { db: D1DatabaseSession; installation: string; email: string; now: number; wake: (computer?: string | null) => Promise<void> };
+/** Whose rows a call reads, the app owner's email, and `wake`: after a write, tell the person's open inbox and computer
+ *  to look now. `wake()` reaches every computer, `wake(id)` that one, `wake(null)` the inbox alone. */
+export type Scope = { db: D1DatabaseSession; installation: string; email: string; owner: string | null; now: number;
+  wake: (computer?: string | null) => Promise<void> };
 
 /** `sql` bound to the caller's installation as ?1 and email as ?2, then `values` from ?3. */
 export const mine = (at: Pick<Scope, "db" | "installation" | "email">, sql: string, ...values: (string | number | null | Uint8Array)[]) =>
