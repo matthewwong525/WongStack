@@ -16,13 +16,12 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [Code improvement](repository-improvement.md) — run or schedule `/improve-code` to find one way to make the code simpler or safer to change; it writes the plan and stops for your yes.
 - [Host schedules](../stack/host-schedules.md) — `/schedule` chooses predictable scripts first and verifies an existing host clock for assistant work; each schedule lives in the app and runs only after your OK on that computer.
 - [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, `openspec`, and `curl`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
-- [Browsing](browsing.md) — how the agent uses websites as the person: saved logins, pictures of key moments, private links for what only the person can give or do, and what it does when a site refuses its browser.
-  - [The private form](private-form.md) — a card or backup code goes to the site through a private link with one picture of the page, every time; everyday answers you choose to keep fill the next form after a yes.
-  - [Save your passwords](passwords.md) — give the agent the logins you choose through a private link; it never sees a password.
+- [Browsing](browsing.md) — how the agent uses websites as the person: the browser's own sign-ins, pictures of key moments, private links for what only the person can give or do, and what it does when a site refuses its browser.
+  - [Saved details](saved-details.md) — everyday answers you choose to keep, such as an email or an address, fill the next form after a yes; a card is never saved.
   - [Login codes](login-codes.md) — the agent reads a one-time code from your email or asks for it in the chat, with no link.
   - [Steps for you to finish](finish-steps.md) — numbered steps, with links, when a login or check stops the agent.
   - [Shopping](shopping.md) — the agent finds, compares, and buys products through Shop: no account to look, your yes to connect and to pay, one payment per purchase, and no card detail the agent can read.
-  - [Live view](live-view.md) — at a robot check or a stuck login, a private link shows the agent's browser so you can tap through it or sign in: when it opens, what the link can do, and how the agent runs one.
+  - [Live view](live-view.md) — the one place you type something sensitive: a private link shows the agent's browser for your turn to sign in, pay, type a backup code, pass a robot check, or tap through a stuck step, then *Hand back*; on a Mac or Windows computer, the browser's window.
 - [Memory dream](wiki-dream.md) — type `/dream-memory` and the assistant checks the wiki, saved facts, specs, and plans against each other and the code: what it fixes, what it only lists, the dry run, and how to undo one.
 - [Session memory](memory.md) — the private fact store: who sees what, the company sign-in and its expiry, the start-of-session digest, capture by `/save` and the background run, and consolidation.
   - [Document retrieval](document-retrieval.md) — task recall with cited wiki/OpenSpec passages, optional local semantic setup, scopes, freshness and fallback.

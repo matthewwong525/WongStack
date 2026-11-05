@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { refNames } from '../../.agents/skills/browser/scripts/browse.mjs';
-import { finished, pageFault, seen, signInBoxes } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { finished, pageFault, seen } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/hand-over/scripts/hand-over.mjs');
 const KEY = 'MAPS_API_KEY';
@@ -149,7 +149,7 @@ test('a second live view is refused from any chat and names the holder', t => {
   const b = f.chat('chat-b');
   const view = f.place(join(f.home, 'links', 'chat-a'), { view: { display: ':97' }, cwd: join(f.root, 'chat-a') });
   const before = snapshot(join(f.home, 'links', 'chat-a'));
-  const out = b.run('open', '--view', '--until', '**/done');
+  const out = b.run('open', '--view', '--until', '**/done', '--note', 'Tap Continue.');
   assert.equal(out.status, 1);
   assert.match(out.stderr, /^A live view is already open in chat-a\.$/m);
   assert.doesNotMatch(out.stdout, /^HANDOVER_(LINK|SEND)=/m);
@@ -158,15 +158,15 @@ test('a second live view is refused from any chat and names the holder', t => {
   assert.ok(!existsSync(b.dir), 'a refused view writes nothing');
 });
 
-test('an older link\'s live view still counts; a dead one or another chat\'s form does not', t => {
+test('an older link\'s live view still counts; a dead one or another chat\'s key link does not', t => {
   const f = fixture(t);
   const b = f.chat('chat-b');
   const old = f.place(f.home, { view: { display: ':97' }, cwd: '/root/.paseo/worktrees/x/modest-toad' });
-  assert.match(b.run('open', '--view', '--until', '**/done').stderr, /A live view is already open in modest-toad\./);
+  assert.match(b.run('open', '--view', '--until', '**/done', '--note', 'Tap Continue.').stderr, /A live view is already open in modest-toad\./);
   process.kill(old, 'SIGKILL');
-  f.place(join(f.home, 'links', 'chat-a'), { form: { title: 'Pay' } });
+  f.place(join(f.home, 'links', 'chat-a'), { keys: { keys: [] } });
   // Past the check, a HOME without the viewer stops at the missing tools: no browser is asked.
-  const out = b.run('open', '--view', '--until', '**/done');
+  const out = b.run('open', '--view', '--until', '**/done', '--note', 'Tap Continue.');
   assert.equal(out.status, 3, out.stderr);
   assert.match(out.stdout, /^HANDOVER_NEEDS=live-view$/m);
 });
@@ -174,7 +174,7 @@ test('an older link\'s live view still counts; a dead one or another chat\'s for
 test('an older link in the shared place stays untouched while a chat opens and closes its own', t => {
   const f = fixture(t);
   const a = f.chat('chat-a');
-  const old = f.place(f.home, { form: { title: 'Bank details' }, cwd: '/root/.paseo/worktrees/x/modest-toad' });
+  const old = f.place(f.home, { keys: { keys: [] }, cwd: '/root/.paseo/worktrees/x/modest-toad' });
   writeFileSync(join(f.home, 'result.json'), '{"result":"done"}\n');
   writeFileSync(join(f.home, 'opened'), '');
   const before = snapshot(f.home);
@@ -191,11 +191,11 @@ test('a view another chat is still starting counts; its mark goes away on every 
   mkdirSync(a.dir, { recursive: true });
   const opener = f.fakeWatcher();
   writeFileSync(join(a.dir, `view-opener.${opener}`), `${opener}\n`);
-  assert.match(b.run('open', '--view', '--until', '**/done').stderr, /^A live view is already open in chat-a\.$/m);
+  assert.match(b.run('open', '--view', '--until', '**/done', '--note', 'Tap Continue.').stderr, /^A live view is already open in chat-a\.$/m);
   process.kill(opener, 'SIGKILL');
   f.viewTools();
   // Past both checks the open fails at the page, since this HOME has no browser; the opener's mark is gone.
-  const out = b.run('open', '--view', '--until', '**/done');
+  const out = b.run('open', '--view', '--until', '**/done', '--note', 'Tap Continue.');
   assert.equal(out.status, 1, out.stderr);
   assert.match(out.stderr, /No page is open in this browser session/);
   assert.deepEqual(readdirSync(b.dir).filter(name => name.startsWith('view-opener.')), []);
@@ -219,7 +219,7 @@ test('wait and close reach this chat\'s own older link in the shared place, neve
   const out = await waited;
   assert.match(out.stdout, /^HANDOVER_RESULT=done$/m);
   rmSync(join(f.home, 'result.json'));
-  const again = f.place(f.home, { form: { title: 'Pay' }, session: 'chat-a', cwd: join(f.root, 'chat-a', 'app') });
+  const again = f.place(f.home, { keys: { keys: [] }, session: 'chat-a', cwd: join(f.root, 'chat-a', 'app') });
   assert.match(a.run('close').stdout, /^HANDOVER_RESULT=closed$/m);
   assert.ok(!alive(again));
   assert.ok(!existsSync(join(f.home, 'watcher.pid')));
@@ -228,7 +228,7 @@ test('wait and close reach this chat\'s own older link in the shared place, neve
 test('a chat with its own link and an older one closes its own at once and leaves the older one', t => {
   const f = fixture(t);
   const a = f.chat('chat-a');
-  const old = f.place(f.home, { form: { title: 'Pay' }, cwd: join(f.root, 'chat-a') });
+  const old = f.place(f.home, { keys: { keys: [] }, cwd: join(f.root, 'chat-a') });
   const before = snapshot(f.home);
   openKeys(a);
   const closed = a.run('close');
@@ -275,30 +275,6 @@ test('a finish met at open still refuses, and a page that can not be read is no 
   const gone = { countShown: async () => { throw new Error('no tab'); } };
   assert.match(await pageFault(gone, { untilGone: '#card-frame' }, 'met'), /No page is open/);
 });
-
-test('--sign-in takes up to three boxes, with a username or a password box', () => {
-  assert.deepEqual(signInBoxes('e1,e2,e3'), ['e1', 'e2', 'e3']);
-  assert.deepEqual(signInBoxes('e1,,e3'), ['e1', null, 'e3']);
-  assert.deepEqual(signInBoxes(',e2'), [null, 'e2', null]);
-  assert.equal(signInBoxes(',,e3'), null);
-  assert.equal(signInBoxes('e1,e2,e3,e4'), null);
-  assert.equal(signInBoxes('--until,e2'), null);
-});
-
-test('the sign-in flags go with a one-site password link only, and a finish comes with --sign-in', t => {
-  const c = fixture(t).chat('chat-a');
-  const refused = [
-    ['--keys', KEY, '--sign-in', 'e1,e2'],
-    ['--passwords', '--sign-in', 'e1,e2'],
-    ['--passwords', '--site', 'shop.test', '--until', 'https://shop.test/account*'],
-    ['--passwords', '--site', 'shop.test', '--sign-in', 'e1,e2'],
-    ['--passwords', '--site', 'shop.test', '--until-text', 'Hi', '--sign-in', ',,e3'],
-    ['--passwords', '--site', 'shop.test', '--until-text', 'one\ntwo', '--sign-in', 'e1,e2'],
-  ];
-  for (const args of refused) assert.equal(c.run('open', ...args).status, 2, args.join(' '));
-});
-
-const FORM = { title: 'Pay', site: 'Shop', fields: [{ label: 'Card', kind: 'cc-number', target: 'e1' }], submit: { label: 'Pay', target: 'e2' } };
 
 /** What the fake page answers to a read: its address, the shown count, whether its words show, or its size. */
 const evaluated = (b, expression) => (expression === 'location.href' ? b.url : expression.includes('function shownCount') ? b.shown
@@ -352,113 +328,9 @@ async function openLink(c, ...args) {
   return { call, state };
 }
 
-const QUICK = { HANDOVER_SEND_WAIT_MS: '300', HANDOVER_SEND_POLL_MS: '50', HANDOVER_WATCH_MS: '300', BROWSE_LOGIN_WAIT_MS: '0' };
-const stepsOf = (b, route) => b.calls.filter(call => call.route === route);
+const QUICK = { HANDOVER_POLL_MS: '50' };
 
-/** A card form open in `chat-a` with a live view free, its finish waited for `waitMs` after the press. */
-async function payLink(t, waitMs = QUICK.HANDOVER_SEND_WAIT_MS) {
-  const f = fixture(t);
-  screenTools(f);
-  const b = await fakeBrowser(t, f);
-  const c = f.chat('chat-a', { ...QUICK, HANDOVER_SEND_WAIT_MS: waitMs });
-  const form = join(f.root, 'form.json');
-  writeFileSync(form, JSON.stringify(FORM));
-  return { b, c, ...(await openLink(c, '--form', form, '--until-gone', '#card-frame')) };
-}
-
-test('a press shows the site live at its own size, and a finish met while viewing ends done', async t => {
-  const { b, c, call, state } = await payLink(t);
-  assert.equal(state.viewAfter, true);
-  const sent = await call('send', { values: ['test-value'] });
-  assert.deepEqual(sent.body.receipt, { result: 'unconfirmed', viewing: true });
-  const step = (await call('receipt')).body;
-  assert.equal(step.step, 'viewing');
-  assert.ok(step.since <= step.now);
-  const live = (await call('live/view')).body;
-  assert.deepEqual(live.live, { site: 'Shop', kind: 'pay', since: step.since, waitMs: 300 });
-  assert.deepEqual(live.fit, { kind: 'wide', width: 1280, screen: [1280, 720] });
-  const { view } = JSON.parse(readFileSync(join(c.dir, 'state.json'), 'utf8'));
-  assert.ok(existsSync(join(view.dir, 'screen.sock')), 'the screen source is up');
-  const first = await c.start('wait');
-  assert.match(first.stdout, /^HANDOVER_RESULT=unconfirmed$/m);
-  assert.match(first.stdout, /^HANDOVER_VIEWING=yes$/m);
-  b.shown = 0;
-  const final = await c.start('wait');
-  assert.match(final.stdout, /^HANDOVER_RESULT=done$/m);
-  assert.match(final.stdout, /^HANDOVER_COMPLETION=[0-9a-f]+:late$/m);
-  assert.deepEqual(stepsOf(b, 'viewport'), [], 'the page is never resized');
-  assert.ok(stepsOf(b, 'front').length >= 1, 'the page\'s own window is raised');
-  assert.deepEqual(stepsOf(b, 'type').map(each => each.text), ['test-value'], 'nothing is put back after a view');
-  assert.equal(stepsOf(b, 'click').length, 1);
-  assert.ok(!existsSync(view.dir), 'the screen source stopped');
-});
-
-for (const [way, end] of [['Done', ({ call }) => call('live/done', {})], ['close', ({ c }) => c.start('close')]]) {
-  test(`${way} on a payment's view before the finish ends it unconfirmed, as viewed`, async t => {
-    const link = await payLink(t);
-    assert.equal((await link.call('send', { values: ['test-value'] })).body.receipt.viewing, true);
-    assert.match((await link.c.start('wait')).stdout, /^HANDOVER_VIEWING=yes$/m);
-    await end(link);
-    const final = await link.c.start('wait');
-    assert.match(final.stdout, /^HANDOVER_RESULT=unconfirmed$/m);
-    assert.match(final.stdout, /^HANDOVER_REASON=viewed$/m);
-    assert.match(final.stdout, /^HANDOVER_COMPLETION=[0-9a-f]+:late$/m);
-    assert.deepEqual(stepsOf(link.b, 'type').map(each => each.text), ['test-value'], 'nothing is put back');
-  });
-}
-
-test('Done before the send\'s wait ends gives only the late result, as viewed', async t => {
-  const { b, c, call } = await payLink(t, '20000');
-  const sent = call('send', { values: ['test-value'] });
-  for (let i = 0; i < 100 && !stepsOf(b, 'click').length; i++) await pause(50);
-  assert.equal(stepsOf(b, 'click').length, 1, 'the card was pressed');
-  assert.equal((await call('live/done', {})).status, 200);
-  assert.deepEqual((await sent).body.receipt, { result: 'unconfirmed', viewing: true });
-  const only = await c.start('wait');
-  assert.match(only.stdout, /^HANDOVER_RESULT=unconfirmed$/m);
-  assert.match(only.stdout, /^HANDOVER_REASON=viewed$/m);
-  assert.match(only.stdout, /^HANDOVER_COMPLETION=[0-9a-f]+:late$/m);
-  assert.doesNotMatch(only.stdout, /^HANDOVER_VIEWING=yes$/m, 'no first result told the chat it was viewing');
-});
-
-test('a view held by another chat leaves the press to the status line and the watch, which empties nothing', async t => {
-  const f = fixture(t);
-  screenTools(f);
-  const b = await fakeBrowser(t, f);
-  f.place(join(f.home, 'links', 'chat-b'), { view: { display: ':99' }, cwd: join(f.root, 'chat-b') });
-  const c = f.chat('chat-a', QUICK);
-  const form = join(f.root, 'form.json');
-  writeFileSync(form, JSON.stringify(FORM));
-  const { call } = await openLink(c, '--form', form, '--until-gone', '#card-frame');
-  const sent = await call('send', { values: ['test-value'] });
-  assert.equal(sent.body.receipt.result, 'unconfirmed');
-  assert.equal(sent.body.receipt.watching, true);
-  assert.equal((await call('live/view')).status, 410, 'no view is served');
-  const first = await c.start('wait');
-  assert.match(first.stdout, /^HANDOVER_WATCHING=\d+$/m);
-  const final = await c.start('wait');
-  assert.match(final.stdout, /^HANDOVER_RESULT=unconfirmed$/m, 'a pressed send is never not-accepted');
-  assert.match(final.stdout, /^HANDOVER_REASON=no-answer$/m);
-  assert.deepEqual(stepsOf(b, 'type').map(each => each.text), ['test-value'], 'a still page keeps what was typed');
-  assert.deepEqual(readdirSync(f.home).filter(name => name.startsWith('screen-')), []);
-});
-
-test('a page that changed since open ends the form with page-changed, typing and pressing nothing', async t => {
-  const f = fixture(t);
-  const b = await fakeBrowser(t, f);
-  const c = f.chat('chat-a', QUICK);
-  const form = join(f.root, 'form.json');
-  writeFileSync(form, JSON.stringify(FORM));
-  const { call } = await openLink(c, '--form', form, '--until-gone', '#card-frame');
-  b.lines = ['- button "Pay" [e2]'];
-  assert.equal((await call('form')).body.changed, true);
-  const out = await c.start('wait');
-  assert.match(out.stdout, /^HANDOVER_RESULT=not-accepted$/m);
-  assert.match(out.stdout, /^HANDOVER_REASON=page-changed$/m);
-  assert.deepEqual([...stepsOf(b, 'type'), ...stepsOf(b, 'click')], []);
-});
-
-test('a view kept open stays through two address changes and ends done on I\'m finished', async t => {
+test('a view kept open stays through two address changes and ends handed-back on Hand back', async t => {
   const f = fixture(t);
   screenTools(f);
   const b = await fakeBrowser(t, f);
@@ -466,17 +338,16 @@ test('a view kept open stays through two address changes and ends done on I\'m f
   const { call, state } = await openLink(c, '--view', '--keep-open', '--note', 'Tap Continue on DigiKey.');
   assert.equal(state.view.keepOpen, true);
   const shown = (await call('view')).body;
-  assert.equal(shown.keepOpen, true);
-  assert.equal(shown.note, 'Tap Continue on DigiKey.');
+  assert.deepEqual([shown.control, shown.note], ['turn', 'Tap Continue on DigiKey.']);
   const pid = Number(readFileSync(join(c.dir, 'watcher.pid'), 'utf8'));
   for (const url of ['https://shop.test/review', 'https://shop.test/receipt']) {
     b.url = url;
     await pause(200);
     assert.ok(alive(pid), `still open at ${url}`);
   }
-  assert.equal((await call('done', {})).status, 200);
+  assert.deepEqual(await call('give', {}), { status: 200, body: { control: 'assistant' } });
   const out = await c.start('wait');
-  assert.match(out.stdout, /^HANDOVER_RESULT=done$/m);
+  assert.match(out.stdout, /^HANDOVER_RESULT=handed-back$/m);
   assert.ok(!existsSync(state.view.dir), 'the screen source stopped');
 });
 
@@ -486,49 +357,10 @@ test('--keep-open goes with --view alone, and takes no finish', t => {
     ['--view', '--keep-open', '--until', 'https://shop.test/done*'],
     ['--view', '--keep-open', '--until-gone', '#card'],
     ['--view', '--keep-open', '--until-text', 'Thanks'],
-    ['--passwords', '--keep-open'],
+    ['--keys', KEY, '--keep-open'],
   ]) {
     const out = c.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
     assert.match(out.stderr, /--keep-open/);
   }
-});
-
-const LOGIN_PAGE = ['- textbox "Email" [e1]', '- textbox "Password" [e2]', '- button "Sign in" [e3]'];
-const LOGIN = { url: 'https://shop.test/login', username: 'test@example.com', password: 'test-pass' };
-
-test('a one-site password link with no finish only saves, as before', async t => {
-  const f = fixture(t);
-  const b = await fakeBrowser(t, f, { url: LOGIN.url, lines: LOGIN_PAGE });
-  const c = f.chat('chat-a', QUICK);
-  const { call } = await openLink(c, '--passwords', '--site', 'shop.test');
-  const saved = await call('continue', { logins: [LOGIN] });
-  assert.equal(saved.body.ready, true);
-  assert.equal(saved.body.receipt?.signing, undefined);
-  const out = await c.start('wait');
-  assert.match(out.stdout, /^HANDOVER_RESULT=done$/m);
-  assert.match(out.stdout, /^HANDOVER_SAVED=shop-test$/m);
-  assert.deepEqual(stepsOf(b, 'type'), []);
-});
-
-test('a save with --sign-in signs in live from the save and ends done on the finish', async t => {
-  const f = fixture(t);
-  screenTools(f);
-  const b = await fakeBrowser(t, f, { url: LOGIN.url, lines: LOGIN_PAGE });
-  const c = f.chat('chat-a', QUICK);
-  const { call, state } = await openLink(c, '--passwords', '--site', 'shop.test', '--until', 'https://shop.test/account*', '--sign-in', 'e1,e2,e3');
-  assert.equal(state.viewAfter, true);
-  const saved = await call('continue', { logins: [LOGIN] });
-  assert.deepEqual(saved.body.receipt, { signing: true, site: 'shop.test' });
-  const first = await c.start('wait');
-  assert.match(first.stdout, /^HANDOVER_VIEWING=yes$/m);
-  const step = (await call('live/receipt')).body;
-  assert.equal(step.step, 'viewing');
-  assert.equal((await call('live/view')).body.live.kind, 'sign-in');
-  for (let i = 0; i < 100 && stepsOf(b, 'click').length < 1; i++) await pause(100);
-  assert.deepEqual(stepsOf(b, 'type').map(each => each.ref), ['e1', 'e2'], 'browse.mjs login typed the saved login');
-  b.url = 'https://shop.test/account';
-  const final = await c.start('wait');
-  assert.match(final.stdout, /^HANDOVER_RESULT=done$/m);
-  assert.deepEqual(stepsOf(b, 'viewport'), []);
 });

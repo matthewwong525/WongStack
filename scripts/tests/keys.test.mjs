@@ -234,23 +234,19 @@ test('a destination the checkout does not ignore opens no link', t => {
   assert.ok(!existsSync(f.state));
 });
 
-test('an opened key link refuses a second link, and a password link refuses a key link', async t => {
+test('an opened key link refuses a second link', async t => {
   const f = fixture(t);
   const { port, key } = opened(f, 'MAPS_API_KEY');
   assert.equal((await route(port, key, 'keys')).status, 200);
-  const passwords = f.run('open', '--passwords');
-  assert.equal(passwords.status, 1);
-  assert.match(passwords.stderr, /already open/);
-  assert.equal(f.run('close').status, 0);
-  assert.equal(f.run('open', '--passwords').status, 0);
   const keys = f.run('open', '--keys', 'MAPS_API_KEY');
   assert.equal(keys.status, 1);
   assert.match(keys.stderr, /already open/);
+  assert.equal(f.run('close').status, 0);
 });
 
 test('--keys takes declared-style names and no other mode', t => {
   const f = fixture(t);
-  for (const args of [['--passwords'], ['--until', '**'], ['--until-gone', '#x']]) assert.equal(f.run('open', '--keys', 'MAPS_API_KEY', ...args).status, 2, args.join(' '));
+  for (const args of [['--view'], ['--until', '**'], ['--until-gone', '#x']]) assert.equal(f.run('open', '--keys', 'MAPS_API_KEY', ...args).status, 2, args.join(' '));
   for (const names of ['', 'lower_case', 'A,,B', 'A B', Array.from({ length: LIMITS.names + 1 }, (_, i) => `K${i}`).join(',')]) {
     assert.equal(f.run('open', '--keys', names).status, 2, names.slice(0, 20));
   }

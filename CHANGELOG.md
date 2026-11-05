@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — The live view is the one place for sensitive input
+
+- **You type a card, a backup code or a password on the real site, in the live view.** The assistant fills in the rest of the page first, then asks *Ready?* in the chat. The link shows its browser on that page, with one bar under it: a short line that says what to do now, the type box and *Hand back*. You type, or paste from your password manager. The assistant sees nothing you do until you tap *Hand back* ([live view](wiki/development/live-view.md)).
+- **You press the site's own Pay button.** You see the real total, and the assistant never presses Pay with your card. The view ends by itself at the site's receipt, or when you tap *Hand back*. The assistant then reads the page as text, with every card box hidden, and tells you whether the payment went through. It never asks you to pay again while the payment may have gone through ([pay or type a code](wiki/development/live-view.md#pay-or-type-a-code)).
+- **You sign in to a site in the live view, and the browser stays signed in.** The line says *Sign in to Netflix, then tap Hand back*. Next time, the browser is still signed in. A one-time code still comes through the chat or your email ([sign in](wiki/development/live-view.md#sign-in)).
+- **Every live view has the same bar: one line and *Hand back*.** A robot check, a stuck step, a payment and a sign-in all look the same. *I'm finished* becomes *Hand back*. To give up, tap *Hand back* and say so in the chat.
+- **On a Mac or a Windows computer, the browser shows in a window on your screen.** Your turn happens in that window, and you say *done* in the chat. Say *don't show the browser window* to turn it off for a computer you do not sit at; a step that needs you then ends with steps to finish in your own browser ([on a Mac or Windows](wiki/development/live-view.md#on-a-mac-or-windows)).
+- **The card form and the password page are gone.** The private key link for API keys stays. Saved everyday answers, such as your email and address, stay, and the chat still asks before it uses them ([saved details](wiki/development/saved-details.md)).
+
+**Updating.** The card form and the password page are gone. Saved passwords stop working: each site asks you to sign in once, in the live view, the next time it needs you. Sites already signed in in the assistant's browser stay signed in. After the update, the assistant asks you once whether to delete the old file of saved passwords, `~/.wong-stack/logins.json`, because it holds them in plain text. It deletes the file only if you say yes, and a delete can not be undone. On a Mac, the browser now opens in a window; say *don't show the browser window* to turn it off.
+
 ## 49.0.0 — Every schedule lives in the app
 
 - **Every schedule lives in your app, in one list.** Morning routines, weekly and monthly jobs, timed background jobs and one-time tasks all live in your company app. The app keeps what each one does, when it runs, whether it is on, its progress and every run. Your daily settings file holds no routines, and the repo holds no schedule files ([host schedules](wiki/stack/host-schedules.md)).

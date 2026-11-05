@@ -6,7 +6,7 @@ How this project plans, builds, and publishes changes.
 - [Staging](staging-walkthrough.md), [kept checks](kept-checks.md), [code improvement](repository-improvement.md), [daily](daily.md)
 - [Required tools](required-tools.md), [secrets](secrets.md)
 - [A teammate's first day](first-day/README.md)
-- [Browsing](browsing.md), [private form](private-form.md), [passwords](passwords.md), [login codes](login-codes.md), [steps for you to finish](finish-steps.md), [shopping](shopping.md), [live view](live-view.md)
+- [Browsing](browsing.md), [saved details](saved-details.md), [login codes](login-codes.md), [steps for you to finish](finish-steps.md), [shopping](shopping.md), [live view](live-view.md)
 - [Memory](memory.md), [memory dream](wiki-dream.md), [document retrieval](document-retrieval.md), [extraction](memory-extraction.md)
 
 Part of [the wiki](../README.md).

@@ -8,63 +8,26 @@ Let the agent use the person's own web accounts in a personal browser, with each
 
 ### Requirement: The person does each login once
 
-The agent SHALL log in with a login the person saved, then reuse the session. It SHALL NOT ask for a password in the chat, and SHALL NOT read, show, or write a password. Saved passwords SHALL live in one file in the person's home folder, outside any repo and readable only by their user, which only the password link writes and only the program that types a login reads. The agent SHALL learn only the names of saved logins and whether a login was accepted.
+The person SHALL sign in to a site once, in a live view or the browser's window, and the agent SHALL then reuse the browser's session. The agent SHALL NOT ask for a password in the chat, and SHALL NOT read, show, type, or store a password.
 
 #### Scenario: A later visit
 
-- **WHEN** a later task opens a site the person logged in to
-- **THEN** no login step is needed
+- **WHEN** a later task opens a site the person signed in to
+- **THEN** no sign-in step is needed
 
 #### Scenario: A password offered in the chat
 
 - **WHEN** the person starts typing a password into the chat
-- **THEN** the agent does not use or save it, and offers the password link instead
+- **THEN** the agent does not use or save it, and offers a live view to sign in instead
 
 ### Requirement: The agent confirms an outward browser action in the chat
 
-Before a browsing task publishes, sends, books, pays for, or deletes something, the agent SHALL ask the person in the chat, naming exactly what it will do, and SHALL act only on a yes. The person's own tap on a private form's button, which names the action, SHALL count as that yes for that action alone.
+Before a browsing task publishes, sends, books, pays for, or deletes something, the agent SHALL ask the person in the chat, naming exactly what it will do, and SHALL act only on a yes. A payment with the person's card SHALL be pressed by the person in a live view, after the chat's pay question.
 
 #### Scenario: Publishing a website
 
 - **WHEN** the agent has a website ready and the next click publishes it
 - **THEN** the chat asks whether to publish it now, the question waits however long the person takes, and the agent clicks publish only after a yes
-
-### Requirement: The person saves logins through a private password link
-When the person asks to save logins, the agent SHALL ask whether they are ready, then send a private link with every private link's safety: a new address and secret key each time, ending private input on successful completion, explicit closure, or after eight hours by default. The link's page SHALL be one screen that takes CSV password exports, dropped onto it or picked from the device, and logins typed or autofilled, into one list. The add-a-login boxes SHALL come before the place to drop or pick an export, on every password link. Its primary completion action SHALL save the selected pending logins, including a valid filled login not yet added to the list, and return to the requesting task in one tap. Failed saves SHALL stay open for correction and SHALL NOT announce readiness. For an export, the person's device SHALL read the file and list its sites with none ticked; a typed login SHALL join the list ticked. Only the ticked logins SHALL leave the device. The agent SHALL learn only the names of the saved sites.
-
-#### Scenario: An export with many sites
-
-- **WHEN** the person picks a Chrome export of 200 logins and ticks two
-- **THEN** only those two are saved, the other 198 never leave their device, and the agent names the two sites in the chat
-
-#### Scenario: One login from a phone
-
-- **WHEN** the person fills the page's add-a-login form from their phone's saved passwords and taps its save-and-continue action
-- **THEN** that login is saved and the requesting chat is notified, and no command, log, file in the repo, or chat message holds its password
-
-#### Scenario: An export plus a typed login
-
-- **WHEN** the person drops an export on a laptop, ticks one site from it, adds a login for a site the export lacks, and taps its save-and-continue action once
-- **THEN** both logins are saved, and the agent names both sites in the chat
-
-#### Scenario: A password link sent for no one site
-
-- **WHEN** the person asks to save their passwords and opens the link
-- **THEN** the add-a-login boxes come first and the place to drop an export comes after them
-
-### Requirement: The agent logs in with a saved login
-
-When a site asks for a login and a saved login matches the site, the agent SHALL use it without asking. When the site then asks for a one-time code or an app approval, the agent SHALL follow the login-code requirement. When the saved login is rejected, the agent SHALL send the password link with the site and that username filled in, so a new password replaces the old. When two saved logins match, it SHALL ask in the chat which to use.
-
-#### Scenario: A site logged the person out
-
-- **WHEN** a task finds a login page for a site with one saved login
-- **THEN** the agent logs in with it and carries on, asking the person nothing
-
-#### Scenario: A wrong saved password
-
-- **WHEN** the saved login is rejected
-- **THEN** the agent asks whether the person is ready and sends the password link with the site and username filled in
 
 ### Requirement: Completed private input wakes the originating workspace
 
@@ -100,99 +63,19 @@ When a task needs a website to get, create, reveal, copy, rotate, edit permissio
 - **WHEN** the owner connects Stripe and says yes to the agent using their own Chrome
 - **THEN** the agent makes the Stripe key in that Chrome, and no key-page picture or reading holds the key
 
-### Requirement: A login with no saved password gets a pre-filled password link
-
-When a site asks for a password login and no saved login matches, the agent SHALL ask whether the person is ready, then send the password link with the site's website filled in. When the site asks for the email or username on a page of its own before any password, the agent SHALL send that link at the first page, asking for the username and the password together, with the password optional; a login saved with no password SHALL type only the username, and a later password page SHALL get the password link with the username filled in. When the agent's browser shows a page on that site as the link opens, the page SHALL open with one picture of that page, taken before the link opens, which the person can view full screen and zoom; a page on another site SHALL give no picture. The page SHALL keep all its usual ways in, an export included, and SHALL carry the filled-in site and username only in the link, never to the server, a log, or a file. The inbox's listing of the link MAY name the site and carry it in its address, but SHALL never carry the username, so a link opened from the inbox asks for it. Once the person saves and continues, the agent SHALL log in with the saved login and carry on. When a login page offers only another provider's sign-in, the agent SHALL follow it to the provider's own login page and treat that page the same way.
-
-#### Scenario: A first login to a site
-
-- **WHEN** a task meets Netflix's login page and no saved login matches
-- **THEN** the person gets the password link with netflix.com already in the website box and a picture of Netflix's login page above it, fills only the username and password, and the agent logs in with them
-
-#### Scenario: A login that asks for the email first
-
-- **WHEN** a site's first login page shows only an email box and no saved login matches
-- **THEN** the agent asks nothing in the chat and sends one password link where the password is optional, then types the email, and the password too when one was given
-
-#### Scenario: A site with only a Sign in with Google button
-
-- **WHEN** the login page offers no password form and no saved Google login matches
-- **THEN** the agent opens Google's sign-in and sends the password link with Google's website filled in
-
-#### Scenario: The browser is on another site
-
-- **WHEN** the agent sends a password link for netflix.com while its browser shows a page on another site
-- **THEN** the page opens with no picture
-
-#### Scenario: Opened from the inbox
-
-- **WHEN** the password link for a rejected netflix.com login is opened from the inbox
-- **THEN** the page has netflix.com filled in and an empty username box, and the app never held the username
-
-### Requirement: A step that needs the person goes to the chat or a private form
-
-When a browsing step needs something only the person can give, the agent SHALL get it without showing or handing over its browser, except for a check that asks whether a person is present, a stuck login, a site step the agent's click can not get through, a private form's press, a password link's sign-in, and a PayPal approval. An ordinary form answer (an email, a name, an address, a choice, agreeing to terms) SHALL be asked in the chat and entered by the agent, and the agent SHALL NOT agree to terms without the person's yes; an email a login asks for SHALL follow the password link requirements instead. A sensitive value (payment card details, a backup or recovery code, or another lasting secret the page asks for) SHALL go through the private form. A password SHALL follow the password link requirements, a one-time code the login-code requirement, and an API key or token step the own-browser requirement. A check that asks whether a person is present (a tick box or a picture puzzle), and a stuck login, SHALL follow the live view requirement. A step only the person's own device can do (a passkey or a device check) SHALL NOT be attempted by the agent: the agent SHALL stop that step and hand it back in the chat as numbered steps for the person's own device: one action each, a direct link to the page for each step that has one, the site's own labels, and the details the agent already has, never an invented address. For every other step, the agent SHALL NOT offer a live view of its browser or remote control of it, including when the person asks to take over.
-
-#### Scenario: A payment page asks for an email, terms, and a card
-
-- **WHEN** a checkout page asks for an email, a terms tick, and card details
-- **THEN** the agent asks for the email and the terms in the chat, enters them itself, and sends a private form for the card details only
-
-#### Scenario: A picture puzzle
-
-- **WHEN** a site shows a picture puzzle
-- **THEN** the agent solves nothing, asks whether the person is ready, and sends a live view for the person to do the puzzle
-
-#### Scenario: A passkey
-
-- **WHEN** a site asks for a passkey
-- **THEN** the agent sends no private link, stops that step, and gives the person numbered steps, each with its link, to finish on their own device
-
-### Requirement: Every private link goes through Cloudflare and closes itself
-A password link, a key link, and a private form SHALL each open at a new address through Cloudflare's tunnel, with a secret key only the link carries, including when the person is at the computer the agent runs on. The agent SHALL give the person a link only once it answers from outside that computer. Each link SHALL default to a 24-hour time limit from opening and SHALL honor an explicit time override. A link SHALL stop working on successful completion, on closure, or at its time limit, even if the agent's session has ended, and a closed link SHALL never work again. When the computer can reach the person's inbox, every private link, a live view included, SHALL also be listed there while it is open, with its title, kind, closing time and address only; nothing typed into it SHALL pass through the app, and opening the link SHALL never wait on the listing.
-
-#### Scenario: The person sits at the agent's computer
-
-- **WHEN** the person asks to save a password while at the computer the agent runs on
-- **THEN** the link is a Cloudflare address, the same kind a phone would get
-
-#### Scenario: A card form while the inbox is on
-
-- **WHEN** a payment needs a card and the computer can reach the inbox
-- **THEN** the private form opens at a Cloudflare address, the inbox lists it with *Open* until it ends, and the card goes only from the person's device to the computer
-
-#### Scenario: Nobody finishes
-
-- **WHEN** 24 hours pass on a private form without a send or a close
-- **THEN** the link stops working, and the agent tells the person it timed out and offers a new one
-
-### Requirement: The agent pictures its browsing in the chat
-
-During a browsing task, the agent SHALL show the person a picture of the page in the chat at each key moment: a new page, right before an action that sends, books, or pays for something, and the result. It SHALL NOT show a picture after every action, nor repeat a page that has not changed. It SHALL keep the pictures out of the repo, and take none while a private form is open.
-
-#### Scenario: A booking
-
-- **WHEN** the agent opens a booking page, fills it, and books
-- **THEN** the chat shows the page, the filled form before booking, and the confirmation, each with a line saying what it shows
-
-#### Scenario: A card form mid-task
-
-- **WHEN** a private form is open for a payment's card details
-- **THEN** no picture appears until the site has answered
-
 ### Requirement: The agent gets a login code through the chat or email
 
-When a login the agent submitted reaches a one-time code step, the agent SHALL get the code from the person's email when the agent's browser is already signed in to it, else by asking in the chat, naming the site and where the code was sent, and SHALL enter the code itself. An emailed sign-in link SHALL be handled the same way. Reading email, it SHALL open only the newest message from that site, SHALL show no picture of the inbox, and SHALL say in the chat that it took the code from the email. It SHALL NOT log in to email to fetch a code. A backup or recovery code SHALL go through the private form, never the chat. For an approve-on-your-device prompt, it SHALL ask the person in the chat to approve and wait, with no link.
+When a sign-in reaches a one-time code step after the person's turn, the agent SHALL get the code from the person's email when the agent's browser is already signed in to it, else by asking in the chat, naming the site and where the code was sent, and SHALL enter the code itself. An emailed sign-in link SHALL be handled the same way. Reading email, it SHALL open only the newest message from that site, SHALL show no picture of the inbox, and SHALL say in the chat that it took the code from the email. It SHALL NOT sign in to email to fetch a code. A backup or recovery code SHALL be typed by the person in a live view, never the chat. For an approve-on-your-device prompt, it SHALL ask the person in the chat to approve and wait, with no link.
 
 #### Scenario: A code sent by text
 
-- **WHEN** the agent logs in with a saved password and the site texts a code to the person
+- **WHEN** the person handed back after signing in and the site then texts a code to the person
 - **THEN** the agent asks for the code in the chat, enters it, and carries on, sending no link
 
 #### Scenario: A code sent to an email the browser is not signed in to
 
-- **WHEN** the site emails a code and the agent's browser is logged out of that email
-- **THEN** the agent asks for the code in the chat and does not try to log in to the email
+- **WHEN** the site emails a code and the agent's browser is signed out of that email
+- **THEN** the agent asks for the code in the chat and does not try to sign in to the email
 
 ### Requirement: Logins persist in the personal browser
 
@@ -210,7 +93,7 @@ Once a site accepts the person's login in the personal browser, that login SHALL
 
 ### Requirement: Browsing tasks share the personal browser
 
-Two browsing tasks, or a task and a scheduled run, SHALL each use their own pages in the one personal browser and the same saved logins, without waiting on each other and without one closing the other's pages. Preview checks SHALL NOT use the personal browser or its logins.
+Two browsing tasks, or a task and a scheduled run, SHALL each use their own pages in the one personal browser and the same sign-ins, without waiting on each other and without one closing the other's pages. Preview checks SHALL NOT use the personal browser or its sign-ins.
 
 #### Scenario: A scheduled run during a task
 
@@ -220,7 +103,7 @@ Two browsing tasks, or a task and a scheduled run, SHALL each use their own page
 #### Scenario: A preview check
 
 - **WHEN** `/verify` walks a preview
-- **THEN** it uses its own temporary browser with none of the person's logins
+- **THEN** it uses its own temporary browser with none of the person's sign-ins
 
 ### Requirement: A site that refuses the browser ends with steps for the person
 
@@ -244,15 +127,6 @@ The agent SHALL run the personal browser with its usage and failure reporting sw
 
 - **WHEN** a site hangs or crashes a page during a task
 - **THEN** no report naming the site, even in hashed form, leaves the computer
-
-### Requirement: An update leaves earlier saved logins untouched
-
-An update that moves personal browsing to a new browser SHALL NOT delete, read, or copy the passwords and sessions the earlier browser held. The first task that meets a login on each site SHALL treat it as a site with no saved login.
-
-#### Scenario: A first errand after the update
-
-- **WHEN** a task opens a site the person had saved a login for before the update
-- **THEN** the agent asks whether they are ready and sends the password link with the site filled in, and the earlier store is unchanged
 
 ### Requirement: Personal browsing starts its own local forwarding proxy
 
@@ -284,7 +158,7 @@ An update adding the local proxy SHALL preserve existing saved logins and SHALL 
 
 ### Requirement: A live view shows the whole page and closes itself
 
-A live view SHALL show the page fitted to the person's screen, on a phone as on a laptop, with the check and its buttons in view, and SHALL put the page back as it was when it closes. It SHALL let the person type and paste into the page from a phone. It SHALL open at a new address through Cloudflare's tunnel with a secret only the link carries, SHALL show and accept nothing without that secret, and SHALL stop working when the site lets the person through, when the person closes it, or at its time limit, eight hours unless a shorter one is asked, even if the agent's session has ended. A closed link SHALL never work again.
+A live view SHALL show the page fitted to the person's screen, on a phone as on a laptop, with the step and its buttons in view, and SHALL put the page back as it was when it closes. It SHALL let the person type and paste into the page from a phone. It SHALL open at a new address through Cloudflare's tunnel with a secret only the link carries, SHALL show and accept nothing without that secret, and SHALL stop working when the site meets its finish, when the person taps *Hand back*, when the chat closes it, or at its time limit, eight hours unless a shorter one is asked, even if the agent's session has ended. A closed link SHALL never work again.
 
 #### Scenario: A puzzle on a phone
 
@@ -293,17 +167,17 @@ A live view SHALL show the page fitted to the person's screen, on a phone as on 
 
 #### Scenario: Nobody finishes
 
-- **WHEN** eight hours pass on a live view without the site letting the person through
+- **WHEN** eight hours pass on a live view without a finish or *Hand back*
 - **THEN** the link stops working, the page is put back as it was, and the agent tells the person it timed out and offers a new one
 
 ### Requirement: A page stays open while a private link is using it
 
-While a private form or a live view is open, the page it works on SHALL stay open for as long as the link does, however long the person leaves it untouched. Keeping it open SHALL type nothing, press nothing, and go to no other address, and SHALL read nothing the person typed.
+While a live view is open, the page it shows SHALL stay open for as long as the link does, however long the person leaves it untouched. Keeping it open SHALL type nothing, press nothing, and go to no other address, and SHALL read nothing the person typed.
 
 #### Scenario: A slow card
 
-- **WHEN** the person sends a private form seven minutes after it opened
-- **THEN** the details reach the site's fields on the page the form was made for
+- **WHEN** the person presses Pay in a live view seven minutes after it opened
+- **THEN** the site's page is the one the agent filled, with the person's card in its boxes
 
 #### Scenario: A puzzle left for an hour
 
@@ -326,7 +200,7 @@ When a start of the personal browser dies before it answers, the agent SHALL try
 
 ### Requirement: Every private input page starts calm
 
-A key link, a password link, and a private form SHALL share one look. Each SHALL open with a label naming it a private link and, above its first field, one plain line saying that what the person enters stays out of the chat. Each SHALL offer *Not now*, which closes the link as closing it does today. A key link and a private form SHALL show when they close as a time of day on the person's clock, naming the day when it is not today, counted in minutes only in their last ten minutes. A key page with several keys SHALL say how many are saved, and once every key is saved SHALL show that all is set.
+A key link SHALL open with a label naming it a private link and, above its first field, one plain line saying that what the person enters stays out of the chat. It SHALL offer *Not now*, which closes the link. It SHALL show when it closes as a time of day on the person's clock, naming the day when it is not today, counted in minutes only in its last ten minutes. A key page with several keys SHALL say how many are saved, and once every key is saved SHALL show that all is set.
 
 #### Scenario: A first-time key
 
@@ -335,7 +209,7 @@ A key link, a password link, and a private form SHALL share one look. Each SHALL
 
 #### Scenario: The last minutes
 
-- **WHEN** a private form has nine minutes left
+- **WHEN** a key link has nine minutes left
 - **THEN** the page shows *Closes in 9 min*, timed on the watcher's clock
 
 ### Requirement: A task no API can do goes to the browser
@@ -346,25 +220,6 @@ When no company action or saved key can do a task on a website, the agent SHALL 
 
 - **WHEN** a task needs a setting in a store app that no saved key or action can change
 - **THEN** the agent opens the store's admin in the personal browser and makes the change there, asking only for what needs the person
-
-### Requirement: A live view gets the person past a robot check or a stuck login
-
-When a site shows a check that asks whether a person is present, or a login stays stuck after the agent's own routes (the page stays on or returns to the login with no error message, no visible check, and no code or approval step), the agent SHALL ask the person whether they are ready and, on a yes, SHALL send a private link that shows its browser on that page and takes the person's taps and typing. A login rejected with a message SHALL instead follow the saved-login requirement. The agent SHALL NOT tick, solve, or otherwise answer a check. While the link is open the agent SHALL act on its browser in no way the person would see and SHALL take no picture, and the link SHALL save nothing the person types. When the site lets the person through, the link SHALL close and the requesting chat SHALL be notified as for any completed private input. Each site SHALL get one live view per task, for a check and a stuck login together; the site shown live by a private form or a password link SHALL NOT count as that view. On a machine that cannot show its browser, the agent SHALL give the person steps for their own device instead.
-
-#### Scenario: A login that keeps reloading
-
-- **WHEN** a site takes the saved email, then reloads its login page with no message or check
-- **THEN** the agent asks whether the person is ready, sends a live view, the person signs in there, and once the login page is gone the link closes and the agent carries on signed in
-
-#### Scenario: A check after a sign-in
-
-- **WHEN** a site accepts a saved password and then shows an "I'm not a robot" check
-- **THEN** the agent asks whether the person is ready, sends a live view, and once the person passes the check the link closes, the chat is notified, and the agent carries on signed in
-
-#### Scenario: A machine with no screen to show
-
-- **WHEN** a site shows such a check or a stuck login and the personal browser runs where it has no screen to show
-- **THEN** the agent sends no link and gives the person steps for their own device
 
 ### Requirement: Steps for the person carry only the steps
 
@@ -418,77 +273,6 @@ When the agent clicks a tick box, a radio choice, or a switch by its ref or a CS
 - **WHEN** the agent clicks a button by a CSS selector
 - **THEN** the browser reads that element once, then clicks once and reads nothing more
 
-### Requirement: A payment the site has not confirmed is never called refused
-
-When a private form's send has pressed the site's action and the site has not reached its finish within one minute, the form SHALL tell the phone and the chat that the site has not finished and that the person should not pay again. It SHALL keep watching the site without touching the page, up to 30 minutes while it shows the site live and ten minutes when it can not, and SHALL report in the chat as sent once the site reaches its finish. A page the browser cannot read SHALL count as unknown, never as the site refusing.
-
-#### Scenario: A slow card network
-
-- **WHEN** the site reaches its confirmation page two minutes after the press
-- **THEN** the phone said the site had not finished, the chat first said not to pay again, then said the payment went through, and the card boxes were never emptied
-
-#### Scenario: A page that moved without reaching the finish
-
-- **WHEN** after the press the site goes to another address that is not the named finish, or the browser can no longer read the page, and the watch ends
-- **THEN** nothing is emptied or sent again, and the agent says the payment is not confirmed and asks the person to check their email or bank before paying again
-
-### Requirement: A private form keeps a timing record without values
-
-Each private form send SHALL record how long each step took (each box, the press, and the wait for the site) and each private link SHALL record what ended it, on the agent's computer and outside the repo. The record SHALL hold no typed value, and it SHALL stay small by keeping only recent entries.
-
-#### Scenario: A slow send
-
-- **WHEN** a card send takes forty seconds
-- **THEN** the record shows which step took the time, and holds no digit of the card
-
-#### Scenario: A link that closed by itself
-
-- **WHEN** a link closes before anyone opens it
-- **THEN** the record names what closed it: a close command, a signal, the person's own close, or the time limit
-
-### Requirement: A saved login is typed only on its saved site
-
-The browser SHALL type a saved login's username or password only while the tab's page is on that login's saved host: the same host, `www.` dropped, or one sitting under the other. For a box in a frame, the frame's own site SHALL match the same way; a frame whose site can not be read SHALL count as another site. It SHALL check right before each value it types, so a page that moves to another site between the username and the password gets no password. On any other host it SHALL type nothing, submit nothing, and report `wrong-site`; the agent SHALL then treat the page as having no saved login.
-
-#### Scenario: A look-alike site
-
-- **WHEN** a login is saved for `bank.example` and the agent runs it on a page at `bank.example.attacker.example`
-- **THEN** the browser reports `wrong-site`, and neither the username nor the password is typed
-
-#### Scenario: The page moves after the email step
-
-- **WHEN** the username is typed on the saved site and the page is on another host before the password is typed
-- **THEN** the browser reports `wrong-site`, and the password is not typed
-
-#### Scenario: A box in the login site's own frame
-
-- **WHEN** a login is saved for `example.com` and its box is in a frame from `login.example.com` on a `shop.example.com` page
-- **THEN** the browser types into the box
-
-#### Scenario: A box in another site's frame
-
-- **WHEN** the page is on the login's site but the password box is in a frame from another site, or from a site that can not be read
-- **THEN** nothing is typed and the browser reports `wrong-site`
-
-### Requirement: A page reading never shows what a secret box holds
-
-Every way the agent reads a page's text SHALL show a filled secret box only as filled, never its contents. A box SHALL count as secret when it is a password box, when its label or kind names a password, passcode, PIN, card number, card expiry, security code, or one-time code, or when the agent's saved-login step typed a password into it, in the page or in any frame, even after the site switches it to plain text. The browser SHALL NOT keep a typed password in plain text or in a form that can be guessed back without the browser's private key. An empty secret box, a dropdown's picked choice, and every other box SHALL read as before.
-
-#### Scenario: A rejected login leaves the password typed
-
-- **WHEN** a saved login is rejected and the agent reads the login page, with the password still in its box
-- **THEN** the reading shows the password box as filled and hidden, and shows the username as typed
-
-#### Scenario: A card box the private form filled
-
-- **WHEN** the agent reads a checkout page whose card number box still holds the number the person sent through the private form
-- **THEN** that box reads as filled and hidden, by the page reading and by asking for that one box's contents
-
-#### Scenario: A frame shows the typed password as text
-
-- **WHEN** a login typed a password into a frame from another site, and the site then shows the box's value as text
-- **THEN** the page text shows `[hidden]` for that box
-
 ### Requirement: The link reaches the person in the turn's last message
 When `open` succeeds, it SHALL print, directly after the `HANDOVER_LINK=` line, one `HANDOVER_SEND=` line that tells the agent to run `wait` in the background and then end its turn with the link on its own line. The reminder SHALL hold no part of the link or its key. The agent SHALL put the `HANDOVER_LINK` value in the final message of the turn that opened it, and SHALL NOT send it only in text between tool calls. A failed or refused `open` SHALL print neither line.
 
@@ -514,20 +298,6 @@ The page text SHALL include the boxes of a frame from another site with their re
 - **WHEN** the page has no frame with boxes
 - **THEN** the page text has no frame note
 
-### Requirement: A login reports a next step apart from a wrong password
-
-After a password, a login SHALL report `accepted` when the page's address leaves the login page, `next-step` when it stays but the password box is gone, and `rejected` when it stays and the password box is still there.
-
-#### Scenario: A code page after the password
-
-- **WHEN** the page stays on the same address after the password and shows a code page with no password box
-- **THEN** the login reports `next-step`, not `rejected`
-
-#### Scenario: A wrong password
-
-- **WHEN** the page stays on the same address and still shows the password box
-- **THEN** the login reports `rejected`
-
 ### Requirement: A selector that can not read the page says why
 
 A command given a selector the page can not read SHALL fail with a plain reason: a selector reads only the main page, and a box in a frame needs its ref. It SHALL NOT fail with a code error.
@@ -537,59 +307,132 @@ A command given a selector the page can not read SHALL fail with a plain reason:
 - **WHEN** the agent runs `get count` with a selector that names a box inside a frame
 - **THEN** the command fails with that plain reason
 
-### Requirement: A login may try a sibling subdomain once on request
+### Requirement: Sensitive input is typed only on the real site in a live view
 
-When the agent passes `--main-domain`, the browser SHALL also type a saved login on a host that shares the saved host's main domain: its last two labels, or its last three under a country's own second level such as `co.uk`. It SHALL apply the same check to the tab and to each box's frame. A host with another main domain SHALL still get nothing and `wrong-site`. Without the flag, the saved-site rule SHALL apply unchanged.
+A payment card, a backup or recovery code, a password, and any other lasting secret a page asks for SHALL be typed by the person on the site's own page, in a live view of the agent's browser, never in the chat and never in a page of the agent's own. The agent SHALL first fill the page's ordinary answers and ask in the chat whether the person is ready, naming what the step is for. The live view SHALL show one short line saying what to do now. The agent SHALL NOT read, picture, or act on its browser from the moment the view opens until the person's turn ends. The turn SHALL end when the site meets the finish the agent named, when the person taps *Hand back*, when the chat closes it, or at its time limit. The agent SHALL learn only how the turn ended, then read the page afresh.
 
-#### Scenario: A sibling subdomain with the flag
+#### Scenario: A sign-in
 
-- **WHEN** a login is saved for `clinic.janeapp.com` and the agent runs it with `--main-domain` on `myodetox.janeapp.com`
-- **THEN** the browser types the login
-
-#### Scenario: A sibling subdomain without the flag
-
-- **WHEN** the agent runs the same login on `myodetox.janeapp.com` without the flag
-- **THEN** the browser reports `wrong-site` and types nothing
-
-#### Scenario: Another main domain with the flag
-
-- **WHEN** the agent runs the login with `--main-domain` on `janeapp.attacker.example`
-- **THEN** the browser reports `wrong-site` and types nothing
-
-### Requirement: A private form takes sensitive details and shows the site from the press
-
-For a sensitive value, the agent SHALL ask in the chat whether the person is ready, then send a private link to a form holding one box for each value it named, labelled as on the site, with a dropdown offering the site's own choices, a line saying what sending will do, and one button carrying the site's own action label. Each box SHALL carry the kind of value it holds, so a password manager or a phone's autofill can fill the form. Above the boxes, the form SHALL show one picture of the whole site page, taken as the link opens, before anything private is typed; the person SHALL be able to view it full screen, zoom, and move around it. Until its button is pressed, the form SHALL show no other view of the site; from the press, it SHALL show the site live where a live view can open. It SHALL offer no way to keep its details for next time. Every card payment SHALL go through a private form. The person's tap on that button SHALL enter the values in the site's fields and press the site's action once. The form SHALL end as sent or not confirmed once its button is pressed, and SHALL end as not accepted only when it pressed nothing. It SHALL NOT send again by itself, and the agent SHALL send no new form while the payment may have gone through.
-
-#### Scenario: A card from a phone
-
-- **WHEN** the person fills the card number, picks 03 and 2028 for the expiry, types the security code, and taps the form's *Pay $45.00* button on a phone
-- **THEN** the site's card fields receive those values, the site's pay action is pressed once, and the chat carries on with a picture of the receipt
-
-#### Scenario: No answer after the press
-
-- **WHEN** the site keeps the card page with its card boxes for the whole watch after the form sends
-- **THEN** the form never says the details were not accepted, nothing is sent a second time, and the agent checks the page before it offers any new form
-
-#### Scenario: Checking the page before paying
-
-- **WHEN** the person opens a card form on a phone and taps the picture above the boxes
-- **THEN** the site's whole page fills the screen with the email the agent typed and the card boxes still empty, and the person can zoom in, move around, and close it to return to the form
-
-### Requirement: Nothing a private form carries reaches the agent
-
-What the person types in a private form SHALL reach the site's fields without appearing in any command, file, log, message, or picture the agent can read, and SHALL NOT be read back or stored. A dropdown pick SHALL be one of the choices the agent named. While a private form is open or still watching the site, the agent SHALL send its browser no commands. The agent SHALL NOT read or picture the page between the form's send and the site's answer. After the press, the form SHALL empty no box, and the agent SHALL read the page only as text in which every card box is hidden, and take no picture while a box holds a typed value. When nothing was pressed, the boxes the form filled SHALL be emptied, and its dropdowns put back to the site's own choice, before the agent looks; the form SHALL empty nothing on a page that changed or could not be read. Beyond that text, the agent SHALL learn only the outcome.
-
-#### Scenario: A card typed into the form
-
-- **WHEN** the person types a card number into the private form and the site accepts it
-- **THEN** the number reaches the site's card field, appears in no command, file, log, or message the agent can read, and the next payment sends a new private form
+- **WHEN** a task meets Netflix's login page and the browser is not signed in
+- **THEN** the agent asks whether the person is ready, sends a live view whose line says to sign in and tap *Hand back*, the person signs in there, and the agent carries on signed in, never having seen the password
 
 #### Scenario: A backup code
 
 - **WHEN** a site asks for a backup code
-- **THEN** the agent does not ask for it in the chat, the person gives it through a private form, and the stored chat never holds it
+- **THEN** the agent does not ask for it in the chat, the person types it on the site in a live view, and the stored chat never holds it
 
-#### Scenario: A card the site kept
+### Requirement: The person presses a payment's button
 
-- **WHEN** the site keeps the card page after the press
-- **THEN** the card boxes keep what was typed, the agent reads the page only as text with every card box hidden, and nothing from the form is stored
+For a card payment, the person SHALL type the card and press the site's own pay button in the live view; the agent SHALL NOT press a button that pays with the person's card. The pay question in the chat, naming the purchase and its total, SHALL come before the view opens. After the turn, the agent SHALL read the page only as text in which every card box is hidden, SHALL take no picture while a card box holds a typed value, and SHALL tell the person whether the site accepted, declined, or can't be told. It SHALL NOT open another payment turn while the payment may have gone through.
+
+#### Scenario: A card from a phone
+
+- **WHEN** the person types a card in the live view, presses the site's *Pay $45.00*, and the site shows its receipt
+- **THEN** the view ends by itself, and the chat carries on with a picture of the receipt
+
+#### Scenario: Handed back with no receipt
+
+- **WHEN** the person taps *Hand back* while the site still shows its card page
+- **THEN** the agent reads the page as text with the card boxes hidden, takes no picture, and says the payment is not confirmed rather than asking the person to pay again
+
+### Requirement: On a computer with its own screen, the turn happens in the browser's window
+
+On a Mac or Windows computer, the agent's browser SHALL open in a window on the screen by default, and the person's turn SHALL happen in that window: the chat SHALL say what to do and to say *done*, and the turn SHALL end on the finish or on *done*. The person SHALL be able to turn the window off, taking effect at the next browser start, never by restarting a running browser. With the window off, a step that needs the person SHALL end with steps to finish in their own browser.
+
+#### Scenario: A sign-in on a Mac
+
+- **WHEN** a task on a Mac with the window on meets a login page
+- **THEN** no link is sent, the chat asks the person to sign in in the browser window and say *done*, and the agent carries on once the page shows them signed in
+
+#### Scenario: The window turned off
+
+- **WHEN** the person on a Mac has turned the window off and a site asks them to sign in
+- **THEN** the agent sends no link and gives them steps to finish in their own browser
+
+### Requirement: An update stops using saved passwords and offers to delete them
+
+An update that removes saved logins SHALL leave the saved-passwords file unread and untouched by code, and SHALL ask the person once whether to delete it, deleting it only on a yes. The browser's own sign-ins SHALL be kept.
+
+#### Scenario: Updating an install with saved logins
+
+- **WHEN** an install with saved logins takes the update
+- **THEN** the person is asked once whether to delete the saved-passwords file, the file stays unless they say yes, and sites already signed in in the browser stay signed in
+
+### Requirement: Every live view shows one line and Hand back
+
+Every live view SHALL show, in one bar under the site, one short line saying what the person should do now, the type box, and one *Hand back* button. *Hand back* SHALL end the turn and return the browser to the agent. When the step is not finished after *Hand back*, the agent SHALL ask in the chat before it takes a further step on that page. A paste anywhere on the view SHALL type into the box the person tapped.
+
+#### Scenario: A stuck step
+
+- **WHEN** the person taps through DigiKey's stuck *Continue* in a live view and taps *Hand back*
+- **THEN** the link ends, the chat is told, and the agent reads the page afresh
+
+#### Scenario: Give up on a payment
+
+- **WHEN** the person taps *Hand back* in a payment's live view without pressing Pay, and says in the chat to stop
+- **THEN** the link ends, the agent presses nothing on that page, and the chat says the payment was not finished
+
+### Requirement: A private link records what ended it without values
+
+Each private link SHALL record what ended it and how long it was open, on the agent's computer and outside the repo. The record SHALL hold no typed value, and SHALL stay small by keeping only recent entries.
+
+#### Scenario: A link that closed by itself
+
+- **WHEN** a link closes before anyone opens it
+- **THEN** the record names what closed it: a close command, a signal, the person's own close, or the time limit
+
+### Requirement: A step that needs the person goes to the chat or the live view
+
+When a browsing step needs something only the person can give, an ordinary answer (an email, a name, an address, a choice, agreeing to terms) SHALL be asked in the chat and entered by the agent, and the agent SHALL NOT agree to terms without the person's yes. A sensitive value, a sign-in, a check that asks whether a person is present, a site step the agent's click can not get through, and a PayPal approval SHALL go through a live view. A one-time code SHALL follow the login-code requirement, and an API key or token step the own-browser requirement. A step only the person's own device can do (a passkey or a device check) SHALL NOT be attempted by the agent: the agent SHALL stop that step and hand it back in the chat as numbered steps for the person's own device: one action each, a direct link to the page for each step that has one, the site's own labels, and the details the agent already has, never an invented address.
+
+#### Scenario: A payment page asks for an email, terms, and a card
+
+- **WHEN** a checkout page asks for an email, a terms tick, and card details
+- **THEN** the agent asks for the email and the terms in the chat, enters them itself, and sends a live view for the card only
+
+#### Scenario: A passkey
+
+- **WHEN** a site asks for a passkey
+- **THEN** the agent sends no private link, stops that step, and gives the person numbered steps, each with its link, to finish on their own device
+
+### Requirement: Every private link opens through Cloudflare and closes itself
+
+A key link and a live view SHALL each open at a new address through Cloudflare's tunnel, with a secret key only the link carries, including when the person is at the computer the agent runs on. The agent SHALL give the person a link only once it answers from outside that computer. A key link SHALL default to a 24-hour time limit from opening, a live view to eight hours, and each SHALL honor an explicit time override. A link SHALL stop working on its finish, on closure, or at its time limit, even if the agent's session has ended, and a closed link SHALL never work again. When the computer can reach the person's inbox, every private link SHALL also be listed there while it is open, with its title, kind, closing time and address only; nothing typed into it SHALL pass through the app, and opening the link SHALL never wait on the listing.
+
+#### Scenario: The person sits at the agent's computer
+
+- **WHEN** the person needs to sign in to a site while at the computer the agent runs on
+- **THEN** the live view's link is a Cloudflare address, the same kind a phone would get
+
+#### Scenario: Nobody finishes
+
+- **WHEN** 24 hours pass on a key link without a save or a close
+- **THEN** the link stops working, and the agent tells the person it timed out and offers a new one
+
+### Requirement: The agent pictures its browsing in the chat, never a typed card
+
+During a browsing task, the agent SHALL show the person a picture of the page in the chat at each key moment: a new page, right before an action that sends, books, or pays for something, and the result. It SHALL NOT show a picture after every action, nor repeat a page that has not changed. It SHALL keep the pictures out of the repo, take none while a live view is open, and take none while a card box holds a typed value.
+
+#### Scenario: A booking
+
+- **WHEN** the agent opens a booking page, fills it, and books
+- **THEN** the chat shows the page, the filled form before booking, and the confirmation, each with a line saying what it shows
+
+#### Scenario: A card left on the page
+
+- **WHEN** the person hands back a payment's live view with the card still in the site's boxes
+- **THEN** no picture appears until the card boxes are gone or empty
+
+### Requirement: A page reading hides every filled secret box
+
+Every way the agent reads a page's text SHALL show a filled secret box only as filled, never its contents. A box SHALL count as secret when it is a password box, or when its label or kind names a password, passcode, PIN, card number, card expiry, security code, or one-time code, in the page or in any frame, even after the site switches it to plain text. An empty secret box, a dropdown's picked choice, and every other box SHALL read as before.
+
+#### Scenario: A card box the person filled
+
+- **WHEN** the agent reads a checkout page whose card number box still holds the number the person typed in a live view
+- **THEN** that box reads as filled and hidden, by the page reading and by asking for that one box's contents
+
+#### Scenario: A frame shows the typed password as text
+
+- **WHEN** the person typed a password into a frame from another site, and the site then shows the box's value as text
+- **THEN** the page text shows `[hidden]` for that box

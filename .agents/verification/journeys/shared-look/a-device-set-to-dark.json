@@ -13,7 +13,6 @@
     ".agents/skills/hand-over/scripts/hand-over.mjs",
     ".agents/skills/hand-over/scripts/keys-page.html",
     ".agents/skills/hand-over/scripts/keys-page.mjs",
-    ".agents/skills/hand-over/scripts/passwords-page.html",
     ".agents/skills/hand-over/scripts/private-page.css",
     ".agents/skills/hand-over/scripts/reply-link.mjs",
     ".agents/skills/hand-over/scripts/view-page.html",

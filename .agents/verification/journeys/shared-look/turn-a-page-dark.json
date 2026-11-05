@@ -10,11 +10,8 @@
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
-    ".agents/skills/hand-over/scripts/form-page.html",
     ".agents/skills/hand-over/scripts/hand-over.mjs",
     ".agents/skills/hand-over/scripts/keys-page.html",
-    ".agents/skills/hand-over/scripts/passwords-page.html",
-    ".agents/skills/hand-over/scripts/view-page.html",
     ".agents/skills/plan/references/look.css",
     ".agents/skills/plan/references/review-kit.html",
     ".agents/skills/plan/references/theme.js",

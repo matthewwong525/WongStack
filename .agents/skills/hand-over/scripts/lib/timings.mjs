@@ -1,10 +1,10 @@
-// The private form's timing record: one JSON line per step or link ending, kept beside result.json and never committed.
-// It takes only the fields named here, so no typed value or error text can reach it.
+// The private links' timing record: one JSON line per link, saying what ended it and how long it was open, kept beside
+// result.json and never committed. It takes only the fields named here, so no typed value or error text can reach it.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 
 export const KEEP = 500;
-const FIELDS = ['link', 'step', 'index', 'kind', 'ms', 'ok', 'ended', 'cause'];
+const FIELDS = ['link', 'ended', 'cause', 'ms'];
 
 /** Appends `entry` to `file` with the time, keeping the last `keep` lines, readable by its owner alone. */
 export function appendTiming(file, entry, { keep = KEEP, now = Date.now() } = {}) {

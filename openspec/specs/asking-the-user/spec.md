@@ -82,7 +82,7 @@ A reply that hands control back SHALL end with the decision that moves the work 
 
 #### Scenario: A link the person needs
 
-- **WHEN** a reply gives the person a link, such as a pull request, a key link, or a private form, and ends with a question card
+- **WHEN** a reply gives the person a link, such as a pull request, a key link, or a live view, and ends with a question card
 - **THEN** the full link is a line of chat text above the card, and neither the card's question nor its options holds the address
 
 ### Requirement: Plans, asks, and reports use plain words

@@ -35,7 +35,7 @@ A reply link SHALL open either in the person's inbox, reached only through their
 
 ### Requirement: Reply links and private links stay apart
 
-An open reply link SHALL never stop a key link, a password link, or a private form from opening, nor the reverse, and several pages MAY hold reply links at once. A reply link SHALL never be used to collect a secret, and nothing in this capability SHALL let a private link's page content reach the chat.
+An open reply link SHALL never stop a key link or a live view from opening, nor the reverse, and several pages MAY hold reply links at once. A reply link SHALL never be used to collect a secret, and nothing in this capability SHALL let a private link's page content reach the chat.
 
 #### Scenario: A key is needed during a review
 

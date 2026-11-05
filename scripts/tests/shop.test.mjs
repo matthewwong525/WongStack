@@ -198,7 +198,7 @@ test('guide reads Shop\'s guide from the command, whole or one reference', t => 
 });
 
 const REFUSED = [
-  [['spend-request', 'create', '--business-name', 'A'], /hands the assistant a card number/],
+  [['spend-request', 'create', '--business-name', 'A'], /hands the assistant a card number; the person types a card .* in the live view/],
   [['spend-request', 'get', 'sr-1', '--wait', '90'], /hands the assistant a card number/],
   [['spend-request', '--help'], /hands the assistant a card number/],
   [['checkout', 'complete', CHECKOUT, '--shop', STORE, '--instrument', '{}'], /`shop\.mjs pay` is the one pay step/],

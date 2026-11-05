@@ -137,6 +137,7 @@ When a private key link requests several keys, it SHALL remain usable until all 
 - **THEN** the two saved keys are reported by name and one automatic completion notification is attempted for the requesting workspace
 
 ### Requirement: The key link waits for the person
+
 A key link SHALL stay open for 24 hours by default from when it is opened, and its page SHALL show the time left. An explicit time override SHALL be honored. A key link nobody has opened SHALL close at once when another private link is opened on the same computer; the agent SHALL then say the link closed and offer a new one. An opened key link SHALL keep its place: a second link SHALL NOT open until it ends.
 
 #### Scenario: A slow sign-in at the service
@@ -146,8 +147,8 @@ A key link SHALL stay open for 24 hours by default from when it is opened, and i
 
 #### Scenario: A link nobody opened
 
-- **WHEN** a key link sits unopened and another chat on the same computer needs a password link
-- **THEN** the key link closes, the password link opens, and the first chat says its link closed and offers a new one
+- **WHEN** a key link sits unopened and another chat on the same computer needs a live view
+- **THEN** the key link closes, the live view opens, and the first chat says its link closed and offers a new one
 
 ### Requirement: The key page carries the steps
 

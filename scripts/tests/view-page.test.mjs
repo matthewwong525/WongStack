@@ -52,7 +52,7 @@ function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wid
       calls.push({ path, key: init.headers?.['x-hand-over-key'], body });
       if (path === 'view') return view ? answer(200, view) : answer(410);
       if (path === 'fit') return FITS[body.fit] ? answer(200, { fit: FITS[body.fit] }) : answer(400);
-      if (path === 'done') return answer(200, { ok: true });
+      if (path === 'give') return answer(200, { control: 'assistant' });
       return answer(...(receipts.shift() ?? [404]));
     };
   } });
@@ -79,6 +79,13 @@ function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wid
       $('#text').dispatchEvent(event);
       return event.defaultPrevented;
     },
+    /** A paste of `text` on `target`; resolves to whether the page took it for itself. */
+    paste(text, target = $('#holder')) {
+      const event = new dom.window.Event('paste', { bubbles: true, cancelable: true });
+      event.clipboardData = { getData: kind => (kind === 'text/plain' ? text : '') };
+      target.dispatchEvent(event);
+      return event.defaultPrevented;
+    },
   };
 }
 
@@ -101,15 +108,15 @@ test('the page fits a phone and loads only the viewer\'s core, never its own pag
   assert.deepEqual(style.match(/(?<!max-)width:\s*\d+px/g), null, 'nothing is wider than the screen it is on');
   assert.match(style, /#holder \{[^}]*overflow: hidden/, 'the holder cuts the screen to the page\'s strip');
   assert.deepEqual(source.match(/import\(/g), null, 'the script loads nothing more');
-  assert.match(markup, /<head>[\s\S]*<script src="theme\.js"><\/script>[\s\S]*<\/head>/, 'the light and dark switch, in the head');
-  const tags = markup.match(/<script[\s\S]*?<\/script>/g).filter(tag => !tag.includes('src="theme.js"'));
+  assert.doesNotMatch(markup, /theme\.js|data-theme-toggle/, 'no light and dark switch on the view');
+  const tags = markup.match(/<script[\s\S]*?<\/script>/g);
   assert.equal(tags.length, 1, 'one tag loads the viewer, then the page: as two tags the page ran before the viewer had loaded');
   assert.deepEqual(tags[0].match(/import\('[^']+'\)/g), ['import(\'./novnc/core/rfb.js\')', 'import(\'./page.mjs\')'], 'the viewer\'s core and the page, in that order, and nothing else');
   assert.match(tags[0], /if \(tries < 2\) location\.reload\(\);/, 'a viewer that fails to load is tried again twice');
   assert.doesNotMatch(markup + source, /vnc\.html|vnc_lite|app\/|ui\.js|noVNC_clipboard|navigator\.clipboard/, 'the viewer\'s own page and clipboard panel are never loaded');
   for (const label of ['Tap a box above, then type here', CONNECTING]) assert.ok(markup.includes(label), label);
-  assert.deepEqual(markup.match(/<button[^>]*>/g), ['<button type="button" id="viewed">'], 'one button, in the line a kept-open or paying view shows');
-  assert.match(markup, /<div id="line" hidden>/, 'a plain view is the browser and one box');
+  assert.deepEqual(markup.match(/<button[^>]*>/g), ['<button type="button" id="hand" class="btn-primary">'], 'one button: Hand back');
+  assert.match(markup, /<div id="bar">\s*<p id="line-text" role="status"><\/p>/, 'every view is the person\'s turn: the line always shows, in the bottom bar');
 });
 
 test('while it connects the page shows one line, reports its shape, and opens the screen with the key as the subprotocol', async t => {
@@ -149,7 +156,7 @@ test('the key leaves the page only in the header of its own requests and as the 
 test('live, the page shows the note as text and a phone gets the page\'s strip scaled to its width', async t => {
   const p = await live(t);
   assert.deepEqual(p.shown(), { live: true, line: '' });
-  assert.equal(p.$('#view').textContent.includes(NOTE), false, 'the note is the title only: the page is the browser');
+  assert.equal(p.$('#line-text').textContent, NOTE, 'the note is the line in the bottom bar');
   assert.equal(p.window.document.title, NOTE);
   assert.equal(p.window.document.body.classList.contains('wide'), false);
   assert.deepEqual([p.$('#screen').style.width, p.$('#screen').style.height, p.$('#holder').style.height], ['976px', '549px', '549px'], '366 across a 480 strip: the whole 1280x720 screen at that scale, cut off past the strip');
@@ -159,6 +166,7 @@ test('live, the page shows the note as text and a phone gets the page\'s strip s
   const marked = await live(t, { view: { note: bold, fit: FITS.wide } });
   assert.equal(marked.window.document.title, bold);
   assert.equal(marked.$('#view img, #view b'), null);
+  assert.equal(marked.$('#line-text').textContent, bold, 'as text, never as markup');
   const bare = await live(t, { view: { fit: FITS.wide } });
   assert.equal(bare.window.document.title, 'Live view');
 });
@@ -197,7 +205,8 @@ const keys = viewer => viewer.calls.map(([name, keysym, code, down]) => { assert
 test('the box types straight into the browser as it changes, with no send', async t => {
   const p = await live(t);
   const [viewer] = p.viewers;
-  assert.deepEqual([...p.$('#type').children].filter(part => !part.matches('[data-theme-toggle]')).map(part => part.id), ['text'], 'one box and the switch, nothing else');
+  assert.deepEqual([...p.$('#type').children].map(part => part.id), ['text', 'hand'], 'the box, then Hand back beside it');
+  assert.deepEqual([...p.$('#bar').children].map(part => part.id), ['line-text', 'type'], 'the line above the box, all in the bottom bar');
   p.type('h');
   p.type('hi');
   assert.deepEqual(keys(viewer), [0x68, 0x69]);
@@ -249,6 +258,30 @@ test('once the site lets the person through, the page ends on Done', async t => 
   const quiet = await live(t, { receipts: [[200, { result: 'done', notification: 'unavailable' }]] });
   await quiet.viewers[0].emit('disconnect');
   assert.equal(quiet.shown().line, 'Done. Go back to the chat, and say continue.');
+});
+
+test('Hand back ends the turn: the button goes quiet, and the receipt says it is done', async t => {
+  const p = await live(t, { receipts: [[200, { result: 'handed-back', notification: 'notified' }]] });
+  p.$('#hand').click();
+  await settle();
+  assert.deepEqual(p.calls.at(-1), { path: 'give', key: 'secret', body: {} });
+  assert.equal(p.$('#hand').disabled, true, 'one press: the turn ends once');
+  assert.equal(p.$('#stop'), null, 'no Stop: to give up, the person hands back and says so in the chat');
+  await p.viewers[0].emit('disconnect');
+  assert.deepEqual(p.shown(), { live: false, line: DONE });
+});
+
+test('a paste anywhere on the view types into the browser; a paste in the box is the box\'s own', async t => {
+  const p = await live(t);
+  const [viewer] = p.viewers;
+  const chord = new p.window.KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true });
+  p.$('#screen').dispatchEvent(chord);
+  assert.equal(p.paste('a1'), true);
+  const ups = viewer.calls.slice(0, 6);
+  assert.deepEqual(ups.map(call => [call[2], call[3]]), ['ControlLeft', 'ControlRight', 'MetaLeft', 'MetaRight', 'MetaLeft', 'MetaRight'].map(code => [code, false]), 'the held Ctrl or Cmd is let go first');
+  assert.deepEqual(keys({ calls: viewer.calls.slice(6) }), [0x61, 0x31]);
+  assert.equal(p.paste('b', p.$('#text')), false, 'the box types its own paste');
+  assert.equal(p.paste(''), false, 'nothing to paste');
 });
 
 test('a link that closed, timed out, or stopped answering ends on the closed line', async t => {
@@ -319,7 +352,8 @@ test('the pure helpers: the shape a width reports, and the closing line', () => 
   assert.deepEqual([shapeOf(320), shapeOf(699), shapeOf(700), shapeOf(1440)], ['phone', 'phone', 'wide', 'wide']);
   assert.equal(ending({ result: 'done', notification: 'notified' }), DONE);
   assert.equal(ending({ result: 'done', notification: 'unconfirmed' }), 'Done. Go back to the chat, and say continue.');
-  for (const receipt of [{ result: 'closed' }, { result: 'timeout' }, { result: 'error' }, null, undefined]) assert.equal(ending(receipt), CLOSED);
+  assert.equal(ending({ result: 'handed-back', notification: 'notified' }), DONE);
+  for (const receipt of [{ result: 'stopped' }, { result: 'closed' }, { result: 'timeout' }, { result: 'error' }, null, undefined]) assert.equal(ending(receipt), CLOSED);
   assert.deepEqual(strokes('', 'aÿ'), [0x61, 0xff]);
   assert.deepEqual(strokes('a', 'a名\n'), [0x01000000 + 0x540d, ENTER], 'past Latin-1, X\'s Unicode keysym; a line break is Enter');
   assert.deepEqual(strokes('😀x', '😀'), [BACK], 'one Backspace per character, not per code unit');

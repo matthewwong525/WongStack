@@ -7,7 +7,7 @@ Every page WongStack draws, inside the app or as a standalone page, looks like o
 
 ### Requirement: Standalone pages take the app's look
 
-The plan review page, the key link, the password link, the private form, and a closed link's page SHALL use the app's colours, read from the app's one stylesheet when it is present and shadcn's neutral colours when it is not. Each SHALL start light whatever the device's setting, draw its buttons, fields, cards, and tags in the same shapes as the app's ready-made parts, and give each screen state one filled primary action. Red SHALL mark only a problem. A standalone page SHALL still load nothing from the network.
+The plan review page, the key link, the live view, and a closed link's page SHALL use the app's colours, read from the app's one stylesheet when it is present and shadcn's neutral colours when it is not. Each SHALL start light whatever the device's setting, draw its buttons, fields, cards, and tags in the same shapes as the app's ready-made parts, and give each screen state one filled primary action. Red SHALL mark only a problem. A standalone page SHALL still load nothing from the network.
 
 #### Scenario: A rebranded app carries its colours
 
@@ -39,7 +39,7 @@ While the app's screens or the key page wait for their content, they SHALL show 
 
 ### Requirement: A light and dark switch on every page
 
-The app's pages, every mini app's included, the plan review page, and the key, password, form, and view pages SHALL show one button in the top right that switches between light and dark. It SHALL show a moon while light and a sun while dark, carry an accessible name saying what it switches to, and be at least 44 pixels square. A tap SHALL switch the page at once without a reload, and the browser SHALL remember the choice for that site so the next page opened there starts in it, with no flash of the other look. Dark SHALL use the dark colour set in the app's stylesheet, falling back to shadcn's neutral dark, with readable text. A closed link's page SHALL carry no switch.
+The app's pages, every mini app's included, the plan review page, and the key page SHALL show one button in the top right that switches between light and dark. It SHALL show a moon while light and a sun while dark, carry an accessible name saying what it switches to, and be at least 44 pixels square. A tap SHALL switch the page at once without a reload, and the browser SHALL remember the choice for that site so the next page opened there starts in it, with no flash of the other look. Dark SHALL use the dark colour set in the app's stylesheet, falling back to shadcn's neutral dark, with readable text. A closed link's page and the live view SHALL carry no switch; the live view always shows light.
 
 #### Scenario: Turn a page dark
 

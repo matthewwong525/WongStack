@@ -22,7 +22,7 @@ Each tool goes in one group:
 
 - **Works now.** The app can already use it. One look-up shows it working.
 - **Waiting.** The app does not know it yet, its key is not saved, or you have no level for it. On the owner's computer, the helper adds it ([add a new tool](#add-a-new-tool-with-no-publish)). On a teammate's computer, it writes [a message for the owner](#a-teammates-computer).
-- **Not connected yet.** A website with no API, a tool that offers only a sign-in, or your own mail, such as Gmail. You keep using it yourself. The helper signs in to no such site and sends no password link.
+- **Not connected yet.** A website with no API, a tool that offers only a sign-in, or your own mail, such as Gmail. You keep using it yourself. The helper signs in to no such site and sends no live view.
 
 It ends with a short list:
 
