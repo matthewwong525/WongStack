@@ -13,6 +13,7 @@ const scripts = {
   'scripts/company-api.mjs': [],
   'scripts/employee-bootstrap.mjs': [],
   'scripts/evaluate-document-retrieval.mjs': [],
+  '.agents/skills/connect/scripts/chrome.mjs': [],
   '.agents/skills/memory/scripts/operations.mjs': [],
   'scripts/measure-context.mjs': [],
   'scripts/check-openspec-config.mjs': [],

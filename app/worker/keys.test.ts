@@ -1,19 +1,11 @@
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
+import { keyProblems, undescribed } from "./key-rules";
 import { keys } from "./keys";
 
 // The core's own key for the sign-in list is no business key: no route lists it and Access shows no level for it.
 const CORE = ["WONG_ACCESS_LOGIN_MANAGEMENT"];
 type Registry = Record<string, { secrets: readonly string[] }>;
-type Described = Record<string, { purpose?: string; docs?: string; forward?: object }>;
-
-/** Each key with no one-line purpose, or used directly with no HTTPS API guide, named. */
-const undescribed = (registry: Described) => Object.entries(registry).flatMap(([id, key]) => [
-  ...(!key.purpose?.trim() || key.purpose.length > 80 || /\n/.test(key.purpose) ? [`${id}: needs a purpose of one line, at most 80 characters`] : []),
-  ...(key.docs !== undefined && !/^https:\/\/[^\s]+$/.test(key.docs) ? [`${id}: docs must be an HTTPS address`] : []),
-  ...(key.forward && key.docs === undefined ? [`${id}: a key used directly needs docs, the service's API guide`] : []),
-]);
-
 /** The names a file declares, and the setup-made `WONG_` names it keeps commented out. */
 const names = (text: string) => [...text.matchAll(/^(?:# (?=WONG_)|export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/gm)]
   .map(match => match[1]).filter(name => !CORE.includes(name));
@@ -46,7 +38,10 @@ it("fails for a name no key covers and for a name two keys cover, and passes a c
 });
 
 it("every key says what it is for, and a key used directly links its service's API guide", () => {
-  expect(undescribed(keys)).toEqual([]);
+  expect(keyProblems(keys)).toEqual([]);
+  // The checks hold the code's keys to the same rules, naming the key.
+  expect(keyProblems({ notion: { purpose: "Team notes", docs: "https://developers.notion.example/", secrets: ["NOTION_TOKEN"],
+    forward: { base: "http://api.notion.example/", secret: "NOTION_TOKEN", header: "Authorization" } } })).toEqual(["notion: base must be an HTTPS address ending in /"]);
   expect(keys.cloudflare.docs).toBe("https://developers.cloudflare.com/api/");
   expect(undescribed({ stripe: {}, blank: { purpose: " " }, long: { purpose: "x".repeat(81) }, two: { purpose: "a\nb" } })).toEqual([
     "stripe: needs a purpose of one line, at most 80 characters", "blank: needs a purpose of one line, at most 80 characters",

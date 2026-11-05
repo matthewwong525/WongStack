@@ -14,7 +14,7 @@ import {
   WranglerConfigError,
 } from "./lib-wrangler-config.mjs";
 import { parseCli, usageError } from "./lib-cli.mjs";
-import { PRODUCTION_ONLY_SECRETS, SOURCE, STAGING_SOURCE, readKeyNames, secretsDir as findSecretsDir, stagingKeeps } from "./lib-staging-secrets.mjs";
+import { SOURCE, STAGING_SOURCE, TOOL_SECRET, liveOnly, readKeyNames, secretsDir as findSecretsDir, stagingKeeps } from "./lib-staging-secrets.mjs";
 
 const STAGING_ENV = "staging";
 // Setup stores the read-only Cloudflare key itself; no file holds it.
@@ -86,9 +86,12 @@ function readKeyDigests(file) {
 }
 
 // WONG_WRANGLER is the deploy side's own install of the default branch's wrangler, as in lib-wrangler-config.sh.
-function wrangler(args, { cwd, capture = false }) {
+const wranglerCall = (args) => {
   const [command, ...first] = process.env.WONG_WRANGLER ? [process.env.WONG_WRANGLER] : ["npx", "wrangler"];
-  return execFileSync(command, [...first, ...args], {
+  return [command, [...first, ...args]];
+};
+function wrangler(args, { cwd, capture = false }) {
+  return execFileSync(...wranglerCall(args), {
     cwd,
     encoding: "utf8",
     stdio: capture ? ["ignore", "pipe", "pipe"] : "inherit",
@@ -191,7 +194,7 @@ function push(appDir, override) {
   if (stagingFile) targets.push({ env: STAGING_ENV, label: STAGING_ENV, file: stagingFile });
 
   const stagingBindings = [...bindingsIn(config.env?.[STAGING_ENV]).values()].flat();
-  const configured = stagingBindings.filter((name) => PRODUCTION_ONLY_SECRETS.has(name));
+  const configured = stagingBindings.filter((name) => liveOnly(name));
   if (configured.length > 0) fail(`env.${STAGING_ENV} must not name ${configured.join(", ")}: only the live app may hold ${configured.length > 1 ? "them" : "it"}.`);
   for (const target of targets) validateSource(target.file);
   if (stagingFile) validateStagingSource(stagingFile, source);
@@ -262,7 +265,7 @@ function validateSource(file) {
 
 /** Refuses a staging file that hands previews a live-app key: a production-only name, or production's value. */
 function validateStagingSource(file, productionFile) {
-  const own = readKeyNames(file).filter((name) => PRODUCTION_ONLY_SECRETS.has(name));
+  const own = readKeyNames(file).filter((name) => liveOnly(name));
   if (own.length > 0) {
     fail(`${basename(file)} must not declare ${own.join(", ")}: only the live app may hold ${own.length > 1 ? "them" : "it"}. Remove the line and re-run.`);
   }
@@ -349,7 +352,7 @@ function checkBindings(config) {
   for (const [key, names] of production) {
     const present = stagingBindings.get(key) ?? [];
     for (const name of names) {
-      if (!present.includes(name) && !name.startsWith(PRODUCTION_ONLY) && !PRODUCTION_ONLY_SECRETS.has(name)) {
+      if (!present.includes(name) && !name.startsWith(PRODUCTION_ONLY) && !liveOnly(name)) {
         problems.push(
           `\`${key}\` binding '${name}' is declared at the top level but absent from env.${STAGING_ENV} — an environment inherits no binding it does not redeclare, so staging simply does not have it.`,
         );
@@ -358,7 +361,7 @@ function checkBindings(config) {
   }
 
   for (const names of stagingBindings.values()) {
-    for (const name of names) if (PRODUCTION_ONLY_SECRETS.has(name)) problems.push(`staging binding '${name}' is a live-app-only authority, such as private Access management; remove it.`);
+    for (const name of names) if (liveOnly(name)) problems.push(`staging binding '${name}' is a live-app-only authority, such as private Access management; remove it.`);
   }
   problems.push(...checkQueueConsumers(config, staging));
   problems.push(...checkStagingDurableObjects(staging));
@@ -443,13 +446,13 @@ function checkSecrets(appDir, config) {
     if (name === 'SKIP_AUTH' || name === 'WONG_ENVIRONMENT') problems.push(`secret '${name}' overrides deployed authentication configuration; remove it before deploying.`);
   }
   // Previews get only the keys their own file gives them, so a key missing there is expected, not drift.
-  const lacking = production.filter((name) => !staging.includes(name) && !PRODUCTION_ONLY_SECRETS.has(name));
+  const lacking = production.filter((name) => !staging.includes(name) && !liveOnly(name));
   if (lacking.length > 0) console.log(`cf-secrets: previews lack ${lacking.join(", ")}`);
   // An install not yet split still holds its old copies: the live app keeps publishing until the Access step runs.
   const split = !accessShared(config);
   for (const name of staging) {
-    if (PRODUCTION_ONLY_SECRETS.has(name) && split) problems.push(`secret '${name}' must never be set on staging; remove it.`);
-    else if (PRODUCTION_ONLY_SECRETS.has(name)) warn(`secret '${name}' is still on staging, where only the live app may hold it: ${ACCESS_STEP}, which removes it.`);
+    if (liveOnly(name) && split) problems.push(`secret '${name}' must never be set on staging; remove it.`);
+    else if (liveOnly(name)) warn(`secret '${name}' is still on staging, where only the live app may hold it: ${ACCESS_STEP}, which removes it.`);
     else if (!production.includes(name)) {
       problems.push(`secret '${name}' is set on ${STAGING_ENV} but missing from production.`);
     }
@@ -468,13 +471,13 @@ function checkSecrets(appDir, config) {
     }
     for (const name of held) {
       // Setup stores its keys itself, so the example file need not list them.
-      if (!declared.includes(name) && !PRODUCTION_ONLY_SECRETS.has(name)) {
+      if (!declared.includes(name) && !liveOnly(name)) {
         warn(`secret '${name}' is set but not declared in ${EXAMPLE}.`);
       }
     }
   }
 
-  if (problems.length === 0 && !staging.some((name) => PRODUCTION_ONLY_SECRETS.has(name))) {
+  if (problems.length === 0 && !staging.some((name) => liveOnly(name))) {
     console.log(
       `cf-secrets: staging holds only its own keys (${staging.length} of production's ${production.length} name(s))`,
     );
@@ -535,8 +538,31 @@ function shared(appDir) {
   for (const [label, names] of Object.entries(lists)) console.log(`${label}: ${[...new Set(names)].sort().join(" ")}`);
 }
 
+// One tool's key, read from stdin so no command line, log or chat holds it, put on the live app alone. A put refused
+// as 10215 (a newer version waits) goes on that version, live at the next publish. wiki/stack/connect-your-tools.md
+function putTool(appDir, name) {
+  if (!TOOL_SECRET.test(name)) fail(`'${name}' is not a tool's key name: TOOL_ and capital letters, digits or _.`);
+  if (process.stdin.isTTY) fail("put-tool reads the key from stdin, never from a prompt or the command line.");
+  const value = readFileSync(0, "utf8").replace(/\r?\n$/, "");
+  if (!value || /\s/.test(value)) fail(`no key on stdin for ${name}, or it holds a space or a line break.`);
+  const put = (args) => execFileSync(...wranglerCall(args), { cwd: appDir, input: value, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] });
+  try {
+    put(["secret", "put", name]);
+    console.log(`cf-secrets: ${name} saved on the live app`);
+  } catch (error) {
+    if (!`${error.stdout ?? ""}${error.stderr ?? ""}`.includes("10215")) fail(`could not save ${name} on the live app. Re-run \`npm run secrets:push\`.`);
+    try {
+      put(["versions", "secret", "put", name]);
+    } catch {
+      fail(`could not save ${name} on the live app, even as a new version. Re-run \`npm run secrets:push\`.`);
+    }
+    console.log(`cf-secrets: ${name} is on a new version, not on the live app yet: it reaches the live app at the next publish.`);
+  }
+}
+
 const USAGE = [
   "usage: node scripts/cf-secrets.mjs <push|check|shared> [file]",
+  "       node scripts/cf-secrets.mjs put-tool TOOL_<ID>   (the key on stdin)",
   "",
   `  push   load ${SOURCE} into production and ${SOURCE}.${STAGING_ENV} into staging, removing`,
   "         every other staging key; with no staging file, staging holds none. While previews",
@@ -547,14 +573,16 @@ const USAGE = [
   "",
   `  [file] push only: load production from a file other than ${SOURCE}, leaving`,
   "         staging as it is. Account-credential files such as .env are refused.",
+  "  put-tool  save one tool's key, read from stdin, on the live app alone; previews never hold it",
 ].join("\n");
 const [mode, file, ...extra] = parseCli({ usage: USAGE, allowPositionals: true }).positionals;
-if (!["push", "check", "shared"].includes(mode) || extra.length || (file && mode !== "push")) usageError(USAGE);
+if (!["push", "check", "shared", "put-tool"].includes(mode) || extra.length || (file && !["push", "put-tool"].includes(mode)) ||
+  (mode === "put-tool" && !file)) usageError(USAGE);
 
 // `check` must skip, not fail, when no config exists: that is the pack's shipping state before setup.
 // `push` keeps the aborting lookup because it can do nothing without a config.
 const configPath =
-  mode === "push" ? findWranglerConfig() : findWranglerConfigOrNull();
+  ["push", "put-tool"].includes(mode) ? findWranglerConfig() : findWranglerConfigOrNull();
 
 if (mode === "shared" && !configPath) {
   console.log("cf-secrets: no wrangler config yet — no key to compare\nown: \nshared: ");
@@ -573,5 +601,6 @@ const appDir = dirname(configPath);
 console.log(`cf-secrets: ${mode} (config: ${configPath.slice(repoRoot.length + 1)})`);
 
 if (mode === "push") push(appDir, file);
+else if (mode === "put-tool") putTool(appDir, file);
 else if (mode === "shared") shared(appDir);
 else check(appDir, configPath);

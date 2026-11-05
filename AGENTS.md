@@ -25,7 +25,7 @@ Credentials for this computer's own tools sit in the git-ignored `.env` at the p
 
 ## Rules
 
-- **Always use ASD-STE100 Simplified Technical English** for user-facing prose and documentation. Best-effort compliance is sufficient without the full standard. Keep code, commands, identifiers, quotations, and prescribed text exact.
+- **Always use ASD-STE100 Simplified Technical English** for user-facing prose and documentation. Best effort is enough. Keep code, commands, identifiers, quotations, and prescribed text exact.
 
 - **Do plain requests directly.** Research, errands, reminders, and questions need no verb; ask only for a needed answer. Repo edits end with *publish it?*: [the change loop](wiki/development/the-change-loop.md).
 - **One task, one workspace.** A finished task closes its Paseo workspace through `/close`, with no question but a routine or app offer; a new task opens a new workspace: [one task, one workspace](wiki/development/the-change-loop.md#one-task-one-workspace).
@@ -40,7 +40,7 @@ Credentials for this computer's own tools sit in the git-ignored `.env` at the p
 - **A scheduled `/improve-code` writes a plan and waits**: [code improvement](wiki/development/repository-improvement.md).
 - **Write repeatable knowledge when you learn it**: what will help a different, future task, placed by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge); a `knowledge/` page is [saved at once](wiki/stack/company-knowledge.md#save-a-page). A change's specifics stay in its proposal.
 - **Company actions and memory reads:** [discover only what you need](wiki/stack/service-catalogue.md) through the shared helper; company calls use employee login, memory keeps its installed access; [skills call actions](wiki/stack/company-api.md#build-a-skill-on-actions). Before using a key directly, read its notes page from `services`; add a call you worked out there. An MCP server [goes through the app](wiki/stack/company-api.md#use-an-mcp-server-through-the-app), never in a chat's settings.
-- **API keys/tokens:** [human steps](wiki/development/secrets.md#api-token-website-steps); never browse.
+- **API keys/tokens:** [human steps](wiki/development/secrets.md#api-token-website-steps), or their Chrome [while connecting](wiki/stack/connect-your-tools.md).
 - **Browse as the person; show key moments; ask for what needs them**: [logins](wiki/development/browsing.md#saved-browser-logins), [saving passwords](wiki/development/passwords.md), [pictures](wiki/development/browsing.md#show-what-the-browser-is-doing), [asking](wiki/development/browsing.md#when-a-step-needs-you), [buying](wiki/development/shopping.md).
 - **Path-scoped conventions load from [`.claude/rules/`](.agents/rules/)**; an agent that doesn't auto-load them reads those whose `paths:` match its files.
 

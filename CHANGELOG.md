@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 48.4.0 — Connect your tools in your own browser
+
+- **Your tools are suggested, then connected first.** After install, the chat suggests the tools it learned you use, such as *You seem to use Stripe, Notion and Figma. Connect these?* You say yes, or change the list ([connect your tools](wiki/stack/connect-your-tools.md)).
+- **The assistant makes each key in your own Chrome.** It asks first. You turn on one Chrome setting once, and Chrome asks you to allow it. The assistant works only in new tabs it opens, makes the narrowest key that only reads, and closes only its own tabs. When you are signed out, you sign in yourself in that tab: it never asks for a password. When your Chrome is on another computer, or you say no, the private key link works as before.
+- **Keys go to your app unseen.** Each key goes from the page to your live app. The chat shows only its last four characters, and the assistant's view of the page hides the key and takes no picture while it shows.
+- **A new tool works in seconds, with no publish.** The app keeps a tool added in a chat as data, held to the same rules as a key in the code, and refuses one that breaks them, naming the rule. Previews hold no such tool. When an app is first built on one, that change moves it into the code.
+- **Services in Access shows each tool added in a chat**, marked *Added in a chat*, with the requests it counts as reads, so you see what *Read* allows before you give a teammate a level.
+- **Your first app comes next, in the same chat.** When your tools work, setup offers a first app built on them. The *Make it yours* box stays on the site for anyone who skips. Your sign-in on the live site during setup now also counts as the check that you can sign in, as seeing your app from its link does.
+
+**Updating.** Nothing to do by hand.
+
 ## 48.3.0 — Connect your tools after install
 
 - **Install goes on to connecting your tools.** After setup's closing report, the same chat asks which tools you use for your work, such as Stripe, Notion or Figma. When they are connected, or you say *skip*, it gives the usual last step: open your site and paste the *Make it yours* request ([connect your tools](wiki/stack/connect-your-tools.md)).

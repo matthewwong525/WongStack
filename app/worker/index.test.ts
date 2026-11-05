@@ -150,7 +150,8 @@ describe("private Worker routing", () => {
       const refused = await call(endpoint, { Origin: origin, "Cf-Access-Jwt-Assertion": visitor }, bindings, method);
       expect([refused.status, await refused.json()], endpoint).toEqual([503, { code: "access_unavailable" }]);
     }
-    expect(db.withSession).toHaveBeenCalledTimes(3);
+    // Each signed person's request also reads the tools added from a chat, once.
+    expect(db.withSession).toHaveBeenCalledTimes(6);
     // The recorded owner reaches the database; its failure is reported with no detail.
     const reached = await call("/api/access/status", { "Cf-Access-Jwt-Assertion": signed }, bindings);
     expect(reached.status).toBe(503);
@@ -290,7 +291,8 @@ describe("private Worker routing", () => {
     expect((await call("/api/health", headers, bindings)).status).toBe(200);
     expect((await call("/_memory/unknown", {}, bindings)).status).toBe(404);
     expect(assets.fetch).toHaveBeenCalledTimes(4);
-    expect(db.withSession).toHaveBeenCalledTimes(14);
+    // Four Access requests also read the tools added from a chat; an app's route and health read none.
+    expect(db.withSession).toHaveBeenCalledTimes(18);
     expect(db.withSession).toHaveBeenCalledWith("first-primary");
   });
 

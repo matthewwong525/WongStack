@@ -55,7 +55,7 @@ Nothing changes for the person until *Save access*; the panel says *Not saved ye
 
 Services is a status list: no button, no key value, no level, and no box to type a key in.
 
-- **A row is the key's name**, [its purpose](api-keys.md#a-saved-key-shows-in-access), and *Saved* or *Not saved*. A key [used directly](employee-access.md#key-levels) says *also used directly* and links its API guide.
+- **A row is the key's name**, [its purpose](api-keys.md#a-saved-key-shows-in-access), and *Saved* or *Not saved*. A key [used directly](employee-access.md#key-levels) says *also used directly* and links its API guide. A tool [added in a chat](api-keys.md#a-saved-key-shows-in-access) says *Added in a chat* and lists the requests it counts as reads.
 - **An unsaved key says to ask the assistant for its key link**: a value comes in only through [the private link](api-keys.md#give-it-through-the-private-link). A key setup makes says to ask the assistant to finish Access setup.
 - **No keys yet** says the assistant sends a private link once you ask it to connect a service.
 - **Project code is not a row**: its level is set in a person's or role's panel, as [the project's own key](employee-project.md#who-gets-what).

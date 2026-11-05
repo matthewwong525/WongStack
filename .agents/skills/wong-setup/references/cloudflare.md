@@ -201,7 +201,7 @@ State, in plain words:
 - When `command -v paseo` answers: how to chat from a phone, *"In Paseo, open Settings → your host → Pair Device."*
 - The optional card list below, when the site is open or `r2` is `false`.
 
-Use `appUrl` for normal login. Check stored issuer/subject before claiming association; a paste alone proves only login. Report an unavailable association link plainly. Then a finished install runs the target's `connect` skill; *skip* ends it. End on the URL and the next step. With the starter app: open the URL (on a private site, sign in once with the email code), and copy the message in the box at the top into this chat; it walks the person through their first change. **That paste is the human check**: once it arrives from the production link, report human login verified, with no sign-in on staging or previews.
+Use `appUrl` for normal login. Check stored issuer/subject before claiming association; a paste alone proves only login. Report an unavailable association link plainly. **The human check** is 4g's owner sign-in, or the person reporting their app from the production link: after either, report human login verified; staging and previews need none. A finished install then runs the target's `connect` skill (*skip* skips it), then offers a first app on the tools that work, like the site's *Make it yours* request. On a no, end on the URL; the site's box starts it later.
 
 ### The card list
 

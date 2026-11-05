@@ -3,7 +3,7 @@ title: Everyone has access to your company secrets
 problem: Keys sit in shared files and chats, so every teammate and every AI can use all of them.
 fix: Each person signs in as themselves, and keys stay in your app, never in chat.
 order: 6
-checked: 2026-11-04
+checked: 2026-11-05
 sources:
   - wiki/stack/employee-access.md
   - wiki/development/secrets.md
@@ -26,6 +26,7 @@ Add per-person access to my AI setup. Build it in this project and ask me before
 > The AI asks the app which actions exist before it calls one
 > Keys for this computer's own tools sit in one ignored file, with a blank template saved beside it
 > Never paste a key in chat: send a private one-time link where the person enters it
+> Or, in the person's own signed-in browser and only in tabs the AI opened, make the key and save it straight to the app
 > Strip keys and tokens out of transcripts and screenshots before they leave the computer
 > A test copy of the app holds its own test keys, never the live ones
 > For more context, look at this repo: https://github.com/matthewwong525/WongStack (start at wiki/stack/employee-access.md)

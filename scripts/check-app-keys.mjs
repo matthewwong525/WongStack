@@ -21,6 +21,9 @@ if (!existsSync(registry)) {
   process.exit(0);
 }
 const { keys } = await import(pathToFileURL(registry).href);
+// The direct-use, purpose and guide rules the app's tests and its tool save route hold a key to; an older app has none.
+const rules = join(worker, 'key-rules.ts');
+const ruled = existsSync(rules) ? (await import(pathToFileURL(rules).href)).keyProblems(keys).map(problem => `app/worker/keys.ts: ${problem}`) : [];
 
 /** Every source file under `dir`, test files left out. */
 const sources = dir => (existsSync(dir) ? readdirSync(dir, { recursive: true, withFileTypes: true }) : [])
@@ -49,6 +52,11 @@ const problems = [
   ...sources(join(worker, 'api')).flatMap(file => unlisted(file, listed(join(worker, 'api', 'router.ts')))),
 ];
 
+if (ruled.length) {
+  for (const problem of ruled) console.error(problem);
+  console.error(`\n${ruled.length} key rule(s) broken: wiki/stack/company-api.md#use-a-key-directly`);
+  process.exit(1);
+}
 if (problems.length) {
   for (const problem of problems) console.error(problem);
   console.error(`\n${problems.length} saved key(s) named but not listed. A route is handed only the keys it lists: add \`keys: ["<id>"]\` to the action, \`export const keys = ["<id>"]\` to the app's api.ts, or \`keys\` to the route's entry in app/worker/api/router.ts.`);

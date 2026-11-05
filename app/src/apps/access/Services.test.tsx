@@ -54,6 +54,15 @@ it('on a preview, names a key only the live app holds as such, with no step to t
   expect([line(table, 'Cloudflare'), line(table, 'Mailchimp')]).toEqual([['Cloudflare', 'Account look-ups', 'Not savedLive app only'],
     ['Mailchimp', 'Email', 'Not savedAsk the assistant for its key link']])
 })
+it('names a tool added in a chat and what it counts as a look-up, with no value', async () => {
+  keys = [key('notion', 'Notion', { purpose: 'Read our team wiki', direct: true, docs: 'https://developers.notion.com', levels: ['read'], liveOnly: true, chat: true, reads: ['POST search'] }),
+    key('figma', 'Figma', { purpose: 'Design files', direct: true, docs: 'https://www.figma.com/developers/api', levels: ['read'], liveOnly: true, chat: true })]; open()
+  const table = await screen.findByRole('table', { name: 'Services' })
+  expect(line(table, 'Notion')).toEqual(['Notion', 'Read our team wiki · API guide', 'Savedalso used directlyAdded in a chat · reads: GET anything, POST search'])
+  // A tool with no look-ups beyond GET says so.
+  expect(line(table, 'Figma')[2]).toBe('Savedalso used directlyAdded in a chat · reads: GET anything')
+  expect(document.body.textContent).not.toMatch(/sk_live/)
+})
 it('with no keys yet, says the assistant sends a private link for one', async () => {
   keys = [key('code', 'Project code', { alone: true })]; open()
   await screen.findByText('No keys yet. Ask the assistant to connect a service; it sends you a private link for the key.')

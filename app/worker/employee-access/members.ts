@@ -5,6 +5,7 @@ import { loginAuthority } from "./login-management.ts";
 import { apps, appTitle } from "./catalogue.ts";
 import { codeStep, saveStep } from "./code.ts";
 import { keyCatalogue } from "./key-catalogue.ts";
+import { registryOf, type Registry } from "./key-levels.ts";
 import { ADMIN_ROLE } from "./policy.ts";
 import { type AccessSet, type Sets, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
 
@@ -15,12 +16,12 @@ type Change = z.infer<typeof changeSchema>;
 const nothing = (): AccessSet => ({ apps: [], keys: {} });
 
 /** The role a save leaves the person with, and their own set when they hold none. Never both. */
-function target({ removed, role: asked, apps, keys }: Change, existing: Sets["people"][number] | undefined, roles: Sets["roles"]) {
+function target(registry: Registry, { removed, role: asked, apps, keys }: Change, existing: Sets["people"][number] | undefined, roles: Sets["roles"]) {
   if (removed) return { role: null, own: nothing() };
   const role = asked === undefined ? existing?.role ?? null : asked;
   if (role === null) {
     // Moving off a role starts from what the role gave; the named apps and levels apply on top.
-    return { role, own: changedSet(existing ? heldSet(existing, roles) : nothing(), { apps, keys }) };
+    return { role, own: changedSet(registry, existing ? heldSet(existing, roles) : nothing(), { apps, keys }) };
   }
   // A role is the whole answer to what a person has: no exceptions on top.
   if (apps || keys) throw new AccessError("role_with_own_set", 400);
@@ -56,7 +57,7 @@ export async function changeMember(core: Core, value: unknown): Promise<void> {
   if (member.email === core.email) throw new AccessError("owner_cannot_be_changed", 403);
   const { people, roles } = await readSets(core);
   const existing = people.find(person => person.email === member.email);
-  const { role, own } = target(member, existing, roles);
+  const { role, own } = target(registryOf(core.env), member, existing, roles);
   // A removal always takes Admin away; a save that names no role keeps it.
   const [was, will] = [existing?.role === ADMIN_ROLE, role === ADMIN_ROLE];
   const owner = picking(core, was, will);

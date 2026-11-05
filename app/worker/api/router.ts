@@ -5,6 +5,7 @@ import { cloudflareRead } from "./cloudflare.ts";
 import { forwardRoutes } from "./forward.ts";
 import { dispatch, keyUses, registrations, type Route } from "./contract.ts";
 import type { AccessIdentity } from "../access.ts";
+import { chatTools, registryOf } from "../employee-access/key-levels.ts";
 import type { PolicyEnv, RouteAccess } from "../employee-access/policy.ts";
 import { keys } from "../keys.ts";
 
@@ -31,9 +32,16 @@ export const mainRouteInventory = () => [...routes.keys()].map(route => ({ route
 export const apiActions = registrations(routes, "main", routeAccess);
 export const apiKeyUse = keyUses(routes, "main", routeAccess);
 
+/** The direct routes of the tools added from a chat, built from the request's registry: the same actions as a code
+ *  key's. wiki/stack/connect-your-tools.md */
+const toolRoutes = (env: object) => forwardRoutes(chatTools(registryOf(env)));
+export const toolActions = (env: object) => { const tools = toolRoutes(env); return registrations(tools.routes, "main", tools.access); };
+
 export function handleApi(request: Request, env: Env & PolicyEnv, identity: AccessIdentity | null = null): Response | Promise<Response> {
   const url = new URL(request.url);
   const key = `${request.method} ${url.pathname}`;
-  const handler = routes.get(key);
-  return handler ? dispatch(handler, request, env, { url, route: url.pathname, identity }, routeAccess.get(key)) : Response.json({ error: "Not found" }, { status: 404 });
+  const tools = routes.has(key) || !url.pathname.startsWith("/api/direct/") ? null : toolRoutes(env);
+  const handler = routes.get(key) ?? tools?.routes.get(key);
+  const access = routeAccess.get(key) ?? tools?.access.get(key);
+  return handler ? dispatch(handler, request, env, { url, route: url.pathname, identity }, access) : Response.json({ error: "Not found" }, { status: 404 });
 }

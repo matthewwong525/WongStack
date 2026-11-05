@@ -2,7 +2,7 @@
 import { z } from "zod";
 import type { AccessEnv, AccessIdentity } from "../access.ts";
 import { catalogue } from "./catalogue.ts";
-import { everyKey, heldLevels, holds, keyTitle, levelName, registered, type Level } from "./key-levels.ts";
+import { everyKey, heldLevels, holds, keyTitle, levelName, registered, registryOf, type Level, type Registry } from "./key-levels.ts";
 
 export interface PolicyEnv extends AccessEnv {
   DB?: D1Database;
@@ -77,8 +77,8 @@ const unlistedOnPreview = (env: PolicyEnv, email: string | null, status: "active
   !!email && status === null && env.WONG_ENVIRONMENT === "staging";
 
 /** Every app, and every key once key levels start. */
-const everything = (role: Role, manages: boolean, revision: number, keysStarted: boolean): CurrentPolicy =>
-  ({ state: "current", role, manages, revision, apps: everyApp(), keys: keysStarted ? everyKey() : null, keysStarted });
+const everything = (registry: Registry, role: Role, manages: boolean, revision: number, keysStarted: boolean): CurrentPolicy =>
+  ({ state: "current", role, manages, revision, apps: everyApp(), keys: keysStarted ? everyKey(registry) : null, keysStarted });
 
 /** The identity has already passed signed Access verification in the Worker. */
 export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | null): Promise<CurrentPolicy> {
@@ -87,6 +87,7 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
   if (!owner) return { state: "legacy" };
   if (!env.DB) return { state: "unavailable" };
   const email = humanEmail(identity);
+  const registry = registryOf(env);
   const role = email === owner || checkerOwns(env, identity) ? "owner" : "employee";
   try {
     const found = await env.DB.withSession("first-primary").prepare(`
@@ -119,17 +120,17 @@ export async function currentPolicy(env: PolicyEnv, identity: AccessIdentity | n
     const keysStarted = row.keys_enabled === 1;
     // The checker keeps every built app and every key, as before permissions started, so preview walks
     // and the look at the live app still reach them. On the live app it manages nobody: that needs the owner.
-    if (checker(identity)) return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(), keysStarted };
+    if (checker(identity)) return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(registry), keysStarted };
     // One the practice list names keeps what it gives.
-    if (outsider && unlistedOnPreview(env, email, row.status)) return everything(role, false, row.revision, keysStarted);
+    if (outsider && unlistedOnPreview(env, email, row.status)) return everything(registry, role, false, row.revision, keysStarted);
     if (outsider) return { state: "denied" };
     // The owner holds every app and every key. A person's apps and levels come from their role when they hold one.
     // Only a row at `write` is a held app: one left at `read` could only look, and a tick can not say that.
-    if (role === "owner") return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(), keysStarted };
+    if (role === "owner") return { state: "current", role, manages, revision: row.revision, apps: everyApp(), keys: everyKey(registry), keysStarted };
     // An Admin's set is worked out like the owner's, so an app built later is theirs too.
     // Their keys wait for key levels.
-    if (admin) return everything(role, manages, row.revision, keysStarted);
-    return { state: "current", role, manages, revision: row.revision, apps: storedApps(row.apps), keys: keysStarted ? heldLevels(storedLevels(row.keys)) : null, keysStarted };
+    if (admin) return everything(registry, role, manages, row.revision, keysStarted);
+    return { state: "current", role, manages, revision: row.revision, apps: storedApps(row.apps), keys: keysStarted ? heldLevels(registry, storedLevels(row.keys)) : null, keysStarted };
   } catch {
     // Unreadable permission data never falls back to open.
     return { state: "unavailable" };
@@ -158,11 +159,11 @@ function holdsApps(policy: CurrentPolicy & { state: "current" }, apps: readonly 
 }
 
 /** Null when the call may run; otherwise what the caller lacks. */
-function refusal(policy: CurrentPolicy, access: RouteAccess | undefined, need: Level): Refusal | null {
+function refusal(policy: CurrentPolicy, access: RouteAccess | undefined, need: Level, registry: Registry): Refusal | null {
   const keys = listedKeys(access);
   const alone = !!access && !("kind" in access) && !("apps" in access);
   // A mapping with no keys, or with a key nobody registered, opens nothing by a key alone.
-  if (alone && !(keys.length && keys.every(registered))) return "app";
+  if (alone && !(keys.length && keys.every(id => registered(registry, id)))) return "app";
   const direct = usedDirectly(access);
   if (policy.state === "legacy" || policy.state === "not_started") {
     // Direct use waits for key levels, which start after permissions: no direct call runs yet, the owner's included.
@@ -180,9 +181,10 @@ function refusal(policy: CurrentPolicy, access: RouteAccess | undefined, need: L
   return lackingKey(policy.keys, keys, need);
 }
 
-/** `need` is what a key's own call does: `read` looks up, `write` changes or sends. An app's call ignores it. */
-export function policyAllows(policy: CurrentPolicy, access: RouteAccess | undefined, need: Level = "write"): boolean {
-  return refusal(policy, access, need) === null;
+/** `need` is what a key's own call does: `read` looks up, `write` changes or sends. An app's call ignores it.
+ *  `registry` is the request's, for a route by a key alone. */
+export function policyAllows(policy: CurrentPolicy, access: RouteAccess | undefined, need: Level = "write", registry = registryOf({})): boolean {
+  return refusal(policy, access, need, registry) === null;
 }
 
 /** Public infrastructure must be an explicit reviewed route, with no business data. */
@@ -190,15 +192,16 @@ export async function authorizeRequest(env: PolicyEnv, identity: AccessIdentity 
   access: RouteAccess | undefined, need: Level = "write"): Promise<Response | null> {
   if (access && "kind" in access && access.kind === "infrastructure") return null;
   const policy = await currentPolicy(env, identity);
-  const lacking = refusal(policy, access, need);
-  return lacking ? policyDenied(policy, lacking) : null;
+  const registry = registryOf(env);
+  const lacking = refusal(policy, access, need, registry);
+  return lacking ? policyDenied(policy, lacking, registry) : null;
 }
 
 /** A refusal names the key and the level that is missing, never a secret. */
-export function policyDenied(policy: CurrentPolicy, lacking: Refusal = "app"): Response {
+export function policyDenied(policy: CurrentPolicy, lacking: Refusal = "app", registry: Registry = registryOf({})): Response {
   const unavailable = policy.state === "unavailable";
   const message = unavailable ? "Access unavailable" : lacking === "app" ? "App access denied" :
-    `${keyTitle(lacking.key)}: ${levelName(lacking.need)} needed`;
+    `${keyTitle(registry, lacking.key)}: ${levelName(lacking.need)} needed`;
   return Response.json({ error: { code: unavailable ? "unavailable" : "forbidden", message, requestId: crypto.randomUUID() } },
     { status: unavailable ? 503 : 403, headers: { "Cache-Control": "no-store" } });
 }

@@ -1,7 +1,7 @@
 // What a signed-in person can open and reach: their apps, and their level for each saved key used by itself.
 import { hasSignIn, type AccessIdentity } from "../access.ts";
 import { catalogue } from "./catalogue.ts";
-import { keyIds, keyTitle } from "./key-levels.ts";
+import { keyIds, keyTitle, registryOf } from "./key-levels.ts";
 import { codeState } from "./code.ts";
 import { authorizeRequest, checkerOwns, currentPolicy, humanEmail, policyAllows, policyDenied, type PolicyEnv } from "./policy.ts";
 
@@ -21,9 +21,9 @@ export async function appAccess(request: Request, env: PolicyEnv, identity: Acce
     // Opening a screen needs its app. Access itself is everyone's own page.
     apps: catalogue().filter(name => policyAllows(policy, name === "access" ? { kind: "self-service" } : { apps: [name] })),
     // The caller's own level for each saved key, by name: none until key levels start.
-    keys: keyIds().flatMap(id => {
+    keys: keyIds(registryOf(env)).flatMap(id => {
       const level = policy.keys?.get(id);
-      return level ? [{ id, title: keyTitle(id), level }] : [];
+      return level ? [{ id, title: keyTitle(registryOf(env), id), level }] : [];
     }) },
   { headers });
 }

@@ -4,8 +4,10 @@ import { keyRows } from './levels'
 import { Cell, Name, Row, Table } from './Table'
 import { View } from './View'
 
-/** The quiet lines under a key's state: muted, each on its own line. */
-const notes = (key: SavedKey, environment: Status['environment']) => [key.direct && 'also used directly', !key.saved &&
+/** The quiet lines under a key's state: muted, each on its own line. A tool added from a chat names what Read lets
+ *  someone do with it, before anyone is given it. */
+const notes = (key: SavedKey, environment: Status['environment']) => [key.direct && 'also used directly',
+  key.chat && `Added in a chat · reads: ${['GET anything', ...key.reads ?? []].join(', ')}`, !key.saved &&
   (environment !== 'live' && key.liveOnly ? 'Live app only' : key.setup ? 'Ask the assistant to finish Access setup' : 'Ask the assistant for its key link')]
   .filter(note => typeof note === 'string')
 

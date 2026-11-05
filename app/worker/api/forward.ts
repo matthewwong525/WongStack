@@ -3,7 +3,8 @@ import { boundedText, defineAction, type Action } from "./contract.ts";
 import type { KeyEntry } from "../employee-access/key-levels.ts";
 import type { RouteAccess } from "../employee-access/policy.ts";
 import type { Forward } from "../keys.ts";
-import { MCP_VERSION, rpcEffect, TOOL_NAME } from "./mcp.ts";
+import { address, forwardProblem } from "../key-rules.ts";
+import { MCP_VERSION, rpcEffect } from "./mcp.ts";
 
 // POST /api/direct/<key>/read and /change: one request passed on to a saved key's own service, built here from the
 // registry's `forward` entries. The key's level alone decides, no app. wiki/stack/company-api.md#use-a-key-directly
@@ -13,7 +14,6 @@ const LIMIT = 1_000_000;
 const LEVELS = ["read", "write"] as const;
 const KINDS = { read: "read", write: "change" } as const;
 type Kind = (typeof KINDS)[keyof typeof KINDS];
-const METHOD = "GET|HEAD|POST|PUT|PATCH|DELETE";
 /** An MCP session id: visible ASCII only, as the protocol requires. */
 const SESSION = /^[\x21-\x7e]{1,256}$/;
 const input = z.strictObject({
@@ -37,21 +37,6 @@ const refuse = (code: keyof typeof errors | "not_a_lookup", status: number) => R
 /** A JSON answer as a value; one that does not parse stays the text it is. */
 const parse = (text: string): unknown => { try { return JSON.parse(text); } catch { return text; } };
 
-/** A path that can only name something under the address it is joined to: plain characters, no empty part but a
- *  last one, and nothing a `.`, a `..` or an encoded slash, dot or backslash could turn into another path. */
-const plain = (path: string): boolean => !/[\p{Cc}\s\\?#]|%(?:2e|2f|5c)/iu.test(path) &&
-  !path.split("/").some((part, at, parts) => part === "." || part === ".." || (part === "" && at < parts.length - 1));
-
-/** The address to ask, or null: under the service's own address and nowhere else. */
-function address(forward: Forward, path: string, query = ""): URL | null {
-  if (!plain(path) || !URL.canParse(path, forward.base)) return null;
-  const base = new URL(forward.base);
-  const url = new URL(path, base);
-  if (url.origin !== base.origin || !url.pathname.startsWith(base.pathname)) return null;
-  url.search = query;
-  return url;
-}
-
 /** A `METHOD path` look-up entry as a test of one request: `*` stands for one path part. */
 const entryTest = (entry: string) => new RegExp(`^${entry.split("*").map(part => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join("[^/]+")}$`);
 
@@ -66,34 +51,6 @@ const reserialized = (text: string): string => { try { return JSON.stringify(JSO
 const looksUp = (forward: Forward, method: string, path: string, body: string | undefined): boolean => method === "GET" || method === "HEAD" ||
   (forward.mcp ? method === "POST" && body !== undefined && rpcEffect(body, forward.mcp.reads).effect === "read"
     : (forward.lookups ?? []).some(entry => entryTest(entry).test(`${method} ${path}`)));
-
-/** A credential that matches the key's secrets: both `secret` and `header` with secrets, neither without. */
-function credentialProblem(key: KeyEntry, forward: Forward): string | null {
-  if (!key.secrets.length) return forward.secret ?? forward.header ?? forward.prefix ? "a key with no secrets names no secret, header or prefix" : null;
-  if (!forward.secret || !key.secrets.includes(forward.secret)) return "secret must be one of the key's own secrets";
-  return forward.header && /^[A-Za-z0-9-]+$/.test(forward.header) ? null : "header must be one request header name";
-}
-
-/** An MCP entry's path stays under base, and each of its look-ups is a tool's name. */
-function mcpProblem(forward: Forward): string | null {
-  if (!forward.mcp) return null;
-  if (forward.lookups) return "an MCP server's tools decide what reads, so it takes no lookups";
-  if (!forward.mcp.path || !address(forward, forward.mcp.path)) return "the MCP path must stay under base";
-  const bad = forward.mcp.reads.find(tool => !TOOL_NAME.test(tool));
-  return bad === undefined ? null : `the MCP look-up "${bad}" must be a tool's name`;
-}
-
-/** What is wrong with a key's `forward` entry, or null. Checked when the routes are built, so a mistake fails the
- *  app's tests before it can publish. */
-function problem(id: string, key: KeyEntry, forward: Forward): string | null {
-  if (!/^[a-z][a-z0-9-]*$/.test(id)) return "a key used directly needs an id in lowercase letters, digits and hyphens";
-  if (key.setup || key.alone) return "a key setup makes, or the Worker's own route uses, takes no forward";
-  if (!/^https:\/\/[^/?#@\s]+\/(?:[^?#\s]*\/)?$/.test(forward.base) || !URL.canParse(forward.base) || !plain(new URL(forward.base).pathname.slice(1))) return "base must be an HTTPS address ending in /";
-  const wrong = credentialProblem(key, forward) ?? mcpProblem(forward);
-  if (wrong) return wrong;
-  const bad = (forward.lookups ?? []).find(entry => !new RegExp(`^(?:${METHOD}) [^ ]+$`).test(entry) || !plain(entry.split(" ")[1]));
-  return bad === undefined ? null : `the look-up "${bad}" must be METHOD path, with a path that stays under base`;
-}
 
 /** One record per request sent: who, which key, what kind, and where. Never the query, the body or the key. */
 const record = (line: { caller: string; key: string; kind: Kind; method: string; path: string; status: number }) =>
@@ -182,7 +139,7 @@ export function forwardRoutes(registry: Readonly<Record<string, KeyEntry>>, send
   for (const [id, key] of Object.entries(registry)) {
     const { forward } = key;
     if (!forward) continue;
-    const wrong = problem(id, key, forward);
+    const wrong = forwardProblem(id, key, forward);
     if (wrong) throw new Error(`app/worker/keys.ts: ${id}: ${wrong}`);
     for (const level of key.levels ?? LEVELS) {
       const route = `POST /api/direct/${id}/${KINDS[level]}`;

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -355,4 +355,28 @@ test('the mcp command runs a session through the app as a chat runs it, and prin
   chmodSync(join(cli.temp, `wong-answers-${process.getuid()}`), 0o755);
   const open = big(); assert.equal(open.status, 0, open.stderr);
   assert.equal(open.stdout, `${'y'.repeat(30000)}\n`); assert.match(open.stderr, /not a private folder.*, so the whole answer follows\./);
+});
+test('tool add sends the entry to the app with the site as Origin, tool remove deletes it, and a refusal fails', t => {
+  const seen = join(mkdtempSync(join(tmpdir(), 'company-tool-')), 'seen.jsonl'); t.after(() => rmSync(dirname(seen), { recursive: true, force: true }));
+  const cli = helperCli(t, `async (target, init) => {
+    if (!target.pathname.startsWith('/api/access/tools/')) return undefined;
+    (await import('node:fs')).appendFileSync(${JSON.stringify(seen)}, JSON.stringify({ path: target.pathname, method: init.method, origin: init.headers.Origin, body: init.body }) + '\\n');
+    if (init.body?.forward?.lookups?.includes('POST ../charges')) return Response.json({ error: { code: 'bad_tool', message: 'the look-up "POST ../charges" must stay under base' } }, { status: 400 });
+    return Response.json(init.method === 'PUT' ? { id: 'stripe', secret: 'TOOL_STRIPE' } : { removed: true });
+  }`);
+  const entry = { title: 'Stripe', purpose: 'Payments and refunds', docs: 'https://docs.stripe.com/api',
+    forward: { base: 'https://api.stripe.com/v1/', header: 'Authorization', prefix: 'Bearer ', lookups: ['POST search'] }, levels: ['read'] };
+  const added = cli.run(['tool', 'add', 'stripe', '--file', '-'], { input: JSON.stringify(entry) });
+  assert.equal(added.status, 0, added.stderr); assert.deepEqual(JSON.parse(added.stdout), { id: 'stripe', secret: 'TOOL_STRIPE' });
+  const removed = cli.run(['tool', 'remove', 'stripe']);
+  assert.equal(removed.status, 0, removed.stderr); assert.deepEqual(JSON.parse(removed.stdout), { removed: true });
+  const bad = cli.run(['tool', 'add', 'stripe', '--file', '-'], { input: JSON.stringify({ ...entry, forward: { ...entry.forward, lookups: ['POST ../charges'] } }) });
+  assert.equal(bad.status, 1); assert.equal(JSON.parse(bad.stdout).error.code, 'bad_tool');
+  const sent = readFileSync(seen, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.deepEqual(sent.map(({ path, method, origin: from }) => [path, method, from]), [
+    ['/api/access/tools/stripe', 'PUT', origin], ['/api/access/tools/stripe', 'DELETE', origin], ['/api/access/tools/stripe', 'PUT', origin]]);
+  assert.deepEqual(sent[0].body, entry);
+  for (const args of [['tool', 'add', 'Stripe'], ['tool', 'rename', 'stripe'], ['tool', 'remove', 'stripe', 'extra'], ['tool', 'remove']]) {
+    const refused = cli.run(args); assert.equal(refused.status, 1, args.join(' ')); assert.match(refused.stderr, /usage/);
+  }
 });

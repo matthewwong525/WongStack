@@ -43,8 +43,8 @@ export function pack(t, { scripts = [], config, tools = {}, subdir, prefix = 'pa
   const log = join(dir, 'calls.log');
 
   // Runs scripts/<script> (node for .mjs, else bash) from `cwd`. `env` adds to or, with `undefined`, removes from a
-  // minimal environment. Returns the exit status, output, and the logged calls, which it then clears.
-  const run = (script, args = [], { env = {}, cwd = root } = {}) => {
+  // minimal environment; `input` is its stdin. Returns the status, output, and logged calls, which it then clears.
+  const run = (script, args = [], { env = {}, cwd = root, input } = {}) => {
     const vars = {
       PATH: `${bin}:${process.env.PATH}`,
       HOME: dir,
@@ -56,7 +56,7 @@ export function pack(t, { scripts = [], config, tools = {}, subdir, prefix = 'pa
     };
     for (const key of Object.keys(vars)) if (vars[key] === undefined) delete vars[key];
     const command = script.endsWith('.mjs') ? process.execPath : 'bash';
-    const result = spawnSync(command, [join(cwd, 'scripts', script), ...args], { cwd, encoding: 'utf8', env: vars });
+    const result = spawnSync(command, [join(cwd, 'scripts', script), ...args], { cwd, encoding: 'utf8', env: vars, input });
     assert.equal(result.error, undefined, `${command} failed to start: ${result.error}`);
     const calls = existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter(Boolean) : [];
     rmSync(log, { force: true });

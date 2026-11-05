@@ -1,17 +1,18 @@
 // Only deliberately described routes enter the company catalogue.
 import { selectOperations } from "../../../.agents/skills/memory/scripts/lib/operations.mjs";
-import { apiActions } from "./router.ts";
+import { apiActions, toolActions } from "./router.ts";
 import { appActions, type AppEnv } from "../apps/index.ts";
 import type { AccessIdentity } from "../access.ts";
 import { actionError, containsCredential, needFor, schemas, uniqueActions, type Registration } from "./contract.ts";
 import { currentPolicy, listedKeys, policyAllows, policyDenied } from "../employee-access/policy.ts";
-import { described, keyTitle, registered, saved, type Level } from "../employee-access/key-levels.ts";
+import { described, keyTitle, registered, registryOf, saved, type Level, type Registry } from "../employee-access/key-levels.ts";
 
 const issuesSchema = { type: "array", maxItems: 10, items: { type: "object", required: ["path", "message"], additionalProperties: false,
   properties: { path: { type: "string", maxLength: 200 }, message: { type: "string", maxLength: 200 } } } };
 
 /** A key an action uses: its name, what it is for, its service's API guide if any, and the level a call needs. */
-const keyEntry = (id: string, level: Level) => registered(id) ? { id, name: keyTitle(id), ...described(id), level } : { id, level };
+const keyEntry = (registry: Registry, id: string, level: Level) =>
+  registered(registry, id) ? { id, name: keyTitle(registry, id), ...described(registry, id), level } : { id, level };
 
 // `visible` holds the caller's operation IDs: a confirming read they cannot see is never named.
 function describe({ method, path, app, action, access }: Registration, env: AppEnv, visible: Set<string>) {
@@ -20,7 +21,7 @@ function describe({ method, path, app, action, access }: Registration, env: AppE
     operationId: action.operationId, summary: action.summary, description: action.description,
     app, method, path, encoding: action.encoding, effect: action.effect,
     // The saved keys the action uses and the level a caller needs, so an assistant can explain a refusal.
-    keys: listedKeys(access).map(id => keyEntry(id, level)),
+    keys: listedKeys(access).map(id => keyEntry(registryOf(env), id, level)),
     source: "company", transport: "http", authentication: "cloudflare-access",
     // A listed key that is not saved answers `unavailable` when called, so the list says so first.
     readiness: (action.ready && !action.ready(env)) || !listedKeys(access).every(id => saved(env, id)) ? "unavailable" : "available",
@@ -98,13 +99,13 @@ async function discoveryJson(request: Request, value: unknown, caller: unknown) 
 }
 
 export async function discovery(request: Request, env: AppEnv, identity: AccessIdentity | null,
-  registry: Registration[] = [...apiActions, ...appActions]): Promise<Response> {
+  registry: Registration[] = [...apiActions, ...toolActions(env), ...appActions]): Promise<Response> {
   if (!identity) return actionError("authentication_required");
   const url = new URL(request.url);
   if (request.method !== "GET") return Response.json({ error: "Not found" }, { status: 404 });
   const policy = await currentPolicy(env, identity);
   if (!policyAllows(policy, { kind: "self-service" })) return policyDenied(policy);
-  const visible = uniqueActions(registry).filter(({ action, access, method }) => policyAllows(policy, access, needFor(action, method)) &&
+  const visible = uniqueActions(registry).filter(({ action, access, method }) => policyAllows(policy, access, needFor(action, method), registryOf(env)) &&
     action.agentAvailable && (!action.allowed || action.allowed(identity)));
   const ids = new Set(visible.map(({ action }) => action.operationId));
   const operations = visible.map(item => describe(item, env, ids)).sort((a, b) => a.operationId.localeCompare(b.operationId));

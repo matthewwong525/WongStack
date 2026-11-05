@@ -4,18 +4,18 @@ import type { AccessIdentity } from "../access.ts";
 import { actionError, containsCredential } from "./contract.ts";
 import type { AppEnv } from "../apps/index.ts";
 import { currentPolicy, policyAllows, policyDenied, type CurrentPolicy } from "../employee-access/policy.ts";
-import { described, forwards, keyIds, keyTitle, offered, saved, mcpPath, type Level } from "../employee-access/key-levels.ts";
+import { described, forwards, keyIds, keyTitle, offered, saved, mcpPath, registryOf, type Level, type Registry } from "../employee-access/key-levels.ts";
 
 const MAX = 200;
 
 /** The level the caller holds for a key now, or null. Before permissions start, only the owner holds one. */
-function heldLevel(policy: CurrentPolicy, id: string): Level | null {
+function heldLevel(registry: Registry, policy: CurrentPolicy, id: string): Level | null {
   if (policy.state === "current") return policy.keys?.get(id) ?? null;
-  return policy.state === "not_started" && policy.role === "owner" ? offered(id).at(-1)! : null;
+  return policy.state === "not_started" && policy.role === "owner" ? offered(registry, id).at(-1)! : null;
 }
 
 /** An MCP server's row names its path, so the helper can open a session. */
-const mcpRow = (id: string) => { const path = mcpPath(id); return path === null ? {} : { mcp: { path } }; };
+const mcpRow = (registry: Registry, id: string) => { const path = mcpPath(registry, id); return path === null ? {} : { mcp: { path } }; };
 
 async function digest(value: unknown): Promise<string> {
   const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value)));
@@ -29,8 +29,9 @@ export async function services(request: Request, env: AppEnv, identity: AccessId
   if (!policyAllows(policy, { kind: "self-service" })) return policyDenied(policy);
   const all = new URL(request.url).searchParams.get("all") === "1";
   // Project code is the stack's own key, not a service a chat calls.
-  const listed = keyIds().filter(id => id !== "code").map(id => ({ id, name: keyTitle(id), ...described(id),
-    ready: saved(env, id), level: heldLevel(policy, id), direct: forwards(id), ...mcpRow(id) }))
+  const registry = registryOf(env);
+  const listed = keyIds(registry).filter(id => id !== "code").map(id => ({ id, name: keyTitle(registry, id), ...described(registry, id),
+    ready: saved(env, id), level: heldLevel(registry, policy, id), direct: forwards(registry, id), ...mcpRow(registry, id) }))
     .sort((a, b) => a.name.localeCompare(b.name));
   const value = { services: listed.filter(key => all || key.level).slice(0, MAX), needAccess: listed.filter(key => !key.level).length };
   if (containsCredential(value, env)) return actionError("internal_error");

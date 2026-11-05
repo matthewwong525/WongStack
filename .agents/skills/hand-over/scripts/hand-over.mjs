@@ -391,7 +391,7 @@ function keyConfig(names, guideFile) {
   if (undeclared.length) console.log(`KEYS_UNDECLARED=${undeclared.join(',')}`);
   if (ambiguous.length) console.log(`KEYS_AMBIGUOUS=${ambiguous.join(',')}`);
   if (undeclared.length || ambiguous.length) {
-    console.error('Declare each key, blank and with a comment on where to get it, in exactly one of .env.example and app/.dev.vars.example first.');
+    console.error('Declare each key, blank and with a comment on where to get it, in exactly one of .env.example and app/.dev.vars.example first. A tool added from a chat takes TOOL_<ID> with no declaration.');
     return 2;
   }
   if (unignored.length) {
