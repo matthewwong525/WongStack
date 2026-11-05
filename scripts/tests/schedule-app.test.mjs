@@ -1,7 +1,7 @@
 // The helper starts a claimed run only on a version the signed-in person approved on this computer.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { chmodSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { approve, approvedVersion, approvalsFile } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
 import { definition, saveDefinition } from '../../.agents/skills/schedule/scripts/lib/app.mjs';
@@ -156,5 +156,6 @@ console.log(JSON.stringify({ agentId: 'agent-run', title: 'Weekly plan' }));
   assert.equal(runs()[0].at(-1), startupPrompt({ key: 'weekly-plan', run: runId(1), version }));
   await open([{ id: 'claude-high', defaultThinkingOptionId: 'high' }], 'claude/claude-high');
   assert.ok(!runs()[1].includes('--thinking'));
-  assert.ok(existsSync(log));
+  await open([{ id: 'claude-high', defaultThinkingOptionId: 'high' }]);
+  assert.equal(runs()[2][runs()[2].indexOf('--provider') + 1], 'claude', 'Paseo refuses a run with no provider');
 });

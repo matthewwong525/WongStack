@@ -273,14 +273,14 @@ test('an inbox helper from older code is replaced by the next start; a current o
   const started = record();
   pids.push(started.pid);
   assert.notEqual(started.pid, old.pid);
-  assert.equal(started.protocol, 11);
+  assert.equal(started.protocol, 13);
   assert.equal(alive(old.pid), false, 'the older helper ended');
 
   const current = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e6)'], { detached: true, stdio: 'ignore' });
   pids.push(current.pid);
-  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 11 }));
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 13 }));
   await startInbox(at.state, at.env);
-  assert.deepEqual(record(), { pid: current.pid, protocol: 11 }, 'no second helper starts');
+  assert.deepEqual(record(), { pid: current.pid, protocol: 13 }, 'no second helper starts');
   assert.ok(alive(current.pid));
 });
 
@@ -296,7 +296,7 @@ test('a recorded pid that is not the inbox helper is a stale record: a new helpe
   const started = JSON.parse(readFileSync(at.state.inbox, 'utf8'));
   pids.push(started.pid);
   assert.notEqual(started.pid, other.pid);
-  assert.equal(started.protocol, 11);
+  assert.equal(started.protocol, 13);
   assert.ok(alive(other.pid), 'the other program is left running');
 });
 

@@ -48,10 +48,10 @@ export async function checkRun(run, { client, env = process.env, email = signedI
 export async function openSession({ schedule, run, title, env = process.env }) {
   const settings = schedule.run;
   const bin = findPaseo(env, 'WONG_PASEO_BIN');
-  const args = ['run', '-d', '--cwd', settings.cwd, '--title', title];
-  if (settings.provider) args.push('--provider', settings.provider);
-  // A provider may name its model (`codex/gpt-6.1-sol`); Paseo's default provider is Claude.
-  const [provider, model = null] = String(settings.provider || 'claude').split('/');
+  // Paseo refuses a run with no provider; a schedule that names none runs on Claude.
+  const named = settings.provider || 'claude';
+  const args = ['run', '-d', '--cwd', settings.cwd, '--title', title, '--provider', named];
+  const [provider, model = null] = named.split('/');
   const thinking = await flooredThinking(more => paseo(bin, more, { env: childEnv(env) }), { provider, model, thinking: settings.thinking ?? null });
   if (thinking) args.push('--thinking', thinking);
   if (settings.mode) args.push('--mode', settings.mode);

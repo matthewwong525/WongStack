@@ -46,7 +46,7 @@ export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300
 const HOURS = 24;
 // Raised when the server or inbox helper changes: one from older code is swapped for this one. Every project on the
 // computer shares both, so a copy that changes either raises it past every other copy's number.
-export const PROTOCOL = 11;
+export const PROTOCOL = 13;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act|file)?$/;

@@ -41,4 +41,7 @@ it('says how a run went, and a run with no work as nothing to do', () => {
   expect(said).toEqual(['waiting', 'starting', 'done', "didn't start", "didn't start", 'missed, computer was off', 'cancelled'])
   expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'blocked', result: 'no_work' })).toBe('nothing to do')
   expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'blocked', result: 'checkins_off' })).toBe("didn't start, check-ins are off")
+  expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'failed', result: 'open_failed' })).toBe("didn't start, the chat couldn't open")
+  expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'blocked', result: 'not_approved' })).toBe("didn't start, needs your OK")
+  expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'failed', result: 'something_new' })).toBe("didn't start")
 })

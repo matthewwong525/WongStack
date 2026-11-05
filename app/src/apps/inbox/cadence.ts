@@ -12,10 +12,17 @@ const OUTCOME: Record<Run['state'], string> = {
   due: 'waiting', taken: 'starting', started: 'done', failed: "didn't start", blocked: "didn't start",
   missed: 'missed, computer was off', cancelled: 'cancelled',
 }
-/** Why a blocked run did not start, when the reason is the person's to know: no work is no failure. */
-const BLOCKED: Record<string, string | undefined> = { no_work: 'nothing to do', checkins_off: "didn't start, check-ins are off" }
+/** Why a run did not start, by the computer's reason code: no work is no failure. */
+const WHY: Record<string, string | undefined> = {
+  no_work: 'nothing to do', checkins_off: "didn't start, check-ins are off", not_approved: "didn't start, needs your OK",
+  changed: "didn't start, it changed", ended: "didn't start, it ended", no_folder: "didn't start, its folder is missing",
+  unknown_key: "didn't start, the computer doesn't know it", open_failed: "didn't start, the chat couldn't open",
+  no_opener: "didn't start, this computer can't open a chat", no_worker: "didn't start, no background worker",
+  no_result: "didn't start, the computer never answered",
+}
 /** How a run went. */
-export const outcome = (run: Run) => (run.state === 'blocked' && BLOCKED[run.result ?? '']) || OUTCOME[run.state]
+export const outcome = (run: Run) =>
+  ((run.state === 'blocked' || run.state === 'failed') && WHY[run.result ?? '']) || OUTCOME[run.state]
 
 /** The timezone to read times in: the schedule's, or this device's when the browser doesn't know it. */
 function zoneOf(timezone: string) {
