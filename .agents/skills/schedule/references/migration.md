@@ -1,5 +1,5 @@
 # Migration
 
-Preserve jobs/resources/secrets. Legacy list/inspect/pause/resume/cancel uses installed endpoint/key, no setup/model/bootstrap. Request [teardown](../../../../wiki/stack/legacy-cloud-schedules.md) separately.
+`move-in` moves the person's routines, team routines, timed jobs and `schedules/*.json` records to the app, approves each here, and pauses, then deletes, its Paseo job. Show `move-in --dry-run` first. For each pair in `duplicates`, ask which to keep, then run again with `--keep <id>` or `--drop <id>`. It removes moved entries, team routines too when the owner runs it; `--unattended` leaves files alone. Tell the person each `resumeOn` date: resume it then.
 
-Explicit adopt inspects/pauses selected ID, publishes guards, repairs/inspects prompt and resumes without replacement. Old improve/dream work; retired scheduling prompts need repair. Migration persists operation/verified original pause before activation. Keep uncertainty paused, unrelated jobs/clocks intact. Teardown requires no jobs and recorded/requested resources; retain unknowns/secrets.
+`legacy list|inspect|pause|resume|cancel` manages old cloud jobs with the installed key. [Teardown](../../../../wiki/stack/legacy-cloud-schedules.md) is a separate request. Keep jobs and secrets; keep anything uncertain paused.

@@ -21,4 +21,4 @@ user-invocable: false
 
 ## Changing settings
 
-A change such as *check orders on Mondays* edits `.agents/daily/<name>.json` by [your settings file](../../../wiki/development/daily.md#your-settings-file). With none, start from [the example](references/example.json) and their email. Show the change, then save by [the change loop](../../../wiki/development/the-change-loop.md). `team.json` changes only with the owner's review. Keep private life out, by [the People rules](../../../wiki/wiki-style.md#people).
+A routine, such as *check orders on Mondays*, goes to [`/schedule`](../schedule/SKILL.md). Others edit `.agents/daily/<name>.json` by [your settings file](../../../wiki/development/daily.md#your-settings-file). With none, start from [the example](references/example.json) and their email. Show the change, then save by [the change loop](../../../wiki/development/the-change-loop.md). Keep private life out, by [the People rules](../../../wiki/wiki-style.md#people).

@@ -7,11 +7,11 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readOutput, runAddons, runNode } from '../../.agents/skills/daily/scripts/addons.mjs';
 import { BoardError, boardCalls, boardClient } from '../../.agents/skills/daily/scripts/board.mjs';
-import { SettingsError, defaultSettings, loadSettings, mondayOf, morningOf, occurrence, placePath, settingsFor, slotOf, validateConfig, validateTeam }
+import { SettingsError, defaultSettings, loadSettings, mondayOf, morningOf, placePath, settingsFor, slotOf, validateConfig, validateTeam }
   from '../../.agents/skills/daily/scripts/config.mjs';
 import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
-import { checkinsOff, commandSettings, commands, dueTasks, ensure, firstMessage, holds, offFile, personSettings, readArgs, start,
-  startReport, startServe, startTask, startedRecord, stateDirectory, stateOf, taskMessage, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
+import { checkinsOff, commandSettings, commands, ensure, firstMessage, holds, offFile, personSettings, readArgs, start,
+  startMoveIn, startReport, startServe, startTask, startedRecord, stateDirectory, stateOf, taskMessage, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { codeStamp } from '../../.agents/skills/daily/scripts/worker.mjs';
 
@@ -27,7 +27,7 @@ const temp = name => { const dir = mkdtempSync(join(tmpdir(), `daily-${name}-`))
 const routine = (more = {}) => ({ id: 'review', enabled: true, title: 'Review', place: 'home', scope: 'Last week', result: 'A list', procedure: '.agents/skills/review/SKILL.md',
   cadence: { kind: 'daily' }, effects: 'Reads only', activeFrom: '2026-10-01', start: 'run', missed: 'skip', ...more });
 const settings = (more = {}) => ({ version: 1, person: 'alex', emails: ['Alex@Example.com'], timezone: ZONE, sources: { tasks: true, chats: true },
-  places: { home: '.' }, checks: [routine()], ...more });
+  places: { home: '.' }, ...more });
 
 /** A repo with the review skill, the person's settings and, when given, a team file. */
 function repo({ config = settings(), team } = {}) {
@@ -80,7 +80,8 @@ test('the morning time is 8:00 unless the settings name another "HH:MM"; another
 });
 
 test('the settings file is found by any email in any case; the team routines join, and a person routine with their id wins', () => {
-  const root = repo({ team: { version: 1, checks: [routine({ title: 'Team review' }), routine({ id: 'standup', title: 'Standup' })] } });
+  const root = repo({ config: settings({ checks: [routine()] }),
+    team: { version: 1, checks: [routine({ title: 'Team review' }), routine({ id: 'standup', title: 'Standup' })] } });
   assert.equal(settingsFor(root, 'alex@example.com'), join(root, '.agents/daily/alex.json'));
   assert.equal(settingsFor(root, 'nobody@example.com'), null);
   assert.equal(settingsFor(root, null), null);
@@ -93,17 +94,7 @@ test('the settings file is found by any email in any case; the team routines joi
   assert.throws(() => placePath({ places: {} }, 'x', root), /No place x/);
 });
 
-test('a routine is due by its cadence; a missed weekly or monthly one runs late only with latest', () => {
-  const weekly = routine({ cadence: { kind: 'weekly', weekdays: [1] } });
-  assert.equal(occurrence(weekly, '2026-10-19'), '2026-10-19');
-  assert.equal(occurrence(weekly, '2026-10-21'), null);
-  assert.equal(occurrence({ ...weekly, missed: 'latest' }, '2026-10-21'), '2026-10-19');
-  const monthly = routine({ cadence: { kind: 'monthly' } });
-  assert.equal(occurrence(monthly, '2026-11-01'), '2026-11-01');
-  assert.equal(occurrence(monthly, '2026-11-03'), null);
-  assert.equal(occurrence({ ...monthly, missed: 'latest' }, '2026-11-03'), '2026-11-01');
-  assert.equal(occurrence(routine({ cadence: { kind: 'manual' } }), '2026-10-21'), null);
-  assert.equal(occurrence(routine(), '2026-09-01'), null, 'before activeFrom');
+test('the board week starts on Monday, and a date names its board day', () => {
   assert.deepEqual([mondayOf('2026-10-25'), slotOf('2026-10-25'), slotOf('2026-10-21')], ['2026-10-19', 'sun', 'wed']);
 });
 
@@ -144,38 +135,22 @@ test('a settings file with a misspelled person still fails on its bad field, not
   assert.match(who({ repo: root, ctx: { author: 'x@example.com' }, origin: null }).error, /Invalid daily settings/);
 });
 
-test('start opens each due routine once per day, with its first message; a missing skill fails and a dry run opens nothing', async () => {
-  const root = repo();
+test('start opens no routine: one left in the file is only named as waiting, and a dry run names the add-ons it would run', async () => {
+  const root = repo({ config: settings({ checks: [routine()], addons: { morning: ['a.mjs'] } }) });
   const stateDir = temp('state');
   const config = loadSettings(join(root, '.agents/daily/alex.json'), root);
-  const opened = [];
-  const launch = async args => { opened.push(args); return { ok: true, cwd: '/w/calm-cat', workspaceName: 'Review', agentId: 'agent-review' }; };
-  assert.deepEqual(dueTasks(config, root, '2026-10-21').map(task => task.key), ['review:2026-10-21']);
   assert.equal(firstMessage({ procedure: '.agents/skills/review/SKILL.md' }), '/review');
-  const dry = await start({ config, project: root, stateDir, now: NOW, launch, dryRun: true });
-  assert.deepEqual(dry.tasks, [{ title: 'Review', state: 'due', workspace: null, message: '/review' }]);
-  const first = await start({ config, project: root, stateDir, now: NOW, launch });
-  assert.deepEqual(first.tasks, [{ title: 'Review', state: 'started', workspace: 'Review' }]);
-  assert.deepEqual(opened, [{ destination: root, title: 'Review', message: '/review' }]);
-  const again = await start({ config, project: root, stateDir, now: NOW, launch });
-  assert.deepEqual(again.tasks, [{ title: 'Review', state: 'already', workspace: 'Review' }]);
-  assert.equal(startedRecord(stateDir).read()['review:2026-10-21'].cwd, '/w/calm-cat', 'the record keeps the folder to find the chat by');
-  assert.equal(opened.length, 1);
-  const report = startReport({ config, stateDir, now: NOW });
-  assert.equal(report.morning, 'done');
-  assert.deepEqual(report.tasks.map(row => [row.key, row.state]), [['review:2026-10-21', 'started']]);
-  const failing = { ...config, checks: [routine({ id: 'gone', procedure: '.agents/skills/none/SKILL.md' })] };
-  assert.equal((await start({ config: failing, project: root, stateDir, now: NOW, launch })).tasks[0].state, 'failed');
-  const refused = await start({ config: { ...config, checks: [routine({ id: 'late' })] }, project: root, stateDir, now: NOW,
-    launch: async () => ({ ok: false, error: 'no Paseo' }) });
-  assert.deepEqual(refused.tasks, [{ title: 'Review', state: 'failed', workspace: null, reason: 'no Paseo' }]);
-  assert.equal(startedRecord(stateDir).read()['late:2026-10-21'], undefined, 'a failed launch keeps no claim');
+  const dry = await start({ config, project: root, stateDir, now: NOW, dryRun: true, addons: () => assert.fail('ran in a dry run') });
+  assert.deepEqual(dry, { day: '2026-10-21', addons: ['a.mjs'], waiting: ['Review'], guide: null });
+  const ran = await start({ config, project: root, stateDir, now: NOW, addons: async () => ({ lines: [], events: [], skip: [], failed: [] }) });
+  assert.deepEqual(ran.waiting, ['Review']);
+  assert.deepEqual(Object.keys(startedRecord(stateDir).read()), ['addons:2026-10-21']);
 });
 
 test('the morning add-ons run once per day; their lines and events reach the report with the guide, and a failed one is not-read', async () => {
   const root = repo();
   const stateDir = temp('state');
-  const config = { ...loadSettings(join(root, '.agents/daily/alex.json'), root), checks: [], guide: 'g.md', addons: { morning: ['a.mjs', 'b.mjs'] } };
+  const config = { ...loadSettings(join(root, '.agents/daily/alex.json'), root), guide: 'g.md', addons: { morning: ['a.mjs', 'b.mjs'] } };
   let runs = 0;
   const addons = async ({ list, context }) => {
     runs++;
@@ -188,7 +163,7 @@ test('the morning add-ons run once per day; their lines and events reach the rep
   await start({ config, project: root, stateDir, now: NOW, addons, env: {} });
   assert.equal(runs, 1);
   const report = startReport({ config, stateDir, now: NOW });
-  assert.deepEqual([report.lines, report.guide, report.tasks], [['3 orders wait'], 'g.md', []]);
+  assert.deepEqual([report.morning, report.lines, report.guide], ['done', ['3 orders wait'], 'g.md']);
   assert.equal(startReport({ config, stateDir, now: new Date('2026-10-22T14:00:00Z') }).morning, 'not run');
 });
 
@@ -292,7 +267,7 @@ test('commands wire the settings to the board: remind adds a task on its day, an
 test('default settings take the email before the @ as the person, check-ins only, in the given time zone', () => {
   const made = defaultSettings({ email: 'Jo.Lee+work@Example.com', timezone: ZONE });
   assert.deepEqual(made, { version: 1, person: 'jo-lee-work', emails: ['Jo.Lee+work@Example.com'], timezone: ZONE, sources: { tasks: false, chats: true },
-    places: {}, checks: [], teamFile: null });
+    places: {}, teamFile: null });
   assert.equal(defaultSettings({ email: 'team@example.com' }).person, 'team-member');
   assert.equal(defaultSettings({ email: '...@example.com' }).person, 'me');
   assert.equal(typeof defaultSettings({ email: 'a@b.co' }).timezone, 'string');
@@ -327,7 +302,7 @@ function checkout() {
 test('ensure starts the worker only when the person has a job, none runs, check-ins are on, and this is no background run', () => {
   const { root, states } = checkout();
   const spawned = [];
-  const go = (config, more = {}) => ensure({ repo: root, root: states, env: {}, agent: 'codex', resolve: () => ({ config }), isAlive: () => false,
+  const go = (config, more = {}) => ensure({ repo: root, root: states, env: { HOME: states }, agent: 'codex', resolve: () => ({ config }), isAlive: () => false,
     spawnServe: args => spawned.push(args), ...more }).state;
   const jobs = validateConfig(settings());
   const plain = defaultSettings({ email: 'alex@example.com', timezone: ZONE });
@@ -337,12 +312,20 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   // The default list's wiki tidy is a job, so the defaults start it until the person turns it off.
   const own = sweeps => { writeFileSync(join(root, 'jobs.json'), JSON.stringify({ sweeps })); return { ...plain, sweeps: 'jobs.json' }; };
   assert.equal(go(own([{ id: 'wiki-tidy', off: true }])), 'no-jobs');
-  // A routine is a job: the worker starts the morning.
-  assert.equal(go({ ...own([{ id: 'wiki-tidy', off: true }]), checks: [routine()] }), 'started');
+  // A routine left in the file is no job, but starts its move to the app; a handed-over schedule run is a job.
+  const moved = [];
+  assert.equal(go({ ...own([{ id: 'wiki-tidy', off: true }]), checks: [routine()] }, { moveIn: args => moved.push(args) }), 'no-jobs');
+  assert.deepEqual(moved.map(each => [each.home.repo, each.timezone]), [[root, ZONE]]);
+  assert.equal(go({ ...plain, checks: [routine()] }, { moveIn: () => { throw new Error('no app'); } }), 'started', 'a failed move stops nothing');
+  const handed = join(states, '.wong-stack/agent-events', `schedule-run-${'a'.repeat(32)}.json`);
+  mkdirSync(join(handed, '..'), { recursive: true });
+  writeFileSync(handed, '{}');
+  assert.equal(go(own([{ id: 'wiki-tidy', off: true }])), 'started');
+  rmSync(handed);
   assert.equal(go(own([{ id: 'wrap-up', off: true }])), 'started');
   assert.equal(go(plain), 'started');
   assert.equal(go(jobs), 'started');
-  assert.deepEqual(spawned.map(each => [each.repo, each.agent]), [[root, 'codex'], [root, 'codex'], [root, 'codex'], [root, 'codex']]);
+  assert.deepEqual(spawned.map(each => [each.repo, each.agent]), Array(5).fill([root, 'codex']));
   const stateDir = stateOf(jobs, root, states);
   mkdirSync(stateDir, { recursive: true });
   writeFileSync(join(stateDir, 'serve.lock'), '4242\n');
@@ -352,7 +335,30 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   assert.equal(go(jobs), 'running');
   writeFileSync(offFile(stateDir), 'x');
   assert.equal(go(jobs), 'off');
-  assert.equal(spawned.length, 5);
+  assert.equal(spawned.length, 6);
+  // Off, a handed-over schedule run is taken to be reported as not started, never left for a worker.
+  const event = { event: 'schedule-run', key: 'tidy', run: 'b'.repeat(32), version: 'c'.repeat(64), email: 'alex@example.com', cwd: root };
+  const waiting = join(states, '.wong-stack/agent-events', `schedule-run-${event.run}.json`);
+  writeFileSync(waiting, JSON.stringify({ event }));
+  const off = ensure({ repo: root, root: states, env: { HOME: states }, resolve: () => ({ config: jobs }), isAlive: () => false, spawnServe: () => {} });
+  assert.deepEqual(off, { state: 'off', refused: [event] });
+  assert.equal(existsSync(waiting), false);
+});
+
+test('the move of left routines to the app starts once a day, detached, with no chat id, and only where the schedule skill is', () => {
+  const root = temp('move'), stateDir = temp('state'), runs = [];
+  const dir = join(root, '.agents/skills/daily/scripts'), script = join(root, '.agents/skills/schedule/scripts/schedule.mjs');
+  mkdirSync(dir, { recursive: true });
+  const run = (...args) => { runs.push(args); return { on: () => {}, unref: () => {} }; };
+  const move = now => startMoveIn({ home: { repo: root, dir }, stateDir, env: { PASEO_AGENT_ID: 'chat-1', PATH: '/bin' }, now, timezone: ZONE, run });
+  assert.equal(move(NOW.getTime()), false, 'no schedule skill');
+  mkdirSync(join(script, '..'), { recursive: true });
+  writeFileSync(script, '');
+  assert.equal(move(NOW.getTime()), true);
+  assert.equal(move(NOW.getTime() + 3600e3), false, 'the same day');
+  assert.equal(move(NOW.getTime() + 24 * 3600e3), true);
+  const [[node, args, options]] = runs;
+  assert.deepEqual([node, args, options.cwd, options.detached, options.env], [process.execPath, [script, 'move-in', '--unattended'], root, true, { PATH: '/bin' }]);
 });
 
 test("ensure restarts a worker whose beat holds older code or none, and leaves a current one alone", () => {
@@ -432,15 +438,15 @@ test("the worker starts from the main checkout's script and folder; a main check
 });
 
 test("each pass re-reads the settings from the main checkout, not from the copy that started the worker", async () => {
-  const root = realpathSync(repo({ config: settings({ morning: '00:00' }) }));
+  const root = realpathSync(repo({ config: settings({ morning: '00:00', addons: { morning: ['a.mjs'] } }) }));
   assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
   assert.equal(spawnSync('git', ['config', 'user.email', 'alex@example.com'], { cwd: root }).status, 0);
   const printed = [];
-  // The worker's start-time settings are the defaults: only the main checkout's file names the routine.
+  // The worker's start-time settings are the defaults: only the main checkout's file names the add-on.
   await commands({ config: defaultSettings({ email: 'alex@example.com', timezone: ZONE }), project: root, stateDir: temp('state'),
     values: { 'dry-run': true, seconds: 60 }, call: async args => (args[0] === 'ls' || args[0] === 'permit' ? [] : { ok: true }),
     board: fakeBoard().board, env: {}, print: text => printed.push(JSON.parse(text)) }).serve();
-  assert.deepEqual(printed.filter(item => item.wouldStart), [{ wouldStart: 'routine', title: 'Review' }]);
+  assert.deepEqual(printed.filter(item => item.wouldRun), [{ wouldRun: 'add-on', addon: 'a.mjs' }]);
 });
 
 test('checkins off writes the off file, stops the running worker and journals it; on removes it and runs ensure', async () => {

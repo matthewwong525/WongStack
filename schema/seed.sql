@@ -1363,25 +1363,43 @@ VALUES
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'c0000000000000000000000000000002', 'a0000000000000000000000000000009', 'build', '', 'seed-1', 1792486200000, 'sent',
    1792486210000, 1792486220000);
 
--- Fay's schedules: the weekday sales digest runs on the app's clock and started its last run, the stock check is
--- paused, and the weekly newsletter draft is a read-only copy of one kept in Paseo on the same computer.
+-- Fay's schedules: the weekday sales digest runs on the app's clock, approved on Fay's desk; its last run started and
+-- the one before had nothing to do. The stock check is paused and changed since its OK, so it needs Fay's OK again. The
+-- BFCM launch list ended when every item was done, and the weekly newsletter draft is a read-only copy kept in Paseo.
+-- Each version is version.mjs's hash of the row's key, kind, instructions, run, authority and end.
 INSERT INTO schedules
-  (installation_id, email, key, host, computer_id, name, summary, timing_json, revision, state, next_run_at, min_interval_ms, updated_at)
+  (installation_id, email, key, host, computer_id, name, summary, timing_json, revision, state, next_run_at, min_interval_ms, updated_at,
+   kind, instructions, run_json, authority_json, ended_at, end_reason, approved_version, approved_by_computer, computer_name)
 VALUES
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'sales-digest', 'app', 'c0ffee00c0ffee00c0ffee00c0ffee00',
    'Sales digest', 'Sum up yesterday''s orders and refunds for the team.',
    '{"mode":"recurring","cron":"0 9 * * 1-5","timezone":"America/Toronto","allowedLatenessMs":3600000}',
-   '1111111111111111111111111111111111111111111111111111111111111111', 'on', 1793019600000, 600000, 1792828800000),
+   '40af434a81c59a966e4aabbed7f83010d7b6ac03e6e97404b5e2e89d669d8d35', 'on', 1793019600000, 600000, 1792828800000,
+   'chat', 'Sum up yesterday''s orders and refunds, and send the total to the team chat.', '{"cwd":"/home/fay/shop"}',
+   '{"channels":["team-chat"],"minIntervalMs":600000}', NULL, NULL,
+   '40af434a81c59a966e4aabbed7f83010d7b6ac03e6e97404b5e2e89d669d8d35', 'c0ffee00c0ffee00c0ffee00c0ffee00', 'Fay''s desk'),
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'stock-check', 'app', 'c0ffee00c0ffee00c0ffee00c0ffee00',
    'Stock check', 'Flag gift card designs running low before the weekend.',
    '{"mode":"recurring","every":"1d","timezone":"UTC","allowedLatenessMs":3600000}',
-   '2222222222222222222222222222222222222222222222222222222222222222', 'paused', NULL, NULL, 1792828800000),
+   'd992160621f9ce07cceeae00f08d0ee9858cee7949214376a81d02b8651f689a', 'paused', NULL, NULL, 1792828800000,
+   'background', 'List each gift card design with fewer than 20 cards left.', '{"cwd":"/home/fay/shop","minutes":20,"place":"copy"}',
+   '{}', NULL, NULL,
+   '2222222222222222222222222222222222222222222222222222222222222222', 'c0ffee00c0ffee00c0ffee00c0ffee00', 'Fay''s desk'),
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'bfcm-launch', 'app', 'c0ffee00c0ffee00c0ffee00c0ffee00',
+   'BFCM launch list', 'Check off one launch item each day until the list is done.',
+   '{"mode":"recurring","cron":"0 10 * * *","timezone":"America/Toronto","allowedLatenessMs":3600000}',
+   '50b3712a6ad6c56ae5797f0165f249ae65f1e0c3675cbf25029c070a06a02580', 'paused', NULL, NULL, 1792742400000,
+   'chat', 'Check off one item of the BFCM launch list each day until every item is done.', '{"cwd":"/home/fay/shop"}',
+   '{}', 1792742400000, 'Every item on the launch list is checked off.',
+   '50b3712a6ad6c56ae5797f0165f249ae65f1e0c3675cbf25029c070a06a02580', 'c0ffee00c0ffee00c0ffee00c0ffee00', 'Fay''s desk'),
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'newsletter-draft', 'paseo', 'c0ffee00c0ffee00c0ffee00c0ffee00',
    'Newsletter draft', 'Draft Friday''s newsletter from the week''s launches.',
    '{"mode":"recurring","cron":"0 14 * * 5","timezone":"America/Toronto","allowedLatenessMs":0}',
-   '', 'on', 1793383200000, NULL, 1792828800000);
+   '', 'on', 1793383200000, NULL, 1792828800000, 'chat', '', '{}', '{}', NULL, NULL, NULL, NULL, NULL);
 INSERT INTO schedule_runs
   (installation_id, email, id, key, due_at, source, state, claimed_at, result, chat_title, agent_id, updated_at)
 VALUES
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'b0000000000000000000000000000001', 'sales-digest', 1792760400000,
-   'clock', 'started', 1792760520000, NULL, 'Sales digest for Friday', 'agent-sales-digest-1', 1792760520000);
+   'clock', 'started', 1792760520000, NULL, 'Sales digest for Friday', 'agent-sales-digest-1', 1792760520000),
+  ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'b0000000000000000000000000000002', 'sales-digest', 1792674000000,
+   'clock', 'blocked', 1792674060000, 'no_work', NULL, NULL, 1792674060000);

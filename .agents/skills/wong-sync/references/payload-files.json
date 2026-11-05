@@ -103,7 +103,6 @@
       }
     ],
     "dirs": [
-      "openspec/schemas/scheduled-work",
       "wiki/development/first-day"
     ]
   },
@@ -151,6 +150,7 @@
       "schema/migrations/20261103120000_inbox_kept_reviews.sql",
       "schema/migrations/20261104120000_inbox_files.sql",
       "schema/migrations/20261105120000_tools.sql",
+      "schema/migrations/20261106120000_schedule_definitions.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",
@@ -263,6 +263,10 @@
       "app/src/apps/inbox/PlanView.test.tsx",
       "app/src/apps/inbox/Reviews.tsx",
       "app/src/apps/inbox/Reviews.test.tsx",
+      "app/src/apps/inbox/Schedules.tsx",
+      "app/src/apps/inbox/Schedules.test.tsx",
+      "app/src/apps/inbox/cadence.ts",
+      "app/src/apps/inbox/cadence.test.ts",
       "app/src/apps/inbox/TapLine.tsx",
       "app/src/apps/inbox/AnswerLine.tsx",
       "app/src/apps/inbox/api.ts",
@@ -292,9 +296,11 @@
       "app/worker/apps/inbox/line.ts",
       "app/worker/apps/inbox/mirror.ts",
       "app/worker/apps/inbox/run-result.ts",
+      "app/worker/apps/inbox/schedule-approved.ts",
       "app/worker/apps/inbox/schedule-control.ts",
       "app/worker/apps/inbox/schedule-migration.test.ts",
       "app/worker/apps/inbox/schedule-put.ts",
+      "app/worker/apps/inbox/schedule-progress.ts",
       "app/worker/apps/inbox/schedule-store.test.ts",
       "app/worker/apps/inbox/schedule-store.ts",
       "app/worker/apps/inbox/schedules.test.ts",

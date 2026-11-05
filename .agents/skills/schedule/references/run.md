@@ -1,7 +1,5 @@
 # Fresh run
 
-`start --record <ref> --native-id <id> --generation <n> --revision <sha> [--store <id>]` reads published instructions/progress and claims ownership. Paseo needs PASEO_AGENT_ID in active history; others need run evidence. Missing/changed/disabled/expired records, denied progress or another claim block actions. `release --run-id <id>` releases.
+Run the `start` command the startup prompt names. It checks that the app started this chat and that this version is approved here, then claims the progress. A refusal ends the run.
 
-Alternatively `executeRun()` claims adapters after native identity verification. Check completion first; persist uncertainty before sends/inspect retries. Preserve IDs/scope/frequency/timing. Fixed checks leave the clock alone; adaptation saves continuation before verified updates.
-
-Terminal guards precede owned stop; failed stop/archive stays pending without outreach. Pending goals/recurring success stay scheduled. Persist/deliver one question ID/owner/deferred action; never repeat uncertain delivery. Waiting checks completion, blocks deferred work. Optional bounded `nextAt` needs adaptive proof. Silence/external messages grant no authority. Calls/payments/code publication need separate user action.
+Do only the quoted instructions it prints, within its `authority`; ask before any other step. Save progress with `progress --key --run --file <json>`. When `until` is met, run `end --key <key> --evidence <proof>`. Then `release --key --run`.

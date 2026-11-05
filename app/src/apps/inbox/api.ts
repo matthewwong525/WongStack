@@ -11,14 +11,29 @@ const item = z.object({ id: z.string(), kind: z.string(), title: z.string(), wor
 const review = z.object({ id: z.string(), title: z.string(), workspace: z.string(), createdAt: z.number(), closesAt: z.number(),
   endedAt: z.number().nullable(), answered: z.boolean() })
 const reviews = z.object({ waiting: z.array(review), archived: z.array(review), more: z.boolean() })
-const list = z.object({ computerOnline: z.boolean() })
+// `board` is false for a teammate with no week board.
+const list = z.object({ computerOnline: z.boolean(), board: z.boolean().optional() })
 const one = z.object({ item, computerOnline: z.boolean() })
 const tapped = z.object({ tap })
 const refused = z.object({ error: z.object({ code: z.string() }) })
+const timing = z.object({ mode: z.enum(['once', 'recurring']), cron: z.string().optional(), every: z.string().optional(), timezone: z.string(),
+  dueAt: z.string().optional() })
+const run = z.object({ id: z.string(), key: z.string(), dueAt: z.number(), source: z.enum(['clock', 'now']),
+  state: z.enum(['due', 'taken', 'started', 'failed', 'blocked', 'missed', 'cancelled']), result: z.string().nullable() })
+const schedule = z.object({ key: z.string(), host: z.enum(['app', 'paseo']), name: z.string(), summary: z.string(), timing,
+  state: z.enum(['on', 'paused']), nextRunAt: z.number().nullable(), lastRun: run.nullable(), waiting: run.nullable(), instructions: z.string(),
+  ended: z.object({ at: z.number(), reason: z.string() }).nullable(), version: z.string(), approvedVersion: z.string().nullable(),
+  approvedAt: z.number().nullable(), computerName: z.string().nullable() })
+const schedules = z.object({ schedules: z.array(schedule), computerOnline: z.boolean() })
+const scheduleRuns = z.object({ schedule, runs: z.array(run) })
 export type Tap = z.infer<typeof tap>
 export type Plan = z.infer<typeof one>
 export type Archived = NonNullable<Plan['item']['archived']>
 export type Review = z.infer<typeof review>
+export type Timing = z.infer<typeof timing>
+export type Run = z.infer<typeof run>
+export type Schedule = z.infer<typeof schedule>
+export type Schedules = z.infer<typeof schedules>
 /** Why a tap was not queued: the page changed, the action was already sent, too soon after the last, the item closed,
  *  a file it names is no longer held, or anything else. */
 export type Refusal = 'changed' | 'done' | 'soon' | 'closed' | 'gone' | 'failed'
@@ -69,6 +84,19 @@ export const readReviews = (q: string, before?: Review) => call(reviews, `review
   ...(q.trim() && { q: q.trim() }), ...(before && { before: `${before.createdAt}:${before.id}` }) })}`)
 export const readTap = (id: string) => call(tapped, `tap?id=${id}`).then(answer => answer.tap)
 export const cancelTap = (id: string) => call(tapped, 'tap-cancel', { id }).then(answer => answer.tap)
+export const readSchedules = () => call(schedules, 'schedules')
+/** One schedule and its ten newest runs. */
+export const readSchedule = (key: string) => call(scheduleRuns, `schedule?key=${encodeURIComponent(key)}`)
+
+/** Pauses, resumes or runs a schedule, or cancels its waiting run: null when done, else why not, as the app's code. */
+export async function changeSchedule(route: 'pause' | 'resume' | 'run-now' | 'run-cancel', input: { key: string } | { id: string }) {
+  try {
+    const response = await fetch(`/apps/inbox/api/${route}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(input) })
+    return response.ok ? null : refused.safeParse(await response.json()).data?.error.code ?? 'failed'
+  } catch {
+    return 'failed'
+  }
+}
 
 /** Queues a tap on the version the person saw; it waits there until their computer delivers it, with any files sent. */
 export async function sendTap(input: { item: string; action: string; version: string; text: string; files?: string[] }): Promise<Tap | Refusal> {

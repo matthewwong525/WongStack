@@ -6,8 +6,6 @@ user-invocable: true
 
 # /apply
 
-**Selected schedule:** [route its record](../save/references/schedule-records.md) before code or checkout.
-
 Build [the chosen plan](../../../wiki/development/the-change-loop.md). First run `node .claude/skills/explore/scripts/step-title.mjs set APPLY`.
 
 **No repo file** → [work the to-do](#work-that-changes-no-repo-file). Repo code or process, [mini apps](../../../wiki/stack/mini-apps.md) included → resolve the plan.

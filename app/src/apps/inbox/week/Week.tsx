@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { PlusIcon } from 'lucide-react'
-import { useSearchParams } from 'react-router'
+import { useNavigate, useSearchParams } from 'react-router'
 import { Button } from '@/components/ui/button'
 import { daySlots, weekStart, type BacklogGroup, type SweepDestination, type Task, type TaskSearchResult, type WeekPlan } from '@/lib/board'
-import { board } from '../api'
+import { board, Failed } from '../api'
 import { Backlog, DayGroups, DragGhosts } from './Board'
 import { useGroupDrag, useTaskDrag, type DropTarget } from './drag'
 import { hasDraft, isDraft, moveTask, sweepToBacklog, sweepToNextWeek, unfinishedInDays } from './edits'
@@ -21,6 +21,7 @@ const today = () => new Date()
  *  failed request takes it back. Coming back to the page, or a look on the live line, reads the week again quietly. */
 export function Week() {
   const [params, setParams] = useSearchParams()
+  const navigate = useNavigate()
   const day = scheduleDay(params.get('day'))
   const view = scheduleView(params.get('view'))
   const week = scheduleWeek(day)
@@ -63,12 +64,14 @@ export function Week() {
       // A read that found nothing new must not redraw the board: the caret would move while the person types.
       if (!sameData(planRef.current, next.plan)) { planRef.current = next.plan; setPlan(next.plan) }
       setFailed(false)
-    }, () => {
+    }, (error: unknown) => {
+      // A teammate has no board: their Inbox opens on their schedules.
+      if (error instanceof Failed && error.status === 403) void navigate('/apps/inbox/?view=schedules', { replace: true })
       // Only a quiet read of the week on screen fails quietly; a first read has nothing to show but the error.
-      if (!cancelled && planRef.current?.week !== week) setFailed(true)
+      else if (!cancelled && planRef.current?.week !== week) setFailed(true)
     })
     return () => { cancelled = true }
-  }, [week, attempt])
+  }, [week, attempt, navigate])
 
   // A typed task the app has not stored is only here: a read now would delete it.
   const arrive = useRevalidate(reload, plan ? hasDraft(plan) : false)

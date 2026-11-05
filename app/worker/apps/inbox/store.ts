@@ -1,7 +1,7 @@
 // What the inbox's routes share: whose rows a call reads, the limits, the row shapes. Each statement starts with the
 // person's installation and email, so one person's item never reaches another. wiki/development/reply-links.md
 import { z } from "zod";
-import { defineAction, humanEmail, type Action } from "../../api/contract.ts";
+import { defineAction, humanEmail, ownerEmail, type Action } from "../../api/contract.ts";
 import { dropSettledFiles, pruneFiles } from "./file-rows.ts";
 import { mine, type Scope } from "./rows.ts";
 import { wake } from "./wake.ts";
@@ -80,7 +80,7 @@ export async function scope(env: Env, identity: Identity): Promise<Scope> {
   const db = env.DB.withSession("first-primary");
   const installation = await installationOf(db);
   const email = humanEmail(identity)!;
-  return { db, installation, email, now: Date.now(), wake: computer => wake(env, installation, email, computer) };
+  return { db, installation, email, owner: ownerEmail(env), now: Date.now(), wake: computer => wake(env, installation, email, computer) };
 }
 
 const ERRORS = {
@@ -93,6 +93,8 @@ const ERRORS = {
   bad_file: "This is not a file the page takes, or it is empty.", full: "The inbox holds too many waiting files; try again later.",
   already_waiting: "A run is already waiting for your computer.", not_app: "This schedule runs elsewhere; ask your assistant to move it here.",
   paused: "Resume this schedule first.", bad_timing: "The timing needs a cadence, a timezone and a lateness the app can read.",
+  ended: "This schedule has ended.", other_computer: "Another computer runs this schedule; approve it there.",
+  not_claimed: "Another run holds this schedule's progress.",
 };
 export const fail = (code: keyof typeof ERRORS, status: number) => Response.json({ error: { code } }, { status });
 

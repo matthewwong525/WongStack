@@ -18,10 +18,6 @@ node "$SHIP" prepare --change "$CHANGE_NAME"
 node "$SHIP" finish
 ```
 
-## Scheduled records
-
-A selected routine definition or finite goal follows [record-only delivery](../save/references/schedule-records.md) before code preflight. Use `prepare` and `finish` with `--schedule-record <reference>`; terminal goals use `prepare --archive-record <reference>`. Keep the normal checkpoint and gate.
-
 ## Step 1 — preflight
 
 Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep publishing.

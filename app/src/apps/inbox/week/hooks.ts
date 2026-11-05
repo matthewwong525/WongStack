@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { pendingWrites } from '../api'
+import { pendingWrites, readInbox } from '../api'
 
 /** Signals closer than this are one arrival: a tab switch sends two at once. */
 const coalesceMs = 1000
@@ -113,4 +113,12 @@ export function useReturnFocus(open: boolean) {
     event.preventDefault()
     target.focus()
   }, [])
+}
+
+/** Whether the person has a week board: true until the app says no, so the owner's views never blink away. The board
+ *  itself needs no ask: a teammate who opens it is sent to Schedules. */
+export function useBoard() {
+  const [board, setBoard] = useState(true)
+  useEffect(() => { void readInbox().then(inbox => setBoard(inbox.board !== false), () => undefined) }, [])
+  return board
 }

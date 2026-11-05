@@ -129,7 +129,6 @@
   {"name": "-line-staging", "replacement": "no test line: previews have none (`wiki/stack/live-line.md#its-own-worker`)", "allow": ["scripts/tests/provision.test.mjs", "scripts/tests/line-deploy.test.mjs", "scripts/tests/wrangler-config.test.mjs", "scripts/tests/cf-secrets.test.mjs", "wiki/stack/live-line.md"], "why": "each test names an install's leftover test line to prove setup strips it, or the deploy and checks refuse it; the live line page says how an older install deletes it"},
   {"name": "vitest.config.browser.ts", "replacement": "nothing: the app has no real-browser test suite (`wiki/stack/testing.md`)"},
   {"name": "test:browser", "replacement": "nothing: `npm test` runs the unit, screen and runtime suites (`wiki/stack/testing.md`)"},
-  {"name": "Schedules view", "replacement": "`/schedule` in a chat: the inbox opens on the week board (`wiki/stack/host-schedules.md#manage-a-schedule`)", "allow": ["schema/migrations/20261026120000_schedules.sql", "openspec/specs/host-schedules/spec.md"], "why": "a shipped migration never changes; the spec keeps the requirement until this change's archive removes it"},
   {"name": "--plan-first", "replacement": "a routine that opens in its own workspace (`D start`)", "why": "the daily morning plan card left with the week board"},
   {"name": "plans-ready", "replacement": "the week board in the Inbox", "why": "the daily morning plan card left with the week board"},
   {"name": "daily.mjs opened", "replacement": "`daily.mjs start --report`"},
@@ -142,6 +141,12 @@
   {"name": "#installing-camofox", "replacement": "`#installing-camoufox` in `wiki/development/required-tools.md`"},
   {"name": "daily.mjs watch", "replacement": "each chat's stop check (`stop-check.mjs`) and `D ensure`"},
   {"name": "wrap-up.mjs", "replacement": "`finished.mjs`, which marks finished chats in `D status`"},
-  {"name": "open-daily", "replacement": "the worker's morning start, which runs the due routines at `morning` with no chat", "allow": ["scripts/tests/daily.test.mjs"], "why": "the test checks that the old command is refused"},
-  {"name": "daily-workspace.json", "replacement": "the stand-in id `daily-worker` that `chiefEnv` gives a background run"}
+  {"name": "open-daily", "replacement": "the worker's morning start, which runs add-ons at `morning` with no chat; schedules run on the app's clock", "allow": ["scripts/tests/daily.test.mjs"], "why": "the test checks that the old command is refused"},
+  {"name": "daily-workspace.json", "replacement": "the stand-in id `daily-worker` that `chiefEnv` gives a background run"},
+  {"name": "schedule-records.md", "replacement": "a schedule saved in the app after an OK in a chat (`wiki/stack/host-schedules.md`)", "allow": ["scripts/fixtures/context-baseline.json", "scripts/tests/schedule-retirement.test.mjs"], "why": "the measured fixture keeps its before-state; the retirement test checks the file is gone"},
+  {"name": "schedule-record.mjs", "replacement": "`schedule.mjs save`, which saves a schedule in the app with no publish", "allow": ["scripts/fixtures/context-baseline.json", "scripts/tests/schedule-retirement.test.mjs"], "why": "the measured fixture keeps its before-state; the retirement test checks the file is gone"},
+  {"name": "openspec/schemas/scheduled-work", "replacement": "a schedule with an end (`schedule.mjs end`, `wiki/stack/host-schedules.md#goals-with-an-end`)", "allow": ["scripts/tests/schedule-retirement.test.mjs"], "why": "the retirement test checks the schema is gone"},
+  {"name": "references/definition.md", "replacement": "the schedule held in the app (`wiki/stack/host-schedules.md#where-a-schedule-lives`)", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the measured fixture keeps its before-state"},
+  {"name": "create-routine", "replacement": "`schedule.mjs save`", "allow": ["scripts/tests/schedule-cli.test.mjs"], "why": "the test checks that the old command is refused"},
+  {"name": "create-goal", "replacement": "`schedule.mjs save` with `until`, and `schedule.mjs end`", "allow": ["scripts/tests/schedule-cli.test.mjs"], "why": "the test checks that the old command is refused"}
 ]

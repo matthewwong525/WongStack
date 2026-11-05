@@ -22,10 +22,17 @@ test('retirement exceptions describe frozen history and migration, with no live 
   assert.deepEqual(oldEntry.allow, ['scripts/tests/schedule-retirement.test.mjs']);
 });
 
-test('memory keeps the old routine topic as an alias and maps definitions, schema, and host bindings', () => {
+test('the goal schema and the record-only save route are gone, so no schedule needs a publish', () => {
+  for (const path of ['openspec/schemas/scheduled-work/', '.agents/skills/save/scripts/schedule-record.mjs', '.agents/skills/save/references/schedule-records.md']) {
+    assert.equal(existsSync(new URL(`../../${path}`, import.meta.url)), false, path);
+  }
+});
+
+test('memory keeps the old routine topic as an alias and maps the skill and old repo records', () => {
   const areas = JSON.parse(read('.agents/skills/memory/references/areas.json'));
   assert.ok(areas.schedule.aliases.includes('routine'), 'existing facts remain discoverable');
-  for (const path of ['.agents/skills/schedule/', 'openspec/schemas/scheduled-work/', 'schedules/']) assert.ok(areas.schedule.paths.includes(path));
+  for (const path of ['.agents/skills/schedule/', 'schedules/']) assert.ok(areas.schedule.paths.includes(path));
+  assert.ok(!areas.schedule.paths.some(path => path.includes('scheduled-work')));
   assert.ok(areas.schedule.docs.includes('wiki/stack/host-schedules.md'));
   assert.ok(areas.schedule.docs.includes('wiki/stack/legacy-cloud-schedules.md'));
 });

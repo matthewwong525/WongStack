@@ -15,7 +15,7 @@ it("lists only the signed-in person's items, and never lets another read or tap 
     actions: ["approve", "decline"], version: "q1", createdAt: START, closesAt: plan.closesAt, detail: { text: "It wants to send one message." }, link: null, tap: null });
   expect(listed.json.items[0].detail).toBeNull();
 
-  expect(await call(jo, "GET", "items")).toEqual({ status: 200, json: { items: [], computerOnline: false } });
+  expect(await call(jo, "GET", "items")).toEqual({ status: 200, json: { items: [], computerOnline: false, board: false } });
   expect((await call(jo, "GET", "item", { id: PLAN })).status).toBe(404);
   expect((await tap(jo, { action: "build" })).status).toBe(404);
   // Jo's own item of the same id is Jo's alone, and leaves Sam's as it was.
