@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Every schedule lives in the app
+## 49.0.0 — Every schedule lives in the app
 
 - **Every schedule lives in your app, in one list.** Morning routines, weekly and monthly jobs, timed background jobs and one-time tasks all live in your company app. The app keeps what each one does, when it runs, whether it is on, its progress and every run. Your daily settings file holds no routines, and the repo holds no schedule files ([host schedules](wiki/stack/host-schedules.md)).
 - **You make or change a schedule in a chat, with no publish.** The chat shows what the schedule will do and asks for your OK. Your yes saves it in the app in seconds.

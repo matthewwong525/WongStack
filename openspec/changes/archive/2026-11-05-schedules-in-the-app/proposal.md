@@ -1,6 +1,6 @@
 # Keep every schedule in the app
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** move-schedules-to-database
 **Open questions:** none
 
@@ -147,3 +147,4 @@ None.
 - **2026-11-05** — Preview check found: a chat schedule never opened (Paseo now needs a provider; a schedule that names none now runs on Claude), a run that did not start showed no reason (every reason code now reads in plain words), and a computer's older helper kept running with the old run code (the helper's version number goes to 13, past ClaymooApp's 12, so each computer swaps it); all fixed with tests, and the chat run is checked again on the preview.
 - **2026-11-05** — Assumed: a scheduled chat with no `run.mode` opens in its provider's full mode, as a chat started from the daily does, because the preview re-walk saw one stop at its first command with no one there to allow it; its instructions and `authority` still set what it may do; inside `/ship`, a safe pick.
 - **2026-11-05** — Preview check (7.2) passed at 6ffdb7b8: a chat and a background schedule saved, listed, run now (a workspace opened; the worker ran the other), a direct change showed *Needs your OK* and a blocked run, and an OK cleared it and ran. The teammate side was seen from the owner only (the owner saw none of Fay's 4 seeded schedules), because the preview has no teammate login; Worker tests cover one person never reading another's.
+- **2026-11-05** — Archive checkpoint: archived as 49.0.0 after main's 48.4.1 came in; ready to publish.
