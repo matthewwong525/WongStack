@@ -64,3 +64,4 @@ None. The tests change, not what the app does (`skip_specs: true`).
 - **2026-11-06** — Assumed (build): `key-levels.test.ts`'s broken tool rows got their own ids (`notes`, `wiki`), because `tools.id` is a primary key; each row still breaks one rule.
 - **2026-11-06** — Archive checkpoint at /ship: archived as 50.1.1; review findings (two overclaiming CHANGELOG lines) fixed; local `npm test` and `checks.mjs --worktree` passed before the save.
 - **2026-11-06** — Renumber checkpoint at /ship: main reached 50.2.0 (real-database-tests) first; merged it, kept both testing-guide sections (the coverage note now sits in *The real-database tests*), renumbered to 50.2.1; local checks passed.
+- **2026-11-06** — Second renumber at /ship: main reached 50.2.1 (#524) first; merged with no conflict, renumbered to 50.2.2; local checks passed.
