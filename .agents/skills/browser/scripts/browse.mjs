@@ -27,11 +27,10 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   save                          keep the sign-ins now, with every tab open
   front                         bring this task's tab to the front of the browser's window; refused with
                                 BROWSE_ERROR while the person uses another tab
-  show                          front, and on a Mac unhide the window too, with no turn held: the next task
-                                step, from any chat, hides it again; prints BROWSE_SHOWN=window|link|none
+  show                          front, with no turn held, to show the person a page;
+                                prints BROWSE_SHOWN=window|link|none
   window [on|off]               show the browser in a window on this computer's screen, from its next start;
-                                on Linux, off (or no screen) sends a live-view link instead; on a Mac,
-                                the window stays hidden until the person's turn;
+                                on Linux, off (or no screen) sends a live-view link instead;
                                 prints BROWSE_WINDOW=on|off; alone, the setting (on unless turned off)
   proxy [on|off]                reach sites through a local proxy on this computer, from the browser's next
                                 start; prints BROWSE_PROXY=on|off; alone, the setting (off unless turned on)
@@ -726,8 +725,8 @@ export function client(given, { retry = true, start = true } = {}) {
     /** Each ref's box at the last snapshot, as `refNames` gives it; `{}` before one. */
     names: () => readTab()?.names ?? {},
     /** Shows this tab in front with the keyboard: `turn` holds or ends the person's turn, `raise: false` renews it,
-     * `reselect` leaves the person's own tab shown, and `show` unhides a Mac's window until the next task step. */
-    front: ({ turn, raise, reselect, show } = {}) => onTab(tabId => send('POST', `/tabs/${tabId}/front`, { userId: USER, ...(turn !== undefined && { turn }), ...(raise === false && { raise }), ...(reselect && { reselect }), ...(show && { show }) })),
+     * and `reselect` leaves the person's own tab shown. */
+    front: ({ turn, raise, reselect } = {}) => onTab(tabId => send('POST', `/tabs/${tabId}/front`, { userId: USER, ...(turn !== undefined && { turn }), ...(raise === false && { raise }), ...(reselect && { reselect }) })),
     /** Sets the page's size; resolves to its size, with `addonPage` while the password manager's page keeps its own. */
     resize: (width, height) => onTab(tabId => json('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),
     /** Starts the browser when it is not running. */
@@ -806,7 +805,7 @@ const COMMANDS = {
   screenshot: [0, async (page, _, flags) => console.log(`BROWSE_SHOT=${(await page.screenshot({ ifChanged: flags['if-changed'], fullPage: flags['full-page'] })) ?? 'none'}`)],
   save: [0, async page => { await page.save(); console.log('BROWSE_SAVED=yes'); }],
   front: [0, async page => { await page.front(); console.log('BROWSE_FRONT=yes'); }],
-  show: [0, async page => { await page.front({ show: true }); console.log(`BROWSE_SHOWN=${shownAs(readJson(FILES.server))}`); }],
+  show: [0, async page => { await page.front(); console.log(`BROWSE_SHOWN=${shownAs(readJson(FILES.server))}`); }],
   close: [0, async page => { await page.close(); console.log(`BROWSE_CLOSED=${page.session}`); }],
   status: [0, status],
   install: [0, install],

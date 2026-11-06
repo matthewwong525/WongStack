@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // By hand, never in CI: a throwaway Camoufox in its own home folder checks tabs in one window, the person's turn, a
-// resize, a real add-on, and on a Mac windows and hiding, aimed at this run's own browser process alone.
+// resize, a real add-on, and on a Mac the window count, aimed at this run's own windows alone.
 import { execSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -25,7 +25,7 @@ if (!process.env.BROWSER_TABS_REAL_HOME) {
 }
 
 const { FILES, launchConfig } = await import('../../../.agents/skills/browser/scripts/browse.mjs');
-const { browserPid, macApp, persistentOptions, routes } = await import('../../../.agents/skills/browser/scripts/browser-server.mjs');
+const { persistentOptions, routes } = await import('../../../.agents/skills/browser/scripts/browser-server.mjs');
 const { addAddon, folderOf, pageUrl, startArgs } = await import('../../../.agents/skills/browser/scripts/addons.mjs');
 
 const sleep = ms => new Promise(done => setTimeout(done, ms));
@@ -42,13 +42,6 @@ function windows(theirs) {
   if (process.platform !== 'darwin') return null;
   const script = `ObjC.import('CoreGraphics'); JSON.stringify(ObjC.deepUnwrap(ObjC.castRefToObject($.CGWindowListCopyWindowInfo($.kCGWindowListOptionOnScreenOnly, 0))).filter(w => /camoufox/i.test(w.kCGWindowOwnerName || '') && w.kCGWindowLayer === 0 && w.kCGWindowBounds.Height > 200).map(w => w.kCGWindowOwnerPID))`;
   return JSON.parse(execSync(`osascript -l JavaScript -e ${JSON.stringify(script)}`).toString()).filter(pid => !theirs.has(pid)).length;
-}
-
-/** Whether this run's browser app is hidden and in front, by its process id; null off a Mac. */
-function appState(pid) {
-  if (!pid) return null;
-  const script = `ObjC.import('AppKit'); const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(${pid}); JSON.stringify({ hidden: app.isHidden, active: app.isActive })`;
-  return JSON.parse(execSync(`osascript -l JavaScript -e ${JSON.stringify(script)}`).toString());
 }
 
 // The tab the window shows, as a small add-on of this run reports it: a page can not tell, since Camoufox and the
@@ -85,12 +78,7 @@ config.options.env.CAMOU_CONFIG_1 = JSON.stringify({ ...camou, addons: [...(camo
 const theirs = camoufoxPids();
 const { firefox } = createRequire(import.meta.url)(join(config.driver, 'index.js'));
 const context = await firefox.launchPersistentContext(FILES.profile, persistentOptions(config));
-// This run's browser is this process's child; the person's own browser is another process's, and is never aimed at.
-const pid = process.platform === 'darwin' ? browserPid() : null;
-if (pid && theirs.has(pid)) throw new Error(`process ${pid} is not this run's browser`);
-const app = pid ? macApp(pid, { log: line => console.log(`log: ${line}`) }) : null;
-const hidden = async want => { await sleep(700); const state = appState(pid); return { ok: !state || state.hidden === want, detail: state ? JSON.stringify(state) : 'not checked off a Mac' }; };
-const handle = routes(context, 'key', { turnWaitMs: 1500, stepMs: 20_000, app });
+const handle = routes(context, 'key', { turnWaitMs: 1500, stepMs: 20_000 });
 const api = createServer(handle);
 const base = `http://127.0.0.1:${await listen(api)}`;
 const call = async (method, path, body) => {
@@ -107,20 +95,12 @@ try {
   await sleep(1500);
   const first = windows(theirs);
   check('the browser starts in one window', first === 1 || first === null, `${first ?? 'not counted off a Mac'}`);
-  await app?.hide();
-  let state = await hidden(true);
-  check(`the window hides after launch (process ${pid ?? 'none'})`, state.ok, state.detail);
   const [a, b, c] = [await open('a'), await open('b'), await open('c')];
-  state = await hidden(true);
-  check('a task opens pages and the window stays hidden', state.ok, state.detail);
   check('every task tab is listed, the home tab not', (await call('GET', '/tabs?userId=me')).body.tabs.length === 3);
   // A new add-on may show its own welcome tab at its first start.
   check('new tabs open behind', !/\/[abc]$/.test(await shownNow()), shown);
 
   check('the turn\'s tab comes to the front', (await post(a, 'front', { turn: true })).status === 200 && await shownNow() === urlOf('a'), shown);
-  state = await hidden(false);
-  // In front of the person's app only when macOS allows it; else just behind it (`active` false).
-  check('a hand-over shows the window on that tab', state.ok, state.detail);
   const count = windows(theirs);
   check('three task tabs give one window', count === 1 || count === null, `${count ?? 'not counted off a Mac'}`);
   await open('d');
@@ -136,8 +116,6 @@ try {
   const resize = await post(b, 'viewport', { width: 800, height: 600 });
   check('and so is a resize', resize.status === 409, resize.body.error);
   check('so the turn\'s tab stays shown', await shownNow() === urlOf('a'), shown);
-  state = await hidden(false);
-  check('and the window stays up through other tabs\' steps', state.ok, state.detail);
 
   const [aWas, bWas] = [await size(a), await size(b)];
   await post(a, 'viewport', { width: 480, height: 600 });
@@ -147,22 +125,16 @@ try {
   check('a live view\'s resize of one tab, set back, leaves the other tab its size', bAfter === bWas, `b ${bWas} → ${bDuring} during → ${bAfter} after; a ${aWas} → ${aDuring} during → ${await size(a)}`);
 
   await post(a, 'front', { turn: false });
-  state = await hidden(true);
-  check('done, the turn\'s end, hides the window again', state.ok, state.detail);
   const clicked = await post(b, 'click', { selector: '#go' });
   check('once the turn ends, the click lands, with the mouse', clicked.status === 200 && clicked.body.via === 'mouse' && await read(b, 'document.title') === 'clicked 1', JSON.stringify(clicked.body));
   check('and shows its tab', await shownNow() === urlOf('b'), shown);
   await post(a, 'front');
   const resized = await post(b, 'viewport', sized(bWas));
   check('a resize shows its tab first, and ends', resized.status === 200 && await shownNow() === urlOf('b'), `${resized.status} ${shown}`);
-  state = await hidden(true);
-  check('after a click and a resize, the window hides again', state.ok, state.detail);
   await post(a, 'front', { show: true });
-  state = await hidden(false);
-  check('show unhides the window with no turn', state.ok && await shownNow() === urlOf('a'), `${state.detail} ${shown}`);
-  await call('GET', `/tabs/${b}/snapshot?userId=me`);
-  state = await hidden(true);
-  check('and the next task step hides it', state.ok, state.detail);
+  check('show brings its tab to the front', await shownNow() === urlOf('a'), shown);
+  check('and holds no turn', (await post(b, 'front', { turn: true })).status === 200);
+  await post(b, 'front', { turn: false });
 
   let url = pageUrl();
   for (let tries = 0; !url && tries < 30; tries++) { await sleep(500); url = pageUrl(); }
@@ -195,9 +167,6 @@ try {
   await home?.close();
   await open('e');
   await open('f');
-  state = await hidden(true);
-  check('a new window for a closed home tab hides again', state.ok, state.detail);
-  await app?.show();
   await sleep(1500);
   const after = windows(theirs);
   check('a closed home tab is made again once, in one new window', after === 2 || after === null, `${after ?? 'not counted off a Mac'}`);

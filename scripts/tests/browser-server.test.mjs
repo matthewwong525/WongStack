@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 // browse.mjs names its files from the home folder as it loads, so the test gets its own first.
 process.env.HOME = mkdtempSync(join(tmpdir(), 'browser-server-test-'));
-const { appScript, browserPid, contextOptions, macApp, persistentOptions, pressKey, routes, startProxy } = await import('../../.agents/skills/browser/scripts/browser-server.mjs');
+const { contextOptions, persistentOptions, pressKey, routes, startProxy } = await import('../../.agents/skills/browser/scripts/browser-server.mjs');
 const { ADDON_REFUSAL } = await import('../../.agents/skills/browser/scripts/refs.mjs');
 const { joinPieces } = await import('../../.agents/skills/browser/scripts/browse.mjs');
 
@@ -542,168 +542,18 @@ test('a turn ends when its helper stops renewing it, or its tab closes', async (
   } finally { await close(); }
 });
 
-/** A stand-in for the Mac app's hide, reveal and show: each call goes in `calls`. A reveal takes `revealMs`. */
-function standInApp(calls, revealMs = 0) {
-  return {
-    hide: async () => { calls.push('hide'); return true; },
-    reveal: async () => { calls.push('reveal'); await new Promise(done => setTimeout(done, revealMs)); return true; },
-    show: async () => { calls.push('show'); return true; },
-  };
-}
-
-test('on a Mac the window hides after a new tab, shows for the person\'s turn on its tab, and hides at the turn\'s end', async () => {
+test('show brings its tab to the front and holds no turn', async () => {
   const context = stubContext();
-  const app = [];
-  const { call, close } = await serve(context, { app: standInApp(app), turnMs: 60_000 });
+  const { call, close } = await serve(context);
   try {
     const { tabId: mine } = (await open(call, 'mine')).body;
-    assert.deepEqual(app, ['hide'], 'a new tab can bring the window back, so it hides again');
     const { tabId: other } = (await open(call, 'other')).body;
     const [page] = context.opened;
     const post = (tab, body) => call('POST', `/tabs/${tab}/front`, { userId: 'me', ...body });
-    await call('GET', `/tabs/${mine}/snapshot?userId=me`);
-    await call('POST', `/tabs/${mine}/type`, { userId: 'me', selector: '#q', text: 'hi', mode: 'keyboard' });
-    assert.deepEqual(app, ['hide', 'hide'], 'reading and typing work hidden');
-    await post(other);
-    assert.deepEqual(app.slice(2), ['reveal', 'hide'], 'a front with no turn hangs in a hidden app: the window comes out, behind the person\'s app, then hides');
-
-    app.length = 0;
-    await post(mine, { turn: true });
-    assert.deepEqual([app, page.calls.at(-1)], [['show'], ['front']], 'the turn shows the window, then its tab');
-    await post(mine, { turn: true, raise: false });
-    await open(call, 'third');
-    await call('GET', `/tabs/${other}/snapshot?userId=me`);
-    assert.deepEqual(app, ['show'], 'a renewal, a new tab, or another chat\'s step never hides it during the turn');
-    await post(other, { turn: false });
-    assert.equal(app.length, 1, 'another tab can not end the turn');
-    await post(mine, { turn: false });
-    assert.deepEqual(app, ['show', 'hide'], 'the turn\'s end hides it again');
-    await post(mine, { turn: false });
-    assert.equal(app.length, 2, 'an end with no turn open hides nothing more');
+    assert.deepEqual((await post(mine, { show: true })).body, { ok: true });
+    assert.deepEqual(page.calls.at(-1), ['front'], 'its tab comes to the front');
+    assert.equal((await post(other, { turn: true })).status, 200, 'another tab can take the turn at once');
   } finally { await close(); }
-});
-
-test('show unhides the window on its tab with no turn, and the next task step from any chat hides it', async () => {
-  const context = stubContext();
-  const app = [];
-  const { call, close } = await serve(context, { app: standInApp(app) });
-  try {
-    const { tabId: mine } = (await open(call, 'mine')).body;
-    const { tabId: other } = (await open(call, 'other')).body;
-    app.length = 0;
-    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
-    assert.deepEqual((await post(mine, 'front', { show: true })).body, { ok: true });
-    assert.deepEqual(app, ['show']);
-    assert.equal((await post(other, 'front', { turn: true, raise: false })).status, 200, 'show holds no turn');
-    await post(other, 'front', { turn: false });
-    app.length = 0;
-    await post(mine, 'front', { show: true });
-    await call('GET', `/tabs/${other}/snapshot?userId=me`);
-    await call('GET', `/tabs/${mine}/snapshot?userId=me`);
-    assert.deepEqual(app, ['show', 'hide'], 'the next step hides it, once');
-
-    await post(mine, 'front', { show: true });
-    await post(mine, 'front', { turn: true });
-    await post(other, 'type', { selector: '#q', text: 'hi', mode: 'keyboard' });
-    assert.deepEqual(app.slice(2), ['show', 'show'], 'a turn that starts after a show keeps the window up');
-    await post(mine, 'front', { turn: false });
-    assert.equal(app.at(-1), 'hide');
-  } finally { await close(); }
-});
-
-test('a click on a Mac takes the window out of hiding for the click alone; two at once share it, and it hides after both', async () => {
-  const context = stubContext();
-  const app = [];
-  const { call, close } = await serve(context, { app: standInApp(app, 100) });
-  try {
-    const { tabId: mine } = (await open(call, 'mine')).body;
-    const { tabId: other } = (await open(call, 'other')).body;
-    app.length = 0;
-    const click = tab => call('POST', `/tabs/${tab}/click`, { userId: 'me', selector: '#buy' });
-    assert.equal((await click(mine)).body.via, 'mouse');
-    assert.deepEqual(app, ['reveal', 'hide']);
-    app.length = 0;
-    const both = await Promise.all([click(mine), click(other)]);
-    assert.deepEqual(both.map(answer => answer.status), [200, 200]);
-    assert.deepEqual(app, ['reveal', 'hide'], 'the second click finds the window out already, and the last one hides it');
-    app.length = 0;
-    await call('POST', `/tabs/${mine}/viewport`, { userId: 'me', width: 800, height: 600 });
-    assert.deepEqual(app, ['reveal', 'hide'], 'a resize shows its tab, so it needs the window too');
-  } finally { await close(); }
-});
-
-test('a turn whose helper stopped renewing it hides the window when it lapses; with no Mac app nothing hides', async () => {
-  const context = stubContext();
-  const app = [];
-  const { call, close } = await serve(context, { app: standInApp(app), turnMs: 40 });
-  try {
-    const { tabId: mine } = (await open(call, 'mine')).body;
-    const { tabId: other } = (await open(call, 'other')).body;
-    app.length = 0;
-    await call('POST', `/tabs/${mine}/front`, { userId: 'me', turn: true });
-    await new Promise(done => setTimeout(done, 60));
-    assert.equal((await call('POST', `/tabs/${other}/front`, { userId: 'me' })).status, 200);
-    assert.deepEqual(app, ['show', 'hide', 'reveal', 'hide']);
-  } finally { await close(); }
-  const plain = await serve(stubContext());
-  try {
-    const { tabId } = (await open(plain.call)).body;
-    assert.equal((await plain.call('POST', `/tabs/${tabId}/front`, { userId: 'me', show: true })).status, 200, 'Windows or Linux: show is front alone');
-    assert.equal((await plain.call('POST', `/tabs/${tabId}/front`, { userId: 'me', turn: false })).status, 200);
-  } finally { await plain.close(); }
-});
-
-test('the Mac app call runs osascript on the browser\'s own process id; a failure is logged once and ignored', async () => {
-  const bin = mkdtempSync(join(tmpdir(), 'osascript-'));
-  const log = join(bin, 'calls.log');
-  // A stand-in osascript: it writes its arguments, and fails while `fail` exists.
-  writeFileSync(join(bin, 'osascript'), `#!/bin/sh\nprintf '%s\\n' "$@" >> '${log}'\n[ -e '${join(bin, 'fail')}' ] && { echo 'execution error: no app' >&2; exit 1; }\nexit 0\n`);
-  chmodSync(join(bin, 'osascript'), 0o755);
-  const path = process.env.PATH;
-  process.env.PATH = `${bin}:${path}`;
-  try {
-    const lines = [];
-    const app = macApp(4242, { log: line => lines.push(line) });
-    assert.equal(await app.hide(), true);
-    assert.equal(await app.show(), true);
-    const args = readFileSync(log, 'utf8').trim().split('\n');
-    const [hide, show] = [args[3], args[7]];
-    assert.deepEqual([args.slice(0, 3), args.slice(4, 7)], [['-l', 'JavaScript', '-e'], ['-l', 'JavaScript', '-e']], 'JavaScript for Automation');
-    assert.equal(hide, appScript(4242, 'hide'));
-    assert.match(hide, /runningApplicationWithProcessIdentifier\(4242\)/);
-    assert.match(hide, /if \(!app\.isHidden\) app\.hide;$/, 'hides only an app that shows');
-    assert.match(show, /app\.unhide; app\.activateWithOptions\(3\); delay\(0\.3\); if \(!app\.isActive\) app\.activateWithOptions\(3\);$/, 'shows and brings it in front');
-    assert.match(appScript(4242, 'reveal'), /app\.unhide;$/, 'a reveal leaves the person\'s app in front');
-    assert.deepEqual(lines, []);
-    writeFileSync(join(bin, 'fail'), '');
-    assert.equal(await app.hide(), false, 'a failed hide resolves, so the step goes on');
-    assert.equal(await app.hide(), false);
-    assert.equal(await app.show(), false);
-    assert.equal(lines.length, 2, 'logged once for each kind');
-    assert.match(lines[0], /^could not hide the browser's window: /);
-  } finally {
-    process.env.PATH = path;
-    rmSync(bin, { recursive: true, force: true });
-  }
-  const logged = [];
-  await macApp(1, { run: async () => { throw new Error('osascript: command not found\nmore'); }, log: line => logged.push(line) }).show();
-  assert.deepEqual(logged, ['could not show the browser\'s window: osascript: command not found']);
-});
-
-test('the browser\'s process is this server\'s camoufox child, never another server\'s or a content process', () => {
-  const ps = [
-    '  93446     1 node',
-    '  93461 93446 /Users/me/.wong-stack/camoufox/cache/Camoufox.app/Contents/MacOS/camoufox',
-    '  93471 93461 /Users/me/.wong-stack/camoufox/cache/Camoufox.app/Contents/MacOS/plugin-container.app/Contents/MacOS/plugin-container',
-    '  50001 50000 /tmp/x/Camoufox.app/Contents/MacOS/camoufox',
-    '  50002 50000 /usr/bin/python3',
-    '  60001 60000 /opt/camoufox/camoufox-bin',
-  ].join('\n');
-  assert.equal(browserPid(93446, () => ps), 93461);
-  assert.equal(browserPid(50000, () => ps), 50001);
-  assert.equal(browserPid(60000, () => ps), 60001);
-  assert.equal(browserPid(12345, () => ps), null);
-  assert.equal(browserPid(1, () => { throw new Error('no ps'); }), null);
 });
 
 test('the proxy starts only when its setting is on, and a failed one fails the start', async () => {

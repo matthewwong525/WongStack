@@ -169,5 +169,7 @@
   {"name": "CHROME=attached", "replacement": "`BROWSER=camoufox`: `attach` always uses the assistant's browser"},
   {"name": "SERVER=possible", "replacement": "`WHERE=server`, from `browser.mjs where`"},
   {"name": "addon asked", "replacement": "nothing: the person adds a password manager themselves, and the assistant asks nothing"},
-  {"name": "addon decline", "replacement": "nothing: the person adds a password manager themselves, and the assistant asks nothing"}
+  {"name": "addon decline", "replacement": "nothing: the person adds a password manager themselves, and the assistant asks nothing"},
+  {"name": "macApp", "replacement": "nothing: the browser window stays shown on a Mac"},
+  {"name": "hideIdle", "replacement": "nothing: the browser window stays shown on a Mac"}
 ]

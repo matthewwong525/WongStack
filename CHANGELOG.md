@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.6.0 — Keep the browser window shown on a Mac
+
+- **The browser window stays shown on a Mac**, as it does on Windows and a Linux computer with a screen. It no longer hides while the assistant works, and it no longer flashes up for a click. You can minimize it or move it like any window ([where it shows](wiki/development/browser-window.md#where-it-shows)).
+- **Your turn works as before, without the hiding.** When a step needs you, your chat's tab comes to the front, and the chat tells you what to do and to say *done*. If the window is behind another app, click *Camoufox* in the Dock ([your turn in the window](wiki/development/browser-window.md#your-turn-in-the-window)).
+- **Tabs stay as they are.** Each chat still gets its own tab in the one window, and no other chat switches away from your tab during your turn.
+
+**Updating.** On a Mac, a browser that started hidden stays hidden until it stops. To see it, click *Camoufox* in the Dock, or ask the assistant to stop the browser once; the next start keeps the window shown.
+
 ## 50.5.0 — One browser window with a tab for each chat, and browser settings on each computer
 
 - **One window, a tab for each chat.** Each chat, and each scheduled run, gets its own tab in the one browser window, not a window of its own. The chats work at the same time. While it is your turn in a tab, the other chats keep working in theirs and never show their tab over yours ([a tab for each chat](wiki/development/browser-window.md#a-tab-for-each-chat)).

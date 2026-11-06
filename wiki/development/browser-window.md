@@ -16,16 +16,14 @@ Each chat, and each scheduled run, gets its own tab in the one window, with the 
 
 | Computer | The browser shows |
 |---|---|
-| A Mac | In a window on your screen, hidden until your turn |
+| A Mac | In a window on your screen |
 | A Windows computer | In a window on your screen |
 | A Linux computer with a screen | In a window on your screen |
 | A Linux computer with the link setting on | On a virtual screen; your turn comes as a [live-view link](live-view.md) |
 | A Linux server with no screen | On a virtual screen; your turn comes as a live-view link |
 
-- **On a Mac, the window stays out of sight until your turn.** The agent works in it hidden, so it never covers what you do. When a step needs you, the window shows on your chat's tab. When your turn ends, it hides again. A new chat's tab does not bring it back. Windows and a Linux desktop keep the window shown.
-  - **A click shows the window for a moment**, just behind the app you are in: a hidden browser takes no clicks and can not change its tab. Typing, reading, and pictures stay hidden.
-  - **macOS may keep the window behind the app you are in.** Then click *Camoufox* in the Dock.
-  - **A hide that fails leaves the window shown**, as before. The browser writes why in `~/.wong-stack/camoufox/server.log`.
+- **The window stays shown.** It never hides by itself. You can minimize it or move it like any window.
+- **On a Mac, the window may be behind the app you are in.** Then click *Camoufox* in the Dock.
 - **Turn the window off** on a computer you don't sit at: say *don't show the browser window*. The agent runs `browse.mjs window off`, which prints `BROWSE_WINDOW=off`. `window on` turns it back on, and `window` alone prints the setting.
 - **On Linux, `window off` is the link setting.** The browser then hides on its virtual screen, and your turn comes as a link. On a Mac or Windows computer, `window off` means no window and no link: a step that needs you ends with [steps to finish in your own browser](finish-steps.md).
 - **A Linux computer has a screen when the browser's start sees one** (`DISPLAY` or `WAYLAND_DISPLAY`). A browser started from a service with neither uses the link. `browse.mjs status` prints which one the running browser took: `BROWSE_SHOWN=window`, `link`, or `none`.
@@ -35,9 +33,8 @@ Each chat, and each scheduled run, gets its own tab in the one window, with the 
 
 Where the browser shows in a window, your turn for [a sign-in, a payment, a robot check, or a stuck step](live-view.md#when-it-opens) happens there, with no link:
 
-- **`open --view` takes the same finish and line** as a live view. It brings your chat's tab to the front, prints `HANDOVER_VIEW=window` and no `HANDOVER_LINK`, and still watches the finish. On a Mac it shows the hidden window first.
-- **Every end of the turn hides a Mac's window again**: `done`, `handed-back`, `closed`, and `timeout`.
-- **The chat says the line, with *say done*:** *Sign in to Netflix in the browser window, then say done.* A payment still asks [the pay question](live-view.md#pay-or-type-a-code) first.
+- **`open --view` takes the same finish and line** as a live view. It brings your chat's tab to the front, prints `HANDOVER_VIEW=window` and no `HANDOVER_LINK`, and still watches the finish.
+- **The chat says the line, with *say done*:** *Sign in to Netflix in the browser window, then say done.* On a Mac it adds: *If it's behind, click Camoufox in the Dock.* A payment still asks [the pay question](live-view.md#pay-or-type-a-code) first.
 - **It ends on the finish, or on your *done*.** On *done*, the agent runs `hand-over.mjs close`, which ends the turn as `handed-back`. Then it reads the page afresh. While the turn is open, it sends that tab nothing.
 - **With the window off on a Mac or Windows computer**, `open --view` prints `HANDOVER_VIEW=unsupported`, and the step ends with steps for you.
 
@@ -51,12 +48,12 @@ node .claude/skills/hand-over/scripts/hand-over.mjs open --view --keep-open --no
 
 It reads no finish, so it stays open through every page, for up to 8 hours. It holds your chat's tab as your turn, so no other chat's click takes the window away from you.
 
-- **With a window,** it brings your chat's tab to the front and prints `HANDOVER_VIEW=window`, with no link. On a Mac, the hidden window shows, and hides again when the turn ends. The agent tells you the tab is in front, and to say *done* when you are through. On *done*, it runs `hand-over.mjs close`.
+- **With a window,** it brings your chat's tab to the front and prints `HANDOVER_VIEW=window`, with no link. The agent tells you the tab is in front, and to say *done* when you are through. On *done*, it runs `hand-over.mjs close`.
 - **With the link,** the agent sends a live view of your chat's tab. It ends when you tap *Hand back*.
 
-The agent never runs `browse.mjs front` or `show` for this: neither holds a turn, so another chat's click could switch the window to its own tab, or its next step could hide the window.
+The agent never runs `browse.mjs front` or `show` for this: neither holds a turn, so another chat's click could switch the window to its own tab.
 
-To show you a page when its task is done, with no turn, the agent runs `browse.mjs show`. On a Mac, the window shows on your chat's tab until the next step of any chat hides it again. It prints `BROWSE_SHOWN=window`, `link`, or `none`; with `link` or `none` there is no window to show, so the agent sends a picture or the view above. While your turn is open in another chat's tab, `open` stops with *the person is using the browser in another chat's tab*. The agent still sends a link by itself for a sign-in, a payment or a backup code, a robot check, or a stuck step.
+To show you a page when its task is done, with no turn, the agent runs `browse.mjs show`, which brings your chat's tab to the front. It prints `BROWSE_SHOWN=window`, `link`, or `none`; with `link` or `none` there is no window to show, so the agent sends a picture or the view above. While your turn is open in another chat's tab, `open` stops with *the person is using the browser in another chat's tab*. The agent still sends a link by itself for a sign-in, a payment or a backup code, a robot check, or a stuck step.
 
 ## Settings stay on this computer
 

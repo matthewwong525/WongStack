@@ -1122,18 +1122,18 @@ test('front brings this task\'s tab to the front, and says so when the person is
   assert.match(f.run('--help').stdout, /front .*bring this task's tab to the front/);
 });
 
-test('show brings this task\'s tab to the front and asks the server to unhide a Mac\'s window, then says how the browser shows', t => {
+test('show brings this task\'s tab to the front with no turn, then says how the browser shows', t => {
   const f = fixture(t);
   ok(f, 'open', SHOP);
   assert.equal(ok(f, 'show'), 'BROWSE_SHOWN=none\n', 'the stand-in browser records no window');
   const { path, body } = f.camofox.requests().at(-1);
   assert.match(path, /\/front$/);
-  assert.deepEqual(body, { userId: 'me', show: true });
+  assert.deepEqual(body, { userId: 'me' }, 'a plain front: no turn held');
   const record = join(f.camofox.install, 'server.json');
   writeFileSync(record, JSON.stringify({ ...JSON.parse(readFileSync(record, 'utf8')), window: true }));
   assert.equal(ok(f, 'show'), 'BROWSE_SHOWN=window\n');
   f.camofox.set('front-refused');
   assert.equal(f.run('show').stdout, 'BROWSE_ERROR=the person is using the browser\n', 'during another chat\'s turn the window already shows');
   assert.equal(f.run('show', 'now').status, 2, 'show takes no words');
-  assert.match(f.run('--help').stdout, /show .*unhide the window too, with no turn held: the next task\n\s+step, from any chat, hides it again/);
+  assert.match(f.run('--help').stdout, /show .*front, with no turn held, to show the person a page/);
 });

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // The shared browser: one Camoufox profile, driven by the Playwright inside the Python camoufox library, behind the
 // REST routes camofox-browser had (github.com/jo-inc/camofox-browser, MIT), so browse.mjs keeps its calls.
-import { execFile, execFileSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { timingSafeEqual } from 'node:crypto';
-import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
@@ -36,8 +36,6 @@ const TURN_WAIT_MS = 20_000;
 const BUSY = 'the person is using the browser';
 // The screen a Linux desktop's window needs; the library hands the browser no variable of its own.
 const SCREEN_VARS = ['DISPLAY', 'WAYLAND_DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR'];
-// The longest a hide or show on a Mac may take; past it, the window stays as it is.
-const APP_MS = 5000;
 
 /** A refusal with its HTTP status. */
 const refusal = (status, message) => Object.assign(new Error(message), { status });
@@ -243,9 +241,6 @@ const OPEN_ON_ADDON = new Set(['navigate', 'front']);
 // A click selects its tab (tried 2026-11-06), and a resize shows it first, so both wait for the person's turn; typing,
 // a key, a choice, reading, and a picture stay behind.
 const SHOWS_TAB = new Set(['click', 'viewport']);
-// The steps that hang while a Mac's app is hidden, so its window comes out of hiding for them (tried 2026-11-06): a
-// click, and a tab brought to the front, as a resize does. Typing, a key, reading, and a picture work hidden.
-const NEEDS_WINDOW = new Set(['click', 'viewport', 'front']);
 
 /** The request's JSON body, or {} with none. */
 async function readBody(request) {
@@ -269,7 +264,7 @@ function authorized(request, key) {
 
 /** The HTTP handler over one browser `context`: the camofox routes browse.mjs calls, each behind `key`, with one
  * tab per userId + sessionKey, all in the home tab's window. A tab unused for `idleMs` closes, as camofox's did. */
-export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnMs = TURN_MS, turnWaitMs = TURN_WAIT_MS, app = null } = {}) {
+export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnMs = TURN_MS, turnWaitMs = TURN_WAIT_MS } = {}) {
   const tabs = new Map();
   let made = 0;
   let home = null;
@@ -279,25 +274,6 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
   // The tab of the person's open turn, `{id, until, before}`: no other tab comes to the front while it holds. `before`
   // holds the pages open when it began.
   let turn = null;
-  // On a Mac, `app` hides the browser while no one needs its window: the person's turn, a look they asked for with
-  // `show`, which the next task step ends, or `using` steps that hang in a hidden app.
-  let showing = false;
-  let using = 0;
-  const windowWanted = () => turnOpen() || showing || using > 0;
-  const hideIdle = async () => { if (app && !windowWanted()) await app.hide(); };
-  /** Runs `step` with the window out of hiding on a Mac, but not in front of the person's app; it hides again after. */
-  const withWindow = async step => {
-    if (!app) return step();
-    const up = windowWanted();
-    using++;
-    try {
-      if (!up) await app.reveal();
-      return await step();
-    } finally {
-      using--;
-      await hideIdle();
-    }
-  };
   const tabOf = (id, userId) => {
     const tab = tabs.get(id);
     if (!tab || tab.page.isClosed() || (userId && tab.userId !== userId)) throw refusal(404, 'Tab not found');
@@ -347,15 +323,11 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
     opening = made.catch(() => {});
     return made;
   };
-  /** Whether another tab holds the person's turn; a closed tab or a lapsed lease ends it and hides a Mac's app. */
+  /** Whether another tab holds the person's turn; a closed tab or a lapsed lease ends it. */
   const otherTurn = tab => {
-    if (turn && (Date.now() >= turn.until || tabs.get(turn.id)?.page.isClosed() !== false)) {
-      turn = null;
-      void hideIdle();
-    }
+    if (turn && (Date.now() >= turn.until || tabs.get(turn.id)?.page.isClosed() !== false)) turn = null;
     return Boolean(turn) && turn.id !== tab.id;
   };
-  const turnOpen = () => otherTurn({ id: null });
   /** Waits for another tab's turn to end; a refusal once `turnWaitMs` passes. */
   const awaitTurn = async tab => {
     const end = Date.now() + turnWaitMs;
@@ -376,8 +348,6 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
       });
     }
     const page = await newTab();
-    // A new tab can bring the hidden window back on a Mac, so it hides again, unless it is the person's turn.
-    await hideIdle();
     try { if (url) await go(page, url); } catch (error) { await page.close().catch(() => {}); throw error; }
     const tabId = `tab-${Date.now().toString(36)}-${++made}`;
     tabs.set(tabId, { id: tabId, page, userId, sessionKey, refs: null, text: null, lastUse: Date.now(), queue: Promise.resolve() });
@@ -400,7 +370,7 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
     // The size comes back once this tab can show: a resize shows it, which another tab's turn forbids.
     if (own && otherTurn(tab)) return false;
     tab.addon = null;
-    if (own) await withWindow(() => showAndSize(tab.page, own)).catch(() => {});
+    if (own) await showAndSize(tab.page, own).catch(() => {});
     return false;
   };
   /** A resize while the password manager's page shows: that page keeps its size, and the size asked for is the one
@@ -418,53 +388,35 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
   const act = (tab, name, body) => queued(tab, async () => {
     const addonPage = name === 'navigate' && ADDON_PAGE.test(body.url ?? '');
     if (SHOWS_TAB.has(name) || addonPage) await awaitTurn(tab);
-    const step = async () => {
-      if (name === 'viewport' && tab.addon && await onAddon(tab)) return keepForSite(tab, body);
-      if (!OPEN_ON_ADDON.has(name) && await onAddon(tab)) throw onAddonPage(tab);
-      if (GUARDED.has(name)) await guardAddon(tab.page, body);
-      const result = await ACTIONS[name](tab, body);
-      if (!KEEPS_REFS.has(name)) Object.assign(tab, { refs: null, text: null });
-      return result;
-    };
-    return NEEDS_WINDOW.has(name) || addonPage ? withWindow(step) : step();
+    if (name === 'viewport' && tab.addon && await onAddon(tab)) return keepForSite(tab, body);
+    if (!OPEN_ON_ADDON.has(name) && await onAddon(tab)) throw onAddonPage(tab);
+    if (GUARDED.has(name)) await guardAddon(tab.page, body);
+    const result = await ACTIONS[name](tab, body);
+    if (!KEEPS_REFS.has(name)) Object.assign(tab, { refs: null, text: null });
+    return result;
   });
 
   /** Whether a page the person or a site opened during the turn is still open, such as a *Forgot password* tab or a
    * sign-in window. A page can not tell which tab shows, so the person may be on it. */
   const ownPageOpen = () => context.pages().some(page => !page.isClosed() && page !== home && !taskPages.has(page) && !turn.before.has(page));
   /** Brings the tab to the front, unless another tab holds the person's turn: `turn` holds or ends it, `raise: false`
-   * only renews it, `reselect` leaves the person's own page shown, `show` and a turn's start unhide a Mac's app. */
-  const front = async (tab, { turn: hold, raise = true, reselect = false, show = false }) => {
+   * only renews it, `reselect` leaves the person's own page shown. */
+  const front = async (tab, { turn: hold, raise = true, reselect = false }) => {
     if (hold === false) {
-      if (turn?.id !== tab.id) return { ok: true };
-      turn = null;
-      await hideIdle();
+      if (turn?.id === tab.id) turn = null;
       return { ok: true };
     }
     if (otherTurn(tab)) throw refusal(409, BUSY);
-    if (hold === true) {
-      turn = { id: tab.id, until: Date.now() + turnMs, before: turn?.id === tab.id ? turn.before : new Set(context.pages()) };
-      showing = false;
-    }
+    if (hold === true) turn = { id: tab.id, until: Date.now() + turnMs, before: turn?.id === tab.id ? turn.before : new Set(context.pages()) };
     if (reselect && turn?.id === tab.id && ownPageOpen()) return { ok: true };
     if (!raise) return { ok: true };
-    if (show && turn?.id !== tab.id) showing = true;
-    // A tab comes to the front only in a window out of hiding, so the window shows first.
-    if (hold === true || show) await app?.show();
     return act(tab, 'front', {});
-  };
-  /** Ends a look the person asked for: on a Mac, the next task step hides the window, unless a turn is open. */
-  const endLook = async () => {
-    if (!showing || turnOpen()) return;
-    showing = false;
-    await hideIdle();
   };
 
   /** The answer to one authorized request: a JSON body, or PNG bytes. */
   const answer = async (method, parts, query, body) => {
     const userId = body.userId ?? query.get('userId');
     const [top, id, action] = parts;
-    if (action !== 'front') await endLook();
     if (top === 'tabs' && !id) {
       if (method === 'POST') return openTab(body);
       if (method === 'GET') return listTabs(userId);
@@ -552,60 +504,10 @@ export async function startProxy(on, start = startForwarder) {
   return { on: true, args: ['--proxy', `http://127.0.0.1:${proxy.port}`], close: () => proxy.close() };
 }
 
-/** The JavaScript for Automation that hides the app of process `pid`, unhides it (`reveal`), or also brings it in front
- * (`show`): the macOS call by process id, so no other Camoufox, and no permission (checked 2026-11-06). */
-export function appScript(pid, what) {
-  const app = `ObjC.import('AppKit'); const app = $.NSRunningApplication.runningApplicationWithProcessIdentifier(${Math.trunc(Number(pid))}); if (app.isNil()) throw new Error('no app has that process id');`;
-  // `reveal` leaves the window just behind the person's app; `show` asks twice to bring it in front (3: all windows,
-  // ignoring other apps), since macOS may refuse.
-  return `${app} ${{ hide: 'if (!app.isHidden) app.hide;', reveal: 'app.unhide;', show: 'app.unhide; app.activateWithOptions(3); delay(0.3); if (!app.isActive) app.activateWithOptions(3);' }[what]}`;
-}
-
-const runScript = script => new Promise((resolve, reject) => {
-  execFile('osascript', ['-l', 'JavaScript', '-e', script], { timeout: APP_MS }, error => (error ? reject(error) : resolve()));
-});
-
-/** A line in the server's log, which no one reads unless something goes wrong; a log that can not be written is
- * skipped. */
-function logLine(line) {
-  try {
-    appendFileSync(FILES.log, `${new Date().toISOString()} ${line}\n`, { mode: 0o600 });
-  } catch { /* the log is extra */ }
-}
-
-/** The Mac app of the browser with process id `pid`: `hide()`, `reveal()` and `show()` run in order, each resolving to
- * whether it worked. A failure is logged once for each kind and ignored: the window then shows, as before. */
-export function macApp(pid, { run = runScript, log = logLine } = {}) {
-  const logged = new Set();
-  let last = Promise.resolve();
-  const call = what => {
-    const done = last.then(() => run(appScript(pid, what))).then(() => true, error => {
-      if (!logged.has(what)) log(`could not ${what} the browser's window: ${String(error.message).split('\n')[0]}`);
-      logged.add(what);
-      return false;
-    });
-    last = done;
-    return done;
-  };
-  return { hide: () => call('hide'), reveal: () => call('reveal'), show: () => call('show') };
-}
-
-/** The browser's own process: the child of `parent` whose program is camoufox, or null. Its content processes are its
- * own children, and another Camoufox is another server's child, so neither matches. */
-export function browserPid(parent = process.pid, list = () => execFileSync('ps', ['-axo', 'pid=,ppid=,comm='], { encoding: 'utf8' })) {
-  let text = '';
-  try { text = list(); } catch { return null; }
-  for (const line of text.split('\n')) {
-    const [pid, ppid, ...program] = line.trim().split(/\s+/);
-    if (Number(ppid) === parent && /(^|\/)camoufox(-bin)?$/i.test(program.join(' '))) return Number(pid);
-  }
-  return null;
-}
-
 const record = info => writeFileSync(FILES.server, `${JSON.stringify({ pid: process.pid, ...info })}\n`, { mode: 0o600 });
 
-/** Takes the port, then starts the proxy when it is on, the screen, the browser and the routes, and hides a Mac's
- * window; /health says ok only once the browser is up. A failed start leaves its reason in server.json. */
+/** Takes the port, then starts the proxy when it is on, the screen, the browser and the routes; /health says ok
+ * only once the browser is up. A failed start leaves its reason in server.json. */
 async function main() {
   const port = Number(process.env.BROWSE_SERVER_PORT);
   const stops = [];
@@ -637,13 +539,8 @@ async function main() {
     const { firefox } = createRequire(import.meta.url)(join(config.driver, 'index.js'));
     const context = await firefox.launchPersistentContext(FILES.profile, persistentOptions(config, windowed.env));
     stops.push(() => context.close());
-    // On a Mac the window stays hidden until the person's turn; Windows and a Linux desktop keep it shown.
-    const pid = process.platform === 'darwin' && windowed.record.window ? browserPid() : null;
-    if (process.platform === 'darwin' && windowed.record.window && !pid) logLine('could not find the browser\'s process, so its window stays shown');
-    const app = pid ? macApp(pid) : null;
-    await app?.hide();
     await moveLogins(context, { profilesDir: OLD_PROFILES, marker: FILES.marker }).catch(() => {});
-    handle = routes(context, readFileSync(FILES.key, 'utf8').trim(), { app });
+    handle = routes(context, readFileSync(FILES.key, 'utf8').trim());
     record({ port, display: screen?.display ?? null, ...windowed.record, proxy: proxy.on, windowSetting: setting, library: config.library, build: config.build, locale: config.locale });
     // A browser that quits on its own takes the server with it, so the next command starts a fresh one.
     context.on('close', () => void stop(1));

@@ -146,6 +146,6 @@ node .claude/skills/hand-over/scripts/hand-over.mjs install-view   # HANDOVER_IN
 
 ## On a computer with a screen
 
-On a Mac, a Windows computer, or a Linux computer with a screen and the link setting off, your turn happens in [the browser window](browser-window.md#your-turn-in-the-window), with no link. On a Mac, that window stays hidden until your turn, and hides again when it ends. A live-view link opens only on Linux: with the link setting on, or on a server with no screen ([where it shows](browser-window.md#where-it-shows)).
+On a Mac, a Windows computer, or a Linux computer with a screen and the link setting off, your turn happens in [the browser window](browser-window.md#your-turn-in-the-window), with no link. A live-view link opens only on Linux: with the link setting on, or on a server with no screen ([where it shows](browser-window.md#where-it-shows)).
 
 Back to [browsing](browsing.md).
