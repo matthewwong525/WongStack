@@ -49,9 +49,10 @@ function setup(t) {
   };
 }
 
-test('checkView says unsupported off Linux, and names each missing tool', t => {
+test('checkView says unsupported off Linux, names each missing tool, and needs none where the browser has a window', t => {
   const f = setup(t);
   for (const platform of ['darwin', 'win32']) assert.deepEqual(checkView({ platform, env: f.env(), home: f.home }), { unsupported: OFF_LINUX, missing: [] });
+  for (const platform of ['darwin', 'linux']) assert.deepEqual(checkView({ platform, env: f.env('x11vnc'), home: f.home, window: true }), { window: true, missing: [] });
   assert.deepEqual(checkView({ platform: 'linux', env: f.env('x11vnc', 'xdotool'), home: f.home }), { missing: ['x11vnc', 'xdotool', 'novnc'] });
   assert.deepEqual(checkView({ platform: 'linux', env: f.env(), home: f.home }), { missing: ['novnc'] });
   fakeViewer(f.home, VIEWER.version);
@@ -481,27 +482,28 @@ async function mounted(t, routes) {
   };
 }
 
-test('the view\'s routes give the note, the fit, and the deadline, take a shape, and close once', async t => {
+test('the view\'s routes give the note, the fit, and the deadline, take a shape, and end the turn once', async t => {
   const fits = [];
-  let cancelled = 0;
+  const ends = [];
   const fit = kind => ({ kind, width: kind === 'phone' ? 480 : 1280, screen: SCREEN });
-  const call = await mounted(t, viewRoutes({ note: 'Messenger wants to know you\'re a person' }, { fitted: () => fit('wide'), onFit: async kind => { fits.push(kind); return fit(kind); }, onCancel: () => { cancelled++; }, closesAt: 1234 }));
+  const call = await mounted(t, viewRoutes({ note: 'Messenger wants to know you\'re a person' }, { fitted: () => fit('wide'), onFit: async kind => { fits.push(kind); return fit(kind); }, onGive: () => ends.push('give'), closesAt: 1234 }));
   const view = await call('view');
   assert.equal(view.status, 200);
-  assert.deepEqual({ ...view.json, now: 0 }, { note: 'Messenger wants to know you\'re a person', fit: fit('wide'), closesAt: 1234, now: 0 });
+  assert.deepEqual({ ...view.json, now: 0 }, { note: 'Messenger wants to know you\'re a person', control: 'turn', fit: fit('wide'), closesAt: 1234, now: 0 });
   assert.ok(Math.abs(view.json.now - Date.now()) < 5000, 'the watcher\'s own clock');
   assert.equal((await call('view', {})).status, 405);
   assert.equal((await call('fit')).status, 405);
   assert.deepEqual(await call('fit', { fit: 'phone' }), { status: 200, json: { fit: fit('phone') } });
   for (const body of ['{', {}, { fit: 'tall' }, { fit: ['phone'] }, 'x'.repeat(20_000)]) assert.equal((await call('fit', body)).status, 400, JSON.stringify(body).slice(0, 40));
   assert.deepEqual(fits, ['phone'], 'only a shape it knows reaches the browser');
-  assert.deepEqual(await call('done', {}), { status: 200, json: { ok: true } });
+  assert.equal((await call('give')).status, 405, 'a press is a POST');
+  assert.deepEqual(await call('give', {}), { status: 200, json: { control: 'assistant' } });
   await pause(20);
-  assert.equal((await call('done', {})).status, 409);
-  assert.equal(cancelled, 1);
+  assert.equal((await call('give', {})).status, 409, 'a second Hand back');
+  assert.deepEqual(ends, ['give'], 'the turn ends once, after its answer is sent');
 
   const bare = await mounted(t, viewRoutes({ note: null }));
-  assert.deepEqual(Object.keys((await bare('view')).json).sort(), ['fit', 'now'], 'no note, no line; nothing else from the page');
+  assert.deepEqual(Object.keys((await bare('view')).json).sort(), ['control', 'fit', 'note', 'now'], 'nothing else from the page');
   assert.deepEqual((await bare('fit', { fit: 'wide' })).json, { fit: null });
-  assert.equal((await bare('done', {})).status, 200);
+  assert.equal((await bare('stop', {})).status, 400, 'Stop is gone: the route is no turn action');
 });

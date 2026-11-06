@@ -82,7 +82,7 @@ export function refusal(args) {
   const [group, word] = args;
   const sub = word && !word.startsWith('-') ? word : null;
   const flags = new Set(args.filter(arg => arg.startsWith('--')).map(arg => arg.split('=')[0]));
-  if (group === 'spend-request') return 'a spend request hands the assistant a card number; a website\'s own card form gets the private form';
+  if (group === 'spend-request') return 'a spend request hands the assistant a card number; the person types a card into a website\'s own form in the live view';
   if (group === 'call' || (group === 'checkout' && sub === 'complete')) return '`shop.mjs pay` is the one pay step';
   if (group === 'skill' && (flags.has('--install') || flags.has('--dir'))) return 'skill --install writes a copy of Shop\'s guide into agent folders; read it with `shop.mjs guide`';
   if (group === 'checkout' && sub === 'update' && flags.has('--arguments')) return 'a full checkout document would carry the hidden payment entries back; use --patch';

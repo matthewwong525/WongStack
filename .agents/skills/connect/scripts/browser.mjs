@@ -31,7 +31,7 @@ const USAGE = `usage: browser.mjs <command>
                                when none is open (HANDOVER_LINK, then CONNECT_PAUSED=your-turn)
   done [--stopped]             close the pages it opened and the watch link; the browser stays open
 Every command but where, attach and open acts on a page this helper opened, never another. While a watch link is
-open, a command the person holds the browser for prints CONNECT_PAUSED=taken-over|your-turn, or CONNECT_STOPPED.`;
+open, a command the person holds the browser for prints CONNECT_PAUSED=taken-over|your-turn.`;
 const STEP = 'In Chrome, open chrome://inspect/#remote-debugging, switch it on, then choose Allow when Chrome asks.';
 const REF = /^@?e\d+$/;
 const TOOL = /^[a-z][a-z0-9-]*$/;
@@ -45,10 +45,9 @@ const WAIT_MS = 10_000;
 const PAUSES = {
   person: ['CONNECT_PAUSED=taken-over', 'The person took over the browser. Run `hand-over.mjs wait` in the background and send the browser nothing until it prints handed-back.'],
   turn: ['CONNECT_PAUSED=your-turn', 'It is the person\'s turn to sign in. Run `hand-over.mjs wait` in the background until it prints signed-in or handed-back.'],
-  stopped: ['CONNECT_STOPPED', 'The person stopped the run. Run `browser.mjs done --stopped`.'],
 };
 
-/** An error whose first line, a marker such as CONNECT_STOPPED, goes to stdout for the chat to act on. */
+/** An error whose first line, a marker such as CONNECT_PAUSED=taken-over, goes to stdout for the chat to act on. */
 class Paused extends Error {
   constructor([marker, message]) { super(message); this.marker = marker; }
 }
@@ -212,7 +211,7 @@ async function named(tab, target) {
   return /"([^"]+)"/.exec(lineAt((await reading(tab)).text, target))?.[1] ?? target;
 }
 
-/** Refuses while the person holds the watch link's browser, or after they stopped. */
+/** Refuses while the person holds the watch link's browser. */
 function holding() {
   const holder = watchControl();
   if (PAUSES[holder]) throw new Paused(PAUSES[holder]);
@@ -338,7 +337,7 @@ async function signIn(tool) {
   return PAUSES.turn[0];
 }
 
-/** Closes the helper's pages and its watch link; `stopped` says the person or chat stopped the run. */
+/** Closes the helper's pages and its watch link; `stopped` says the chat stopped the run. */
 async function done(stopped) {
   // The watch closes first: its close puts the page back as it found it.
   if (watchControl()) spawnSync(process.execPath, [HAND_OVER, 'close', ...(stopped ? ['--stopped'] : [])], { stdio: 'ignore' });

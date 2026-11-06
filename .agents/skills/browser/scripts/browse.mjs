@@ -2,14 +2,13 @@
 // Installs, starts, and drives Camoufox, the browser the agent uses websites in as the person; the only script that
 // talks to its server. Exit codes: 0 ok · 1 failed · 2 usage · 3 the browser is not installed. Node built-ins only.
 import { spawn, spawnSync } from 'node:child_process';
-import { createHash, createHmac, randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
-import { hostOf, readLogins, writeLogins } from './logins.mjs';
 import { MOVE_MS } from './login-move.mjs';
 import { INTERACTIVE_ROLES, MAX_REFS, SKIP_PATTERNS, parseLine } from './refs.mjs';
 
@@ -25,13 +24,9 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   screenshot [--if-changed] [--full-page]
                                 prints BROWSE_SHOT=<temp path>, or none when unchanged;
                                 --full-page takes the whole page, not just what shows
-  logins                        each saved login's name, host, and username
-  login <name> [--username <ref>] [--password <ref>] [--submit <ref>] [--main-domain]
-                                type a saved login; prints BROWSE_LOGIN=accepted|next-step|rejected|missing|typed|wrong-site;
-                                next-step: the page stayed but its password box went, as on a code page;
-                                --main-domain also types on a site that shares only the main domain
-  forget <name>                 delete a saved login
-  save                          keep the logins now, with every tab open
+  save                          keep the sign-ins now, with every tab open
+  window [on|off]               show the browser in a window on a Mac or Windows, from its next start;
+                                prints BROWSE_WINDOW=on|off; alone, the setting (on unless turned off)
   close                         close this task's tab
   status | install | stop       the install and the server`;
 
@@ -49,6 +44,7 @@ const DIR = join(homedir(), '.wong-stack', 'camoufox');
 export const FILES = {
   server: join(DIR, 'server.json'), key: join(DIR, 'api-key'), lock: join(DIR, 'start.lock'), tmp: join(DIR, 'tmp'), tabs: join(DIR, 'tabs'),
   profile: join(DIR, 'profile'), cache: join(DIR, 'cache'), marker: join(DIR, 'migrated'), fingerprint: join(DIR, 'fingerprint.json'), venv: join(DIR, 'venv', CAMOUFOX.python),
+  settings: join(homedir(), '.wong-stack', 'browser-settings.json'),
 };
 /** The old camofox browser's profiles, read once for the login move. */
 export const OLD_PROFILES = join(homedir(), '.wong-stack', 'camofox', 'profiles');
@@ -59,7 +55,6 @@ const SERVER_SCRIPT = process.env.BROWSE_SERVER_SCRIPT || fileURLToPath(new URL(
 const ms = (name, normal) => Number(process.env[name] ?? normal);
 const SETTLE_MS = ms('BROWSE_SETTLE_MS', 8000);
 const SETTLE_GAP_MS = ms('BROWSE_SETTLE_GAP_MS', 1000);
-const LOGIN_WAIT_MS = ms('BROWSE_LOGIN_WAIT_MS', 15_000);
 const COMMAND_MS = ms('BROWSE_COMMAND_MS', 45_000);
 /** A start's parts: the launch config, the browser's launch, then the login move; a start waits for all three. */
 export const CONFIG_MS = 180_000;
@@ -109,8 +104,8 @@ export function valueIn(snapshot, ref) {
 
 /** A secret box's name, in the words sites use: a password, PIN, card, or one-time code. */
 const SECRET_NAME = /password|passcode|passwort|\bpin\b|card (?:number|no\b)|\bcvc\b|\bcvv\b|\bcsc\b|security code|expir|one-time|verification code|\botp\b/i;
-/** A secret box by its kind, or by the mark `login` leaves on the box it typed a password into. */
-const SECRET_FIELDS = ['input[type=password]', ...['cc-number', 'cc-csc', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'one-time-code'].map(kind => `[autocomplete~="${kind}"]`), '[data-wong-hidden]'].join(', ');
+/** A secret box by its kind: a password, card, or one-time code box. */
+const SECRET_FIELDS = ['input[type=password]', ...['cc-number', 'cc-csc', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'one-time-code'].map(kind => `[autocomplete~="${kind}"]`)].join(', ');
 /** A snapshot line: its indent, its start quoted or bare, and its value, or a lone `:` when it sits on a child line. */
 const LINE = /^(\s*)- (?:'((?:[^']|'')*)'(?: \[[^\]]*\])*|([^'].*?))(?:: (.*)|(:))?$/;
 /** A box's start: its role, its name, and its marks, the server's ref among them. A dropdown is a combobox too, but its
@@ -118,8 +113,6 @@ const LINE = /^(\s*)- (?:'((?:[^']|'')*)'(?: \[[^\]]*\])*|([^'].*?))(?:: (.*)|(:
 const BOX_KEY = /^(?:textbox|searchbox|spinbutton|combobox)(?: "((?:[^"\\]|\\.)*)")?(?: \[[^\]]*\])*$/;
 /** The values of the page's secret boxes, dropdowns left out, in the page, same-origin frames, and shadow roots. */
 export const SECRETS_SCRIPT = `(() => { const found = []; const walk = root => { for (const field of root.querySelectorAll(${JSON.stringify(SECRET_FIELDS)})) if (field.tagName !== 'SELECT' && field.value) found.push(field.value); for (const inner of root.querySelectorAll('*')) { if (inner.shadowRoot) walk(inner.shadowRoot); try { if (inner.contentDocument) walk(inner.contentDocument); } catch { /* another site's frame */ } } }; walk(document); return found; })()`;
-/** Marks the box a password was just typed into, the focused one, so it stays secret once the site shows it as text. */
-export const MARK_SCRIPT = `(() => { let field = document.activeElement; for (let inner; (inner = field?.contentDocument?.activeElement ?? field?.shadowRoot?.activeElement);) field = inner; field?.setAttribute('data-wong-hidden', ''); })()`;
 /** What a page script returns for a selector the page can not read, as one naming a box inside a frame. */
 export const BAD_SELECTOR = 'browse:bad-selector';
 /** The plain stop for that selector. */
@@ -154,10 +147,6 @@ function plain(text) {
 }
 
 const squash = text => text.replace(/\s+/g, ' ').trim();
-/** A keyed mark of a typed password: it finds the password in page text, but can't be guessed back without `key`. */
-export const typedMark = (key, text) => createHmac('sha256', key).update(squash(text)).digest('hex');
-/** The tab with the mark of a password `login` typed, the last 5 kept. */
-export const addTyped = (tab, key, secret) => ({ ...tab, typed: [...(tab?.typed ?? []), typedMark(key, secret)].slice(-5) });
 
 /** A box line's indent, name, and inline value, else null. Playwright single-quotes a start whose name holds `: `,
  * ` #`, `{`, `}` or a backtick, and the server gives that line no ref. */
@@ -170,12 +159,11 @@ function boxOf(line) {
 /** A box's value on its own child line, as Playwright prints it beside a `/placeholder` line. */
 const valueLine = (line, box) => line.search(/\S/) === box.indent + 2 ? /^(\s*- text: )(.+)$/.exec(line) : null;
 
-/** The snapshot with each filled secret box's value shown as `[hidden]`: a box named like one, one holding a value in
- * `secretValues`, or one whose `typedMark` under `key` is in `typed`. Every other line reads as given. */
-export function hideSecrets(snapshot, secretValues = [], typed = [], key = '') {
+/** The snapshot with each filled secret box's value shown as `[hidden]`: a box named like one, or one holding a value
+ * in `secretValues`. Every other line reads as given. */
+export function hideSecrets(snapshot, secretValues = []) {
   const secrets = new Set(secretValues.map(plain).filter(Boolean));
-  const marks = new Set(typed);
-  const secret = (box, value) => SECRET_NAME.test(box.name) || secrets.has(plain(value)) || Boolean(marks.size && marks.has(typedMark(key, plain(value))));
+  const secret = (box, value) => SECRET_NAME.test(box.name) || secrets.has(plain(value));
   const lines = snapshot.split('\n');
   lines.forEach((line, at) => {
     const box = boxOf(line);
@@ -233,9 +221,6 @@ const remark = (line, ref) => {
   return `${bare.slice(0, at)} [${ref}]${bare.slice(at)}`;
 };
 
-/** Whether `line` is the box the server marks `ref`, not page text that holds `[ref]`. */
-const refLine = (line, ref) => refOf(line) === ref;
-
 /** The `role:name` the server numbers a line by, or null for a line it gives no ref. */
 function refKey(line) {
   const box = parseLine(line);
@@ -283,6 +268,16 @@ export const FRAMES_SCRIPT = `[...document.querySelectorAll('iframe')].map(frame
 const cleanLabel = label => label.replace(/card-fields-/, '').replace(/-[a-z0-9]{10,}$/, '');
 const rawHost = url => { try { return new URL(url).hostname.toLowerCase(); } catch { return ''; } };
 
+/** A URL's host, lowercased, with `www.` stripped; '' when it isn't an http(s) URL. */
+export function hostOf(url) {
+  try {
+    const { protocol, hostname } = new URL(url);
+    return /^https?:$/.test(protocol) ? hostname.toLowerCase().replace(/^www\./, '') : '';
+  } catch {
+    return '';
+  }
+}
+
 /** Each frame block's label in the server's page text, mapped to its site's host, or '' when it can't be told: a label
  * that is no iframe's cleaned name or host, or that two iframes on different hosts share. */
 export function frameSites(snapshot, frames) {
@@ -313,20 +308,6 @@ export function labelFrames(snapshot, sites) {
   });
   if (listed.length) lines.unshift(`- note: boxes in frames are at the end: ${listed.join(', ')}`);
   return lines.join('\n');
-}
-
-/** The site of the frame holding `ref`: null on the main page, its header's host, or '' when unknown or not found. */
-export function frameOf(snapshot, ref) {
-  const lines = snapshot.split('\n');
-  const at = lines.findIndex(line => refLine(line, ref));
-  if (at < 0) return '';
-  if (!/^\s/.test(lines[at])) return null;
-  for (let up = at - 1; up >= 0; up--) {
-    if (/^\s/.test(lines[up])) continue;
-    const header = /^- iframe ".*" \((.*)\):$/.exec(lines[up]);
-    return header ? (header[1] === 'unknown site' ? '' : header[1]) : null;
-  }
-  return null;
 }
 
 /** Each tick box, radio, and switch in a snapshot by ref: `[role, name, ticked]`, ticked true, false, or `'mixed'`. */
@@ -381,12 +362,6 @@ export function boxChanged(before, now) {
   return before[0] === 'radio' ? now[2] === true : now[2] !== before[2];
 }
 
-/** True when `now` is another page than `before`: the address differs with its query left out. */
-export function leftPage(before, now) {
-  const page = address => address.replace(/\?[^#]*/, '');
-  return page(before) !== page(now);
-}
-
 /** The small environment Python runs in. The library copies it into the browser's, and with no `XDG_CACHE_HOME`
  * of its own it deletes `~/.cache/camoufox`, the old camofox build's folder. */
 export function pythonEnv(env = process.env) {
@@ -421,6 +396,10 @@ export const installed = () => existsSync(PYTHON);
 export const serverPid = () => readJson(FILES.server)?.pid ?? null;
 /** The X display the running browser draws on, as its server recorded it, or null. */
 export const serverDisplay = () => readJson(FILES.server)?.display ?? null;
+/** True when the running browser shows in a window on this computer's own screen, as its server recorded it. */
+export const serverWindow = () => readJson(FILES.server)?.window === true;
+/** Whether the browser shows in a window off Linux from its next start: on unless the person turned it off. */
+export const windowSetting = () => readJson(FILES.settings)?.window !== false;
 
 function privateDirs() {
   for (const dir of [DIR, FILES.tmp, FILES.tabs, FILES.profile, FILES.cache]) mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -669,7 +648,7 @@ export function client(given, { retry = true, start = true } = {}) {
       const { url, snapshot, found } = await onTab(async tabId => ({ ...(await read(tabId)), found: await evaluateOn(tabId, `[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`) }));
       const [secrets = [], frames = []] = found ?? [];
       const tab = readTab();
-      const hidden = hideSecrets(snapshot, secrets, tab?.typed ?? [], tab?.typed?.length ? apiKey() : '');
+      const hidden = hideSecrets(snapshot, secrets);
       const seen = { url, snapshot: labelFrames(hidden, frameSites(hidden, frames)) };
       writeTab({ ...tab, ...(url && { url }), refs: boxesIn(seen.snapshot), names: refNames(seen.snapshot) });
       return seen;
@@ -708,10 +687,6 @@ export function client(given, { retry = true, start = true } = {}) {
     resize: (width, height) => onTab(tabId => send('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),
     /** A use the server counts, so it keeps an idle page open; it reads and changes nothing on the page. */
     keepAlive: () => evaluate('1'),
-    /** Marks the focused box as secret, as `login` does after typing a password. */
-    mark: () => evaluate(MARK_SCRIPT),
-    /** Keeps a keyed mark of a password `login` types, so any box showing it reads `[hidden]`. */
-    remember: secret => { const tab = readTab(); if (tab) writeTab(addTyped(tab, apiKey(), secret)); },
     async value(target) {
       const { ref, selector } = targetOf(target);
       // A dropdown reads as its picked choice's text, as a ref's snapshot shows it.
@@ -739,7 +714,7 @@ export function client(given, { retry = true, start = true } = {}) {
       writeFileSync(file, png, { mode: 0o600 });
       return file;
     },
-    /** Checks the server answers for the logins: the profile folder keeps them itself, with every tab open. */
+    /** Checks the server answers for the sign-ins: the profile folder keeps them itself, with every tab open. */
     save: () => send('POST', `/sessions/${USER}/cookies`, { cookies: [] }),
     /** Closes this task's tab, and the session when no tab is left. */
     async close() {
@@ -755,93 +730,14 @@ export function client(given, { retry = true, start = true } = {}) {
   return page;
 }
 
-/** The saved logins; an unreadable file stops with a plain reason. */
-function savedLogins() {
-  try { return readLogins(); } catch (error) { throw new BrowseError(error.message); }
-}
-
-/** Whether hosts `a` and `b` are one site: equal, or one sits under the other, as `login.x.com` under `x.com`. */
-export function sameSite(a, b) {
-  return Boolean(a && b) && (a === b || a.endsWith(`.${b}`) || b.endsWith(`.${a}`));
-}
-
-/** A password box's name, in the words sites use; a code box's name is left out. */
-const PASSWORD_NAME = /password|passcode|passwort/i;
-
-/** The box line holding `ref`, parsed, or null. */
-const boxAtRef = (snapshot, ref) => boxOf(snapshot.split('\n').find(line => refLine(line, ref)) ?? '');
-
-/** True when the page still shows a password box: one named like it, or the typed box under its old name. */
-export function passwordShown(snapshot, ref, before) {
-  if (snapshot.split('\n').some(line => PASSWORD_NAME.test(boxOf(line)?.name ?? ''))) return true;
-  const now = boxAtRef(snapshot, ref);
-  return Boolean(now && before && now.name === before.name);
-}
-
-/** The part of `host` a person registers: `janeapp.com`, or `bbc.co.uk` under a country's own second level. */
-export function mainDomain(host) {
-  if (/^[\d.]+$|:/.test(host)) return host;
-  const parts = host.split('.');
-  const country = parts.length > 2 && parts.at(-1).length === 2 && /^(co|com|net|org|gov|ac|edu)$/.test(parts.at(-2));
-  return parts.slice(country ? -3 : -2).join('.');
-}
-
-/** Types the saved login `name` and submits, the one reader of passwords; USAGE lists each result. `wrong-site`
- * means the tab, or the frame of a box, is off the login's site. */
-export async function login(page, name, { username, password, submit, 'main-domain': loose }) {
-  const entry = savedLogins().find(saved => saved.name === name);
-  if (!entry || (password && !entry.password)) return { result: 'missing' };
-  // --main-domain is the one try a sibling subdomain gets, as wiki/development/browsing.md says.
-  const hostOn = host => sameSite(host, hostOf(entry.url))
-    || Boolean(loose && host && hostOf(entry.url) && mainDomain(host) === mainDomain(hostOf(entry.url)));
-  const onSite = url => hostOn(hostOf(url));
-  // A box in a frame is on site only when its frame's site is too; a selector reads the main page.
-  const boxOnSite = (snapshot, target) => {
-    const { ref } = targetOf(target);
-    const frame = ref ? frameOf(snapshot, ref) : null;
-    return frame === null || hostOn(frame);
-  };
-  const before = await page.url();
-  if (!onSite(before)) return { result: 'wrong-site' };
-  let seen = (await page.snapshot()).snapshot;
-  if (!boxOnSite(seen, username ?? password)) return { result: 'wrong-site' };
-  if (username) await page.type(username, entry.username);
-  // A page that moved after the email step gets no password.
-  if (password && username) {
-    const now = await page.snapshot();
-    if (!onSite(now.url) || !boxOnSite(now.snapshot, password)) return { result: 'wrong-site' };
-    seen = now.snapshot;
+/** Sets the window from the next start when `choice` is given, and prints the setting. */
+function windowCommand(choice) {
+  if (choice) {
+    mkdirSync(dirname(FILES.settings), { recursive: true, mode: 0o700 });
+    writeFileSync(FILES.settings, `${JSON.stringify({ window: choice === 'on' })}\n`);
   }
-  const passwordBox = password && boxAtRef(seen, targetOf(password).ref);
-  if (password) {
-    page.remember(entry.password);
-    await page.type(password, entry.password);
-    // Best effort: the mark covers a same-origin box a site later shows as text.
-    await page.mark().catch(() => {});
-  }
-  await (submit ? page.click(submit) : page.enter(password ?? username));
-  if (!password) return { result: 'typed' };
-  for (const end = Date.now() + LOGIN_WAIT_MS; ;) {
-    const now = await page.url().catch(() => null);
-    if (now && leftPage(before, now)) return { result: 'accepted', saved: await page.save().then(() => true, () => false) };
-    if (Date.now() >= end) break;
-    await sleep(Math.min(500, LOGIN_WAIT_MS));
-  }
-  const after = await page.snapshot().catch(() => null);
-  return { result: !after || passwordShown(after.snapshot, targetOf(password).ref, passwordBox) ? 'rejected' : 'next-step' };
-}
-
-function logins() {
-  const saved = savedLogins();
-  console.log(`BROWSE_LOGINS=${saved.length}`);
-  for (const { name, url, username } of saved) console.log([name, hostOf(url), username].join('\t'));
-}
-
-function forget(name) {
-  const saved = savedLogins();
-  if (!saved.some(entry => entry.name === name)) return console.log('BROWSE_LOGIN=missing');
-  writeLogins(saved.filter(entry => entry.name !== name));
-  console.log(`BROWSE_FORGOT=${name}`);
+  console.log(`BROWSE_WINDOW=${windowSetting() ? 'on' : 'off'}`);
+  if (choice) console.log('This takes effect the next time the browser starts; a running browser stays as it is.');
 }
 
 /** Each command: how many words follow it, and what it runs. */
@@ -857,18 +753,12 @@ const COMMANDS = {
   press: [1, (page, [key]) => page.press(key)],
   select: [2, (page, [target, option]) => page.select(target, option)],
   screenshot: [0, async (page, _, flags) => console.log(`BROWSE_SHOT=${(await page.screenshot({ ifChanged: flags['if-changed'], fullPage: flags['full-page'] })) ?? 'none'}`)],
-  logins: [0, logins],
-  forget: [1, (_, [name]) => forget(name)],
   save: [0, async page => { await page.save(); console.log('BROWSE_SAVED=yes'); }],
   close: [0, async page => { await page.close(); console.log(`BROWSE_CLOSED=${page.session}`); }],
   status: [0, status],
   install: [0, install],
   stop: [0, stop],
-  async login(page, [name], flags) {
-    const { result, saved } = await login(page, name, flags);
-    console.log(`BROWSE_LOGIN=${result}`);
-    if (saved !== undefined) console.log(`BROWSE_SAVED=${saved ? 'yes' : 'no'}`);
-  },
+  window: (_, [choice]) => windowCommand(choice),
   async get(page, [what, target]) {
     console.log(await { url: () => page.url(), count: () => page.count(target), value: () => page.value(target) }[what]());
   },
@@ -876,12 +766,12 @@ const COMMANDS = {
 const QUIET = new Set(['click', 'type', 'press', 'select']);
 
 /** The command's runner, or a usage error when its words don't fit. */
-function runnerFor(command, words, flags) {
+function runnerFor(command, words) {
   const usage = message => usageError(USAGE, message);
   if (!Object.hasOwn(COMMANDS, command)) usage(command ? `unknown command: ${command}` : 'missing command');
-  if (command === 'login') {
-    if (words.length !== 1 || !(flags.username || flags.password)) usage('login takes a name and --username, --password, or both');
-    return COMMANDS.login;
+  if (command === 'window') {
+    if (words.length > 1 || (words.length && !['on', 'off'].includes(words[0]))) usage('window takes on, off, or nothing');
+    return COMMANDS.window;
   }
   if (command === 'get') {
     const fits = words[0] === 'url' ? words.length === 1 : ['count', 'value'].includes(words[0]) && words.length === 2;
@@ -895,10 +785,10 @@ function runnerFor(command, words, flags) {
 }
 
 if (isMain(import.meta.url)) {
-  const { values: flags, positionals: [command, ...words] } = parseCli({ usage: USAGE, allowPositionals: true, options: { session: { type: 'string' }, 'if-changed': { type: 'boolean' }, 'full-page': { type: 'boolean' }, username: { type: 'string' }, password: { type: 'string' }, submit: { type: 'string' }, 'main-domain': { type: 'boolean' } } });
-  const runner = runnerFor(command, words, flags);
+  const { values: flags, positionals: [command, ...words] } = parseCli({ usage: USAGE, allowPositionals: true, options: { session: { type: 'string' }, 'if-changed': { type: 'boolean' }, 'full-page': { type: 'boolean' } } });
+  const runner = runnerFor(command, words);
   try {
-    await runner(client(flags.session, { retry: command !== 'login' }), words, flags);
+    await runner(client(flags.session), words, flags);
     if (QUIET.has(command)) console.log(`BROWSE_DONE=${command}`);
   } catch (error) {
     if (!(error instanceof BrowseError)) throw error;

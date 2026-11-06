@@ -68,7 +68,7 @@ A card number, a payment credential, or the Shop sign-in SHALL NOT appear in any
 #### Scenario: A website outside Shop's checkout
 
 - **WHEN** a purchase can only be made by typing a card into a website's own form
-- **THEN** the agent requests no card from Shop, and the card goes through the private form as before
+- **THEN** the agent requests no card from Shop, and the person types the card on the site in a live view
 
 ### Requirement: A purchase Shop cannot complete falls back without a second charge
 

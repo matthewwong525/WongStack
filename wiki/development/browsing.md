@@ -1,10 +1,10 @@
 # Browsing
 
-Browsing lets the agent use websites as you: saved logins, pictures, and chat questions or private forms. It shows its browser only for [a robot check, a stuck login or step, or a payment or sign-in](live-view.md#when-it-opens). Every repo on the computer shares it.
+Browsing lets the agent use websites as you: the browser's own sign-ins, pictures, chat questions, and a live view for what only you can type. It shows its browser only for [a sign-in, a payment or a backup code, a robot check, or a stuck step](live-view.md#when-it-opens). Every repo on the computer shares it.
 
 **No API? The browser.** When no [company action or saved key](../stack/service-catalogue.md) can do a task on a website, the agent does it here as you, without being asked. It doesn't hand you steps first.
 
-**API key and token pages use your own browser, never this one.** At such a page, even mid-errand, follow [the token website procedure](secrets.md#api-token-website-steps): it overrides saved logins, pictures, and private forms below. While [connecting your tools](../stack/connect-your-tools.md#pick-the-browser), the assistant may make keys here on a server, or in your Chrome, with your yes.
+**API key and token pages use your own browser, never this one.** At such a page, even mid-errand, follow [the token website procedure](secrets.md#api-token-website-steps): it overrides sign-ins, pictures, and live views below. While [connecting your tools](../stack/connect-your-tools.md#pick-the-browser), the assistant may make keys here on a server, or in your Chrome, with your yes.
 
 ## Saved browser logins
 
@@ -21,26 +21,16 @@ node $B close                           # this task's page; keeps the logins
 
 A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest snapshot.
 
-**Each ref acts on the box it marks.** A box in a payment box gets its own ref, even when the page has a box of the same name. When the script can't tell them apart, those boxes print no ref, and a `- note:` line says so: read the page again or use a selector. A click on a tick box, a round choice, or a switch is read back; if nothing changed, the script presses Space on it, and if it still didn't change, prints `BROWSE_ERROR=the box did not change`. A button with no ref, such as DigiKey's *Continue* `span`, takes a selector: `span[id*=ontinue]`. `BROWSE_CLICK=script` means only the page's script took the click, which a site may ignore: don't click again; send [the view that stays open](live-view.md#when-it-opens).
+**Each ref acts on the box it marks.** A box in a payment box gets its own ref, even when the page has a box of the same name. When the script can't tell them apart, those boxes print no ref, and a `- note:` line says so: read the page again or use a selector. A click on a tick box, a round choice, or a switch is read back; if nothing changed, the script presses Space on it, and if it still didn't change, prints `BROWSE_ERROR=the box did not change`. A button with no ref, such as DigiKey's *Continue* `span`, takes a selector: `span[id*=ontinue]`. `BROWSE_CLICK=script` means only the page's script took the click, which a site may ignore: don't click again; send [the view that stays open](live-view.md#when-it-opens). A box in a frame from another site, such as a shop's sign-in frame, is listed at the end of the page text under a header naming its site: use its ref, never a selector, since a selector reads only the main page.
 
 1. **The first errand installs the browser, once you say yes.** On `BROWSE_NEEDS=install` (exit 3), the agent asks once, saying [what the install needs](required-tools.md#installing-camoufox): Python 3.10 or newer, about 3 GB of disk, and 700 MB of memory. It then runs `browse.mjs install`. On `BROWSE_NEEDS=python`, it asks you to install Python first.
-2. **A saved login goes first.** When a site asks to log in, the agent runs `browse.mjs logins`, which gives each login's name, site, and username, never a password. It matches the login page's host against each saved site's host, `www.` dropped: they match when they're equal, or when one sits under the other, so `login.netflix.com` matches `netflix.com`. A login saved for `clinic.janeapp.com` also gets one try on `myodetox.janeapp.com`, the same main domain, with `--main-domain` on `login`: some sites keep one account per subdomain, and a repeat can lock it. The script checks the same match itself, right before each value it types.
-   - **One match:** the agent logs in without asking, because saving the login was your permission. It names the page's boxes from its own snapshot, and the script types the login into them:
-
-     ```bash
-     node $B login netflix-com --username e4 --password e5 --submit e6   # BROWSE_LOGIN=accepted|next-step|rejected|missing|typed|wrong-site
-     ```
-
-     `accepted` means the address left the login page within 15 seconds; the login is saved at once. `next-step` means the page stayed but its password box went, as on a code page. A page that asks for the email first gets two commands, each with the one box it shows: the first prints `BROWSE_LOGIN=typed`. A login saved with no password prints `missing` at the password box, and types nothing. `wrong-site` means the page, or a box's frame, is on another site or one the script can't tell, or moved there after the email: nothing more was typed.
-   - **A box in a frame from another site**, such as a sign-in box from the shop's own login site: the page text's first line says frame boxes are at the end, and each frame's header names its site. Use those refs, never a selector, since a selector reads only the main page. None yet? Read the page again.
-   - **Two matches:** it asks in the chat which account to use, as a multiple choice.
-   - **No match, `missing`, `wrong-site`, or `rejected` with a message:** it sends [the password link](passwords.md) with the site, and a known username, already filled in, then logs in with what you save. A first page that asks only the email gets the link at once, with `--email-first`: you give the email and an optional password together, never the email in the chat.
-   - **A code page, an app approval, or `next-step`:** it reads the code from your email or asks you in the chat: [login codes](login-codes.md).
-   - **A robot check, or a stuck login:** you tap through it or sign in yourself in [a live view](live-view.md#when-it-opens). A `rejected` with no message, or a `typed` email step that stays put, is stuck. Try a frame's refs and the saved login, or the password link, before a live view.
-3. **A login through another provider follows the provider.** When the page offers only *Sign in with Google* or *Apple*, the agent taps it and treats the provider's own sign-in page as any login: a saved login for that provider, else [the password link](passwords.md) with the provider's website filled in. A code or an emailed sign-in link comes [through the chat](login-codes.md). A passkey or a device check is [yours, on your own device](#when-a-step-needs-you).
+2. **A sign-in is your turn, in a live view.** When a site asks to log in and the browser isn't signed in, the agent asks whether you're ready, then sends [a sign-in turn](live-view.md#sign-in): you sign in on the site's own page, or paste from your password manager, and tap *Hand back*. On a Mac or Windows computer you sign in in [the browser's window](live-view.md#on-a-mac-or-windows) and say *done*.
+   - **A code page or an app approval after your turn:** the agent reads the code from your email or asks you in the chat: [login codes](login-codes.md).
+   - **A robot check:** during your turn, it's yours to pass there; after it, you tap through it in [a live view](live-view.md#when-it-opens).
+3. **A login through another provider follows the provider.** When the page offers only *Sign in with Google* or *Apple*, the agent taps it and treats the provider's own sign-in page as any login: a sign-in turn there. A code or an emailed sign-in link comes [through the chat](login-codes.md). A passkey or a device check is [yours, on your own device](#when-a-step-needs-you).
 4. **Later tasks reuse the session.** No login step, until the site logs you out.
 
-**The agent never asks for a password in the chat.** It never reads, shows, or writes one, and it never opens [the saved logins file](passwords.md): only the script that types a login reads it. Its view of a page shows a filled password, card, or code box as `[hidden]`, even after a site shows the password as text; a box inside a payment company's frame is known by its name alone. If you start typing a password into the chat, it doesn't use or save it; it offers [the password link](passwords.md) instead.
+**The agent never asks for a password in the chat.** It never reads, shows, types, or writes one. Its view of a page shows a filled password, card, or code box as `[hidden]`, even after a site shows the password as text; a box inside a payment company's frame is known by its name alone. If you start typing a password into the chat, it doesn't use or save it; it offers [a sign-in turn](live-view.md#sign-in) instead.
 
 **Tasks share the browser.** Two chats, or a chat and a scheduled run, each get their own page and the same logins; neither waits. A page is named for its task's folder, so a second task in one folder passes `--session <name>` on every command. `close` closes only the task's own page; `stop` ends the browser for every task, so the agent runs it only when you ask. [`/verify`](staging-walkthrough.md) uses a temporary browser of its own, without your logins.
 
@@ -75,23 +65,22 @@ The agent shows page pictures in the chat at key moments, so you can catch a wro
   ```
 - **One line each.** Above each picture, one line says what it shows: *Filled in 7pm, 2 people. Booking now.*
 - **Never in the repo.** A picture can hold your mail or your bank balance, so it stays in the temp folder, never a repo file.
-- **None while a private form or [a live view](live-view.md) is open.** From sending the link until it closes, the agent takes no pictures: one could show your card. After it, a snapshot is safe; a picture waits until the card frame is gone or hidden, since the form leaves typed boxes as they are.
+- **None while [a live view](live-view.md) is open, and none of a typed card.** From sending the link until it closes, the agent takes no pictures: one could show your card. After it, a snapshot is safe; a picture waits until no card box holds a value, since a site can keep a typed card in its boxes.
 
 ## When a step needs you
 
 When a step needs something only you can give, each kind of step has one route:
 
-- **A password**, or the email a login asks for, goes through [the password link](passwords.md).
+- **A password, card details, a backup or recovery code**, or another lasting secret the page asks for, you type on the site's own page in [a live view](live-view.md#when-it-opens). Never the chat: these don't expire, so they must not sit in the stored chat.
 - **A one-time code, an emailed sign-in link, or an app approval** comes through the chat or your signed-in email: [login codes](login-codes.md).
-- **An ordinary answer** is asked in the chat: an email, a name, an address, a choice, a yes or no, or agreeing to terms. The agent types your answers itself and shows you [a picture of the page](#show-what-the-browser-is-doing). It never ticks *I agree* without your yes.
-- **A sensitive detail** goes through [the private form](#the-private-form): card details, a backup or recovery code, or another lasting secret the page asks for. Never the chat: these don't expire, so they must not sit in the stored chat.
+- **An ordinary answer** is asked in the chat, or taken from [saved details](saved-details.md) after a yes: an email, a name, an address, a choice, a yes or no, or agreeing to terms. The agent types your answers itself and shows you [a picture of the page](#show-what-the-browser-is-doing). It never ticks *I agree* without your yes.
 - **An API key or token page** is yours, in your own browser: [the own-browser procedure](secrets.md#api-token-website-steps).
-- **A robot check**, a tick box or a picture puzzle, or **a stuck login** gets [a live view](live-view.md#when-it-opens) you tap through or sign in on.
-- **A stuck site or payment step** gets [the view that stays open](live-view.md#when-it-opens) until you tap *I'm finished*.
-- **A site that refuses the browser**, or a check or login your try doesn't clear, [ends with steps for you](#when-a-site-refuses-the-browser).
+- **A robot check**, a tick box or a picture puzzle, gets [a live view](live-view.md#when-it-opens) you tap through.
+- **A stuck site or payment step** gets [the view that stays open](live-view.md#when-it-opens) until you tap *Hand back*.
+- **A site that refuses the browser**, or a check or sign-in your try doesn't clear, [ends with steps for you](#when-a-site-refuses-the-browser).
 - **A step only your own device can do** ends with you: a passkey or a device check. The agent stops that step and gives you [steps to finish it yourself](#steps-for-you-to-finish).
 
-*Let me take over* opens nothing, except [a live view](live-view.md) at a robot check, a stuck login, or a stuck step. Elsewhere the agent names the route above that fits. It never solves a check that asks whether a person is there, even when asked.
+*Let me take over* opens nothing, except [a live view](live-view.md#when-it-opens) at a step it lists. Elsewhere the agent names the route above that fits. It never solves a check that asks whether a person is there, even when asked.
 
 ## Steps for you to finish
 
@@ -99,21 +88,17 @@ When a login or check stops the agent, it gives you steps for the rest of the jo
 
 ## How private links work
 
-A private link is a page only you can open, for something the agent must never see or do. There are four: [the password link](passwords.md), [the key link](secrets.md#receive-a-key-through-a-private-link), [the private form](#the-private-form), and [the live view](live-view.md). [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) opens each one, and this section owns what they share. A page whose answers *should* reach the chat, such as a plan's notes, opens through [a reply link](reply-links.md) instead, which never blocks a private link.
+A private link is a page only you can open, for something the agent must never see or do. There are two: [the key link](secrets.md#receive-a-key-through-a-private-link) for an API key, and [the live view](live-view.md) for everything you type on a website. [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) opens each one, and this section owns what they share. A page whose answers *should* reach the chat, such as a plan's notes, opens through [a reply link](reply-links.md) instead, which never blocks a private link.
 
-- **Ask first.** Before a password link, a private form, or a live view, the agent asks in the chat as a multiple choice, [the shared way](../../.agents/skills/explore/references/asking-the-user.md): *I need your card to pay City of Markham $45.00.* `Ready, send the form / Not now`. It sends the link only once you reply. A [key link](secrets.md#receive-a-key-through-a-private-link) comes with no question.
+- **Ask first.** Before a live view, the agent asks in the chat as a multiple choice, [the shared way](../../.agents/skills/explore/references/asking-the-user.md): *Pay City of Markham $45.00?* `Ready, send it / Not now`. It sends the link only once you reply. A [key link](secrets.md#receive-a-key-through-a-private-link) comes with no question.
 - **Send it last.** The agent runs `open`, starts `wait` in the background, then ends its turn with the link on its own line, never only between steps: the chat often hides that text. `open` prints a `HANDOVER_SEND=` reminder under the link.
 - **Always through Cloudflare, one per chat.** Every link is a Cloudflare address, even at the agent's own computer. `open` prints `HANDOVER_LINK` only once that address answers from outside, so your first tap never lands on an error page. On `HANDOVER_NEEDS=cloudflared`, the agent asks, installs [Cloudflare's tunnel tool](required-tools.md#installing-cloudflared), and tries again. Each chat has its own link; an unopened key link gives way to its chat's newer one. The computer has one [live view](live-view.md#what-the-link-can-do) at a time.
-- **Also in your company app.** When this computer is signed in to [your company app](../stack/company-api.md), the app keeps each open link until it closes. The app gets only its address, kind, title and closing time: never what you type, a username, or a note. The chat gives you the link; [the inbox](reply-links.md#in-your-inbox-first) shows only your week and plans.
-- **24 hours by default.** A key, password or form link closes 24 hours after opening, a [live view](live-view.md) after 8; `--minutes N` changes that. A key link or form shows when it closes.
-- **How a link closes.** On its own finish (a save, a form's send, or a check you passed), on *Not now*, when you say *done* and the agent runs `hand-over.mjs close`, or at its time limit, even if the chat stops. A closed link never works again.
-- **After it closes.** A link that ends ready (a save, or a form the site accepted) wakes the chat that opened it, even if it stopped waiting. The watcher closes private input first, then tries once through the Paseo CLI, sending only the completion's identity, mode, result, and saved names: never an address, page content, or credential. `HANDOVER_COMPLETION` names the event in both `wait` and the notification: act on it once and resume the task; a duplicate does nothing. `HANDOVER_NOTIFICATION=notified` means dispatch was acknowledged, not that the task has finished. Missing workspace identity or CLI gives `unavailable`; a failed or ambiguous send gives `unconfirmed`, with no automatic resend. The page then tells you to return to chat and say *continue*; saved inputs stay saved. Cancellation, expiry, incomplete input, and a form the site did not accept never announce readiness (`ready: false` and `not-requested`). A form or sign-in the site hasn't finished wakes the chat as `unconfirmed`, and its final result wakes it again as a new completion, its identity ending `:late`. On `timeout`, the agent says so and offers a new link.
+- **Also in your company app.** When this computer is signed in to [your company app](../stack/company-api.md), the app keeps each open link until it closes. The app gets only its address, kind, title and closing time: never what you type or a note. The chat gives you the link; [the inbox](reply-links.md#in-your-inbox-first) shows only your week and plans.
+- **24 hours by default.** A key link closes 24 hours after opening, a [live view](live-view.md) after 8; `--minutes N` changes that. A key link shows when it closes.
+- **How a link closes.** On its own finish (a save, or the step you finished), on *Not now* or *Hand back*, when you say *done* and the agent runs `hand-over.mjs close`, or at its time limit, even if the chat stops. A closed link never works again.
+- **After it closes.** A link that ends on your side (a save, a finish, or *Hand back*) wakes the chat that opened it, even if it stopped waiting. The watcher closes private input first, then tries once through the Paseo CLI, sending only the completion's identity, mode, result, and saved names: never an address, page content, or credential. `HANDOVER_COMPLETION` names the event in both `wait` and the notification: act on it once and resume the task; a duplicate does nothing. `HANDOVER_NOTIFICATION=notified` means dispatch was acknowledged, not that the task has finished. Missing workspace identity or CLI gives `unavailable`; a failed or ambiguous send gives `unconfirmed`, with no automatic resend. The page then tells you to return to chat and say *continue*; saved inputs stay saved. Cancellation, expiry, and incomplete input never announce readiness (`ready: false` and `not-requested`). On `timeout`, the agent says so and offers a new link.
 
-**Is a link safe?** Each link gets a new random address plus a secret key that only the link carries, and a copy left in the chat dies with it. Anyone who sees it while it's open can use it. Cloudflare carries the connection and could see what you type; your app already runs there, so you trust no new company. The agent learns only how the link ended and the names of what was saved, never a value. A private form puts what you type straight into the site's own boxes, and never reads it back, logs, or saves it. [Its helper](private-form.md) reads no value. A live view alone [drives a browser signed in as you](live-view.md#what-the-link-can-do) while it's open.
-
-### The private form
-
-The private form takes a card or a backup code from you to a website without the agent seeing it. [The private form](private-form.md) owns how it works.
+**Is a link safe?** Each link gets a new random address plus a secret key that only the link carries, and a copy left in the chat dies with it. Anyone who sees it while it's open can use it. Cloudflare carries the connection and could see what you type; your app already runs there, so you trust no new company. The agent learns only how the link ended and the names of what was saved, never a value. A live view sends what you type straight to the site's own boxes, and never reads it back, logs, or saves it. Each link adds one line to `~/.wong-stack/hand-over/timings.jsonl`, readable by your user alone and trimmed to its last 500 lines: what ended it and how long it was open, never a value. A live view alone [drives a browser signed in as you](live-view.md#what-the-link-can-do) while it's open.
 
 ## When a site refuses the browser
 
@@ -125,8 +110,8 @@ Some sites turn the browser away, keep it on a *Verify you are human* page as Do
 
 A check that clears by itself in a few seconds is not a refusal: the agent reads the page again first. It never routes its traffic through a hired or borrowed network address, uses a check-solving service, or solves a check that asks whether a person is there. One refusal ends the try: repeats can lock your account.
 
-## Save your passwords
+## Saved details
 
-Say *save my passwords* and the agent sends a private link to pick the logins it may use: [save your passwords](passwords.md).
+Everyday answers you chose to keep, such as an email or an address, fill a later form after one yes: [saved details](saved-details.md).
 
 Back to [development](README.md).

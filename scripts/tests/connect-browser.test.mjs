@@ -328,8 +328,8 @@ test('in the assistant\'s browser, done closes only its own page and leaves anot
   assert.match(f.run(['read']).stderr, /one this helper opened/, 'nothing is ours after done');
 });
 
-test('while the person holds the watch link\'s browser, or stopped it, every command but done is refused', t => {
-  for (const [control, turn, marker] of [[{ control: 'person' }, null, 'CONNECT_PAUSED=taken-over'], [{ control: 'stopped' }, null, 'CONNECT_STOPPED'],
+test('while the person holds the watch link\'s browser, every command but done is refused', t => {
+  for (const [control, turn, marker] of [[{ control: 'person' }, null, 'CONNECT_PAUSED=taken-over'],
     [{ control: 'assistant', turnDone: 0 }, { n: 1, until: `${INTEGRATIONS}**` }, 'CONNECT_PAUSED=your-turn']]) {
     const f = onServer(t);
     fakeWatch(t, f, control, turn);

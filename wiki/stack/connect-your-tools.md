@@ -28,7 +28,7 @@ Each tool goes in one group:
 
 - **Works now.** The app can already use it. One look-up shows it working.
 - **Waiting.** The app does not know it yet, its key is not saved, or you have no level for it. On the owner's computer, the helper adds it ([add a new tool](#add-a-new-tool-with-no-publish)). On a teammate's computer, it writes [a message for the owner](#a-teammates-computer).
-- **Not connected yet.** A website with no API, a tool that offers only a sign-in, or your own mail, such as Gmail. You keep using it yourself. The helper signs in to no such site and sends no password link.
+- **Not connected yet.** A website with no API, a tool that offers only a sign-in, or your own mail, such as Gmail. You keep using it yourself. The helper signs in to no such site and sends no live view.
 
 It ends with a short list:
 
@@ -84,13 +84,13 @@ The key link is always the last way: for a tool the browser can not get through,
 
 ## Use the assistant's browser
 
-On a server, the assistant makes each key in its own browser, Camoufox, and starts at once: no link, no question. It sends a private link, the [watch link](../development/live-view.md#the-watch-link), only when a tool asks the person to sign in, or when the person asks to watch. Sign-ins stay in that browser for the next time. While a link is open, the person can take over, hand back, or stop at any time.
+On a server, the assistant makes each key in its own browser, Camoufox, and starts at once: no link, no question. It sends a private link, the [watch link](../development/watch-link.md), only when a tool asks the person to sign in, or when the person asks to watch. Sign-ins stay in that browser for the next time. While a link is open, the person can take over or hand back at any time. To stop, they say so in the chat.
 
 1. **`attach --server`** prints `BROWSER=camoufox`. On `BROWSE_NEEDS=install`, ask once, by [the browser's install rule](../development/browsing.md).
 2. **`open <key page>`** for the first tool. Only when the person asks to watch, run **`watch`**: it prints `HANDOVER_LINK`; send the link and go on.
 3. **`read`**, then make the key, as in [your own Chrome](#use-your-own-chrome) steps 4 and 5. While a link is open, each command sets its line, such as *Clicking New integration…*.
 4. **Signed out?** Run **`sign-in --tool <title>`** on the sign-in page. With no link open, it opens one and prints `HANDOVER_LINK`; then it prints `CONNECT_PAUSED=your-turn`. Run `hand-over.mjs wait` in the background and end the turn with the link. On `opened`, `wait` again. On `signed-in` or `handed-back`, `open` the key page again and `read`. Still a sign-in, a passkey, or a refusal: that tool takes the key link at the end.
-5. **`done`** closes the page and any open link. The link says *All done. Go back to the chat.*
+5. **`done`** closes the page and any open link. The link says *All done. Go back to the chat.* When the person says *stop* in the chat, run `done --stopped`: the link says *Stopped*.
 
 When `watch` or `sign-in` prints `HANDOVER_NEEDS=live-view`, or another chat's view is open, follow the [live view's rules](../development/live-view.md#when-it-opens).
 
@@ -98,7 +98,6 @@ Every command reads who holds the browser first:
 
 - `CONNECT_PAUSED=taken-over`: the person tapped *Take over*. Run `wait` in the background, send the browser nothing, and end the turn. On `handed-back`, `read` the page again.
 - `CONNECT_PAUSED=your-turn`: the person is signing in. Wait as in step 4.
-- `CONNECT_STOPPED`: the person tapped *Stop*. Run `done --stopped`. A *stop* in the chat runs it too.
 
 ## Use your own Chrome
 

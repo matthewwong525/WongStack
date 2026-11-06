@@ -1,12 +1,11 @@
 #!/usr/bin/env node
-// Saved details in `~/.wong-stack/details.json` (0600, clear, beside the logins); exit 0 ok · 1 failed · 2 usage.
+// Saved details in `~/.wong-stack/details.json` (0600, clear); exit 0 ok · 1 failed · 2 usage.
 // Only everyday answers the person gave in the chat save here; a card, password, or code never does.
 
 import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
-import { AUTOFILL_TOKENS, LIMITS } from './form.mjs';
 
 const USAGE = `usage: details.mjs list | save --name <name> --field <kind>=<value>... | forget <name> | forget --all
   list    each saved set: its name, hint, and kinds, then each value; prints DETAILS_SETS=<count> first
@@ -15,9 +14,12 @@ const USAGE = `usage: details.mjs list | save --name <name> --field <kind>=<valu
           a card, a password, or a code never saves; prints DETAILS_SAVED=<name>
   forget  delete one set, or all; prints DETAILS_FORGOT=<name>,<name>`;
 export const DETAILS_FILE = join(homedir(), '.wong-stack', 'details.json');
-/** Kinds never saved: a card and a password go through private links, and a code dies in minutes. */
+/** Kinds never saved: a card and a password are typed by the person in the live view, and a code dies in minutes. */
 const NEVER_SAVED = /^cc-|password$|^one-time-code$/;
 const NAME = /^[a-z0-9][a-z0-9-]{0,59}$/;
+const VALUE_MOST = 256;
+/** The HTML autofill field names a saved answer's kind may be. */
+const AUTOFILL_TOKENS = new Set(['name', 'honorific-prefix', 'given-name', 'additional-name', 'family-name', 'honorific-suffix', 'nickname', 'username', 'new-password', 'current-password', 'one-time-code', 'organization-title', 'organization', 'street-address', 'address-line1', 'address-line2', 'address-line3', 'address-level4', 'address-level3', 'address-level2', 'address-level1', 'country', 'country-name', 'postal-code', 'cc-name', 'cc-given-name', 'cc-additional-name', 'cc-family-name', 'cc-number', 'cc-exp', 'cc-exp-month', 'cc-exp-year', 'cc-csc', 'cc-type', 'transaction-currency', 'transaction-amount', 'language', 'bday', 'bday-day', 'bday-month', 'bday-year', 'sex', 'url', 'photo', 'tel', 'tel-country-code', 'tel-national', 'tel-area-code', 'tel-local', 'tel-extension', 'email', 'impp']);
 
 /** The saved sets, or none yet; throws with its own reason, since a parser's message can quote the file.
  * A private set, a card an earlier version kept from a private form, is deleted from the file. */
@@ -68,7 +70,7 @@ function chatFields(pairs) {
     const [, kind, value] = /^([a-z0-9-]+)=(.*)$/.exec(pair) ?? [];
     if (!AUTOFILL_TOKENS.has(kind)) usageError(USAGE, `--field takes <kind>=<value> with an autofill kind, like email: '${pair.split('=')[0]}'`);
     if (NEVER_SAVED.test(kind)) usageError(USAGE, `${kind} is never saved: a card or a password goes through a private link each time`);
-    if (!value.trim() || value.length > LIMITS.value || /[\r\n]/.test(value)) usageError(USAGE, `${kind} takes one line of up to ${LIMITS.value} characters`);
+    if (!value.trim() || value.length > VALUE_MOST || /[\r\n]/.test(value)) usageError(USAGE, `${kind} takes one line of up to ${VALUE_MOST} characters`);
     return { kind, label: kind, value };
   });
   if (new Set(fields.map(field => field.kind)).size !== fields.length) usageError(USAGE, 'each kind goes once');

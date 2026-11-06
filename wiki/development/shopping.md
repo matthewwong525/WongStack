@@ -83,7 +83,7 @@ The agent never runs `pay` again hoping for another answer, never starts a repla
 - **A saved payment method reaches the agent as `n`, `id`, `type`, `display`, and `selected`**: enough to name the card to you. The script keeps the full entry, with its credential, in a private file and pipes it to Shop itself at `pay`.
 - **A command that could show a secret is refused**, with one `SHOP_REFUSED=` line that says why: `spend-request`, `checkout complete`, `call`, `checkout update --arguments`, `skill --install`, `--verbose`, `--as curl`, `--url`, `--format md` on a checkout or the account, and any command the script does not list. The agent never runs the installed command directly to get round a refusal: nothing there hides the card.
 - **The sign-in stays in its file.** A token from it is written `[hidden]` in anything the command prints.
-- **The agent never asks Shop for a card to type into a website.** A purchase that needs a card typed into a website's own form goes through [the private form](browsing.md#the-private-form), as before.
+- **The agent never asks Shop for a card to type into a website.** A purchase that needs a card typed into a website's own form goes through [a live view](live-view.md#pay-or-type-a-code): you type the card and press the site's *Pay*.
 - **A checkout is changed with `checkout update --patch`**, never a full document: a full one would carry the hidden entries back.
 
 ## What Shop learns
