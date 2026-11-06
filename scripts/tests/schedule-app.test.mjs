@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { approve, approvedVersion, approvalsFile } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
+import { approve, approvedVersion, approvalsFile, signedInAs } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
+import { helperFiles } from '../../.agents/skills/hand-over/scripts/lib/computer.mjs';
 import { definition, saveDefinition } from '../../.agents/skills/schedule/scripts/lib/app.mjs';
 import { RUN_FLOOR_MS, checkRun, handOver, mirrorRound, openSession, runRound } from '../../.agents/skills/schedule/scripts/lib/app-runs.mjs';
 import { startupPrompt } from '../../.agents/skills/schedule/scripts/lib/hosts.mjs';
@@ -91,6 +92,27 @@ test('the computer never starts one run twice, nor a schedule more often than it
   writeFileSync(ledger, 'broken');
   queue = [{ id: runId(4), key: 'weekly-plan', revision: version }]; now += RUN_FLOOR_MS; await round();
   assert.equal(app.results.at(-1).reason, 'no_ledger');
+});
+
+test('a project\'s own helper reads the shared OKs, asks its own sign-in who is in, and notes runs in its own ledger', async t => {
+  const { app, env, version, cwd } = await saved(t);
+  const own = helperFiles(env, cwd);
+  mkdirSync(own.dir, { recursive: true });
+  writeFileSync(own.current, JSON.stringify({ script: '/x/reply-link.mjs', protocol: 14, project: cwd }));
+  assert.equal(approvalsFile(env), path.join(env.HOME, '.wong-stack', 'helper', 'approved.json'), 'one OK file for every project');
+  assert.equal(approvedVersion({ origin: ORIGIN, email: JO, key: 'weekly-plan' }, env), version);
+  const asked = [];
+  const signIn = origin => { asked.push(origin); return { email: 'Jo@Example.test', state: 'valid' }; };
+  assert.equal(signedInAs(ORIGIN, signIn), JO);
+  asked.length = 0;
+  assert.equal(signedInAs(ORIGIN, () => ({ email: JO, state: 'missing' })), null, 'a sign-in this project lacks approves nothing');
+  app.http = (inner => async (address, init) => (address.endsWith('/claim') ? { value: { runs: [{ id: runId(1), key: 'weekly-plan', revision: version }] }, status: 200 } : inner(address, init)))(app.http);
+  const open = async () => ({ agentId: 'agent', chatTitle: 'Weekly plan' });
+  await runRound(app, { computer: COMPUTER, open, env, ledger: own.runs, email: origin => signedInAs(origin, signIn) });
+  assert.equal(app.results.at(-1).state, 'started');
+  assert.deepEqual(asked, [ORIGIN]);
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(own.runs, 'utf8')).ids), [runId(1)]);
+  assert.throws(() => statSync(helperFiles(env).runs), 'the shared ledger is never written');
 });
 
 test('a background run is handed to the worker, which reports it; a failed hand-over reports no_worker', async t => {

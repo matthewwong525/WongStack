@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Each project runs its own background helper
+
+- **Each project gets its own helper.** Before, one helper served every project on a computer, with the code of the project that updated last. That code checks your approval with its own project's sign-in only, so it refused the schedules of other projects as not approved. Now each project's helper runs that project's own code and sign-in, and serves only that project's app, schedules and inbox items. Another project's update can no longer stop your schedules ([the helper](wiki/stack/live-line.md#the-helper)).
+- **Nothing to approve again.** Your approvals stay in one file for all projects. The project's helper copies the list of runs that already started, so a run does not start twice or too soon.
+- **Each inbox tap arrives once.** A tap goes only to the helper of the project that made the item.
+- **The old shared helper keeps serving projects not yet updated.** It skips each project that has its own helper ([the old shared helper](wiki/stack/live-line.md#the-old-shared-helper)).
+
+**Updating.** If this computer runs the background helper, ask the assistant to install this project's own helper: it runs `node .claude/skills/hand-over/scripts/helper.mjs install` once, at a quiet minute, not on the hour. That takes the project off the shared helper and moves its started runs and open inbox items. The shared helper keeps serving your other projects until each one updates and does the same. On a server where you added a systemd drop-in for `wongstack-helper.service`, such as one that keeps its files on another disk, add the same drop-in for `wongstack-helper@.service`, the unit that each project's helper uses.
+
 ## 50.5.0 — One browser window with a tab for each chat, and browser settings on each computer
 
 - **One window, a tab for each chat.** Each chat, and each scheduled run, gets its own tab in the one browser window, not a window of its own. The chats work at the same time. While it is your turn in a tab, the other chats keep working in theirs and never show their tab over yours ([a tab for each chat](wiki/development/browser-window.md#a-tab-for-each-chat)).

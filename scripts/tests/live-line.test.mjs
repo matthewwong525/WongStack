@@ -2,7 +2,7 @@
 // stand in for the app and the clock.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { nextPoll, openLine, waiter } from '../../.agents/skills/hand-over/scripts/lib/line.mjs';
 import { serveInbox } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
 import { primaryRoot } from '../../.agents/skills/memory/scripts/lib/primary-root.mjs';
+import { helperFiles } from '../../.agents/skills/hand-over/scripts/lib/computer.mjs';
 
 const REPO = fileURLToPath(new URL('../..', import.meta.url));
 const COMPUTER = '0123456789abcdef0123456789abcdef';
@@ -172,7 +173,7 @@ test('as the background helper, a look runs exactly one round, a stray message r
   assert.deepEqual(runs[0].roots, [primaryRoot(REPO).primary], 'rounds run from the app\'s main checkout');
 
   socket.open();
-  assert.deepEqual(socket.sent, [{ t: 'hello', computer: COMPUTER, protocol: 13 }]);
+  assert.deepEqual(socket.sent, [{ t: 'hello', computer: COMPUTER, protocol: 14 }]);
   socket.say({ t: 'look' });
   await until(() => runs.length === 2 && polls.length === 2);
   assert.equal(polls[1], true);
@@ -226,4 +227,92 @@ test('started for an item, the helper ends once nothing is open, and runs no sch
   let rounds = 0;
   await serveInbox({ env: at.env, clientFor: async () => null, rounds: async () => { rounds += 1; return {}; }, computer: COMPUTER, log: () => {} });
   assert.equal(rounds, 0);
+});
+
+/** A fresh main checkout under the test's home. */
+function project(at, name) {
+  const dir = join(at.dir, name);
+  mkdirSync(dir);
+  execFileSync('git', ['init', '-q', dir]);
+  return dir;
+}
+
+test('a project\'s own helper claims only its own routines, with its own ledger and log, and leaves the shared list', async t => {
+  const at = home(t);
+  const mine = project(at, 'notes'), other = project(at, 'shop');
+  const shared = helperFiles(at.env);
+  mkdirSync(shared.dir, { recursive: true });
+  writeFileSync(shared.apps, JSON.stringify({ apps: [{ cwd: other }, { cwd: mine }] }));
+  // The shared helper's item for the other project stays its own.
+  mkdirSync(shared.items, { recursive: true });
+  const item = { id: 'c'.repeat(32), header: 'h', version: 'v', deadline: Date.now() + 3_600_000, app: { cwd: other }, target: { agentId: 'chat-9' } };
+  writeFileSync(join(shared.items, `${item.id}.json`), JSON.stringify(item));
+  const socket = new FakeSocket();
+  const asked = [];
+  const client = { target: () => 'https://app.example.com', http: async () => ({ value: null, status: 500 }), socket: async () => socket };
+  const runs = [];
+  const rounds = async () => ({ runRound: async (_, options) => { runs.push(options); options.log({ event: 'run', key: 'disk', outcome: 'handed' }); return 0; }, mirrorRound: async () => {} });
+  const stop = new AbortController();
+  const serving = serveInbox({ service: true, project: mine, env: at.env, clientFor: async cwd => { asked.push(cwd); return client; }, rounds, computer: COMPUTER,
+    signal: stop.signal, pollFor: () => 3_600_000, roundGap: 0 });
+  await until(() => runs.length === 1);
+  stop.abort();
+  await serving;
+  assert.deepEqual(runs[0].roots, [mine], 'never the other project\'s routines');
+  assert.equal(runs[0].ledger, helperFiles(at.env, mine).runs);
+  assert.deepEqual(asked, [mine], 'signed in from its own folder alone');
+  assert.deepEqual(JSON.parse(readFileSync(shared.apps, 'utf8')).apps, [{ cwd: other }], 'the shared helper no longer claims them');
+  assert.deepEqual(readdirSync(shared.items), [`${item.id}.json`]);
+  assert.equal(JSON.parse(readFileSync(helperFiles(at.env, mine).log, 'utf8')).key, 'disk', 'its log is its own');
+  assert.equal(existsSync(shared.log), false);
+  assert.equal(existsSync(helperFiles(at.env, mine).inbox), false, 'its record goes when it stops');
+});
+
+test('a project\'s own helper leaves the shared list again within a second, with no round in between', async t => {
+  const at = home(t);
+  const mine = project(at, 'notes'), other = project(at, 'shop');
+  const shared = helperFiles(at.env);
+  mkdirSync(shared.dir, { recursive: true });
+  writeFileSync(shared.apps, JSON.stringify({ apps: [{ cwd: other }] }));
+  const client = { target: () => 'https://app.example.com', http: async () => ({ value: null, status: 500 }), socket: async () => new FakeSocket() };
+  const runs = [];
+  const rounds = async () => ({ runRound: async (_, options) => { runs.push(options); return 0; }, mirrorRound: async () => {} });
+  const stop = new AbortController();
+  const serving = serveInbox({ service: true, project: mine, env: at.env, clientFor: async () => client, rounds, computer: COMPUTER,
+    signal: stop.signal, log: () => {}, pollFor: () => 3_600_000, roundGap: 0 });
+  await until(() => runs.length === 1);
+  // An older session lists the project again, and puts its plan item with the shared helper.
+  writeFileSync(shared.apps, JSON.stringify({ apps: [{ cwd: other }, { cwd: mine }] }));
+  mkdirSync(shared.items, { recursive: true });
+  const item = { id: 'd'.repeat(32), header: 'h', version: 'v', deadline: Date.now() + 3_600_000, app: { cwd: mine }, target: { agentId: 'chat-9' } };
+  writeFileSync(join(shared.items, `${item.id}.json`), JSON.stringify(item));
+  const left = () => JSON.parse(readFileSync(shared.apps, 'utf8')).apps.length === 1 && !readdirSync(shared.items).length;
+  for (const end = Date.now() + 1500; Date.now() < end && !left();) await new Promise(done => setTimeout(done, 20));
+  stop.abort();
+  await serving;
+  assert.equal(runs.length, 1, 'no round ran meanwhile');
+  assert.deepEqual(JSON.parse(readFileSync(shared.apps, 'utf8')).apps, [{ cwd: other }]);
+  assert.deepEqual(readdirSync(helperFiles(at.env, mine).items), [`${item.id}.json`], 'its item moved to its own helper');
+});
+
+test('the shared helper skips a project with its own helper, even one an older session listed again', async t => {
+  const at = home(t);
+  const mine = project(at, 'notes'), other = project(at, 'shop');
+  mkdirSync(helperFiles(at.env, mine).dir, { recursive: true });
+  writeFileSync(helperFiles(at.env, mine).current, JSON.stringify({ script: '/x/reply-link.mjs', protocol: 14, project: mine }));
+  mkdirSync(helperFiles(at.env).dir, { recursive: true });
+  writeFileSync(helperFiles(at.env).apps, JSON.stringify({ apps: [{ cwd: mine }, { cwd: other }] }));
+  const client = { target: () => 'https://app.example.com', http: async () => ({ value: null, status: 500 }), socket: async () => new FakeSocket() };
+  const runs = [];
+  const asked = [];
+  const rounds = async () => ({ runRound: async (_, options) => { runs.push(options); return 0; }, mirrorRound: async () => {} });
+  const stop = new AbortController();
+  const serving = serveInbox({ service: true, env: at.env, clientFor: async cwd => { asked.push(cwd); return client; }, rounds, computer: COMPUTER, signal: stop.signal,
+    log: () => {}, pollFor: () => 3_600_000, roundGap: 0 });
+  await until(() => runs.length === 1);
+  stop.abort();
+  await serving;
+  assert.deepEqual(runs[0].roots, [other]);
+  assert.equal(runs[0].ledger, undefined, 'the shared ledger, as before');
+  assert.deepEqual(asked, [other], 'it never signs in for the project with its own helper');
 });
