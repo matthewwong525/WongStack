@@ -19,6 +19,7 @@ const scripts = {
   'scripts/check-openspec-config.mjs': [],
   'scripts/check-payload-links.mjs': [],
   'scripts/check-app-keys.mjs': [],
+  'scripts/check-service-definitions.mjs': [],
   'scripts/check-runtime-tests.mjs': [],
   'scripts/check-app-checks.mjs': [],
   'scripts/check-skill-actions.mjs': [],

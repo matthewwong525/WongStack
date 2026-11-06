@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.3.0 — Each outside service keeps the calls you use, with examples, in one place
+
+- **A short view of each call before you use it.** `node scripts/company-api.mjs api notion` lists the calls you use with Notion, one line each. `api notion search` shows how you use one, what to send, what comes back, and its saved examples. `api company` shows the app's own calls ([each service's definition](wiki/stack/service-catalogue.md#each-services-definition)).
+- **A new call is saved once, with its private values made up.** After a direct call that isn't saved yet, the helper prints the one `record` command that saves it. A look-up is sent again to save it; a change is saved from the last one made, never sent again. Emails, IDs and free text become made-up values first, and a check fails on one that looks real.
+- **Each call says what you use it for and how.** You write a call's summary and description once; a later example widens its shape and keeps your words. A quirk of one call goes in its description, and the service's notes page keeps what is about the whole service.
+- **`record --refresh` checks the saved calls still fit.** It asks each saved look-up again, never a change, and names an answer that no longer fits.
+- **App code types a service's answer and tests on its examples.** Each service gets a types file in `app/worker/services/`. The real-database tests answer the app's requests to that service from its saved examples, and a request with no example fails by name ([service examples](wiki/stack/testing.md#service-examples)).
+- **A services skill tells the assistant these steps**, and the app's own API description is now OpenAPI 3.2.
+
+**Updating.** The update adds a services skill. Nothing to do by hand: an install makes a folder for an outside service, `schema/services/<name>/`, the first time it saves a call to it.
+
 ## 50.2.2 — The last pretend database goes
 
 - **Three more server tests read real rows.** The tests for who may open which app, which keys and tools a person holds, and the list of actions an AI can call now run real queries on the test copy of the database. A test of a failed database closes that copy, so the read fails for real.

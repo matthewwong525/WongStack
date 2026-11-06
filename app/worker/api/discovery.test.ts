@@ -56,7 +56,7 @@ it("returns only the selected action schema and revision, and supports cache val
 });
 it("generates truthful HTTP-only OpenAPI with query scalars, JSON bodies and success/error schemas", async () => {
   const initial = await body(await get("/api/openapi.json"));
-  expect(initial.openapi).toBe("3.1.1"); expect(Object.keys(initial.paths)).toEqual(["/apps/hello/api/greeting", "/api/health"]);
+  expect(initial.openapi).toBe("3.2.0"); expect(Object.keys(initial.paths)).toEqual(["/apps/hello/api/greeting", "/api/health"]);
   const greeting = initial.paths["/apps/hello/api/greeting"].get;
   expect(greeting.parameters).toEqual([expect.objectContaining({ name: "name", required: false, in: "query", style: "form", explode: true })]);
   expect(greeting.responses["2XX"].content["application/json"].schema.properties.message.type).toBe("string");

@@ -2,7 +2,7 @@
   "threshold": 0,
   "path": ["src", "worker"],
   "pattern": "**/*.{ts,tsx}",
-  "ignore": ["**/*.test.ts", "**/*.test.tsx", "**/components/ui/**"],
+  "ignore": ["**/*.test.ts", "**/*.test.tsx", "**/components/ui/**", "**/worker/services/**"],
   "reporters": ["console"],
   "gitignore": true
 }

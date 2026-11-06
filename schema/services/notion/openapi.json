@@ -1,0 +1,162 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Notion",
+    "version": "recorded"
+  },
+  "externalDocs": {
+    "url": "https://developers.notion.com/reference/intro"
+  },
+  "servers": [
+    {
+      "url": "https://api.notion.com/v1/"
+    }
+  ],
+  "paths": {
+    "/search": {
+      "post": {
+        "operationId": "search",
+        "summary": "Find pages and databases the key can see, by title",
+        "x-effect": "read",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "query": {
+                    "type": "string",
+                    "description": "Words to find in page and database titles; leave it out to list all."
+                  },
+                  "filter": {
+                    "type": "object",
+                    "properties": {
+                      "property": {
+                        "type": "string",
+                        "enum": [
+                          "object"
+                        ]
+                      },
+                      "value": {
+                        "type": "string",
+                        "enum": [
+                          "page",
+                          "data_source",
+                          "database"
+                        ]
+                      }
+                    }
+                  },
+                  "sort": {
+                    "type": "object",
+                    "properties": {
+                      "direction": {
+                        "type": "string",
+                        "enum": [
+                          "ascending",
+                          "descending"
+                        ]
+                      },
+                      "timestamp": {
+                        "type": "string",
+                        "enum": [
+                          "last_edited_time"
+                        ]
+                      }
+                    }
+                  },
+                  "start_cursor": {
+                    "type": "string"
+                  },
+                  "page_size": {
+                    "type": "number",
+                    "description": "At most 100."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Recorded answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "type": "string"
+                    },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "object",
+                          "id"
+                        ],
+                        "properties": {
+                          "object": {
+                            "type": "string",
+                            "enum": [
+                              "page",
+                              "database",
+                              "data_source"
+                            ]
+                          },
+                          "id": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "last_edited_time": {
+                            "type": "string"
+                          },
+                          "properties": {
+                            "type": "object",
+                            "description": "The page's fields, by name; a page's title is the one of type title."
+                          }
+                        }
+                      }
+                    },
+                    "next_cursor": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "has_more": {
+                      "type": "boolean"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "page_or_database": {
+                      "type": "object",
+                      "properties": {}
+                    },
+                    "request_id": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "object",
+                    "results",
+                    "next_cursor",
+                    "has_more",
+                    "type",
+                    "page_or_database",
+                    "request_id"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "description": "We send `query` for words in a title, and `filter` `{\"property\": \"object\", \"value\": \"page\"}` for pages only. A 200 with no `results` means the connection has no shared pages, not a wrong key: share pages in its *Content access* tab. While `has_more` is true, send the last `next_cursor` as `start_cursor` to get the next page. Guide: https://developers.notion.com/reference/post-search"
+      }
+    }
+  }
+}

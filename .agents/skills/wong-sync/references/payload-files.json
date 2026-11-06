@@ -35,6 +35,7 @@
       "schedule",
       "daily",
       "connect",
+      "services",
       "lesson",
       "memory",
       "wong-sync",
@@ -124,6 +125,7 @@
       "scripts/lib-staging-secrets.mjs",
       "scripts/check-private-access.mjs",
       "scripts/check-app-keys.mjs",
+      "scripts/check-service-definitions.mjs",
       "scripts/check-runtime-tests.mjs",
       "scripts/lint-comment-length.mjs",
       "scripts/check-app-checks.mjs",
@@ -156,6 +158,9 @@
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",
+      "scripts/lib-services.mjs",
+      "scripts/lib-openapi.mjs",
+      "scripts/lib-scrub.mjs",
       "scripts/mcp-session.mjs",
       "scripts/check-runner/worker.mjs",
       "scripts/check-runner/pipeline.mjs",
@@ -179,7 +184,8 @@
       "app/wrangler.jsonc",
       "app/wrangler.line.jsonc",
       "app/src/apps/tips",
-      "app/worker/apps/tips"
+      "app/worker/apps/tips",
+      "app/worker/services"
     ],
     "files": [
       "app/src/apps/access/App.tsx",

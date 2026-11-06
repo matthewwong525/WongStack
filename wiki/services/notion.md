@@ -22,8 +22,8 @@ Notion needs a `Notion-Version` header on every call. Put it in `forward.headers
 
 `POST search` and `POST databases/*/query` only read, so they are look-ups.
 
-## Search pages
+## Calls
 
-`notion.read` with `{ "method": "POST", "path": "search", "body": { "page_size": 5 } }`. A `200` with no `results` means the connection has no shared pages, not a wrong key.
+`node scripts/company-api.mjs api notion` lists the calls we use. `api notion <call>` shows how we use one and its quirks: [each service's definition](../stack/service-catalogue.md#each-services-definition).
 
 Part of [services](README.md).

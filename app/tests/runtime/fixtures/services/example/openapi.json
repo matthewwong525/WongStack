@@ -1,0 +1,69 @@
+{
+  "openapi": "3.2.0",
+  "info": {
+    "title": "Example",
+    "version": "recorded"
+  },
+  "externalDocs": {
+    "url": "https://docs.example.test/"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.test/"
+    }
+  ],
+  "paths": {
+    "/things": {
+      "get": {
+        "operationId": "listThings",
+        "summary": "List things",
+        "description": "A made-up service the runtime tests answer from this folder, to prove playback with no real key.",
+        "x-effect": "read",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recorded answer",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "things": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "id",
+                          "title"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "things"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

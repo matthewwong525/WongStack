@@ -236,8 +236,10 @@ test('services shows each key on one line with its level, notes page and guide, 
     { id: '../odd', name: 'Odd', purpose: 'an id no page can have', ready: true, level: 'write', direct: false }] };
   const noted = withNotes(answer, root);
   assert.deepEqual(noted.services.map(service => service.notes), [{ path: 'wiki/services/stripe.md', exists: true }, { path: 'wiki/services/mailchimp.md', exists: false }, undefined]);
+  assert.deepEqual(noted.services.map(service => service.calls), [0, undefined, undefined], 'a key used directly counts its saved calls');
   assert.deepEqual(serviceLines(noted).map(line => line.trimEnd().split(/ {2,}/)), [
     ['Stripe', 'payments and refunds', 'ready', 'Read'], ['', 'notes: wiki/services/stripe.md', 'guide: https://docs.stripe.com/api'],
+    ['', 'calls: 0 · node scripts/company-api.mjs api stripe'],
     ['Mailchimp', 'email lists', 'not saved yet: ask the owner'], ['', 'notes: none yet; start wiki/services/mailchimp.md'],
     ['Odd', 'an id no page can have', 'ready', 'Read & write'],
     ['2 more keys need access: ask the owner']]);
@@ -324,6 +326,19 @@ test('an answers folder that is not private is refused, and a short answer needs
   assert.throws(() => saveAnswer('{}', dir), /not a private folder/);
   assert.throws(() => shortAnswer('x'.repeat(30000), dir), /not a private folder/);
   assert.equal(shortAnswer('{"short":true}', dir), '{"short":true}'); assert.deepEqual(readdirSync(dir), []);
+});
+test('a direct look-up its definition lacks prints the save command on stderr and leaves the answer as it was', t => {
+  const read = descriptor({ operationId: 'acme-crm.read', method: 'POST', encoding: 'json', effect: 'read', path: '/api/direct/acme-crm/read' });
+  const cli = helperCli(t, `async target => target.searchParams.has('id') ? Response.json(${JSON.stringify(read)})
+    : target.pathname === '/api/direct/acme-crm/read' ? Response.json({ status: 200, contentType: 'application/json', body: { items: [] } }) : undefined`);
+  const ran = cli.run(['call', 'acme-crm.read', '--file', '-'], { input: '{"method":"GET","path":"items","query":"limit=1"}' });
+  assert.equal(ran.status, 0, ran.stderr);
+  assert.deepEqual(JSON.parse(ran.stdout), { status: 200, contentType: 'application/json', body: { items: [] } });
+  assert.equal(ran.stderr, 'Not in schema/services/acme-crm yet. Add it: node scripts/company-api.mjs record acme-crm items --file - <<\'EOF\'\n'
+    + '{"method":"GET","path":"items","query":"limit=1"}\nEOF\n');
+  const api = cli.run(['api', 'acme-crm']); assert.equal(api.status, 0, api.stderr);
+  assert.match(api.stdout, /^No calls saved for acme-crm yet\./);
+  const usage = cli.run(['record', 'acme-crm', 'x', '--last', '--file', '-']); assert.notEqual(usage.status, 0); assert.match(usage.stderr, /record <key> <name> --last/);
 });
 test('the mcp command runs a session through the app as a chat runs it, and prints the tools or a tool\'s text', t => {
   const cli = helperCli(t, `async (target, init) => {
