@@ -14,6 +14,14 @@
 
 **Updating.** The update adds a services skill. Nothing to do by hand: an install makes a folder for an outside service, `schema/services/<name>/`, the first time it saves a call to it.
 
+## 50.2.2 — The last pretend database goes
+
+- **Three more server tests read real rows.** The tests for who may open which app, which keys and tools a person holds, and the list of actions an AI can call now run real queries on the test copy of the database. A test of a failed database closes that copy, so the read fails for real.
+- **The pretend database is gone.** `fakeDatabase` in `app/tests/env.ts` had no other use. Every line is still tested, and the tests take no longer.
+- **The testing guide says why the runtime tests don't count toward the 100% rule.** The local server gives only whole-function coverage, not line by line ([testing the app](wiki/stack/testing.md#the-real-database-tests)).
+
+**Updating.** If your own tests use `fakeDatabase`, they stop building after the update. Add this line to those tests: `const fakeDatabase = <Calls extends object>(calls: Calls) => calls as D1Database & Calls;`. Or move them to the `database()` test helper in `app/tests/employee-access/connections.ts`, which builds a real test database from your migrations.
+
 ## 50.2.1 — The testing guide says how to test an app whose data comes from an outside service
 
 - **An app that reads from a service the local tests can't reach tests what a preview has.** The testing guide uses Knowledge as the example: its real-database test checks who may open it and its *not set up* answer, and the fast tests check its pages ([add an app's tests](wiki/stack/testing.md#add-an-apps-tests)).

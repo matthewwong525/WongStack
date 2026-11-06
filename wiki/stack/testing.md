@@ -32,6 +32,8 @@ The app's `npm test` runs the unit and screen tests with their coverage limits, 
 - **People sign in with test keys.** The suite signs tokens for the owner and for three seeded people: Fay (an Admin), Dana (holds Hello) and Eli (holds no app). Only the signing-key answer is a stand-in: sign-in rules, routing, database reads and rollbacks are the real app's.
 - **Nothing leaves the computer.** An outgoing request fails the run. The app's secret files and deployed resources are never used.
 
+The runtime suite's lines do not count toward the 100% coverage limit. The local runtime, workerd, answers the profiler itself and refuses line-by-line coverage; its best-effort coverage counts a whole function once it runs, a `throw` that no case reaches included. So server logic keeps its unit tests, on the test copy of the database that [`database()`](../../app/tests/employee-access/connections.ts) builds from the real migrations.
+
 Setup prints how long the build, start and migrations took, and the run prints each app's time. The suite closes the runtime and removes its temporary files, also after a failing case.
 
 ### Run one app's tests

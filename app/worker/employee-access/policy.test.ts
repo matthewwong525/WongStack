@@ -1,5 +1,4 @@
-import { readFileSync } from "node:fs";
-import { DatabaseSync } from "node:sqlite";
+import type { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { authorizeRequest, currentPolicy, humanEmail, ownerEmail, policyAllows, type PolicyEnv, type RouteAccess } from "./policy";
@@ -10,7 +9,8 @@ import { discovery } from "../api/discovery";
 import { appAccess, appPageDenied } from "./apps";
 import { memoryRole } from "../memory-caller";
 import { body } from "../../tests/body";
-import { fakeDatabase, fakeEnv } from "../../tests/env";
+import { fakeEnv } from "../../tests/env";
+import { database } from "../../tests/employee-access/connections";
 
 // The built folders are the catalogue; these tests name apps this repo does not build.
 vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtApps(["access", "frontend-only", "hello", "new-app", "orders", "payroll", "reports"]));
@@ -28,14 +28,13 @@ let env: PolicyEnv;
 const request = () => new Request(`${origin}/api/orders`);
 const access: RouteAccess = { apps: ["orders"] };
 const read = (identity: AccessIdentity | null = employee, bindings = env) => currentPolicy(bindings, identity);
-/** A database that answers every permission read with one fixed row. */
-const answering = (row: unknown) => ({ ...env, DB: fakeDatabase({ withSession: () => ({ prepare: () => ({ bind: () => ({ first: async () => row }) }) }) }) });
-
+/** A closed copy of the database: every read throws from SQLite itself. */
+const closed = () => { const copy = database(); copy.sql.close(); vi.spyOn(copy.DB, "withSession"); return copy.DB; };
+/** The real permission read with columns swapped: values the query builds itself, so no stored row can hold them. */
+const swapping = (change: object) => ({ ...env, DB: { withSession: (mode: string) => ({ prepare: (query: string) => ({ bind: (email: string) => ({
+  first: async () => ({ ...await env.DB?.withSession(mode).prepare(query).bind(email).first(), ...change }) }) }) }) } as unknown as D1Database });
 beforeEach(() => {
-  sql = new DatabaseSync(":memory:");
-  for (const file of ["0001_employee_access.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql", "20261013205049_admin_role.sql"]) {
-    sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
-  }
+  const copy = database(); sql = copy.sql;
   sql.exec(`INSERT INTO wong_access_installation
     (slot, installation_id, origin, account_id, worker_id, access_app_id, access_policy_id,
       issuer, audience, owner_subject, owner_email, repository_id, repository_name, policy_enabled, activated_at)
@@ -43,14 +42,10 @@ beforeEach(() => {
       '${issuer}', 'business-app', 'owner-subject', 'owner@example.com', 123, 'business/project', 1, 'now');
     INSERT INTO wong_access_roles VALUES ('installation', 'admin', 'Admin', 1);
     INSERT INTO wong_access_members VALUES ('installation', 'employee@example.com', 'active', 0, 1, 'now');
-    INSERT INTO wong_access_apps VALUES ('installation', 'orders');
-    INSERT INTO wong_access_apps VALUES ('installation', 'payroll');
+    INSERT INTO wong_access_apps VALUES ('installation', 'orders'), ('installation', 'payroll');
     INSERT INTO wong_access_grants VALUES ('installation', 'employee@example.com', 'orders', 1, 'write');`);
-  const session = { prepare: (query: string) => ({ bind: (email: string) => ({
-    first: async () => sql.prepare(query).get(email) ?? null,
-  }) }) };
-  env = { DB: fakeDatabase({ withSession: vi.fn(() => session) }), WONG_OWNER_EMAIL: "owner@example.com",
-    CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com", CF_ACCESS_AUD: "business-app" };
+  vi.spyOn(copy.DB, "withSession");
+  env = { DB: copy.DB, WONG_OWNER_EMAIL: "owner@example.com", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com", CF_ACCESS_AUD: "business-app" };
 });
 afterEach(() => sql.close());
 
@@ -267,25 +262,31 @@ it("ignores a grant for an app that is no longer built", async () => {
 
 it("denies rather than opens when started permission data is missing, unreadable or malformed", async () => {
   expect(await read(employee, { ...env, DB: undefined })).toEqual({ state: "unavailable" });
-  const failed = { ...env, DB: fakeDatabase({ withSession: () => { throw new Error("private database detail"); } }) };
+  const failed = { ...env, DB: closed() };
   expect(await read(employee, failed)).toEqual({ state: "unavailable" });
   const denied = await authorizeRequest(failed, employee, access);
   expect(denied?.status).toBe(503);
   expect(denied?.headers.get("Cache-Control")).toBe("no-store");
   expect(await denied?.json()).toMatchObject({ error: { code: "unavailable", message: "Access unavailable", requestId: expect.any(String) } });
-  const row = { policy_enabled: 1, keys_enabled: 0, revision: 1, status: "active", held: null, apps: '["orders"]', keys: "{}" };
-  expect(await read(employee, answering(row))).toMatchObject({ state: "current", apps: new Set(["orders"]) });
-  // An unreadable list of apps never reads as held: levels from before ticks, a name that is no text.
-  for (const change of [{ policy_enabled: 2 }, { keys_enabled: 2 }, { revision: 0 }, { status: "unknown" }, { held: 2 }, { held: undefined }, { apps: "not json" }, { apps: '{"orders":"write"}' },
-    { apps: "[1]" }, { apps: '"orders"' }, { apps: undefined },
-    { keys: undefined }, { keys_enabled: 1, keys: "not json" }, { keys_enabled: 1, keys: '{"cloudflare":"admin"}' }]) {
-    expect(await read(employee, answering({ ...row, ...change }))).toEqual({ state: "unavailable" });
+  // An unreadable row never reads as held: a stored value the schema refuses, written past its checks; or, swapped into
+  // the real row, a list only the query builds: levels from before ticks, a name that is no text.
+  sql.exec("PRAGMA ignore_check_constraints = ON");
+  for (const change of ["UPDATE wong_access_installation SET policy_enabled = 2", "UPDATE wong_access_installation SET keys_enabled = 2",
+    "UPDATE wong_access_installation SET revision = 0", "UPDATE wong_access_members SET status = 'unknown'",
+    "UPDATE wong_access_installation SET keys_enabled = 1; INSERT INTO wong_access_key_grants VALUES ('installation', 'employee@example.com', 'cloudflare', 'admin', 1)",
+    { held: 2 }, { held: undefined }, { apps: "not json" }, { apps: '{"orders":"write"}' }, { apps: "[1]" }, { apps: '"orders"' }, { apps: undefined },
+    { keys: undefined }, { keys_enabled: 1, keys: "not json" }]) {
+    sql.exec(`BEGIN; ${typeof change === "string" ? change : ""}`);
+    expect(await read(employee, typeof change === "string" ? env : swapping(change)), JSON.stringify(change)).toEqual({ state: "unavailable" });
+    sql.exec("ROLLBACK");
   }
+  expect(await read()).toMatchObject({ state: "current", apps: new Set(["orders"]) });
   // Until key levels start, an unreadable key level takes no app away; the owner never depends on a stored level.
-  expect(await read(employee, answering({ ...row, keys: "not json" }))).toMatchObject({ state: "current", keys: null, keysStarted: false });
-  expect(await read(owner, answering({ ...row, keys_enabled: 1, status: null, apps: "not json", keys: "not json" }))).toMatchObject({ state: "current", role: "owner" });
+  expect(await read(employee, swapping({ keys: "not json" }))).toMatchObject({ state: "current", keys: null, keysStarted: false });
+  sql.exec("UPDATE wong_access_installation SET keys_enabled = 1; INSERT INTO wong_access_member_roles VALUES ('installation', 'employee@example.com', 'admin')");
+  expect(await read(owner, swapping({ apps: "not json", keys: "not json" }))).toMatchObject({ state: "current", role: "owner" });
   // An Admin never depends on a stored list either: their set is worked out, whatever the role's rows say.
-  expect(await read(employee, answering({ ...row, held: "admin", apps: "not json", keys: "not json" }))).toMatchObject({ state: "current", role: "employee", manages: true });
+  expect(await read(employee, swapping({ apps: "not json", keys: "not json" }))).toMatchObject({ state: "current", role: "employee", manages: true });
   // A database from before roles denies: it never reads as nobody holding one and carries on.
   sql.exec("DROP TABLE wong_access_member_roles");
   expect(await read()).toEqual({ state: "unavailable" });
@@ -335,11 +336,11 @@ it("preserves action visibility, record guards, identity and readiness checks co
 });
 
 it("keeps the reviewed harmless health exception independent of employee and database authority", async () => {
-  const failed = { ...env, DB: fakeDatabase({ withSession: vi.fn(() => { throw new Error("offline"); }) }) };
+  const failed = { ...env, DB: closed() };
   expect(await authorizeRequest(failed, null, { kind: "infrastructure" })).toBeNull();
   const health = await handleApi(new Request(`${origin}/api/health`), fakeEnv(failed));
   expect(await health.json()).toEqual({ ok: true });
-  expect(failed.DB?.withSession).not.toHaveBeenCalled();
+  expect(failed.DB.withSession).not.toHaveBeenCalled();
 });
 
 function discoveryRoutes(): Registration[] {
