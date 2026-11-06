@@ -593,7 +593,7 @@ test('a watch link gives the browser to the person on Take over, back on Hand ba
 
   const taken = await ask(port, key, 'take', {});
   assert.deepEqual([taken.status, taken.json.control], [200, 'person']);
-  await eventually(() => f.fronts().includes('front turn'));
+  await eventually(() => f.fronts().includes('front turn again'));
   assert.equal((await ask(port, key, 'take', {})).status, 409);
   assert.equal(nextEvent(f), 'HANDOVER_RESULT=taken-over');
   assert.match(f.run('turn', '--until', '**/receipt/*', '--note', 'Sign in to Test.').stderr, /not the assistant's now: person/);
