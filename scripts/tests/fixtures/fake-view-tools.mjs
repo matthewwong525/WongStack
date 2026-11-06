@@ -1,5 +1,5 @@
 // Stand-ins for what a live view runs (x11vnc, xdotool, apt-get, sudo), shared by the view and private-link tests, and
-// a WebSocket client that builds its own frames. A test steers each fake with files in `control`, the fake camofox's.
+// a WebSocket client. A test steers each fake with files in `control`, the fake camofox's: `popup` shows a pop-up.
 
 import { randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -28,7 +28,10 @@ else serve();`,
 const tabs = has('tabs.json') ? JSON.parse(fs.readFileSync(file('tabs.json'), 'utf8')) : [];
 const [command] = args;
 if (command === 'getdisplaygeometry') console.log(${JSON.stringify(SCREEN.join(' '))});
-else if (command === 'search') {
+else if (args.join(' ') === 'search --onlyvisible --classname ^Camoufox$') {
+  if (!has('popup')) process.exit(1);
+  console.log(200);
+} else if (command === 'search') {
   if (args[1] !== '--classname' || args[2] !== 'Navigator' || !tabs.length) process.exit(1);
   tabs.forEach((tab, index) => console.log(100 + index));
 } else if (command === 'getwindowgeometry') {

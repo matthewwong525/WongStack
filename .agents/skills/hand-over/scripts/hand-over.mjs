@@ -623,15 +623,15 @@ async function watch() {
   }
   let holding = !watchSide;
   /** Holds the turn on the page's tab while the person has it: a live view selects it again unless the person or the
-   * site opened a tab in the turn; a window is the person's own, so its tab is only kept. */
-  const holdTurn = async person => {
+   * site opened a tab in the turn, or a browser pop-up shows; a window is the person's own, so its tab is only kept. */
+  const holdTurn = async (person, popup = false) => {
     // An ended view has let go of its turn; a late poll never takes it again.
     if (done || (!person && !holding)) return;
     holding = person;
-    await page.front(person ? { turn: true, ...(window ? { raise: false } : { reselect: true }) } : { turn: false }).catch(() => {});
+    await page.front(person ? { turn: true, ...(window || popup ? { raise: false } : { reselect: true }) } : { turn: false }).catch(() => {});
   };
   /** One poll of a view: a stopped screen source starts again, the finish is read unless the view stays open, the turn
-   * is renewed, and the page's tab and window come to the front. Resolves to the result that ends the view, or null. */
+   * is renewed, and the tab and window come to the front unless a pop-up shows. Resolves to what ends it, or null. */
   const pollView = async () => {
     try {
       if (await live?.revive()) saveState();
@@ -640,12 +640,13 @@ async function watch() {
     }
     if (watchSide) await watchSide.poll();
     else if (!state.view.keepOpen && finished(state, await seen(page, state))) return 'done';
-    await holdTurn(!watchSide || watchSide.personHolds());
+    await holdTurn(!watchSide || watchSide.personHolds(), live?.popupOpen());
     live?.front();
     return null;
   };
-  /** The call the server counts as use, which keeps the link's page open: a view's fit again, else a constant. */
-  const keepOpen = () => (live ? live.fit() : page.keepAlive());
+  /** The call the server counts as use, which keeps the link's page open: a view's fit again, else a constant. A fit
+   * brings the tab to the front, which would cover a shown pop-up. */
+  const keepOpen = () => (live && !live.popupOpen() ? live.fit() : page.keepAlive());
   let keepAt = Date.now() + KEEP_MS;
   while (!done) {
     if (!listed && listing && existsSync(FILES.shown)) listed = list(listing);

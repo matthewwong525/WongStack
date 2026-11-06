@@ -33,7 +33,7 @@ In [the browser window](browser-window.md#your-turn-in-the-window), use it as in
 2. The agent sends the live view. You sign in to the password manager, or unlock it. The view opens over that page: its finish is not met there, since the site does not show.
 3. You press *Back* until the site shows: each of the password manager's own steps takes one press. Then you fill the login from the list the password manager shows in the page. Back on the site, or at the view's end, the page gets its own size again.
 
-The add-on's button is on the toolbar, from the second start of a new browser. Its small pop-up takes no typing on this screen, so use its page in the tab.
+The add-on's button is on the toolbar, from the second start of a new browser. Its small pop-up also works in a live view: it stays open until you pick from it or tap outside it. Tap its box, then type, such as your password to unlock it ([a pop-up stays open](live-view.md#what-the-link-can-do)).
 
 The agent's own steps skip the password manager, and every other add-on. `snapshot` leaves out their frames, and a click, typing, a key, or a choice aimed at one stops with `BROWSE_ERROR=that is the password manager's own; the person uses it in the live view`. While its page shows in the tab, every step but a new address stops the same way, and the agent can not see that page.
 
