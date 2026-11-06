@@ -1,7 +1,7 @@
 # One definition per outside service, and a services skill
 
-**Status:** planned
-**Branch:** not yet saved
+**Status:** ready-to-ship
+**Branch:** improve-integration-testing-setup
 **Open questions:** none.
 
 ## Why
@@ -113,3 +113,4 @@ Non-goals: calling live services in tests, a weekly refresh routine, sending a c
 - **2026-11-06** — Assumed: refresh lists an example whose request the scrubber changed as `not checked  <key>/<name> (its request was made up)` and never sends it, because a made-up ID asks the service for something else.
 - **2026-11-06** — Assumed: the types-compile test uses the app's own `app/node_modules/.bin/tsc` and drops `typescript` from `scripts/tests/package.json`, because one compiler for the repo is enough.
 - **2026-11-06** — Check: the types-compile test in `scripts/tests/lib-openapi.test.mjs` is skipped when `app/node_modules` is not installed, because the script tests install only their own dependencies.
+- **2026-11-06** — Archive checkpoint: archived for /ship on branch improve-integration-testing-setup, with main brought in; the new spec's Purpose written in place of the archive placeholder.

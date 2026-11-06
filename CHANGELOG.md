@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Each outside service keeps the calls you use, with examples, in one place
+## 50.3.0 — Each outside service keeps the calls you use, with examples, in one place
 
 - **A short view of each call before you use it.** `node scripts/company-api.mjs api notion` lists the calls you use with Notion, one line each. `api notion search` shows how you use one, what to send, what comes back, and its saved examples. `api company` shows the app's own calls ([each service's definition](wiki/stack/service-catalogue.md#each-services-definition)).
 - **A new call is saved once, with its private values made up.** After a direct call that isn't saved yet, the helper prints the one `record` command that saves it. A look-up is sent again to save it; a change is saved from the last one made, never sent again. Emails, IDs and free text become made-up values first, and a check fails on one that looks real.

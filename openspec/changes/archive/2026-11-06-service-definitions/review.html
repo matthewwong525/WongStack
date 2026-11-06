@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · service-definitions</title>
+<title>Review · 2026-11-06-service-definitions</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="service-definitions" data-own-back>
+<body data-change="2026-11-06-service-definitions" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>service-definitions</h1>
+  <h1>2026-11-06-service-definitions</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -446,10 +446,11 @@
 <li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Code that reads a service's answer is checked against its definition.</b> Each service's definition makes a types file. If code reads a field the service doesn't send, the type check fails and names it, so the AI need not remember the notes.</div></div></li>
 <li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>The definition grows as chats and skills use a service.</b> When a chat makes a call the definition lacks, the helper says so and gives the one command to add it. The chat then writes what the call is for and how we use it; a check blocks a call left without that. The next chat sees the call in the short view.</div></div></li>
 <li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>The app's own API description and the service files use the same version and the same way of writing a call.</b> Both move to OpenAPI 3.2.0, the newest version. Each call has the same parts on both sides: a name, a one-line purpose, how it is used, and whether it only looks or changes something. The same short view shows the app's own calls: <code>api company</code>. It reads them from the app each time, so nothing is saved that could go stale, and each person sees only the calls they may use.</div></div></li>
-<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>A refresh command shows when a service changes what it sends.</b> It asks each saved look-up again and saves the new answers, private details swapped. The usual check then lists any answer that no longer fits its call. A test that then fails means our code needs to catch up. You can later schedule it weekly.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
-<span class="ln" data-note="item-7-line-1" tabindex="0">saved again  notion/search, notion/get-page</span>
+<li class="item card" id="item-7"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>A refresh command shows when a service changes what it sends.</b> It asks each saved look-up again and lists any answer that no longer fits its call. Then it saves the new answers, private details swapped. A look-up whose request holds a made-up value, such as a page ID, is never sent: it would ask for something else. A test that then fails means our code needs to catch up. You can later schedule it weekly.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><pre class="art">
+<span class="ln" data-note="item-7-line-1" tabindex="0">saved again  notion/search</span>
 <span class="ln" data-note="item-7-line-2" tabindex="0">not checked  stripe/refund (a real change)</span>
-<span class="ln" data-note="item-7-line-3" tabindex="0">doesn't fit  notion/get-page: archived missing</span></pre></div></details></li>
+<span class="ln" data-note="item-7-line-3" tabindex="0">not checked  notion/get-page (its request was made up)</span>
+<span class="ln" data-note="item-7-line-4" tabindex="0">doesn't fit  notion/search: answer.body.has_more: missing</span></pre></div></details></li>
 <li class="item card" id="item-8"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>Test chats prove the AI uses it.</b> Before publishing, a few fresh chats get real tasks, such as finding the newest Notion page and adding an action that lists Notion pages. Each must read the short view before it acts, never the long file, and its code must pass the type check.</div></div></li>
 </ol>
 <p class="aside">Non-goals: calling live services in tests, a weekly refresh routine, sending a change to save it, copying calls from a service's published file, and changing which actions the app's own API description lists.</p>
@@ -483,6 +484,19 @@
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-06</p>Asked whether to copy calls from a service's published file → chose to build every call from our own use, with its purpose and quirks in its <code>summary</code> and <code>description</code>, so the file shows how we use the service; this drops the search and copy commands planned earlier.</li>
 <li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: a check blocks a new call left without a written purpose and description, because a call saved without them documents only its shape and loses the how.</li>
 <li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-06</p>Asked whether the app's own API description should be stored in a folder with the service files → chose no: it is built from the app's code and each person's access, so a saved copy would go stale; instead <code>api company</code> shows it in the same short view, read live.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-06</p>Check: <code>app/knip.jsonc</code> treats <code>app/worker/services/*.ts</code> as entry files, because a generated types file exports a type per call whether or not code uses it yet.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-06</p>Check: <code>app/.jscpd.json</code> ignores <code>app/worker/services/</code>, because generated types for two calls with the same shape repeat by design and are never edited by hand.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-06</p>Check: <code>app/package.json</code> adds <code>check-service-definitions.mjs</code> to <code>npm test</code> and loosens nothing, because the check runner flags any change to the test script.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: the playback self-test starts a second runtime as production, because the app loads a chat-added tool only in production; it adds about 3 seconds, well inside the 30-second limit.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: offline, the check accepts a folder named for a key in <code>app/worker/keys.ts</code> or one with a notes page in <code>wiki/services/</code> or <code>knowledge/services/</code>, because a chat-added tool lives only in the app's database.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: a new definition takes its address from the read action's description, and the scrubber keeps that address's own URLs with their IDs made up, because the action states the address and no other source has it offline.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: the kept change sits in <code>.cache/company-api/last.json</code>, in a folder with its own <code>.gitignore</code> of <code>*</code>, so an install whose <code>.gitignore</code> lacks <code>.cache</code> still never saves it.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: <code>record</code> names a new call's <code>operationId</code> from its method and path, such as <code>postSearch</code>; the chat may rename it when it writes the summary.</li>
+<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: task 4.2's test chats are left to the person running <code>/ship</code>, because the build step never runs live acceptance.</li>
+<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: refresh lists an example whose request the scrubber changed as <code>not checked  &lt;key&gt;/&lt;name&gt; (its request was made up)</code> and never sends it, because a made-up ID asks the service for something else.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: the types-compile test uses the app's own <code>app/node_modules/.bin/tsc</code> and drops <code>typescript</code> from <code>scripts/tests/package.json</code>, because one compiler for the repo is enough.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-06</p>Check: the types-compile test in <code>scripts/tests/lib-openapi.test.mjs</code> is skipped when <code>app/node_modules</code> is not installed, because the script tests install only their own dependencies.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-06</p>Archive checkpoint: archived for /ship on branch improve-integration-testing-setup, with main brought in; the new spec's Purpose written in place of the archive placeholder.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

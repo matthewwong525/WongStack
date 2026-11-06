@@ -1,7 +1,7 @@
 # service-definitions Specification
 
 ## Purpose
-TBD - created by archiving change service-definitions. Update Purpose after archive.
+Each outside service an install uses has one definition, kept with the code: an OpenAPI file of the calls the install has made, written from its own use, and scrubbed real examples. Tests, code types and the AI all read it; the AI reads it through a short view, led there by a services skill every session loads.
 
 ## Requirements
 
