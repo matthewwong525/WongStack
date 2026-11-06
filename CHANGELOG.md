@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — The live view is the one place for sensitive input
+## 50.0.0 — The live view is the one place for sensitive input
 
 - **You type a card, a backup code or a password on the real site, in the live view.** The assistant fills in the rest of the page first, then asks *Ready?* in the chat. The link shows its browser on that page, with one bar under it: a short line that says what to do now, the type box and *Hand back*. You type, or paste from your password manager. The assistant sees nothing you do until you tap *Hand back* ([live view](wiki/development/live-view.md)).
 - **You press the site's own Pay button.** You see the real total, and the assistant never presses Pay with your card. The view ends by itself at the site's receipt, or when you tap *Hand back*. The assistant then reads the page as text, with every card box hidden, and tells you whether the payment went through. It never asks you to pay again while the payment may have gone through ([pay or type a code](wiki/development/live-view.md#pay-or-type-a-code)).

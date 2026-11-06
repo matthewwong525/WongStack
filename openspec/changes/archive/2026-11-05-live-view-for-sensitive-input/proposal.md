@@ -1,6 +1,6 @@
 # The live view is the one place for sensitive input
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** outgoing-flamingo
 **Open questions:** none
 
@@ -131,3 +131,4 @@ None.
 - **2026-11-05** — Assumed: the sign-in on a Mac window (was task 6.3) moves to a follow-up, because it can run only after this is live.
 - **2026-11-05** — Done in the catch-up merge with connect-on-a-server: *saved logins* and *a private form* are dropped from *People handle API token websites in their own browser* (was task 5.5), and its scenario is now *A token request while the browser is signed in*.
 - **2026-11-05** — Check: in the catch-up merge, the watch link's *Stop* tests in `scripts/tests/hand-over.test.mjs`, `scripts/tests/view-page.test.mjs` and `scripts/tests/connect-browser.test.mjs` now check that `/stop` is gone, that only *Take over* wakes the chat, and that a chat's `close --stopped` still ends the watch `stopped`, because *Stop* is removed from connect's watch link too.
+- **2026-11-06** — Archive checkpoint: archived and numbered for publish; connect-on-a-server (v49.1.0) merged in first, with *Stop* removed from its watch link too.

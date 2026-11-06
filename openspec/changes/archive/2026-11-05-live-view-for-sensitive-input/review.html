@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · live-view-for-sensitive-input</title>
+<title>Review · 2026-11-05-live-view-for-sensitive-input</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="live-view-for-sensitive-input" data-own-back>
+<body data-change="2026-11-05-live-view-for-sensitive-input" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>live-view-for-sensitive-input</h1>
+  <h1>2026-11-05-live-view-for-sensitive-input</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -489,7 +489,9 @@
 <li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-05</p>Asked, after seeing the bar on a phone, whether to remove <i>Stop</i> → chose to remove it. <i>Hand back</i> is the one button; to give up, the person hands back and says so in the chat, and the assistant asks before it does more on an unfinished page. The type box gets the freed room. Connect-on-a-server's <i>Stop</i> drops too when it catches up.</li>
 <li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-05</p>Assumed: the live sign-in on a real site (was task 6.2) moves to a follow-up after this is live, because Matthew asked to publish once the payment turn passed, and a sign-in uses the same turn and <i>Hand back</i>.</li>
 <li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-05</p>Assumed: the sign-in on a Mac window (was task 6.3) moves to a follow-up, because it can run only after this is live.</li>
-<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-05</p>Assumed: dropping <i>saved logins</i> and <i>a private form</i> from <i>People handle API token websites in their own browser</i> (was task 5.5) moves to connect-on-a-server's catch-up, because that change owns the requirement and is not on <code>main</code> yet.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-05</p>Done in the catch-up merge with connect-on-a-server: <i>saved logins</i> and <i>a private form</i> are dropped from <i>People handle API token websites in their own browser</i> (was task 5.5), and its scenario is now <i>A token request while the browser is signed in</i>.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-05</p>Check: in the catch-up merge, the watch link's <i>Stop</i> tests in <code>scripts/tests/hand-over.test.mjs</code>, <code>scripts/tests/view-page.test.mjs</code> and <code>scripts/tests/connect-browser.test.mjs</code> now check that <code>/stop</code> is gone, that only <i>Take over</i> wakes the chat, and that a chat's <code>close --stopped</code> still ends the watch <code>stopped</code>, because <i>Stop</i> is removed from connect's watch link too.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-06</p>Archive checkpoint: archived and numbered for publish; connect-on-a-server (v49.1.0) merged in first, with <i>Stop</i> removed from its watch link too.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
