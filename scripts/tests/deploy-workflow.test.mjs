@@ -57,6 +57,7 @@ test('the job that runs branch code names no secret, and the deploy job runs onl
   assert.deepEqual(trustedJobProblems('deploy', workflow.jobs.deploy), []);
   assert.equal(workflow.jobs.deploy.needs, 'build');
   assert.match(workflow.jobs.deploy.if, /github\.event_name == 'push'/);
+  assert.match(workflow.jobs.deploy.if, /github\.event_name == 'workflow_dispatch'/);
 });
 
 test('the shape checks name a secret in a build job, a branch checkout, a cache and an install with scripts on', () => {
@@ -138,6 +139,33 @@ test('a push to the default branch deploys production from its own commit and re
   assert.deepEqual(deploys.map(call => call.worker), ['demo']);
   assert.deepEqual(wranglerCalls(result.calls).find(call => call.args[0] === 'd1').args, ['d1', 'migrations', 'apply', 'demo-db', '--remote']);
   assert.ok(result.calls.some(call => call.tool === 'gh' && call.args.includes('environment=production')), result.log);
+});
+
+test('a production deploy puts the waiting keys after it deploys; a preview never reads them', t => {
+  const main = demoRepo(dir(t, 'main')).root;
+  const live = run(t, { head: main, main, event: github({ ref_name: 'main', sha: MAIN_SHA }), secrets: { ...SECRETS, WONG_KEY_SEAL_PRIVATE: 'made-up-private-half' } });
+  assert.equal(live.jobs.deploy.result, 'success', live.log);
+  const calls = wranglerCalls(live.calls).map(call => call.args.slice(0, 3).join(' '));
+  assert.ok(calls.indexOf('d1 execute demo-db') > calls.indexOf('deploy'), `the keys were read before the deploy:\n${calls.join('\n')}`);
+  assert.match(live.log, /seal-keys: no keys wait/);
+  assert.ok(!live.log.includes('made-up-private-half'));
+  // With no private half yet, the step says so and reads nothing.
+  const unpaired = run(t, { head: main, main, event: github({ ref_name: 'main', sha: MAIN_SHA }) });
+  assert.match(unpaired.log, /no WONG_KEY_SEAL_PRIVATE here, so waiting keys stay waiting/);
+  const preview = run(t, { head: hostileBranch(t), secrets: { ...SECRETS, WONG_KEY_SEAL_PRIVATE: 'made-up-private-half' } });
+  assert.equal(preview.jobs.deploy.result, 'success', preview.log);
+  assert.deepEqual(wranglerCalls(preview.calls).filter(call => call.args[1] === 'execute'), []);
+  assert.doesNotMatch(preview.log, /seal-keys/);
+});
+
+test('a keys-only publish deploys the default branch and puts the keys; dispatched on another branch, nothing runs', t => {
+  const main = demoRepo(dir(t, 'main')).root;
+  const keys = run(t, { head: main, main, event: github({ event_name: 'workflow_dispatch', ref_name: 'main', sha: MAIN_SHA }), secrets: { ...SECRETS, WONG_KEY_SEAL_PRIVATE: 'made-up-private-half' } });
+  assert.equal(keys.jobs.deploy.result, 'success', keys.log);
+  assert.deepEqual(wranglerCalls(keys.calls).filter(call => call.args[0] === 'deploy').map(call => call.worker), ['demo']);
+  assert.match(keys.log, /seal-keys: no keys wait/);
+  const other = run(t, { head: hostileBranch(t), event: github({ event_name: 'workflow_dispatch', ref_name: 'feature-x' }) });
+  assert.deepEqual([other.jobs.build.result, other.jobs.deploy.result, wranglerCalls(other.calls)], ['skipped', 'skipped', []]);
 });
 
 test('with no deploy token the build still runs and nothing deploys, and the old secret name is no token', t => {

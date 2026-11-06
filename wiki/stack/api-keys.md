@@ -37,7 +37,7 @@ Developers who want the details can read [how the assistant sends the link](../d
 
 When the assistant saves a key your app will use, it also adds the key to the app's key list: a name you will recognise, such as *Stripe*, one line on what it's for, such as *Payments and refunds*, and the secret names it covers. It writes that line from the service's own help pages. From then on the key shows in [Access](access-screens.md#a-panel-has-apps-and-keys), where you open a person or a role and choose whether their assistant may look things up with it by itself, or also change things. An app that uses the key needs no such choice. A check fails before publishing when a secret the app declares is in no key, or in two, or when a key has no line on what it's for. The line also shows in [Services](access-screens.md#the-services-view) and in a chat's [services list](service-catalogue.md#list-the-services-you-can-use). To add several tools at once, say *connect my tools*: [connect your tools](connect-your-tools.md) does each of these steps.
 
-**A tool added in a chat** goes live in seconds, with no publish: the app keeps it as data, beside [the keys in its code](../../app/worker/keys.ts). Services marks it *Added in a chat* and lists the requests it counts as reads, so you see what *Read* allows before you give anyone a level. A teammate gets it only when you give them a level. When an app is first built on it, that change [moves it into the code](company-api.md#use-a-key-directly), and the saved key keeps working.
+**A tool added in a chat** is in the app in seconds, with no code change: the app keeps it as data, beside [the keys in its code](../../app/worker/keys.ts). Its key, [sent locked](connect-your-tools.md#how-a-key-reaches-the-app) by the assistant or pasted in Services, goes live at the next publish; until then Services says *Waiting for the next publish*. Services marks it *Added in a chat* and lists the requests it counts as reads, so you see what *Read* allows before you give anyone a level. A teammate gets it only when you give them a level. When an app is first built on it, that change [moves it into the code](company-api.md#use-a-key-directly), and the saved key keeps working.
 
 When the service takes one fixed key, the assistant also adds where the service lives, which of its requests only look things up, and a link to the service's API guide, so the key [can be used directly](company-api.md#use-a-key-directly). The link must start with `https://`, and a check fails without it. A chat reads the guide, and [the notes earlier chats left](service-catalogue.md#notes-on-each-key-based-service), before using the key. From then on your assistant can use it that way, and so can the assistant of anyone you give a level for it: *Read* looks things up, *Read & write* also changes them. Set a person's level to *None* to stop it.
 
@@ -50,7 +50,7 @@ Each app says which keys it uses, and gets only those ([list the keys a route us
 If you shared a key by mistake (in a message, a screenshot, or a public page), replace it:
 
 1. Create a new key at the service.
-2. Ask the assistant for the key link, and give it the new key there. It replaces the old one.
+2. Paste the new key in [Services](access-screens.md#the-services-view) with *Replace key*, or ask the assistant to connect the tool again. It replaces the old one at the next publish.
 3. Delete the old key at the service. This is the step that makes the leaked key useless.
 
 ## Keys are not logins

@@ -89,8 +89,8 @@ it("registers Project code as a key with Read to install and Write to publish, o
   expect(keyUse.some(use => use.keys.includes("code"))).toBe(false);
   expect(changedSet(keys, { apps: [], keys: {} }, { apps: { orders: true } })).toEqual({ apps: ["orders"], keys: {} });
   // Saved follows whether the project can be handed out: a Cloudflare-kept one needs no secret.
-  const row = (bindings: object) => keyCatalogue(bindings).find(key => key.id === "code");
-  expect(row({})).toEqual({ id: "code", title: "Project code", purpose: "This project's own code and company knowledge, to install, read and save them", levels: ["read", "write"], saved: false, setup: false, liveOnly: true, alone: true, direct: false });
+  const row = (bindings: object) => keyCatalogue(bindings, new Map()).find(key => key.id === "code");
+  expect(row({})).toEqual({ id: "code", title: "Project code", purpose: "This project's own code and company knowledge, to install, read and save them", levels: ["read", "write"], saved: false, parts: [], setup: false, liveOnly: true, alone: true, direct: false });
   expect([row(github)!.saved, row(saving)!.saved, row(artifacts().env)!.saved, saved({ WONG_CODE_READ: TOKEN }, "code")]).toEqual([true, true, true, false]);
   // No route is handed the credential or the binding, even one that lists the key.
   const all = { DB: {}, ...github, WONG_CODE_WRITE: WIDE, ARTIFACTS: {}, CODE_CHECKS: {}, WONG_CLOUDFLARE_READ: "look-up" };

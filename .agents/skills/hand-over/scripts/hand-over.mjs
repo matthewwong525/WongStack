@@ -50,7 +50,9 @@ const USAGE = `usage: hand-over.mjs open --view <finish> --note <line> [--sessio
           --watch: a live view the agent drives while the person watches, as one
           for connecting tools: the person's taps reach the browser only after they
           tap Take over, or on their turn; it reads no finish and ends at close;
-          open for 480 minutes, the one live view as --view is
+          open for 480 minutes, the one live view as --view is; where the browser
+          shows in its own window, HANDOVER_VIEW=window with no link: the person
+          watches that window, and a turn is theirs there until its finish or close
           --keys: one box per declared name; it ends on cancellation or
           once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=);
           an unopened one gives way to a new open from the same chat
@@ -456,8 +458,8 @@ function startWatcher(env = process.env) {
 
 const writeState = state => writeFileSync(FILES.state, `${JSON.stringify(state)}\n`, { mode: 0o600 });
 
-/** Opens this chat's link once no other blocks it; resolves to the exit code. A view where the browser has its own
- * window opens no link: the person's turn happens in that window. */
+/** Opens this chat's link once no other blocks it; resolves to the exit code. A view or watch where the browser has its
+ * own window opens no link: the person's turn happens in that window. */
 async function startLink(values, keys) {
   const live = watcherPid();
   if (alive(live) && !(await givesWay(live))) {
@@ -488,7 +490,7 @@ async function startLink(values, keys) {
   if (fault) return fail(fault);
   const completionId = randomBytes(16).toString('hex');
   if (window) {
-    view = { note: values.note, ...(values['keep-open'] && { keepOpen: true }), window: true };
+    view = { note: values.note, ...(values['keep-open'] && { keepOpen: true }), ...(values.watch && { watch: true }), window: true };
     writeState({ completionId, ...chatTarget(), session, view, ...finish, deadline });
     watcher = startWatcher();
     await pageOf(session).front().catch(() => {});

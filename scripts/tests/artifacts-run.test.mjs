@@ -5,7 +5,7 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { cli, readRun, restartRefusal, restartRun, verdict, waitRun } from '../../.agents/skills/save/scripts/artifacts-run.mjs';
+import { cli, readRun, restartRefusal, restartRun, startKeysRun, verdict, waitRun } from '../../.agents/skills/save/scripts/artifacts-run.mjs';
 import { runId } from '../check-runner/run-id.mjs';
 
 const scripts = new URL('../../.agents/skills/save/scripts/', import.meta.url).pathname;
@@ -499,4 +499,27 @@ test('preview-url.sh prints the address the run of HEAD reported, without gh', a
   assert.equal(got.status, 0, got.stderr);
   assert.equal(got.stdout, `${PREVIEW}\n`);
   assert.equal(got.gh, '');
+});
+
+test('keys starts a new run of main\'s commit under a name of its own, so its deploy puts the waiting keys', async (t) => {
+  const posts = [];
+  const api = { fetch: async (url, init) => { posts.push({ url, init }); return Response.json({ success: true, result: { id: 'x' } }); } };
+  const { dir, earlier } = checkout(t);
+  const got = await command(dir, api, ['keys', earlier]);
+  assert.equal(got.code, 0);
+  assert.match(got.out.join('\n'), /^KEYS: started\n {2}run keys-[0-9a-f]{12}-\d+ deploys main again and puts the waiting keys$/);
+  const [{ url, init }] = posts;
+  assert.equal(url, `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workflows/${DELIVERY.workflow}/instances`);
+  const body = JSON.parse(init.body);
+  assert.match(body.instance_id, new RegExp(`^keys-${earlier.slice(0, 12)}-\\d+$`));
+  assert.deepEqual(body.params, { provider: 'cloudflare-artifacts', providerData: { namespace: 'wongstack' }, event: { type: 'push' }, owner: 'wongstack', repo: 'recipe-box',
+    sha: earlier, remote: 'cloudflare', trigger: 'push', ref: MAIN, branch: 'main' });
+  assert.deepEqual([init.method, init.headers.Authorization], ['POST', `Bearer ${TOKEN}`]);
+  // Only main's commit, and Cloudflare's refusal or silence is said.
+  assert.equal((await command(dir, api, ['keys', earlier, BRANCH])).code, 2);
+  const refused = await command(dir, { fetch: async () => refusedByCloudflare() }, ['keys', earlier]);
+  assert.deepEqual([refused.code, refused.out], [1, ['KEYS: failed', '  Cloudflare answered HTTP 403']]);
+  assert.deepEqual(await startKeysRun({ ...TARGET, sha: SHA, fetch: async () => { throw new Error('offline'); } }), { ok: false, why: 'Cloudflare could not be reached' });
+  const outside = checkout(t, { origin: GITHUB, record: null });
+  assert.deepEqual((await command(outside.dir, api, ['keys', earlier])).out[0], 'KEYS: failed');
 });

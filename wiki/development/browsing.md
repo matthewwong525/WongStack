@@ -4,7 +4,7 @@ Browsing lets the agent use websites as you: the browser's own sign-ins, picture
 
 **No API? The browser.** When no [company action or saved key](../stack/service-catalogue.md) can do a task on a website, the agent does it here as you, without being asked. It doesn't hand you steps first.
 
-**API key and token pages use your own browser, never this one.** At such a page, even mid-errand, follow [the token website procedure](secrets.md#api-token-website-steps): it overrides sign-ins, pictures, and live views below. While [connecting your tools](../stack/connect-your-tools.md#pick-the-browser), the assistant may make keys here on a server, or in your Chrome, with your yes.
+**API key and token pages use your own browser, never this one.** At such a page, even mid-errand, follow [the token website procedure](secrets.md#api-token-website-steps): it overrides sign-ins, pictures, and live views below. While [connecting your tools](../stack/connect-your-tools.md#pick-the-browser), the assistant makes keys here, in its window or on a server.
 
 ## Saved browser logins
 

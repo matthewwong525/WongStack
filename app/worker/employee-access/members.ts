@@ -5,6 +5,7 @@ import { loginAuthority } from "./login-management.ts";
 import { apps, appTitle } from "./catalogue.ts";
 import { codeStep, saveStep } from "./code.ts";
 import { keyCatalogue } from "./key-catalogue.ts";
+import { waitingKeys } from "./keys-route.ts";
 import { registryOf, type Registry } from "./key-levels.ts";
 import { ADMIN_ROLE } from "./policy.ts";
 import { type AccessSet, type Sets, changedSet, heldSet, readSets, save, setFields, setWrites } from "./sets.ts";
@@ -113,7 +114,7 @@ export async function accessStatus(core: Core): Promise<object> {
     // `imported`: how many people the sign-in list already admitted when permissions started.
     started: installation.policy_enabled === 1, imported: Number(notes.results[0]?.event.slice("permissions_started:".length) ?? 0),
     keysStarted: installation.keys_enabled === 1,
-    apps: given, keys: keyCatalogue(core.env),
+    apps: given, keys: keyCatalogue(core.env, await waitingKeys(core.db)),
     unticked: { people: people.filter(person => person.unticked.length).map(person => ({ email: person.email, apps: titles(person.unticked) })),
       roles: roles.filter(role => role.unticked.length).map(role => ({ name: role.name, apps: titles(role.unticked) })) },
     // Why Project code can not be given out yet: a word, never a secret's name or value.

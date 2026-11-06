@@ -55,9 +55,9 @@ export function Cell({ label, actions, className, children, ...props }: Componen
 }
 
 /** A row's first cell: what the row is, as the link that opens it when it has `to`. A long name ends in "…", with
- *  the whole of it in `title`; the words beside it, such as You, are never cut. */
-export function Name({ title, to, marks = [] }: { title: string; to?: string; marks?: (string | false)[] }) {
-  return <Cell className={SHARE}><div className="flex min-w-0 items-baseline gap-x-2">
+ *  the whole of it in `title`; the words beside it, such as You, are never cut. `className` can widen the cell. */
+export function Name({ title, to, marks = [], className }: { title: string; to?: string; marks?: (string | false)[]; className?: string }) {
+  return <Cell className={cn(SHARE, className)}><div className="flex min-w-0 items-baseline gap-x-2">
     {to ? <Link className={CUT} title={title} to={to}>{title}</Link> : <span className={CUT} title={title}>{title}</span>}
     {marks.filter(mark => mark !== false).map(mark => <Fragment key={mark}>{' '}<span className="shrink-0 font-normal text-muted-foreground">{mark}</span></Fragment>)}
   </div></Cell>

@@ -36,12 +36,17 @@ For a tool the person's assistant can use through the company app, the helper SH
 
 ### Requirement: The helper works out how to add a tool the app does not know
 
-For a tool the company app does not know, the helper SHALL find from the tool's own developer pages how the app can reach it with a fixed key, directly or through the tool's own MCP server, SHALL add that to the app, and SHALL write what it found on that tool's notes page. A tool that offers only a renewing sign-in SHALL be shown as not connected yet, with the reason.
+For a tool the company app does not know, the helper SHALL find from the tool's own developer pages how the app can reach it with a fixed key, with an ID and a secret the app trades for a short token, or through the tool's own MCP server, SHALL add that to the app, and SHALL write what it found on that tool's notes page. A tool that offers only a sign-in the person renews SHALL be shown as not connected yet, with the reason.
 
 #### Scenario: A tool with a personal token
 
 - **WHEN** the owner names Figma, which offers a personal access token
-- **THEN** the helper makes that token in the owner's Chrome, or the key link's steps say how to make it, and Figma's notes page says how the app reaches it
+- **THEN** the helper makes that token in the assistant's browser, and Figma's notes page says how the app reaches it
+
+#### Scenario: A tool with an ID and a secret
+
+- **WHEN** the owner names Shopify, whose Dev Dashboard app gives an ID and a secret
+- **THEN** the helper adds Shopify so the app trades them for a token itself, and a look-up works after the next publish
 
 #### Scenario: A tool with only a sign-in
 
@@ -77,12 +82,12 @@ For a tool the company app can not reach by a key, such as the person's own mail
 
 ### Requirement: The owner's new tools work with no publish
 
-On a computer that can store keys in the company app, the helper SHALL add every named tool the app does not know, and its key, to the live app with no code change, no checks, and no *publish it?*, and SHALL then show each one working with one look-up. Keys SHALL never be asked for in the chat.
+The helper SHALL add every named tool the app does not know to the live app with no code change and no checks, and SHALL send each key sealed through the app, from any computer the owner or an Admin is signed in on. A new key SHALL go live at the next publish; when no other change waits, the helper SHALL offer to publish only the waiting keys, and SHALL then show each tool working with one look-up. Keys SHALL never be asked for in the chat.
 
 #### Scenario: Two new tools
 
 - **WHEN** the owner names Figma and Notion, which the app does not know, and their keys are made
-- **THEN** both tools show a look-up working on the live app in the same chat, and no change waits for publish
+- **THEN** both tools are added at once, the owner is offered a publish of the two keys, and after it both show a look-up working
 
 #### Scenario: A key that does not come
 

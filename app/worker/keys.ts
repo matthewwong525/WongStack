@@ -13,6 +13,9 @@ export type Forward = {
   /** An MCP server at `path` under `base`, the one path passed on; `reads` names the tools that only look things up.
    *  wiki/stack/company-api.md#use-an-mcp-server-through-the-app */
   mcp?: { path: string; reads: readonly string[] };
+  /** A token address on base's host: the app trades the ID (`<secret>_ID`) and the secret there for a short token,
+   *  by the client-credentials grant, and sends that. wiki/stack/connect-your-tools.md */
+  exchange?: { url: string };
 };
 type Key = {
   title: string;

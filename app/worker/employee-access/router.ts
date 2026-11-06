@@ -10,6 +10,7 @@ import { setupStatus } from "./setup.ts";
 import { management } from "./management.ts";
 import { CODE_PUBLISH, codePublish } from "./publish.ts";
 import { PUSHERS, pushersRoute } from "./pushers.ts";
+import { KEYS, keysRoute } from "./keys-route.ts";
 import { TOOLS, toolsRoute } from "./tools-route.ts";
 import type { ConnectionEnv } from "./core.ts";
 
@@ -26,6 +27,7 @@ export async function handleAccess(request: Request, env: ConnectionEnv,
   if (path.startsWith(CODE_CHANGE)) return (await codeDenied(env, identity)) ?? codeChange(request, env, humanEmail(identity) ?? "the preview check");
   if (path === PUSHERS || path.startsWith(`${PUSHERS}/`)) return pushersRoute(request, env, identity, wait);
   if (path.startsWith(TOOLS)) return toolsRoute(request, env, identity);
+  if (path.startsWith(KEYS)) return keysRoute(request, env, identity);
   return management(request, env, identity);
 }
 
