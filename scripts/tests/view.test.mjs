@@ -341,12 +341,16 @@ function fakePage(f, first = [2560, 1328]) {
     now: first,
     fails: false,
     hidden: false,
+    // While the password manager's page shows, the server keeps the page's size and says so.
+    addon: false,
     show() { f.set('tabs.json', page.hidden ? [] : [{ size: page.now }, { size: [2560, 1328] }]); },
     async resize(width, height) {
       page.calls.push([width, height]);
       if (page.fails) throw new Error('the browser refused the step');
+      if (page.addon) return { ok: true, width: page.now[0], height: page.now[1], addonPage: true };
       page.now = [width, height];
       page.show();
+      return { ok: true, width, height };
     },
   };
   page.show();
@@ -387,6 +391,35 @@ test('the first fit reads the bar and fits wide; a phone gets a 480 strip of the
   live.front();
   assert.equal(raised(f).length, 4, 'a page that was opened afresh is not the fit\'s size: nothing is raised until it is fitted again');
   assert.deepEqual(await live.fit('wide'), { kind: 'wide', width: 1280, screen: SCREEN });
+  assert.deepEqual(raised(f).at(-1), '100');
+});
+
+test('a window the person opens at the fit\'s size, such as a password manager\'s, stays in front until it closes', async t => {
+  const f = setup(t);
+  const page = fakePage(f);
+  const live = liveView({ size: [2560, 1328], display: ':97', ...standIn(t, f) }, page);
+  await live.fit();
+  f.set('tabs.json', [{ size: page.now }, { size: [2560, 1328] }, { size: page.now }]);
+  live.front();
+  live.front();
+  assert.deepEqual(raised(f), ['100', '102', '102'], 'the new window, and still it at the next poll');
+  page.show();
+  live.front();
+  assert.deepEqual(raised(f).at(-1), '100', 'once it closes, the page\'s own window comes back');
+});
+
+test('a first fit on the password manager\'s page reads no bar, and the first fit back on the site reads it', async t => {
+  const f = setup(t);
+  const page = fakePage(f, [1280, 663]);
+  page.addon = true;
+  const live = liveView({ size: null, display: ':97', ...standIn(t, f) }, page);
+  await live.fit();
+  assert.deepEqual(page.now, [1280, 663], 'its page keeps the size it was given');
+  assert.deepEqual(raised(f), ['100'], 'and its window, as tall as the screen, comes to the front');
+  page.addon = false;
+  assert.deepEqual(await live.fit(), { kind: 'wide', width: 1280, screen: SCREEN });
+  assert.deepEqual(page.calls.slice(-2), [[1280, 720], [1280, 663]], 'back on the site, the bar is read, so the page fits under it');
+  assert.deepEqual(page.now, [1280, 663]);
   assert.deepEqual(raised(f).at(-1), '100');
 });
 

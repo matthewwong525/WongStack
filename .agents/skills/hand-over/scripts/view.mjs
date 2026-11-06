@@ -231,6 +231,13 @@ function pageWindows(display) {
   }
 }
 
+/** The window to keep in front among `fits`: one the person just opened, such as a password manager's own window, else
+ * the one kept last, else the narrowest. `seen` holds every window id the view has listed before. */
+export function keptWindow(fits, seen, kept) {
+  const opened = seen.size ? fits.filter(win => !seen.has(win.id)) : [];
+  return opened.at(-1) ?? fits.find(win => win.id === kept) ?? [...fits].sort((a, b) => a.width - b.width)[0];
+}
+
 /** Sets the page's first size back and stops the screen source: what every end of a view does. */
 export async function endView(view, page) {
   if (view.size) await page.resize(...view.size).catch(() => {});
@@ -245,6 +252,8 @@ export function liveView(view, page) {
   let bar = null;
   let ended = false;
   let last = Promise.resolve();
+  const seen = new Set();
+  let kept = null;
   const inTurn = job => {
     const run = last.then(job);
     last = run.catch(() => {});
@@ -252,17 +261,22 @@ export function liveView(view, page) {
   };
   const fitted = () => ({ width: kind === 'phone' ? Math.min(PHONE_WIDTH, screen.width) : screen.width, height: screen.height - (bar ?? 0) });
   const describe = () => screen && { kind, width: fitted().width, screen: [screen.width, screen.height] };
-  /** The bar above the page: how much taller its window is than the page, read with the page as tall as the screen. */
+  /** The bar above the page: how much taller its window is than the page, read with the page as tall as the screen.
+   * None on the password manager's page, which keeps its size, so the next fit on a site reads it. */
   const measureBar = async () => {
-    await page.resize(screen.width, screen.height);
+    if ((await page.resize(screen.width, screen.height))?.addonPage) return null;
     const over = pageWindows(view.display).filter(win => win.width === screen.width && win.height >= screen.height).map(win => win.height - screen.height);
     return over.length ? Math.min(...over) : null;
   };
-  /** Raises the narrowest window as tall as the screen and at least as wide as the fit: the browser's window stops
-   * near 500 wide. It takes the keyboard too: with no window manager the newest window keeps it. */
+  /** Raises a window as tall as the screen and at least as wide as the fit: the browser's window stops near 500 wide.
+   * It takes the keyboard too: with no window manager the newest window keeps it. */
   const front = () => {
     if (!screen || ended) return;
-    const own = pageWindows(view.display).filter(win => win.height === screen.height && win.width >= fitted().width).sort((a, b) => a.width - b.width)[0];
+    const windows = pageWindows(view.display);
+    const fits = windows.filter(win => win.height === screen.height && win.width >= fitted().width);
+    const own = keptWindow(fits, seen, kept);
+    for (const win of windows) seen.add(win.id);
+    kept = own?.id ?? null;
     try { if (own) xdotool(view.display, 'windowraise', own.id, 'windowfocus', own.id); } catch { /* next poll */ }
   };
   return {

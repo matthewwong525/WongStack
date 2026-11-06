@@ -7,6 +7,7 @@ import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFile
 import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { FRAMES_SCRIPT, SECRETS_SCRIPT } from '../../../.agents/skills/browser/scripts/browse.mjs';
+import { ADDON_PAGE, ADDON_REFUSAL } from '../../../.agents/skills/browser/scripts/refs.mjs';
 
 const DIR = join(process.env.HOME, 'fake-camofox');
 // The server reads the API key from its folder, as browser-server.mjs does; browse.mjs starts it there.
@@ -104,6 +105,7 @@ const STEPS = {
     await held('hold-click');
     if (once('timeout-click-once')) return refuse(response, 500, 'click timed out after 30000ms');
     if (has('fail-click')) return refuse(response, 500, 'click failed');
+    if (has('click-refused')) return refuse(response, 403, text('click-refused'));
     if (has('click-url')) tab.url = text('click-url');
     if (has('click-count')) writeFileSync(file('count'), text('click-count'));
     if (isBox(body) && !has('box-ignores-click')) toggle(tab);
@@ -137,7 +139,13 @@ const STEPS = {
     return send(response, 200, { ok: true });
   },
   navigate(tab, body, response) {
-    Object.assign(tab, { url: body.url, reads: 0 });
+    // The password manager's page, sized to the fake view tools' screen less their bar, as browser-server.mjs does;
+    // the tab keeps the site's address, since the driver never sees that page, and the page's own size in `own`.
+    if (ADDON_PAGE.test(body.url)) {
+      Object.assign(tab, { addon: body.url, own: tab.own ?? tab.size, size: [1280, 663] });
+      return send(response, 200, { ok: true, url: body.url });
+    }
+    Object.assign(tab, { url: body.url, reads: 0, addon: null });
     return send(response, 200, { ok: true, tabId: tab.id, url: tab.url });
   },
   front: (_, __, response) => send(response, 200, { ok: true }),
@@ -169,6 +177,13 @@ function onTab(request, response, [id, step], body, query) {
     return send(response, 200, { ok: true });
   }
   if (!tab) return lost ? refuse(response, 410, 'Tab no longer exists (browser was restarted). Create a new tab.', { code: 'browser_restarted' }) : refuse(response, 404, 'Tab not found');
+  // `addon-back`: the person pressed Back from the password manager's page to the site, which gets its own size back.
+  if (tab.addon && once('addon-back')) Object.assign(tab, { addon: null, size: tab.own, own: null });
+  if (tab.addon && step === 'viewport') {
+    tab.own = [body.width, body.height];
+    return send(response, 200, { ok: true, width: tab.size[0], height: tab.size[1], addonPage: true });
+  }
+  if (tab.addon && step !== 'navigate' && step !== 'front') return refuse(response, 403, ADDON_REFUSAL, { addonPage: true, size: tab.own });
   return STEPS[step](tab, body, response, query);
 }
 

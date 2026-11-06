@@ -14,7 +14,7 @@ Every live view is the same turn: one line under the site says what to do now, a
 | A robot check | Show Messenger you're a person, then tap Hand back. |
 | A stuck step | Tap DigiKey's Continue, then tap Hand back. |
 
-- **A sign-in:** a site asks you to log in, and the browser isn't signed in. You type your password on the site's own page, or paste it from your password manager. The browser keeps the session, so a later task doesn't ask again: [sign in](#sign-in).
+- **A sign-in:** a site asks you to log in, and the browser isn't signed in. You type your password on the site's own page, paste it from your password manager, or fill it from [your password manager in the browser](password-manager.md). The browser keeps the session, so a later task doesn't ask again: [sign in](#sign-in).
 - **A payment or a backup code:** card details, a backup or recovery code, or another lasting secret the page asks for. The agent fills the rest of the page first, and you press the site's own *Pay*: [pay or type a code](#pay-or-type-a-code). PayPal is [the same turn](#other-ways-to-pay).
 - **A robot check:** a tick box such as *I'm not a robot*, or a picture puzzle. It can stand at a site's front door or come right after a sign-in. The agent never ticks, solves, or answers one itself, even when asked.
 - **A stuck site step**, such as DigiKey's *Continue*, when the agent's clicks don't move it after [a 30-second wait](browsing.md#saved-browser-logins) or print `BROWSE_CLICK=script`. This view opens with `--keep-open`: it reads no finish, so it stays through every page until you tap *Hand back*, or the time limit passes. Every other view keeps its finish, since each ends at one clear step.

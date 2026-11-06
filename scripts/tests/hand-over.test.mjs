@@ -656,6 +656,52 @@ test('the screen answers only the link\'s key, sent as the subprotocol, and carr
   ws.end();
 });
 
+/** Adds a stand-in password manager and opens its page in the card page's tab, as `browse.mjs addon open` does. */
+function openAddonPage(f) {
+  f.openPage();
+  const install = f.camofox.install;
+  writeFileSync(join(install, 'password-manager.json'), JSON.stringify({ state: 'added', guid: 'pm@maker.example', name: 'PM', page: 'popup/index.html' }));
+  mkdirSync(join(install, 'profile'), { recursive: true });
+  writeFileSync(join(install, 'profile', 'prefs.js'), `user_pref("extensions.webextensions.uuids", ${JSON.stringify(JSON.stringify({ 'pm@maker.example': 'pm-uuid' }))});\n`);
+  const shown = spawnSync(process.execPath, [browse, 'addon', 'open', '--session', SESSION], { cwd: f.cwd, env: f.env, encoding: 'utf8', timeout: 30_000 });
+  assert.equal(shown.stdout, 'BROWSE_ADDON_PAGE=opened\n', shown.stderr);
+  assert.equal(f.page().addon, 'moz-extension://pm-uuid/popup/index.html');
+}
+
+test('a view opens over the password manager\'s page that addon open showed, fits under the bar once the person is back on the site, and sets the page\'s own size back', linux, async t => {
+  const f = fixture(t, { view: true });
+  openAddonPage(f);
+  f.env.HANDOVER_KEEPALIVE_MS = '100';
+
+  openedView(f, '--until', '**/store/**', '--note', 'Sign in to your password manager, then to the shop');
+  assert.deepEqual(stateOf(f).view.size, [2560, 1328], 'a size read on that page gives the page\'s own size, for the view\'s end');
+  assert.deepEqual(f.page().size, [1280, 663], 'the password manager\'s page keeps the size it opened at');
+  await eventually(() => f.steps().filter(step => step === 'url').length > 2);
+
+  f.set('addon-back');
+  await eventually(() => {
+    const steps = f.steps();
+    const at = steps.lastIndexOf('viewport 1280x720');
+    return at >= 0 && steps[at + 1] === 'viewport 1280x663';
+  });
+  assert.deepEqual(f.page().size, [1280, 663], 'back on the site, the bar is read, so the page\'s bottom stays on the screen');
+  assert.equal(f.run('close').status, 0);
+  assert.deepEqual(f.page().size, [2560, 1328], 'the view\'s end sets the page\'s own size back');
+});
+
+test('a view that ends on the password manager\'s page leaves the page\'s own size for the site, which gets it once the person is back there', linux, async t => {
+  const f = fixture(t, { view: true });
+  openAddonPage(f);
+  openedView(f, '--until', '**/store/**');
+  await eventually(() => f.steps().includes('viewport 1280x720'));
+  assert.equal(f.run('close').status, 0);
+  assert.deepEqual(f.page().size, [1280, 663], 'the password manager\'s page keeps its size');
+  f.set('addon-back');
+  const url = spawnSync(process.execPath, [browse, 'get', 'url', '--session', SESSION], { cwd: f.cwd, env: f.env, encoding: 'utf8', timeout: 30_000 });
+  assert.equal(url.status, 0, url.stdout + url.stderr);
+  assert.deepEqual(f.page().size, [2560, 1328]);
+});
+
 test('while a view is open the watcher only reads the finish and keeps the page\'s window in front', linux, async t => {
   const f = fixture(t, { view: true });
   openedView(f);

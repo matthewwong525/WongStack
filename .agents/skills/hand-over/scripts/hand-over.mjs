@@ -277,13 +277,20 @@ async function pageAnswers(port, pid) {
   return false;
 }
 
+/** What the tab gives while it shows the password manager's own page, which no one reads: no finish is met there. */
+const ON_ADDON = { url: 'moz-extension:', count: null, text: false };
+/** A failed read's value: the password manager's when its page shows, else `failed`. */
+const orAddon = (name, failed) => error => (error?.addonPage ? ON_ADDON[name] : failed);
+/** The page's address, or null when it can not be read. */
+const urlOf = page => page.url().catch(orAddon('url', null));
+
 /** What a finish is judged by: the page's address, the named element's shown count, and whether the named words
  * show, each read only when named. An address or words that can not be read are null, and a count NaN. */
 export async function seen(page, { until, untilGone, untilText }) {
   return {
-    ...(until && { url: await page.url().catch(() => null) }),
-    ...(untilGone && { count: await page.countShown(untilGone).then(Number, () => NaN) }),
-    ...(untilText && { text: await page.hasText(untilText).catch(() => null) }),
+    ...(until && { url: await urlOf(page) }),
+    ...(untilGone && { count: await page.countShown(untilGone).then(Number, orAddon('count', NaN)) }),
+    ...(untilText && { text: await page.hasText(untilText).catch(orAddon('text', null)) }),
   };
 }
 
@@ -340,7 +347,7 @@ async function givesWay(pid) {
 /** Why a link with a finish can not open on `page`, or null: no page, or a finish already met (`met`). */
 export async function pageFault(page, finish, met) {
   const named = Boolean(finish.until || finish.untilGone || finish.untilText);
-  const now = named ? await seen(page, finish) : { url: await page.url().catch(() => null) };
+  const now = named ? await seen(page, finish) : { url: await urlOf(page) };
   if (unread(now)) return 'No page is open in this browser session; open the site\'s page with browse.mjs first, or name its --session.';
   return finished(finish, now) ? met : null;
 }
@@ -368,7 +375,8 @@ function viewRefusal() {
 async function openView(session, note, keepOpen = false, watch = false) {
   const display = screenOf();
   if (!display) return void unsupported('The browser has no screen to show.');
-  const size = await pageOf(session).size();
+  // On the password manager's page, the size is the one the site gets back; an older browser server gives none.
+  const size = await pageOf(session).size().catch(error => (error.addonPage ? null : Promise.reject(error)));
   // The screen's socket stays in the computer's place: a long chat folder would pass the 108-character socket limit.
   return { note: note ?? null, ...(keepOpen && { keepOpen }), ...(watch && { watch }), size, display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
 }
@@ -402,7 +410,7 @@ const viewOpening = dir => namesIn(dir).some(entry => {
 
 /** The chat whose live view is open or opening, from any chat's folder or an older link's shared place, or null. A
  * view shows the browser's one screen, so it counts on the whole computer; a dead watcher or opener reads as closed. */
-function viewHolder() {
+export function viewHolder() {
   const chats = namesIn(LINKS).filter(entry => entry.isDirectory()).map(entry => entry.name);
   for (const [dir, chat] of [[DIR, null], ...chats.map(name => [join(LINKS, name), name])]) {
     const { state, pid } = filesIn(dir);

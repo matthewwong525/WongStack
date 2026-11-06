@@ -7,10 +7,11 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
+import { startArgs as addonArgs } from './addons.mjs';
 import { FILES, LAUNCH_MS, OLD_PROFILES, launchConfig, windowSetting } from './browse.mjs';
 import { startForwarder } from './forwarder.mjs';
 import { moveLogins } from './login-move.mjs';
-import { MAX_FRAMES, buildSnapshot, frameHasBoxes, frameLabel, frameSkipped, windowSnapshot } from './refs.mjs';
+import { ADDON_PAGE, ADDON_REFUSAL, MAX_FRAMES, buildSnapshot, frameHasBoxes, frameLabel, frameSkipped, windowSnapshot } from './refs.mjs';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 
 /** Xvfb as camofox ran it: one 1280x720 screen, no TCP, and the extensions a real desktop lacks turned off. */
@@ -43,11 +44,61 @@ export function contextOptions(options) {
 /** A key as Playwright's `keyboard.press` spells it: `ctrl+a` is `Control+a`. */
 export const pressKey = key => String(key).split('+').map(part => KEY_ALIASES[part.trim().toLowerCase()] ?? part.trim()).join('+');
 
+/** The refusal while the tab shows the password manager's page, marked so a live view's helper can tell it apart. It
+ * gives the page's own size, `[width, height]`, so a view over that page sets it back at its end. */
+const onAddonPage = tab => Object.assign(refusal(403, ADDON_REFUSAL), { addonPage: true, size: tab.addon?.own ? [tab.addon.own.width, tab.addon.own.height] : null });
+/** Whether any of `found` is the password manager's frame. It runs in the page, so it uses nothing outside. */
+const ADDON_TARGET = found => found.some(element => /^(IFRAME|FRAME|OBJECT|EMBED)$/.test(element.tagName) && /^moz-extension:/i.test(element.src || element.data || ''));
+/** Whether the keyboard is inside the password manager's frame, through any open shadow root. */
+const FOCUS_IN_ADDON = `(() => { let field = document.activeElement; while (field?.shadowRoot?.activeElement) field = field.shadowRoot.activeElement; return (${ADDON_TARGET})(field ? [field] : []); })()`;
+/** Whether `frame` is the password manager's, or sits inside one. */
+const inAddonFrame = frame => {
+  for (let at = frame; at; at = at.parentFrame?.()) if (ADDON_PAGE.test(at.url())) return true;
+  return false;
+};
+
+/** Refuses a step aimed at the password manager's frame by selector or by the keyboard; a ref never names one, since
+ * the page text leaves its frames out. */
+async function guardAddon(page, { ref, selector }) {
+  if (!ref && await aimedAtAddon(page, selector)) throw refusal(403, ADDON_REFUSAL);
+}
+
+/** Whether `selector`, or the keyboard with none, reaches the password manager's frame; an error counts as no. */
+async function aimedAtAddon(page, selector) {
+  try {
+    return (selector ? await page.locator(selector).evaluateAll(ADDON_TARGET) : await page.evaluate(FOCUS_IN_ADDON)) === true;
+  } catch {
+    return false;
+  }
+}
+
+/** The size a `viewport` step asks for, rounded; a refusal outside 100..4000 px. */
+function viewportSize({ width, height }) {
+  const fits = size => Number.isFinite(size) && size >= 100 && size <= 4000;
+  if (!fits(width) || !fits(height)) throw refusal(400, 'width and height required (100..4000 px)');
+  return { width: Math.round(width), height: Math.round(height) };
+}
+
 /** Goes to an http(s) address and waits for the page's document, unless the address is a picture. */
 async function go(page, url) {
   if (!/^https?:\/\//i.test(url ?? '')) throw refusal(400, 'url must be an http(s) address');
   const response = await page.goto(url, { waitUntil: 'commit', timeout: 30_000 });
   if (!(response?.headers()['content-type'] ?? '').startsWith('image/')) await page.waitForLoadState('domcontentloaded', { timeout: 15_000 }).catch(() => {});
+}
+
+const ADDON_OPEN_MS = 3000;
+const ADDON_PROBE_MS = 1000;
+const [SCREEN_WIDTH, SCREEN_HEIGHT] = XVFB_ARGS[2].split('x').map(Number);
+/** Opens the password manager's page in the tab, sized to the screen less the browser's bar, as a live view fits it;
+ * the driver can not use the tab until the person goes back to a site (tried 2026-11-05), which gets `own` back. */
+async function openAddonPage(tab, url) {
+  const [width, height, outer] = await tab.page.evaluate('[innerWidth, innerHeight, outerHeight]').catch(() => []);
+  const size = outer > height ? { width: SCREEN_WIDTH, height: SCREEN_HEIGHT - (outer - height) } : null;
+  const own = tab.addon?.own ?? (width > 0 && height > 0 ? { width, height } : null);
+  if (size) await tab.page.setViewportSize(size).then(() => tab.page.waitForTimeout(150), () => {});
+  tab.addon = { size, own };
+  await tab.page.goto(url, { waitUntil: 'commit', timeout: ADDON_OPEN_MS }).catch(() => {});
+  return { ok: true, url };
 }
 
 /** The page text with refs: the main page, then each frame that holds a box, as camofox read them. */
@@ -56,7 +107,7 @@ export async function readPage(page) {
   const main = await page.locator('body').ariaSnapshot({ timeout: 5000 }).catch(() => '');
   const frames = [];
   for (const frame of page.frames()) {
-    if (frame === page.mainFrame() || frameSkipped(frame.url(), frame.name())) continue;
+    if (frame === page.mainFrame() || frameSkipped(frame.url(), frame.name()) || inAddonFrame(frame)) continue;
     if (frames.length >= MAX_FRAMES) break;
     const yaml = await frame.locator('body').ariaSnapshot({ timeout: 3000 }).catch(() => '');
     if (frameHasBoxes(yaml)) frames.push({ label: frameLabel(frame.name(), frame.url()), yaml, frame });
@@ -72,6 +123,7 @@ async function refLocator(tab, ref) {
     info = tab.refs.get(ref);
   }
   if (!info) throw refusal(409, `${ref} is not on the page now; read the page again and use a current ref`);
+  if (info.frame && inAddonFrame(info.frame)) throw refusal(403, ADDON_REFUSAL);
   const scope = info.frame ?? tab.page;
   return (info.name ? scope.getByRole(info.role, { name: info.name, exact: true }) : scope.getByRole(info.role)).nth(info.nth);
 }
@@ -105,6 +157,7 @@ async function clickOn(locator) {
 /** Each action on one tab, by its route name. */
 const ACTIONS = {
   async navigate(tab, { url }) {
+    if (ADDON_PAGE.test(url ?? '')) return openAddonPage(tab, url);
     await go(tab.page, url);
     return { ok: true, url: tab.page.url() };
   },
@@ -142,10 +195,8 @@ const ACTIONS = {
     if (!expression) throw refusal(400, 'expression is required');
     return { ok: true, result: await tab.page.evaluate(expression) };
   },
-  async viewport(tab, { width, height }) {
-    const fits = size => Number.isFinite(size) && size >= 100 && size <= 4000;
-    if (!fits(width) || !fits(height)) throw refusal(400, 'width and height required (100..4000 px)');
-    const size = { width: Math.round(width), height: Math.round(height) };
+  async viewport(tab, body) {
+    const size = viewportSize(body);
     await tab.page.setViewportSize(size);
     await tab.page.waitForTimeout(150);
     return { ok: true, ...size };
@@ -157,6 +208,9 @@ const ACTIONS = {
 };
 // Only these actions keep the refs: the rest can change the page.
 const KEEPS_REFS = new Set(['type', 'select', 'evaluate', 'viewport', 'front']);
+// The agent's own steps, which never reach the password manager; only these run while its page shows.
+const GUARDED = new Set(['click', 'type', 'select', 'press']);
+const OPEN_ON_ADDON = new Set(['navigate', 'front']);
 
 /** The request's JSON body, or {} with none. */
 async function readBody(request) {
@@ -233,12 +287,34 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS } = {}
     tabs: await Promise.all([...tabs].filter(([, tab]) => tab.userId === userId && !tab.page.isClosed())
       .map(async ([tabId, tab]) => ({ tabId, url: tab.page.url(), title: await tab.page.title().catch(() => ''), listItemId: tab.sessionKey }))),
   });
+  /** Whether the tab shows the password manager's page. The driver does not see that page, so a tab sent there counts
+   * as on it until a quick read gives a site again; the site then gets the page's own size back. */
+  const onAddon = async tab => {
+    if (ADDON_PAGE.test(tab.page.url())) return true;
+    if (!tab.addon) return false;
+    const href = await Promise.race([tab.page.evaluate('document.URL').catch(() => null), new Promise(done => setTimeout(done, ADDON_PROBE_MS, null))]);
+    if (typeof href !== 'string' || ADDON_PAGE.test(href)) return true;
+    const { own } = tab.addon;
+    tab.addon = null;
+    if (own) await tab.page.setViewportSize(own).catch(() => {});
+    return false;
+  };
+  /** A resize while the password manager's page shows: that page keeps its size, and the size asked for is the one
+   * the site gets back, so a live view's end sets it. */
+  const keepForSite = (tab, body) => {
+    tab.addon.own = viewportSize(body);
+    return { ok: true, ...tab.addon.size, addonPage: true };
+  };
   const snapshot = (tab, offset) => queued(tab, async () => {
+    if (await onAddon(tab)) throw onAddonPage(tab);
     // A later window reads the text the first one built, so the pieces join.
     if (!offset || tab.text == null) Object.assign(tab, (({ refs, snapshot: text }) => ({ refs, text }))(await readPage(tab.page)));
     return { url: tab.page.url(), ...windowSnapshot(tab.text, offset), refsCount: tab.refs.size };
   });
   const act = (tab, name, body) => queued(tab, async () => {
+    if (name === 'viewport' && tab.addon && await onAddon(tab)) return keepForSite(tab, body);
+    if (!OPEN_ON_ADDON.has(name) && await onAddon(tab)) throw onAddonPage(tab);
+    if (GUARDED.has(name)) await guardAddon(tab.page, body);
     const result = await ACTIONS[name](tab, body);
     if (!KEEPS_REFS.has(name)) Object.assign(tab, { refs: null, text: null });
     return result;
@@ -260,7 +336,10 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS } = {}
     if (top === 'tabs' && method === 'GET' && action === 'snapshot') return snapshot(tabOf(id, userId), Number(query.get('offset') ?? 0));
     if (top === 'tabs' && method === 'GET' && action === 'screenshot') {
       const tab = tabOf(id, userId);
-      return queued(tab, () => tab.page.screenshot({ type: 'png', fullPage: query.get('fullPage') === 'true' }));
+      return queued(tab, async () => {
+        if (await onAddon(tab)) throw onAddonPage(tab);
+        return tab.page.screenshot({ type: 'png', fullPage: query.get('fullPage') === 'true' });
+      });
     }
     if (top === 'tabs' && method === 'POST' && Object.hasOwn(ACTIONS, action)) return act(tabOf(id, userId), action, body);
     if (top === 'sessions' && id && !action && method === 'DELETE') {
@@ -288,7 +367,7 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS } = {}
       const body = request.method === 'POST' ? await readBody(request) : {};
       send(200, await answer(request.method, url.pathname.split('/').filter(Boolean).map(decodeURIComponent), url.searchParams, body));
     } catch (error) {
-      send(error.status ?? 500, { error: error.message });
+      send(error.status ?? 500, { error: error.message, ...(error.addonPage && { addonPage: true, size: error.size }) });
     }
   };
   handle.close = () => clearInterval(reaper);
@@ -348,7 +427,9 @@ async function main() {
     const screen = process.platform === 'linux' ? await startXvfb() : null;
     if (screen) stops.push(() => screen.child.kill());
     const windowed = windowLaunch({ platform: process.platform, setting: windowSetting() });
-    const config = await launchConfig(['--proxy', `http://127.0.0.1:${proxy.port}`, ...(screen ? ['--display', screen.display] : []), ...windowed.args, '--fingerprint', FILES.fingerprint]);
+    // A broken add-on never stops a start: the browser starts without it.
+    const addon = await addonArgs().catch(() => []);
+    const config = await launchConfig(['--proxy', `http://127.0.0.1:${proxy.port}`, ...(screen ? ['--display', screen.display] : []), ...windowed.args, '--fingerprint', FILES.fingerprint, ...addon]);
     if (config.error) throw new Error(config.error);
     const { firefox } = createRequire(import.meta.url)(join(config.driver, 'index.js'));
     const context = await firefox.launchPersistentContext(FILES.profile, { ...contextOptions(config.options), timeout: LAUNCH_MS });

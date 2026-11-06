@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.1.0 — Your password manager in the assistant's browser
+
+- **Add your password manager to the assistant's browser.** The assistant asks once which one you use, such as 1Password or Bitwarden, right after its browser installs. It finds the add-on on Firefox's add-on site and names its maker, website and daily users before your yes. It warns you when an add-on is not featured and few people use it ([your password manager](wiki/development/password-manager.md)).
+- **Only a checked file is added.** A download that does not match the site's fingerprint is refused. One password manager at a time: a new one replaces the old one and deletes its stored data.
+- **You sign in to it in a live view, and fill from it.** At a sign-in, the assistant opens the password manager's page first. You sign in or unlock it there, then fill the login from its list on the site. It stays signed in through a browser restart.
+- **The assistant never uses it.** Its reading, clicks and typing skip the password manager's pages and boxes. Use a separate vault with a 5-minute auto-lock.
+- **It stays up to date, and goes with no trace.** The browser checks for a newer version once a week. *Remove my password manager* deletes it with its stored data. A no is kept: say *add my password manager* to add one later.
+
+**Updating.** Nothing to do by hand. The assistant asks once which password manager you use, at the next errand that uses its browser.
+
 ## 50.0.0 — The live view is the one place for sensitive input
 
 - **You type a card, a backup code or a password on the real site, in the live view.** The assistant fills in the rest of the page first, then asks *Ready?* in the chat. The link shows its browser on that page, with one bar under it: a short line that says what to do now, the type box and *Hand back*. You type, or paste from your password manager. The assistant sees nothing you do until you tap *Hand back* ([live view](wiki/development/live-view.md)).

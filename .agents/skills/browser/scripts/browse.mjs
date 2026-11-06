@@ -28,7 +28,18 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   window [on|off]               show the browser in a window on a Mac or Windows, from its next start;
                                 prints BROWSE_WINDOW=on|off; alone, the setting (on unless turned off)
   close                         close this task's tab
-  status | install | stop       the install and the server`;
+  status | install | stop       the install and the server; status and install print BROWSE_ADDON=, and so
+                                does a task's first open while no choice is saved: =none, for the one offer
+  addon find <name>             up to three Firefox add-ons: BROWSE_ADDON_FOUND=<slug> | <name> | <maker> |
+                                <website> | <daily users> | featured or not; BROWSE_ADDON_WARN=<slug> when
+                                not featured and under 10,000 daily users
+  addon add <slug>              add the password manager after the person's yes, its file checked; any other
+                                one goes, and the browser stops so the next command starts with it;
+                                BROWSE_ADDON_TELL= is the advice to pass on
+  addon open                    open its sign-in page in this task's tab, for the person in a live view
+  addon status | asked | decline | remove
+                                BROWSE_ADDON=none|asked|declined|<name>; asked records the offer made in a chat;
+                                decline keeps a no; remove takes it out with its stored data and keeps a no`;
 
 /** The only versions installed, moved together: the library's disguise is made for the build it pins, and
  * launch-config.py refuses a start when the library, its pin and the installed build disagree. */
@@ -45,6 +56,7 @@ export const FILES = {
   server: join(DIR, 'server.json'), key: join(DIR, 'api-key'), lock: join(DIR, 'start.lock'), tmp: join(DIR, 'tmp'), tabs: join(DIR, 'tabs'),
   profile: join(DIR, 'profile'), cache: join(DIR, 'cache'), marker: join(DIR, 'migrated'), fingerprint: join(DIR, 'fingerprint.json'), venv: join(DIR, 'venv', CAMOUFOX.python),
   settings: join(homedir(), '.wong-stack', 'browser-settings.json'),
+  addons: join(DIR, 'addons'), addon: join(DIR, 'password-manager.json'),
 };
 /** The old camofox browser's profiles, read once for the login move. */
 export const OLD_PROFILES = join(homedir(), '.wong-stack', 'camofox', 'profiles');
@@ -65,9 +77,9 @@ const sleep = wait => new Promise(done => setTimeout(done, wait));
 
 /** A stop with a plain reason. `status` is the server's HTTP status; `needs` is what to install. */
 export class BrowseError extends Error {
-  constructor(reason, { status = null, timedOut = false, needs = null } = {}) {
+  constructor(reason, { status = null, timedOut = false, needs = null, addonPage = false, size = null } = {}) {
     super(reason);
-    Object.assign(this, { status, timedOut, needs });
+    Object.assign(this, { status, timedOut, needs, addonPage, size });
   }
 }
 
@@ -426,6 +438,15 @@ async function install() {
   const check = await launchConfig(['--check']);
   if (check.error) throw new BrowseError(`the install finished, but ${check.error}`);
   console.log(`BROWSE_INSTALLED=${installedLine(check)}`);
+  await addonLine();
+}
+
+/** The password manager's line, which tells the agent whether to make its one offer; `onlyNone` prints it only then.
+ * It saves nothing: only `addon asked`, `add` or `decline` record it, so a run with no person never uses it up. */
+async function addonLine({ onlyNone = false } = {}) {
+  if (onlyNone && existsSync(FILES.addon)) return;
+  const status = (await import('./addons.mjs')).addonStatus();
+  if (!onlyNone || status === 'none') console.log(`BROWSE_ADDON=${status}`);
 }
 
 /** The API key, made once into a 0600 file. */
@@ -533,15 +554,22 @@ async function terminate(pid) {
   }
 }
 
-async function stop() {
+/** Stops the browser and its server; the next command starts them again. */
+export async function stopServer() {
   await terminate(readJson(FILES.server)?.pid);
   rmSync(FILES.server, { force: true });
+}
+
+async function stop() {
+  await stopServer();
   console.log('BROWSE_SERVER=stopped');
 }
 
 async function status() {
-  console.log(`BROWSE_INSTALLED=${installedLine(installed() ? await launchConfig(['--check']) : null)}`);
+  const check = installed() ? await launchConfig(['--check']) : null;
+  console.log(`BROWSE_INSTALLED=${installedLine(check)}`);
   console.log(`BROWSE_SERVER=${(await liveServer()) ? 'running' : 'stopped'}`);
+  if (check && !check.error) await addonLine();
 }
 
 
@@ -557,8 +585,11 @@ async function call(server, method, path, body, { wait = COMMAND_MS, quiet = fal
     throw new BrowseError(timedOut ? 'the browser took too long' : 'the browser did not answer', { timedOut });
   }
   if (response.ok) return response;
-  const reason = quiet ? '' : (await response.json().catch(() => ({}))).error ?? '';
-  throw new BrowseError(reason || `the browser refused the step (HTTP ${response.status})`, { status: response.status, timedOut: /timed out|Timeout/.test(reason) });
+  const answer = await response.json().catch(() => ({}));
+  const reason = quiet ? '' : answer.error ?? '';
+  // `addonPage`: the tab shows the password manager's page, which the agent can not read; `size` is the page's own.
+  const size = answer.addonPage === true && Array.isArray(answer.size) ? answer.size : null;
+  throw new BrowseError(reason || `the browser refused the step (HTTP ${response.status})`, { status: response.status, timedOut: /timed out|Timeout/.test(reason), addonPage: answer.addonPage === true, size });
 }
 
 /** True when the tab is gone, or a click hung: both end by reopening the page. */
@@ -677,14 +708,18 @@ export function client(given, { retry = true, start = true } = {}) {
     countShown: selector => bySelector(selector, `(${shownCount})(document, ${JSON.stringify(selector)}, ${JSON.stringify(BAD_SELECTOR)})`),
     /** True when the page shows `words`; it reads no text back. */
     hasText: async words => (await evaluate(`(${hasWords})(document, ${JSON.stringify(words)})`)) === true,
-    /** The page's size, `[width, height]`. */
-    size: () => evaluate('[innerWidth, innerHeight]'),
+    /** The page's size, `[width, height]`; on the password manager's page, the size the site gets back. */
+    size: () => evaluate('[innerWidth, innerHeight]').catch(error => error.size ?? Promise.reject(error)),
     /** Each ref's box at the last snapshot, as `refNames` gives it; `{}` before one. */
     names: () => readTab()?.names ?? {},
     /** Raises the page's own window and gives it the keyboard, without a resize. */
     front: () => onTab(tabId => send('POST', `/tabs/${tabId}/front`, { userId: USER })),
-    /** Sets the page's size. */
-    resize: (width, height) => onTab(tabId => send('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),
+    /** Sets the page's size; resolves to its size, with `addonPage` while the password manager's page keeps its own. */
+    resize: (width, height) => onTab(tabId => json('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),
+    /** Starts the browser when it is not running. */
+    ready: async () => { await connect(); },
+    /** Opens the password manager's own page in this tab; the tab file keeps the site, for a reopen. */
+    openAddon: url => onTab(tabId => json('POST', `/tabs/${tabId}/navigate`, { userId: USER, url }, { wait: COMMAND_MS + SETTLE_MS })),
     /** A use the server counts, so it keeps an idle page open; it reads and changes nothing on the page. */
     keepAlive: () => evaluate('1'),
     async value(target) {
@@ -742,7 +777,13 @@ function windowCommand(choice) {
 
 /** Each command: how many words follow it, and what it runs. */
 const COMMANDS = {
-  open: [1, async (page, [url]) => console.log(`BROWSE_URL=${await page.open(url)}`)],
+  // An errand starts with `open`, so a computer whose browser came before the password manager's offer gets it there:
+  // once per task's tab, not at each page.
+  open: [1, async (page, [url]) => {
+    const first = !existsSync(tabFile(page.session));
+    console.log(`BROWSE_URL=${await page.open(url)}`);
+    if (first) await addonLine({ onlyNone: true });
+  }],
   snapshot: [0, async page => { const { url, snapshot } = await page.snapshot(); console.log(`BROWSE_URL=${url}\n${snapshot}`); }],
   click: [1, async (page, [target]) => {
     if ((await page.click(target)) !== 'script') return;
@@ -765,9 +806,21 @@ const COMMANDS = {
 };
 const QUIET = new Set(['click', 'type', 'press', 'select']);
 
+/** The `addon` verb's runner, from addons.mjs, loaded only when asked for. */
+function addonRunner([verb, ...words], usage) {
+  return async (page, _, flags) => {
+    const { ADDON_VERBS } = await import('./addons.mjs');
+    if (!Object.hasOwn(ADDON_VERBS, verb)) usage('addon takes find, add, open, status, asked, decline, or remove');
+    const [count, runner] = ADDON_VERBS[verb];
+    if (words.length !== count) usage(`addon ${verb} takes ${count} word${count === 1 ? '' : 's'} after it`);
+    await runner(page, words, flags);
+  };
+}
+
 /** The command's runner, or a usage error when its words don't fit. */
 function runnerFor(command, words) {
   const usage = message => usageError(USAGE, message);
+  if (command === 'addon') return addonRunner(words, usage);
   if (!Object.hasOwn(COMMANDS, command)) usage(command ? `unknown command: ${command}` : 'missing command');
   if (command === 'window') {
     if (words.length > 1 || (words.length && !['on', 'off'].includes(words[0]))) usage('window takes on, off, or nothing');
@@ -784,7 +837,8 @@ function runnerFor(command, words) {
   return runner;
 }
 
-if (isMain(import.meta.url)) {
+// The command line runs once this module has loaded: addons.mjs imports it, and a top-level await would deadlock.
+async function cli() {
   const { values: flags, positionals: [command, ...words] } = parseCli({ usage: USAGE, allowPositionals: true, options: { session: { type: 'string' }, 'if-changed': { type: 'boolean' }, 'full-page': { type: 'boolean' } } });
   const runner = runnerFor(command, words);
   try {
@@ -797,3 +851,5 @@ if (isMain(import.meta.url)) {
     process.exitCode = error.needs ? 3 : 1;
   }
 }
+
+if (isMain(import.meta.url)) cli();

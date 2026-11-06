@@ -71,7 +71,7 @@ test('with no install, a command prints BROWSE_NEEDS=install with the sizes and 
 test('install makes a venv, installs the pinned library and its build there, and checks both, its temp and cache on disk', t => {
   const f = fixture(t, { installed: false });
   assert.deepEqual(CAMOUFOX, { python: '0.5.9', build: 'v158.0.1-beta.41' });
-  assert.equal(ok(f, 'install'), 'BROWSE_INSTALLED=yes camoufox 158.0.1-beta.41 library 0.5.9\n');
+  assert.equal(ok(f, 'install'), 'BROWSE_INSTALLED=yes camoufox 158.0.1-beta.41 library 0.5.9\nBROWSE_ADDON=none\n');
   const venv = join(f.camofox.install, 'venv', '0.5.9', 'bin', 'python');
   const runs = f.camofox.pythonRuns().filter(run => run.args[1] !== '-c');
   assert.deepEqual(runs.map(run => [run.python, run.args.slice(0, 3)]), [
@@ -123,7 +123,7 @@ test('the server starts in its private folder with the key in a file, never on i
   assert.ok(!existsSync(join(f.camofox.install, 'server.log')), 'the server keeps no log');
   assert.ok(['profile', 'cache', 'tmp', 'tabs'].every(dir => (statSync(join(f.camofox.install, dir)).mode & 0o777) === 0o700), 'the private folders are the person\'s alone');
 
-  assert.match(ok(f, 'status'), /^BROWSE_INSTALLED=yes camoufox 158\.0\.1-beta\.41 library 0\.5\.9\nBROWSE_SERVER=running\n$/);
+  assert.match(ok(f, 'status'), /^BROWSE_INSTALLED=yes camoufox 158\.0\.1-beta\.41 library 0\.5\.9\nBROWSE_SERVER=running\nBROWSE_ADDON=declined\n$/);
   ok(f, 'snapshot', '--session', 'a');
   assert.equal(f.camofox.starts(), 1, 'a later command uses the running server');
 
@@ -1040,4 +1040,32 @@ test('a snapshot keeps each ref\'s box in the tab file, and a new page drops the
   assert.deepEqual(names(), { e1: ['textbox', 'Name'], e2: ['button', 'Go'] });
   ok(f, 'open', ACCOUNT, '--session', 'names');
   assert.equal(names(), undefined);
+});
+
+test("status names the password manager's choice, and its refusal of a step reaches the agent as the server gives it", t => {
+  const f = fixture(t);
+  assert.equal(ok(f, 'addon', 'decline'), 'BROWSE_ADDON=declined\n');
+  assert.match(ok(f, 'status'), /\nBROWSE_ADDON=declined\n$/);
+  ok(f, 'open', SHOP);
+  f.camofox.set('click-refused', "that is the password manager's own; the person uses it in the live view");
+  const out = f.run('click', '#pm-menu');
+  assert.equal(out.status, 1);
+  assert.equal(out.stdout, "BROWSE_ERROR=that is the password manager's own; the person uses it in the live view\n");
+});
+
+test('a browser installed before the password manager\'s offer shows it at each task\'s first open, until the agent records that it asked', t => {
+  const f = fixture(t);
+  const choice = join(f.camofox.install, 'password-manager.json');
+  rmSync(choice);
+  assert.equal(ok(f, 'open', SHOP), `BROWSE_URL=${SHOP}\nBROWSE_ADDON=none\n`);
+  assert.equal(ok(f, 'open', ACCOUNT), `BROWSE_URL=${ACCOUNT}\n`, 'once per task, not at each page');
+  assert.ok(!existsSync(choice), 'the line saves nothing, so a run with no person never uses up the offer');
+  assert.match(ok(f, 'status'), /\nBROWSE_ADDON=none\n$/, 'status shows the offer too');
+  assert.equal(ok(f, 'open', SHOP, '--session', 'next-task'), `BROWSE_URL=${SHOP}\nBROWSE_ADDON=none\n`, 'the next task shows it again');
+
+  assert.equal(ok(f, 'addon', 'asked'), 'BROWSE_ADDON=asked\n', 'the agent asked in a chat');
+  assert.equal(ok(f, 'open', SHOP, '--session', 'later'), `BROWSE_URL=${SHOP}\n`, 'one offer, whatever the answer');
+  assert.match(ok(f, 'status'), /\nBROWSE_ADDON=asked\n$/);
+  assert.equal(ok(f, 'addon', 'decline'), 'BROWSE_ADDON=declined\n');
+  assert.equal(ok(f, 'addon', 'asked'), 'BROWSE_ADDON=declined\n', 'asked never undoes a no');
 });
