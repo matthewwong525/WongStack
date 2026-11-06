@@ -1,0 +1,21 @@
+{
+  "source": "live",
+  "recorded": "2026-11-06",
+  "request": {
+    "method": "GET",
+    "path": "things",
+    "query": "limit=1"
+  },
+  "answer": {
+    "status": 200,
+    "contentType": "application/json",
+    "body": {
+      "things": [
+        {
+          "id": "thing_00000001",
+          "title": "Sample text 1"
+        }
+      ]
+    }
+  }
+}

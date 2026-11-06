@@ -2,9 +2,11 @@
 // wiki/stack/testing.md says how to add an app's file.
 import type { identities } from "./identity.ts";
 import { site } from "./identity.ts";
+import type { Playback } from "./services.ts";
 import type { Runtime } from "./setup.ts";
 
-export type Context = { runtime: Runtime; signed: Awaited<ReturnType<typeof identities>> };
+/** `services` answers a served outside service from its saved examples: wiki/stack/testing.md#service-examples */
+export type Context = { runtime: Runtime; signed: Awaited<ReturnType<typeof identities>>; services: Playback };
 /** An app's runtime cases, registered inside its one `describe`; the getter reads the context once it is started. */
 export type AppTests = (context: () => Context) => void;
 
