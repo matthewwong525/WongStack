@@ -272,6 +272,22 @@ test('snapshot and get value hide a filled secret box, by its name or by a secre
   assert.ok(reads.length && reads.every(expression => expression === PAGE_READ), 'one read of the secret values per reading');
 });
 
+test('valueOf reads a key the CLI hides, by ref only, and the CLI has no way to it', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP, '--session', 'a');
+  const key = 'ntn_MADEUPkey0000aaaaBBBBcccc91c0';
+  f.camofox.set('snapshot', `- heading "Integration secret"\n- textbox "Secret key" [e1]: ${key}`);
+  f.camofox.set('secrets.json', [key]);
+  assert.equal(ok(f, 'get', 'value', 'e1', '--session', 'a'), '[hidden]\n', 'a key in a password box stays hidden on the CLI');
+  const valueOf = target => spawnSync(process.execPath, ['--input-type=module', '-e',
+    `import { client } from ${JSON.stringify(pathToFileURL(script).href)}; try { console.log(await client('a').valueOf(${JSON.stringify(target)})); } catch (error) { console.log('ERROR', error.message); }`],
+  { cwd: f.home, env: f.env, encoding: 'utf8', timeout: 30_000 }).stdout;
+  assert.equal(valueOf('@e1'), `${key}\n`);
+  assert.equal(valueOf('#k'), 'ERROR no field #k on the page\n', 'a selector is not read');
+  assert.equal(valueOf('e9'), 'ERROR no field e9 on the page\n');
+  for (const args of [['get', 'valueOf', 'e1'], ['get', 'raw', 'e1'], ['valueOf', 'e1']]) assert.equal(f.run(...args, '--session', 'a').status, 2, args.join(' '));
+});
+
 test('snapshot prints the address and a long page whole, a secret box cut between pieces hidden', t => {
   const f = fixture(t);
   ok(f, 'open', SHOP);

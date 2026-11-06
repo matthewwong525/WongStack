@@ -391,7 +391,7 @@ export function installedLine(check) {
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; } };
 const tabFile = session => join(FILES.tabs, `${session}.json`);
-const installed = () => existsSync(PYTHON);
+export const installed = () => existsSync(PYTHON);
 /** The browser server's process id as last recorded, or null. */
 export const serverPid = () => readJson(FILES.server)?.pid ?? null;
 /** The X display the running browser draws on, as its server recorded it, or null. */
@@ -691,6 +691,13 @@ export function client(given, { retry = true, start = true } = {}) {
       const { ref, selector } = targetOf(target);
       // A dropdown reads as its picked choice's text, as a ref's snapshot shows it.
       const value = ref ? valueIn((await page.snapshot()).snapshot, ref) : await bySelector(selector, fieldScript(selector));
+      if (value === null) throw new BrowseError(`no field ${target} on the page`);
+      return value;
+    },
+    /** A box's value by ref with no secret check, for the connect helper's key read: the CLI never offers it. */
+    async valueOf(target) {
+      const { ref } = targetOf(target);
+      const value = ref ? valueIn((await onTab(read)).snapshot, ref) : null;
       if (value === null) throw new BrowseError(`no field ${target} on the page`);
       return value;
     },

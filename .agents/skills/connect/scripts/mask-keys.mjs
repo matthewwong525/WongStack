@@ -24,6 +24,9 @@ function entropy(text) {
 export const looksLikeKey = (run) => PREFIX.test(run) ||
   (/[A-Z]/.test(run) && /[a-z]/.test(run) && /\d/.test(run) && entropy(run) >= 3.5);
 
+/** A run that starts the way a service's secret keys start; a publishable `pk_` key shows in full and is never one. */
+export const knownKey = (run) => PREFIX.test(run) && !run.startsWith('pk_');
+
 export const masked = (value) => `[key …${value.slice(-4)}]`;
 
 /** Whether the page's address, title or a heading is about keys. */

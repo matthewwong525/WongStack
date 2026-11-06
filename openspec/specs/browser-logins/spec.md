@@ -46,11 +46,11 @@ A successful private-input completion opened by an identifiable workspace SHALL 
 
 ### Requirement: People handle API token websites in their own browser
 
-When a task needs a website to get, create, reveal, copy, rotate, edit permissions for, or revoke an API key or token, the agent SHALL ask the person to do that step in their own browser, providing the service's token-management link and short instructions including required permissions when relevant. When a new or replacement value is to come back, that link and those instructions SHALL be on the private key link's page; for a change needing no new value they SHALL be in the chat. It SHALL NOT use its own browser, saved logins, screenshots, page extraction, or a private form for that token step. The one exception SHALL be connecting a tool, where the person said yes to the agent using their own open Chrome: the agent MAY then make the key in that Chrome by the own-browser connect requirements. A newly supplied or replacement value SHALL otherwise use the existing private key link; a change needing no new value SHALL wait for the person's confirmation. The agent SHALL resume dependent work only after the required value is saved or the person confirms completion. Ordinary website tasks, use of stored credentials, and existing authorized token management through APIs SHALL continue unchanged.
+When a task needs a website to get, create, reveal, copy, rotate, edit permissions for, or revoke an API key or token, the agent SHALL ask the person to do that step in their own browser, providing the service's token-management link and short instructions including required permissions when relevant. When a new or replacement value is to come back, that link and those instructions SHALL be on the private key link's page; for a change needing no new value they SHALL be in the chat. It SHALL NOT use its own browser, screenshots, or page extraction for that token step. The one exception SHALL be connecting a tool, where the person said yes to the agent using their own open Chrome, or the agent uses its own browser by the own-browser connect requirements: the agent MAY then make the key in that browser by the own-browser connect requirements. A newly supplied or replacement value SHALL otherwise use the existing private key link; a change needing no new value SHALL wait for the person's confirmation. The agent SHALL resume dependent work only after the required value is saved or the person confirms completion. Ordinary website tasks, use of stored credentials, and existing authorized token management through APIs SHALL continue unchanged.
 
-#### Scenario: A token request with a saved service login
+#### Scenario: A token request while the browser is signed in
 
-- **WHEN** a task needs a missing API token and the agent has a saved login for the service
+- **WHEN** a task needs a missing API token and the agent's browser is signed in to the service
 - **THEN** it sends the private key link, whose page carries the token-management link and steps, without opening the service in its browser, receives the value there, and then resumes
 
 #### Scenario: A token edit during an ordinary browsing task
@@ -62,6 +62,11 @@ When a task needs a website to get, create, reveal, copy, rotate, edit permissio
 
 - **WHEN** the owner connects Stripe and says yes to the agent using their own Chrome
 - **THEN** the agent makes the Stripe key in that Chrome, and no key-page picture or reading holds the key
+
+#### Scenario: Connecting in the agent's own browser on a server
+
+- **WHEN** the agent runs on a server and the owner says *connect my Notion*
+- **THEN** the agent makes the Notion key there, the owner signs in through a link if asked, and no key-page picture or reading of the agent's holds the key
 
 ### Requirement: The agent gets a login code through the chat or email
 
@@ -360,7 +365,7 @@ An update that removes saved logins SHALL leave the saved-passwords file unread 
 
 ### Requirement: Every live view shows one line and Hand back
 
-Every live view SHALL show, in one bar under the site, one short line saying what the person should do now, the type box, and one *Hand back* button. *Hand back* SHALL end the turn and return the browser to the agent. When the step is not finished after *Hand back*, the agent SHALL ask in the chat before it takes a further step on that page. A paste anywhere on the view SHALL type into the box the person tapped.
+Every live view SHALL show, in one bar under the site, one short line saying what the person should do now, the type box, and one *Hand back* button. *Hand back* SHALL end the turn and return the browser to the agent. When the step is not finished after *Hand back*, the agent SHALL ask in the chat before it takes a further step on that page.
 
 #### Scenario: A stuck step
 
@@ -371,6 +376,15 @@ Every live view SHALL show, in one bar under the site, one short line saying wha
 
 - **WHEN** the person taps *Hand back* in a payment's live view without pressing Pay, and says in the chat to stop
 - **THEN** the link ends, the agent presses nothing on that page, and the chat says the payment was not finished
+
+### Requirement: A paste anywhere on a live view types into the browser
+
+In every live view, a paste the person makes on the browser's picture, or in the box under it, SHALL type the pasted text into the part of the browser that has the focus, as if typed. The view SHALL save nothing pasted, and the agent SHALL NOT see it.
+
+#### Scenario: Pasting a password on a laptop
+
+- **WHEN** the person taps Notion's password box in the sign-in link on a laptop and pastes a password from their own password manager onto the browser's picture
+- **THEN** the password appears in Notion's box, and nothing pasted reaches the chat, a file, or a log
 
 ### Requirement: A private link records what ended it without values
 
@@ -383,7 +397,7 @@ Each private link SHALL record what ended it and how long it was open, on the ag
 
 ### Requirement: A step that needs the person goes to the chat or the live view
 
-When a browsing step needs something only the person can give, an ordinary answer (an email, a name, an address, a choice, agreeing to terms) SHALL be asked in the chat and entered by the agent, and the agent SHALL NOT agree to terms without the person's yes. A sensitive value, a sign-in, a check that asks whether a person is present, a site step the agent's click can not get through, and a PayPal approval SHALL go through a live view. A one-time code SHALL follow the login-code requirement, and an API key or token step the own-browser requirement. A step only the person's own device can do (a passkey or a device check) SHALL NOT be attempted by the agent: the agent SHALL stop that step and hand it back in the chat as numbered steps for the person's own device: one action each, a direct link to the page for each step that has one, the site's own labels, and the details the agent already has, never an invented address.
+When a browsing step needs something only the person can give, an ordinary answer (an email, a name, an address, a choice, agreeing to terms) SHALL be asked in the chat and entered by the agent, and the agent SHALL NOT agree to terms without the person's yes. A sensitive value, a sign-in, a check that asks whether a person is present, a site step the agent's click can not get through, and a PayPal approval SHALL go through a live view. A one-time code SHALL follow the login-code requirement, and an API key or token step the own-browser requirement. A sign-in while connecting tools in the agent's own browser, and watching it when the person asks, with taking over, SHALL follow the own-browser connect requirements. A step only the person's own device can do (a passkey or a device check) SHALL NOT be attempted by the agent: the agent SHALL stop that step and hand it back in the chat as numbered steps for the person's own device: one action each, a direct link to the page for each step that has one, the site's own labels, and the details the agent already has, never an invented address.
 
 #### Scenario: A payment page asks for an email, terms, and a card
 

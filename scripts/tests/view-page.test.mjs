@@ -4,7 +4,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
-import { ending, shapeOf, strokes } from '../../.agents/skills/hand-over/scripts/view-page.mjs';
+import { ending, shapeOf, strokes, watchEnding, watchShows } from '../../.agents/skills/hand-over/scripts/view-page.mjs';
 
 const scripts = new URL('../../.agents/skills/hand-over/scripts/', import.meta.url);
 const sourcePath = fileURLToPath(new URL('view-page.mjs', scripts));
@@ -23,9 +23,9 @@ const DONE = 'Done. Go back to the chat.';
 const CLOSED = 'This link has closed. Ask in the chat for a new one.';
 const [BACK, TAB, ENTER] = [0xff08, 0xff09, 0xff0d];
 
-// The page at `width`, with a stand-in viewer: each is kept in `viewers` with its calls, and `emit` fires its events.
-// `view` is what `GET /view` gives (null: closed); `receipts` answer each `GET /receipt`; `holder` is the stage width.
-function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wide }, receipts = [], hash = '#key=secret', viewer = true, before = () => {} } = {}) {
+// The page at `width` with stand-in `viewers`; `view`, `receipts`, and `watch` answer `GET /view`, `/receipt`, `/watch`
+// (null view: closed); take, give, and stop change the watch's `control` like the link. `holder` is the stage width.
+function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wide }, receipts = [], hash = '#key=secret', viewer = true, before = () => {}, watch = null } = {}) {
   const calls = [];
   const viewers = [];
   const answer = (status, body) => ({ status, ok: status === 200, json: async () => body });
@@ -52,6 +52,9 @@ function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wid
       calls.push({ path, key: init.headers?.['x-hand-over-key'], body });
       if (path === 'view') return view ? answer(200, view) : answer(410);
       if (path === 'fit') return FITS[body.fit] ? answer(200, { fit: FITS[body.fit] }) : answer(400);
+      const holds = { take: 'person', give: 'assistant' }[path];
+      if (watch && holds) watch.control = holds;
+      if (watch && (path === 'watch' || holds)) return answer(200, { ...watch });
       if (path === 'give') return answer(200, { control: 'assistant' });
       return answer(...(receipts.shift() ?? [404]));
     };
@@ -348,7 +351,93 @@ test('the page closes at the time limit, on the watcher\'s clock', async t => {
   assert.deepEqual(late.shown(), { live: false, line: CLOSED }, 'a limit long past, by this device\'s own clock when the link names none');
 });
 
+/** A paste of `text` on `target`, as a browser fires it; resolves to whether the page took it for itself. */
+function paste(p, target, text) {
+  const event = new p.window.Event('paste', { bubbles: true, cancelable: true });
+  Object.defineProperty(event, 'clipboardData', { value: { getData: kind => (kind === 'text/plain' ? text : '') } });
+  target.dispatchEvent(event);
+  return event.defaultPrevented;
+}
+
+test('a paste anywhere on the view types into the browser, and posts nothing', async t => {
+  const p = await live(t);
+  const [viewer] = p.viewers;
+  const asked = p.calls.length;
+  assert.equal(paste(p, p.$('#screen canvas'), 'Xk9-hunter2'), true);
+  assert.deepEqual(keys(viewer), strokes('', 'Xk9-hunter2'));
+  assert.equal(p.$('#text').value, '', 'the box mirrors nothing after a paste');
+  // In the box, the paste is the box's: the page leaves it, and the box's input types what it now holds, once.
+  assert.equal(paste(p, p.$('#text'), 'ab'), false, 'a paste in the box is left to the box');
+  assert.deepEqual(keys(viewer).slice(11), [], 'the page types nothing of its own');
+  p.$('#text').value = 'ab';
+  p.$('#text').dispatchEvent(new p.window.Event('input', { bubbles: true }));
+  assert.deepEqual(keys(viewer).slice(11), [0x61, 0x62], 'the box types the paste');
+  assert.equal(p.calls.length, asked, 'nothing pasted goes to the link');
+});
+
+test('Ctrl+V on the screen reaches the page\'s paste, not the viewer, and lets go of the keys it held', async t => {
+  const p = await live(t);
+  const [viewer] = p.viewers;
+  let heard = 0;
+  p.$('#screen canvas').addEventListener('keydown', () => { heard += 1; });
+  p.$('#screen canvas').dispatchEvent(new p.window.KeyboardEvent('keydown', { key: 'v', ctrlKey: true, bubbles: true }));
+  p.$('#screen canvas').dispatchEvent(new p.window.KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+  assert.equal(heard, 1, 'only the plain key reaches the viewer');
+  paste(p, p.$('#screen canvas'), 'k');
+  const released = viewer.calls.filter(([, , , down]) => down === false).map(([, keysym]) => keysym);
+  assert.deepEqual(released, [0xffe3, 0xffe4, 0xffeb, 0xffec, 0xffe7, 0xffe8]);
+  assert.deepEqual(viewer.calls.at(-1), ['sendKey', 0x6b, null]);
+});
+
+const WATCHED = { note: 'The assistant is connecting your tools.', watch: true };
+const SHOWN = {
+  assistant: { line: 'Clicking New integration…', hand: 'Take over', main: 'btn-primary', hands: false },
+  person: { line: 'Tap Hand back when you\'re done.', hand: 'Hand back', main: 'btn-primary', hands: true },
+  turn: { line: 'Sign in to Notion. I go on once you\'re in.', hand: 'Hand back', main: 'btn-ghost', hands: true },
+};
+
+test('a watch link shows one short line, no tag, and the button for who holds the browser, on a phone and a wide screen', async t => {
+  for (const [width, fit] of [[390, FITS.phone], [1280, FITS.wide]]) {
+    for (const [control, want] of Object.entries(SHOWN)) {
+      const line = control === 'turn' ? want.line : 'Clicking New integration…';
+      const p = await live(t, { width, view: { ...WATCHED, fit }, watch: { control, line } });
+      const at = `${control} at ${width}`;
+      assert.equal(p.$('#line-text').textContent, want.line, at);
+      assert.equal(p.$('#stop'), null, `${at}: no Stop`);
+      assert.deepEqual([p.$('#hand').textContent, p.$('#hand').className, p.$('#hand').hidden], [want.hand, want.main, false], at);
+      assert.equal(p.$('#text').hidden, !want.hands, `${at}: the type box only while the person holds it`);
+      assert.equal(p.viewers[0].viewOnly, !want.hands, `${at}: taps reach the browser only while the person holds it`);
+      assert.equal(p.window.document.body.classList.contains('wide'), fit.kind === 'wide', at);
+      if (!want.hands) assert.equal(paste(p, p.$('#screen canvas'), 'x'), false, `${at}: a paste types nothing`);
+    }
+  }
+});
+
+test('Take over and Hand back post their route; the close ends the page with its line, done or stopped', async t => {
+  const watch = { control: 'assistant', line: 'Clicking Save…' };
+  const p = await live(t, { view: { ...WATCHED, fit: FITS.wide }, watch });
+  p.$('#hand').click();
+  await settle();
+  assert.deepEqual([p.calls.at(-1).path, p.calls.at(-1).body, p.calls.at(-1).key], ['take', {}, 'secret']);
+  assert.deepEqual([p.$('#line-text').textContent, p.$('#hand').textContent, p.viewers[0].viewOnly], ['Tap Hand back when you\'re done.', 'Hand back', false]);
+  p.$('#hand').click();
+  await settle();
+  assert.equal(p.calls.at(-1).path, 'give');
+  assert.deepEqual([p.$('#hand').textContent, p.viewers[0].viewOnly, p.$('#text').hidden], ['Take over', true, true]);
+
+  for (const [result, line] of [['done', 'All done. Go back to the chat.'], ['stopped', 'Stopped. Go back to the chat.']]) {
+    const closed = await live(t, { view: { ...WATCHED, fit: FITS.wide }, watch: { control: 'assistant' }, receipts: [[200, { result }]] });
+    await closed.viewers[0].emit('disconnect');
+    assert.deepEqual(closed.shown(), { live: false, line }, result);
+  }
+});
+
 test('the pure helpers: the shape a width reports, and the closing line', () => {
+  assert.equal(watchEnding({ result: 'done' }), 'All done. Go back to the chat.');
+  assert.equal(watchEnding({ result: 'stopped' }), 'Stopped. Go back to the chat.');
+  assert.equal(watchEnding(null), CLOSED);
+  assert.deepEqual(watchShows({ control: 'person', line: 'Clicking Save…' }).text, 'Tap Hand back when you\'re done.', 'the person\'s hold keeps its own line');
+  assert.equal(watchShows({ line: 'Clicking Save…' }).text, 'Clicking Save…', 'the agent\'s line while it works');
   assert.deepEqual([shapeOf(320), shapeOf(699), shapeOf(700), shapeOf(1440)], ['phone', 'phone', 'wide', 'wide']);
   assert.equal(ending({ result: 'done', notification: 'notified' }), DONE);
   assert.equal(ending({ result: 'done', notification: 'unconfirmed' }), 'Done. Go back to the chat, and say continue.');

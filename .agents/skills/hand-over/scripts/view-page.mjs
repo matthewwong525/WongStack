@@ -15,6 +15,26 @@ const KEYS = { Backspace: 0xff08, Tab: 0xff09, Enter: 0xff0d };
 /** The modifier keys a held Ctrl+V or Cmd+V leaves down in the browser, each with its key code. */
 const MODIFIERS = [[0xffe3, 'ControlLeft'], [0xffe4, 'ControlRight'], [0xffeb, 'MetaLeft'], [0xffec, 'MetaRight'], [0xffe7, 'MetaLeft'], [0xffe8, 'MetaRight']];
 
+/** What a watch link shows while each holds the browser: its line when it has its own, its one button and how loud,
+ * and whether the person's taps and typing reach the browser. */
+export const WATCH = {
+  assistant: { button: 'Take over', main: true, hands: false },
+  person: { line: 'Tap Hand back when you\'re done.', button: 'Hand back', main: true, hands: true },
+  turn: { button: 'Hand back', main: false, hands: true },
+};
+const WATCH_ENDINGS = { done: 'All done. Go back to the chat.', stopped: 'Stopped. Go back to the chat.' };
+const WATCH_POLL_MS = 1000;
+
+/** What a watch link shows for the link's `{control, line}`: the agent's line, or the turn's note, as the link gives
+ * it; the person's own hold keeps its own line. */
+export function watchShows({ control, line } = {}) {
+  const shows = WATCH[control] ?? WATCH.assistant;
+  return { ...shows, text: shows.line ?? line ?? '' };
+}
+
+/** A watch link's closing line for a `receipt`. */
+export const watchEnding = receipt => WATCH_ENDINGS[receipt?.result] ?? ENDINGS.closed;
+
 /** The key presses that turn the box's text from `before` into `after`, as X keysyms: a Backspace for each
  * character past the shared start, then each new one. Above Latin-1 a keysym is X's Unicode form; a break is Enter. */
 export function strokes(before, after) {
@@ -43,6 +63,9 @@ function start(RFB = globalThis.RFB) {
   let viewer = null;
   let fit = null;
   let over = false;
+  // A watch link: who holds the browser, and whether the person's taps and typing reach it.
+  let watch = null;
+  let mayType = true;
 
   const call = (path, body) => fetch(path, {
     method: body ? 'POST' : 'GET',
@@ -87,8 +110,9 @@ function start(RFB = globalThis.RFB) {
     if (over) return;
     show(CONNECTING);
     const response = await call('receipt');
-    if (response?.status === 200) return end(ending(await response.json().catch(() => null)));
-    if (response?.status !== 202) return end(ending(null));
+    const ended = receipt => end(watch ? watchEnding(receipt) : ending(receipt));
+    if (response?.status === 200) return ended(await response.json().catch(() => null));
+    if (response?.status !== 202) return ended(null);
     const { finishing } = (await response.json().catch(() => null)) ?? {};
     await new Promise(done => setTimeout(done, RETRY_MS));
     if (over) return;
@@ -101,6 +125,7 @@ function start(RFB = globalThis.RFB) {
     const rfb = new RFB($('#screen'), `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/screen`, { wsProtocols: [key] });
     viewer = rfb;
     rfb.scaleViewport = true;
+    rfb.viewOnly = !mayType;
     rfb.addEventListener('connect', () => {
       show('');
       layout();
@@ -137,13 +162,31 @@ function start(RFB = globalThis.RFB) {
   // A paste in the box is the box's own: its input handler types it, over the box's selection.
   document.addEventListener('paste', event => {
     const text = event.clipboardData?.getData('text/plain') ?? '';
-    if (!viewer || !text || $('#text').contains(event.target)) return;
+    if (!viewer || !mayType || !text || $('#text').contains(event.target)) return;
     event.preventDefault();
     if (chord) for (const [keysym, code] of MODIFIERS) viewer.sendKey(keysym, code, false);
     chord = false;
     press(strokes('', text));
     empty();
   });
+
+  /** Shows who holds a watch's browser, from the link's `info`. */
+  const render = info => {
+    if (over || !info) return;
+    const shows = watchShows(info);
+    watch = info.control;
+    mayType = shows.hands;
+    if (viewer) viewer.viewOnly = !mayType;
+    $('#line-text').textContent = shows.text;
+    Object.assign($('#hand'), { textContent: shows.button, className: shows.main ? 'btn-primary' : 'btn-ghost' });
+    $('#text').hidden = !mayType;
+    if (!mayType) empty();
+  };
+  const follow = async () => {
+    const response = await call('watch');
+    if (response?.ok) render(await response.json().catch(() => null));
+    if (!over) setTimeout(follow, WATCH_POLL_MS);
+  };
   // A phone's keyboard covers the page's foot without resizing it: follow what is still in sight.
   globalThis.visualViewport?.addEventListener('resize', () => {
     $('#view').style.height = `${visualViewport.height}px`;
@@ -157,10 +200,15 @@ function start(RFB = globalThis.RFB) {
     else report();
   });
 
-  // Hand back ends the turn: the link closes, and the screen's drop shows how it ended.
-  $('#hand').addEventListener('click', () => {
-    $('#hand').disabled = true;
-    call('give', {});
+  // Hand back ends a view's turn: the link closes, and the screen's drop shows how it ended. On a watch link the
+  // button takes the browser or hands it back, and the link stays open.
+  $('#hand').addEventListener('click', async () => {
+    if (!watch) {
+      $('#hand').disabled = true;
+      return call('give', {});
+    }
+    const response = await call(watch === 'assistant' ? 'take' : 'give', {});
+    if (response?.ok) render(await response.json().catch(() => null));
   });
 
   (async () => {
@@ -173,7 +221,11 @@ function start(RFB = globalThis.RFB) {
     fit = view.fit;
     // A browser keeps a timer's wait in 32 bits, so a limit long past could wrap to weeks: a past limit waits 0.
     if (closesAt) setTimeout(() => end(ENDINGS.closed), Math.max(0, closesAt - (now ?? Date.now())));
-    $('#line-text').textContent = note ?? '';
+    if (view.watch) {
+      watch = 'assistant';
+      mayType = false;
+      await follow();
+    } else $('#line-text').textContent = note ?? '';
     await report();
     if (!over) connect();
   })();

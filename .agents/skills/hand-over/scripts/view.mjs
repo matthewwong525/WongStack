@@ -19,7 +19,9 @@ export const TOOLS = {
   novnc: `noVNC ${VIEWER.version} draws that screen on the link's page. It goes in your home folder.`,
 };
 export const OFF_LINUX = 'A live view needs Linux, where the browser runs on a virtual screen it can show.';
-export const VIEW_ROUTES = new Set(['/view', '/fit', '/give']);
+export const VIEW_ROUTES = new Set(['/view', '/fit', '/give', '/watch', '/take']);
+/** A watch link's buttons, each its route: the person takes the browser, or hands it back. */
+const WATCH_ACTIONS = new Set(['/take', '/give']);
 const BODY_MOST = 16 * 1024;
 const FITS = ['phone', 'wide'];
 const PHONE_WIDTH = 480;
@@ -321,13 +323,23 @@ export function reply(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }
 
-/** The view's routes for the link's `{note}`: every view is the person's turn. `fitted()` gives the fit; `onFit(kind)`
- * refits. The first `/give` (Hand back) ends the turn; `onGive()` runs after it. */
-export function viewRoutes({ note }, { fitted = () => null, onFit = async () => null, onGive = () => {}, closesAt } = {}) {
+/** The view's routes for `{note}`: a view's first `/give` (Hand back) ends the turn, then runs `onGive()`; a watch
+ * link's `watch` hooks answer `/watch` and its buttons with who holds the browser. `onFit(kind)` refits. */
+export function viewRoutes({ note }, { fitted = () => null, onFit = async () => null, onGive = () => {}, closesAt, watch = null } = {}) {
   let ended = false;
   return async (pathname, request, response) => {
-    if (pathname === '/view') return request.method === 'GET' ? reply(response, 200, { note, control: 'turn', fit: fitted(), closesAt, now: Date.now() }) : reply(response, 405);
+    if (pathname === '/view') {
+      if (request.method !== 'GET') return reply(response, 405);
+      watch?.shown();
+      return reply(response, 200, { note, ...(watch ? { watch: true } : { control: 'turn' }), fit: fitted(), closesAt, now: Date.now() });
+    }
+    if (!watch && (pathname === '/watch' || pathname === '/take')) return reply(response, 404);
+    if (pathname === '/watch') return request.method === 'GET' ? reply(response, 200, watch.info()) : reply(response, 405);
     if (request.method !== 'POST') return reply(response, 405);
+    if (watch && WATCH_ACTIONS.has(pathname)) {
+      const now = watch[pathname.slice(1)]();
+      return now ? reply(response, 200, now) : reply(response, 409);
+    }
     if (pathname === '/give') {
       if (ended) return reply(response, 409);
       ended = true;

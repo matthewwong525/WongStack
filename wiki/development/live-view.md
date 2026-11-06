@@ -4,7 +4,7 @@ A live view is a private link that shows the agent's browser on one page, for yo
 
 ## When it opens
 
-Every live view is the same turn: one line under the site says what to do now, and you tap *Hand back* when you're done. It opens for five things only:
+Every live view is the same turn: one line under the site says what to do now, and you tap *Hand back* when you're done. It opens for these steps only:
 
 | Step | The line says |
 |---|---|
@@ -18,6 +18,7 @@ Every live view is the same turn: one line under the site says what to do now, a
 - **A payment or a backup code:** card details, a backup or recovery code, or another lasting secret the page asks for. The agent fills the rest of the page first, and you press the site's own *Pay*: [pay or type a code](#pay-or-type-a-code). PayPal is [the same turn](#other-ways-to-pay).
 - **A robot check:** a tick box such as *I'm not a robot*, or a picture puzzle. It can stand at a site's front door or come right after a sign-in. The agent never ticks, solves, or answers one itself, even when asked.
 - **A stuck site step**, such as DigiKey's *Continue*, when the agent's clicks don't move it after [a 30-second wait](browsing.md#saved-browser-logins) or print `BROWSE_CLICK=script`. This view opens with `--keep-open`: it reads no finish, so it stays through every page until you tap *Hand back*, or the time limit passes. Every other view keeps its finish, since each ends at one clear step.
+- **Connecting your tools** on a server: [the watch link](watch-link.md), for a sign-in, or when you ask to watch.
 
 What you type goes to the site a key press at a time. The view saves nothing, and the agent sees none of it.
 
@@ -45,9 +46,9 @@ The agent's browser fills the page, already on the step. One bar under it holds 
 - **It fits what you hold.** Narrow on a phone, wide on a laptop, with the whole puzzle and its button in view. The page gets its own size back when the link closes.
 - **Tap straight on the browser.** Your taps go to it as they are. On a laptop your keyboard does too.
 - **Type in the box and it types in the browser.** A phone's keyboard doesn't reach the browser. Tap a box in the browser, then type in ours: each letter, delete, Enter, and paste lands in the browser at once, with no send. Text already in the browser's box stays: you add to it, or keep deleting.
-- **Paste anywhere.** A paste on the view types into the box you tapped, so a password from your password manager goes straight in.
+- **Paste anywhere.** A paste on the browser or in the box types the text into the browser, a key at a time, so a password from your password manager goes straight in. Nothing pasted goes to the link's helper.
 - ***Hand back* ends your turn.** The browser goes back to the agent, and the chat carries on. Saying *done* in the chat closes the link too.
-- **To give up, tap *Hand back* and say so in the chat.** There is no *Stop* button: one button keeps the bar simple. If the step is not finished, the agent asks in the chat before it does more on that page.
+- **To give up, tap *Hand back* and say so in the chat.** If the step is not finished, the agent asks before it does more on that page.
 - **It ends by itself.** Once the site meets the finish, such as the signed-in page or the receipt, the page says *Done. Go back to the chat.* A link that has closed says *This link has closed. Ask in the chat for a new one.*
 
 ## What the link can do
@@ -59,6 +60,10 @@ The agent's browser fills the page, already on the step. One bar under it holds 
 - **Open for up to 8 hours.** It closes when the site meets its finish, when you tap *Hand back*, when you say *done* in the chat, or at the limit, even if the chat stops. A closed link never works again.
 - **The agent learns only how it ended.** It sees nothing you tapped or typed. Afterwards it reads the page afresh and trusts nothing from before.
 - **Tasks share the screen.** Another task's new page can cover yours for a second or two; yours comes back to the front by itself.
+
+## The watch link
+
+The [watch link](watch-link.md) is the one live view the agent drives: for connecting your tools on a server, with *Take over* and *Hand back*.
 
 ## How the agent runs one
 
@@ -125,7 +130,7 @@ After `done`, `handed-back`, `closed` or `timeout`, the agent finds out what the
 
 ## One view per site
 
-Each site gets one live view per task for a robot check or a sign-in: one real try. When your try doesn't clear the check or sign you in, or the site shows a second check after it, the agent stops and [gives you steps](browsing.md#when-a-site-refuses-the-browser) for your own device. A site that turns a real person away in this browser will do it again, and repeats can lock your account. A payment's turn or a stuck step's doesn't count: this rule guards against repeated checks and logins, not payments.
+Each site gets one live view per task for a robot check or a sign-in: one real try. When your try doesn't clear the check or sign you in, or the site shows a second check after it, the agent stops and [gives you steps](browsing.md#when-a-site-refuses-the-browser) for your own device. A site that turns a real person away in this browser will do it again, and repeats can lock your account. A payment's turn or a stuck step's doesn't count: this rule guards against repeated checks and logins, not payments. A sign-in turn on [the watch link](watch-link.md) counts as that site's one view.
 
 ## The first one installs three small tools
 
