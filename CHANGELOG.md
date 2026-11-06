@@ -11,6 +11,12 @@
 
 **Updating.** If your own tests use `fakeDatabase`, they stop building after the update. Add this line to those tests: `const fakeDatabase = <Calls extends object>(calls: Calls) => calls as D1Database & Calls;`. Or move them to the `database()` test helper in `app/tests/employee-access/connections.ts`, which builds a real test database from your migrations.
 
+## 50.2.1 — The testing guide says how to test an app whose data comes from an outside service
+
+- **An app that reads from a service the local tests can't reach tests what a preview has.** The testing guide uses Knowledge as the example: its real-database test checks who may open it and its *not set up* answer, and the fast tests check its pages ([add an app's tests](wiki/stack/testing.md#add-an-apps-tests)).
+
+**Updating.** Nothing to do.
+
 ## 50.2.0 — Test every part of the app on a real local database with staging's sample rows
 
 - **Each test run starts the app once, on a fresh database that holds staging's sample rows.** The database gets your real setup, then the same sample people, inbox items and schedules a preview shows. Each app part's tests start from those rows, and a test that changes them puts them back ([the real-database tests](wiki/stack/testing.md#the-real-database-tests)).
