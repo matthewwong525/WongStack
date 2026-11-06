@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -14,7 +14,11 @@ const { createTestHarness } = createRequire(import.meta.resolve("@cloudflare/vit
 export type RuntimeEnv = { DB: D1Database; [key: string]: unknown };
 export type Runtime = { worker: WorkerHandle<RuntimeEnv>; env: RuntimeEnv; close: () => Promise<void> };
 
-/** Build only the Worker using production transforms, in a root with no app secrets or persistence. */
+/** Sorts after every dated migration, so Wrangler's own runner applies the staging seed last, as staging does. */
+const SEED_MIGRATION = "99999999999999_staging_seed.sql";
+
+/** Build only the Worker using production transforms, in a root with no app secrets or persistence.
+ *  Its database holds the real migrations, then staging's seed. */
 export async function startRuntime(vars: Record<string, string> = {}): Promise<Runtime> {
   const started = performance.now();
   const app = resolve(process.cwd());
@@ -31,7 +35,7 @@ export async function startRuntime(vars: Record<string, string> = {}): Promise<R
     compatibility_date: compatibility.compatibility_date,
     compatibility_flags: compatibility.compatibility_flags,
     send_metrics: false, vars, d1_databases: [{ binding: "DB", database_name: "runtime-test", database_id: "local-runtime-test",
-      migrations_dir: resolve(app, "../schema/migrations") }],
+      migrations_dir: join(root, "migrations") }],
     // No secret file or process environment value is a binding in this test configuration.
     secrets: { required: [] },
   };
@@ -42,6 +46,8 @@ export async function startRuntime(vars: Record<string, string> = {}): Promise<R
   };
   try {
     await writeFile(configPath, JSON.stringify(config));
+    await cp(resolve(app, "../schema/migrations"), join(root, "migrations"), { recursive: true });
+    await copyFile(resolve(app, "../schema/seed.sql"), join(root, "migrations", SEED_MIGRATION));
     const graphCheck: Plugin = {
       name: "runtime-production-graph",
       generateBundle(_options, bundle) {
@@ -71,6 +77,7 @@ export async function startRuntime(vars: Record<string, string> = {}): Promise<R
     const worker = server.getWorker<RuntimeEnv>();
     await worker.applyD1Migrations("DB");
     const env = await worker.getEnv();
+    await saveSeed(env.DB);
     console.info(`runtime setup: build/start ${(builtAt - started).toFixed(0)}ms, migrations ${(performance.now() - builtAt).toFixed(0)}ms`);
     return { worker, env, close };
   } catch (error) {
@@ -79,28 +86,33 @@ export async function startRuntime(vars: Record<string, string> = {}): Promise<R
   }
 }
 
-const accessTables = new WeakMap<D1Database, string[]>();
-async function tables(db: D1Database): Promise<string[]> {
-  const known = accessTables.get(db);
-  if (known) return known;
-  const { results } = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'wong_access_%' ORDER BY name").all<{ name: string }>();
-  const names = results.map(({ name }) => name);
-  accessTables.set(db, names);
-  return names;
-}
 const quoted = (name: string) => `"${name.replaceAll('"', '""')}"`;
+type Seed = { triggers: string[]; tables: Record<string, Record<string, unknown>[]> };
+const seeds = new WeakMap<D1Database, Seed>();
 
-/** Clear only the Access fixture, retaining the migration ledger and runtime session. */
-export async function resetDatabase(db: D1Database): Promise<void> {
-  const names = await tables(db);
-  // One real D1 batch: remove the trigger and defer constraints while deleting the fixture.
-  await db.batch([db.prepare("DROP TRIGGER IF EXISTS runtime_abort_save"),
-    db.prepare("PRAGMA defer_foreign_keys = ON"), ...names.map(name => db.prepare(`DELETE FROM ${quoted(name)}`))]);
+/** Keep every row and trigger now in `db` as what resetToSeed puts back; the migration ledger and SQLite's own stay.
+ *  Rows hold only stored columns: a generated column can't be inserted, and a WITHOUT ROWID table has no rowid. */
+export async function saveSeed(db: D1Database): Promise<void> {
+  const { results } = await db.prepare(`SELECT type, name, sql FROM sqlite_master WHERE type IN ('table', 'trigger')
+    AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_cf_%' AND name <> 'd1_migrations' ORDER BY name`).all<{ type: string; name: string; sql: string }>();
+  const names = results.filter(({ type }) => type === "table").map(({ name }) => name);
+  const columns = await db.batch<{ name: string }>(names.map(name => db.prepare("SELECT name FROM pragma_table_xinfo(?) WHERE hidden = 0").bind(name)));
+  const rows = await db.batch(names.map((name, index) => db.prepare(`SELECT ${columns[index].results.map(({ name }) => quoted(name)).join(", ")} FROM ${quoted(name)}`)));
+  seeds.set(db, { triggers: results.filter(({ type }) => type === "trigger").map(({ sql }) => sql),
+    tables: Object.fromEntries(names.map((name, index) => [name, rows[index].results as Record<string, unknown>[]])) });
 }
 
-/** Snapshot every Access table in one D1 call, so refusal and rollback cannot hide a partial write. */
-export async function snapshot(db: D1Database) {
-  const names = await tables(db);
-  const rows = await db.batch(names.map(name => db.prepare(`SELECT * FROM ${quoted(name)} ORDER BY rowid`)));
-  return Object.fromEntries(names.map((name, index) => [name, rows[index].results]));
+/** Put back the staging seed in one D1 batch: every trigger goes, the rows return, and the migrations' triggers
+ *  return last, so a test's own trigger is gone and a protected row can be cleared. */
+export async function resetToSeed(db: D1Database): Promise<void> {
+  const seed = seeds.get(db);
+  if (!seed) throw new Error("resetToSeed needs the database startRuntime seeded");
+  const { results } = await db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all<{ name: string }>();
+  const tables = Object.entries(seed.tables);
+  await db.batch([db.prepare("PRAGMA defer_foreign_keys = ON"),
+    ...results.map(({ name }) => db.prepare(`DROP TRIGGER ${quoted(name)}`)),
+    ...tables.map(([name]) => db.prepare(`DELETE FROM ${quoted(name)}`)),
+    ...tables.flatMap(([name, rows]) => rows.map(row => db.prepare(`INSERT INTO ${quoted(name)} (${Object.keys(row).map(quoted).join(", ")})
+      VALUES (${Object.keys(row).map(() => "?").join(", ")})`).bind(...Object.values(row)))),
+    ...seed.triggers.map(sql => db.prepare(sql))]);
 }

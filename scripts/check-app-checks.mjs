@@ -70,6 +70,8 @@ export const GATES = [
       'wrangler.jsonc': JSON.stringify({ compatibility_date: '2026-09-26', compatibility_flags: ['nodejs_compat', 'disallow_importable_env'] }),
       'worker/index.ts': 'export default { fetch: () => new Response("runtime reached") };\n',
       '../schema/migrations/0001_runtime.sql': 'CREATE TABLE runtime_proof (id INTEGER PRIMARY KEY);\n',
+      // The setup loads the staging seed as the last migration.
+      '../schema/seed.sql': 'INSERT INTO runtime_proof (id) VALUES (1);\n',
     },
     samples: [{ file: 'tests/runtime/runtime.test.ts', says: 'RUNTIME_ASSERTION_PROOF', text:
       'import { afterAll, beforeAll, expect, it } from "vitest";\nimport { startRuntime, type Runtime } from "./setup.ts";\n'
@@ -79,6 +81,15 @@ export const GATES = [
       + '  const response = await runtime.worker.fetch("https://runtime.example.com/");\n'
       + '  expect(response.status).toBe(200);\n  console.log("runtime proof: workerd ready");\n'
       + '  expect(await response.text()).toBe("RUNTIME_ASSERTION_PROOF");\n});\n' }],
+  },
+  {
+    // A clock stood in for: the run looks slower than the budget, and no workerd starts.
+    name: 'runtime budget', tool: /\bvitest\b.*--config\s+vitest\.config\.runtime\.ts\b/,
+    settings: ['vitest.config.runtime.ts', 'tests/runtime/budget.ts'],
+    samples: [{ file: 'tests/runtime/runtime.test.ts', says: 'Slowest:', text:
+      'import { afterAll, describe, it } from "vitest";\nimport { budget, BUDGET_MS } from "./budget.ts";\n'
+      + 'let clock = 0;\nconst timing = budget(["slow-app"], () => clock);\nafterAll(() => timing.check());\n'
+      + 'describe("slow-app", () => {\n  timing.track("slow-app");\n  it("takes longer than the budget", () => { clock += BUDGET_MS + 1; });\n});\n' }],
   },
   {
     name: 'unused code', tool: /\bknip\b/, settings: ['knip.jsonc'],

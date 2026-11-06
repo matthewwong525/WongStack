@@ -25,7 +25,7 @@ Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned
 
 `preflight` prints the saved `SHA` and owned `RUN_DIR`; deployed checks also need its `URL`, browser journeys its `BROWSER`. CI-only preparation uses `--no-preview --no-browser`. Files live per journey in `$RUN_DIR/journeys/`, named alike and numbered in walk order.
 
-**`<id>.meta.json`**: `then` is the scenario's **THEN** **verbatim**, never paraphrased; `probe` names the ladder rung:
+**`<id>.meta.json`**: `then` is the scenario's **THEN** **verbatim**; `probe` names the ladder rung:
 
 ```json
 {
@@ -36,7 +36,7 @@ Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned
 }
 ```
 
-**Browser → `<id>.batch.json`**: ordered commands; the driver feeds them unread to `agent-browser batch --bail --json`. First read `agent-browser skills get core` (`--full` for details): use the installed guide.
+**Browser → `<id>.batch.json`**: ordered commands; the driver feeds them unread to `agent-browser batch --bail --json`. First read `agent-browser skills get core`: use the installed guide.
 
 ```json
 [
@@ -52,7 +52,7 @@ Ledger: scenario, probe, prerequisites, revision, runnable/blocked status, owned
 ]
 ```
 
-**Request → `<id>.requests.txt`**: tab-separated `METHOD`, path or full URL, optional JSON body. Paths resolve against the preview; the driver captures responses in order:
+**Request → `<id>.requests.txt`**: tab-separated `METHOD`, path or full URL, optional JSON body. The driver captures responses in order:
 
 ```
 POST	/api/notes	{"title":""}
@@ -110,7 +110,7 @@ Retain retry evidence. `PLAYGROUND=yes` → clean up nothing (§ a). Otherwise c
 
 Fix a failure by [fix it or ask](../../../../wiki/development/the-change-loop.md#fix-it-or-ask) only **in scope**: its `THEN` is *this change's own* scenario and the fix lies in files the branch touches (`git diff --name-only origin/main..HEAD`); a [kept check](#g--kept-checks) needs only the files, then `replay --only <id>`. Otherwise report **out of scope** with why.
 
-For an in-scope repair CI can cheaply reproduce, retain a focused check: `/save` captures its intended failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the available reproduction, missing proof and limitation. No new infrastructure.
+For an in-scope repair CI can cheaply reproduce, write a failing local test before the fix: [who checks what](../../../../wiki/stack/testing.md#who-checks-what). `/save` captures its failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the reproduction, missing proof and limitation. No new infrastructure.
 
 Usually **out of scope**: app `401` with valid service token (app authentication).
 

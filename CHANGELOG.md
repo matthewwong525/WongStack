@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.2.0 — Test every part of the app on a real local database with staging's sample rows
+
+- **Each test run starts the app once, on a fresh database that holds staging's sample rows.** The database gets your real setup, then the same sample people, inbox items and schedules a preview shows. Each app part's tests start from those rows, and a test that changes them puts them back ([the real-database tests](wiki/stack/testing.md#the-real-database-tests)).
+- **Every app part with server code has its own tests, and a check blocks one with none.** Hello gets a greeting test. Inbox gets item and schedule tests beside its week board. Knowledge gets tests for who may open it and its *not set up* answer ([add an app's tests](wiki/stack/testing.md#add-an-apps-tests)).
+- **The full set stays under 30 seconds, or the check fails and names the three slowest parts.** While the AI works on one part, it runs only that part's tests, then the full set once ([the 30-second limit](wiki/stack/testing.md#the-30-second-limit)).
+- **The testing guide says who checks what.** Local tests cover the database and block a mistake before it is published. `/verify` and its kept checks cover screens and real sign-in on the preview. A bug `/verify` finds first becomes a failing local test, then gets fixed ([who checks what](wiki/stack/testing.md#who-checks-what)).
+
+**Updating.** The update plan adds a real-database test for each of your own app parts with server code, the folders in `app/worker/apps/`. Hello, Inbox and Knowledge come with theirs. After the update, the app's tests name any part still missing one, with the file to add. Each test starts from your sample rows in `schema/seed.sql`.
+
 ## 50.1.0 — Your password manager in the assistant's browser
 
 - **Add your password manager to the assistant's browser.** The assistant asks once which one you use, such as 1Password or Bitwarden, right after its browser installs. It finds the add-on on Firefox's add-on site and names its maker, website and daily users before your yes. It warns you when an add-on is not featured and few people use it ([your password manager](wiki/development/password-manager.md)).
