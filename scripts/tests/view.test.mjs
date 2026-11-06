@@ -14,7 +14,7 @@ import { fakeViewer, fakeViewTools, GREETING, SCREEN } from './fixtures/fake-vie
 const HOME = mkdtempSync(join(tmpdir(), 'wong-test-view-home-'));
 process.env.HOME = HOME;
 test.after(() => rmSync(HOME, { recursive: true, force: true }));
-const { checkView, endView, findTool, fingerprint, installView, listensOnTcp, liveView, MANUAL, OFF_LINUX, screenOf, socketOf, startSource, stopSource, TOOLS, VIEWER, viewerDir, viewerFile, viewRoutes } = await import('../../.agents/skills/hand-over/scripts/view.mjs');
+const { checkView, endView, findTool, fingerprint, installView, listensOnTcp, liveView, MANUAL, OFF_LINUX, popupOpen, screenOf, socketOf, startSource, stopSource, TOOLS, VIEWER, viewerDir, viewerFile, viewRoutes } = await import('../../.agents/skills/hand-over/scripts/view.mjs');
 
 // The checks that read the real /proc run where a live view does.
 const linux = { skip: process.platform !== 'linux' && 'a live view runs on Linux only' };
@@ -407,6 +407,32 @@ test('a window the person opens at the fit\'s size, such as a password manager\'
   page.show();
   live.front();
   assert.deepEqual(raised(f).at(-1), '100', 'once it closes, the page\'s own window comes back');
+});
+
+test('a browser pop-up, such as an add-on\'s, stays in front: no poll or fit raises the page over it or focuses it', async t => {
+  const f = setup(t);
+  const page = fakePage(f);
+  const live = liveView({ size: [2560, 1328], display: ':97', ...standIn(t, f) }, page);
+  await live.fit();
+  assert.deepEqual([popupOpen(':97'), live.popupOpen()], [false, false]);
+  f.set('popup');
+  assert.deepEqual([popupOpen(':97'), live.popupOpen()], [true, true]);
+  assert.ok(f.tools.calls('xdotool').some(args => args.join(' ') === 'search --onlyvisible --classname ^Camoufox$'), 'a pop-up is a shown window named Camoufox');
+  live.front();
+  live.front();
+  await live.fit('phone');
+  assert.deepEqual(raised(f), ['100'], 'only the raise before it opened');
+  assert.ok(!f.tools.calls('xdotool').some(args => args.includes('200')), 'and the pop-up is never focused: focus closes it');
+  f.unset('popup');
+  live.front();
+  assert.deepEqual(raised(f), ['100', '100'], 'once it closes, the next poll raises the page again');
+
+  f.set('popup');
+  f.set('xdotool-fails');
+  assert.equal(popupOpen(':97'), false, 'a search that fails finds no pop-up');
+  f.unset('xdotool-fails');
+  await live.end();
+  assert.equal(live.popupOpen(), false, 'an ended view reads none');
 });
 
 test('a first fit on the password manager\'s page reads no bar, and the first fit back on the site reads it', async t => {

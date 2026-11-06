@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.6.1 — A live view keeps an add-on's pop-up open
+
+- **An add-on's pop-up stays open in a live view.** Before, it closed about a second after you tapped its toolbar button, because the view brought the page back to the front every 2 seconds. Now the view waits while a pop-up shows, such as your password manager's, until you pick from it or tap outside it. Then your page comes back to the front ([a pop-up stays open](wiki/development/live-view.md#what-the-link-can-do)).
+- **You can type in it.** Tap its box, then type, such as your password to unlock your password manager ([use it at a sign-in](wiki/development/password-manager.md#use-it-at-a-sign-in)).
+
+**Updating.** Nothing to do.
+
 ## 50.6.0 — Keep the browser window shown on a Mac
 
 - **The browser window stays shown on a Mac**, as it does on Windows and a Linux computer with a screen. It no longer hides while the assistant works, and it no longer flashes up for a click. You can minimize it or move it like any window ([where it shows](wiki/development/browser-window.md#where-it-shows)).

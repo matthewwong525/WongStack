@@ -727,6 +727,24 @@ test('while a view is open the watcher only reads the finish and keeps the page\
   assert.equal(f.fronts().at(-1), 'front end', 'and let go at the end');
 });
 
+test('while a browser pop-up shows, a view\'s polls and keep-alive leave it in front; the page comes back once it closes', linux, async t => {
+  const f = fixture(t, { view: true });
+  f.env.HANDOVER_KEEPALIVE_MS = '100';
+  openedView(f);
+  await eventually(() => f.steps().includes('viewport 1280x663') && f.fronts().includes('front turn again'));
+  const raises = () => f.tools.calls('xdotool').filter(args => args[0] === 'windowraise').length;
+  f.set('popup');
+  await eventually(() => f.fronts().includes('front turn kept'));
+  const [fronts, steps, raised] = [f.fronts().length, f.steps().length, raises()];
+  await eventually(() => f.fronts().length > fronts + 3 && f.steps().slice(steps).includes('keep-alive'));
+  assert.ok(f.fronts().slice(fronts).every(step => step === 'front turn kept'), 'each poll renews the turn and selects no tab');
+  assert.equal(raises(), raised, 'and raises no window over the pop-up');
+  assert.ok(!f.steps().slice(steps).some(step => step.startsWith('viewport')), 'the keep-alive fits nothing, since a fit brings the tab up');
+  f.unset('popup');
+  await eventually(() => f.fronts().at(-1) === 'front turn again' && raises() > raised);
+  f.run('close');
+});
+
 test('once the page meets the finish the view ends done, puts the page back, and wakes the chat with no address, key, or page content', linux, async t => {
   const f = fixture(t, { view: true, paseo: 'ok' });
   const link = openedView(f, '--until-gone', '#check', '--note', NOTE);

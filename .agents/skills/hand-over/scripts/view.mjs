@@ -231,6 +231,12 @@ function pageWindows(display) {
   }
 }
 
+/** True while a browser pop-up shows on `display`, such as an add-on's toolbar pop-up or a menu: Firefox draws each as
+ * a window of its own, X instance name `Camoufox`, where a page's window is `Navigator`. */
+export function popupOpen(display) {
+  try { return xdotool(display, 'search', '--onlyvisible', '--classname', '^Camoufox$').trim() !== ''; } catch { return false; }
+}
+
 /** The window to keep in front among `fits`: one the person just opened, such as a password manager's own window, else
  * the one kept last, else the narrowest. `seen` holds every window id the view has listed before. */
 export function keptWindow(fits, seen, kept) {
@@ -268,10 +274,10 @@ export function liveView(view, page) {
     const over = pageWindows(view.display).filter(win => win.width === screen.width && win.height >= screen.height).map(win => win.height - screen.height);
     return over.length ? Math.min(...over) : null;
   };
-  /** Raises a window as tall as the screen and at least as wide as the fit: the browser's window stops near 500 wide.
-   * It takes the keyboard too: with no window manager the newest window keeps it. */
+  /** Raises and focuses a window as tall as the screen and at least as wide as the fit (the browser's stops near 500).
+   * None while a pop-up shows: a raise covers it, and focus on it closes it; it takes keys with the page's focus. */
   const front = () => {
-    if (!screen || ended) return;
+    if (!screen || ended || popupOpen(view.display)) return;
     const windows = pageWindows(view.display);
     const fits = windows.filter(win => win.height === screen.height && win.width >= fitted().width);
     const own = keptWindow(fits, seen, kept);
@@ -282,6 +288,8 @@ export function liveView(view, page) {
   return {
     describe,
     front,
+    /** True while a browser pop-up shows on the view's screen. */
+    popupOpen: () => !ended && popupOpen(view.display),
     /** Fits the page as `next`, `phone` or `wide`, or as it was; resolves to the fit. */
     fit: (next = kind) => inTurn(async () => {
       if (ended) return describe();
