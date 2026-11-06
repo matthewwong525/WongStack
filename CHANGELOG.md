@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The last pretend database goes
+## 50.2.1 — The last pretend database goes
 
 - **Three more server tests read real rows.** The tests for who may open which app, which keys and tools a person holds, and the list of actions an AI can call now run real queries on the test copy of the database. A test of a failed database closes that copy, so the read fails for real.
 - **The pretend database is gone.** `fakeDatabase` in `app/tests/env.ts` had no other use. Every line is still tested, and the tests take no longer.
