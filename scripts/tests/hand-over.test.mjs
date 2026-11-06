@@ -839,6 +839,24 @@ test('where the browser shows in its own window, a view opens no link: the watch
   assert.deepEqual(f.timings().map(({ ended, cause }) => [ended, cause]), [['done', 'finish'], ['handed-back', 'close-command']]);
 });
 
+test('where the browser shows in its own window, a watch opens no link, and a turn there ends on its finish or close', async t => {
+  const f = fixture(t, { window: true });
+  f.openPage();
+  const out = f.run('open', '--watch', '--session', SESSION, '--note', WATCH_NOTE);
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=Run wait in the background/);
+  assert.doesNotMatch(out.stdout, /HANDOVER_LINK|https?:|key=/);
+  assert.deepEqual(f.calls(), [], 'no tunnel');
+  assert.deepEqual(stateOf(f).view, { note: WATCH_NOTE, watch: true, window: true });
+  assert.equal(f.run('line', 'Clicking Save…').status, 0, 'the watch is open');
+  assert.equal(f.run('turn', '--until', '**/receipt/*', '--note', 'Sign in to Test in the browser window, then say done.').status, 0);
+  const moved = spawnSync(process.execPath, [browse, 'open', RECEIPT, '--session', SESSION], { cwd: f.cwd, env: f.env, encoding: 'utf8', timeout: 30_000 });
+  assert.equal(moved.status, 0, moved.stderr);
+  assert.equal(nextEvent(f), 'HANDOVER_RESULT=signed-in');
+  assert.equal(f.run('turn', '--until', '**/never/*', '--note', 'Sign in to Test.').status, 0, 'the agent holds it again');
+  assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=done', 'the person said done: close ends the turn and the watch');
+});
+
 
 test('a screen source that exits is started again on the same socket, and one that can not be ends the view as an error', linux, async t => {
   const f = fixture(t, { view: true });

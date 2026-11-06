@@ -49,7 +49,7 @@ export class Checks extends CIWorkflow {
     }
     try {
       this.outcome = mine
-        ? await runPipeline(event.payload, ci, configOf(this.env))
+        ? await runPipeline(event.payload, ci, configOf(this.env), { sealPrivate: this.env.WONG_KEY_SEAL_PRIVATE })
         // Never started is not failed: the verbs read it as cut off, and can start this run again.
         : { commit: event.payload.sha, ref: event.payload.ref, result: 'interrupted', stage: 'turn', reason: 'an earlier run never finished, so this one did not start' };
     } finally {

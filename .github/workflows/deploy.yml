@@ -80,6 +80,18 @@
 #
 # `push` stays the deploying event, so the preview URL attaches to the branch
 # head SHA — which is the SHA /save and /verify look the preview up by.
+#
+# ---------------------------------------------------------------------------
+# Keys sent to the app
+#
+# A key the owner or an Admin sends to the app waits in its database, sealed
+# with the public half of a pair of locks. Only a production deploy opens it:
+# "Put waiting keys" runs `seal-keys.mjs put` with the private half, the
+# WONG_KEY_SEAL_PRIVATE secret, puts the keys in the live app's secrets and
+# deletes them from the database. `workflow_dispatch` on the default branch is
+# a keys-only publish: the same build and deploy of that branch, then the keys.
+# Any other branch dispatched runs nothing. See
+# wiki/stack/connect-your-tools.md#how-a-key-reaches-the-app.
 
 name: Deploy
 
@@ -89,12 +101,16 @@ on:
   push:
     branches: ['**']
   pull_request:
+  # A keys-only publish of the default branch: see "Keys sent to the app" above.
+  workflow_dispatch:
 
 # One release per branch PER EVENT — see the header. Let an in-flight production
 # deploy finish rather than cancelling it half-applied; previews are cheap, so
 # cancel those.
+# A keys-only publish queues with the default branch's pushes: one production
+# deploy at a time.
 concurrency:
-  group: deploy-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  group: deploy-${{ github.event_name == 'workflow_dispatch' && 'push' || github.event_name }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
 
 jobs:
@@ -102,8 +118,9 @@ jobs:
   # code runs only here.
   build:
     # Same-repo pull requests are already covered by their push event; only a
-    # fork PR, which fires no push here, needs the pull_request trigger.
-    if: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name != github.repository }}
+    # fork PR, which fires no push here, needs the pull_request trigger. A
+    # keys-only publish runs on the default branch alone.
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.ref_name == github.event.repository.default_branch) || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -115,7 +132,7 @@ jobs:
       # its branch name, even `main`, never selects production. The scripts
       # treat this as "we are in CI"; `cf-build.sh --build-only` picks the
       # staging or production build from it.
-      CF_BRANCH: ${{ github.event_name == 'push' && github.ref_name || format('pull-{0}', github.event.pull_request.number) }}
+      CF_BRANCH: ${{ github.event_name != 'pull_request' && github.ref_name || format('pull-{0}', github.event.pull_request.number) }}
       CF_PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
 
     steps:
@@ -198,12 +215,12 @@ jobs:
       # config and its migrations, never a script, package file or `.npmrc`.
       # The deploy job copies it in again with its own copy of this command.
       - name: Pack the build
-        if: ${{ steps.app.outputs.configured == 'true' && github.event_name == 'push' }}
+        if: ${{ steps.app.outputs.configured == 'true' && github.event_name != 'pull_request' }}
         run: node scripts/lib-wrangler-config.mjs copy-build "$GITHUB_WORKSPACE" "$RUNNER_TEMP/app-build"
 
       # Hidden files included: the build's redirect is `.wrangler/deploy/config.json`.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ steps.app.outputs.configured == 'true' && github.event_name == 'push' }}
+        if: ${{ steps.app.outputs.configured == 'true' && github.event_name != 'pull_request' }}
         with:
           name: app-build
           path: ${{ runner.temp }}/app-build
@@ -215,7 +232,7 @@ jobs:
   # tools. No branch file runs here: see the header.
   deploy:
     needs: build
-    if: ${{ github.event_name == 'push' && needs.build.outputs.configured == 'true' }}
+    if: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.build.outputs.configured == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     # A push to the default branch deploys production, so only that run enters
@@ -330,6 +347,18 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: bash trusted/scripts/cf-deploy.sh
+
+      # Production only, after the deploy: open each key sent to the app and
+      # put it in the live app's secrets. A key it can not open stays waiting
+      # and is named; the release stands either way, so this step only warns.
+      - name: Put waiting keys
+        if: ${{ steps.deploy.outcome == 'success' && github.ref_name == github.event.repository.default_branch }}
+        continue-on-error: true
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WONG_KEY_SEAL_PRIVATE: ${{ secrets.WONG_KEY_SEAL_PRIVATE }}
+        run: node trusted/scripts/seal-keys.mjs put
 
       # Publish the preview URL where the tooling can find it.
       #

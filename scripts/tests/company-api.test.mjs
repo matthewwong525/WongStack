@@ -395,3 +395,38 @@ test('tool add sends the entry to the app with the site as Origin, tool remove d
     const refused = cli.run(args); assert.equal(refused.status, 1, args.join(' ')); assert.match(refused.stderr, /usage/);
   }
 });
+test('key send seals the key in this process and sends only the sealed value, with the site as Origin; a refusal fails', async t => {
+  const { makePair, open } = await import('../../app/src/lib/seal.ts');
+  const pair = await makePair();
+  const seen = join(mkdtempSync(join(tmpdir(), 'company-key-')), 'seen.jsonl'); t.after(() => rmSync(dirname(seen), { recursive: true, force: true }));
+  const value = 'shpss_made-up-secret-9f2c';
+  const cli = helperCli(t, `async (target, init) => {
+    if (!target.pathname.startsWith('/api/access/keys/')) return undefined;
+    (await import('node:fs')).appendFileSync(${JSON.stringify(seen)}, JSON.stringify({ path: target.pathname, method: init.method ?? 'GET', origin: init.headers.Origin, body: init.body }) + '\\n');
+    if (target.pathname.endsWith('/seal')) return process.env.NO_SEAL ? Response.json({ error: { code: 'no_seal' } }, { status: 409 }) : Response.json({ publicKey: ${JSON.stringify(pair.publicKey)} });
+    return Response.json({ name: target.pathname.split('/').at(-1), ends: init.body.ends, waiting: true });
+  }`);
+  const sent = cli.run(['key', 'send', 'TOOL_SHOPIFY', '--value-stdin'], { input: `${value}\n` });
+  assert.equal(sent.status, 0, sent.stderr);
+  assert.deepEqual(JSON.parse(sent.stdout), { name: 'TOOL_SHOPIFY', ends: '9f2c', waiting: true });
+  const calls = readFileSync(seen, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.deepEqual(calls.map(({ path, method, origin: from }) => [path, method, from]), [['/api/access/keys/seal', 'GET', undefined], ['/api/access/keys/TOOL_SHOPIFY', 'PUT', origin]]);
+  assert.equal(await open(JSON.stringify(calls[1].body.sealed), pair.privateKey), value);
+  for (const text of [sent.stdout, sent.stderr, JSON.stringify(calls)]) assert.ok(!text.includes('made-up'), text);
+  // A key sealed already goes as it is.
+  const sealed = { sealed: calls[1].body.sealed, ends: '9f2c' };
+  const ready = cli.run(['key', 'send', 'TOOL_SHOPIFY_ID', '--sealed-file', '-'], { input: JSON.stringify(sealed) });
+  assert.equal(ready.status, 0, ready.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(seen, 'utf8').trim().split('\n').at(-1)).body, sealed);
+  // An app with no pair of locks says so, and nothing is sent.
+  const before = readFileSync(seen, 'utf8').trim().split('\n').length;
+  const refused = cli.run(['key', 'send', 'TOOL_SHOPIFY', '--value-stdin'], { input: value, env: { NO_SEAL: '1' } });
+  assert.equal(refused.status, 1); assert.equal(JSON.parse(refused.stdout).error.code, 'no_seal');
+  assert.equal(readFileSync(seen, 'utf8').trim().split('\n').length, before + 1);
+  for (const [args, input] of [[['key', 'send', 'tool_shopify', '--value-stdin'], value], [['key', 'send', 'TOOL_X'], value], [['key', 'put', 'TOOL_X', '--value-stdin'], value],
+    [['key', 'send', 'TOOL_X', '--value-stdin', '--sealed-file', '-'], value], [['key', 'send', 'TOOL_X', 'extra', '--value-stdin'], value]]) {
+    const bad = cli.run(args, { input }); assert.equal(bad.status, 1, args.join(' ')); assert.match(bad.stderr, /usage/);
+  }
+  const blank = cli.run(['key', 'send', 'TOOL_X', '--value-stdin'], { input: '\n' });
+  assert.equal(blank.status, 1); assert.match(blank.stderr, /No key on stdin for TOOL_X/);
+});

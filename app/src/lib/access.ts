@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
+import { seal } from './seal'
 
 const prompt = z.discriminatedUnion('state', [
   z.object({ state: z.literal('ready'), text: z.string().min(1) }),
@@ -45,7 +46,10 @@ export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.en
     // What the key's service is for, and its API guide when the key is used directly; an older status has neither.
     direct: z.boolean().optional(), purpose: z.string().optional(), docs: z.string().optional(),
     // A tool added from a chat, and the requests it counts as reads beyond GET; an older status has neither.
-    chat: z.boolean().optional(), reads: z.array(z.string()).optional() })),
+    chat: z.boolean().optional(), reads: z.array(z.string()).optional(),
+    // What the paste box asks for, one label per secret, none for a key no person sends; and a key sent to the app
+    // that waits for the next publish, with its last four characters. An older status has neither.
+    parts: z.array(z.string()).optional(), waiting: z.object({ ends: z.string() }).optional() })),
   roles: z.array(z.object({ id: z.string(), name: z.string(), builtIn: z.boolean().optional(), apps: z.array(z.string()), keys: levels })),
   people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
     role: z.string().nullable(), apps: z.array(z.string()), keys: levels })),
@@ -73,6 +77,32 @@ export async function savePusherEmail(githubId: number, email: string): Promise<
   const response = await fetch(`/api/access/pushers/${githubId}`, { method: 'PUT', redirect: 'error',
     headers: { Origin: window.location.origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
   if (!response.ok) throw new Error('Access change unavailable')
+}
+
+/** Why a pasted key was not sent, in words for the person. */
+const KEY_REFUSALS = new Map([
+  ['no_seal', 'This app has no lock for keys yet. Ask the assistant to make the pair of locks.'],
+  ['live_only', 'Only the live app takes a key.'],
+  ['bad_name', 'This key can not be pasted here.'],
+])
+const refusal = z.object({ error: z.object({ code: z.string() }) })
+
+/** Seals each part of a key on this page with the publish's public key, then sends it to the key's place in the
+ *  app: the value never leaves the page unsealed. Throws the words to show when the app refuses. */
+export async function sendKey(id: string, values: string[]): Promise<void> {
+  const refused = async (response: Response) => {
+    const code = refusal.safeParse(await response.json().catch(() => null)).data?.error.code
+    return new Error(KEY_REFUSALS.get(String(code)) ?? 'The key was not sent. Try again.')
+  }
+  const lock = await fetch('/api/access/keys/seal', { cache: 'no-store', redirect: 'error' })
+  if (!lock.ok) throw await refused(lock)
+  const { publicKey } = z.object({ publicKey: z.string() }).parse(await lock.json())
+  for (const [part, value] of values.entries()) {
+    const sealed = JSON.parse(await seal(value, publicKey)) as unknown
+    const response = await fetch(`/api/access/keys/${encodeURIComponent(id)}/${part}`, { method: 'PUT', redirect: 'error',
+      headers: { Origin: window.location.origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ sealed, ends: value.slice(-4) }) })
+    if (!response.ok) throw await refused(response)
+  }
 }
 
 /** Whether a person holds the built-in Admin role. */

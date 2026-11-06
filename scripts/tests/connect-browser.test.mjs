@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,39 +13,7 @@ import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { fakeViewer, fakeViewTools } from './fixtures/fake-view-tools.mjs';
 
-const CHROME = fileURLToPath(new URL('../../.agents/skills/connect/scripts/browser.mjs', import.meta.url));
-// Made up for the test: no service ever issued it.
-const KEY = 'rk_' + 'live_MADEUPkey0000aaaaBBBB4f2a';
-const KEY_PAGE = '- heading "API keys" [level=1, ref=e1]\n- button "Create restricted key" [ref=e2]\n' +
-  `- textbox [ref=e3]: ${KEY}\n  - StaticText "${KEY}"\n- textbox "Password" [ref=e4]`;
-
-// A stand-in agent-browser: one JSON state of tabs, each page's snapshot and each ref's value, and a log of argv.
-// Its first call in a session adds the blank tab a real attach adds; NO_CHROME answers as no browser found.
-const STAND_IN = `#!${process.execPath}
-const fs = require('node:fs');
-const argv = process.argv.slice(2);
-fs.appendFileSync(process.env.FAKE_LOG, JSON.stringify(argv) + '\\n');
-const out = (data, text) => { console.log(argv.includes('--json') ? JSON.stringify({ success: true, data, error: null }) : text); };
-if (process.env.NO_CHROME) { console.log(JSON.stringify({ success: false, error: 'No running Chrome instance found.' })); process.exit(1); }
-const s = JSON.parse(fs.readFileSync(process.env.AB_STATE, 'utf8'));
-const save = () => fs.writeFileSync(process.env.AB_STATE, JSON.stringify(s));
-const activate = id => s.tabs.forEach(tab => { tab.active = tab.tabId === id; });
-const add = url => { const tabId = 't' + (++s.next); s.tabs.push({ tabId, targetId: 'T' + s.next, url, title: '' }); activate(tabId); return s.tabs.at(-1); };
-if (!s.attached) { add('about:blank'); s.attached = true; }
-const args = argv.filter((a, i) => !['--auto-connect', '--json', '--session'].includes(a) && argv[i - 1] !== '--session');
-const active = s.tabs.find(tab => tab.active);
-const [command, a, b] = args;
-if (command === 'tab' && a === 'list') out({ tabs: s.tabs });
-else if (command === 'tab' && a === 'new') { const tab = add(b); out({ tabId: tab.tabId, targetId: tab.targetId, url: b }); }
-else if (command === 'tab' && a === 'close') { s.tabs = s.tabs.filter(tab => tab.tabId !== b); out({ closed: true }, 'closed'); }
-else if (command === 'get' && a === 'title') out({ title: active.title }, active.title);
-else if (command === 'get' && a === 'value') out({ value: (s.values[active.url] ?? {})[b] ?? '' });
-else if (command === 'get' && a === 'text') out({ text: '' });
-else if (command === 'snapshot') out({}, s.pages[active.url] ?? '');
-else if (command === 'close') { s.attached = false; out({}, 'Browser closed'); }
-else out({}, 'Done');
-save();
-`;
+const HELPER = fileURLToPath(new URL('../../.agents/skills/connect/scripts/browser.mjs', import.meta.url));
 
 // A stand-in scripts/cf-secrets.mjs: it logs its argv and a digest of its stdin, never the stdin itself.
 const CF_SECRETS = `import { appendFileSync, readFileSync } from 'node:fs';
@@ -58,149 +26,58 @@ if (process.env.CF_LATER) { console.log('cf-secrets: TOOL_STRIPE is on a new ver
 console.log('cf-secrets: saved on the live app');
 `;
 
-/** A logged call's words after the session, --json left out. */
-const words = argv => argv.slice(argv.indexOf('--session') + 2).filter(word => word !== '--json');
+// A stand-in scripts/company-api.mjs, as `key send <name> --value-stdin` answers: it logs its argv, folder and a digest
+// of its stdin, never the stdin; CA_REFUSE refuses with that code, CA_FAIL fails echoing the value, as a careless one.
+const COMPANY_API = `import { appendFileSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+const input = readFileSync(0, 'utf8');
+appendFileSync(process.env.CA_LOG, JSON.stringify({ argv: process.argv.slice(2), cwd: process.cwd(),
+  digest: createHash('sha256').update(input).digest('hex') }) + '\\n');
+if (process.env.CA_REFUSE) { console.log(JSON.stringify({ error: { code: process.env.CA_REFUSE, message: 'the app said no' } })); process.exit(1); }
+if (process.env.CA_FAIL) { console.error('company-api: could not send ' + input); process.exit(1); }
+console.log(JSON.stringify({ name: process.argv[4], ends: input.slice(-4), waiting: true }));
+`;
 
-/** A primary checkout and its worktree, a stand-in agent-browser and cf-secrets; with `camoufox`, a fake Camoufox
+/** Each JSON line a stand-in logged, or none. */
+const logged = file => existsSync(file) ? readFileSync(file, 'utf8').trim().split('\n').map(line => JSON.parse(line)) : [];
+const digest = value => createHash('sha256').update(value).digest('hex');
+
+/** A primary checkout and its worktree, a stand-in cf-secrets and company-api; with `camoufox`, a fake Camoufox
  * install whose stand-in server a test starts, `{ installed: false }` leaving the install out. */
 function fixture(t, { camoufox = null } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-connect-browser-'));
   const camofox = camoufox ? fakeCamofox(dir, camoufox) : null;
   t.after(() => { camofox?.stop(); rmSync(dir, { recursive: true, force: true }); });
-  const primary = join(dir, 'primary'), bin = join(dir, 'bin'), temp = join(dir, 'tmp');
-  for (const folder of [join(primary, 'scripts'), join(primary, 'app'), bin, temp]) mkdirSync(folder, { recursive: true });
+  const primary = join(dir, 'primary'), temp = join(dir, 'tmp');
+  for (const folder of [join(primary, 'scripts'), join(primary, 'app'), temp]) mkdirSync(folder, { recursive: true });
   writeFileSync(join(primary, 'scripts', 'cf-secrets.mjs'), CF_SECRETS);
+  writeFileSync(join(primary, 'scripts', 'company-api.mjs'), COMPANY_API);
   writeFileSync(join(primary, '.gitignore'), '.dev.vars\n');
   const git = (...args) => execFileSync('git', ['-c', 'user.email=t@example.com', '-c', 'user.name=t', ...args], { cwd: primary, stdio: 'ignore' });
   git('init', '-q', '-b', 'main'); git('add', '.'); git('commit', '-qm', 'init');
   const worktree = join(dir, 'wt');
   git('worktree', 'add', '-q', '-b', 'connect', worktree);
   writeFileSync(join(primary, 'app', '.dev.vars'), 'OTHER_KEY=kept\nTOOL_STRIPE=old\n');
-  writeFileSync(join(bin, 'agent-browser'), STAND_IN, { mode: 0o755 });
-  chmodSync(join(bin, 'agent-browser'), 0o755);
-  const state = join(dir, 'ab.json'), log = join(dir, 'ab.log'), cfLog = join(dir, 'cf.log');
-  writeFileSync(state, JSON.stringify({ next: 1, attached: false, tabs: [{ tabId: 't1', targetId: 'MAIL', url: 'https://mail.example.com/', title: 'Inbox', active: true }],
-    pages: { 'https://mail.example.com/': '- heading "Inbox"', 'https://dashboard.stripe.com/apikeys': KEY_PAGE },
-    values: { 'https://dashboard.stripe.com/apikeys': { '@e3': KEY } } }));
+  const cfLog = join(dir, 'cf.log'), caLog = join(dir, 'ca.log');
   const options = env => ({ cwd: worktree, encoding: 'utf8',
-    env: { PATH: `${bin}:${process.env.PATH}`, HOME: dir, TMPDIR: temp, FAKE_LOG: log, AB_STATE: state, CF_LOG: cfLog, ...(camofox && BROWSE_ENV), ...env } });
+    env: { PATH: process.env.PATH, HOME: dir, TMPDIR: temp, CF_LOG: cfLog, CA_LOG: caLog, ...(camofox && BROWSE_ENV), ...env } });
   const run = (args, env = {}) => {
-    const result = spawnSync(process.execPath, [CHROME, ...args], options(env));
+    const result = spawnSync(process.execPath, [HELPER, ...args], options(env));
     return { status: result.status, stdout: result.stdout, stderr: result.stderr };
   };
   /** As `run`, with this process free meanwhile, so a child of the test that ends is reaped and seen gone. */
-  const runFree = (args, env = {}) => new Promise((resolve, reject) => execFile(process.execPath, [CHROME, ...args], options(env),
+  const runFree = (args, env = {}) => new Promise((resolve, reject) => execFile(process.execPath, [HELPER, ...args], options(env),
     (error, stdout, stderr) => (error && typeof error.code !== 'number' ? reject(error) : resolve({ status: error?.code ?? 0, stdout, stderr }))));
-  const browserState = () => JSON.parse(readFileSync(state, 'utf8'));
-  const calls = () => existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line)) : [];
-  const setActive = id => { const s = browserState(); s.tabs.forEach(tab => { tab.active = tab.tabId === id; }); writeFileSync(state, JSON.stringify(s)); };
-  return { dir, primary, worktree, temp, run, runFree, browserState, calls, setActive, cfLog, log, camofox };
+  return { dir, primary, worktree, temp, run, runFree, cfLog, caLog, camofox };
 }
 
-test('with no Chrome to attach to, attach says CHROME=none and the one step, and keeps nothing', t => {
+test('a command it does not know, the wrong number of words, or a flag of another command is a usage error', t => {
   const f = fixture(t);
-  const result = f.run(['attach'], { NO_CHROME: '1' });
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /^CHROME=none\nIn Chrome, open chrome:\/\/inspect\/#remote-debugging/);
-  assert.deepEqual(readdirSync(f.temp, { recursive: true }).filter(name => name.endsWith('.json')), []);
-});
-
-test('it works in a tab it opened, every call on the running Chrome, and a reading hides the key', t => {
-  const f = fixture(t);
-  assert.equal(f.run(['attach']).stdout.trim(), 'CHROME=attached');
-  assert.equal(f.run(['open', 'https://dashboard.stripe.com/apikeys']).stdout.trim(), 'opened t3');
-  const read = f.run(['read']);
-  assert.equal(read.status, 0, read.stderr);
-  assert.match(read.stdout, /textbox \[ref=e3\]: \[key …4f2a\]/);
-  assert.ok(!read.stdout.includes(KEY));
-  assert.equal(f.run(['click', 'e2']).status, 0);
-  assert.equal(f.run(['wait', '500']).status, 0);
-  assert.equal(f.run(['select', '@e2', 'read']).status, 0);
-  // Every call attaches to the person's Chrome, in one session, and none loads an address into an existing tab.
-  const sessions = new Set(f.calls().map(argv => argv[argv.indexOf('--session') + 1]));
-  assert.ok(f.calls().every(argv => argv[0] === '--auto-connect'));
-  assert.equal(sessions.size, 1);
-  assert.ok(!f.calls().some(argv => words(argv)[0] === 'open'));
-  assert.equal(f.run(['open', 'http://dashboard.stripe.com/']).status, 1);
-});
-
-test('a tab it did not open is refused, read or acted on', t => {
-  const f = fixture(t);
-  f.run(['attach']); f.run(['open', 'https://dashboard.stripe.com/apikeys']);
-  f.setActive('t1');
-  const before = f.calls().length;
-  for (const args of [['read'], ['click', '@e1'], ['fill', '@e1', 'hello'], ['picture', join(f.dir, 'p.png')], ['take-key', '--tool', 'stripe']]) {
-    const result = f.run(args);
-    assert.equal(result.status, 1, args.join(' '));
-    assert.match(result.stderr, /not one this helper opened/);
+  for (const args of [['look'], ['open'], ['take-key', '@e1', '@e2', '--tool', 'x'],
+    ['read', '--id'], ['read', '--server'], ['read', '--stopped']]) {
+    assert.equal(f.run(args).status, 2, args.join(' '));
   }
-  assert.ok(f.calls().slice(before).every(argv => words(argv).join(' ') === 'tab list'));
-});
-
-test('no picture while a key shows, and no typing into a password box', t => {
-  const f = fixture(t);
-  f.run(['attach']); f.run(['open', 'https://dashboard.stripe.com/apikeys']);
-  const refused = f.run(['picture', join(f.dir, 'p.png')]);
-  assert.equal(refused.status, 1);
-  assert.match(refused.stderr, /A key shows on this page/);
-  assert.match(f.run(['fill', '@e4', 'hunter2']).stderr, /password or a sign-in code/);
-  assert.ok(!f.calls().some(argv => ['screenshot', 'fill'].includes(words(argv)[0])));
-  const s = f.browserState(); s.pages['https://dashboard.stripe.com/apikeys'] = '- heading "API keys"\n- textbox "Key name" [ref=e5]'; writeFileSync(join(f.dir, 'ab.json'), JSON.stringify(s));
-  assert.equal(f.run(['picture', join(f.dir, 'p.png')]).status, 0);
-  assert.equal(f.run(['fill', '@e5', 'assistant read-only']).status, 0);
-});
-
-test('done closes only its own tabs and lets go of Chrome, leaving the person\'s tabs', t => {
-  const f = fixture(t);
-  f.run(['attach']); f.run(['open', 'https://dashboard.stripe.com/apikeys']);
-  const result = f.run(['done']);
-  assert.equal(result.stdout.trim(), 'closed 2 tab(s); Chrome stays open');
-  assert.deepEqual(f.browserState().tabs.map(tab => tab.targetId), ['MAIL']);
-  assert.deepEqual(f.calls().slice(-3).map(words), [['tab', 'close', 't3'], ['tab', 'close', 't2'], ['close']]);
-  assert.equal(f.run(['read']).status, 1, 'nothing is ours after done');
-});
-
-test('take-key saves the key in the primary checkout and sends it on stdin, printing only its last four', t => {
-  const f = fixture(t);
-  f.run(['attach']); f.run(['open', 'https://dashboard.stripe.com/apikeys']);
-  for (const args of [['take-key', '--tool', 'stripe'], ['take-key', '@e3', '--tool', 'stripe']]) {
-    const result = f.run(args);
-    assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, 'TOOL_STRIPE saved, ends in …4f2a\n');
-    assert.ok(!`${result.stdout}${result.stderr}`.includes(KEY));
-  }
-  const file = join(f.primary, 'app', '.dev.vars');
-  assert.equal(readFileSync(file, 'utf8'), `OTHER_KEY=kept\nTOOL_STRIPE=${KEY}\n`);
-  assert.equal(statSync(file).mode & 0o777, 0o600);
-  const sent = readFileSync(f.cfLog, 'utf8').trim().split('\n').map(line => JSON.parse(line));
-  assert.deepEqual(sent.map(entry => entry.argv), [['put-tool', 'TOOL_STRIPE'], ['put-tool', 'TOOL_STRIPE']]);
-  assert.ok(sent.every(entry => entry.digest === createHash('sha256').update(KEY).digest('hex')));
-  for (const log of [f.log, f.cfLog]) assert.ok(!readFileSync(log, 'utf8').includes(KEY), log);
-});
-
-test('take-key that can not reach the live app keeps the key here and says so, still showing only four', t => {
-  const f = fixture(t);
-  f.run(['attach']); f.run(['open', 'https://dashboard.stripe.com/apikeys']);
-  const failed = f.run(['take-key', '--tool', 'stripe'], { CF_FAIL: '1' });
-  assert.equal(failed.status, 1);
-  assert.match(failed.stderr, /TOOL_STRIPE is saved on this computer, ends in …4f2a, but not on the live app: cf-secrets: ERROR/);
-  assert.ok(!`${failed.stdout}${failed.stderr}`.includes(KEY));
-  // Put on a version not yet live, it says when the live app gets it, never that it has it.
-  const later = f.run(['take-key', '--tool', 'stripe'], { CF_LATER: '1' });
-  assert.equal(later.status, 0, later.stderr);
-  assert.equal(later.stdout, 'TOOL_STRIPE saved on this computer, ends in …4f2a; it reaches the live app at the next publish\n');
-  assert.equal(f.run(['take-key', '--tool', 'Stripe']).status, 1);
-  const s = f.browserState(); s.pages['https://dashboard.stripe.com/apikeys'] = '- heading "API keys"'; writeFileSync(join(f.dir, 'ab.json'), JSON.stringify(s));
-  assert.match(f.run(['take-key', '--tool', 'stripe']).stderr, /No key shows on this page/);
-  assert.match(f.run(['take-key', '@e9', '--tool', 'stripe']).stderr, /No key shows at @e9/);
-});
-
-test('a command it does not know, or the wrong number of words, is a usage error', t => {
-  const f = fixture(t);
-  for (const args of [['look'], ['open'], ['take-key', '@e1', '@e2', '--tool', 'x'], ['click', 'button']]) {
-    assert.notEqual(f.run(args).status, 0, args.join(' '));
-  }
-  assert.equal(f.run(['look']).status, 2);
+  assert.match(f.run(['click', 'button']).stderr, /not a ref from read/);
 });
 
 // The assistant's browser on a server: a fake Camoufox under the test's HOME and its stand-in browse server.
@@ -237,30 +114,35 @@ function fakeWatch(t, f, control, turn = null, script = 'setTimeout(() => {}, 60
   return { dir, line: () => JSON.parse(readFileSync(join(dir, 'line.json'), 'utf8')).text, turn: () => JSON.parse(readFileSync(join(dir, 'turn.json'), 'utf8')) };
 }
 
-test('where names the place from the platform and its screen, and connects to nothing', () => {
+test('where names the place from the platform, its screen and the browser\'s window, and connects to nothing', () => {
   const view = (answer) => () => answer;
+  const off = { unsupported: 'off Linux', missing: [] };
+  const on = () => true, hidden = () => false;
   const cases = [
-    [{ platform: 'darwin', env: {} }, 'chrome'],
-    [{ platform: 'win32', env: {} }, 'chrome'],
-    [{ platform: 'linux', env: { DISPLAY: ':0' } }, 'chrome'],
-    [{ platform: 'linux', env: { WAYLAND_DISPLAY: 'wayland-0' } }, 'chrome'],
-    [{ platform: 'linux', env: {}, view: view({ missing: ['novnc'] }) }, 'server'],
-    [{ platform: 'linux', env: {}, view: view({ unsupported: 'no screen', missing: [] }) }, 'link'],
-    [{ platform: 'freebsd', env: {} }, 'link'],
+    [{ platform: 'darwin', env: {}, view: view(off), shown: on }, 'window'],
+    [{ platform: 'win32', env: {}, view: view(off), shown: on }, 'window'],
+    [{ platform: 'darwin', env: {}, view: view({ window: true, missing: [] }), shown: hidden }, 'window'],
+    [{ platform: 'darwin', env: {}, view: view(off), shown: hidden }, 'link'],
+    [{ platform: 'linux', env: { DISPLAY: ':0' }, view: view({ window: true, missing: [] }), shown: hidden }, 'window'],
+    [{ platform: 'linux', env: { WAYLAND_DISPLAY: 'wayland-0' }, view: view({ window: true, missing: [] }), shown: hidden }, 'window'],
+    [{ platform: 'linux', env: {}, view: view({ window: true, missing: [] }), shown: on }, 'server'],
+    [{ platform: 'linux', env: {}, view: view({ missing: ['novnc'] }), shown: on }, 'server'],
+    [{ platform: 'linux', env: {}, view: view({ unsupported: 'no screen', missing: [] }), shown: on }, 'link'],
+    [{ platform: 'freebsd', env: {}, view: view(off), shown: on }, 'link'],
   ];
   for (const [given, want] of cases) assert.equal(whereIs(given), want, JSON.stringify(given));
 });
 
-test('where and a Chrome-less attach say what to do next, and attach --server asks for an install it lacks', t => {
+test('where connects to nothing, and attach, with --server or not, asks for an install it lacks', t => {
   const f = fixture(t, { camoufox: { installed: false } });
-  assert.match(f.run(['where']).stdout, /^WHERE=(chrome|server|link)\n$/);
-  assert.deepEqual(f.calls(), []);
-  const none = f.run(['attach'], { NO_CHROME: '1' });
-  if (process.platform === 'linux') assert.match(none.stdout, /\nSERVER=possible\n$/);
-  const missing = f.run(['attach', '--server']);
-  assert.equal(missing.status, 3);
-  assert.equal(missing.stdout, 'BROWSE_NEEDS=install\n');
-  assert.match(missing.stderr, /browse\.mjs install/);
+  assert.match(f.run(['where']).stdout, /^WHERE=(window|server|link)\n$/);
+  assert.deepEqual(f.camofox.requests(), []);
+  for (const args of [['attach'], ['attach', '--server']]) {
+    const missing = f.run(args);
+    assert.equal(missing.status, 3, args.join(' '));
+    assert.equal(missing.stdout, 'BROWSE_NEEDS=install\n');
+    assert.match(missing.stderr, /browse\.mjs install/);
+  }
   assert.equal(f.run(['open', 'https://x.example.com/', '--server']).status, 2);
 });
 
@@ -278,37 +160,87 @@ test('in the assistant\'s browser, read hides a key, no picture while one shows,
   assert.equal(readFileSync(join(f.dir, 'p.png'), 'utf8'), 'png-1');
   assert.equal(f.run(['fill', '@e1', 'assistant read-only']).stdout, 'Done\n');
   assert.equal(f.run(['click', 'e2']).stdout, 'Done\n');
+  assert.equal(f.run(['wait', '500']).status, 0);
   assert.equal(f.run(['wait', 'e2']).status, 0);
   assert.equal(f.run(['wait', 'e9']).status, 1, 'a ref that never shows');
+  assert.equal(f.run(['open', 'http://www.notion.so/']).status, 1, 'an address that is not https');
 });
 
-test('in the assistant\'s browser, take-key reads the key unseen and prints only its last four', t => {
+/** No stand-in's log, and no argv sent, holds a copy of `value`. */
+function nowhere(f, value) {
+  for (const log of [f.caLog, f.cfLog]) assert.ok(!existsSync(log) || !readFileSync(log, 'utf8').includes(value), log);
+  for (const entry of logged(f.caLog)) assert.ok(!entry.argv.join(' ').includes(value), 'not in argv');
+}
+
+test('in the assistant\'s browser, take-key reads the key unseen, keeps it here, and sends it sealed through the app on stdin alone', t => {
   const f = onServer(t);
   for (const args of [['take-key', '--tool', 'notion'], ['take-key', '@e1', '--tool', 'notion']]) {
     const result = f.run(args);
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.stdout, 'TOOL_NOTION saved, ends in …91c0\n');
+    assert.equal(result.stdout, 'TOOL_NOTION sent, ends in …91c0, goes live at the next publish\n');
+    assert.ok(!`${result.stdout}${result.stderr}`.includes(NOTION_KEY));
     // A key in a box the page marks secret reads [hidden] in every snapshot, and still moves by its ref.
     f.camofox.set('secrets.json', [NOTION_KEY]);
   }
-  assert.match(readFileSync(join(f.primary, 'app', '.dev.vars'), 'utf8'), new RegExp(`\nTOOL_NOTION=${NOTION_KEY}\n$`));
-  const sent = readFileSync(f.cfLog, 'utf8').trim().split('\n').map(line => JSON.parse(line));
-  assert.ok(sent.every(entry => entry.digest === createHash('sha256').update(NOTION_KEY).digest('hex')));
+  const file = join(f.primary, 'app', '.dev.vars');
+  assert.equal(readFileSync(file, 'utf8'), `OTHER_KEY=kept\nTOOL_STRIPE=old\nTOOL_NOTION=${NOTION_KEY}\n`);
+  assert.equal(statSync(file).mode & 0o777, 0o600);
+  const sent = logged(f.caLog);
+  assert.deepEqual(sent.map(entry => entry.argv), [['key', 'send', 'TOOL_NOTION', '--value-stdin'], ['key', 'send', 'TOOL_NOTION', '--value-stdin']]);
+  assert.ok(sent.every(entry => entry.digest === digest(NOTION_KEY) && entry.cwd === realpathSync(f.worktree)));
+  assert.equal(existsSync(f.cfLog), false, 'no Cloudflare login is needed or used');
+  nowhere(f, NOTION_KEY);
   assert.match(f.run(['take-key', '@e9', '--tool', 'notion']).stderr, /No key shows at @e9/);
+  assert.equal(f.run(['take-key', '--tool', 'Notion']).status, 1, 'a tool id in lowercase only');
+});
+
+test('take-key --id sends a tool\'s ID as TOOL_<ID>_ID, beside its secret', t => {
+  const f = onServer(t);
+  const result = f.run(['take-key', '@e1', '--tool', 'shop-app', '--id']);
+  assert.equal(result.stdout, 'TOOL_SHOP_APP_ID sent, ends in …91c0, goes live at the next publish\n', result.stderr);
+  assert.deepEqual(logged(f.caLog).map(entry => entry.argv), [['key', 'send', 'TOOL_SHOP_APP_ID', '--value-stdin']]);
+  assert.match(readFileSync(join(f.primary, 'app', '.dev.vars'), 'utf8'), new RegExp(`\nTOOL_SHOP_APP_ID=${NOTION_KEY}\n$`));
 });
 
 // Notion's new connection page, as met live: the token is plain text with no ref, beside a long name and an id.
 const CONNECTION_PAGE = `- heading "WongStack (read only)"\n- link "Back" [e1]:\n  - /url: /developers/connections/3f0c2a9e-1b2c-4d5e-8f90-a1b2c3d4e5f6
 - textbox [e2]: WongStack (read only)\n- text: Claymoo API token ${NOTION_KEY}\n- button "Copy" [e3]`;
 
-test('take-key takes the one key that starts like a service\'s, and saves it with this computer\'s Cloudflare login', t => {
+test('take-key takes the one key that starts like a service\'s', t => {
   const f = onServer(t, CONNECTION_PAGE);
-  writeFileSync(join(f.primary, '.env'), 'CLOUDFLARE_API_TOKEN=cf-login\nOTHER=not-passed\n');
   const result = f.run(['take-key', '--tool', 'notion']);
-  assert.equal(result.stdout, 'TOOL_NOTION saved, ends in …91c0\n', result.stderr);
-  const [sent] = readFileSync(f.cfLog, 'utf8').trim().split('\n').map(line => JSON.parse(line));
-  assert.equal(sent.digest, createHash('sha256').update(NOTION_KEY).digest('hex'));
-  assert.equal(sent.login, 'cf-login');
+  assert.equal(result.stdout, 'TOOL_NOTION sent, ends in …91c0, goes live at the next publish\n', result.stderr);
+  assert.equal(logged(f.caLog)[0].digest, digest(NOTION_KEY));
+});
+
+test('an app with no lock for keys yet takes the key through this computer\'s Cloudflare login, when it has one', t => {
+  const f = onServer(t);
+  const refused = f.run(['take-key', '--tool', 'notion'], { CA_REFUSE: 'no_seal' });
+  assert.equal(refused.status, 1);
+  assert.equal(refused.stdout, '');
+  assert.match(refused.stderr, /^TOOL_NOTION is saved on this computer, ends in …91c0, but not sent to the app: no_seal: the app said no\n$/);
+  assert.equal(existsSync(f.cfLog), false, 'no login, no put');
+
+  writeFileSync(join(f.primary, '.env'), 'CLOUDFLARE_API_TOKEN=cf-login\nOTHER=not-passed\n');
+  const saved = f.run(['take-key', '--tool', 'notion'], { CA_REFUSE: 'no_seal' });
+  assert.equal(saved.stdout, 'TOOL_NOTION saved, ends in …91c0\n', saved.stderr);
+  const later = f.run(['take-key', '--tool', 'notion'], { CA_REFUSE: 'no_seal', CF_LATER: '1' });
+  assert.equal(later.stdout, 'TOOL_NOTION saved on this computer, ends in …91c0; it reaches the live app at the next publish\n', later.stderr);
+  const failed = f.run(['take-key', '--tool', 'notion'], { CA_REFUSE: 'no_seal', CF_FAIL: '1' });
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /TOOL_NOTION is saved on this computer, ends in …91c0, but not on the live app: cf-secrets: ERROR/);
+  const puts = logged(f.cfLog);
+  assert.deepEqual(puts.map(entry => [entry.argv, entry.digest, entry.login]), Array(3).fill([['put-tool', 'TOOL_NOTION'], digest(NOTION_KEY), 'cf-login']));
+
+  // Any other refusal, or a failure, never falls back, and an echo of the value is masked.
+  const owner = f.run(['take-key', '--tool', 'notion'], { CA_REFUSE: 'owner_required' });
+  assert.match(owner.stderr, /but not sent to the app: owner_required: the app said no/);
+  const echoed = f.run(['take-key', '--tool', 'notion'], { CA_FAIL: '1' });
+  assert.equal(echoed.status, 1);
+  assert.match(echoed.stderr, /but not sent to the app: company-api: could not send /);
+  assert.equal(logged(f.cfLog).length, 3, 'no put after another refusal');
+  for (const result of [refused, saved, later, failed, owner, echoed]) assert.ok(!`${result.stdout}${result.stderr}`.includes(NOTION_KEY));
+  nowhere(f, NOTION_KEY);
 });
 
 test('take-key never picks a publishable key that shows in full beside an account id', t => {
@@ -344,10 +276,7 @@ test('while the person holds the watch link\'s browser, every command but done i
   }
 });
 
-test('sign-in and watch work only in the assistant\'s browser, on its own page, and a turn waits for the key page', t => {
-  const desk = fixture(t);
-  desk.run(['attach']); desk.run(['open', 'https://dashboard.stripe.com/apikeys']);
-  for (const args of [['sign-in', '--tool', 'Stripe'], ['watch']]) assert.match(desk.run(args).stderr, /only in the assistant's browser/, args.join(' '));
+test('sign-in and watch work only on the helper\'s own page, and a turn waits for the key page', t => {
   const fresh = fixture(t, { camoufox: {} });
   fresh.run(['attach', '--server']);
   for (const args of [['sign-in', '--tool', 'Notion'], ['watch']]) assert.match(fresh.run(args).stderr, /No page is one this helper opened/, args.join(' '));
@@ -366,10 +295,13 @@ test('sign-in and watch work only in the assistant\'s browser, on its own page, 
 /** A live view this server could open, from stand-ins: a tunnel, the view's tools, and the browser's screen, set
  * before the browser starts; returns the environment that names them. */
 function viewable(f) {
+  // The fixture makes no bin folder now that no agent-browser stand-in lives there.
+  mkdirSync(join(f.dir, 'bin'), { recursive: true });
   fakeTunnel(join(f.dir, 'bin'), join(f.dir, 'tunnel.log'));
   fakeViewer(f.dir, VIEWER.version);
   f.camofox.set('display', ':97');
-  return { ...TUNNEL_ENV, ...fakeViewTools(f.dir, f.camofox.control).env() };
+  const tools = fakeViewTools(f.dir, f.camofox.control).env();
+  return { ...TUNNEL_ENV, ...tools, PATH: `${join(f.dir, 'bin')}:${tools.PATH ?? process.env.PATH}` };
 }
 
 const linux = { skip: process.platform !== 'linux' && 'a live view runs on Linux only' };
@@ -407,7 +339,7 @@ test('each command sets the watch link\'s line, and no line holds a key', t => {
   assert.equal(f.run(['click', '@e2']).status, 0);
   assert.equal(watch.line(), 'Clicking Show [key …91c0]…');
   assert.equal(f.run(['take-key', '@e1', '--tool', 'notion']).status, 0);
-  assert.equal(watch.line(), 'Key saved, ends in …91c0');
+  assert.equal(watch.line(), 'Key sent, ends in …91c0');
   assert.ok(!readdirSync(join(f.dir, '.wong-stack', 'hand-over'), { recursive: true }).some(name => {
     const file = join(f.dir, '.wong-stack', 'hand-over', name);
     return statSync(file).isFile() && readFileSync(file, 'utf8').includes(NOTION_KEY);
@@ -435,17 +367,14 @@ test('a sign-in turn ends only at the key page\'s own path with no sign-in box, 
   assert.equal(existsSync(join(watch.dir, 'turn.json')), false, 'no turn starts');
 });
 
-test('an attach starts afresh: a page an earlier attach opened is not the helper\'s, and Chrome is Chrome again', t => {
+test('an attach starts afresh: a page an earlier attach opened is not the helper\'s, and --server changes nothing', t => {
   const f = onServer(t);
+  assert.equal(f.run(['attach']).stdout, 'BROWSER=camoufox\n');
+  assert.match(f.run(['read']).stderr, /No page is one this helper opened/);
+  assert.equal(f.run(['open', INTEGRATIONS]).stdout, 'opened www.notion.so\n');
+  assert.equal(f.run(['read']).status, 0);
   assert.equal(f.run(['attach', '--server']).stdout, 'BROWSER=camoufox\n');
   assert.match(f.run(['read']).stderr, /No page is one this helper opened/);
-  assert.equal(f.run(['attach']).stdout, 'CHROME=attached\n');
-  f.setActive('t1');
-  assert.equal(f.run(['attach', '--server']).stdout, 'BROWSER=camoufox\n');
-  // An attach that adds no blank tab still leaves the assistant's browser behind.
-  assert.equal(f.run(['attach']).stdout, 'CHROME=attached\n');
-  assert.match(f.run(['open', 'https://dashboard.stripe.com/apikeys']).stdout, /^opened t\d+\n$/);
-  assert.ok(f.calls().some(argv => words(argv).join(' ') === 'tab new https://dashboard.stripe.com/apikeys'));
 });
 
 // A stand-in watcher that ends as the real one does on close: its result from the closing mark, then its pid gone.
@@ -470,4 +399,44 @@ test('done closes an open watch link, and passes --stopped on', async t => {
     assert.equal(existsSync(join(watch.dir, 'watcher.pid')), false, 'the watch link is closed');
     assert.deepEqual(f.camofox.tabs(), [], 'and the helper\'s page');
   }
+});
+
+/** Records the running browser as shown in its own window, as off Linux. */
+function inWindow(f) {
+  const record = join(f.camofox.install, 'server.json');
+  writeFileSync(record, JSON.stringify({ ...JSON.parse(readFileSync(record, 'utf8')), window: true }));
+}
+
+test('in a browser window, watch opens nothing, and sign-in gives a turn there that ends on its finish', async t => {
+  const f = onServer(t, SIGN_IN_PAGE);
+  inWindow(f);
+  const dir = join(f.dir, '.wong-stack', 'hand-over', 'links', 'wt');
+  const env = { HANDOVER_POLL_MS: '50' };
+  try {
+    const watch = await f.runFree(['watch'], env);
+    assert.equal(watch.stdout, 'HANDOVER_VIEW=window\n', watch.stderr);
+    assert.equal(existsSync(join(dir, 'state.json')), false, 'watch opens nothing');
+
+    const turn = await f.runFree(['sign-in', '--tool', 'Notion'], env);
+    assert.equal(turn.status, 0, turn.stderr);
+    assert.match(turn.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=[^\n]+\nCONNECT_PAUSED=your-turn\n$/);
+    assert.doesNotMatch(turn.stdout, /HANDOVER_LINK|https?:/);
+    const note = 'Sign in to Notion in the browser window, then say done.';
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'turn.json'), 'utf8')), { n: 1, ...signInFinish(INTEGRATIONS), note });
+    assert.equal((await f.runFree(['read'], env)).stdout, 'CONNECT_PAUSED=your-turn\n');
+
+    // The person signs in: the key page shows no sign-in box, and the watcher hands the browser back.
+    f.camofox.set('count', '0');
+    for (const end = Date.now() + 10_000; (await f.runFree(['read'], env)).status !== 0;) {
+      assert.ok(Date.now() < end, 'the turn ends on its finish');
+      await new Promise(done => setTimeout(done, 50));
+    }
+    f.camofox.unset('count');
+    const again = await f.runFree(['sign-in', '--tool', 'Notion'], env);
+    assert.equal(again.stdout, 'HANDOVER_VIEW=window\nCONNECT_PAUSED=your-turn\n', again.stderr);
+    assert.equal(JSON.parse(readFileSync(join(dir, 'turn.json'), 'utf8')).n, 2, 'the open watch gives the next turn');
+  } finally {
+    await f.runFree(['done'], env);
+  }
+  assert.equal(existsSync(join(dir, 'watcher.pid')), false, 'done closes the watch');
 });

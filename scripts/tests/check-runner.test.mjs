@@ -156,6 +156,17 @@ test('a failing prepare or deploy is a failure at that stage, with no address', 
   assert.match(result.reason, /migration failed/);
 });
 
+test('only main\'s deploy stage is handed the private half that opens waiting keys, and puts them after it deploys', async () => {
+  const live = standIn({ deploy: `WONG_OUTPUT production-url=${LIVE}\n` });
+  await runPipeline(paramsOf({ ref: MAIN }), live.ci, CONFIG, { sealPrivate: 'made-up-private-half' });
+  assert.deepEqual(live.seen.map(call => call.options.env.WONG_KEY_SEAL_PRIVATE), [undefined, undefined, 'made-up-private-half']);
+  const command = live.seen[2].options.command;
+  assert.ok(command.indexOf('node scripts/seal-keys.mjs put') > command.indexOf('bash scripts/cf-deploy.sh\n'), 'the keys go in after the deploy');
+  const branch = standIn();
+  await runPipeline(paramsOf(), branch.ci, CONFIG, { sealPrivate: 'made-up-private-half' });
+  assert.ok(branch.seen.every(call => !('WONG_KEY_SEAL_PRIVATE' in call.options.env)), 'a preview is never handed it');
+});
+
 test('a push to main deploys production, and returns the address under `production`', async () => {
   const { ci, seen, names } = standIn({ deploy: `WONG_OUTPUT production-url=${LIVE}\n` });
   const result = await runPipeline(paramsOf({ ref: MAIN }), ci, CONFIG);

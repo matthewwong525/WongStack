@@ -11,7 +11,7 @@ import { runId } from '../../../../scripts/check-runner/run-id.mjs';
 import { delivery } from './delivery-route.mjs';
 
 const API = 'https://api.cloudflare.com/client/v4';
-const USAGE = 'usage: artifacts-run.mjs wait [minutes] | preview | live <sha> | result <sha> <ref> | restart <sha> <ref>';
+const USAGE = 'usage: artifacts-run.mjs wait [minutes] | preview | live <sha> | result <sha> <ref> | restart <sha> <ref> | keys <sha>';
 const CUT_OFF = 'the check run was cut off';
 const MAIN = 'refs/heads/main';
 const ADDRESS = /^https:\/\/[A-Za-z0-9.-]+(?::\d+)?(?:\/\S*)?$/;
@@ -56,6 +56,20 @@ export async function restartRun({ token, fetch: fetchFn = globalThis.fetch, ...
   return { ok: false, why: `Cloudflare answered HTTP ${response.status}${refused}` };
 }
 
+// A keys-only publish: a new run of main's commit `sha` under a name of its own, so the commit's run stays as it was.
+// Its deploy puts the keys sent to the app (wiki/stack/connect-your-tools.md). `{ ok, id }` or `{ ok: false, why }`.
+export async function startKeysRun({ token, namespace, repo, sha, now = Date.now(), fetch: fetchFn = globalThis.fetch, ...run }) {
+  const id = `keys-${sha.slice(0, 12)}-${now}`;
+  const params = { provider: 'cloudflare-artifacts', providerData: { namespace }, event: { type: 'push' }, owner: namespace, repo, sha, remote: 'cloudflare', trigger: 'push', ref: MAIN, branch: 'main' };
+  let response;
+  try {
+    response = await fetchFn(instanceUrl({ ...run, id: '' }).replace(/\/$/, ''), { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ instance_id: id, params }) });
+  } catch {
+    return { ok: false, why: 'Cloudflare could not be reached' };
+  }
+  return response.ok ? { ok: true, id } : { ok: false, why: `Cloudflare answered HTTP ${response.status}` };
+}
+
 // What one read means for `sha` on `ref`: `{ result, lines, address }`; `result` is null while missing or running.
 // A pass needs the run's own word for this commit and branch. A cut-off run is UNKNOWN with `cutOff`, never FAILURE.
 export function verdict(run, { sha, ref }) {
@@ -93,7 +107,8 @@ export function context(cwd = process.cwd(), env = process.env) {
   if (!token) throw new Error('CLOUDFLARE_API_TOKEN is not set in the primary worktree .env');
   if (!recorded.accountId || !recorded.workflow) throw new Error('the install record names no check runner');
   const branch = git(root, 'symbolic-ref', '--quiet', '--short', 'HEAD');
-  return { token, account: recorded.accountId, workflow: recorded.workflow, api: env.WONG_CLOUDFLARE_API || API, sha: git(root, 'rev-parse', 'HEAD'), ref: branch ? `refs/heads/${branch}` : '' };
+  return { token, account: recorded.accountId, workflow: recorded.workflow, namespace: recorded.namespace, repo: recorded.repo,
+    api: env.WONG_CLOUDFLARE_API || API, sha: git(root, 'rev-parse', 'HEAD'), ref: branch ? `refs/heads/${branch}` : '' };
 }
 
 // Why a run may not be started again, or '' when it may: only a cut-off run. A failed check stands, a finished
@@ -145,7 +160,7 @@ export const print = (out, { result, lines }, label = 'RESULT') => {
 export async function cli(argv, { cwd = process.cwd(), env = process.env, out = console.log, err = console.error, fetch: fetchFn, sleep = (ms) => new Promise((done) => setTimeout(done, ms)) } = {}) {
   const [command, ...rest] = argv;
   const timing = { grace: Number(env.WAIT_FOR_CHECKS_GRACE ?? 60), interval: Number(env.WAIT_FOR_CHECKS_INTERVAL ?? 10), fetch: fetchFn, sleep };
-  if (!['wait', 'preview', 'live', 'result', 'restart'].includes(command)) {
+  if (!['wait', 'preview', 'live', 'result', 'restart', 'keys'].includes(command)) {
     err(USAGE);
     return 2;
   }
@@ -156,8 +171,8 @@ export async function cli(argv, { cwd = process.cwd(), env = process.env, out = 
     if (command === 'wait') print(out, { result: 'UNKNOWN', lines: [error.message] });
     else if (command === 'live') out('unknown');
     else if (command === 'result') out('UNKNOWN');
-    else if (command === 'restart') print(out, { result: 'failed', lines: [error.message] }, 'RESTART');
-    return command === 'restart' ? 1 : 0;
+    else if (command === 'restart' || command === 'keys') print(out, { result: 'failed', lines: [error.message] }, command.toUpperCase());
+    return command === 'restart' || command === 'keys' ? 1 : 0;
   }
   const head = { sha: target.sha, ref: target.ref };
   if (command === 'wait') {
@@ -180,6 +195,15 @@ export async function cli(argv, { cwd = process.cwd(), env = process.env, out = 
   if (!/^[0-9a-f]{40}$/.test(sha ?? '') || !ref.startsWith('refs/heads/')) {
     err(USAGE);
     return 2;
+  }
+  if (command === 'keys') {
+    if (ref !== MAIN || rest.length > 1) {
+      err(USAGE);
+      return 2;
+    }
+    const started = await startKeysRun({ ...target, sha, fetch: fetchFn });
+    print(out, started.ok ? { result: 'started', lines: [`run ${started.id} deploys main again and puts the waiting keys`] } : { result: 'failed', lines: [started.why] }, 'KEYS');
+    return started.ok ? 0 : 1;
   }
   if (command === 'result' || command === 'restart') {
     const id = await runId(sha, ref);

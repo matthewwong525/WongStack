@@ -39,12 +39,22 @@ function mcpProblem(forward: Forward): string | null {
   return bad === undefined ? null : `the MCP look-up "${bad}" must be a tool's name`;
 }
 
+/** A token address is HTTPS on base's own host, the key names the ID's secret beside its own, and no MCP server. */
+function exchangeProblem(key: RuledKey, forward: Forward): string | null {
+  if (!forward.exchange) return null;
+  if (forward.mcp) return "a token address goes with an API, not an MCP server";
+  if (!key.secrets.includes(`${forward.secret}_ID`)) return "a token address needs the ID's secret too: the secret's name and _ID";
+  const url = URL.canParse(forward.exchange.url) ? new URL(forward.exchange.url) : null;
+  return url?.protocol === "https:" && url.host === new URL(forward.base).host && !url.username && !url.password ? null
+    : `the token address ${forward.exchange.url} must be HTTPS on base's own host`;
+}
+
 /** What is wrong with a key's `forward` entry, or null. */
 export function forwardProblem(id: string, key: RuledKey, forward: Forward): string | null {
   if (!/^[a-z][a-z0-9-]*$/.test(id)) return "a key used directly needs an id in lowercase letters, digits and hyphens";
   if (key.setup || key.alone) return "a key setup makes, or the Worker's own route uses, takes no forward";
   if (!/^https:\/\/[^/?#@\s]+\/(?:[^?#\s]*\/)?$/.test(forward.base) || !URL.canParse(forward.base) || !plain(new URL(forward.base).pathname.slice(1))) return "base must be an HTTPS address ending in /";
-  const wrong = credentialProblem(key, forward) ?? mcpProblem(forward);
+  const wrong = credentialProblem(key, forward) ?? mcpProblem(forward) ?? exchangeProblem(key, forward);
   if (wrong) return wrong;
   const bad = (forward.lookups ?? []).find(entry => !new RegExp(`^(?:${METHOD}) [^ ]+$`).test(entry) || !plain(entry.split(" ")[1]));
   return bad === undefined ? null : `the look-up "${bad}" must be METHOD path, with a path that stays under base`;

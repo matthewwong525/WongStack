@@ -87,6 +87,19 @@ it("holds no tool on a preview, and none from a row that breaks a rule", async (
   expect((await ask("read", "GET", "pages")).status).toBe(404);
 });
 
+it("saves a tool that trades an ID and a secret, needing both, and refuses a token address on another host", async () => {
+  const shopify = { title: "Shopify", purpose: "Store orders, products and customers", docs: "https://shopify.dev/docs/api/admin-rest",
+    forward: { base: "https://claymoo.myshopify.com/admin/api/2026-10/", header: "X-Shopify-Access-Token", prefix: "",
+      exchange: { url: "https://claymoo.myshopify.com/admin/oauth/access_token" } } };
+  expect(await body(await save("shopify", shopify))).toEqual({ id: "shopify", secret: "TOOL_SHOPIFY" });
+  const env = await withTools(fakeEnv({ ...f.env, TOOL_SHOPIFY: "made-up-secret" }));
+  expect(registryOf(env).shopify.secrets).toEqual(["TOOL_SHOPIFY", "TOOL_SHOPIFY_ID"]);
+  expect(await error(await save("shopify", { ...shopify, forward: { ...shopify.forward, exchange: { url: "https://evil.example/oauth/access_token" } } }))).toEqual([400,
+    { code: "bad_tool", message: "the token address https://evil.example/oauth/access_token must be HTTPS on base's own host" }]);
+  // A tool's own key never takes the name of another tool's ID.
+  expect(await error(await save("shopify-id", notion))).toEqual([400, { code: "bad_tool", message: "a tool's id never ends in -id" }]);
+});
+
 it("removes a tool: Access lists it as added in a chat, and its routes go on the next request", async () => {
   await save("notion", notion);
   const status = await body(await management(req("status", "GET"), await live(), owner));

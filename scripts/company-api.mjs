@@ -139,6 +139,9 @@ const USAGE = `usage: company-api.mjs <command> [--state <private directory>]
   mcp <key> tool <name> --file <JSON arguments or -> [--full]
   tool add <id> --file <JSON or ->   add a tool to the live app, owner or Admin: wiki/stack/connect-your-tools.md
   tool remove <id>
+  key send <NAME> --value-stdin      seal a key read from stdin with the app's public key, here, and send it to the
+                                     live app, owner or Admin; it goes live at the next publish
+  key send <NAME> --sealed-file <file or ->   send a key sealed already, as {"sealed":{...},"ends":"abcd"}
 call and mcp print at most 20 KB; a longer answer is saved to a private file it names. --full prints it all.`;
 
 async function services(client, values) {
@@ -156,6 +159,25 @@ async function toolCommand(client, action, [id, ...rest], input) {
   const init = action === 'add' ? { method: 'PUT', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(input()) }
     : { method: 'DELETE', headers: { Origin: origin } };
   const { value } = await client.http(`/api/access/tools/${id}`, init, origin, undefined, { check: ' Check with `services --all` before repeating.' });
+  return value;
+}
+
+/** Sends one key to the live app, sealed in this process with the app's public key, or sealed already: the plain value
+ *  is in no argument, output or request. The app checks the name and who asks. wiki/stack/connect-your-tools.md */
+async function keyCommand(client, action, [name, ...rest], values) {
+  if (action !== 'send' || !/^[A-Z][A-Z0-9_]*$/.test(name ?? '') || rest.length || Boolean(values['value-stdin']) === (values['sealed-file'] !== undefined)) throw new Error(USAGE);
+  let body;
+  if (values['value-stdin']) {
+    const value = readFileSync(0, 'utf8').replace(/\r?\n$/, '');
+    if (!value.trim()) throw new Error(`No key on stdin for ${name}.`);
+    const { value: lock } = await client.http('/api/access/keys/seal');
+    if (lock.error) return lock;
+    const { seal } = await import('../app/src/lib/seal.ts');
+    body = { sealed: JSON.parse(await seal(value, lock.publicKey)), ends: value.slice(-4) };
+  } else body = JSON.parse(readFileSync(values['sealed-file'] === '-' ? 0 : values['sealed-file'], 'utf8'));
+  const origin = client.target();
+  const { value } = await client.http(`/api/access/keys/${name}`, { method: 'PUT', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+    origin, undefined, { check: ' Check with `services --all` before repeating.' });
   return value;
 }
 
@@ -203,9 +225,9 @@ const once = value => () => value;
 if (isMain(import.meta.url)) {
   const { positionals: [command, id, ...extra], values } = parseCli({ usage: USAGE, allowPositionals: true, options: {
     ...Object.fromEntries(['origin', 'state', 'scope', 'q', 'app', 'limit', 'offset', 'file'].map(name => [name, { type: 'string' }])),
-    ...Object.fromEntries(['all', 'json', 'full', 'last', 'refresh'].map(name => [name, { type: 'boolean' }])) } });
+    'sealed-file': { type: 'string' }, ...Object.fromEntries(['all', 'json', 'full', 'last', 'refresh', 'value-stdin'].map(name => [name, { type: 'boolean' }])) } });
   try {
-    if (extra.length && !['mcp', 'tool', 'api', 'record'].includes(command)) throw new Error(USAGE);
+    if (extra.length && !['mcp', 'tool', 'key', 'api', 'record'].includes(command)) throw new Error(USAGE);
     const client = companyClient({ stateDir: values.state, onLoginUrl: link => console.error(signInNotice(link)) });
     let input = () => parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8'));
     if (command === 'services') await services(client, values);
@@ -213,6 +235,7 @@ if (isMain(import.meta.url)) {
       printAnswer(await mcpCommand(client, id, extra, input), values);
     }
     else if (command === 'tool') printCall(command, await toolCommand(client, id, extra, input), values);
+    else if (command === 'key') printCall(command, await keyCommand(client, id, extra, values), values);
     else if (command === 'api') {
       if (extra.length > 1) throw new Error(USAGE);
       console.log(await apiCommand(client, CHECKOUT, id, extra[0]));

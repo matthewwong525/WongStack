@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.4.0 — Connect your tools in the assistant's browser, with keys sent through the app
+
+- **Connecting uses the assistant's own browser on every computer.** On a Mac or Windows computer, it is the window you already use for robot checks; on a server, the watch link. The *use your own Chrome* question is gone. When a tool asks you to sign in, the chat says *Sign in to Shopify in the browser window, then say done*, and the assistant carries on once the site lets you in ([use the assistant's browser](wiki/stack/connect-your-tools.md#use-the-assistants-browser)).
+- **Each key goes to your app locked, with your company sign-in.** The computer needs no Cloudflare login. The key is locked before it leaves the page, and only the next publish can open it and put it in your app's secrets. Even the app can't read it while it waits. The chat shows only the last four characters, and offers to publish just the keys when nothing else waits ([how a key reaches the app](wiki/stack/connect-your-tools.md#how-a-key-reaches-the-app)).
+- **You can paste a key in Access.** Each row in Services has *Paste key*, or *Replace key*. The key is locked in your browser, and the row says *Waiting for the next publish* until it goes live ([the Services view](wiki/stack/access-screens.md#the-services-view)).
+- **Tools that give an ID and a secret work.** The app trades them for a short token itself, keeps it until it runs out, and gets a new one. So Shopify can use a key that only reads ([a tool with an ID and a secret](wiki/stack/connect-your-tools.md#a-tool-with-an-id-and-a-secret)).
+
+**Updating.** The assistant makes your app's pair of locks once: it runs `node scripts/seal-keys.mjs pair`, which keeps one half where your app is published and writes the other half in your app's settings. Until then, a key sent to the app is refused and the assistant says so. Keys already saved keep working.
+
 ## 50.3.0 — Each outside service keeps the calls you use, with examples, in one place
 
 - **A short view of each call before you use it.** `node scripts/company-api.mjs api notion` lists the calls you use with Notion, one line each. `api notion search` shows how you use one, what to send, what comes back, and its saved examples. `api company` shows the app's own calls ([each service's definition](wiki/stack/service-catalogue.md#each-services-definition)).

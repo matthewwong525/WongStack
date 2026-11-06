@@ -12,7 +12,7 @@ Want new projects to start with your own tools and site? [Make WongStack your ow
 - A separate address for every version you're still working on, so you can look at a change before it's real
 - A place your data lives, and a practice copy of it that test versions use
 - Automatic publishing: when a change is approved, it goes live
-- **Your tools, connected**: right after install, the chat suggests the tools you use and [connects them](connect-your-tools.md), making each key in your own Chrome when you say yes.
+- **Your tools, connected**: right after install, the chat suggests the tools you use and [connects them](connect-your-tools.md), making each key in the assistant's own browser.
 - A **first app**, offered in the same chat and built on those tools: the agent asks about your work, suggests a few apps, builds the one you pick, and explains each step as it goes. Skip it, and the starter site's *Make it yours* box starts it later. The site is yours to change, replace, or delete.
 - An assistant that **already knows you**: while it installs, setup reads what you typed in your past AI chats on this computer and keeps short notes about you and your business. It tells you first; say *skip the chats* and it stops. [Learning from past chats](learning-from-chats.md) says what it reads and what it keeps.
 

@@ -161,6 +161,8 @@ CI gets its own narrow token, never the user token ([why](../../../../wiki/stack
 
 It sets a missing `CLOUDFLARE_ACCOUNT_ID` too. `gh secret set` needs only the `repo` scope from `gh auth login`. It can publish app/data changes and read Access, never write it.
 
+**The pair of locks for keys.** Then run `node scripts/seal-keys.mjs pair` once. It puts the private half where publishing runs, as `WONG_KEY_SEAL_PRIVATE`: a GitHub secret, or the check runner's secret on the Artifacts route. Then it writes the public half in `app/wrangler.jsonc`. Keys sent to the app then [wait sealed for the next publish](../../../../wiki/stack/connect-your-tools.md#how-a-key-reaches-the-app). Run it again only to make a new pair.
+
 ### 4e. The workflow
 
 Confirm `.github/workflows/test.yml`, `.github/workflows/deploy.yml`, and `.nvmrc` landed; [the pipeline scripts own every deploy decision](../../../../wiki/stack/github-actions.md).
