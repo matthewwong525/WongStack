@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.1.1 — The last pretend database goes
+
+- **Three more server tests read real rows.** The tests for who may open which app, which keys and tools a person holds, and the list of actions an AI can call now run real queries on the test copy of the database. A test of a failed database closes that copy, so the read fails for real.
+- **The pretend database is gone.** `fakeDatabase` in `app/tests/env.ts` had no other use. Every line is still tested, and the tests take no longer.
+- **The testing guide says why the runtime tests don't count toward the 100% rule.** The local server gives only whole-function coverage, not line by line ([testing the app](wiki/stack/testing.md#local-checks)).
+
+**Updating.** If your own tests use `fakeDatabase`, they stop building after the update. Add this line to those tests: `const fakeDatabase = <Calls extends object>(calls: Calls) => calls as D1Database & Calls;`. Or move them to the `database()` test helper in `app/tests/employee-access/connections.ts`, which builds a real test database from your migrations.
+
 ## 50.1.0 — Your password manager in the assistant's browser
 
 - **Add your password manager to the assistant's browser.** The assistant asks once which one you use, such as 1Password or Bitwarden, right after its browser installs. It finds the add-on on Firefox's add-on site and names its maker, website and daily users before your yes. It warns you when an add-on is not featured and few people use it ([your password manager](wiki/development/password-manager.md)).

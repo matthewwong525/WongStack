@@ -12,6 +12,7 @@ Run `npm run test:runtime` from `app/` for just the runtime cases. It builds onl
 
 Every case resets the Access tables and removes the suite's failure trigger; migrations and the one running session remain. Requests use generated signing keys and synthetic people. Only the signing-key response is substituted: authorization, request routing, D1 queries and transaction rollback use the real app and binding. Unexpected outgoing requests fail. The app's compatibility flags are kept, and its secret files and deployed resources are never used.
 
+The runtime suite's lines do not count toward the 100% coverage limit. The local runtime, workerd, answers the profiler itself and refuses line-by-line coverage; its best-effort coverage counts a whole function once it runs, a `throw` that no case reaches included. So server logic keeps its unit tests, on the test copy of the database that [`database()`](../../app/tests/employee-access/connections.ts) builds from the real migrations.
 
 The separate `npm run test:checks` command gives the runtime check a deliberately wrong expectation after a successful request. A startup error cannot count as catching that mistake. It also proves the existing type and coverage checks still reject their bad samples.
 
