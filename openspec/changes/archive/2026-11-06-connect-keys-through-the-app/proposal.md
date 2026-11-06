@@ -1,6 +1,6 @@
 # Connect your tools in the assistant's browser, with keys sent through the app
 
-**Status:** built; checking on the preview
+**Status:** shipping as 50.4.0
 **Branch:** calm-dinosaur
 **Open questions:** none
 
@@ -93,3 +93,4 @@ On 2026-11-06, a Mac test showed that connecting a tool takes too many routes an
 - **2026-11-06** — Assumed: the Shopify swap to the read-only app runs right after the publish, in the same chat, not as a task, because it needs the published code and the keys-only publish of `main`; a preview holds no tools.
 - **2026-11-06** — Assumed: task 7.1 checks the preview without a paste button, because WongStack's preview holds no key a person can paste.
 - **2026-11-06** — Assumed: the public half of the lock goes in every environment's settings, staging too, because named environments inherit no settings and the publish's parity check stops a top-level setting staging lacks; a preview refuses a key before it reads the lock.
+- **2026-11-06** — Assumed: archived for 50.4.0 after CI passed and the preview's Services showed the Cloudflare row *Live app only* with no paste button; the read-only Shopify app is made and installed, and its keys go in after the publish.

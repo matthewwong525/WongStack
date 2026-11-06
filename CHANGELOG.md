@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Connect your tools in the assistant's browser, with keys sent through the app
+## 50.4.0 — Connect your tools in the assistant's browser, with keys sent through the app
 
 - **Connecting uses the assistant's own browser on every computer.** On a Mac or Windows computer, it is the window you already use for robot checks; on a server, the watch link. The *use your own Chrome* question is gone. When a tool asks you to sign in, the chat says *Sign in to Shopify in the browser window, then say done*, and the assistant carries on once the site lets you in ([use the assistant's browser](wiki/stack/connect-your-tools.md#use-the-assistants-browser)).
 - **Each key goes to your app locked, with your company sign-in.** The computer needs no Cloudflare login. The key is locked before it leaves the page, and only the next publish can open it and put it in your app's secrets. Even the app can't read it while it waits. The chat shows only the last four characters, and offers to publish just the keys when nothing else waits ([how a key reaches the app](wiki/stack/connect-your-tools.md#how-a-key-reaches-the-app)).

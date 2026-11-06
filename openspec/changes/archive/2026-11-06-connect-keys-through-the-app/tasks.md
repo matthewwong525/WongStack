@@ -34,4 +34,4 @@
 
 ## 7. Live
 
-- [ ] 7.1 With WongStack's own key pair made (`seal-keys.mjs pair`), `/save` and confirm CI passes and the preview's Services opens with the Cloudflare row still *Live app only* and no paste button on a preview.
+- [x] 7.1 With WongStack's own key pair made (`seal-keys.mjs pair`), `/save` and confirm CI passes and the preview's Services opens with the Cloudflare row still *Live app only* and no paste button on a preview.
