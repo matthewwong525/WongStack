@@ -2,13 +2,13 @@
 // person's OK in a chat; the app is never asked what is approved. wiki/stack/host-schedules.md
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { helperFiles } from '../../../hand-over/scripts/lib/computer.mjs';
+import { wongDir } from '../../../hand-over/scripts/lib/computer.mjs';
 import { signIn } from '../../../memory/scripts/lib/store.mjs';
 
 const VERSION = /^[a-f0-9]{64}$/;
 
-/** `~/.wong-stack/helper/approved.json`, beside the helper's run ledger. */
-export const approvalsFile = (env = process.env) => join(helperFiles(env).dir, 'approved.json');
+/** `~/.wong-stack/helper/approved.json`: one file for every project's helper, as each OK already names its app. */
+export const approvalsFile = (env = process.env) => join(wongDir(env), 'helper', 'approved.json');
 
 /** One approval's name: the app, the person and the schedule, so two people on one computer never share an OK. */
 export function approvalKey({ origin, email, key }) {

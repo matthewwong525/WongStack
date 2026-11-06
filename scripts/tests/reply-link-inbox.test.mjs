@@ -2,10 +2,12 @@
 // A fake app client and a fake wake stand in for the company helper and Paseo.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { helperFiles } from '../../.agents/skills/hand-over/scripts/lib/computer.mjs';
 import test from 'node:test';
 import { checkin, closeItem, companyFor, listLink, probe, tapResult, upload } from '../../.agents/skills/hand-over/scripts/lib/inbox.mjs';
 import { closeInboxItem, inboxTick, openInboxItem, openReplyLink, startInbox, unlist } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
@@ -273,14 +275,14 @@ test('an inbox helper from older code is replaced by the next start; a current o
   const started = record();
   pids.push(started.pid);
   assert.notEqual(started.pid, old.pid);
-  assert.equal(started.protocol, 13);
+  assert.equal(started.protocol, 14);
   assert.equal(alive(old.pid), false, 'the older helper ended');
 
   const current = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e6)'], { detached: true, stdio: 'ignore' });
   pids.push(current.pid);
-  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 13 }));
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 14 }));
   await startInbox(at.state, at.env);
-  assert.deepEqual(record(), { pid: current.pid, protocol: 13 }, 'no second helper starts');
+  assert.deepEqual(record(), { pid: current.pid, protocol: 14 }, 'no second helper starts');
   assert.ok(alive(current.pid));
 });
 
@@ -296,7 +298,7 @@ test('a recorded pid that is not the inbox helper is a stale record: a new helpe
   const started = JSON.parse(readFileSync(at.state.inbox, 'utf8'));
   pids.push(started.pid);
   assert.notEqual(started.pid, other.pid);
-  assert.equal(started.protocol, 13);
+  assert.equal(started.protocol, 14);
   assert.ok(alive(other.pid), 'the other program is left running');
 });
 
@@ -605,4 +607,36 @@ test('a long read of one tap\'s files fails no other tap of its round, and each 
   assert.deepEqual(app.calls.filter(call => call.route === 'tap-result').map(call => [call.body.id, call.body.state]), [['t1', 'sent'], ['t2', 'sent']]);
   const order = app.calls.map(call => call.route === 'tap-result' ? call.body.id : call.route === 'item-close' ? `close ${call.body.id}` : null).filter(Boolean);
   assert.equal(order[0], 't1', 'the first is told before the second is delivered');
+});
+
+test('a project with its own helper keeps its items in its own folder, which only its helper serves', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const root = join(at.dir, 'notes');
+  mkdirSync(root);
+  execFileSync('git', ['init', '-q', root]);
+  const own = helperFiles(at.env, root);
+  mkdirSync(own.dir, { recursive: true });
+  writeFileSync(own.current, JSON.stringify({ script: '/x/reply-link.mjs', protocol: 14, project: root }));
+  const starts = [];
+  const item = await openInboxItem({ title: 'Send the quote', body: '{}', kind: 'approval', header: HEADER, actions: { approve: 'Approved.' }, hours: 1, target: CHAT, cwd: root },
+    { env: at.env, clientFor: async () => app.client, start: state => { starts.push(state); } });
+  assert.ok(ID.test(item.id));
+  assert.deepEqual(readdirSync(own.items), [`${item.id}.json`]);
+  assert.equal(existsSync(at.state.items), false, 'the shared helper never sees it');
+  assert.equal(starts[0].project, root, 'an inbox helper started for it serves this project alone');
+  assert.equal(starts[0].inbox, own.inbox);
+  assert.equal(await tick(at, app), 0, 'the shared helper\'s round finds nothing');
+  assert.equal(await closeInboxItem(item.id, { env: at.env, clientFor: async () => app.client, cwd: root }), true);
+  assert.deepEqual(readdirSync(own.items), []);
+  assert.equal(app.items.size, 0);
+});
+
+test('serve-inbox takes --project as a full path only', () => {
+  const script = fileURLToPath(new URL('../../.agents/skills/hand-over/scripts/reply-link.mjs', import.meta.url));
+  const run = spawnSync(process.execPath, [script, 'serve-inbox', '--project', 'relative/path'], { encoding: 'utf8', env: { ...process.env, HOME: tmpdir() } });
+  assert.notEqual(run.status, 0);
+  assert.match(run.stderr, /--project takes a main checkout's full path/);
+  const misplaced = spawnSync(process.execPath, [script, 'list', '--project', '/a'], { encoding: 'utf8', env: { ...process.env, HOME: tmpdir() } });
+  assert.notEqual(misplaced.status, 0);
 });

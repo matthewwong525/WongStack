@@ -7,12 +7,12 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { lookCss } from '../../plan/scripts/look.mjs';
-import { computerId, readApps, rememberApp } from './lib/computer.mjs';
+import { computerId, guardShared, hasOwnHelper, helperFiles, leaveShared, ownHelper, readApps, rememberApp } from './lib/computer.mjs';
 import { logAction } from './lib/helper-log.mjs';
 import { checkin, closeItem, companyFor, inTime, listLink, openSocket, probe, readFile, tapResult, upload } from './lib/inbox.mjs';
 import { appLines, nextPoll, waiter } from './lib/line.mjs';
@@ -44,9 +44,9 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
   list    print each open page's file and when it closes`;
 export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300, actions: 6 };
 const HOURS = 24;
-// Raised when the server or inbox helper changes: one from older code is swapped for this one. Every project on the
-// computer shares both, so a copy that changes either raises it past every other copy's number.
-export const PROTOCOL = 13;
+// Raised when the server or inbox helper changes, so older code is swapped out; the shared page server needs it above
+// every other copy's. A project's own helper compares it with its own copies only. 14: `serve-inbox --project`.
+export const PROTOCOL = 14;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act|file)?$/;
@@ -63,11 +63,21 @@ const DELIVER_MS = 90_000;
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 
-/** The state files under `env.HOME`, apart from hand-over's. */
-function files(env = process.env) {
+/** The state files under `env.HOME`, apart from hand-over's. The page server's are shared by every project; the inbox's
+ *  items and helper record are `project`'s own helper's, or with none the shared helper's. */
+function files(env = process.env, project = null) {
   const dir = join(env.HOME || homedir(), '.wong-stack', 'reply-link');
-  return { dir, pages: join(dir, 'pages'), items: join(dir, 'items'), uploads: join(dir, 'uploads'), inbox: join(dir, 'inbox.json'), server: join(dir, 'server.json'), lock: join(dir, 'starting.lock'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml') };
+  const { items, inbox } = helperFiles(env, project);
+  return { dir, project, pages: join(dir, 'pages'), items, uploads: join(dir, 'uploads'), inbox, server: join(dir, 'server.json'), lock: join(dir, 'starting.lock'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml') };
 }
+
+/** The state an item from `cwd` goes in: its project's own helper's when it has one, so only that helper sends it. */
+const stateFor = (env, cwd) => files(env, ownHelper(cwd, env));
+/** Where an open item from `cwd` may be: its project's own state, then the shared one it may predate. */
+const statesFor = (env, cwd) => {
+  const own = ownHelper(cwd, env);
+  return own ? [files(env, own), files(env)] : [files(env)];
+};
 
 const pageFile = (state, id) => join(state.pages, `${id}.json`);
 
@@ -453,8 +463,8 @@ const isInboxHelper = pid => /reply-link\.mjs serve-inbox\b/.test(commandOf(pid)
 const writeInbox = (state, pid, service = false) =>
   writeFileSync(state.inbox, `${JSON.stringify({ pid, protocol: PROTOCOL, ...(service && { service: true }) })}\n`, { mode: 0o600 });
 
-/** Starts the inbox server unless a current one, or the background helper, runs: it delivers taps, and stops once no
- * item is open. One from older code is ended first: it reads its record only between rounds, so never stops for us. */
+/** Starts the inbox server for `state`'s project unless a current one, or its helper, runs; it stops once no item is
+ * open. One from older code is ended first: it reads its record only between rounds, so never stops for us. */
 export async function startInbox(state, env) {
   const running = readJson(state.inbox);
   if (alive(running?.pid)) {
@@ -465,7 +475,8 @@ export async function startInbox(state, env) {
       for (let i = 0; i < 50 && alive(running.pid); i++) await sleep(100);
     }
   }
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'serve-inbox'], { detached: true, stdio: 'ignore', env });
+  const project = state.project ? ['--project', state.project] : [];
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'serve-inbox', ...project], { detached: true, stdio: 'ignore', env });
   child.unref();
   writeInbox(state, child.pid);
 }
@@ -480,7 +491,8 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
   const client = await clientFor(spec.cwd);
   const origin = client && await probe(client);
   if (!origin) return null;
-  const state = files(env);
+  // A project with its own helper keeps its items there: the shared helper never sees them.
+  const state = stateFor(env, spec.cwd);
   mkdirSync(state.items, { recursive: true, mode: 0o700 });
   const kept = file === null ? null : openItems(state).find(item => item.file === file);
   const item = { id: kept?.id ?? spec.id ?? randomBytes(16).toString('hex'), file, kind: spec.kind, title: file === null ? spec.title : titleOf(body, file),
@@ -517,12 +529,15 @@ function clientsFor(clientFor) {
   };
 }
 
-/** Closes inbox item `id`, in the app it was put in; true when it was open here. */
-export async function closeInboxItem(id, { env = process.env, clientFor = companyFor } = {}) {
-  const state = files(env);
-  const item = readItem(state, id);
-  if (item) await endItem(state, await clientsFor(clientFor)(item), item);
-  return Boolean(item);
+/** Closes inbox item `id`, in the app it was put in; true when it was open here, for `cwd`'s project. */
+export async function closeInboxItem(id, { env = process.env, clientFor = companyFor, cwd = process.cwd() } = {}) {
+  for (const state of statesFor(env, cwd)) {
+    const item = readItem(state, id);
+    if (!item) continue;
+    await endItem(state, await clientsFor(clientFor)(item), item);
+    return true;
+  }
+  return false;
 }
 
 /** The tap's files, each read from the app, checked as a tunnel's are, and saved in the item's uploads folder; null
@@ -665,22 +680,27 @@ async function serveApp(state, { client, items }, { wake, reported, lastWake, wa
   }
 }
 
-/** The apps to keep a line to, `origin → {client, roots}`: each open item's app, and in service mode each remembered
- * one. `roots` are the primary checkouts signed in to that app, where its schedule records live. */
-async function watchedApps(state, { clientFor, env, service }) {
+/** The apps to keep a line to, `origin → {client, roots}`: each open item's app, plus `project`'s, or with none each
+ * remembered one. `roots` are the main checkouts with its schedules: `project` alone, or those with no own helper. */
+async function watchedApps(state, { clientFor, env, service, project = null }) {
   const clientOf = clientsFor(clientFor);
   const apps = new Map();
-  const add = (client, cwd) => {
+  const serves = root => (project ? root === project : !hasOwnHelper(root, env));
+  const rootOf = cwd => { try { return primaryRoot(cwd).primary; } catch { return null; /* the folder is gone */ } };
+  const add = (client, root) => {
     let origin;
     try { origin = client?.target(); } catch { return; /* its sign-in changed */ }
     if (!origin) return;
     if (!apps.has(origin)) apps.set(origin, { client, roots: [] });
-    let root;
-    try { root = primaryRoot(cwd).primary; } catch { return; /* the folder is gone */ }
-    if (!apps.get(origin).roots.includes(root)) apps.get(origin).roots.push(root);
+    if (root && serves(root) && !apps.get(origin).roots.includes(root)) apps.get(origin).roots.push(root);
   };
-  for (const item of openItems(state)) add(await clientOf(item), appOf(item).cwd);
-  if (service) for (const { cwd } of readApps(env)) add(await clientOf({ app: { cwd } }), cwd);
+  for (const item of openItems(state)) add(await clientOf(item), rootOf(appOf(item).cwd));
+  if (service && project) add(await clientOf({ app: { cwd: project } }), project);
+  // A project with its own helper is never served here, even when an older copy listed it again.
+  else if (service) for (const { cwd } of readApps(env)) {
+    const root = rootOf(cwd);
+    if (root && serves(root)) add(await clientOf({ app: { cwd } }), root);
+  }
   return apps;
 }
 
@@ -689,12 +709,15 @@ const MIRROR_MS = 15 * 60_000;
 const ROUND_GAP_MS = 1000;
 const appRuns = () => import('../../schedule/scripts/lib/app-runs.mjs');
 
-/** Starts each app's due schedules on this computer, and sends its Paseo schedules to the app every 15 minutes. */
-async function scheduleRounds(apps, { rounds, computer, log, mirrored, now = Date.now() }) {
+/** Starts each app's due schedules on this computer, and sends its Paseo schedules to the app every 15 minutes. A
+ * project's own helper notes its runs in its own `ledger`. */
+async function scheduleRounds(apps, { rounds, computer, log, mirrored, ledger, now = Date.now() }) {
   let runs;
   try { runs = await rounds(); } catch { return; }
   await Promise.all([...apps].filter(([, app]) => app.roots.length).map(async ([origin, { client, roots }]) => {
-    try { await runs.runRound(client, { computer, roots, log }); } catch { /* the next round tries again */ }
+    try {
+      await runs.runRound(client, { computer, roots, log, ...(ledger && { ledger }) });
+    } catch { /* the next round tries again */ }
     if (now - (mirrored.get(origin) ?? -Infinity) < MIRROR_MS) return;
     mirrored.set(origin, now);
     try { await runs.mirrorRound(client, { computer, roots, log }); } catch { /* likewise */ }
@@ -716,7 +739,7 @@ function rest(since, gap, stop) {
 function takeInbox(state) {
   const running = readJson(state.inbox);
   if (running?.pid !== process.pid && alive(running?.pid) && isInboxHelper(running.pid)) signal(running.pid, 'SIGTERM');
-  mkdirSync(state.dir, { recursive: true, mode: 0o700 });
+  mkdirSync(dirname(state.inbox), { recursive: true, mode: 0o700 });
   writeInbox(state, process.pid, true);
 }
 
@@ -730,25 +753,30 @@ async function released(state, clientFor) {
   return false;
 }
 
-/** Delivers taps, keeping a live line to each app so a tap wakes it at once. Alone it stops once no item reaches its
- * app; as the background helper (`service`) it never stops, and each round also starts this computer's schedules. */
-export async function serveInbox({ service = false, env = process.env, clientFor = companyFor, connect = openSocket, rounds = appRuns,
-  computer = computerId(env), log = entry => logAction(entry, { env }), signal: stop, pollFor = nextPoll, roundGap = ROUND_GAP_MS } = {}) {
-  const state = files(env);
+/** Delivers taps over a live line to each app. Alone it stops once no item is open; the helper (`service`) never stops
+ * and starts schedules too: for `project` alone, which leaves the shared helper, or with none for the rest. */
+export async function serveInbox({ service = false, project = null, env = process.env, clientFor = companyFor, connect = openSocket, rounds = appRuns,
+  computer = computerId(env), log = entry => logAction(entry, { env, root: project }), signal: stop, pollFor = nextPoll, roundGap = ROUND_GAP_MS } = {}) {
+  const state = files(env, project);
+  const ledger = project ? helperFiles(env, project).runs : undefined;
   const memory = { reported: new Map(), lastWake: new Map(), log };
   const wakeUp = waiter();
   const lines = appLines({ connect: client => connect(client, computer), computer, protocol: PROTOCOL, onLook: wakeUp.poke, log });
   const mirrored = new Map();
   if (service) takeInbox(state);
+  // Between rounds too: a round may be 5 minutes off, and the shared helper may claim this project's run at the hour.
+  const unguard = service && project ? guardShared(project, env) : () => {};
   try {
     while (!stop?.aborted) {
       const started = Date.now();
       let count = 1;
       try {
-        const apps = await watchedApps(state, { clientFor, env, service });
+        // An older session may list this project with the shared helper again, or put an item there.
+        if (service && project) leaveShared(project, env);
+        const apps = await watchedApps(state, { clientFor, env, service, project });
         lines.sync(new Map([...apps].map(([origin, app]) => [origin, app.client])));
         count = await inboxTick(state, { clientFor, ...memory });
-        if (service) await scheduleRounds(apps, { rounds, computer, log, mirrored });
+        if (service) await scheduleRounds(apps, { rounds, computer, log, mirrored, ledger });
       } catch (error) { if (!service) throw error; }
       const owed = [...memory.reported.values()].some(untold);
       if (!service && !count && !owed && await released(state, clientFor)) return;
@@ -756,6 +784,7 @@ export async function serveInbox({ service = false, env = process.env, clientFor
       await rest(started, roundGap, stop);
     }
   } finally {
+    unguard();
     lines.close();
     if (service && readJson(state.inbox)?.pid === process.pid) rmSync(state.inbox, { force: true });
   }
@@ -833,7 +862,7 @@ async function close(file) {
     dropUnsent(state, page.id);
     await unlist([page]);
   }
-  const item = openItems(state).find(open => open.file === path);
+  const item = statesFor(process.env, process.cwd()).flatMap(openItems).find(open => open.file === path);
   if (item) await closeInboxItem(item.id);
   console.log(`REPLY_CLOSED=${page || item ? 'yes' : 'no'}`);
 }
@@ -842,20 +871,19 @@ async function close(file) {
 async function putItem({ title, header, actions, hours, hidden, keepOpen, stop }, env = process.env, cwd = process.cwd()) {
   const target = chatTarget(env, cwd);
   if (env.REPLY_LINK === 'off' || !canWake(target, env)) { console.log('REPLY_ITEM=none'); return; }
-  const kept = openItems(files(env)).find(open => open.file === null && open.title === title && open.target?.agentId === target.agentId);
+  const kept = openItems(stateFor(env, cwd)).find(open => open.file === null && open.title === title && open.target?.agentId === target.agentId);
   const opened = await openInboxItem({ id: kept?.id, kind: 'approval', title, body: JSON.stringify({ text: title }), header, actions, hours,
     target, cwd, hidden, keepOpen, stop }, { env }).catch(() => null);
   console.log(`REPLY_ITEM=${opened?.id ?? 'none'}`);
 }
 
 function list() {
-  const state = files();
-  for (const page of [...openPages(state), ...openItems(state)]) console.log(`${page.file ?? page.title}\tcloses ${new Date(page.deadline).toISOString()}`);
+  for (const page of [...openPages(files()), ...statesFor(process.env, process.cwd()).flatMap(openItems)]) console.log(`${page.file ?? page.title}\tcloses ${new Date(page.deadline).toISOString()}`);
 }
 
 if (isMain(import.meta.url)) {
   const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' }, action: { type: 'string', multiple: true }, service: { type: 'boolean' },
-    title: { type: 'string' }, hidden: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, stop: { type: 'string' }, uploads: { type: 'string' } } });
+    title: { type: 'string' }, hidden: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, stop: { type: 'string' }, uploads: { type: 'string' }, project: { type: 'string' } } });
   const takes = { open: 1, item: 0, close: 1, list: 0, serve: 2, 'serve-inbox': 0 }[command];
   if (takes === undefined || rest.length !== takes) usageError(USAGE, command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const hours = Number(values.hours ?? HOURS);
@@ -868,11 +896,12 @@ if (isMain(import.meta.url)) {
   if (command === 'item' && (!title || title.length > 200 || stop.length > LIMITS.action)) usageError(USAGE, '--title takes 1 to 200 characters, --stop at most 300');
   if (command !== 'item' && (values.title ?? values.stop ?? values.hidden ?? values['keep-open']) !== undefined) usageError(USAGE, '--title, --hidden, --keep-open and --stop go with item only');
   if (values.service && command !== 'serve-inbox') usageError(USAGE, '--service goes with serve-inbox only');
+  if (values.project !== undefined && (command !== 'serve-inbox' || !isAbsolute(values.project))) usageError(USAGE, '--project takes a main checkout\'s full path, with serve-inbox only');
   if (values.uploads !== undefined && (command !== 'open' || !values.uploads.trim())) usageError(USAGE, '--uploads takes a folder, with open only');
   let actions;
   try { actions = checkActions((values.action ?? []).map(pair => pair.split(/=(.*)/s).slice(0, 2))); } catch (error) { usageError(USAGE, error.message); }
   const itemSpec = { title, header, actions, hours, hidden: Boolean(values.hidden), keepOpen: Boolean(values['keep-open']), stop };
-  await { open: () => open(rest[0], { header, actions, hours, uploads: values.uploads }), item: () => putItem(itemSpec), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': () => serveInbox({ service: Boolean(values.service) }) }[command]();
+  await { open: () => open(rest[0], { header, actions, hours, uploads: values.uploads }), item: () => putItem(itemSpec), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': () => serveInbox({ service: Boolean(values.service), project: values.project ?? null }) }[command]();
   // An app call past its 3 s wait would keep the process, and the chat's answer, alive until it fails.
   if (opens || command === 'close') process.exit(process.exitCode ?? 0);
 }

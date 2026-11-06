@@ -68,7 +68,7 @@ async function run(command, values, key, world) {
   const computer = world.computer ?? computerId(env), email = world.email;
   const options = { computer, env, email, ...(world.hostname ? { name: world.hostname } : {}) };
   if (command === 'hosts') {
-    const app = await (world.appHost ?? appHost)({ service: () => helperService(env), client: () => connect(world) });
+    const app = await (world.appHost ?? appHost)({ service: () => helperService(env, {}, root), client: () => connect(world) });
     return { preferred: selectHost({ enclosing: 'paseo', available: [app, { name: 'paseo', supported: true }] }).name, app };
   }
   if (command === 'show' && values.file) {
