@@ -167,5 +167,7 @@
   {"name": "WHERE=chrome", "replacement": "`WHERE=window`: connect uses the assistant's browser, in a window on a Mac or Windows"},
   {"name": "CHROME=none", "replacement": "`BROWSER=camoufox`: `attach` always uses the assistant's browser"},
   {"name": "CHROME=attached", "replacement": "`BROWSER=camoufox`: `attach` always uses the assistant's browser"},
-  {"name": "SERVER=possible", "replacement": "`WHERE=server`, from `browser.mjs where`"}
+  {"name": "SERVER=possible", "replacement": "`WHERE=server`, from `browser.mjs where`"},
+  {"name": "addon asked", "replacement": "nothing: the person adds a password manager themselves, and the assistant asks nothing"},
+  {"name": "addon decline", "replacement": "nothing: the person adds a password manager themselves, and the assistant asks nothing"}
 ]

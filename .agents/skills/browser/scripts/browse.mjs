@@ -3,7 +3,7 @@
 // talks to its server. Exit codes: 0 ok · 1 failed · 2 usage · 3 the browser is not installed. Node built-ins only.
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -25,11 +25,19 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
                                 prints BROWSE_SHOT=<temp path>, or none when unchanged;
                                 --full-page takes the whole page, not just what shows
   save                          keep the sign-ins now, with every tab open
-  window [on|off]               show the browser in a window on a Mac or Windows, from its next start;
+  front                         bring this task's tab to the front of the browser's window; refused with
+                                BROWSE_ERROR while the person uses another tab
+  show                          front, and on a Mac unhide the window too, with no turn held: the next task
+                                step, from any chat, hides it again; prints BROWSE_SHOWN=window|link|none
+  window [on|off]               show the browser in a window on this computer's screen, from its next start;
+                                on Linux, off (or no screen) sends a live-view link instead; on a Mac,
+                                the window stays hidden until the person's turn;
                                 prints BROWSE_WINDOW=on|off; alone, the setting (on unless turned off)
+  proxy [on|off]                reach sites through a local proxy on this computer, from the browser's next
+                                start; prints BROWSE_PROXY=on|off; alone, the setting (off unless turned on)
   close                         close this task's tab
-  status | install | stop       the install and the server; status and install print BROWSE_ADDON=, and so
-                                does a task's first open while no choice is saved: =none, for the one offer
+  status | install | stop       the install and the server; status prints both settings, BROWSE_SHOWN=
+                                window|link|none for a running browser, and BROWSE_ADDON=<name> once one is added
   addon find <name>             up to three Firefox add-ons: BROWSE_ADDON_FOUND=<slug> | <name> | <maker> |
                                 <website> | <daily users> | featured or not; BROWSE_ADDON_WARN=<slug> when
                                 not featured and under 10,000 daily users
@@ -37,9 +45,7 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
                                 one goes, and the browser stops so the next command starts with it;
                                 BROWSE_ADDON_TELL= is the advice to pass on
   addon open                    open its sign-in page in this task's tab, for the person in a live view
-  addon status | asked | decline | remove
-                                BROWSE_ADDON=none|asked|declined|<name>; asked records the offer made in a chat;
-                                decline keeps a no; remove takes it out with its stored data and keeps a no`;
+  addon status | remove         BROWSE_ADDON=none|<name>; remove takes it out with its stored data`;
 
 /** The only versions installed, moved together: the library's disguise is made for the build it pins, and
  * launch-config.py refuses a start when the library, its pin and the installed build disagree. */
@@ -56,7 +62,7 @@ export const FILES = {
   server: join(DIR, 'server.json'), key: join(DIR, 'api-key'), lock: join(DIR, 'start.lock'), tmp: join(DIR, 'tmp'), tabs: join(DIR, 'tabs'),
   profile: join(DIR, 'profile'), cache: join(DIR, 'cache'), marker: join(DIR, 'migrated'), fingerprint: join(DIR, 'fingerprint.json'), venv: join(DIR, 'venv', CAMOUFOX.python),
   settings: join(homedir(), '.wong-stack', 'browser-settings.json'),
-  addons: join(DIR, 'addons'), addon: join(DIR, 'password-manager.json'),
+  addons: join(DIR, 'addons'), addon: join(DIR, 'password-manager.json'), log: join(DIR, 'server.log'),
 };
 /** The old camofox browser's profiles, read once for the login move. */
 export const OLD_PROFILES = join(homedir(), '.wong-stack', 'camofox', 'profiles');
@@ -410,8 +416,14 @@ export const serverPid = () => readJson(FILES.server)?.pid ?? null;
 export const serverDisplay = () => readJson(FILES.server)?.display ?? null;
 /** True when the running browser shows in a window on this computer's own screen, as its server recorded it. */
 export const serverWindow = () => readJson(FILES.server)?.window === true;
-/** Whether the browser shows in a window off Linux from its next start: on unless the person turned it off. */
+/** How a running browser's `record` shows it to the person: a window, a live-view link, or none. */
+const shownAs = record => (record?.window ? 'window' : record?.display ? 'link' : 'none');
+/** Whether the browser shows in a window from its next start: on unless the person turned it off. */
 export const windowSetting = () => readJson(FILES.settings)?.window !== false;
+/** Whether the browser reaches sites through the local proxy from its next start: off unless turned on. */
+export const proxySetting = () => readJson(FILES.settings)?.proxy === true;
+const SETTINGS = { window: windowSetting, proxy: proxySetting };
+const NEXT_START = 'This takes effect the next time the browser starts; a running browser stays as it is.';
 
 function privateDirs() {
   for (const dir of [DIR, FILES.tmp, FILES.tabs, FILES.profile, FILES.cache]) mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -438,15 +450,6 @@ async function install() {
   const check = await launchConfig(['--check']);
   if (check.error) throw new BrowseError(`the install finished, but ${check.error}`);
   console.log(`BROWSE_INSTALLED=${installedLine(check)}`);
-  await addonLine();
-}
-
-/** The password manager's line, which tells the agent whether to make its one offer; `onlyNone` prints it only then.
- * It saves nothing: only `addon asked`, `add` or `decline` record it, so a run with no person never uses it up. */
-async function addonLine({ onlyNone = false } = {}) {
-  if (onlyNone && existsSync(FILES.addon)) return;
-  const status = (await import('./addons.mjs')).addonStatus();
-  if (!onlyNone || status === 'none') console.log(`BROWSE_ADDON=${status}`);
 }
 
 /** The API key, made once into a 0600 file. */
@@ -568,8 +571,18 @@ async function stop() {
 async function status() {
   const check = installed() ? await launchConfig(['--check']) : null;
   console.log(`BROWSE_INSTALLED=${installedLine(check)}`);
-  console.log(`BROWSE_SERVER=${(await liveServer()) ? 'running' : 'stopped'}`);
-  if (check && !check.error) await addonLine();
+  const running = (await liveServer()) ? readJson(FILES.server) : null;
+  console.log(`BROWSE_SERVER=${running ? 'running' : 'stopped'}`);
+  if (!check || check.error) return;
+  for (const [name, read] of Object.entries(SETTINGS)) console.log(`BROWSE_${name.toUpperCase()}=${read() ? 'on' : 'off'}`);
+  if (running) {
+    console.log(`BROWSE_SHOWN=${shownAs(running)}`);
+    // A browser from before the proxy setting started with the proxy.
+    const differs = (running.windowSetting ?? running.window === true) !== windowSetting() || (running.proxy ?? true) !== proxySetting();
+    if (differs) console.log(`The running browser started with other settings. ${NEXT_START}`);
+  }
+  const added = (await import('./addons.mjs')).addonStatus();
+  if (added !== 'none') console.log(`BROWSE_ADDON=${added}`);
 }
 
 
@@ -712,8 +725,9 @@ export function client(given, { retry = true, start = true } = {}) {
     size: () => evaluate('[innerWidth, innerHeight]').catch(error => error.size ?? Promise.reject(error)),
     /** Each ref's box at the last snapshot, as `refNames` gives it; `{}` before one. */
     names: () => readTab()?.names ?? {},
-    /** Raises the page's own window and gives it the keyboard, without a resize. */
-    front: () => onTab(tabId => send('POST', `/tabs/${tabId}/front`, { userId: USER })),
+    /** Shows this tab in front with the keyboard: `turn` holds or ends the person's turn, `raise: false` renews it,
+     * `reselect` leaves the person's own tab shown, and `show` unhides a Mac's window until the next task step. */
+    front: ({ turn, raise, reselect, show } = {}) => onTab(tabId => send('POST', `/tabs/${tabId}/front`, { userId: USER, ...(turn !== undefined && { turn }), ...(raise === false && { raise }), ...(reselect && { reselect }), ...(show && { show }) })),
     /** Sets the page's size; resolves to its size, with `addonPage` while the password manager's page keeps its own. */
     resize: (width, height) => onTab(tabId => json('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),
     /** Starts the browser when it is not running. */
@@ -765,25 +779,21 @@ export function client(given, { retry = true, start = true } = {}) {
   return page;
 }
 
-/** Sets the window from the next start when `choice` is given, and prints the setting. */
-function windowCommand(choice) {
+/** Saves the setting `name` from the next start when `choice` is given, beside the other one, and prints it. The file
+ * stays in the home folder, the person's alone, so each computer keeps its own. */
+function settingCommand(name, choice) {
   if (choice) {
     mkdirSync(dirname(FILES.settings), { recursive: true, mode: 0o700 });
-    writeFileSync(FILES.settings, `${JSON.stringify({ window: choice === 'on' })}\n`);
+    writeFileSync(FILES.settings, `${JSON.stringify({ ...readJson(FILES.settings), [name]: choice === 'on' })}\n`, { mode: 0o600 });
+    chmodSync(FILES.settings, 0o600);
   }
-  console.log(`BROWSE_WINDOW=${windowSetting() ? 'on' : 'off'}`);
-  if (choice) console.log('This takes effect the next time the browser starts; a running browser stays as it is.');
+  console.log(`BROWSE_${name.toUpperCase()}=${SETTINGS[name]() ? 'on' : 'off'}`);
+  if (choice) console.log(NEXT_START);
 }
 
 /** Each command: how many words follow it, and what it runs. */
 const COMMANDS = {
-  // An errand starts with `open`, so a computer whose browser came before the password manager's offer gets it there:
-  // once per task's tab, not at each page.
-  open: [1, async (page, [url]) => {
-    const first = !existsSync(tabFile(page.session));
-    console.log(`BROWSE_URL=${await page.open(url)}`);
-    if (first) await addonLine({ onlyNone: true });
-  }],
+  open: [1, async (page, [url]) => console.log(`BROWSE_URL=${await page.open(url)}`)],
   snapshot: [0, async page => { const { url, snapshot } = await page.snapshot(); console.log(`BROWSE_URL=${url}\n${snapshot}`); }],
   click: [1, async (page, [target]) => {
     if ((await page.click(target)) !== 'script') return;
@@ -795,11 +805,14 @@ const COMMANDS = {
   select: [2, (page, [target, option]) => page.select(target, option)],
   screenshot: [0, async (page, _, flags) => console.log(`BROWSE_SHOT=${(await page.screenshot({ ifChanged: flags['if-changed'], fullPage: flags['full-page'] })) ?? 'none'}`)],
   save: [0, async page => { await page.save(); console.log('BROWSE_SAVED=yes'); }],
+  front: [0, async page => { await page.front(); console.log('BROWSE_FRONT=yes'); }],
+  show: [0, async page => { await page.front({ show: true }); console.log(`BROWSE_SHOWN=${shownAs(readJson(FILES.server))}`); }],
   close: [0, async page => { await page.close(); console.log(`BROWSE_CLOSED=${page.session}`); }],
   status: [0, status],
   install: [0, install],
   stop: [0, stop],
-  window: (_, [choice]) => windowCommand(choice),
+  window: (_, [choice]) => settingCommand('window', choice),
+  proxy: (_, [choice]) => settingCommand('proxy', choice),
   async get(page, [what, target]) {
     console.log(await { url: () => page.url(), count: () => page.count(target), value: () => page.value(target) }[what]());
   },
@@ -810,7 +823,7 @@ const QUIET = new Set(['click', 'type', 'press', 'select']);
 function addonRunner([verb, ...words], usage) {
   return async (page, _, flags) => {
     const { ADDON_VERBS } = await import('./addons.mjs');
-    if (!Object.hasOwn(ADDON_VERBS, verb)) usage('addon takes find, add, open, status, asked, decline, or remove');
+    if (!Object.hasOwn(ADDON_VERBS, verb)) usage('addon takes find, add, open, status, or remove');
     const [count, runner] = ADDON_VERBS[verb];
     if (words.length !== count) usage(`addon ${verb} takes ${count} word${count === 1 ? '' : 's'} after it`);
     await runner(page, words, flags);
@@ -822,9 +835,9 @@ function runnerFor(command, words) {
   const usage = message => usageError(USAGE, message);
   if (command === 'addon') return addonRunner(words, usage);
   if (!Object.hasOwn(COMMANDS, command)) usage(command ? `unknown command: ${command}` : 'missing command');
-  if (command === 'window') {
-    if (words.length > 1 || (words.length && !['on', 'off'].includes(words[0]))) usage('window takes on, off, or nothing');
-    return COMMANDS.window;
+  if (Object.hasOwn(SETTINGS, command)) {
+    if (words.length > 1 || (words.length && !['on', 'off'].includes(words[0]))) usage(`${command} takes on, off, or nothing`);
+    return COMMANDS[command];
   }
   if (command === 'get') {
     const fits = words[0] === 'url' ? words.length === 1 : ['count', 'value'].includes(words[0]) && words.length === 2;

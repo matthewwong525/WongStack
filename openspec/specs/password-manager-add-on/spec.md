@@ -24,25 +24,6 @@ The agent SHALL add a password manager add-on only from Firefox's add-on site, a
 - **WHEN** the downloaded file does not match the fingerprint the add-on site gives
 - **THEN** nothing is added, and the agent tells the person why
 
-### Requirement: Asked once, when the browser is installed
-
-When the agent installs its browser on a computer, it SHALL ask once which password manager the person uses, and offer to add it. A no SHALL be remembered on this computer, and the agent SHALL NOT offer it again; adding one later SHALL happen only when the person asks. A computer that installed its browser before this change SHALL get the same one question at its next errand that uses the browser. The question SHALL count as asked only when the agent asks it in a chat with the person; a run with no person SHALL NOT ask it or use it up.
-
-#### Scenario: The browser install offers it
-
-- **WHEN** the first errand that needs the browser installs it
-- **THEN** after the install the agent asks which password manager the person uses, before it goes on with the errand
-
-#### Scenario: A run with no person leaves the question
-
-- **WHEN** a scheduled errand with no person uses the browser before the question was asked
-- **THEN** the agent asks nothing and records nothing, and the question waits for the next errand in a chat with the person
-
-#### Scenario: A no is kept
-
-- **WHEN** the person answered *None* when the browser was installed
-- **THEN** the agent never offers a password manager again, and adds one only when the person asks
-
 ### Requirement: The add-on stays from start to start
 
 The added add-on SHALL load at every browser start, with its own storage kept, so the person signs in to their password manager account in it once, not at each browser start. It SHALL stay up to date with the add-on site; a failed update SHALL keep the version that works.
@@ -69,3 +50,17 @@ When the person asks, the agent SHALL remove the add-on from the browser togethe
 
 - **WHEN** the person says *remove my password manager*
 - **THEN** from the next browser start the add-on and its sign-in are gone, and the agent does not offer one again until asked
+
+### Requirement: The person adds an add-on themselves
+
+The agent SHALL NOT ask the person which password manager they use or offer to add one. The person SHALL be able to add any add-on from Firefox's add-on site in the browser themselves, and it SHALL stay from start to start. The agent SHALL NOT click, type in, read, or unlock any add-on's own button, pages, menus, or frames, whether the person or the agent added it.
+
+#### Scenario: A new browser install
+
+- **WHEN** the first errand that needs the browser installs it
+- **THEN** the agent asks nothing about a password manager and goes on with the errand
+
+#### Scenario: An add-on the person added
+
+- **WHEN** the agent reads a page where an add-on the person added shows its own frame
+- **THEN** the reading holds no part of that frame, and a click aimed at it is refused

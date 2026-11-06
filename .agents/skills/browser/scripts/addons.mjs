@@ -1,4 +1,4 @@
-// The person's password manager in the shared browser: one checked Firefox add-on, found on Firefox's add-on site,
+// The password manager a person asks the agent to add: one checked Firefox add-on, found on Firefox's add-on site,
 // loaded at each start, kept up to date, and removed with its stored data. `browse.mjs addon <verb>` runs it.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -19,7 +19,7 @@ const UUIDS = 'extensions.webextensions.uuids';
 const TOOLBAR = 'browser.uiCustomization.state';
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
-/** The saved choice: `{state: 'added', ...}`, `{state: 'declined'}`, or null when none was made. */
+/** The added add-on, `{state: 'added', ...}`; an older answer, such as `{state: 'declined'}`, means none. */
 export const choice = () => readJson(FILES.addon);
 const save = value => { mkdirSync(dirname(FILES.addon), { recursive: true, mode: 0o700 }); writeFileSync(FILES.addon, `${JSON.stringify(value)}\n`, { mode: 0o600 }); };
 export const folderOf = guid => join(FILES.addons, guid);
@@ -217,25 +217,20 @@ export async function addAddon(slug, { profile = FILES.profile, now = Date.now()
   return added;
 }
 
-/** Takes the add-on out with its stored data, and keeps the no: the agent offers none again until asked. */
+/** Takes the add-on out with its stored data; resolves to its name, or null when none was added. */
 export async function removeAddon({ profile = FILES.profile } = {}) {
   const saved = choice();
-  if (saved?.state === 'added') {
-    await stopForChange('remove the password manager');
-    dropAddon(saved, profile);
-  }
-  save({ state: 'declined' });
-  return saved?.state === 'added' ? saved.name : null;
+  if (saved?.state !== 'added') return null;
+  await stopForChange('remove the password manager');
+  dropAddon(saved, profile);
+  rmSync(FILES.addon, { force: true });
+  return saved.name;
 }
 
-export const declineAddon = () => { if (choice()?.state !== 'added') save({ state: 'declined' }); };
-/** Records that the agent asked the person in a chat, so the offer is made once even with no answer. */
-export const askedAddon = () => { if (addonStatus() === 'none') save({ state: 'asked' }); };
-
-/** `none` when no choice is saved, `asked` once the offer was made, `declined`, or the added add-on's name. */
+/** The added add-on's name, or `none`. */
 export function addonStatus() {
   const saved = choice();
-  return saved?.state === 'added' ? saved.name : ['declined', 'asked'].includes(saved?.state) ? saved.state : 'none';
+  return saved?.state === 'added' ? saved.name : 'none';
 }
 
 /** What the agent tells the person once the add-on is in. */
@@ -291,8 +286,6 @@ export const ADDON_VERBS = {
   find: [1, async (_, [name]) => console.log(foundLines(await findAddons(name)).join('\n'))],
   add: [1, async (_, [slug]) => console.log(`BROWSE_ADDON_ADDED=${(await addAddon(slug)).name}\nBROWSE_ADDON_TELL=${ADVICE}\nBROWSE_SERVER=stopped`)],
   remove: [0, async () => console.log(`BROWSE_ADDON_REMOVED=${(await removeAddon()) ?? 'none'}`)],
-  asked: [0, () => { askedAddon(); console.log(`BROWSE_ADDON=${addonStatus()}`); }],
-  decline: [0, () => { declineAddon(); console.log(`BROWSE_ADDON=${addonStatus()}`); }],
   status: [0, () => console.log(`BROWSE_ADDON=${addonStatus()}`)],
   open: [0, async page => { await openPage(page); console.log('BROWSE_ADDON_PAGE=opened'); }],
 };
