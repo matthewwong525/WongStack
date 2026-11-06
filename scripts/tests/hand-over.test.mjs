@@ -880,7 +880,7 @@ test('the browser on request: a window view kept open needs only a note, holds t
   assert.deepEqual([f.fronts()[0], f.fronts().at(-1)], ['front turn', 'front end']);
 });
 
-test('every end of a window turn lets go of the turn, which hides a Mac\'s window again: a timeout, and a close after the watcher died', async t => {
+test('every end of a window turn lets go of the turn: a timeout, and a close after the watcher died', async t => {
   const f = fixture(t, { window: true });
   f.openPage();
   const ends = () => f.fronts().filter(step => step === 'front end').length;

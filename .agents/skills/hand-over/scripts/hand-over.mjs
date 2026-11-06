@@ -46,8 +46,7 @@ const USAGE = `usage: hand-over.mjs open --view <finish> --note <line> [--sessio
           HANDOVER_VIEW=window, with no link, where the browser shows in its own window: the
           task's tab is brought to the front and held there, the person does the step there
           and says done in the chat, and close ends the turn; while a turn is open, no other
-          task's tab comes to the front; on a Mac the window shows at the open and hides
-          again at each end; HANDOVER_VIEW=unsupported where the browser has no
+          task's tab comes to the front; HANDOVER_VIEW=unsupported where the browser has no
           screen to show, and HANDOVER_NEEDS=live-view (exit 3) with a line per missing tool
           --watch: a live view the agent drives while the person watches, as one
           for connecting tools: the person's taps reach the browser only after they
@@ -196,8 +195,8 @@ async function teardown(result, { tunnelPid, view, session, completionId } = {},
 }
 
 const BUSY = /the person is using the browser/;
-/** Lets go of the person's turn on the page's tab, so other tasks can show their own tabs again; on a Mac the browser
- * hides its window again. Every end of a turn calls it: done, closed, handed-back, timeout, and an error. */
+/** Lets go of the person's turn on the page's tab, so other tasks can show their own tabs again. Every end of a turn
+ * calls it: done, closed, handed-back, timeout, and an error. */
 const endTurn = page => page.front({ turn: false }).catch(() => {});
 
 /** Result-only completion message; routing and private input are never taken from the page. */

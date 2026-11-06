@@ -291,7 +291,9 @@ async function signIn(tool) {
   const window = Boolean(checkView().window);
   const already = Boolean(watchControl());
   if (!already && !openWatch()) return '';
-  const note = window ? `Sign in to ${tool} in the browser window, then say done.` : `Sign in to ${tool}. I go on once you're in.`;
+  // A Mac's window may sit behind the person's app: the Dock brings it up.
+  const dock = process.platform === 'darwin' ? ' If it\'s behind, click Camoufox in the Dock.' : '';
+  const note = window ? `Sign in to ${tool} in the browser window, then say done.${dock}` : `Sign in to ${tool}. I go on once you're in.`;
   if (!startTurn(finish, note)) throw new Error('The watch link did not stay open: run `sign-in` again.');
   // A watch opened here printed HANDOVER_VIEW itself; one open already says it again, so the chat names the window.
   return already && window ? `HANDOVER_VIEW=window\n${PAUSES.turn[0]}` : PAUSES.turn[0];
