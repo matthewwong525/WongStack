@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · browser-tabs-and-local-settings</title>
+<title>Review · 2026-11-06-browser-tabs-and-local-settings</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="browser-tabs-and-local-settings" data-own-back>
+<body data-change="2026-11-06-browser-tabs-and-local-settings" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>browser-tabs-and-local-settings</h1>
+  <h1>2026-11-06-browser-tabs-and-local-settings</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -488,6 +488,7 @@
 <li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: the server finds the browser's process id as its own child whose program is <code>camoufox</code> (from <code>ps</code>), because the driver gives no process id for a persistent context; a failed hide or show is written once in <code>~/.wong-stack/camoufox/server.log</code>, since the server's own output goes nowhere.</li>
 <li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: <i>send me the browser</i> runs <code>hand-over.mjs open --view --keep-open</code> on every computer, not <code>browse.mjs front</code> on a window computer, because <code>front</code> holds no turn, so another chat's click could take the window away. With a window it takes the window path, holds the turn, and ends when the person says <i>done</i> and the agent runs <code>close</code>.</li>
 <li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: checkpoint at /ship with tasks 1–5 built and the main specs reconciled; local script tests fail only in the Mac temp-folder and driver tests outside this change, so CI is the gate.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-06</p>Assumed: archive checkpoint at /ship after merging main (v50.3.0, v50.4.0); the CHANGELOG, retired names and hand-over tests keep both sides. Local script tests fail only in <code>verify-scripts</code>, <code>wrangler-config</code> and <code>wait-for-checks</code> on this Mac, outside this change; CI is the gate.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

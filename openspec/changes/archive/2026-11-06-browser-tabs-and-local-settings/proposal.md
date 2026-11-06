@@ -1,6 +1,6 @@
 # One browser window with a tab for each chat, and browser settings on each computer
 
-**Status:** ready
+**Status:** ready-to-ship
 **Branch:** explore/browser-tabs-password-manager
 **Open questions:** none
 
@@ -119,3 +119,4 @@ None.
 - **2026-11-06** — Assumed: the server finds the browser's process id as its own child whose program is `camoufox` (from `ps`), because the driver gives no process id for a persistent context; a failed hide or show is written once in `~/.wong-stack/camoufox/server.log`, since the server's own output goes nowhere.
 - **2026-11-06** — Assumed: *send me the browser* runs `hand-over.mjs open --view --keep-open` on every computer, not `browse.mjs front` on a window computer, because `front` holds no turn, so another chat's click could take the window away. With a window it takes the window path, holds the turn, and ends when the person says *done* and the agent runs `close`.
 - **2026-11-06** — Assumed: checkpoint at /ship with tasks 1–5 built and the main specs reconciled; local script tests fail only in the Mac temp-folder and driver tests outside this change, so CI is the gate.
+- **2026-11-06** — Assumed: archive checkpoint at /ship after merging main (v50.3.0, v50.4.0); the CHANGELOG, retired names and hand-over tests keep both sides. Local script tests fail only in `verify-scripts`, `wrangler-config` and `wait-for-checks` on this Mac, outside this change; CI is the gate.

@@ -26,7 +26,7 @@
 
 - [x] 4.1 Write `scripts/tests/manual/browser-tabs-real.mjs` (design decision 8) and run it on this Mac: three task tabs give one window, a click and typing in a background tab land, a live-view resize of one tab leaves the others' size, a real add-on loads, its page opens in a task tab, and its frames stay out of a snapshot. Fix what fails, or record it in the Decision log.
 - [x] 4.2 Run `node --test scripts/tests/{browser-server,browse,view,hand-over,addons}.test.mjs` and the repo's checks, and fix what fails.
-- [ ] 4.3 `/save`, then check the change on GitHub passes CI.
+- [x] 4.3 `/save`, then check the change on GitHub passes CI.
 
 ## 5. Hidden until the turn, on a Mac (design decision 9)
 
@@ -34,4 +34,4 @@
 - [x] 5.2 In `hand-over.mjs`, hide the window again on every end of a window turn (`done`, `closed`, `handed-back`, `timeout`); add cases to `hand-over.test.mjs`. Verify with `node --test`.
 - [x] 5.3 Add *show me the browser* to `.agents/skills/browser/SKILL.md` and say the window stays hidden until your turn in `wiki/development/live-view.md#on-a-mac-or-windows` and `wiki/development/browsing.md`; extend the `CHANGELOG.md` entry by one line.
 - [x] 5.4 On this Mac, with `scripts/tests/manual/browser-tabs-real.mjs` or by hand: a task opens a page and the window stays hidden; a hand-over brings it to the front on the task's tab; *done* hides it.
-- [ ] 5.5 Then `/save` and confirm CI passes (with 4.3; left for the parent).
+- [x] 5.5 Then `/save` and confirm CI passes (with 4.3; left for the parent).

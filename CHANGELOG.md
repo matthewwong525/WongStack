@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — One browser window with a tab for each chat, and browser settings on each computer
+## 50.5.0 — One browser window with a tab for each chat, and browser settings on each computer
 
 - **One window, a tab for each chat.** Each chat, and each scheduled run, gets its own tab in the one browser window, not a window of its own. The chats work at the same time. While it is your turn in a tab, the other chats keep working in theirs and never show their tab over yours ([a tab for each chat](wiki/development/browser-window.md#a-tab-for-each-chat)).
 - **The browser shows on your screen by default, Linux too.** A Linux computer with a screen now shows the browser in a window, as a Mac or Windows computer does, and your turn happens there. On Linux, `window off` is the link setting: the browser hides on its virtual screen, and your turn comes as a live-view link. A Linux server with no screen always uses the link ([where it shows](wiki/development/browser-window.md#where-it-shows)).
