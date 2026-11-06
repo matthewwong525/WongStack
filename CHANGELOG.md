@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 49.2.0 — The chat name waits for a step, and a typed command names it at once
+
+- **A question or errand gets no step in its name.** The step word comes only when a step starts, such as `PLAN` when a plan starts. A chat that only answers you keeps its name ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **A command you type names the chat at once.** `/explore` shows `EXPLORE`, and `/plan` or `/improve-code` shows `PLAN`. Another command shows its own name in capitals: `/verify the invoice page` shows `VERIFY: The invoice page`. `/apply`, `/continue` and `/ship` still wait for the step that starts. A command that a step runs for you, such as the save inside a publish, does not change the name.
+- **A plan's title replaces a name copied from your first message.** When Paseo names a chat from the start of your first message, the plan's title now replaces it. A name that you gave the chat stays.
+
+**Updating.** Nothing to do by hand.
+
 ## 49.1.0 — Connect your tools when the assistant runs on a server
 
 - **On a server, the assistant makes each key in its own browser, at once.** Say *connect my Notion*. It asks no Chrome question when no Chrome can be there, and sends no link unless a tool asks you to sign in, or you ask to watch ([connect your tools](wiki/stack/connect-your-tools.md#use-the-assistants-browser)).
