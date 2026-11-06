@@ -1,6 +1,6 @@
 # Browsing
 
-Browsing lets the agent use websites as you: the browser's own sign-ins, pictures, chat questions, and a live view for what only you can type. It shows its browser only for [a sign-in, a payment or a backup code, a robot check, or a stuck step](live-view.md#when-it-opens). Every repo on the computer shares it.
+Browsing lets the agent use websites as you: the browser's own sign-ins, pictures, chat questions, and a live view for what only you can type. It hands you its browser for [a sign-in, a payment or a backup code, a robot check, or a stuck step](live-view.md#when-it-opens), or [when you ask](browser-window.md#ask-for-the-browser). Every repo on the computer shares it.
 
 **No API? The browser.** When no [company action or saved key](../stack/service-catalogue.md) can do a task on a website, the agent does it here as you, without being asked. It doesn't hand you steps first.
 
@@ -23,8 +23,8 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **Each ref acts on the box it marks.** A box in a payment box gets its own ref, even when the page has a box of the same name. When the script can't tell them apart, those boxes print no ref, and a `- note:` line says so: read the page again or use a selector. A click on a tick box, a round choice, or a switch is read back; if nothing changed, the script presses Space on it, and if it still didn't change, prints `BROWSE_ERROR=the box did not change`. A button with no ref, such as DigiKey's *Continue* `span`, takes a selector: `span[id*=ontinue]`. `BROWSE_CLICK=script` means only the page's script took the click, which a site may ignore: don't click again; send [the view that stays open](live-view.md#when-it-opens). A box in a frame from another site, such as a shop's sign-in frame, is listed at the end of the page text under a header naming its site: use its ref, never a selector, since a selector reads only the main page.
 
-1. **The first errand installs the browser, once you say yes.** On `BROWSE_NEEDS=install` (exit 3), the agent asks once, saying [what the install needs](required-tools.md#installing-camoufox): Python 3.10 or newer, 3 GB of disk, 700 MB of memory. It runs `browse.mjs install`, then asks once for your [password manager](password-manager.md). On `BROWSE_NEEDS=python`, it asks for Python first.
-2. **A sign-in is your turn, in a live view.** When a site asks to log in and the browser isn't signed in, the agent asks whether you're ready, then sends [a sign-in turn](live-view.md#sign-in): you sign in on the site's own page, or paste from your password manager, and tap *Hand back*. On a Mac or Windows computer you sign in in [the browser's window](live-view.md#on-a-mac-or-windows) and say *done*.
+1. **The first errand installs the browser, once you say yes.** On `BROWSE_NEEDS=install` (exit 3), the agent asks once, saying [what the install needs](required-tools.md#installing-camoufox): Python 3.10 or newer, 3 GB of disk, 700 MB of memory. It runs `browse.mjs install`. On `BROWSE_NEEDS=python`, it asks for Python first.
+2. **A sign-in is your turn, in a live view.** When a site asks to log in and the browser isn't signed in, the agent asks whether you're ready, then sends [a sign-in turn](live-view.md#sign-in): you sign in on the site's own page, or paste from your password manager, and tap *Hand back*. Where the browser shows [in a window](browser-window.md#where-it-shows), you sign in there and say *done*.
    - **A code page or an app approval after your turn:** the agent reads the code from your email or asks you in the chat: [login codes](login-codes.md).
    - **A robot check:** during your turn, it's yours to pass there; after it, you tap through it in [a live view](live-view.md#when-it-opens).
 3. **A login through another provider follows the provider.** When the page offers only *Sign in with Google* or *Apple*, the agent taps it and treats the provider's own sign-in page as any login: a sign-in turn there. A code or an emailed sign-in link comes [through the chat](login-codes.md). A passkey or a device check is [yours, on your own device](#when-a-step-needs-you).
@@ -32,7 +32,7 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **The agent never asks for a password in the chat.** It never reads, shows, types, or writes one. Its view of a page shows a filled password, card, or code box as `[hidden]`, even after a site shows the password as text; a box inside a payment company's frame is known by its name alone. If you start typing a password into the chat, it doesn't use or save it; it offers [a sign-in turn](live-view.md#sign-in) instead.
 
-**Tasks share the browser.** Two chats, or a chat and a scheduled run, each get their own page and the same logins; neither waits. A page is named for its task's folder, so a second task in one folder passes `--session <name>` on every command. `close` closes only the task's own page; `stop` ends the browser for every task, so the agent runs it only when you ask. [`/verify`](staging-walkthrough.md) uses a temporary browser of its own, without your logins.
+**Tasks share the browser: one window, a tab each.** Two chats, or a chat and a scheduled run, each get their own tab and the same logins; neither waits, and neither shows its tab during your turn in another ([a tab for each chat](browser-window.md#a-tab-for-each-chat)). On a Mac, the window stays hidden until your turn ([where it shows](browser-window.md#where-it-shows)). A page is named for its task's folder, so a second task in one folder passes `--session <name>` on every command. `close` closes only the task's own page; `stop` ends the browser for every task, so the agent runs it only when you ask. [`/verify`](staging-walkthrough.md) uses a temporary browser of its own, without your logins.
 
 **A check never clears a shared browser's cookies.** A test that needs a clean or signed-in browser uses a throwaway profile in a temporary folder, deleted afterwards. Never run `cookies clear` on a profile that holds sign-ins, such as `~/.wong-stack/browser-profile`: it deletes every sign-in there for good.
 
@@ -46,11 +46,13 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **The first start moves your old logins once.** It copies the cookies and site storage of the old camofox browser into the new profile, then writes a `migrated` file so it never copies again. It never copies a Facebook, Messenger, Instagram, or other Meta login: Meta can lock an account when its login shows up in another browser, so you sign in to those again.
 
-**Every new start uses a local forwarding proxy automatically**, with no extra install or account. It keeps no browsing logs and tunnels secure traffic encrypted. Startup failure stops the browser; stopping the browser closes its proxy.
+### The proxy setting
 
-It uses this computer's own network, so sites see the computer's country; its timezone and English follow that address. It needs no WARP, relay, or phone connection, and chooses no country. Sites can still [refuse](#when-a-site-refuses-the-browser).
+**The proxy is off unless you turn it on.** The browser goes straight to sites. If a site such as UPS does not load, say *turn the browser proxy on*: the agent runs `browse.mjs proxy on`, which prints `BROWSE_PROXY=on`. The browser then goes through a local forwarding proxy on this computer, with no extra install or account. It keeps no browsing logs and tunnels secure traffic encrypted. With the proxy on, a proxy that fails to start stops the browser's start; stopping the browser closes its proxy. `proxy off` turns it off, and `proxy` alone prints the setting. The setting [stays on this computer](browser-window.md#settings-stay-on-this-computer).
 
-A running browser keeps its pages and logins, and takes this default only once you stop it and a later errand starts it. Never restart it just for an update.
+Either way, the browser uses this computer's own network, so sites see the computer's country; its timezone and English follow that address. It needs no WARP, relay, or phone connection, and chooses no country. Sites can still [refuse](#when-a-site-refuses-the-browser).
+
+A running browser keeps its pages and logins, and takes a setting or an update only once you stop it and a later errand starts it. Never restart it for a setting or an update.
 
 ## Show what the browser is doing
 
@@ -80,7 +82,7 @@ When a step needs something only you can give, each kind of step has one route:
 - **A site that refuses the browser**, or a check or sign-in your try doesn't clear, [ends with steps for you](#when-a-site-refuses-the-browser).
 - **A step only your own device can do** ends with you: a passkey or a device check. The agent stops that step and gives you [steps to finish it yourself](#steps-for-you-to-finish).
 
-*Let me take over* opens nothing, except [a live view](live-view.md#when-it-opens) at a step it lists. Elsewhere the agent names the route above that fits. It never solves a check that asks whether a person is there, even when asked.
+**Ask for the browser at any time.** *Send me the browser*, *show me the browser*, or *let me take over* gets you [your chat's tab](browser-window.md#ask-for-the-browser). A step above that needs you still takes its own route. The agent never solves a check that asks whether a person is there, even when asked.
 
 ## Steps for you to finish
 
@@ -106,7 +108,7 @@ Some sites turn the browser away, keep it on a *Verify you are human* page as Do
 
 1. **Say so in one line.** *DoorDash won't let my browser in.*
 2. **Stop browsing that site.** No other browser and no second link.
-3. **Give [steps to finish it yourself](#steps-for-you-to-finish)**, with the page's link.
+3. **Give [steps to finish it yourself](#steps-for-you-to-finish)**, with the page's link. With [the proxy](#the-proxy-setting) off, the first step is: *say turn the browser proxy on, then ask me to restart the browser and try again*. A site such as UPS loaded only through it.
 
 A check that clears by itself in a few seconds is not a refusal: the agent reads the page again first. It never routes its traffic through a hired or borrowed network address, uses a check-solving service, or solves a check that asks whether a person is there. One refusal ends the try: repeats can lock your account.
 

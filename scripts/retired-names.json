@@ -163,5 +163,7 @@
   {"name": "logins.mjs", "replacement": "nothing: saved passwords are gone, and the browser keeps each session", "allow": ["scripts/fixtures/context-baseline.json", "scripts/tests/browse.test.mjs"], "why": "the fixture is a measured before-state; the test proves the file is gone"},
   {"name": "I'm finished", "replacement": "*Hand back*, on every live view", "allow": ["openspec/specs/private-links/spec.md"], "why": "the spec keeps the old keep-open requirement until this change's archive replaces it"},
   {"name": "scripts/chrome.mjs", "replacement": "`connect/scripts/browser.mjs`, the connect helper for Chrome and the assistant's browser"},
-  {"name": "CONNECT_STOPPED", "replacement": "nothing: the person gives up in the chat, and the chat runs `browser.mjs done --stopped`"}
+  {"name": "CONNECT_STOPPED", "replacement": "nothing: the person gives up in the chat, and the chat runs `browser.mjs done --stopped`"},
+  {"name": "addon asked", "replacement": "nothing: the person adds a password manager themselves, and the assistant asks nothing"},
+  {"name": "addon decline", "replacement": "nothing: the person adds a password manager themselves, and the assistant asks nothing"}
 ]

@@ -71,7 +71,7 @@ test('with no install, a command prints BROWSE_NEEDS=install with the sizes and 
 test('install makes a venv, installs the pinned library and its build there, and checks both, its temp and cache on disk', t => {
   const f = fixture(t, { installed: false });
   assert.deepEqual(CAMOUFOX, { python: '0.5.9', build: 'v158.0.1-beta.41' });
-  assert.equal(ok(f, 'install'), 'BROWSE_INSTALLED=yes camoufox 158.0.1-beta.41 library 0.5.9\nBROWSE_ADDON=none\n');
+  assert.equal(ok(f, 'install'), 'BROWSE_INSTALLED=yes camoufox 158.0.1-beta.41 library 0.5.9\n', 'and asks nothing about a password manager');
   const venv = join(f.camofox.install, 'venv', '0.5.9', 'bin', 'python');
   const runs = f.camofox.pythonRuns().filter(run => run.args[1] !== '-c');
   assert.deepEqual(runs.map(run => [run.python, run.args.slice(0, 3)]), [
@@ -123,7 +123,7 @@ test('the server starts in its private folder with the key in a file, never on i
   assert.ok(!existsSync(join(f.camofox.install, 'server.log')), 'the server keeps no log');
   assert.ok(['profile', 'cache', 'tmp', 'tabs'].every(dir => (statSync(join(f.camofox.install, dir)).mode & 0o777) === 0o700), 'the private folders are the person\'s alone');
 
-  assert.match(ok(f, 'status'), /^BROWSE_INSTALLED=yes camoufox 158\.0\.1-beta\.41 library 0\.5\.9\nBROWSE_SERVER=running\nBROWSE_ADDON=declined\n$/);
+  assert.match(ok(f, 'status'), /^BROWSE_INSTALLED=yes camoufox 158\.0\.1-beta\.41 library 0\.5\.9\nBROWSE_SERVER=running\nBROWSE_WINDOW=on\nBROWSE_PROXY=off\nBROWSE_SHOWN=none\n$/);
   ok(f, 'snapshot', '--session', 'a');
   assert.equal(f.camofox.starts(), 1, 'a later command uses the running server');
 
@@ -501,19 +501,60 @@ test('window prints the setting, on by default, and on or off saves it for the n
   assert.equal(ok(f, 'window'), 'BROWSE_WINDOW=off\n');
   assert.equal(ok(f, 'window', 'on'), `BROWSE_WINDOW=on\n${next}`);
   assert.deepEqual(JSON.parse(readFileSync(settings, 'utf8')), { window: true });
+  assert.equal(statSync(settings).mode & 0o777, 0o600, 'the settings are the person\'s alone');
   assert.equal(f.camofox.serverPid(), pid);
   assert.ok(alive(pid) && f.camofox.starts() === 1, 'the running browser was not restarted');
   assert.match(f.run('--help').stdout, /window \[on\|off\]/);
+  assert.match(f.run('--help').stdout, /on Linux, off \(or no screen\) sends a live-view link instead/);
 });
 
-test('off Linux the browser starts in a window unless turned off, and its record says so', t => {
-  for (const [platform, setting, args, record] of [
-    ['linux', true, [], {}],
-    ['darwin', true, ['--window'], { window: true }],
-    ['win32', true, ['--window'], { window: true }],
-    ['darwin', false, [], {}],
-    ['win32', false, [], {}],
-  ]) assert.deepEqual(windowLaunch({ platform, setting }), { args, record }, `${platform} ${setting}`);
+test('proxy is off unless turned on, kept beside the window setting in the home folder, and a running browser keeps its own', t => {
+  const f = fixture(t);
+  const settings = join(f.home, '.wong-stack/browser-settings.json');
+  const next = 'This takes effect the next time the browser starts; a running browser stays as it is.\n';
+  assert.equal(ok(f, 'proxy'), 'BROWSE_PROXY=off\n');
+  assert.ok(!existsSync(settings), 'a read writes nothing');
+  ok(f, 'open', SHOP);
+  const pid = f.camofox.serverPid();
+  ok(f, 'window', 'off');
+  assert.equal(ok(f, 'proxy', 'on'), `BROWSE_PROXY=on\n${next}`);
+  assert.deepEqual(JSON.parse(readFileSync(settings, 'utf8')), { window: false, proxy: true }, 'one file, each setting kept');
+  assert.equal(statSync(settings).mode & 0o777, 0o600);
+  assert.ok(!resolve(settings).startsWith(repo), 'outside every repo');
+  assert.equal(ok(f, 'status').split('\n').slice(2).join('\n'), 'BROWSE_WINDOW=off\nBROWSE_PROXY=on\nBROWSE_SHOWN=none\nThe running browser started with other settings. This takes effect the next time the browser starts; a running browser stays as it is.\n');
+  assert.ok(alive(pid) && f.camofox.starts() === 1, 'the running browser was not restarted');
+  assert.equal(ok(f, 'proxy', 'off'), `BROWSE_PROXY=off\n${next}`);
+  assert.deepEqual(JSON.parse(readFileSync(settings, 'utf8')), { window: false, proxy: false });
+  for (const args of [['proxy', 'maybe'], ['proxy', 'on', 'off']]) assert.equal(f.run(...args).status, 2, args.join(' '));
+  assert.match(f.run('--help').stdout, /proxy \[on\|off\]/);
+});
+
+test('status says what the running browser shows: a window, a live-view link, or nothing', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP);
+  const record = join(f.camofox.install, 'server.json');
+  const write = more => writeFileSync(record, JSON.stringify({ ...JSON.parse(readFileSync(record, 'utf8')), ...more }));
+  const shown = () => /^BROWSE_SHOWN=(.*)$/m.exec(ok(f, 'status'))[1];
+  write({ window: true });
+  assert.equal(shown(), 'window');
+  write({ window: undefined, display: ':7' });
+  assert.equal(shown(), 'link');
+  write({ display: null, proxy: undefined, windowSetting: undefined });
+  assert.match(ok(f, 'status'), /\nThe running browser started with other settings\./, 'one from before the settings ran the proxy');
+});
+
+test('the browser shows in a window unless turned off; on Linux only where a screen exists, else it draws on Xvfb', t => {
+  const desk = { DISPLAY: ':0', XAUTHORITY: '/home/me/.Xauthority', HOME: '/home/me' };
+  for (const [platform, setting, env, args, screen, record, xvfb] of [
+    ['linux', true, desk, ['--window'], { DISPLAY: ':0', XAUTHORITY: '/home/me/.Xauthority' }, { window: true }, false],
+    ['linux', true, { WAYLAND_DISPLAY: 'wayland-0', XDG_RUNTIME_DIR: '/run/user/1000' }, ['--window'], { WAYLAND_DISPLAY: 'wayland-0', XDG_RUNTIME_DIR: '/run/user/1000' }, { window: true }, false],
+    ['linux', false, desk, [], {}, {}, true],
+    ['linux', true, {}, [], {}, {}, true],
+    ['darwin', true, {}, ['--window'], {}, { window: true }, false],
+    ['win32', true, desk, ['--window'], {}, { window: true }, false],
+    ['darwin', false, {}, [], {}, {}, false],
+    ['win32', false, {}, [], {}, {}, false],
+  ]) assert.deepEqual(windowLaunch({ platform, setting, env }), { args, env: screen, record, xvfb }, `${platform} ${setting} ${Object.keys(env)}`);
   const f = fixture(t);
   const read = () => spawnSync(process.execPath, ['--input-type=module', '-e', `import { serverWindow } from ${JSON.stringify(pathToFileURL(script).href)}; console.log(serverWindow());`], { env: f.env, encoding: 'utf8' }).stdout;
   mkdirSync(f.camofox.install, { recursive: true });
@@ -1042,10 +1083,13 @@ test('a snapshot keeps each ref\'s box in the tab file, and a new page drops the
   assert.equal(names(), undefined);
 });
 
-test("status names the password manager's choice, and its refusal of a step reaches the agent as the server gives it", t => {
+test("status names an added password manager, and its refusal of a step reaches the agent as the server gives it", t => {
   const f = fixture(t);
-  assert.equal(ok(f, 'addon', 'decline'), 'BROWSE_ADDON=declined\n');
-  assert.match(ok(f, 'status'), /\nBROWSE_ADDON=declined\n$/);
+  const choice = join(f.camofox.install, 'password-manager.json');
+  writeFileSync(choice, JSON.stringify({ state: 'added', guid: 'pm@maker.example', name: 'PM' }));
+  assert.match(ok(f, 'status'), /\nBROWSE_ADDON=PM\n$/);
+  writeFileSync(choice, JSON.stringify({ state: 'declined' }));
+  assert.doesNotMatch(ok(f, 'status'), /BROWSE_ADDON/, 'an old answer is ignored');
   ok(f, 'open', SHOP);
   f.camofox.set('click-refused', "that is the password manager's own; the person uses it in the live view");
   const out = f.run('click', '#pm-menu');
@@ -1053,19 +1097,43 @@ test("status names the password manager's choice, and its refusal of a step reac
   assert.equal(out.stdout, "BROWSE_ERROR=that is the password manager's own; the person uses it in the live view\n");
 });
 
-test('a browser installed before the password manager\'s offer shows it at each task\'s first open, until the agent records that it asked', t => {
+test('no password manager question: install, status and a task\'s first open print no offer, and asked and decline are gone', t => {
   const f = fixture(t);
-  const choice = join(f.camofox.install, 'password-manager.json');
-  rmSync(choice);
-  assert.equal(ok(f, 'open', SHOP), `BROWSE_URL=${SHOP}\nBROWSE_ADDON=none\n`);
-  assert.equal(ok(f, 'open', ACCOUNT), `BROWSE_URL=${ACCOUNT}\n`, 'once per task, not at each page');
-  assert.ok(!existsSync(choice), 'the line saves nothing, so a run with no person never uses up the offer');
-  assert.match(ok(f, 'status'), /\nBROWSE_ADDON=none\n$/, 'status shows the offer too');
-  assert.equal(ok(f, 'open', SHOP, '--session', 'next-task'), `BROWSE_URL=${SHOP}\nBROWSE_ADDON=none\n`, 'the next task shows it again');
+  assert.equal(ok(f, 'open', SHOP), `BROWSE_URL=${SHOP}\n`);
+  assert.doesNotMatch(ok(f, 'status'), /BROWSE_ADDON/);
+  assert.ok(!existsSync(join(f.camofox.install, 'password-manager.json')), 'nothing is saved');
+  for (const verb of ['asked', 'decline']) {
+    const out = f.run('addon', verb);
+    assert.equal(out.status, 2, verb);
+    assert.match(out.stderr, /addon takes find, add, open, status, or remove/);
+  }
+  assert.doesNotMatch(f.run('--help').stdout, /asked|decline/);
+});
 
-  assert.equal(ok(f, 'addon', 'asked'), 'BROWSE_ADDON=asked\n', 'the agent asked in a chat');
-  assert.equal(ok(f, 'open', SHOP, '--session', 'later'), `BROWSE_URL=${SHOP}\n`, 'one offer, whatever the answer');
-  assert.match(ok(f, 'status'), /\nBROWSE_ADDON=asked\n$/);
-  assert.equal(ok(f, 'addon', 'decline'), 'BROWSE_ADDON=declined\n');
-  assert.equal(ok(f, 'addon', 'asked'), 'BROWSE_ADDON=declined\n', 'asked never undoes a no');
+test('front brings this task\'s tab to the front, and says so when the person is using another tab', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP);
+  assert.equal(ok(f, 'front'), 'BROWSE_FRONT=yes\n');
+  assert.deepEqual(f.camofox.requests().at(-1).body, { userId: 'me' });
+  f.camofox.set('front-refused');
+  const out = f.run('front');
+  assert.equal(out.status, 1);
+  assert.equal(out.stdout, 'BROWSE_ERROR=the person is using the browser\n');
+  assert.match(f.run('--help').stdout, /front .*bring this task's tab to the front/);
+});
+
+test('show brings this task\'s tab to the front and asks the server to unhide a Mac\'s window, then says how the browser shows', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP);
+  assert.equal(ok(f, 'show'), 'BROWSE_SHOWN=none\n', 'the stand-in browser records no window');
+  const { path, body } = f.camofox.requests().at(-1);
+  assert.match(path, /\/front$/);
+  assert.deepEqual(body, { userId: 'me', show: true });
+  const record = join(f.camofox.install, 'server.json');
+  writeFileSync(record, JSON.stringify({ ...JSON.parse(readFileSync(record, 'utf8')), window: true }));
+  assert.equal(ok(f, 'show'), 'BROWSE_SHOWN=window\n');
+  f.camofox.set('front-refused');
+  assert.equal(f.run('show').stdout, 'BROWSE_ERROR=the person is using the browser\n', 'during another chat\'s turn the window already shows');
+  assert.equal(f.run('show', 'now').status, 2, 'show takes no words');
+  assert.match(f.run('--help').stdout, /show .*unhide the window too, with no turn held: the next task\n\s+step, from any chat, hides it again/);
 });

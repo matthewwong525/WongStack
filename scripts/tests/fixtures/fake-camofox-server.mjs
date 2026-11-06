@@ -6,7 +6,7 @@ import { once as heard } from 'node:events';
 import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
-import { FRAMES_SCRIPT, SECRETS_SCRIPT } from '../../../.agents/skills/browser/scripts/browse.mjs';
+import { FRAMES_SCRIPT, proxySetting, SECRETS_SCRIPT, windowSetting } from '../../../.agents/skills/browser/scripts/browse.mjs';
 import { ADDON_PAGE, ADDON_REFUSAL } from '../../../.agents/skills/browser/scripts/refs.mjs';
 
 const DIR = join(process.env.HOME, 'fake-camofox');
@@ -148,7 +148,7 @@ const STEPS = {
     Object.assign(tab, { url: body.url, reads: 0, addon: null });
     return send(response, 200, { ok: true, tabId: tab.id, url: tab.url });
   },
-  front: (_, __, response) => send(response, 200, { ok: true }),
+  front: (_, __, response) => (has('front-refused') ? refuse(response, 409, 'the person is using the browser') : send(response, 200, { ok: true })),
   evaluate: (tab, body, response) => send(response, 200, { ok: true, result: evaluate(tab, body.expression) }),
   viewport(tab, body, response) {
     if (has('fail-viewport')) return refuse(response, 500, 'viewport failed');
@@ -223,7 +223,15 @@ const server = createServer(async (request, response) => {
 if (browser) await heard(browser.stdout, 'data');
 // `die-once` stands in for a taken port: the start exits before listening. starts.log counts starts that listened.
 if (once('die-once')) process.exit(1);
-server.listen(Number(process.env.BROWSE_SERVER_PORT), '127.0.0.1', () => appendFileSync(file('starts.log'), `${process.pid}\n`));
+server.listen(Number(process.env.BROWSE_SERVER_PORT), '127.0.0.1', () => {
+  // The settings it started with, in the record beside browse.mjs's, as browser-server.mjs leaves them.
+  try {
+    writeFileSync('server.json', JSON.stringify({ ...JSON.parse(readFileSync('server.json', 'utf8')), proxy: proxySetting(), windowSetting: windowSetting() }));
+  } catch {
+    // No record to add to.
+  }
+  appendFileSync(file('starts.log'), `${process.pid}\n`);
+});
 
 process.on('SIGTERM', () => {
   writeFileSync(file('stopped'), 'SIGTERM');

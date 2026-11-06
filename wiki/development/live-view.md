@@ -17,7 +17,7 @@ Every live view is the same turn: one line under the site says what to do now, a
 - **A sign-in:** a site asks you to log in, and the browser isn't signed in. You type your password on the site's own page, paste it from your password manager, or fill it from [your password manager in the browser](password-manager.md). The browser keeps the session, so a later task doesn't ask again: [sign in](#sign-in).
 - **A payment or a backup code:** card details, a backup or recovery code, or another lasting secret the page asks for. The agent fills the rest of the page first, and you press the site's own *Pay*: [pay or type a code](#pay-or-type-a-code). PayPal is [the same turn](#other-ways-to-pay).
 - **A robot check:** a tick box such as *I'm not a robot*, or a picture puzzle. It can stand at a site's front door or come right after a sign-in. The agent never ticks, solves, or answers one itself, even when asked.
-- **A stuck site step**, such as DigiKey's *Continue*, when the agent's clicks don't move it after [a 30-second wait](browsing.md#saved-browser-logins) or print `BROWSE_CLICK=script`. This view opens with `--keep-open`: it reads no finish, so it stays through every page until you tap *Hand back*, or the time limit passes. Every other view keeps its finish, since each ends at one clear step.
+- **A stuck site step**, such as DigiKey's *Continue*, when the agent's clicks don't move it after [a 30-second wait](browsing.md#saved-browser-logins) or print `BROWSE_CLICK=script`. This view opens with `--keep-open`: it reads no finish, so it stays through every page until you tap *Hand back*, or the time limit passes. A view you [ask for](browser-window.md#ask-for-the-browser) is the same. Every other view keeps its finish, since each ends at one clear step.
 - **Connecting your tools** on a server: [the watch link](watch-link.md), for a sign-in, or when you ask to watch.
 
 What you type goes to the site a key press at a time. The view saves nothing, and the agent sees none of it.
@@ -59,7 +59,7 @@ The agent's browser fills the page, already on the step. One bar under it holds 
 - **One live view on the computer.** The browser has one screen, so a second view, from any chat, can't open until the first closes. Its message names the chat that holds it: `A live view is already open in modest-toad.`
 - **Open for up to 8 hours.** It closes when the site meets its finish, when you tap *Hand back*, when you say *done* in the chat, or at the limit, even if the chat stops. A closed link never works again.
 - **The agent learns only how it ended.** It sees nothing you tapped or typed. Afterwards it reads the page afresh and trusts nothing from before.
-- **Tasks share the screen.** Another task's new page can cover yours for a second or two; yours comes back to the front by itself.
+- **Tasks share the window, a tab each.** While your turn is open, no other task shows its tab. If you tap another chat's tab or the blank first tab, yours comes back to the front by itself ([a tab for each chat](browser-window.md#a-tab-for-each-chat)). A tab that you or the site open during your turn, such as *Forgot password* or *Sign in with Google*, stays in front while it is open: the browser can not tell the agent which tab shows.
 
 ## The watch link
 
@@ -82,7 +82,7 @@ The [watch link](watch-link.md) is the one live view the agent drives: for conne
    ```
 
    `--note` is required: it is the one line the page shows. The finish is one or more of `--until <address pattern>`, `--until-gone <selector>` and `--until-text <words>`, and every finish you name must hold. Name the page the site reaches once you're through, not "left this page", since an error page would count too. `--until-gone` counts only what shows: a hidden card frame is gone. A task that passes `--session <name>` to [`browse.mjs`](../../.agents/skills/browser/scripts/browse.mjs) passes it here too; `--minutes N` sets a shorter limit. Exit 2 means a usage fault, such as no `--note`. Exit 1 means the task has no page open, the page already meets the finish, another link is open in this chat, or a live view is open in any chat. No page open usually means you took a while to say *Ready* and the browser closed the idle page: the agent opens the site's page again, then the view.
-4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures: the page is yours. The link's helper reads only the page's address, whether a named part is still there, or whether named words show. It keeps the page's window in front, and once a minute sets the page's size again, since the browser closes a page left alone for 5 minutes and your taps don't count ([`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs)).
+4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures: the page is yours. The link's helper reads only the page's address, whether a named part is still there, or whether named words show. It keeps your tab and its window in front, and once a minute sets the page's size again, since the browser closes a page left alone for 5 minutes and your taps don't count ([`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs)).
 5. **Read how it ended.** After each result, the agent reads the page afresh.
    - `done`: the site met the finish. The agent takes a fresh snapshot, shows [a picture](browsing.md#show-what-the-browser-is-doing), and carries on. It says it's signed in only once the page shows it.
    - `handed-back`: you tapped *Hand back*. The agent carries on from what the page shows now, which may or may not be the finish. If the step is not finished, it asks you in the chat before it does more on that page.
@@ -144,16 +144,8 @@ node .claude/skills/hand-over/scripts/hand-over.mjs install-view   # HANDOVER_IN
 - **`HANDOVER_INSTALL=manual`:** nothing was installed, because the computer wants a password for admin rights. The agent gives you the one command it printed to run yourself, or steps for the step instead.
 - **No:** nothing is installed, and the step [ends with steps for you](browsing.md#steps-for-you-to-finish).
 
-## On a Mac or Windows
+## On a computer with a screen
 
-A Mac or a Windows computer has no virtual screen to show through a link. So by default the agent's browser opens in a window on your screen, and your turn happens there:
-
-- **No link.** `open --view` takes the same finish and line. It brings the task's page to the front, prints `HANDOVER_VIEW=window` and no `HANDOVER_LINK`, and still watches the finish.
-- **The chat says the line, with *say done*:** *Sign in to Netflix in the browser window, then say done.* A payment still asks the pay question first.
-- **It ends on the finish, or on your *done*.** On *done*, the agent runs `hand-over.mjs close`, which ends the turn as `handed-back`. Then it reads the page afresh, as above. While the window is yours, it sends its browser nothing.
-- **Turn the window off** on a computer you don't sit at: say *don't show the browser window*. The agent runs `browse.mjs window off`, which prints `BROWSE_WINDOW=off`. It takes effect the next time the browser starts: the agent never restarts a running browser for it. `browse.mjs window on` turns it back on, and `browse.mjs window` prints the setting.
-- **With the window off**, `open --view` prints `HANDOVER_VIEW=unsupported`, and the step ends with [steps to finish it in your own browser](finish-steps.md).
-
-Linux, where the browser draws on a virtual screen, is the one place a live view link opens.
+On a Mac, a Windows computer, or a Linux computer with a screen and the link setting off, your turn happens in [the browser window](browser-window.md#your-turn-in-the-window), with no link. On a Mac, that window stays hidden until your turn, and hides again when it ends. A live-view link opens only on Linux: with the link setting on, or on a server with no screen ([where it shows](browser-window.md#where-it-shows)).
 
 Back to [browsing](browsing.md).

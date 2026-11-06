@@ -96,14 +96,14 @@ Setup and a first private link install it from Cloudflare's own channel:
 
 The first errand on your accounts asks once, then runs [`browse.mjs install`](../../.agents/skills/browser/scripts/browse.mjs):
 
-- **What it needs.** Python 3.10 or newer with `venv` (else `BROWSE_NEEDS=python`), 3 GB of disk, 700 MB of memory, and no admin password. Linux also needs `Xvfb`; a Mac or Windows computer shows the browser in [a window](live-view.md#on-a-mac-or-windows).
+- **What it needs.** Python 3.10 or newer with `venv` (else `BROWSE_NEEDS=python`), 3 GB of disk, 700 MB of memory, and no admin password. A Linux computer that sends [the link](browser-window.md#where-it-shows) also needs `Xvfb`.
 - **What it installs.** The pinned [`camoufox`](https://pypi.org/project/camoufox/) Python library and the build it pins, whose disguise it makes. A start refuses a pair that disagrees.
 - **Where it goes.** `~/.wong-stack/camoufox/`: the library in `venv/`, the build in `cache/`, your site logins in `profile/`, and its own temp folder on disk.
 - **To remove it,** stop the browser, then delete `~/.wong-stack/camoufox/`. Delete an older install's `~/.wong-stack/camofox/` and `~/.cache/camoufox` once the new browser has your logins.
 
 ### Installing the live view's tools
 
-The first [live view](live-view.md) asks once, then runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `install-view`. Linux only: a Mac or Windows computer uses [a window](live-view.md#on-a-mac-or-windows) instead, so nothing is installed.
+The first [live view](live-view.md) asks once, then runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `install-view`. Only a Linux computer that sends the link needs it; [a window](browser-window.md#where-it-shows) needs nothing.
 
 - **`x11vnc` shows the browser's screen** to the link's page. It is a system package, so it needs admin rights.
 - **`xdotool` keeps the page's window in front** and reads the screen's size. It is a system package, so it needs admin rights.

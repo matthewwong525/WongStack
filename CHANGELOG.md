@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — One browser window with a tab for each chat, and browser settings on each computer
+
+- **One window, a tab for each chat.** Each chat, and each scheduled run, gets its own tab in the one browser window, not a window of its own. The chats work at the same time. While it is your turn in a tab, the other chats keep working in theirs and never show their tab over yours ([a tab for each chat](wiki/development/browser-window.md#a-tab-for-each-chat)).
+- **The browser shows on your screen by default, Linux too.** A Linux computer with a screen now shows the browser in a window, as a Mac or Windows computer does, and your turn happens there. On Linux, `window off` is the link setting: the browser hides on its virtual screen, and your turn comes as a live-view link. A Linux server with no screen always uses the link ([where it shows](wiki/development/browser-window.md#where-it-shows)).
+- **Ask for the browser at any time.** Say *send me the browser*: with a window, your chat's tab comes to the front and stays yours until you say *done*; with the link, you get a live view of your chat's tab that stays open until you tap *Hand back*. No other chat takes the window away meanwhile ([ask for the browser](wiki/development/browser-window.md#ask-for-the-browser)).
+- **On a Mac, the browser window stays out of sight until your turn.** The assistant works in it hidden, so it never covers what you do. It comes to the front on your chat's tab when a step needs you, and hides again when your turn ends. Say *show me the browser* to see it at any time ([where it shows](wiki/development/browser-window.md#where-it-shows)).
+- **The proxy is a setting, off by default.** The browser goes straight to sites. Say *turn the browser proxy on* if a site does not load; it applies from the browser's next start ([the proxy setting](wiki/development/browsing.md#the-proxy-setting)).
+- **Both settings stay on each computer**, in `~/.wong-stack/browser-settings.json`, never in a repo, so no teammate gets yours ([settings stay on this computer](wiki/development/browser-window.md#settings-stay-on-this-computer)).
+- **No password manager question.** The assistant no longer asks which password manager you use. You add one yourself in the browser, from Firefox's add-on site, like any add-on; or ask the assistant to add one with its checks. The assistant still never opens, reads, or types into any add-on ([add it yourself](wiki/development/password-manager.md#add-it-yourself)).
+
+**Updating.** Nothing to do for most computers. The proxy is now off from the browser's next start, on every computer. If a site that loaded before stops loading, such as UPS, say *turn the browser proxy on*, then ask the assistant to restart the browser. A browser that is running now keeps its proxy until it stops.
+
 ## 50.2.2 — The last pretend database goes
 
 - **Three more server tests read real rows.** The tests for who may open which app, which keys and tools a person holds, and the list of actions an AI can call now run real queries on the test copy of the database. A test of a failed database closes that copy, so the read fails for real.

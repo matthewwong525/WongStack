@@ -53,6 +53,7 @@ test('checkView says unsupported off Linux, names each missing tool, and needs n
   const f = setup(t);
   for (const platform of ['darwin', 'win32']) assert.deepEqual(checkView({ platform, env: f.env(), home: f.home }), { unsupported: OFF_LINUX, missing: [] });
   for (const platform of ['darwin', 'linux']) assert.deepEqual(checkView({ platform, env: f.env('x11vnc'), home: f.home, window: true }), { window: true, missing: [] });
+  assert.deepEqual(checkView({ platform: 'linux', env: f.env('x11vnc', 'xdotool'), home: f.home, window: true }), { window: true, missing: [] }, 'a Linux desktop\'s window needs no live-view tool, xdotool included');
   assert.deepEqual(checkView({ platform: 'linux', env: f.env('x11vnc', 'xdotool'), home: f.home }), { missing: ['x11vnc', 'xdotool', 'novnc'] });
   assert.deepEqual(checkView({ platform: 'linux', env: f.env(), home: f.home }), { missing: ['novnc'] });
   fakeViewer(f.home, VIEWER.version);

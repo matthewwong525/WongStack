@@ -80,7 +80,7 @@ const LOOKALIKE = { slug: 'vaultt-manager', guid: 'vaultt@someone.example', name
 for (const addon of [FEATURED, POPULAR, LOOKALIKE]) publish(addon);
 
 const addons = await import('../../.agents/skills/browser/scripts/addons.mjs');
-const { addAddon, addonStatus, choice, declineAddon, findAddons, folderOf, foundLines, pageUrl, pinnedLayout, removeAddon, startArgs, unzip, UPDATE_MS } = addons;
+const { addAddon, addonStatus, choice, findAddons, folderOf, foundLines, pageUrl, pinnedLayout, removeAddon, startArgs, unzip, UPDATE_MS } = addons;
 
 /** Runs browse.mjs without blocking, since the stand-in site answers from this process. */
 function run(...args) {
@@ -173,13 +173,17 @@ test('an add-on with no id of its own gets the site\'s, and a path out of its fo
   }
 });
 
-test('the offer stays until the agent records it asked, and an add tells the agent what to tell the person', async () => {
+test('status names the added add-on or none, an old answer is ignored, and an add tells the agent what to tell the person', async () => {
   reset();
   assert.equal((await run('addon', 'status')).stdout, 'BROWSE_ADDON=none\n');
-  assert.equal((await run('addon', 'status')).stdout, 'BROWSE_ADDON=none\n', 'a status alone saves nothing, so a run with no person keeps the offer');
-  assert.equal((await run('addon', 'asked')).stdout, 'BROWSE_ADDON=asked\n');
-  assert.equal((await run('addon', 'status')).stdout, 'BROWSE_ADDON=asked\n', 'the offer was made, so it is not made again');
-  assert.equal(addonStatus(), 'asked');
+  assert.ok(!existsSync(CHOICE), 'a status saves nothing');
+  for (const state of ['asked', 'declined']) {
+    mkdirSync(DIR, { recursive: true });
+    writeFileSync(CHOICE, JSON.stringify({ state }));
+    assert.equal(addonStatus(), 'none', `an old ${state} reads as none`);
+    assert.deepEqual(await startArgs(), [], 'and loads nothing');
+  }
+  for (const verb of ['asked', 'decline']) assert.equal((await run('addon', verb)).status, 2, `${verb} is gone`);
   const out = await run('addon', 'add', FEATURED.slug);
   assert.equal(out.status, 0, out.stderr);
   assert.equal(out.stdout, `BROWSE_ADDON_ADDED=${FEATURED.name}\nBROWSE_ADDON_TELL=${addons.ADVICE}\nBROWSE_SERVER=stopped\n`);
@@ -187,20 +191,16 @@ test('the offer stays until the agent records it asked, and an add tells the age
   assert.match(addons.ADVICE, /lock after 5 minutes/);
 });
 
-test('decline keeps a no; remove takes the add-on out with its stored data and keeps a no', async () => {
+test('remove takes the add-on out with its stored data, and leaves no answer behind', async () => {
   reset();
-  declineAddon();
-  assert.equal(addonStatus(), 'declined');
-  assert.equal((await run('addon', 'status')).stdout, 'BROWSE_ADDON=declined\n');
   await addAddon(POPULAR.slug);
-  declineAddon();
-  assert.equal(addonStatus(), POPULAR.name, 'a decline never removes one that is added');
   profileWith({ [POPULAR.guid]: 'pass-uuid', 'other@maker.example': 'other-uuid' });
   assert.equal(await removeAddon(), POPULAR.name);
   assert.ok(!existsSync(folderOf(POPULAR.guid)));
   assert.ok(!stored(POPULAR.guid, 'pass-uuid'), 'no sign-in to it stays behind');
   assert.ok(stored('other@maker.example', 'other-uuid'), 'another add-on\'s data stays');
-  assert.equal(addonStatus(), 'declined');
+  assert.equal(addonStatus(), 'none');
+  assert.ok(!existsSync(CHOICE), 'no saved answer stays');
   assert.deepEqual(await startArgs(), [], 'the next start loads none');
   assert.equal((await run('addon', 'remove')).stdout, 'BROWSE_ADDON_REMOVED=none\n');
 });
