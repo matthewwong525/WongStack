@@ -15,7 +15,10 @@ export async function identities() {
     const signature = await webcrypto.subtle.sign("RSASSA-PKCS1-v1_5", pair.privateKey, Buffer.from(content));
     return `${content}.${Buffer.from(signature).toString("base64url")}`;
   };
+  // Three of staging's seeded people: Fay is an Admin, Dana holds Hello, and Eli holds no app.
+  const seeded = async (name: string) => token({ email: `${name}@example.invalid`, sub: `runtime-${name}` });
   return { publicKey, owner: await token({ email: site.owner, sub: "runtime-owner" }),
+    fay: await seeded("fay"), dana: await seeded("dana"), eli: await seeded("eli"),
     employee: await token({ email: site.employee, sub: "runtime-employee" }),
     service: await token({ common_name: "runtime-service", sub: "" }),
     wrongAudience: await token({ email: site.owner, aud: "another-app" }) };
