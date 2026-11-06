@@ -295,10 +295,13 @@ test('sign-in and watch work only on the helper\'s own page, and a turn waits fo
 /** A live view this server could open, from stand-ins: a tunnel, the view's tools, and the browser's screen, set
  * before the browser starts; returns the environment that names them. */
 function viewable(f) {
+  // The fixture makes no bin folder now that no agent-browser stand-in lives there.
+  mkdirSync(join(f.dir, 'bin'), { recursive: true });
   fakeTunnel(join(f.dir, 'bin'), join(f.dir, 'tunnel.log'));
   fakeViewer(f.dir, VIEWER.version);
   f.camofox.set('display', ':97');
-  return { ...TUNNEL_ENV, ...fakeViewTools(f.dir, f.camofox.control).env() };
+  const tools = fakeViewTools(f.dir, f.camofox.control).env();
+  return { ...TUNNEL_ENV, ...tools, PATH: `${join(f.dir, 'bin')}:${tools.PATH ?? process.env.PATH}` };
 }
 
 const linux = { skip: process.platform !== 'linux' && 'a live view runs on Linux only' };
