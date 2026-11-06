@@ -72,6 +72,8 @@ Each app with server code, an `app/worker/apps/<name>/api.ts`, needs its own fil
 
 Add the sample rows a new feature needs to `schema/seed.sql` in the same change: the preview and these tests both start from them.
 
+An app that reads from a service the local runtime does not have tests only what a preview has. For example, Knowledge reads the knowledge store, which previews turn off. So its file checks who may open it and its *not set up* answer, and the unit tests check its pages with a stand-in store.
+
 ## Proof the checks can fail
 
 `npm run test:checks` gives each check of `npm test` a sample that is wrong on purpose, and fails when one lets it through. The real-database check gets a wrong expectation after a successful request, so a startup error can not count as catching it. The time limit gets a run that only looks slower than the limit.
