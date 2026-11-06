@@ -48,6 +48,14 @@ test('a failed country lookup starts in US English with no geoip', () => {
   assert.equal(out.options.given.headless, true);
 });
 
+test('--window shows the browser on the computer\'s own screen, with no virtual display and a Linux identity', () => {
+  const { status, out } = run({}, '--window');
+  assert.equal(status, 0);
+  assert.equal(out.options.given.headless, false);
+  assert.equal(out.options.given.virtual_display, null);
+  assert.equal(out.options.given.os, 'linux');
+});
+
 test('--check gives only the versions', () => {
   assert.deepEqual(run({}, '--check').out, { library: '0.5.9', build: '158.0.1-beta.41' });
 });

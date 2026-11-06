@@ -467,10 +467,18 @@ test('the server exits when its tunnel dies, and keeps the pages for the next op
   assert.equal(f.registration(link.id).key, link.key);
 });
 
+/** Makes the fixture's folder a checkout that declares one key, so a key link can open there. */
+function keyCheckout(f) {
+  spawnSync('git', ['init', '-q', '-b', 'main'], { cwd: f.root });
+  writeFileSync(join(f.root, '.gitignore'), '.env*\n!.env.example\n');
+  writeFileSync(join(f.root, '.env.example'), '# The Maps key.\nMAPS_API_KEY=\n');
+}
+
 test('a reply link and a private link open while the other is open, and share no state', async t => {
   const f = fixture(t);
+  keyCheckout(f);
   const link = f.open(f.page('one.html'));
-  const privateLink = f.run(handOver, 'open', '--passwords');
+  const privateLink = f.run(handOver, 'open', '--keys', 'MAPS_API_KEY');
   assert.equal(privateLink.status, 0, privateLink.stderr);
   assert.match(privateLink.stdout, /^HANDOVER_LINK=/m);
   const handOverState = join(f.root, '.wong-stack/hand-over/links', sessionName(f.root));
@@ -494,7 +502,8 @@ test('a reply link and a private link open while the other is open, and share no
 
 test('a private link opens first and a reply link opens beside it', async t => {
   const f = fixture(t);
-  assert.equal(f.run(handOver, 'open', '--passwords').status, 0);
+  keyCheckout(f);
+  assert.equal(f.run(handOver, 'open', '--keys', 'MAPS_API_KEY').status, 0);
   const link = f.open(f.page('one.html'));
   assert.equal((await ask(link, 'alive')).status, 200);
   assert.equal(existsSync(join(f.root, '.wong-stack/hand-over/links', sessionName(f.root), 'watcher.pid')), true, 'the private link is still open');

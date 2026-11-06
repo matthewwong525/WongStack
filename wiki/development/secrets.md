@@ -41,7 +41,7 @@ Rotate values in durable `.env`. Change `.env.example` only when the name, purpo
 
 ## API token website steps
 
-The person handles website steps to obtain, reveal, copy, rotate, change permissions for, or revoke API keys/tokens in their own browser. The agent uses no automation, saved login, screenshot, extraction, or private form for those steps. Except: [connecting tools](../stack/connect-your-tools.md#use-your-own-chrome) may make keys in the person's own Chrome, with their yes.
+The person handles website steps to obtain, reveal, copy, rotate, change permissions for, or revoke API keys/tokens in their own browser. The agent uses no automation, screenshot, extraction, or live view for those steps. Except: [connecting tools](../stack/connect-your-tools.md#pick-the-browser) may make keys in the assistant's browser, or in the person's Chrome with their yes.
 
 If an ordinary browsing task reaches a token step, stop before taking a picture or extracting page content, then:
 
@@ -49,7 +49,7 @@ If an ordinary browsing task reaches a token step, stop before taking a picture 
 2. **Write short steps**: what to create or change, and which permissions the task needs.
 3. **Put them where the person acts, and wait.** For a new or replacement value they go on [the private key link's page](#receive-a-key-through-a-private-link), and the chat carries only that link; wait until the key is saved. For a permission edit, revocation, or other change with no new value, give them in the chat and wait for the person to confirm.
 
-Other browsing, saved logins, stored credentials, and token management through APIs are unchanged.
+Other browsing, sign-ins, stored credentials, and token management through APIs are unchanged.
 
 **Scheduled credentials.** [Host schedules](../stack/host-schedules.md) use existing host connections. Verify future-session tool/memory scope; keep credentials out of prompts and schedule instructions. Preserve legacy keys until [explicit migration/teardown](../stack/legacy-cloud-schedules.md).
 

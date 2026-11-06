@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// A practice checkout, run by hand, for timing the private form in a real browser. Its card frame is cross-origin.
+// A practice checkout, run by hand, for a payment turn in the live view. Its card frame is cross-origin.
 // `?delay=<ms>`: Pay switches to the receipt without a reload after that long; `?delay=never` declines instead.
 
 import { createServer } from 'node:http';

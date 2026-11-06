@@ -12,15 +12,15 @@ WongStack runs on a deliberately small toolchain. A repo that has installed the 
 
 Core reads remain dependency-free: **no `jq`, no `python` (only [Camoufox](#installing-camoufox) needs it), and no project-language toolchain**. [Optional document retrieval](document-retrieval.md#optional-meaning-based-search) uses npm only in its explicit host setup to install pinned QMD/models outside the repo. Keyword fallback needs no setup; ordinary reads never install or download. No app package or lockfile changes.
 
-**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys. A private link adds one more, `cloudflared`, browsing as you adds Camoufox, a robot check adds a live view's three small tools, and shopping adds Shop's command.**
+**One core verb adds one tool: [`/verify`](staging-walkthrough.md) needs `agent-browser` — and only for browser journeys. A private link adds one more, `cloudflared`, browsing as you adds Camoufox, a live view adds three small tools, and shopping adds Shop's command.**
 
 | Tool | Why |
 |---|---|
 | `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
-| `cloudflared` | Cloudflare's free tunnel tool, which gives every [private link](browsing.md#how-private-links-work) (the password link, the key link, and a private form) an address your phone or another computer can open. Setup offers it up front, in the same question. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time a private link needs it. A link opened at the agent's own computer needs it too: there is no local link. |
+| `cloudflared` | Cloudflare's free tunnel tool, which gives every [private link](browsing.md#how-private-links-work) (the key link and a live view) an address your phone or another computer can open. Setup offers it up front, in the same question. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time a private link needs it. A link opened at the agent's own computer needs it too: there is no local link. |
 | Camoufox | The browser the agent [uses websites in as you](browsing.md#saved-browser-logins), which more sites let in. Setup never offers it. The first errand asks, then [installs it](#installing-camoufox) into your home folder. |
 | Shop's command | What [shopping](shopping.md) runs to search Shop's catalog and pay at its checkout. Setup never offers it. The first shopping request asks, then [installs it](#installing-shops-command) into your home folder. |
-| `x11vnc`, `xdotool`, noVNC | What [a live view](live-view.md) needs to show you the agent's browser at a robot check, on Linux only. Setup never offers them. The first check asks, saying two need admin rights, then [installs them](#installing-the-live-views-tools). |
+| `x11vnc`, `xdotool`, noVNC | What [a live view](live-view.md) needs to show you the agent's browser for your turn, on Linux only. Setup never offers them. The first view asks, saying two need admin rights, then [installs them](#installing-the-live-views-tools). |
 
 Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify`, opens a private link, browses as you, meets a robot check, or shops acquires none of them, and every other core verb still needs only the five commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
@@ -96,14 +96,14 @@ Setup and a first private link install it from Cloudflare's own channel:
 
 The first errand on your accounts asks once, then runs [`browse.mjs install`](../../.agents/skills/browser/scripts/browse.mjs):
 
-- **What it needs.** Python 3.10 or newer with `venv` (else `BROWSE_NEEDS=python`), 3 GB of disk, 700 MB of memory, and no admin password. Linux also needs `Xvfb`; a Mac shows no window.
+- **What it needs.** Python 3.10 or newer with `venv` (else `BROWSE_NEEDS=python`), 3 GB of disk, 700 MB of memory, and no admin password. Linux also needs `Xvfb`; a Mac or Windows computer shows the browser in [a window](live-view.md#on-a-mac-or-windows).
 - **What it installs.** The pinned [`camoufox`](https://pypi.org/project/camoufox/) Python library and the build it pins, whose disguise it makes. A start refuses a pair that disagrees.
 - **Where it goes.** `~/.wong-stack/camoufox/`: the library in `venv/`, the build in `cache/`, your site logins in `profile/`, and its own temp folder on disk.
-- **To remove it,** stop the browser, then delete `~/.wong-stack/camoufox/`. Your [saved logins](passwords.md) are a separate file. Delete an older install's `~/.wong-stack/camofox/` and `~/.cache/camoufox` once the new browser has your logins.
+- **To remove it,** stop the browser, then delete `~/.wong-stack/camoufox/`. Delete an older install's `~/.wong-stack/camofox/` and `~/.cache/camoufox` once the new browser has your logins.
 
 ### Installing the live view's tools
 
-The first [live view](live-view.md) asks once, then runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `install-view`. Linux only: on a Mac the browser has no screen to show, so nothing is installed.
+The first [live view](live-view.md) asks once, then runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `install-view`. Linux only: a Mac or Windows computer uses [a window](live-view.md#on-a-mac-or-windows) instead, so nothing is installed.
 
 - **`x11vnc` shows the browser's screen** to the link's page. It is a system package, so it needs admin rights.
 - **`xdotool` keeps the page's window in front** and reads the screen's size. It is a system package, so it needs admin rights.

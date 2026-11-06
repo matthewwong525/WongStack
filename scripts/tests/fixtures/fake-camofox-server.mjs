@@ -6,7 +6,7 @@ import { once as heard } from 'node:events';
 import { appendFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { join } from 'node:path';
-import { FRAMES_SCRIPT, MARK_SCRIPT, SECRETS_SCRIPT } from '../../../.agents/skills/browser/scripts/browse.mjs';
+import { FRAMES_SCRIPT, SECRETS_SCRIPT } from '../../../.agents/skills/browser/scripts/browse.mjs';
 import { ADDON_PAGE, ADDON_REFUSAL } from '../../../.agents/skills/browser/scripts/refs.mjs';
 
 const DIR = join(process.env.HOME, 'fake-camofox');
@@ -76,11 +76,8 @@ function evaluate(tab, expression) {
   if (expression === 'location.href') return tab.url;
   if (expression === '[innerWidth, innerHeight]') return tab.size;
   if (expression === '1') return 1;
-  // The page's secret boxes hold `secrets.json`'s values and what was typed into a marked box.
-  // `frames.json` holds the main page's iframes as `[name, src]`.
-  if (expression === `[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`) return [[...(has('secrets.json') ? JSON.parse(text('secrets.json')) : []), ...tab.marked.map(target => tab.typed[target])], has('frames.json') ? JSON.parse(text('frames.json')) : []];
-  // A box in another site's frame is out of a page script's reach, as `focus-in-frame` says the focused one is.
-  if (expression === MARK_SCRIPT) return void (tab.focused && !has('focus-in-frame') && tab.marked.push(tab.focused));
+  // The page's secret boxes hold `secrets.json`'s values; `frames.json` holds the main page's iframes as `[name, src]`.
+  if (expression === `[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`) return [has('secrets.json') ? JSON.parse(text('secrets.json')) : [], has('frames.json') ? JSON.parse(text('frames.json')) : []];
   const querySelectorAll = selector => (parse(selector), Array.from({ length: has('count') ? Number(text('count')) : 1 }));
   if (expression.startsWith('(() => { try { return document.querySelectorAll(')) return new Function('document', `return ${expression}`)({ querySelectorAll });
   // A shown count sees `count` matches with a size, of which `hidden-count` are hidden; page words are `page-text`.
@@ -125,7 +122,6 @@ const STEPS = {
     // Keyboard mode types after what the box holds, as key presses do.
     tab.typed[target] = body.mode === 'keyboard' ? (tab.typed[target] ?? '') + body.text : body.text;
     if (has('type-url')) tab.url = text('type-url');
-    tab.focused = target;
     if (body.mode === 'keyboard') tab.focus = body;
     if (body.pressEnter && has('press-url')) tab.url = text('press-url');
     // A step that redraws the page, as an email step that shows the password box.
@@ -195,7 +191,7 @@ function route(request, response, path, body, query) {
   const parts = path.split('/').filter(Boolean);
   if (path === '/tabs' && request.method === 'POST') {
     if (has('fail-open')) return refuse(response, 500, 'tab create failed');
-    const tab = { id: randomUUID(), session: body.sessionKey, user: body.userId, url: body.url, reads: 0, typed: {}, picked: {}, marked: [], ticked: false, size: has('size') ? JSON.parse(text('size')) : [2560, 1328] };
+    const tab = { id: randomUUID(), session: body.sessionKey, user: body.userId, url: body.url, reads: 0, typed: {}, picked: {}, ticked: false, size: has('size') ? JSON.parse(text('size')) : [2560, 1328] };
     tabs.set(tab.id, tab);
     return send(response, 200, { tabId: tab.id, url: tab.url, httpStatus: 200, navigationOk: true });
   }

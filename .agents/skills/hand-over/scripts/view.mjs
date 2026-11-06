@@ -1,13 +1,12 @@
 // The live view's parts, used by `hand-over.mjs open --view` and `install-view`: what a computer needs
-// to show one, the install, the screen source, the fit, and the page's routes. Node built-ins, plus `tar`.
+// to show one, the install, the screen source, the fit, the routes, and a request's body. Node built-ins, plus `tar`.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { accessSync, constants, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { delimiter, dirname, join, relative } from 'node:path';
-import { serverDisplay, serverPid } from '../../browser/scripts/browse.mjs';
-import { readBody, reply } from './form.mjs';
+import { serverDisplay, serverPid, serverWindow } from '../../browser/scripts/browse.mjs';
 import { alive, killTunnel } from './lib/tunnel.mjs';
 
 /** The one viewer version WongStack has tried: its source release and the fingerprint of its `core/` and
@@ -20,7 +19,10 @@ export const TOOLS = {
   novnc: `noVNC ${VIEWER.version} draws that screen on the link's page. It goes in your home folder.`,
 };
 export const OFF_LINUX = 'A live view needs Linux, where the browser runs on a virtual screen it can show.';
-export const VIEW_ROUTES = new Set(['/view', '/fit', '/done']);
+export const VIEW_ROUTES = new Set(['/view', '/fit', '/give', '/watch', '/take']);
+/** A watch link's buttons, each its route: the person takes the browser, or hands it back. */
+const WATCH_ACTIONS = new Set(['/take', '/give']);
+const BODY_MOST = 16 * 1024;
 const FITS = ['phone', 'wide'];
 const PHONE_WIDTH = 480;
 const PACKAGES = ['x11vnc', 'xdotool'];
@@ -49,8 +51,10 @@ export function viewerDir(home = homedir(), { version } = VIEWER) {
   return join(home, '.wong-stack', 'live-view', `novnc-${version}`);
 }
 
-/** Why this computer can not open a live view yet: `unsupported` off Linux, else `missing`, each absent tool. */
-export function checkView({ platform = process.platform, env = process.env, home = homedir(), viewer = VIEWER } = {}) {
+/** How this computer shows the browser: `window` when the running browser has its own window, else `unsupported` off
+ * Linux, else `missing`, each absent tool. */
+export function checkView({ platform = process.platform, env = process.env, home = homedir(), viewer = VIEWER, window = serverWindow() } = {}) {
+  if (window) return { window: true, missing: [] };
   if (platform !== 'linux') return { unsupported: OFF_LINUX, missing: [] };
   const present = name => (name === 'novnc' ? existsSync(join(viewerDir(home, viewer), 'core', 'rfb.js')) : Boolean(findTool(name, env)));
   return { missing: Object.keys(TOOLS).filter(name => !present(name)) };
@@ -107,14 +111,14 @@ function aptCommand(env, uid) {
 /** Installs what `checkView` finds missing: `installed`, `unsupported` off Linux, or `manual`, with nothing
  * installed, when `apt-get` can not run without a password. Throws on a fingerprint miss or a failed install. */
 export async function installView({ platform = process.platform, env = process.env, home = homedir(), uid = process.getuid?.(), viewer = VIEWER } = {}) {
-  const { unsupported, missing } = checkView({ platform, env, home, viewer });
+  const { unsupported, missing } = checkView({ platform, env, home, viewer, window: false });
   if (unsupported) return 'unsupported';
   const packages = missing.some(name => PACKAGES.includes(name));
   const apt = packages ? aptCommand(env, uid) : [];
   if (!apt) return 'manual';
   if (missing.includes('novnc')) await installViewer(viewer, viewerDir(home, viewer));
   if (packages && spawnSync(apt[0], [...apt.slice(1), ...INSTALL], { stdio: ['ignore', 2, 2], timeout: INSTALL_MS }).status !== 0) throw new Error('apt-get did not install x11vnc and xdotool; see its lines above');
-  const still = checkView({ platform, env, home, viewer }).missing;
+  const still = checkView({ platform, env, home, viewer, window: false }).missing;
   if (still.length) throw new Error(`still missing after the install: ${still.join(', ')}`);
   return 'installed';
 }
@@ -234,8 +238,7 @@ export function keptWindow(fits, seen, kept) {
   return opened.at(-1) ?? fits.find(win => win.id === kept) ?? [...fits].sort((a, b) => a.width - b.width)[0];
 }
 
-/** Sets the page's first size back, when the view changed it, and stops the screen source: what every end of a view
- * does. A form's or a sign-in's view never resizes the page, so it has no first size. */
+/** Sets the page's first size back and stops the screen source: what every end of a view does. */
 export async function endView(view, page) {
   if (view.size) await page.resize(...view.size).catch(() => {});
   await stopSource(view);
@@ -279,15 +282,6 @@ export function liveView(view, page) {
   return {
     describe,
     front,
-    /** The whole screen as a fit, read without resizing the page: what a form's or a sign-in's view shows. */
-    whole: () => {
-      try {
-        screen ??= screenSize(view.display);
-      } catch {
-        return null;
-      }
-      return { kind: 'wide', width: screen.width, screen: [screen.width, screen.height] };
-    },
     /** Fits the page as `next`, `phone` or `wide`, or as it was; resolves to the fit. */
     fit: (next = kind) => inTurn(async () => {
       if (ended) return describe();
@@ -321,18 +315,50 @@ export function viewerFile(pathname, dir = viewerDir()) {
   return statSync(file, { throwIfNoEntry: false })?.isFile() ? file : null;
 }
 
-/** The view's routes for the link's `{note, keepOpen}`. `fitted()` gives the fit; `onFit(kind)` refits to a new one.
- * After `/done`'s reply, `onFinished()` runs for a view kept open, else `onCancel()`. */
-export function viewRoutes({ note, keepOpen = false }, { fitted = () => null, onFit = async () => null, onCancel = () => {}, onFinished = () => {}, closesAt } = {}) {
+/** A request's JSON body, or a status: 413 past the byte limit, 400 when it isn't JSON. */
+export async function readBody(request) {
+  const chunks = [];
+  let size = 0;
+  for await (const chunk of request) {
+    size += chunk.length;
+    if (size <= BODY_MOST) chunks.push(chunk);
+  }
+  if (size > BODY_MOST) return 413;
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    return 400;
+  }
+}
+
+/** Ends a route with a JSON reply, or an empty one. */
+export function reply(response, status, body) {
+  const text = body ? JSON.stringify(body) : '';
+  response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
+}
+
+/** The view's routes for `{note}`: a view's first `/give` (Hand back) ends the turn, then runs `onGive()`; a watch
+ * link's `watch` hooks answer `/watch` and its buttons with who holds the browser. `onFit(kind)` refits. */
+export function viewRoutes({ note }, { fitted = () => null, onFit = async () => null, onGive = () => {}, closesAt, watch = null } = {}) {
   let ended = false;
   return async (pathname, request, response) => {
-    if (pathname === '/view') return request.method === 'GET' ? reply(response, 200, { ...(note && { note }), ...(keepOpen && { keepOpen }), fit: fitted(), closesAt, now: Date.now() }) : reply(response, 405);
+    if (pathname === '/view') {
+      if (request.method !== 'GET') return reply(response, 405);
+      watch?.shown();
+      return reply(response, 200, { note, ...(watch ? { watch: true } : { control: 'turn' }), fit: fitted(), closesAt, now: Date.now() });
+    }
+    if (!watch && (pathname === '/watch' || pathname === '/take')) return reply(response, 404);
+    if (pathname === '/watch') return request.method === 'GET' ? reply(response, 200, watch.info()) : reply(response, 405);
     if (request.method !== 'POST') return reply(response, 405);
-    if (pathname === '/done') {
+    if (watch && WATCH_ACTIONS.has(pathname)) {
+      const now = watch[pathname.slice(1)]();
+      return now ? reply(response, 200, now) : reply(response, 409);
+    }
+    if (pathname === '/give') {
       if (ended) return reply(response, 409);
       ended = true;
-      response.once('finish', () => (keepOpen ? onFinished() : onCancel()));
-      return reply(response, 200, { ok: true });
+      response.once('finish', onGive);
+      return reply(response, 200, { control: 'assistant' });
     }
     const kind = (await readBody(request))?.fit;
     if (!FITS.includes(kind)) return reply(response, 400);

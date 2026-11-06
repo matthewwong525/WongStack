@@ -8,7 +8,7 @@ import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { startArgs as addonArgs } from './addons.mjs';
-import { FILES, LAUNCH_MS, OLD_PROFILES, launchConfig } from './browse.mjs';
+import { FILES, LAUNCH_MS, OLD_PROFILES, launchConfig, windowSetting } from './browse.mjs';
 import { startForwarder } from './forwarder.mjs';
 import { moveLogins } from './login-move.mjs';
 import { ADDON_PAGE, ADDON_REFUSAL, MAX_FRAMES, buildSnapshot, frameHasBoxes, frameLabel, frameSkipped, windowSnapshot } from './refs.mjs';
@@ -393,6 +393,12 @@ const starting = response => {
   response.end(JSON.stringify({ ok: false, starting: true }));
 };
 
+/** Off Linux the browser shows in a window unless the person turned it off: its launch flags and server record. */
+export function windowLaunch({ platform, setting }) {
+  const shown = platform !== 'linux' && setting;
+  return { args: shown ? ['--window'] : [], record: shown ? { window: true } : {} };
+}
+
 const record = info => writeFileSync(FILES.server, `${JSON.stringify({ pid: process.pid, ...info })}\n`, { mode: 0o600 });
 
 /** Takes the port, then starts the forwarder, the screen, the browser and the routes; /health says ok only once the
@@ -417,19 +423,20 @@ async function main() {
     stops.push(() => new Promise(done => { handle?.close(); server.close(done); server.closeAllConnections(); }));
     const proxy = await startForwarder();
     stops.push(() => proxy.close());
-    // Only Linux gets Xvfb; a Mac or Windows browser runs with no window.
+    // Only Linux gets Xvfb; a Mac or Windows browser shows in a window, or none when turned off.
     const screen = process.platform === 'linux' ? await startXvfb() : null;
     if (screen) stops.push(() => screen.child.kill());
+    const windowed = windowLaunch({ platform: process.platform, setting: windowSetting() });
     // A broken add-on never stops a start: the browser starts without it.
     const addon = await addonArgs().catch(() => []);
-    const config = await launchConfig(['--proxy', `http://127.0.0.1:${proxy.port}`, ...(screen ? ['--display', screen.display] : []), '--fingerprint', FILES.fingerprint, ...addon]);
+    const config = await launchConfig(['--proxy', `http://127.0.0.1:${proxy.port}`, ...(screen ? ['--display', screen.display] : []), ...windowed.args, '--fingerprint', FILES.fingerprint, ...addon]);
     if (config.error) throw new Error(config.error);
     const { firefox } = createRequire(import.meta.url)(join(config.driver, 'index.js'));
     const context = await firefox.launchPersistentContext(FILES.profile, { ...contextOptions(config.options), timeout: LAUNCH_MS });
     stops.push(() => context.close());
     await moveLogins(context, { profilesDir: OLD_PROFILES, marker: FILES.marker }).catch(() => {});
     handle = routes(context, readFileSync(FILES.key, 'utf8').trim());
-    record({ port, display: screen?.display ?? null, library: config.library, build: config.build, locale: config.locale });
+    record({ port, display: screen?.display ?? null, ...windowed.record, library: config.library, build: config.build, locale: config.locale });
     // A browser that quits on its own takes the server with it, so the next command starts a fresh one.
     context.on('close', () => void stop(1));
   } catch (error) {

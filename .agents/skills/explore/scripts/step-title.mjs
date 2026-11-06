@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// A chat's name starts with its change-loop step: wiki/development/the-change-loop.md#what-each-step-may-change.
+// A chat's name starts with its step or typed command: wiki/development/the-change-loop.md#what-each-step-may-change.
 // One file per chat keeps the step and task words; every host it can reach gets the whole name `<STEP>: <task>`.
 import { execFileSync, spawn } from 'node:child_process';
-import { appendFileSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -13,10 +13,14 @@ import { PLACEHOLDERS, renameArgs } from '../../schedule/scripts/workspace.mjs';
 
 const USAGE = `usage: step-title.mjs set <STEP> [--task <words>]   a skill moves this chat to STEP
        step-title.mjs hook --agent claude|codex [--event session-start]   a hook; reads the hook JSON on stdin
-STEP is one of EXPLORE, PLAN, APPLY, SHIP, DONE. Always exits 0 and prints STEP_TITLE=<title> or STEP_TITLE=skipped <reason>.`;
+STEP is one of EXPLORE, PLAN, APPLY, SHIP, DONE. The hook gives a step only for a typed command: /explore EXPLORE,
+/plan or /improve-code PLAN, another repo skill its name in capitals (/verify VERIFY); /apply, /continue, /ship none.
+Always exits 0 and prints STEP_TITLE=<title> or STEP_TITLE=skipped <reason>.`;
 
 export const STEPS = ['EXPLORE', 'PLAN', 'APPLY', 'SHIP', 'DONE'];
-const VERBS = new Set(['explore', 'plan', 'improve-code', 'apply', 'continue', 'ship']);
+// A loop verb's step when typed; null waits for its skill's `set`, because it can plan or build first.
+const LOOP_STEPS = { explore: 'EXPLORE', plan: 'PLAN', 'improve-code': 'PLAN', apply: null, continue: null, ship: null };
+const VERBS = new Set(Object.keys(LOOP_STEPS));
 const SKILL = /^[/$]([a-z][a-z0-9:-]*)(?=\s|$)/;
 const LEADING_STEP = new RegExp(`^(?:${STEPS.join('|')}):\\s*`);
 const BRANCH = /^[a-z0-9]+(-[a-z0-9]+)+$/;
@@ -29,6 +33,23 @@ export function verbOf(prompt) {
   const name = SKILL.exec(String(prompt ?? '').trim())?.[1];
   if (!name) return {};
   return VERBS.has(name) ? { loop: true } : { other: true };
+}
+
+/** A typed command's step: a loop verb's own, or another repo skill's name in capitals minus `wong-`; else null. */
+export function commandStep(prompt, top) {
+  const name = SKILL.exec(String(prompt ?? '').trim())?.[1];
+  if (!name) return null;
+  if (VERBS.has(name)) return LOOP_STEPS[name];
+  if (name.includes(':') || !top || !existsSync(join(top, '.claude', 'skills', name, 'SKILL.md'))) return null;
+  return name.replace(/^wong-/, '').toUpperCase();
+}
+
+const squash = text => String(text ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/** True when a host name is a copy of the start of the message, as Paseo names a chat from its first message. */
+export function copiedName(name, prompt) {
+  const start = squash(name).replace(/(?:…|\.\.\.)$/, '').trim();
+  return Boolean(start) && squash(prompt).startsWith(start);
 }
 
 /** Words that name a task, or null for a branch-like name or a placeholder. */
@@ -157,7 +178,8 @@ export async function setStep({ step, task, env = process.env, cwd = process.cwd
   if (skip || !id) return `STEP_TITLE=skipped ${skip ?? 'no chat id'}`;
   const before = readState(folder, id);
   const next = nextState(before, { step, task });
-  if (!next.task && hostTask(record)) Object.assign(next, { task: hostTask(record), taskFrom: 'name' });
+  // A state with no task means the hook refused the host's name, as a copy or a command.
+  if (!before && !next.task && hostTask(record)) Object.assign(next, { task: hostTask(record), taskFrom: 'name' });
   writeState(folder, id, next);
   const title = titleOf(next);
   if (!title) return 'STEP_TITLE=skipped no task words';
@@ -167,16 +189,19 @@ export async function setStep({ step, task, env = process.env, cwd = process.cwd
   return [`STEP_TITLE=${title}`, ...failed.map(reason => `STEP_TITLE_WARNING=${reason}`)].join('\n');
 }
 
-/** The hook's state for a message. Only skills move the step; a first plain message starts at PLAN.
- * A loop verb gives a chat with no task words its words; another skill first stores an empty state. */
-function stateFor(prompt, before, record) {
+/** The hook's state: only a typed repo command gives a step. With no task words yet, take the host's name unless it
+ * copies the message or a command, else the first clause, which `--task` may replace. /compact changes nothing. */
+function stateFor(prompt, before, record, top) {
   const { loop, other } = verbOf(prompt);
-  const empty = { step: null, task: null, taskFrom: null, shown: null };
-  if (before && (!loop || before.task)) return before;
-  if (!before && other) return empty;
-  const task = hostTask(record) ?? clauseOf(prompt);
-  const step = before?.step ?? (loop ? null : 'PLAN');
-  return { ...(before ?? empty), step, task, taskFrom: task && (hostTask(record) ? 'name' : 'prompt') };
+  const step = commandStep(prompt, top);
+  if ((other && !step) || (before && !loop && !other)) return before;
+  const base = before ?? { step: null, task: null, taskFrom: null, shown: null };
+  const next = { ...base, step: step ?? base.step };
+  if (base.task) return next.step === base.step ? before : next;
+  const name = hostTask(record);
+  const own = name && !copiedName(name, prompt) && !SKILL.test(name) ? name : null;
+  const task = own ?? clauseOf(prompt);
+  return { ...next, task, taskFrom: task && (own ? 'name' : 'prompt') };
 }
 
 /** `hook`: `{ out, write }`, the hook's stdout and the title to write to Paseo and Codex, either null. */
@@ -192,7 +217,7 @@ export function hookTurn({ input, agent, event, env = process.env, home = homedi
   let state = before;
   let write = null;
   if (!start) {
-    state = stateFor(input?.prompt, before, record);
+    state = stateFor(input?.prompt, before, record, folder.top);
     if (titleOf(state) !== titleOf(before)) write = titleOf(state);
   }
   const title = titleOf(state);

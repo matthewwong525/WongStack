@@ -13,6 +13,35 @@
 
 **Updating.** Nothing to do by hand. The assistant asks once which password manager you use, at the next errand that uses its browser.
 
+## 50.0.0 — The live view is the one place for sensitive input
+
+- **You type a card, a backup code or a password on the real site, in the live view.** The assistant fills in the rest of the page first, then asks *Ready?* in the chat. The link shows its browser on that page, with one bar under it: a short line that says what to do now, the type box and *Hand back*. You type, or paste from your password manager. The assistant sees nothing you do until you tap *Hand back* ([live view](wiki/development/live-view.md)).
+- **You press the site's own Pay button.** You see the real total, and the assistant never presses Pay with your card. The view ends by itself at the site's receipt, or when you tap *Hand back*. The assistant then reads the page as text, with every card box hidden, and tells you whether the payment went through. It never asks you to pay again while the payment may have gone through ([pay or type a code](wiki/development/live-view.md#pay-or-type-a-code)).
+- **You sign in to a site in the live view, and the browser stays signed in.** The line says *Sign in to Netflix, then tap Hand back*. Next time, the browser is still signed in. A one-time code still comes through the chat or your email ([sign in](wiki/development/live-view.md#sign-in)).
+- **Every live view has the same bar: one line and *Hand back*.** A robot check, a stuck step, a payment and a sign-in all look the same. *I'm finished* becomes *Hand back*. *Stop* is gone, from the connect link too: to give up, tap *Hand back*, or say so in the chat.
+- **On a Mac or a Windows computer, the browser shows in a window on your screen.** Your turn happens in that window, and you say *done* in the chat. Say *don't show the browser window* to turn it off for a computer you do not sit at; a step that needs you then ends with steps to finish in your own browser ([on a Mac or Windows](wiki/development/live-view.md#on-a-mac-or-windows)).
+- **The card form and the password page are gone.** The private key link for API keys stays. Saved everyday answers, such as your email and address, stay, and the chat still asks before it uses them ([saved details](wiki/development/saved-details.md)).
+
+**Updating.** The card form and the password page are gone. Saved passwords stop working: each site asks you to sign in once, in the live view, the next time it needs you. Sites already signed in in the assistant's browser stay signed in. After the update, the assistant asks you once whether to delete the old file of saved passwords, `~/.wong-stack/logins.json`, because it holds them in plain text. It deletes the file only if you say yes, and a delete can not be undone. On a Mac, the browser now opens in a window; say *don't show the browser window* to turn it off.
+
+## 49.2.0 — The chat name waits for a step, and a typed command names it at once
+
+- **A question or errand gets no step in its name.** The step word comes only when a step starts, such as `PLAN` when a plan starts. A chat that only answers you keeps its name ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **A command you type names the chat at once.** `/explore` shows `EXPLORE`, and `/plan` or `/improve-code` shows `PLAN`. Another command shows its own name in capitals: `/verify the invoice page` shows `VERIFY: The invoice page`. `/apply`, `/continue` and `/ship` still wait for the step that starts. A command that a step runs for you, such as the save inside a publish, does not change the name.
+- **A plan's title replaces a name copied from your first message.** When Paseo names a chat from the start of your first message, the plan's title now replaces it. A name that you gave the chat stays.
+
+**Updating.** Nothing to do by hand.
+
+## 49.1.0 — Connect your tools when the assistant runs on a server
+
+- **On a server, the assistant makes each key in its own browser, at once.** Say *connect my Notion*. It asks no Chrome question when no Chrome can be there, and sends no link unless a tool asks you to sign in, or you ask to watch ([connect your tools](wiki/stack/connect-your-tools.md#use-the-assistants-browser)).
+- **Take over, hand back, or stop at any time while a link is open.** One short line at the top says what to do now. *Take over* pauses the assistant and gives you the browser. *Hand back* lets it go on. *Stop* ends the run. A stray tap never takes the browser.
+- **Signed out? The assistant sends you a link to sign in.** The line says *Sign in to Notion. I go on once you're in.* When you are in, it goes on by itself. Your sign-in stays in the assistant's browser for next time. A site that refuses that browser takes the key link at the end.
+- **Keys stay unseen, as in your Chrome.** The chat shows only a key's last four characters, and the assistant's view of the page hides the key.
+- **Paste works in every live view.** A paste on the browser or in the type box types the text into the browser ([live view](wiki/development/live-view.md#what-you-see)).
+
+**Updating.** Nothing to do by hand.
+
 ## 49.0.0 — Every schedule lives in the app
 
 - **Every schedule lives in your app, in one list.** Morning routines, weekly and monthly jobs, timed background jobs and one-time tasks all live in your company app. The app keeps what each one does, when it runs, whether it is on, its progress and every run. Your daily settings file holds no routines, and the repo holds no schedule files ([host schedules](wiki/stack/host-schedules.md)).

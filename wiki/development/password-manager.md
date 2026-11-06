@@ -19,7 +19,7 @@ An add stops the browser, and the next command starts it with the add-on. While 
 
 ## Use it at a sign-in
 
-1. The agent runs `addon open`. The password manager's own page opens in the task's tab. This is only for a live view you sign in through, such as [a stuck login](live-view.md#when-it-opens). A sign-in from [the password link](passwords.md) with `--sign-in` types your saved login, which no step can do on that page: the agent never opens it first, and `hand-over.mjs` refuses one while it shows.
+1. The agent runs `addon open` before [a sign-in turn](live-view.md#sign-in). The password manager's own page opens in the task's tab.
 2. The agent sends the live view. You sign in to the password manager, or unlock it. The view opens over that page: its finish is not met there, since the site does not show.
 3. You press *Back* until the site shows: each of the password manager's own steps takes one press. Then you fill the login from the list the password manager shows in the page. Back on the site, or at the view's end, the page gets its own size again.
 
