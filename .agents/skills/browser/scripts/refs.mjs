@@ -22,8 +22,12 @@ export function frameLabel(name, url) {
   return label.replace(/card-fields-/, '').replace(/-[a-z0-9]{10,}$/, '');
 }
 
-/** True for a frame the page text leaves out unread: no real address, or a skip pattern. */
-export const frameSkipped = (url, name) => !url || url === 'about:blank' || url === 'about:srcdoc' || FRAME_SKIP.some(skip => skip.test(url) || skip.test(name));
+/** The password manager's own pages and frames: the agent never reads or uses them. */
+export const ADDON_PAGE = /^moz-extension:/i;
+export const ADDON_REFUSAL = "that is the password manager's own; the person uses it in the live view";
+
+/** True for a frame the page text leaves out unread: no real address, a skip pattern, or the password manager's. */
+export const frameSkipped = (url, name) => !url || url === 'about:blank' || url === 'about:srcdoc' || ADDON_PAGE.test(url) || FRAME_SKIP.some(skip => skip.test(url) || skip.test(name));
 
 /** True when a frame's text holds a box, so the page text shows the frame. */
 export const frameHasBoxes = yaml => Boolean(yaml && yaml.trim().length >= 10 && INTERACTIVE_ROLES.some(role => new RegExp(`^\\s*-\\s+${role}`, 'im').test(yaml)));

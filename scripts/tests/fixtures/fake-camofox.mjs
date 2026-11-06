@@ -47,6 +47,8 @@ export function fakeCamofox(home, { installed = true } = {}) {
   if (installed) {
     mkdirSync(join(install, 'venv', PINNED.library, 'bin'), { recursive: true });
     fakePython(join(install, 'venv', PINNED.library, 'bin', 'python'), control);
+    // A computer whose password manager question is answered, so a first `open` prints its address alone.
+    writeFileSync(join(install, 'password-manager.json'), '{"state":"declined"}\n');
   }
   const json = name => (existsSync(file(name)) ? JSON.parse(readFileSync(file(name), 'utf8')) : null);
   const lines = name => (existsSync(file(name)) ? readFileSync(file(name), 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : []);

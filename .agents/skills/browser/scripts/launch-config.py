@@ -1,11 +1,14 @@
 """Prints the shared browser's launch config from the official camoufox library, as one JSON line.
 
 usage: launch-config.py --library <version> --build <tag> [--check] [--proxy <url>] [--display <:n>] [--fingerprint <file>]
+                        [--addon <folder>]
 
 --check only compares the pins with what is installed. A refusal prints {"error", "needs"} and exits 3;
 "needs" names the part to install again: python, library, build, or pins (the two pins disagree).
 --fingerprint keeps the browser's identity in <file> (mode 600), made once per library and build, so each start
-shows sites the same device. browser-server.mjs runs it at each start; browse.mjs status runs --check.
+shows sites the same device. --addon loads the person's password manager from its unzipped folder, keeps its
+storage from start to start, and lets it open its own tabs.
+browser-server.mjs runs it at each start; browse.mjs status runs --check.
 """
 
 import argparse
@@ -86,7 +89,22 @@ def saved_fingerprint(path, versions):
     return fingerprint, False
 
 
-def launch(proxy, display, fingerprint=None):
+# Camoufox loads an add-on folder as a temporary add-on, which loses its address and its storage at each shutdown
+# without these two.
+KEEP_ADDON_PREFS = {
+    'extensions.webextensions.keepStorageOnUninstall': True,
+    'extensions.webextensions.keepUuidOnUninstall': True,
+}
+
+
+def addon_options(addon):
+    """The launch options that load the password manager's folder, or none."""
+    if not addon:
+        return {}
+    return {'addons': [addon], 'allow_addon_new_tab': True, 'firefox_user_prefs': dict(KEEP_ADDON_PREFS)}
+
+
+def launch(proxy, display, fingerprint=None, addon=None):
     """The persistent-context options for this start, English for the country the proxy's address is in."""
     from camoufox.utils import launch_options, persistent_context_options, spoofs_window_dimensions
 
@@ -102,6 +120,7 @@ def launch(proxy, display, fingerprint=None):
         locale=locale,
         proxy={'server': proxy} if proxy else None,
         fingerprint=fingerprint,
+        **addon_options(addon),
     )
     return {'options': persistent_context_options(options, spoofs_window_dimensions(options)), 'locale': locale}
 
@@ -121,6 +140,7 @@ def main():
     parser.add_argument('--proxy')
     parser.add_argument('--display')
     parser.add_argument('--fingerprint')
+    parser.add_argument('--addon')
     args = parser.parse_args()
     out = sys.stdout
     try:
@@ -129,7 +149,7 @@ def main():
             result = check(args.library, args.build)
             if not args.check:
                 fingerprint, saved = saved_fingerprint(args.fingerprint, result) if args.fingerprint else (None, None)
-                result |= launch(args.proxy, args.display, fingerprint) | {'driver': driver_dir()}
+                result |= launch(args.proxy, args.display, fingerprint, args.addon) | {'driver': driver_dir()}
                 if args.fingerprint:
                     result['fingerprint'] = 'saved' if saved else 'new'
     except Refusal as refusal:

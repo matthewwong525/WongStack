@@ -23,6 +23,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
   - [Steps for you to finish](finish-steps.md) — numbered steps, with links, when a login or check stops the agent.
   - [Shopping](shopping.md) — the agent finds, compares, and buys products through Shop: no account to look, your yes to connect and to pay, one payment per purchase, and no card detail the agent can read.
   - [Live view](live-view.md) — at a robot check or a stuck login, a private link shows the agent's browser so you can tap through it or sign in: when it opens, what the link can do, and how the agent runs one.
+  - [Your password manager in the browser](password-manager.md) — one checked password manager add-on, offered once: you sign in to it in a live view and fill from it; the agent never uses it.
 - [Memory dream](wiki-dream.md) — type `/dream-memory` and the assistant checks the wiki, saved facts, specs, and plans against each other and the code: what it fixes, what it only lists, the dry run, and how to undo one.
 - [Session memory](memory.md) — the private fact store: who sees what, the company sign-in and its expiry, the start-of-session digest, capture by `/save` and the background run, and consolidation.
   - [Document retrieval](document-retrieval.md) — task recall with cited wiki/OpenSpec passages, optional local semantic setup, scopes, freshness and fallback.

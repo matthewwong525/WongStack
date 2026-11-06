@@ -18,7 +18,7 @@ It also opens inside two other links, with no question of its own:
 
 These take the computer's one view only from the press or the save; when another chat holds it, the link shows its status line alone.
 
-A password you type in the view goes to the site a key press at a time. The view saves nothing, so it isn't added to [your saved logins](passwords.md).
+A password you type in the view goes to the site a key press at a time. The view saves nothing, so it isn't added to [your saved logins](passwords.md). At a stuck login, when you added [your password manager](password-manager.md), the agent opens its page first: sign in to it in the view, then fill from it on the site. A sign-in from the password link types your saved login, so it never opens that page.
 
 Every other step keeps its route in [when a step needs you](browsing.md#when-a-step-needs-you): a password, a code, a card, an ordinary answer. A passkey or an approval on your phone stays on your own device: neither can travel through a view of another computer's browser.
 

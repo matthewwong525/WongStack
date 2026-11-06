@@ -10,13 +10,15 @@ import { fileURLToPath } from 'node:url';
 // browse.mjs names its files from the home folder as it loads, so the test gets its own first.
 process.env.HOME = mkdtempSync(join(tmpdir(), 'browser-server-test-'));
 const { contextOptions, pressKey, routes } = await import('../../.agents/skills/browser/scripts/browser-server.mjs');
+const { ADDON_REFUSAL } = await import('../../.agents/skills/browser/scripts/refs.mjs');
 const { joinPieces } = await import('../../.agents/skills/browser/scripts/browse.mjs');
 
 const KEY = 'test-key';
 
 /** A frame whose text is `yaml`; its locators record each step in `calls`. A click throws each `clickFails` error. */
 function stubFrame(calls, { url = 'about:blank', name = '', yaml = '' } = {}) {
-  const frame = { yaml, clickFails: [], detached: false };
+  // `addonTargets` are the selectors that find the password manager's frame in the page.
+  const frame = { yaml, clickFails: [], detached: false, addonTargets: [] };
   const locator = desc => ({
     nth: n => locator(`${desc}#${n}`),
     ariaSnapshot: async () => frame.yaml,
@@ -29,6 +31,7 @@ function stubFrame(calls, { url = 'about:blank', name = '', yaml = '' } = {}) {
     fill: async text => { calls.push(['fill', desc, text]); },
     focus: async () => { calls.push(['focus', desc]); },
     count: async () => 1,
+    evaluateAll: async () => frame.addonTargets.includes(desc),
     selectOption: async choice => {
       calls.push(['select', desc, choice]);
       if (choice.label === 'by-value') throw new Error('no such label');
@@ -38,6 +41,7 @@ function stubFrame(calls, { url = 'about:blank', name = '', yaml = '' } = {}) {
     url: () => url,
     name: () => name,
     isDetached: () => frame.detached,
+    parentFrame: () => frame.parent ?? null,
     locator: selector => locator(`css:${selector}`),
     getByRole: (role, options) => locator(`role:${role}${options ? `:${options.name}:${options.exact}` : ''}`),
   });
@@ -64,7 +68,8 @@ function stubPage(calls, yaml, frames = []) {
     getByRole: main.getByRole,
     focus: async selector => { calls.push(['focus', `css:${selector}`]); },
     keyboard: { type: async (text, options) => { calls.push(['keys', text, options]); }, press: async key => { calls.push(['press', key]); } },
-    evaluate: async expression => ({ expression }),
+    // The page is 1100x663, and the browser's bar 85 pixels: the window is that much taller than the page.
+    evaluate: async expression => ({ 'document.URL': url, '[innerWidth, innerHeight, outerHeight]': [1100, 663, 748] }[expression] ?? (/activeElement/.test(expression) ? calls.focusInAddon === true : { expression })),
     setViewportSize: async size => { calls.push(['viewport', size]); },
     bringToFront: async () => { calls.push(['front']); },
     screenshot: async options => Buffer.from(`png full=${options.fullPage}`),
@@ -318,10 +323,66 @@ test('a step that never ends times out, and the next step on that tab still runs
   try {
     const { tabId } = (await open(call)).body;
     const page = context.pages[0];
+    const answers = page.evaluate;
     page.evaluate = () => new Promise(() => {});
     const stuck = await call('POST', `/tabs/${tabId}/evaluate`, { userId: 'me', expression: '1' });
     assert.equal(stuck.status, 504);
     assert.match(stuck.body.error, /timed out/);
+    page.evaluate = answers;
     assert.deepEqual((await call('POST', `/tabs/${tabId}/press`, { userId: 'me', key: 'Enter' })).body, { ok: true });
+  } finally { await close(); }
+});
+
+test("the password manager's frames, page and keyboard are the person's: the agent never reads or uses them", async () => {
+  const context = stubContext('- button "Go"', calls => {
+    const manager = stubFrame(calls, { url: 'moz-extension://pm-uuid/inline/menu.html', yaml: '- button "Fill Card number"\n- textbox "Search vault"' });
+    const inner = stubFrame(calls, { url: 'https://shop.example.test/inner', yaml: '- button "Inside"\n- textbox "Code"' });
+    inner.parent = manager;
+    return [manager, inner];
+  });
+  const { call, close } = await serve(context);
+  try {
+    const { tabId } = (await open(call)).body;
+    const page = context.pages[0];
+    const post = (route, body) => call('POST', `/tabs/${tabId}/${route}`, { userId: 'me', ...body });
+    // A refusal because its page shows is marked, so a live view's helper reads it as that page, not as no page.
+    const refused = async (reply, addonPage) => {
+      const { status, body } = await reply;
+      assert.deepEqual([status, body.error, body.addonPage], [403, ADDON_REFUSAL, addonPage]);
+    };
+    assert.equal((await call('GET', `/tabs/${tabId}/snapshot?userId=me`)).body.snapshot, '- button "Go" [e1]', 'its frame and the frames inside it stay out');
+
+    page.main.addonTargets = ['css:#pm-menu'];
+    const before = page.calls.length;
+    await refused(post('click', { selector: '#pm-menu' }));
+    await refused(post('type', { selector: '#pm-menu', text: 'x' }));
+    await refused(post('select', { selector: '#pm-menu', option: 'a' }));
+    page.calls.focusInAddon = true;
+    await refused(post('press', { key: 'Enter' }));
+    assert.equal(page.calls.length, before, 'no refused step reached the page');
+    page.calls.focusInAddon = false;
+    assert.equal((await post('press', { key: 'Enter' })).status, 200);
+    assert.equal((await post('click', { selector: '#buy' })).status, 200);
+
+    assert.deepEqual((await post('navigate', { url: 'moz-extension://pm-uuid/popup/index.html' })).body, { ok: true, url: 'moz-extension://pm-uuid/popup/index.html' }, 'its sign-in page opens for the person');
+    assert.deepEqual(page.calls.slice(-2), [['viewport', { width: 1280, height: 635 }], ['goto', 'moz-extension://pm-uuid/popup/index.html']], 'first sized to the screen less the bar, as a live view fits it');
+    await refused(call('GET', `/tabs/${tabId}/snapshot?userId=me`), true);
+    await refused(call('GET', `/tabs/${tabId}/screenshot?userId=me`), true);
+    await refused(post('click', { selector: 'button' }), true);
+    const read = await post('evaluate', { expression: '[innerWidth, innerHeight]' });
+    await refused(read, true);
+    assert.deepEqual((await read).body.size, [1100, 663], 'a size read gives the page\'s own size, so a view over it sets that back at its end');
+    assert.deepEqual((await post('viewport', { width: 480, height: 663 })).body, { ok: true, width: 1280, height: 635, addonPage: true }, 'a live view\'s fit goes on, and the page keeps its size');
+    assert.equal(page.calls.filter(([step]) => step === 'viewport').length, 1, 'only the first sizing reached the page');
+    assert.match((await post('viewport', { width: 50, height: 663 })).body.error, /100\.\.4000/);
+    assert.deepEqual((await post('front')).body, { ok: true });
+    assert.match((await post('navigate', { url: 'chrome://settings' })).body.error, /http\(s\)/);
+
+    assert.deepEqual((await post('viewport', { width: 1100, height: 663 })).body.addonPage, true, 'a view\'s end asks for the size it read');
+
+    await page.goto('https://shop.example.test/');
+    assert.equal((await call('GET', `/tabs/${tabId}/snapshot?userId=me`)).status, 200, 'once the person is back on the site, the agent reads it again');
+    assert.deepEqual(page.calls.filter(([step]) => step === 'viewport').at(-1), ['viewport', { width: 1100, height: 663 }], 'and the site gets the size last asked for');
+    assert.deepEqual((await post('viewport', { width: 480, height: 663 })).body, { ok: true, width: 480, height: 663 });
   } finally { await close(); }
 });
