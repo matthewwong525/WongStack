@@ -9,6 +9,7 @@ const forward = z.strictObject({
   headers: z.record(z.string().regex(/^[A-Za-z0-9-]{1,100}$/), z.string().max(500)).optional(),
   lookups: z.array(z.string().max(300)).max(50).optional(),
   mcp: z.strictObject({ path: z.string().max(300), reads: z.array(z.string()).max(100) }).optional(),
+  exchange: z.strictObject({ url: z.string().max(500) }).optional(),
 });
 const levels = z.union([z.tuple([z.literal("read")]), z.tuple([z.literal("read"), z.literal("write")])]);
 /** What a chat saves: name, purpose, API guide, how to reach it and what only reads. Read is the one level unless
@@ -22,13 +23,17 @@ export const TOOL_ID = /^[a-z][a-z0-9-]{0,39}$/;
 /** The one secret a tool sends, derived from its id and never stored free-form. */
 export const toolSecret = (id: string) => `TOOL_${id.toUpperCase().replaceAll("-", "_")}`;
 
-/** A tool as the registry holds it: its own secret only, live only, marked as added in a chat. */
+/** A tool as the registry holds it: its own secret, and its ID's when it trades them for a token; live only, marked
+ *  as added in a chat. */
 const entry = (id: string, tool: ToolInput): KeyEntry => ({ title: tool.title, purpose: tool.purpose, docs: tool.docs,
-  secrets: [toolSecret(id)], levels: tool.levels, liveOnly: true, chat: true, forward: { ...tool.forward, secret: tool.forward.secret ?? toolSecret(id) } });
+  secrets: [toolSecret(id), ...(tool.forward.exchange ? [`${toolSecret(id)}_ID`] : [])], levels: tool.levels, liveOnly: true, chat: true,
+  forward: { ...tool.forward, secret: tool.forward.secret ?? toolSecret(id) } });
 
 /** The tool as stored, or the first rule it breaks, named: the same rules the checks hold a key in the code to. */
 export function checkedTool(id: string, tool: ToolInput): { entry: KeyEntry } | { problem: string } {
   if (!TOOL_ID.test(id)) return { problem: "a tool's id is lowercase letters, digits and hyphens, at most 40" };
+  // TOOL_<ID>_ID is the ID of a tool that trades it for a token, so no tool's own key may take that name.
+  if (id.endsWith("-id")) return { problem: "a tool's id never ends in -id" };
   const made = entry(id, tool);
   if (made.forward!.secret !== toolSecret(id)) return { problem: `secret must be the tool's own, ${toolSecret(id)}` };
   const problem = undescribed({ [id]: { ...made, docs: made.docs || undefined } })[0] ?? forwardProblem(id, made, made.forward!);

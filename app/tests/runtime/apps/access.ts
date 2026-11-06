@@ -1,7 +1,9 @@
 // Sign-in and Access, from a fresh install's first start: each case clears the Access tables, the seed's included.
-import { beforeEach, expect, it } from "vitest";
+import { fileURLToPath } from "node:url";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { call, type AppTests } from "../context.ts";
 import { site } from "../identity.ts";
+import { startRuntime, type Runtime } from "../setup.ts";
 
 const quoted = (name: string) => `"${name.replaceAll('"', '""')}"`;
 async function tables(db: D1Database): Promise<string[]> {
@@ -105,5 +107,33 @@ export const access: AppTests = context => {
     expect((await db().prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name = 'runtime_abort_save'").all()).results).toEqual([]);
     await status();
     expect((await save()).status).toBe(200);
+  });
+
+  // A tool added from a chat loads only on the live app, so this starts a second Worker as the live one.
+  describe("service examples", () => {
+    let live: Runtime;
+    const tool = { base: "https://api.example.test/", header: "Authorization", prefix: "Bearer " };
+    beforeAll(async () => {
+      live = await startRuntime({ WONG_ENVIRONMENT: "production", WONG_OWNER_EMAIL: site.owner, CF_ACCESS_TEAM_DOMAIN: site.domain,
+        CF_ACCESS_AUD: site.audience, TOOL_EXAMPLE: "runtime-example-key" });
+      await live.env.DB.prepare(`INSERT INTO tools (id, title, purpose, docs, forward_json, levels_json, added_by, added_at)
+        VALUES ('example', 'Example', 'A made-up service for the runtime tests', 'https://docs.example.test/', ?, '["read"]', ?, '2026-11-06')`)
+        .bind(JSON.stringify(tool), site.owner).run();
+      await context().services.serve("example", { db: live.env.DB, dir: fileURLToPath(new URL("../fixtures/services/example", import.meta.url)) });
+    });
+    afterAll(async () => { await live?.close(); });
+
+    it("answers a direct look-up from the service's saved example, never its live address", async () => {
+      const response = await call({ ...context(), runtime: live }, "/api/direct/example/read",
+        { token: context().signed.owner, body: { method: "GET", path: "things", query: "limit=1" } });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ status: 200, contentType: "application/json",
+        body: { things: [{ id: "thing_00000001", title: "Sample text 1" }] } });
+    });
+
+    it("names the closest example when no example matches", async () => {
+      await expect(context().services.answer(new Request("https://api.example.test/thing?limit=1")))
+        .rejects.toThrow("No example for GET example/thing (closest: example/things)");
+    });
   });
 };

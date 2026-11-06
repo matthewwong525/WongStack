@@ -6,7 +6,7 @@ This convention supports any credential-file format; it requires no dotenv libra
 
 ## Tool keys and business services
 
-`.env` holds keys for the tools this computer runs, such as Cloudflare's. A business service's key lives in the app. A chat reaches it through [the services list](../stack/service-catalogue.md), never by reading a key from a file: the app decides what each person may do, and a teammate's computer holds no business key. The private link below still saves a new key's value, and the assistant then sends it to the app.
+`.env` holds keys for the tools this computer runs, such as Cloudflare's. A business service's key lives in the app. A chat reaches it through [the services list](../stack/service-catalogue.md), never by reading a key from a file: the app decides what each person may do, and a teammate's computer holds no business key. Such a key reaches the app [sealed, through the app itself](../stack/connect-your-tools.md#how-a-key-reaches-the-app); the private link below is for keys this computer's tools use.
 
 ## The two files
 
@@ -41,7 +41,7 @@ Rotate values in durable `.env`. Change `.env.example` only when the name, purpo
 
 ## API token website steps
 
-The person handles website steps to obtain, reveal, copy, rotate, change permissions for, or revoke API keys/tokens in their own browser. The agent uses no automation, screenshot, extraction, or live view for those steps. Except: [connecting tools](../stack/connect-your-tools.md#pick-the-browser) may make keys in the assistant's browser, or in the person's Chrome with their yes.
+The person handles website steps to obtain, reveal, copy, rotate, change permissions for, or revoke API keys/tokens in their own browser. The agent uses no automation, screenshot, extraction, or live view for those steps. Except: [connecting tools](../stack/connect-your-tools.md#pick-the-browser) makes keys in the assistant's own browser.
 
 If an ordinary browsing task reaches a token step, stop before taking a picture or extracting page content, then:
 

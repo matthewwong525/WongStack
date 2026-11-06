@@ -282,6 +282,7 @@ if (args[0] === 'deploy' && !args.includes('--dry-run') && target.worker === pro
 if (args[0] === 'deploy') console.log('Deployed ' + target.worker + '\\n  https://' + target.worker + '.example.workers.dev');
 if (args[0] === 'versions') console.log('Version Preview Alias URL: https://' + flag('--preview-alias') + '-' + target.worker + '.example.workers.dev');
 if (args[0] === 'secret') console.log('[]');
+if (args[0] === 'd1' && args[1] === 'execute' && args.includes('--json')) console.log('[{"results":[],"success":true}]');
 `;
 
 // npm: `ci` runs install scripts unless --ignore-scripts and installs the fake wrangler; `run` and `test` run scripts.
@@ -369,7 +370,7 @@ writeFileSync('dist/client/index.html', '<h1>demo</h1>\\n');
 writeFileSync('.wrangler/deploy/config.json', JSON.stringify({ configPath: '../../' + out + '/wrangler.json', auxiliaryWorkers: [] }));
 `;
 
-const SCRIPTS = ['cf-build.sh', 'cf-deploy.sh', 'cf-secrets.mjs', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'lib-cli.mjs', 'lib-staging-secrets.mjs'];
+const SCRIPTS = ['cf-build.sh', 'cf-deploy.sh', 'cf-secrets.mjs', 'seal-keys.mjs', 'lib-wrangler-config.sh', 'lib-wrangler-config.mjs', 'lib-cli.mjs', 'lib-staging-secrets.mjs'];
 
 // A repo with the pack's deploy scripts, the demo app and one migration, at `root`. `config` and `scripts` replace
 // the app's wrangler config and package scripts. The access check is a no-op: it has its own tests.
@@ -378,6 +379,7 @@ export function demoRepo(root, { config = DEMO_CONFIG, scripts = {} } = {}) {
   for (const name of SCRIPTS) write(`scripts/${name}`, readFileSync(join(REPO, 'scripts', name), 'utf8'));
   for (const shared of ['primary-root.mjs', 'cli.mjs']) write(`.claude/skills/memory/scripts/lib/${shared}`, readFileSync(join(REPO, '.claude/skills/memory/scripts/lib', shared), 'utf8'));
   write('scripts/check-private-access.mjs', '// The access check has its own tests.\n');
+  write('app/src/lib/seal.ts', readFileSync(join(REPO, 'app/src/lib/seal.ts'), 'utf8'));
   write('.nvmrc', readFileSync(join(REPO, '.nvmrc'), 'utf8'));
   write('app/wrangler.jsonc', `${JSON.stringify(config, null, 2)}\n`);
   write('app/package.json', `${JSON.stringify({ name: 'demo', private: true, scripts: { 'build:app': 'node build.mjs', ...scripts } }, null, 2)}\n`);

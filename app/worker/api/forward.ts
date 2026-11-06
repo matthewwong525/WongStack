@@ -33,7 +33,14 @@ const errors = {
   bad_answer: "The service did not return an answer that can be shown.",
 };
 
-const refuse = (code: keyof typeof errors | "not_a_lookup", status: number) => Response.json({ error: { code } }, { status });
+/** Only a key that trades an ID and a secret for a token can be refused this. */
+const NO_TOKEN = "The service gave no token for the saved ID and secret. Ask the owner to send this key again.";
+
+const refuse = (code: keyof typeof errors | "not_a_lookup" | "no_token", status: number) => Response.json({ error: { code } }, { status });
+/** What a token address answers: the standard client-credentials fields alone. */
+const traded = z.object({ access_token: z.string().min(1), expires_in: z.number().optional() });
+/** Tokens an ID and a secret were traded for, by key, kept in this isolate until a minute before they run out. */
+const tokens = new Map<string, { pair: string; token: string; until: number }>();
 /** A JSON answer as a value; one that does not parse stays the text it is. */
 const parse = (text: string): unknown => { try { return JSON.parse(text); } catch { return text; } };
 
@@ -56,6 +63,23 @@ const looksUp = (forward: Forward, method: string, path: string, body: string | 
 const record = (line: { caller: string; key: string; kind: Kind; method: string; path: string; status: number }) =>
   console.log(JSON.stringify({ event: "direct_request", ...line }));
 
+/** A short token for a key that trades its ID and secret: the one kept, unless `fresh`, or a new one from the token
+ *  address. Null when the service gives none. The trade follows no redirect, so the secret goes nowhere else. */
+async function tokenFor(id: string, forward: Forward, clientId: string, secret: string, send: typeof fetch, signal: AbortSignal, fresh: boolean) {
+  const pair = `${clientId}\n${secret}`;
+  const held = tokens.get(id);
+  if (!fresh && held?.pair === pair && held.until > Date.now()) return held.token;
+  tokens.delete(id);
+  const response = await send(forward.exchange!.url, { method: "POST", redirect: "manual", signal,
+    headers: { Accept: "application/json", "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "client_credentials", client_id: clientId, client_secret: secret }) });
+  const answer = traded.safeParse(response.ok ? parse(await boundedText(response.body, 65_536).catch(() => "")) : null);
+  if (!answer.success) return null;
+  const { access_token: token, expires_in: seconds = 0 } = answer.data;
+  tokens.set(id, { pair, token, until: Date.now() + (seconds - 60) * 1000 });
+  return token;
+}
+
 function handler(id: string, forward: Forward, kind: Kind, send: typeof fetch): Action["handler"] {
   return async (_request, env, call) => {
     const { method, path, query, body: value, contentType, session } = input.parse(call.input);
@@ -64,14 +88,25 @@ function handler(id: string, forward: Forward, kind: Kind, send: typeof fetch): 
     const url = destination(forward, path, query);
     if (!url) return refuse("not_allowed", 400);
     const secret = forward.secret === undefined ? null : String(Reflect.get(env, forward.secret));
+    const clientId = forward.exchange ? String(Reflect.get(env, `${forward.secret}_ID`)) : null;
+    // A key that trades for a token sends the token; any other sends its secret as it is.
+    const credential = (fresh: boolean) => clientId === null ? secret : tokenFor(id, forward, clientId, secret!, send, call.signal, fresh);
     const sends = body !== undefined && method !== "GET" && method !== "HEAD";
+    // A redirect comes back unfollowed, so the key is never sent on.
+    const ask = (sent: string | null) => send(url, { method, redirect: "manual", signal: call.signal,
+      headers: requestHeaders(forward, sent, session, sends ? contentType ?? "application/json" : null), ...(sends && { body }) });
     let status = 0;
     let response: Response;
+    let sent = await credential(false);
+    if (clientId !== null && sent === null) return refuse("no_token", 502);
     try {
-      // A redirect comes back unfollowed, so the key is never sent on.
-      response = await send(url, { method, redirect: "manual", signal: call.signal,
-        headers: requestHeaders(forward, secret, session, sends ? contentType ?? "application/json" : null),
-        ...(sends && { body }) });
+      response = await ask(sent);
+      // A token the service no longer takes is traded again, once.
+      if (response.status === 401 && clientId !== null) {
+        sent = await credential(true);
+        if (sent === null) return refuse("no_token", 502);
+        response = await ask(sent);
+      }
       status = response.status;
     } finally {
       // Dispatch has already refused a call with no verified caller.
@@ -80,16 +115,16 @@ function handler(id: string, forward: Forward, kind: Kind, send: typeof fetch): 
     if (status >= 300 && status < 400) return refuse("bad_answer", 502);
     let text: string;
     try { text = await boundedText(response.body, LIMIT); } catch { return refuse("too_large", 413); }
-    return reply(forward, response, text, secret);
+    return reply(forward, response, text, [secret, clientId, sent]);
   };
 }
 
-/** The service's answer as the action returns it, or a refusal when it carries the key itself, in its body or in a
- *  header it echoes. An MCP server's session id is handed back to send with the next call. */
-function reply(forward: Forward, response: Response, text: string, secret: string | null): Response {
+/** The service's answer as the action returns it, or a refusal when it carries the key itself, its ID or its token,
+ *  in its body or in a header it echoes. An MCP server's session id is handed back to send with the next call. */
+function reply(forward: Forward, response: Response, text: string, hidden: (string | null)[]): Response {
   const type = response.headers.get("content-type") ?? "";
   const handed = forward.mcp ? response.headers.get("mcp-session-id") : null;
-  if (secret !== null && `${type}\n${handed}\n${text}`.includes(secret)) return refuse("bad_answer", 502);
+  if (hidden.some(value => value !== null && `${type}\n${handed}\n${text}`.includes(value))) return refuse("bad_answer", 502);
   return Response.json({ status: response.status, contentType: type, body: /json/i.test(type) ? parse(text) : text,
     ...(handed && SESSION.test(handed) && { session: handed }) });
 }
@@ -123,7 +158,7 @@ function action(id: string, key: KeyEntry, forward: Forward, kind: Kind, send: t
         : `It can change or send things in ${key.title}, so it needs Read & write. Use ${id}.read for a look-up. `) +
       "A status of 400 or more is the service's own refusal: read its body.",
     input, output, encoding: "json", effect: reads ? "read" : "external", agentAvailable: true,
-    errors: { ...errors, not_a_lookup: `Only look-ups run here. ${other}` },
+    errors: { ...errors, not_a_lookup: `Only look-ups run here. ${other}`, ...(forward.exchange && { no_token: NO_TOKEN }) },
     examples: [reads ? { input: { method: "GET", path: "items", query: "limit=5" }, output: { status: 200, contentType: "application/json", body: { items: [] } } }
       : { input: { method: "POST", path: "items", body: { name: "Sample" } }, output: { status: 201, contentType: "application/json", body: { id: "item-1" } } }],
     limits: { inputBytes: 262_144, outputBytes: 4_194_304, timeoutMs: 30_000 },

@@ -8,7 +8,7 @@ The owner's Access has three views, each with its own address, so Back and reloa
 
 - **People** opens first: who, whether they can sign in, their role, and a count such as *2 apps, 1 key*. The owner is the first row, with nothing to change. *You* sits beside your own email. Under the table, *Can push on GitHub* lists [who can open previews through GitHub](preview-access.md#people-who-can-push-on-github), with one field and *Save* for a row that *Needs an email*.
 - **Roles** counts each role's apps, keys and holders. [Admin](employee-access.md#admin) is first and reads *Everything*; opened, its panel says what it gives and who holds it, with nothing to save.
-- **Services** lists every key: what it's for, and whether it's saved. [The Services view](#the-services-view) says more.
+- **Services** lists every key: what it's for, whether it's saved, and a place to paste one. [The Services view](#the-services-view) says more.
 
 Apps and key levels are set only [where a person or a role is opened](#a-panel-has-apps-and-keys): Services shows each key's status, never a level. To give one app or one key level to several people, give it to their role. Someone who manages nothing sees only their own apps and key levels, and no Services view.
 
@@ -53,11 +53,13 @@ Nothing changes for the person until *Save access*; the panel says *Not saved ye
 
 ## The Services view
 
-Services is a status list: no button, no key value, no level, and no box to type a key in.
+Services is a status list with one button a row: *Paste key*, or *Replace key* once the key is saved or waiting. It shows no key value and no level.
 
-- **A row is the key's name**, [its purpose](api-keys.md#a-saved-key-shows-in-access), and *Saved* or *Not saved*. A key [used directly](employee-access.md#key-levels) says *also used directly* and links its API guide. A tool [added in a chat](api-keys.md#a-saved-key-shows-in-access) says *Added in a chat* and lists the requests it counts as reads.
-- **An unsaved key says to ask the assistant for its key link**: a value comes in only through [the private link](api-keys.md#give-it-through-the-private-link). A key setup makes says to ask the assistant to finish Access setup.
-- **No keys yet** says the assistant sends a private link once you ask it to connect a service.
+- **A row is the key's name**, [its purpose](api-keys.md#a-saved-key-shows-in-access), and *Saved*, *Not saved*, or *Waiting for the next publish, ends in …abcd*. A key [used directly](employee-access.md#key-levels) says *also used directly* and links its API guide. A tool [added in a chat](api-keys.md#a-saved-key-shows-in-access) says *Added in a chat* and lists the requests it counts as reads.
+- **An unsaved key says to ask the assistant to connect it, or paste the key.** A key setup makes says to ask the assistant to finish Access setup, and has no button.
+- **The paste popup locks the key on the page** before it sends it: only the next publish can open it, [as connecting does](connect-your-tools.md#how-a-key-reaches-the-app). A key with an ID and a secret asks for each. A refusal stays in the popup, in words. After the save, nobody sees the key again, you included.
+- **A preview shows *Live app only*** in place of the button: only the live app takes a key.
+- **No keys yet** says to ask the assistant to connect a service.
 - **Project code is not a row**: its level is set in a person's or role's panel, as [the project's own key](employee-project.md#who-gets-what).
 
 ## A save says how it went, and leaving asks first

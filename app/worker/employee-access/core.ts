@@ -10,6 +10,8 @@ export interface ConnectionEnv extends PolicyEnv, CodeEnv, KnowledgeEnv {
   CF_ACCESS_WORKER_ID?: string;
   /** Production only: setup's key for this app's own sign-in list. Never on staging. */
   WONG_ACCESS_LOGIN_MANAGEMENT?: string;
+  /** The publish's public key, which seals a key sent to the app: scripts/seal-keys.mjs writes it. */
+  WONG_KEY_SEAL_PUBLIC?: string;
 }
 // A mark that exists in types alone and is not exported: no other file can write a `Core`.
 declare const checked: unique symbol;

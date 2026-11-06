@@ -236,8 +236,10 @@ test('services shows each key on one line with its level, notes page and guide, 
     { id: '../odd', name: 'Odd', purpose: 'an id no page can have', ready: true, level: 'write', direct: false }] };
   const noted = withNotes(answer, root);
   assert.deepEqual(noted.services.map(service => service.notes), [{ path: 'wiki/services/stripe.md', exists: true }, { path: 'wiki/services/mailchimp.md', exists: false }, undefined]);
+  assert.deepEqual(noted.services.map(service => service.calls), [0, undefined, undefined], 'a key used directly counts its saved calls');
   assert.deepEqual(serviceLines(noted).map(line => line.trimEnd().split(/ {2,}/)), [
     ['Stripe', 'payments and refunds', 'ready', 'Read'], ['', 'notes: wiki/services/stripe.md', 'guide: https://docs.stripe.com/api'],
+    ['', 'calls: 0 · node scripts/company-api.mjs api stripe'],
     ['Mailchimp', 'email lists', 'not saved yet: ask the owner'], ['', 'notes: none yet; start wiki/services/mailchimp.md'],
     ['Odd', 'an id no page can have', 'ready', 'Read & write'],
     ['2 more keys need access: ask the owner']]);
@@ -325,6 +327,19 @@ test('an answers folder that is not private is refused, and a short answer needs
   assert.throws(() => shortAnswer('x'.repeat(30000), dir), /not a private folder/);
   assert.equal(shortAnswer('{"short":true}', dir), '{"short":true}'); assert.deepEqual(readdirSync(dir), []);
 });
+test('a direct look-up its definition lacks prints the save command on stderr and leaves the answer as it was', t => {
+  const read = descriptor({ operationId: 'acme-crm.read', method: 'POST', encoding: 'json', effect: 'read', path: '/api/direct/acme-crm/read' });
+  const cli = helperCli(t, `async target => target.searchParams.has('id') ? Response.json(${JSON.stringify(read)})
+    : target.pathname === '/api/direct/acme-crm/read' ? Response.json({ status: 200, contentType: 'application/json', body: { items: [] } }) : undefined`);
+  const ran = cli.run(['call', 'acme-crm.read', '--file', '-'], { input: '{"method":"GET","path":"items","query":"limit=1"}' });
+  assert.equal(ran.status, 0, ran.stderr);
+  assert.deepEqual(JSON.parse(ran.stdout), { status: 200, contentType: 'application/json', body: { items: [] } });
+  assert.equal(ran.stderr, 'Not in schema/services/acme-crm yet. Add it: node scripts/company-api.mjs record acme-crm items --file - <<\'EOF\'\n'
+    + '{"method":"GET","path":"items","query":"limit=1"}\nEOF\n');
+  const api = cli.run(['api', 'acme-crm']); assert.equal(api.status, 0, api.stderr);
+  assert.match(api.stdout, /^No calls saved for acme-crm yet\./);
+  const usage = cli.run(['record', 'acme-crm', 'x', '--last', '--file', '-']); assert.notEqual(usage.status, 0); assert.match(usage.stderr, /record <key> <name> --last/);
+});
 test('the mcp command runs a session through the app as a chat runs it, and prints the tools or a tool\'s text', t => {
   const cli = helperCli(t, `async (target, init) => {
     if (target.pathname === '/api/services') return Response.json({ revision: 'r', needAccess: 0, services: [{ id: 'docs', name: 'Docs', purpose: 'p', ready: true, level: 'write', direct: true, mcp: { path: 'mcp' } }] });
@@ -379,4 +394,39 @@ test('tool add sends the entry to the app with the site as Origin, tool remove d
   for (const args of [['tool', 'add', 'Stripe'], ['tool', 'rename', 'stripe'], ['tool', 'remove', 'stripe', 'extra'], ['tool', 'remove']]) {
     const refused = cli.run(args); assert.equal(refused.status, 1, args.join(' ')); assert.match(refused.stderr, /usage/);
   }
+});
+test('key send seals the key in this process and sends only the sealed value, with the site as Origin; a refusal fails', async t => {
+  const { makePair, open } = await import('../../app/src/lib/seal.ts');
+  const pair = await makePair();
+  const seen = join(mkdtempSync(join(tmpdir(), 'company-key-')), 'seen.jsonl'); t.after(() => rmSync(dirname(seen), { recursive: true, force: true }));
+  const value = 'shpss_made-up-secret-9f2c';
+  const cli = helperCli(t, `async (target, init) => {
+    if (!target.pathname.startsWith('/api/access/keys/')) return undefined;
+    (await import('node:fs')).appendFileSync(${JSON.stringify(seen)}, JSON.stringify({ path: target.pathname, method: init.method ?? 'GET', origin: init.headers.Origin, body: init.body }) + '\\n');
+    if (target.pathname.endsWith('/seal')) return process.env.NO_SEAL ? Response.json({ error: { code: 'no_seal' } }, { status: 409 }) : Response.json({ publicKey: ${JSON.stringify(pair.publicKey)} });
+    return Response.json({ name: target.pathname.split('/').at(-1), ends: init.body.ends, waiting: true });
+  }`);
+  const sent = cli.run(['key', 'send', 'TOOL_SHOPIFY', '--value-stdin'], { input: `${value}\n` });
+  assert.equal(sent.status, 0, sent.stderr);
+  assert.deepEqual(JSON.parse(sent.stdout), { name: 'TOOL_SHOPIFY', ends: '9f2c', waiting: true });
+  const calls = readFileSync(seen, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  assert.deepEqual(calls.map(({ path, method, origin: from }) => [path, method, from]), [['/api/access/keys/seal', 'GET', undefined], ['/api/access/keys/TOOL_SHOPIFY', 'PUT', origin]]);
+  assert.equal(await open(JSON.stringify(calls[1].body.sealed), pair.privateKey), value);
+  for (const text of [sent.stdout, sent.stderr, JSON.stringify(calls)]) assert.ok(!text.includes('made-up'), text);
+  // A key sealed already goes as it is.
+  const sealed = { sealed: calls[1].body.sealed, ends: '9f2c' };
+  const ready = cli.run(['key', 'send', 'TOOL_SHOPIFY_ID', '--sealed-file', '-'], { input: JSON.stringify(sealed) });
+  assert.equal(ready.status, 0, ready.stderr);
+  assert.deepEqual(JSON.parse(readFileSync(seen, 'utf8').trim().split('\n').at(-1)).body, sealed);
+  // An app with no pair of locks says so, and nothing is sent.
+  const before = readFileSync(seen, 'utf8').trim().split('\n').length;
+  const refused = cli.run(['key', 'send', 'TOOL_SHOPIFY', '--value-stdin'], { input: value, env: { NO_SEAL: '1' } });
+  assert.equal(refused.status, 1); assert.equal(JSON.parse(refused.stdout).error.code, 'no_seal');
+  assert.equal(readFileSync(seen, 'utf8').trim().split('\n').length, before + 1);
+  for (const [args, input] of [[['key', 'send', 'tool_shopify', '--value-stdin'], value], [['key', 'send', 'TOOL_X'], value], [['key', 'put', 'TOOL_X', '--value-stdin'], value],
+    [['key', 'send', 'TOOL_X', '--value-stdin', '--sealed-file', '-'], value], [['key', 'send', 'TOOL_X', 'extra', '--value-stdin'], value]]) {
+    const bad = cli.run(args, { input }); assert.equal(bad.status, 1, args.join(' ')); assert.match(bad.stderr, /usage/);
+  }
+  const blank = cli.run(['key', 'send', 'TOOL_X', '--value-stdin'], { input: '\n' });
+  assert.equal(blank.status, 1); assert.match(blank.stderr, /No key on stdin for TOOL_X/);
 });

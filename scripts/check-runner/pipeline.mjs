@@ -98,6 +98,8 @@ bash scripts/cf-deploy.sh --take-build /workspace
 node scripts/cf-secrets.mjs check
 bash scripts/cf-build.sh --migrate
 bash scripts/cf-deploy.sh
+# Main alone: the keys sent to the app go in the live app's secrets. One it can not open stays waiting; the release stands.
+if [ "$WONG_BRANCH" = main ] && [ -f scripts/seal-keys.mjs ]; then node scripts/seal-keys.mjs put || echo "WONG_KEYS some keys stay waiting"; fi
 sed 's/^/WONG_OUTPUT /' "$GITHUB_OUTPUT"
 `;
 
@@ -179,7 +181,7 @@ async function stage(start, options, retry) {
 
 // One run for one pushed commit. Returns what the verbs read: commit, ref, the deploy's address, and
 // `success`, `failure`, `interrupted` (cut off; not the commit's doing) or `none` (no checks to run).
-export async function runPipeline(params, ci, config) {
+export async function runPipeline(params, ci, config, { sealPrivate } = {}) {
   if (params?.owner !== config.namespace || params?.repo !== config.repo) throw new Error('this run is for another repository');
   if (!SHA.test(params.sha ?? '') || typeof params.ref !== 'string' || !params.ref.startsWith('refs/heads/')) throw new Error('this run names no branch commit');
   const branch = params.ref.slice('refs/heads/'.length);
@@ -209,7 +211,9 @@ export async function runPipeline(params, ci, config) {
   if (app !== 'built') return { ...outcome, result: 'success', deployed: false, app };
 
   try {
-    const deployed = await stage(checked.runner, { name: 'deploy', command: DEPLOY, env, cloudflareCredentials: { accountId: config.account }, sourceControlCredentials: true, config: runnerConfig(BOUNDS.deployMs) }, retry);
+    // Only main's deploy opens the keys sent to the app.
+    const keys = branch === 'main' && sealPrivate ? { WONG_KEY_SEAL_PRIVATE: sealPrivate } : {};
+    const deployed = await stage(checked.runner, { name: 'deploy', command: DEPLOY, env: { ...env, ...keys }, cloudflareCredentials: { accountId: config.account }, sourceControlCredentials: true, config: runnerConfig(BOUNDS.deployMs) }, retry);
     const logs = await readLogs(deployed.logs);
     // Main's scripts predate taking a build, or main has no app yet: this commit previews once it is on main.
     if (marked(logs, 'WONG_DEPLOY') === 'after-publish') return { ...outcome, result: 'success', deployed: false, app, deploy: 'after-publish' };

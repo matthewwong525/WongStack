@@ -1,12 +1,13 @@
 # The services list
 
-The services list is where a chat starts for any outside service: one short list of the saved keys you can use, then a search, one opened entry, and a call through the app. The app holds every business key, so a chat never reads one from a file. [Company actions](company-api.md) owns how an action is built and how the helper signs in.
+The services list is where a chat starts for any outside service: one short list of the saved keys you can use, then a search, one opened entry, and a call through the app. The [services skill](../../.agents/skills/services/SKILL.md) gives a chat these steps. The app holds every business key, so a chat never reads one from a file. [Company actions](company-api.md) owns how an action is built and how the helper signs in.
 
 When no action or key can do a task on a website, the agent does it in [the browser](../development/browsing.md), as you.
 
 ```mermaid
 flowchart TD
   services --> search["list --q"] --> describe --> call
+  services --> api["api key, then api key call"] --> call
   call --> short["short answer, or a file"]
 ```
 
@@ -19,12 +20,13 @@ node scripts/company-api.mjs services
 ```text
 Stripe   Payments and refunds   ready  Read
   notes: wiki/services/stripe.md  guide: https://docs.stripe.com/api
+  calls: 3 · node scripts/company-api.mjs api stripe
 Notion   Team notes and docs    not saved yet: ask the owner
   notes: none yet; start wiki/services/notion.md
 2 more keys need access: ask the owner
 ```
 
-- **A key shows when you hold a level for it**, with its purpose line, whether it is saved, your [level](employee-access.md#key-levels), and for a key used directly the link to the service's API guide. An MCP server's row adds the command that lists its tools: [use an MCP server through the app](company-api.md#use-an-mcp-server-through-the-app). The other keys are one count. `--all` lists them too, each with no level.
+- **A key shows when you hold a level for it**, with its purpose line, whether it is saved, your [level](employee-access.md#key-levels), and for a key used directly the link to the service's API guide and the number of [calls we saved](#each-services-definition). An MCP server's row adds the command that lists its tools: [use an MCP server through the app](company-api.md#use-an-mcp-server-through-the-app). The other keys are one count. `--all` lists them too, each with no level.
 - **Each row names its [notes page](#notes-on-each-key-based-service)**, and whether it exists yet.
 - **Project code is left out**: it is the stack's own key, reached through [the project's route](employee-project.md#who-gets-what).
 - **The list stays short.** One row per service, however many actions each has, at most 200 rows, and never a key value. `--json` prints the whole answer.
@@ -39,7 +41,7 @@ Verified [company login](cloudflare-access.md) protects these live endpoints, in
 
 - `GET /api/actions` — bounded summaries: ID, purpose, effect, readiness, source, revision, and `keys`, the saved keys the action uses with the level a caller needs. Filter with `app` and with `q`, which finds an action when every word appears in its ID, purpose or description, in any order: `look up order` finds *Look up an order*. Paginate with `limit` (1–50, default 20) and `offset`.
 - `GET /api/actions?id=hello.greeting` — only that action’s inputs, output, synthetic examples, safe errors and local schema dependencies. Each of its `keys` adds the key's name, purpose line and, when it has one, `docs`, the service's API guide, so you need no second look-up. `describe` in the helper adds each key's `notes`: its [notes page](#notes-on-each-key-based-service) path and whether it exists yet.
-- `GET /api/openapi.json` — OpenAPI 3.1 for deliberately described HTTP routes, with actual methods and serialization. It omits bare handlers, administration, raw memory and preview-picture routes. `info.description` says how to use it in a few lines. Each key your actions use is a tag, with its purpose and guide link; each operation names its keys' tags. A key's own `<key>.read` or `<key>.change` also carries the guide as `externalDocs`, since the guide is that request's reference. A built action keeps its guide on the tag: its handler is the contract.
+- `GET /api/openapi.json` — OpenAPI 3.2 for deliberately described HTTP routes, with actual methods and serialization. It omits bare handlers, administration, raw memory and preview-picture routes. `info.description` says how to use it in a few lines. Each key your actions use is a tag, with its purpose and guide link; each operation names its keys' tags. A key's own `<key>.read` or `<key>.change` also carries the guide as `externalDocs`, since the guide is that request's reference. A built action keeps its guide on the tag: its handler is the contract.
 
 Once [Access permissions have started](employee-access.md#what-a-persons-apps-govern), all three endpoints read current membership, apps and [key levels](employee-access.md#key-levels) before describing an action or answering a conditional request. A person who holds an app sees all its actions, reads and changes; a key's own action shows only at the level it needs. A key's tag shows only beside an action you can see. Main registrations use the same reviewed method/path mappings as dispatch; a shared action requires every mapped app. Existing action visibility checks also apply. An unassigned new app stays hidden, and an unavailable policy returns an unavailable response.
 
@@ -72,19 +74,40 @@ What chats learn about a key-based service lives in that install's wiki, one pag
 
 1. **Read the notes first.** Before using a key directly, open the page its row in `services` names.
 2. **Make the page on first use.** No page yet: write the `#` title, the purpose line and the guide link, then what you learn. The first page also makes the hub, `wiki/services/README.md`, and links it from the wiki's root, as [people pages](../wiki-style.md#people) do.
-3. **Add each call you worked out**: the method and path, the inputs that mattered, and a pitfall. Save it in the next wiki save, like any page ([repeatable knowledge](../wiki-style.md#repeatable-knowledge)).
+3. **Keep what is about the whole service**: how its key is made, its levels, its limits. Save it in the next wiki save, like any page ([repeatable knowledge](../wiki-style.md#repeatable-knowledge)). A call you worked out goes in [the service's definition](#each-services-definition), and its quirk in that call's `description`, not here.
 
 ```markdown
 # Notion
 
 Team notes and docs. API guide: https://developers.notion.com/reference
 
-## Search pages
+## Make the key
 
-`POST search` with `{"query": "…", "filter": {"property": "object", "value": "page"}}`.
-Pitfall: a page shows only once it is shared with the key's integration.
+A new connection sees no pages: share them in its *Content access* tab.
 ```
 
 A notes page never holds a key value, a sign-in, or a customer's data. WongStack ships none: each install writes its own.
+
+## Each service's definition
+
+Each outside service you call directly has a definition: `schema/services/<key>/openapi.json`, OpenAPI 3.2, one entry per call we use, and `examples/<name>.json`, one saved request and answer per file. It holds only the calls we use, never the service's whole API. WongStack ships none: an install starts a folder when it saves its first call.
+
+- **Read it through the helper, not the file.** `api <key>` prints one line per call; `api <key> <call>` prints how we use one, what to send, what comes back, and its examples. A call is named by its path, its `operationId`, or one word only it holds. `api company` reads the app's own calls live from `/api/openapi.json`.
+
+  ```text
+  $ node scripts/company-api.mjs api notion search
+  POST search — Find pages and databases the key can see, by title
+    We send `query` for words in a title…
+    send { query?: string, filter?: {…}, page_size?: number }
+    answer 200 { object: string, results: {…}[], next_cursor: string | null, has_more: boolean }
+    example: schema/services/notion/examples/search.json
+  ```
+
+- **Save each new call with `record`.** After a direct call the definition lacks, the helper prints the command on standard error. `record <key> <name> --file -` sends a look-up through `<key>.read` and saves it; `record <key> <name> --last` saves the last change you made, and never sends it again. The answer's private values become made-up ones first: an email becomes `person1@example.com`, an ID a run of zeros, free text `Sample text 1`. The call's shape grows from each example, and the words you wrote stay.
+- **Write the call's `summary` and `description`.** The summary says what we use it for, the description how we use it and its quirks. A quirk you learn later goes there too: the description is its one place.
+- **Check that it still fits with `record --refresh [<key>]`.** It asks each saved look-up again, names each field of the new answer that doesn't fit its call, then saves the new answer. It never sends a saved change, or a look-up whose request holds a made-up value such as a page ID: those show as *not checked*. Then the check below runs on the saved files.
+- **The check runs with the app's tests**: `node scripts/check-service-definitions.mjs`. It fails when a folder is named for no key, a call has no `operationId`, `x-effect`, summary or description, an example fits no call or does not fit its answer, an example holds a value that looks private, or the types file is out of date. `--types` rebuilds the types.
+
+Code that calls a service types its answer from the definition, and tests on its examples: [service examples](testing.md#service-examples).
 
 Part of [the Cloudflare stack](README.md).

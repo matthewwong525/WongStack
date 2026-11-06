@@ -8,6 +8,7 @@ import { knowledge } from "./apps/knowledge.ts";
 import { budget } from "./budget.ts";
 import type { Context } from "./context.ts";
 import { identities, site } from "./identity.ts";
+import { playback } from "./services.ts";
 import { resetToSeed, saveSeed, startRuntime } from "./setup.ts";
 
 // Access runs first: it clears the Access tables to prove a fresh install's first start, and each later app resets.
@@ -19,16 +20,20 @@ let context: Context;
 
 beforeAll(async () => {
   const signed = await identities();
-  // Wrangler routes Worker outbound requests through host fetch; any non-JWKS call fails.
-  vi.stubGlobal("fetch", async (input: string | URL | Request) => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    outbound.push(url);
-    if (url !== JWKS) throw new Error(`Unexpected runtime outbound request: ${url}`);
+  const services = playback();
+  // Wrangler routes Worker outbound requests through host fetch: a served service answers from its examples, and
+  // any other call but the JWKS fails.
+  vi.stubGlobal("fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    const request = new Request(input, init);
+    const played = await services.answer(request).catch((error: unknown) => { outbound.push(request.url); throw error; });
+    if (played) return played;
+    outbound.push(request.url);
+    if (request.url !== JWKS) throw new Error(`Unexpected runtime outbound request: ${request.url}`);
     return Response.json({ keys: [signed.publicKey] });
   });
   const runtime = await startRuntime({ WONG_ENVIRONMENT: "staging", WONG_OWNER_EMAIL: site.owner,
     CF_ACCESS_TEAM_DOMAIN: site.domain, CF_ACCESS_AUD: site.audience });
-  context = { runtime, signed };
+  context = { runtime, signed, services };
 });
 afterAll(async () => {
   try { await context?.runtime.close(); }

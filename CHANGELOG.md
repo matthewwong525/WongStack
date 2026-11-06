@@ -15,6 +15,26 @@
 
 **Updating.** Nothing to do for most computers. The proxy is now off from the browser's next start, on every computer. If a site that loaded before stops loading, such as UPS, say *turn the browser proxy on*, then ask the assistant to restart the browser. A browser that is running now keeps its proxy until it stops.
 
+## 50.4.0 — Connect your tools in the assistant's browser, with keys sent through the app
+
+- **Connecting uses the assistant's own browser on every computer.** On a Mac or Windows computer, it is the window you already use for robot checks; on a server, the watch link. The *use your own Chrome* question is gone. When a tool asks you to sign in, the chat says *Sign in to Shopify in the browser window, then say done*, and the assistant carries on once the site lets you in ([use the assistant's browser](wiki/stack/connect-your-tools.md#use-the-assistants-browser)).
+- **Each key goes to your app locked, with your company sign-in.** The computer needs no Cloudflare login. The key is locked before it leaves the page, and only the next publish can open it and put it in your app's secrets. Even the app can't read it while it waits. The chat shows only the last four characters, and offers to publish just the keys when nothing else waits ([how a key reaches the app](wiki/stack/connect-your-tools.md#how-a-key-reaches-the-app)).
+- **You can paste a key in Access.** Each row in Services has *Paste key*, or *Replace key*. The key is locked in your browser, and the row says *Waiting for the next publish* until it goes live ([the Services view](wiki/stack/access-screens.md#the-services-view)).
+- **Tools that give an ID and a secret work.** The app trades them for a short token itself, keeps it until it runs out, and gets a new one. So Shopify can use a key that only reads ([a tool with an ID and a secret](wiki/stack/connect-your-tools.md#a-tool-with-an-id-and-a-secret)).
+
+**Updating.** The assistant makes your app's pair of locks once: it runs `node scripts/seal-keys.mjs pair`, which keeps one half where your app is published and writes the other half in your app's settings. Until then, a key sent to the app is refused and the assistant says so. Keys already saved keep working.
+
+## 50.3.0 — Each outside service keeps the calls you use, with examples, in one place
+
+- **A short view of each call before you use it.** `node scripts/company-api.mjs api notion` lists the calls you use with Notion, one line each. `api notion search` shows how you use one, what to send, what comes back, and its saved examples. `api company` shows the app's own calls ([each service's definition](wiki/stack/service-catalogue.md#each-services-definition)).
+- **A new call is saved once, with its private values made up.** After a direct call that isn't saved yet, the helper prints the one `record` command that saves it. A look-up is sent again to save it; a change is saved from the last one made, never sent again. Emails, IDs and free text become made-up values first, and a check fails on one that looks real.
+- **Each call says what you use it for and how.** You write a call's summary and description once; a later example widens its shape and keeps your words. A quirk of one call goes in its description, and the service's notes page keeps what is about the whole service.
+- **`record --refresh` checks the saved calls still fit.** It asks each saved look-up again, never a change, and names an answer that no longer fits.
+- **App code types a service's answer and tests on its examples.** Each service gets a types file in `app/worker/services/`. The real-database tests answer the app's requests to that service from its saved examples, and a request with no example fails by name ([service examples](wiki/stack/testing.md#service-examples)).
+- **A services skill tells the assistant these steps**, and the app's own API description is now OpenAPI 3.2.
+
+**Updating.** The update adds a services skill. Nothing to do by hand: an install makes a folder for an outside service, `schema/services/<name>/`, the first time it saves a call to it.
+
 ## 50.2.2 — The last pretend database goes
 
 - **Three more server tests read real rows.** The tests for who may open which app, which keys and tools a person holds, and the list of actions an AI can call now run real queries on the test copy of the database. A test of a failed database closes that copy, so the read fails for real.
