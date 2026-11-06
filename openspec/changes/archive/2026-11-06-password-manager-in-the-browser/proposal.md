@@ -1,6 +1,7 @@
 # Your password manager in the assistant's browser
 
-**Status:** planned
+**Status:** ready-to-ship
+**Branch:** camoufox-live-view-extensions
 **Open questions:** none
 
 ## Why
@@ -114,3 +115,4 @@ None.
 - **2026-11-06** — Second review at /ship: a view over the password manager's page left the page at the view's last size. Assumed: `addon open` keeps the page's own size; a size read there answers with it, so the view's end sets it; a resize while that page shows becomes the size the site gets back, and the site gets it once the person is back there. This replaces the earlier *the view's end leaves the size it gave* pick.
 - **2026-11-06** — Asked how to finish the last check, a sign-in with a real password manager account, which no test account here covers → the requester chose to publish now and check it the first time they add 1Password. The real-account steps move from the tasks to *After it is live*.
 - **2026-11-06** — At /ship, *The live view is the one place for sensitive input* went live first, and removed the password link with its `--sign-in`. Assumed: `addon open` runs before every sign-in turn, and the refusal of a `--sign-in` over the password manager's page goes, with its test, since nothing types a saved login now.
+- **2026-11-06** — Archive checkpoint at /ship: archived as 50.1.0, merged with main's 50.0.0 live view; the browser tests pass.
