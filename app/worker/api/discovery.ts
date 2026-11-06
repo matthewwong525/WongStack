@@ -85,7 +85,7 @@ function openApi(operations: Operation[], version: string) {
       ...(operation.confirmWith ? { "x-confirm-with": operation.confirmWith } : {}),
     };
   }
-  return { openapi: "3.1.1", info: { title: "Company actions", version, description: GUIDE },
+  return { openapi: "3.2.0", info: { title: "Company actions", version, description: GUIDE },
     tags: [...tags.values()].sort((a, b) => a.name.localeCompare(b.name)), paths,
     components: { securitySchemes: { employeeLogin: { type: "apiKey", in: "header", name: "cf-access-token" } } } };
 }

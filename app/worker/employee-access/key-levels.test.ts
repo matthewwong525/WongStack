@@ -1,7 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { keys } from "../keys";
 import { chatTools, everyKey, heldLevels, holds, keyIds, keyTitle, levelName, madeBySetup, offered, reads, registered, registryFor, registryOf, saved, scopedEnv, withTools } from "./key-levels";
-import { fakeDatabase } from "../../tests/env";
+import { database } from "../../tests/employee-access/connections";
 
 vi.mock("../keys.ts", () => ({ keys: {
   stripe: { title: "Stripe", secrets: ["STRIPE_SECRET_KEY"] },
@@ -54,8 +54,14 @@ it("hands a route a copy of the bindings with only the keys it lists", () => {
 // A tool added from a chat, as the live app's data holds it.
 const row = { id: "notion", title: "Notion", purpose: "Team notes", docs: "https://developers.notion.com/reference",
   forward_json: JSON.stringify({ base: "https://api.notion.example/v1/", header: "Authorization", prefix: "Bearer ", lookups: ["POST search"] }), levels_json: '["read"]' };
-const live = (rows: object[] | Error) => ({ WONG_ENVIRONMENT: "production", DB: fakeDatabase({ withSession: () => ({ prepare: () => ({
-  all: async () => { if (rows instanceof Error) throw rows; return { results: rows }; } }) }) }) });
+/** The live app's bindings, its tools table holding `rows`; `change` then runs on that copy. */
+const live = (rows: (typeof row)[], change = "") => {
+  const { sql, DB } = database();
+  const add = sql.prepare("INSERT INTO tools VALUES (?, ?, ?, ?, ?, ?, 'owner@example.com', 'now')");
+  for (const tool of rows) add.run(tool.id, tool.title, tool.purpose, tool.docs, tool.forward_json, tool.levels_json);
+  sql.exec(change);
+  return { WONG_ENVIRONMENT: "production", DB };
+};
 
 it("reads a request's registry once: the code's keys, then the live app's tools, the code winning a name", async () => {
   const registry = await registryFor(live([row, { ...row, id: "stripe", title: "Not the code's" }]));
@@ -73,9 +79,9 @@ it("reads a request's registry once: the code's keys, then the live app's tools,
 
 it("holds no tool on a preview, before the table exists, or for a row that breaks a rule", async () => {
   const preview = { ...live([row]), WONG_ENVIRONMENT: "staging" };
-  const broken = [{ ...row, forward_json: "{" }, { ...row, id: "Bad_Id" }, { ...row, levels_json: '["write"]' },
-    { ...row, forward_json: JSON.stringify({ base: "https://api.notion.example/v1/", header: "Authorization", lookups: ["POST ../admin"] }) }];
-  for (const env of [preview, live(new Error("no such table: tools")), live(broken), {}]) expect(keyIds(await registryFor(env))).toEqual(["stripe", "bank", "cloudflare"]);
+  const broken = [{ ...row, forward_json: "{" }, { ...row, id: "Bad_Id" }, { ...row, id: "notes", levels_json: '["write"]' },
+    { ...row, id: "wiki", forward_json: JSON.stringify({ base: "https://api.notion.example/v1/", header: "Authorization", lookups: ["POST ../admin"] }) }];
+  for (const env of [preview, live([], "DROP TABLE tools"), live(broken), {}]) expect(keyIds(await registryFor(env))).toEqual(["stripe", "bank", "cloudflare"]);
 });
 
 it("hands a route no tool secret it does not list, a tool's whose row is gone included", async () => {

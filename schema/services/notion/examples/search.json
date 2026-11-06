@@ -1,0 +1,28 @@
+{
+  "source": "live",
+  "recorded": "2026-11-06",
+  "request": {
+    "method": "POST",
+    "path": "search",
+    "body": {
+      "page_size": 1,
+      "filter": {
+        "property": "object",
+        "value": "page"
+      }
+    }
+  },
+  "answer": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "body": {
+      "object": "list",
+      "results": [],
+      "next_cursor": null,
+      "has_more": false,
+      "type": "page_or_database",
+      "page_or_database": {},
+      "request_id": "00000000-0000-4000-8000-000000000001"
+    }
+  }
+}

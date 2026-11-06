@@ -32,6 +32,8 @@ The app's `npm test` runs the unit and screen tests with their coverage limits, 
 - **People sign in with test keys.** The suite signs tokens for the owner and for three seeded people: Fay (an Admin), Dana (holds Hello) and Eli (holds no app). Only the signing-key answer is a stand-in: sign-in rules, routing, database reads and rollbacks are the real app's.
 - **Nothing leaves the computer.** An outgoing request fails the run. The app's secret files and deployed resources are never used.
 
+The runtime suite's lines do not count toward the 100% coverage limit. The local runtime, workerd, answers the profiler itself and refuses line-by-line coverage; its best-effort coverage counts a whole function once it runs, a `throw` that no case reaches included. So server logic keeps its unit tests, on the test copy of the database that [`database()`](../../app/tests/employee-access/connections.ts) builds from the real migrations.
+
 Setup prints how long the build, start and migrations took, and the run prints each app's time. The suite closes the runtime and removes its temporary files, also after a failing case.
 
 ### Run one app's tests
@@ -73,6 +75,16 @@ Each app with server code, an `app/worker/apps/<name>/api.ts`, needs its own fil
 Add the sample rows a new feature needs to `schema/seed.sql` in the same change: the preview and these tests both start from them.
 
 An app that reads from a service the local runtime does not have tests only what a preview has. For example, Knowledge reads the knowledge store, which previews turn off. So its file checks who may open it and its *not set up* answer, and the unit tests check its pages with a stand-in store.
+
+## Service examples
+
+An app whose server code calls an outside service tests on that service's saved examples, never the live service. The examples are the files `record` saves in `schema/services/<key>/examples/`: [each service's definition](service-catalogue.md#each-services-definition) says how to save one. The [services skill](../../.agents/skills/services/SKILL.md) walks a chat through it.
+
+- **Type the answer from the definition.** `app/worker/services/<key>.ts` is built from `openapi.json`, one type per call: `const answer = body as NotionSearchAnswer`. Never edit it: `node scripts/check-service-definitions.mjs --types` rebuilds it, and `npm test` fails on a stale one.
+- **Play the examples back in a real-database test.** In the app's file, call `context().services.serve("<key>")` first. Each request the Worker sends to that service's address then gets the saved answer whose method, path, query and body match. A request no example matches fails the test, and names the closest example: `No example for GET notion/serch (closest: notion/search)`. A request to any other outside address fails too.
+- **A tool added in the app, not in `app/worker/keys.ts`,** loads only on the live app, and the shared test runtime runs as staging. Start a second runtime as production, insert the tool's `tools` row in its database, then pass that database: `serve("<key>", { db: live.env.DB })`. [`access.ts`](../../app/tests/runtime/apps/access.ts) shows each step.
+
+**Remove a private value already saved.** The check fails on a value that looks private, such as a real email, an ID, or a token, and names its file and field. Run `record` again for that example, or replace the value by hand with one the scrubber makes: `person1@example.com`, `Sample text 1`, or the ID with its digits and letters as zeros. A value that reached a saved commit stays in the history: tell the owner, and change the key if it was one.
 
 ## Proof the checks can fail
 

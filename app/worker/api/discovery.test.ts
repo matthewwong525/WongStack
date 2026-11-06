@@ -5,12 +5,22 @@ import { defineAction, registrations } from "./contract";
 import { apiActions } from "./router";
 import { appActions } from "../apps/index";
 import { body } from "../../tests/body";
-import { fakeDatabase, fakeEnv } from "../../tests/env";
+import { fakeEnv } from "../../tests/env";
+import { fixture, site } from "../../tests/employee-access/connections";
 const env = {} as Env;
 // The supplied actions alone: a build may hold other folders.
 const supplied = [...apiActions, ...appActions].filter(({ app }) => app === "main" || app === "hello");
 const identity = { id: "employee@example.com", kind: "user" as const, claims: { aud: "a", iss: "i", exp: 9999999999 } };
 const get = (path = "/api/actions", registry: Parameters<typeof discovery>[3] = supplied, headers = {}, method = "GET") => discovery(new Request(`https://example.com${path}`, { headers, method }), env, identity, registry);
+/** A started install whose employee holds `apps`, with key levels on; `sql` changes what they hold. */
+function started(apps: string[], saved: Record<string, string>) {
+  const { sql, env: { DB } } = fixture();
+  sql.prepare("UPDATE wong_access_installation SET keys_enabled = 1").run();
+  sql.prepare("INSERT INTO wong_access_apps VALUES (?, 'hello')").run(site.installationId);
+  for (const app of apps) sql.prepare("INSERT INTO wong_access_grants VALUES (?, ?, ?, 1, 'write')").run(site.installationId, identity.id, app);
+  const bindings = fakeEnv({ DB, WONG_OWNER_EMAIL: site.ownerEmail, ...saved });
+  return { sql, bindings };
+}
 const synthetic = (id = "sample.create", extra = {}) => defineAction({ operationId: id, summary: "Create sample", description: "Synthetic sample",
   encoding: "json", effect: "write", agentAvailable: true, input: z.strictObject({ title: z.string().describe("The sample's title") }), output: z.strictObject({ id: z.number() }),
   errors: { denied: "Creation denied" }, examples: [{ input: { title: "Sample" }, output: { id: 1 } }], handler: () => Response.json({ id: 1 }, { status: 201 }), ...extra });
@@ -46,7 +56,7 @@ it("returns only the selected action schema and revision, and supports cache val
 });
 it("generates truthful HTTP-only OpenAPI with query scalars, JSON bodies and success/error schemas", async () => {
   const initial = await body(await get("/api/openapi.json"));
-  expect(initial.openapi).toBe("3.1.1"); expect(Object.keys(initial.paths)).toEqual(["/apps/hello/api/greeting", "/api/health"]);
+  expect(initial.openapi).toBe("3.2.0"); expect(Object.keys(initial.paths)).toEqual(["/apps/hello/api/greeting", "/api/health"]);
   const greeting = initial.paths["/apps/hello/api/greeting"].get;
   expect(greeting.parameters).toEqual([expect.objectContaining({ name: "name", required: false, in: "query", style: "form", explode: true })]);
   expect(greeting.responses["2XX"].content["application/json"].schema.properties.message.type).toBe("string");
@@ -75,9 +85,7 @@ it("names a write's confirming read only to a caller who may see that read", asy
 });
 it("shows a person who holds an app its look-ups and its changes, whatever their key levels, and nothing of an app they lack", async () => {
   // Key levels have started and the person holds none. Hello is theirs, and one of its changes uses a saved key.
-  const row = { policy_enabled: 1, keys_enabled: 1, revision: 1, status: "active", held: null, apps: '["hello"]', keys: "{}" };
-  const bindings = fakeEnv({ DB: fakeDatabase({ withSession: () => ({ prepare: () => ({ bind: () => ({ first: async () => row }) }) }) }),
-    WONG_OWNER_EMAIL: "owner@example.com", WONG_CLOUDFLARE_READ: "saved" });
+  const { sql, bindings } = started(["hello"], { WONG_CLOUDFLARE_READ: "saved" });
   const person = { ...identity, claims: { ...identity.claims, sub: "employee", email: identity.id } };
   const registry = registrations(new Map([["GET list", synthetic("hello.list", { effect: "read", encoding: "none", input: z.strictObject({}), examples: [] })],
     ["POST mark", synthetic("hello.mark", { keys: ["cloudflare"] })]]), "hello");
@@ -87,12 +95,12 @@ it("shows a person who holds an app its look-ups and its changes, whatever their
   expect(await body(await seen("/api/actions?id=hello.mark"))).toMatchObject({ effect: "write", readiness: "available", keys: [{ id: "cloudflare", level: "write" }] });
   expect(Object.keys((await body(await seen("/api/openapi.json"))).paths)).toEqual(["/apps/hello/api/list", "/apps/hello/api/mark"]);
   // Without the app, none of it shows: not the list, not one action, not the document.
-  row.apps = "[]";
+  sql.exec("DELETE FROM wong_access_grants");
   expect(await ids()).toEqual([]);
   for (const id of ["hello.list", "hello.mark"]) expect((await seen(`/api/actions?id=${id}`)).status, id).toBe(404);
   expect((await body(await seen("/api/openapi.json"))).paths).toEqual({});
   // A key level stands in for no app.
-  row.keys = '{"cloudflare":"read"}';
+  sql.prepare("INSERT INTO wong_access_key_grants VALUES (?, ?, 'cloudflare', 'read', 1)").run(site.installationId, identity.id);
   expect(await ids()).toEqual([]);
 });
 it("tracks additions/removals, excludes undeclared and denied operations, and marks missing connections", async () => {
@@ -150,9 +158,8 @@ it("names each key an action uses with its purpose and guide, and groups the doc
   expect(plain.tags).toEqual([]); expect(plain.paths["/api/health"].get).not.toHaveProperty("tags");
 });
 it("shows a key's group, guide and own look-up only to a person who holds that key", async () => {
-  const row = { policy_enabled: 1, keys_enabled: 1, revision: 1, status: "active", held: null, apps: "[]", keys: '{"cloudflare":"read"}' };
-  const bindings = fakeEnv({ DB: fakeDatabase({ withSession: () => ({ prepare: () => ({ bind: () => ({ first: async () => row }) }) }) }),
-    WONG_OWNER_EMAIL: "owner@example.com", WONG_CLOUDFLARE_READ: "saved-cloudflare-token" });
+  const { sql, bindings } = started([], { WONG_CLOUDFLARE_READ: "saved-cloudflare-token" });
+  sql.prepare("INSERT INTO wong_access_key_grants VALUES (?, ?, 'cloudflare', 'read', 1)").run(site.installationId, identity.id);
   const person = { ...identity, claims: { ...identity.claims, sub: "employee", email: identity.id } };
   const seen = async (path: string) => body(await discovery(new Request(`https://example.com${path}`), bindings, person, supplied));
   const described = await seen("/api/actions?id=cloudflare.read");
@@ -162,7 +169,7 @@ it("shows a key's group, guide and own look-up only to a person who holds that k
   expect(document.paths["/api/cloudflare/read"].get).toMatchObject({ tags: ["Cloudflare"], externalDocs: { url: "https://developers.cloudflare.com/api/" } });
   expect(JSON.stringify([described, document])).not.toContain("saved-cloudflare-token");
   // With no level for the key, no group, operation or guide of it shows.
-  row.keys = "{}";
+  sql.exec("DELETE FROM wong_access_key_grants");
   const without = await seen("/api/openapi.json");
   expect(without.tags).toEqual([]);
   expect(JSON.stringify(without)).not.toMatch(/Cloudflare|cloudflare\.read|developers\.cloudflare\.com/);
