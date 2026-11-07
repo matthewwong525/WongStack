@@ -1,6 +1,6 @@
 # The agent adds an add-on in one ask, and you only sign in
 
-**Status:** in-progress
+**Status:** shipping
 **Branch:** browser-addon-skill-update
 **Open questions:** none
 
@@ -67,3 +67,4 @@ You asked the agent to add 1Password. It opened Firefox's add-on page and told y
 - **2026-11-07** — Assumed (review): the page's first sentence and *Add it yourself* lead with asking the agent, keeping the heading for its changelog link, because the page must not send the person to the site; #532's rewrite replaces this text.
 - **2026-11-07** — Assumed (review): the release is minor, not patch, because the agent gains new behavior ([the release rules](../../../.agents/rules/payload.md)).
 - **2026-11-07** — Saved for publish (`/ship`); task 3.2 waits on this save's CI.
+- **2026-11-07** — Archived for publish as release 50.7.0.

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The assistant adds a well-known add-on when you ask
+## 50.7.0 — The assistant adds a well-known add-on when you ask
 
 - **Your ask is your yes for a well-known add-on.** Say *add 1Password*: when one add-on fits your words, and Mozilla features it or 10,000 or more people use it each day, the assistant names its maker, website, and daily users, and adds it at once. It still asks first when your words fit more than one add-on, when the add-on is little-used, or when it would replace another add-on and that one's sign-in ([the checks](wiki/development/password-manager.md#the-checks)).
 - **Then it opens the add-on's sign-in page for you**, in the browser window or a live view. You sign in there: that is your only step. The assistant never sends you to Firefox's add-on site to add it yourself.

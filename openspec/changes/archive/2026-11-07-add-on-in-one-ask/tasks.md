@@ -13,4 +13,4 @@
 ## 3. Checks
 
 - [x] 3.1 Run `openspec validate add-on-in-one-ask --strict --no-interactive` and the wiki checks (`node --test scripts/tests/` for wiki links and page size).
-- [ ] 3.2 `/save`, then confirm CI passes on the saved change.
+- [x] 3.2 `/save`, then confirm CI passes on the saved change.
