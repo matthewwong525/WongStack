@@ -123,7 +123,7 @@ test('the server starts in its private folder with the key in a file, never on i
   assert.ok(!existsSync(join(f.camofox.install, 'server.log')), 'the server keeps no log');
   assert.ok(['profile', 'cache', 'tmp', 'tabs'].every(dir => (statSync(join(f.camofox.install, dir)).mode & 0o777) === 0o700), 'the private folders are the person\'s alone');
 
-  assert.match(ok(f, 'status'), /^BROWSE_INSTALLED=yes camoufox 158\.0\.1-beta\.41 library 0\.5\.9\nBROWSE_SERVER=running\nBROWSE_WINDOW=on\nBROWSE_PROXY=off\nBROWSE_SHOWN=none\n$/);
+  assert.match(ok(f, 'status'), /^BROWSE_INSTALLED=yes camoufox 158\.0\.1-beta\.41 library 0\.5\.9\nBROWSE_SERVER=running\nBROWSE_WINDOW=on\nBROWSE_PROXY=off\nBROWSE_NETWORK=direct \(no upstream proxy\)\nBROWSE_SHOWN=none\n$/);
   ok(f, 'snapshot', '--session', 'a');
   assert.equal(f.camofox.starts(), 1, 'a later command uses the running server');
 
@@ -521,7 +521,7 @@ test('proxy is off unless turned on, kept beside the window setting in the home 
   assert.deepEqual(JSON.parse(readFileSync(settings, 'utf8')), { window: false, proxy: true }, 'one file, each setting kept');
   assert.equal(statSync(settings).mode & 0o777, 0o600);
   assert.ok(!resolve(settings).startsWith(repo), 'outside every repo');
-  assert.equal(ok(f, 'status').split('\n').slice(2).join('\n'), 'BROWSE_WINDOW=off\nBROWSE_PROXY=on\nBROWSE_SHOWN=none\nThe running browser started with other settings. This takes effect the next time the browser starts; a running browser stays as it is.\n');
+  assert.equal(ok(f, 'status').split('\n').slice(2).join('\n'), 'BROWSE_WINDOW=off\nBROWSE_PROXY=on\nBROWSE_NETWORK=direct (no upstream proxy)\nBROWSE_SHOWN=none\nThe running browser started with other settings. This takes effect the next time the browser starts; a running browser stays as it is.\n');
   assert.ok(alive(pid) && f.camofox.starts() === 1, 'the running browser was not restarted');
   assert.equal(ok(f, 'proxy', 'off'), `BROWSE_PROXY=off\n${next}`);
   assert.deepEqual(JSON.parse(readFileSync(settings, 'utf8')), { window: false, proxy: false });
@@ -541,6 +541,28 @@ test('status says what the running browser shows: a window, a live-view link, or
   assert.equal(shown(), 'link');
   write({ display: null, proxy: undefined, windowSetting: undefined });
   assert.match(ok(f, 'status'), /\nThe running browser started with other settings\./, 'one from before the settings ran the proxy');
+});
+
+test("status names the running browser's route from its own server's network state, never an address", t => {
+  const f = fixture(t);
+  const file = join(f.camofox.install, 'network.json');
+  const network = () => /^BROWSE_NETWORK=(.*)$/m.exec(ok(f, 'status'))[1];
+  mkdirSync(f.camofox.install, { recursive: true });
+  writeFileSync(file, JSON.stringify({ network: 'upstream', pid: 1 }));
+  assert.equal(network(), 'unknown (browser stopped)');
+  ok(f, 'open', SHOP);
+  const pid = f.camofox.serverPid();
+  for (const [state, line] of [
+    [{ network: 'upstream', pid }, 'upstream'],
+    [{ network: 'upstream', route: 'backup', pid }, 'upstream (backup)'],
+    [{ network: 'direct', reason: 'unreachable', pid }, 'direct (upstream unreachable)'],
+    [{ network: 'direct', reason: 'no-upstream', pid }, 'direct (no upstream proxy)'],
+    [{ network: 'upstream', pid: pid + 1 }, 'direct (no upstream proxy)'],
+  ]) {
+    writeFileSync(file, JSON.stringify(state));
+    assert.equal(network(), line, JSON.stringify(state));
+  }
+  assert.match(f.run('--help').stdout, /BROWSE_NETWORK=/);
 });
 
 test('the browser shows in a window unless turned off; on Linux only where a screen exists, else it draws on Xvfb', t => {

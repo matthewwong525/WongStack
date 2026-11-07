@@ -1,6 +1,6 @@
 # The browser goes through your home proxy, with a backup
 
-**Status:** planned
+**Status:** in-progress
 **Branch:** route-repos-through-proxy
 **Open questions:** none
 
@@ -80,3 +80,7 @@ None.
 - **2026-11-07** — Assumed: no `network off` command and no `BROWSE_LANGUAGE=` line, because *proxy off* already sends the browser straight, and WongStack's server already records the browser's language.
 - **2026-11-07** — Assumed: keep the existing key names `BROWSE_FIRST_PROXY` and `BROWSE_UPSTREAM_PROXY` and the existing computer files, because the three other repos and this computer already use them, so nothing needs saving again.
 - **2026-11-07** — Assumed: save the plan unbuilt at /close, because the person closed this chat to wait for review; nothing is built.
+- **2026-11-07** — Assumed: each task's own test run moved to the end, after all source and tests were written; the acceptance of each stays as planned.
+- **2026-11-07** — Assumed: the existing forwarder test that mocks the listener now undoes each mock before the next, because stacked mocks restored in the wrong order and broke the new route tests after it; the test checks the same things.
+- **2026-11-07** — Assumed: the live check ran the branch's forwarder with a temporary home holding copies of the two saved lines, not a whole second browser, because a second browser would download its own copy and the route is the forwarder's job; the home line showed Toronto and `upstream`, and a closed first port showed Burlington, Canada and `upstream (backup)`.
+- **2026-11-07** — Built: the browser reads the two saved proxy lines while the proxy is on, and the review found one fix: the new page linked tests that do not ship, so it now links them on GitHub. ClaymooApp updates from this release in the same ship, because the person asked to ship it there too; WongOS and Relay Everything already route this way.

@@ -14,7 +14,7 @@ disable-model-invocation: true
 - *Send me the browser* or *show me the browser*, on every computer: `hand-over.mjs open --view --keep-open --note "Here is the browser. Tap Hand back when you're done."`. It holds the chat's tab as the person's turn. With `HANDOVER_VIEW=window`, say the tab is in the browser window (on a Mac, *Camoufox* in the Dock if it is behind), and to say *done*; on *done*, run `close`. Never `front` or `show` for this: neither holds a turn, so another chat's click can take the window away.
 - `show` brings this task's tab to the front, with no turn, for a finished page only. On `BROWSE_SHOWN=link` or `none`, send a picture instead: [ask for the browser](../../../wiki/development/browser-window.md#ask-for-the-browser).
 - A box in a frame from another site sits at the end of `snapshot`, under the first-line note: use its ref, not a selector.
-- `save` and `close` keep the logins; `status`, `install`, and `stop` manage the browser.
+- `save` and `close` keep the logins; `status`, `install`, and `stop` manage the browser. `status` names [the route](../../../wiki/development/browser-proxy.md#check-the-live-route) in `BROWSE_NETWORK=`.
 - Never ask about a [password manager](../../../wiki/development/password-manager.md). Asked to add one: `addon find <name>`, name the match's maker, website, and daily users, with any `BROWSE_ADDON_WARN`, `addon add <slug>` on their yes, then tell them its `BROWSE_ADDON_TELL`. Run `addon open` only before a sign-in turn. Never click, read, type into, or unlock any add-on yourself.
 
 Preview checks stay on [agent-browser](../agent-browser/SKILL.md).

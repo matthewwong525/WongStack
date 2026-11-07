@@ -556,12 +556,17 @@ test('show brings its tab to the front and holds no turn', async () => {
   } finally { await close(); }
 });
 
-test('the proxy starts only when its setting is on, and a failed one fails the start', async () => {
-  let starts = 0;
-  const start = async () => { starts++; return { port: 4123, close: () => {} }; };
-  const off = await startProxy(false, start);
-  assert.deepEqual([off.on, off.args, starts], [false, [], 0], 'off by default: no forwarder and no proxy flag');
-  const on = await startProxy(true, start);
-  assert.deepEqual([on.on, on.args, starts], [true, ['--proxy', 'http://127.0.0.1:4123'], 1]);
-  await assert.rejects(startProxy(true, async () => { throw new Error('the port is taken'); }), /the port is taken/, 'no direct browser starts in its place');
+test('the proxy starts only when its setting is on, through the saved lines, and a failed one fails the start', async () => {
+  const given = [];
+  const start = async options => { given.push(options); return { port: 4123, close: () => {} }; };
+  let reads = 0;
+  const first = { host: '127.0.0.1', port: 1055 };
+  const upstream = { host: 'gw.example.test', port: 10000, username: 'u', password: 'p' };
+  const lines = () => { reads++; return { first, upstream }; };
+  const off = await startProxy(false, start, lines);
+  assert.deepEqual([off.on, off.args, given.length, reads], [false, [], 0, 0], 'off by default: no forwarder, no proxy flag, no line read');
+  const on = await startProxy(true, start, lines);
+  assert.deepEqual([on.on, on.args], [true, ['--proxy', 'http://127.0.0.1:4123']]);
+  assert.deepEqual(given, [{ first, upstream, networkFile: join(process.env.HOME, '.wong-stack/camoufox/network.json') }]);
+  await assert.rejects(startProxy(true, async () => { throw new Error('the port is taken'); }, lines), /the port is taken/, 'no direct browser starts in its place');
 });

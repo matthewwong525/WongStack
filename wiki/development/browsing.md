@@ -50,7 +50,7 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **The proxy is off unless you turn it on.** The browser goes straight to sites. If a site such as UPS does not load, say *turn the browser proxy on*: the agent runs `browse.mjs proxy on`, which prints `BROWSE_PROXY=on`. The browser then goes through a local forwarding proxy on this computer, with no extra install or account. It keeps no browsing logs and tunnels secure traffic encrypted. With the proxy on, a proxy that fails to start stops the browser's start; stopping the browser closes its proxy. `proxy off` turns it off, and `proxy` alone prints the setting. The setting [stays on this computer](browser-window.md#settings-stay-on-this-computer).
 
-Either way, the browser uses this computer's own network, so sites see the computer's country; its timezone and English follow that address. It needs no WARP, relay, or phone connection, and chooses no country. Sites can still [refuse](#when-a-site-refuses-the-browser).
+With the proxy on and [saved proxies](browser-proxy.md), such as one at your home and a paid backup, the browser goes through them first, so sites see your home address. Otherwise it uses this computer's own network, so sites see the computer's country. Its timezone and English follow the address sites see. It needs no WARP, relay, or phone connection, and chooses no country. Sites can still [refuse](#when-a-site-refuses-the-browser).
 
 A running browser keeps its pages and logins, and takes a setting or an update only once you stop it and a later errand starts it. Never restart it for a setting or an update.
 

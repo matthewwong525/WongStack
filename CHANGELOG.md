@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The browser goes through your home proxy, with a backup
+
+- **With the proxy on, the browser goes through your saved proxies first.** You can save two: a first proxy, such as one at your home, and a backup, such as a paid home address. Each page tries the first proxy, then the backup, then this computer's own network, so a page still loads when both are down. Sites see your home address, and the browser's language and clock follow it ([the order of routes](wiki/development/browser-proxy.md#the-order-of-routes)).
+- **A first proxy that is off does not slow you down.** When it fails and the backup works, the browser skips it for one minute, then tries it again. Pages on this computer always go straight.
+- **It is the same whichever repo starts the browser.** The saved proxies stay on this computer, readable only by you. A proxy saved in one repo's keys is copied to this computer at the next start, so a changed proxy spreads to every repo ([save the proxies](wiki/development/browser-proxy.md#save-the-proxies)).
+- **You can see which way the browser goes.** Ask *which network is the browser on?*: the assistant says home proxy, backup, or this computer's own network, and tells you to check your home proxy when it is on the backup ([check the live route](wiki/development/browser-proxy.md#check-the-live-route)).
+- **Proxy off still means straight to sites.** *Turn the browser proxy off* sends the browser straight to sites from its next start, and keeps your saved proxies for when you turn it on again. With no saved proxies, the proxy works as before.
+
+**Updating.** Nothing to do: the home and backup proxies this computer already saved carry over with no step, and so do `BROWSE_FIRST_PROXY` and `BROWSE_UPSTREAM_PROXY` in your `.env`. A repo with its own copy of the browser's proxy route keeps it until this update, which takes this one in its place. The running browser keeps its route until it starts again: ask the person before you stop it.
+
 ## 50.6.1 — A live view keeps an add-on's pop-up open
 
 - **An add-on's pop-up stays open in a live view.** Before, it closed about a second after you tapped its toolbar button, because the view brought the page back to the front every 2 seconds. Now the view waits while a pop-up shows, such as your password manager's, until you pick from it or tap outside it. Then your page comes back to the front ([a pop-up stays open](wiki/development/live-view.md#what-the-link-can-do)).
