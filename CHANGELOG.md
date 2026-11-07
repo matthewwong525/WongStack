@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.11.1 — A memory area for WongStack's own admin address
+
+Memory's list of areas gains one entry, for the address of the app the WongStack source runs for itself. Your install has no such files, so nothing changes in how memory files or finds your facts.
+
+**Updating.** Nothing to do.
+
 ## 50.11.0 — Each chat is named for its current work
 
 - **Each step names the work at that time.** When a step starts, the chat's name changes to a few words for the work: the idea while you explore, then the plan's title while it is planned, built, and published. `DONE` keeps the words it has ([chat names](wiki/development/the-change-loop.md#what-each-step-may-change)).

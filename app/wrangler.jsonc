@@ -7,6 +7,12 @@
 	"name": "wongstack",
 	"main": "worker/index.ts",
 	"compatibility_date": "2026-07-28",
+	// Keep this: with `routes` declared and this key absent, wrangler turns the
+	// workers.dev address off, and this computer's tools lose their address.
+	"workers_dev": true,
+	// admin.wongstack.com is the app's short address: a publish from the default
+	// branch attaches it, and no environment does. wiki/maintaining/admin-address.md
+	"routes": [{ "pattern": "admin.wongstack.com", "custom_domain": true }],
 	// Verify signed Access identity before every page, asset, API, and mini app.
 	"assets": {
 		"binding": "ASSETS",
@@ -86,6 +92,9 @@
 	"env": {
 		"staging": {
 			"name": "wongstack-staging",
+			// An environment inherits the top-level routes: without this, a preview
+			// takes admin.wongstack.com from the live app.
+			"routes": [],
 			"vars": {
 				"WONG_KEY_SEAL_PUBLIC": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA5Ik4ZLsqQPdupKM4A3wt+AXkccImmtGkoNSj54UvmzOltjKngwqBRt8+98P7Z7xvVOO6kjJ5PrkOTa/8RRSSrkme03K0gMUcA6bpjpwMm+cnJN+3EHi2KYQsFOzeeE3GTKFRjf6XrcY0jsTbnFb67RBus0Hu/58LLe46gmsuPZHSN+xg5Zz1NZ55+FypCuLr/W7L0FLZ5hUrWMnw9ujiTrAqZWYSKgNHiSWM7umwpjTnD/pAxuOFhkgkaiG8jFYrv+LK1yx9aS7rDMe2+Tqu8Fa0Al9c9cKud8Dyyjhz+m1DqjyOPLmq4t0FoE9zg9syr/vhTlzolhcL9tt63O80MjbWoRQ1mIegjQcf7luJNPwVB0NAxDwSr5TTW548+13qv0UCM4ce0N/buFfbtDH65UYqJWhcBiWe4PJbcTrhmDtGwFqJY6+F58je3zBVcmRpAip2sKUy9kgUeGUwy+VGaZbD22W2Tfo12Ip9MbfHGHSyDasnmO6K+wY7K+uGSw1ZAgMBAAE=",
 				"WONG_ENVIRONMENT": "staging",
@@ -114,6 +123,7 @@
 		},
 		"local": {
 			"name": "wongstack-local",
+			"routes": [],
 			"vars": {
 				"WONG_ENVIRONMENT": "local",
 				"SKIP_AUTH": "true"
