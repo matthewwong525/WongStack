@@ -1,6 +1,6 @@
 # Add-ons the agent installs work in its browser, and a live view shows them whole
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** little-alpacka
 **Open questions:** none
 
@@ -83,3 +83,4 @@ You added 1Password from Firefox's add-on site, and in the assistant's browser i
 - **2026-11-07** — Built: `addon find` marks an add-on the browser ships (`BROWSE_ADDON_BUILT_IN`), read from the active Camoufox build's `addons/<name>/manifest.json` ids (today only uBlock Origin, `uBlock0@raymondhill.net`), and `addon add` refuses it before any download: *uBlock Origin is built into the browser already; nothing to add.* (tasks 6.1–6.2).
 - **2026-11-07** — Review fix: the built-in check also reads a Mac build's add-ons, which Camoufox keeps in `Camoufox.app/Contents/Resources/addons/`, not beside the binary as on Linux (task 6.3).
 - **2026-11-07** — Review fix: the check also runs at each start, because it finds nothing before the browser is installed: `startArgs` skips a record the browser ships, and `removeAddon` keeps that add-on's stored data, since the browser's own copy uses it (task 6.4).
+- **2026-11-07** — Archive checkpoint: archived for ship as 50.7.0, after bringing in `main` (50.6.2); the `launch-config.py` help, its test, and the changelog merged by hand, both sides kept.

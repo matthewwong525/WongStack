@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Any add-on, side by side, and a live view that shows the whole window
+## 50.7.0 — Any add-on, side by side, and a live view that shows the whole window
 
 - **The assistant adds any add-on you ask for**, not only a password manager: Dark Reader, a translator, anything on Firefox's add-on site. It names the maker, website, and daily users, warns on a little-used one, checks the file, and waits for your yes ([ask the agent](wiki/development/password-manager.md#ask-the-agent)). For an add-on the browser already has, such as uBlock Origin, it says it is built in and adds nothing.
 - **Your add-ons stay side by side.** A second one no longer removes the first. Ask what's added, or remove one by name. Each still updates once a week.
