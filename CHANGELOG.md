@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.8.0 — The assistant adds a well-known add-on when you ask
+
+- **Your ask is your yes for a well-known add-on.** Say *add 1Password*: when one add-on fits your words, and Mozilla features it or 10,000 or more people use it each day, the assistant names its maker, website, and daily users, and adds it at once. It still asks first when your words fit more than one add-on, or when the add-on is little-used ([the checks](wiki/development/password-manager.md#the-checks)).
+- **Then it opens a password manager's sign-in page for you**, in the browser window or a live view. You sign in there: that is your only step. The assistant never sends you to Firefox's add-on site to add it yourself.
+
+**Updating.** Nothing to do.
+
 ## 50.7.0 — Any add-on, side by side, and a live view that shows the whole window
 
 - **The assistant adds any add-on you ask for**, not only a password manager: Dark Reader, a translator, anything on Firefox's add-on site. It names the maker, website, and daily users, warns on a little-used one, checks the file, and waits for your yes ([ask the agent](wiki/development/password-manager.md#ask-the-agent)). For an add-on the browser already has, such as uBlock Origin, it says it is built in and adds nothing.

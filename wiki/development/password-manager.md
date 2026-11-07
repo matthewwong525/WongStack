@@ -4,7 +4,7 @@ The agent's browser can hold a password manager add-on, such as 1Password or Bit
 
 ## Ask the agent
 
-The agent asks nothing about a password manager. When you want an add-on, say so: *add my password manager*, or *add Dark Reader*. The agent names its maker and waits for your yes, with [the checks](#the-checks). An add-on the browser already has, such as uBlock Origin, is built in: the agent says so and adds nothing.
+The agent asks nothing about a password manager. When you want an add-on, say so: *add my password manager*, or *add Dark Reader*. The agent adds a well-known one at once, with [the checks](#the-checks), and opens a password manager's sign-in page, so you only sign in. An add-on the browser already has, such as uBlock Origin, is built in: the agent says so and adds nothing.
 
 Ask the agent, not the add-on site in the browser. 1Password added from [Firefox's add-on site](https://addons.mozilla.org) in Camoufox 158.0.1-beta.41 opened no setup page, and its button did nothing; the copy the agent added worked. When you ask the agent for an add-on you already added yourself, its add removes your copy and its stored data, so only the working copy loads.
 
@@ -12,20 +12,23 @@ An add-on you add yourself stays from start to start, but it is not promised to 
 
 ## The checks
 
-[`addons.mjs`](../../.agents/skills/browser/scripts/addons.mjs) does each step, through `browse.mjs addon <verb>`. An add-on can read every page of a browser signed in as you, so a look-alike is a real risk.
+[`addons.mjs`](../../.agents/skills/browser/scripts/addons.mjs) does each step, through `browse.mjs addon <verb>`. The agent never sends you to the add-on site to add it yourself. An add-on can read every page of a browser signed in as you, so a look-alike is a real risk.
 
 - **Firefox's add-on site only.** `addon find <name>` lists up to three extensions from [addons.mozilla.org](https://addons.mozilla.org), each with its maker, website, daily users, and whether Mozilla features it.
-- **Your yes, with the facts.** The agent names the maker, website, and daily users of the match. It warns you when an add-on is not featured and has under 10,000 daily users: on 2026-11-05 every big manager had more than 67,000, and a look-alike had 4.
+- **Your ask is your yes for a well-known one.** When one add-on fits your words, and Mozilla features it or 10,000 or more people use it each day, the agent names its maker, website, and daily users, and adds it at once. When the agent already added it, it says so and adds nothing.
+- **It asks first for a doubtful match.** When your words fit more than one add-on, the agent names the matches and adds the one you pick. It warns you and waits for your yes when an add-on is not featured and has under 10,000 daily users: on 2026-11-05 every big manager had more than 67,000, and a look-alike had 4.
 - **The file must match.** `addon add <slug>` refuses a download whose sha256 fingerprint is not the one the site gives.
 - **Side by side.** A new add-on joins the others. The same add-on again replaces only its own copy.
 
 An add stops the browser, and the next command starts it with the add-on. While a live view is open in any chat, the add stops at once and changes nothing: the agent tries again once the view closes.
 
+Right after it adds a password manager, the agent opens its own page and [sends you the browser](browser-window.md#ask-for-the-browser). You sign in to it there: that is your only step.
+
 ## Use it at a sign-in
 
 In [the browser window](browser-window.md#your-turn-in-the-window), use it as in your own Firefox. In a live view, with the one the agent added:
 
-1. The agent runs `addon open` before [a sign-in turn](live-view.md#sign-in). The password manager's own page opens in the task's tab: the newest one added, else the newest add-on.
+1. The agent runs `addon open` right after it adds a password manager, and before [a sign-in turn](live-view.md#sign-in). The password manager's own page opens in the task's tab: the newest one added, else the newest add-on.
 2. The agent sends the live view. You sign in to the password manager, or unlock it. The view opens over that page: its finish is not met there, since the site does not show.
 3. You press *Back* until the site shows: each of the password manager's own steps takes one press. Then you fill the login from the list the password manager shows in the page. Back on the site, or at the view's end, the page gets its own size again.
 
