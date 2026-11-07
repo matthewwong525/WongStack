@@ -285,7 +285,8 @@ export function readArgs(args) {
 
 /** Each command, over the settings, the checkout, the state folder and the injected calls. */
 export function commands({ config, project, stateDir, values, call, board, origin = () => board.origin(), env = process.env, addons = runAddons,
-  print = console.log, warn = console.error, keep = () => ensure({ env }), reread = () => personSettings({ repo: project, config: values.config }) }) {
+  print = console.log, warn = console.error, keep = () => ensure({ env }), reread = () => personSettings({ repo: project, config: values.config }),
+  defaults = () => startDefaults({ home: workerHome(project), stateDir, env, timezone: config.timezone }) }) {
   const started = () => startedRecord(stateDir).read();
   const at = { stateDir, started, timezone: config.timezone };
   const chief = async () => ({ ...at, day: chiefDay(at), call, env: chiefEnv(env) });
@@ -317,9 +318,11 @@ export function commands({ config, project, stateDir, values, call, board, origi
           watching: { board: board.tasks, ...(!dryRun && { todos, addons: passAddons }) } });
       } finally { if (dryRun) rmSync(dir, { recursive: true, force: true }); else dropServeLock(stateDir); }
     },
-    'checkins off': () => checkinsOff({ stateDir, timezone: config.timezone }),
+    // The default schedules pause or go on again at once, not at the next chat.
+    'checkins off': () => { const result = checkinsOff({ stateDir, timezone: config.timezone }); defaults(); return result; },
     'checkins on': () => {
       rmSync(offFile(stateDir), { force: true });
+      defaults();
       addLine({ stateDir, timezone: config.timezone, line: 'Check-ins on.', kind: 'checkins' });
       return { state: 'on', worker: keep().state };
     },
@@ -416,8 +419,8 @@ function waitGone(pid, isAlive) {
   for (let waited = 0; waited < 1000 && isAlive(pid); waited += LOCK_RETRY_MS) wait(LOCK_RETRY_MS);
 }
 
-/** `{stamp, day, added: {key: {version, timing}}}`: the default schedules this computer added, and the shipped list's
- * stamp and the day `D ensure` last started `schedule.mjs defaults`. */
+/** `{stamp, day, off, added: {key: {version, timing, checkins}}}`: the defaults this computer added, those check-ins
+ * paused, the off state last applied, and the stamp and day `D ensure` last started `schedule.mjs defaults`. */
 export const defaultsFile = stateDir => join(stateDir, 'defaults.json');
 const listStamp = file => { try { return createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 16); } catch { return null; } };
 
@@ -438,9 +441,13 @@ function startSchedule(command, marker, { home, env, now, timezone, run, stamp =
 export const startMoveIn = ({ home, stateDir, env, now = Date.now(), timezone, run = spawn }) =>
   startSchedule('move-in', join(stateDir, 'move-in.json'), { home, env, now, timezone, run });
 
-/** Once a day, and when the shipped list changes, starts the unattended add of WongStack's default schedules. */
-export const startDefaults = ({ home, stateDir, env, now = Date.now(), timezone, run = spawn, list = DEFAULT_SCHEDULES }) =>
-  startSchedule('defaults', defaultsFile(stateDir), { home, env, now, timezone, run, stamp: listStamp(list) });
+/** Once a day, and when the shipped list or the off switch changes, starts the unattended add of WongStack's default
+ * schedules. */
+export function startDefaults({ home, stateDir, env, now = Date.now(), timezone, run = spawn, list = DEFAULT_SCHEDULES }) {
+  const stamp = listStamp(list);
+  return startSchedule('defaults', defaultsFile(stateDir), { home, env, now, timezone, run,
+    stamp: stamp && existsSync(offFile(stateDir)) ? `${stamp}:off` : stamp });
+}
 
 /** `D ensure`: starts the main checkout's worker, detached, when the person has a job and none runs, and restarts one
  * whose code is not the main checkout's; returns at once. Off, it takes handed-over schedule runs as `refused`. */

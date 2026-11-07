@@ -71,6 +71,7 @@ WongStack ships two background schedules in [its list](../../.agents/skills/dail
 - **A default you changed, paused or ended stays yours.** An update never changes it or adds it back.
 - **A default you did not change** takes an update's new version, approved here.
 - **An `off` entry** in [your own jobs](../development/daily.md#your-own-jobs) adds that default paused.
+- **A default you did not change waits paused while [check-ins are off](../development/daily.md#check-ins)** on this computer, and goes on again when they go on. If you resume it while they are off, it stays on.
 
 ## Existing schedules
 

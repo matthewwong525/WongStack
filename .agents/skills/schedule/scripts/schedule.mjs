@@ -2,7 +2,7 @@
 // The person's schedules in the company app: show, save and approve here, manage, start a run, and the move to the
 // app. No git. wiki/stack/host-schedules.md
 import { parseArgs } from 'node:util';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { computerId, helperService } from '../../hand-over/scripts/lib/computer.mjs';
@@ -68,7 +68,7 @@ async function control(command, key, world, client) {
  *  adds nothing and journals why. */
 async function defaults(values, world) {
   const { root, primary, computer, env, email } = world;
-  const [{ personSettings, stateOf }, { addLine }] = await Promise.all([import('../../daily/scripts/daily.mjs'), import('../../daily/scripts/journal.mjs')]);
+  const [{ offFile, personSettings, stateOf }, { addLine }] = await Promise.all([import('../../daily/scripts/daily.mjs'), import('../../daily/scripts/journal.mjs')]);
   const { config } = (world.settings ?? personSettings)({ repo: root });
   requireValue(config, 'No daily settings and no sign-in: nothing to add the default schedules for.');
   const stateDir = world.stateDir ?? stateOf(config, root);
@@ -80,7 +80,7 @@ async function defaults(values, world) {
       return { skipped: 'no_sign_in' };
     }
   }
-  return addDefaults({ root, primary, config, stateDir, client, computer, env, email, dryRun: values['dry-run'] });
+  return addDefaults({ root, primary, config, stateDir, client, computer, env, email, dryRun: values['dry-run'], off: existsSync(offFile(stateDir)) });
 }
 
 async function run(command, values, key, world) {
