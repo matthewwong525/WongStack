@@ -378,7 +378,7 @@ test('the move of left routines to the app starts once a day, detached, with no 
   assert.deepEqual([node, args, options.cwd, options.detached, options.env], [process.execPath, [script, 'move-in', '--unattended'], root, true, { PATH: '/bin' }]);
 });
 
-test('the add of the default schedules starts once a day, and again the same day when the shipped list changes', () => {
+test('the add of the default schedules starts once a day, and again the same day when the shipped list or the off switch changes', () => {
   const root = temp('defaults'), stateDir = temp('state'), runs = [], list = join(temp('list'), 'schedules.json');
   const dir = join(root, '.agents/skills/daily/scripts'), script = join(root, '.agents/skills/schedule/scripts/schedule.mjs');
   mkdirSync(join(script, '..'), { recursive: true });
@@ -392,7 +392,12 @@ test('the add of the default schedules starts once a day, and again the same day
   writeFileSync(list, '{"schedules":[{"id":"line-up"}]}');
   assert.equal(add(NOW.getTime() + 3600e3), true, 'a changed list');
   assert.equal(add(NOW.getTime() + 24 * 3600e3), true);
-  assert.deepEqual(runs.map(([, args]) => args), Array(3).fill([script, 'defaults', '--unattended']));
+  writeFileSync(offFile(stateDir), 'now\n');
+  assert.equal(add(NOW.getTime() + 24 * 3600e3), true, 'check-ins went off');
+  assert.equal(add(NOW.getTime() + 24 * 3600e3), false);
+  rmSync(offFile(stateDir));
+  assert.equal(add(NOW.getTime() + 24 * 3600e3), true, 'check-ins went on');
+  assert.deepEqual(runs.map(([, args]) => args), Array(5).fill([script, 'defaults', '--unattended']));
   assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(stateDir, 'defaults.json'), 'utf8'))), ['added', 'day', 'stamp'], 'the add keeps its own list');
 });
 
@@ -484,7 +489,7 @@ test("each pass re-reads the settings from the main checkout, not from the copy 
   assert.deepEqual(printed.filter(item => item.wouldRun), [{ wouldRun: 'add-on', addon: 'a.mjs' }]);
 });
 
-test('checkins off writes the off file, stops the running worker and journals it; on removes it and runs ensure', async () => {
+test('checkins off writes the off file, stops the running worker and journals it; on removes it and runs ensure; both start the defaults', async () => {
   const { root, states } = checkout();
   const config = validateConfig(settings());
   const stateDir = stateOf(config, root, states);
@@ -497,10 +502,12 @@ test('checkins off writes the off file, stops the running worker and journals it
   assert.ok(existsSync(offFile(stateDir)));
   assert.equal(ensure({ repo: root, root: states, env: {}, resolve: () => ({ config }), spawnServe: () => assert.fail('started while off'),
     defaults: () => {} }).state, 'off');
+  const flips = [];
   const run = command => commands({ config, project: root, stateDir, values: {}, call: async () => [], board: fakeBoard().board, env: {},
-    keep: () => ({ state: 'started' }) })[command]();
+    keep: () => ({ state: 'started' }), defaults: () => flips.push(existsSync(offFile(stateDir))) })[command]();
   assert.deepEqual(await run('checkins on'), { state: 'on', worker: 'started' });
   assert.ok(!existsSync(offFile(stateDir)));
   assert.equal((await run('checkins off')).state, 'off');
+  assert.deepEqual(flips, [false, true], 'each flip starts the add of the defaults after the off file changes');
   assert.deepEqual(readLines({ stateDir }).map(entry => entry.kind), ['checkins', 'checkins', 'checkins']);
 });

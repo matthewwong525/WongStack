@@ -1,8 +1,8 @@
-// WongStack's default schedules: each one the person lacks is added and approved here; an untouched one follows the
-// shipped list; one the person changed, paused or ended stays theirs; an install's `off` adds it paused.
+// WongStack's default schedules: each one the person lacks is added here; an untouched one follows the shipped list
+// and waits paused while check-ins are off; the person's own stays theirs; an install's `off` adds it paused.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { main } from '../../.agents/skills/schedule/scripts/schedule.mjs';
 import { approvedVersion } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
@@ -10,6 +10,7 @@ import { addDefaults } from '../../.agents/skills/schedule/scripts/lib/defaults.
 import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { DEFAULT_SCHEDULES } from '../../.agents/skills/daily/scripts/worker.mjs';
+import { offFile } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { COMPUTER, ORIGIN, fakeApp, folder } from './fixtures/scheduled-work.mjs';
 
 const JO = 'jo@example.test';
@@ -27,8 +28,9 @@ function install(t, { sweeps } = {}) {
     await main(['defaults', ...argv], { ...world, ...more, out: chunk => { text += chunk; } });
     return JSON.parse(text);
   };
-  const lib = list => addDefaults({ root, primary: root, config, stateDir, client: app, computer: COMPUTER, env, email: () => JO, list });
-  return { root, env, stateDir, app, call, lib };
+  const lib = (list, more = {}) => addDefaults({ root, primary: root, config, stateDir, client: app, computer: COMPUTER, env, email: () => JO, list, ...more });
+  const kept = () => JSON.parse(readFileSync(path.join(stateDir, 'defaults.json'), 'utf8'));
+  return { root, env, stateDir, app, call, lib, kept };
 }
 
 /** The shipped list with `change` made to the entry `id`, as a later WongStack version ships it. */
@@ -95,4 +97,108 @@ test('a dry run calls no app; unattended with no sign-in it adds nothing and wri
   assert.deepEqual(app.calls, []);
   assert.deepEqual(readLines({ stateDir }).map(entry => entry.line), ['Default schedules wait: sign in to the company app (`D who` gives the link).']);
   assert.equal((await call([], { email: () => null })).ok, false, 'asked in a chat, the missing sign-in is an error');
+});
+
+const states = app => ['line-up', 'wiki-tidy'].map(key => app.schedules.get(key).state);
+const marks = kept => Object.values(kept().added).map(entry => entry.checkins ?? false);
+
+test('check-ins off pause the untouched defaults once, and check-ins on resume them', async t => {
+  const { app, stateDir, call, kept } = install(t);
+  await call(['--unattended']);
+  writeFileSync(offFile(stateDir), 'now\n');
+  assert.deepEqual((await call(['--unattended'])).results, [{ key: 'line-up', state: 'same', checkins: 'paused' }, { key: 'wiki-tidy', state: 'same', checkins: 'paused' }]);
+  assert.deepEqual([states(app), marks(kept), kept().off], [['paused', 'paused'], [true, true], true]);
+  const before = saves(app);
+  assert.deepEqual((await call(['--unattended'])).results.map(each => each.state), ['same', 'same'], 'paused by check-ins is still untouched');
+  assert.equal(saves(app), before);
+  rmSync(offFile(stateDir));
+  assert.deepEqual((await call(['--unattended'])).results, [{ key: 'line-up', state: 'same', checkins: 'on' }, { key: 'wiki-tidy', state: 'same', checkins: 'on' }]);
+  assert.deepEqual([states(app), marks(kept), kept().off], [['on', 'on'], [false, false], false]);
+});
+
+test("check-ins never pause or resume the person's own default, and a resume while off stays on", async t => {
+  const { app, call, lib, kept } = install(t);
+  await call([]);
+  app.schedules.get('wiki-tidy').state = 'paused';
+  assert.deepEqual((await lib(undefined, { off: true })).results, [{ key: 'line-up', state: 'same', checkins: 'paused' }, { key: 'wiki-tidy', state: 'yours' }]);
+  // Jo resumes the line-up while check-ins are still off.
+  app.schedules.get('line-up').state = 'on';
+  const before = saves(app);
+  assert.deepEqual((await lib(undefined, { off: true })).results.map(each => each.state), ['same', 'yours']);
+  assert.deepEqual([saves(app), states(app), marks(kept)], [before, ['on', 'paused'], [false, false]]);
+  assert.deepEqual((await lib(undefined, { off: false })).results.map(each => each.state), ['same', 'yours']);
+  assert.deepEqual([saves(app), states(app)], [before, ['on', 'paused']]);
+  // An edited or ended default is the person's too.
+  app.schedules.get('wiki-tidy').state = 'on';
+  app.schedules.get('wiki-tidy').timing.cron = '*/45 * * * *';
+  app.schedules.get('line-up').ended = { at: 1, reason: 'Not wanted.' };
+  assert.deepEqual((await lib(undefined, { off: true })).results.map(each => each.state), ['ended', 'yours']);
+  assert.deepEqual([saves(app), app.schedules.get('wiki-tidy').state], [before, 'on']);
+  assert.deepEqual((await lib(undefined, { off: false })).results.map(each => each.state), ['ended', 'yours']);
+  assert.deepEqual([saves(app), app.schedules.get('wiki-tidy').state, app.schedules.get('wiki-tidy').timing.cron], [before, 'on', '*/45 * * * *']);
+});
+
+test('a default added while check-ins are off is added paused, and an update while off keeps it paused', async t => {
+  const { app, env, lib, kept } = install(t);
+  assert.deepEqual((await lib(undefined, { off: true })).results, [{ key: 'line-up', state: 'add', checkins: 'paused' }, { key: 'wiki-tidy', state: 'add', checkins: 'paused' }]);
+  assert.deepEqual([states(app), marks(kept)], [['paused', 'paused'], [true, true]]);
+  for (const key of ['line-up', 'wiki-tidy']) assert.equal(approvedVersion({ origin: ORIGIN, email: JO, key }, env), app.schedules.get(key).version, key);
+  const later = shipped(t, 'line-up', { minutes: 20 });
+  assert.deepEqual((await lib(later, { off: true })).results.map(each => each.state), ['update', 'same']);
+  assert.deepEqual([app.schedules.get('line-up').run.minutes, states(app), marks(kept)], [20, ['paused', 'paused'], [true, true]]);
+  assert.deepEqual((await lib(later)).results.map(each => each.checkins), ['on', 'on']);
+  assert.deepEqual(states(app), ['on', 'on']);
+});
+
+test("an install's off entry stays paused when check-ins go on", async t => {
+  const { app, lib, kept } = install(t, { sweeps: [{ id: 'wiki-tidy', off: true }] });
+  assert.deepEqual((await lib(undefined, { off: true })).results, [{ key: 'line-up', state: 'add', checkins: 'paused' }, { key: 'wiki-tidy', state: 'add', paused: true }]);
+  assert.deepEqual(marks(kept), [true, false]);
+  await lib();
+  assert.deepEqual(states(app), ['on', 'paused']);
+});
+
+/** Makes the app's pause fail for `key` until the returned function is called. */
+function failPause(app, key) {
+  const http = app.http;
+  app.http = async (address, init = {}) => {
+    if (address.endsWith('/pause') && JSON.parse(init.body).key === key) throw new Error('network');
+    return http(address, init);
+  };
+  return () => { app.http = http; };
+}
+
+test('a pause that fails at the off flip keeps check-ins on in defaults.json, and the next pass pauses it', async t => {
+  const { app, call, lib, kept } = install(t);
+  await call([]);
+  const mend = failPause(app, 'wiki-tidy');
+  assert.deepEqual((await lib(undefined, { off: true })).results.map(each => each.state), ['same', 'failed']);
+  assert.deepEqual([states(app), kept().off], [['paused', 'on'], false]);
+  mend();
+  assert.deepEqual((await lib(undefined, { off: true })).results, [{ key: 'line-up', state: 'same' }, { key: 'wiki-tidy', state: 'same', checkins: 'paused' }]);
+  assert.deepEqual([states(app), marks(kept), kept().off], [['paused', 'paused'], [true, true], true]);
+});
+
+test('a pause that fails right after a default is added or updated is tried again at the next pass', async t => {
+  const { app, env, lib, kept } = install(t);
+  const only = path.join(folder(t), 'schedules.json'), list = JSON.parse(readFileSync(DEFAULT_SCHEDULES, 'utf8'));
+  writeFileSync(only, JSON.stringify({ ...list, schedules: list.schedules.filter(entry => entry.id === 'line-up') }));
+  await lib(only, { off: true });
+  // The wiki tidy ships while check-ins are already off, and its pause fails.
+  let mend = failPause(app, 'wiki-tidy');
+  assert.deepEqual((await lib(undefined, { off: true })).results.map(each => each.state), ['same', 'failed']);
+  assert.equal(approvedVersion({ origin: ORIGIN, email: JO, key: 'wiki-tidy' }, env), app.schedules.get('wiki-tidy').version);
+  mend();
+  assert.deepEqual((await lib(undefined, { off: true })).results[1], { key: 'wiki-tidy', state: 'same', checkins: 'paused' });
+  assert.deepEqual([states(app), marks(kept)], [['paused', 'paused'], [true, true]]);
+  // Check-ins go on; then an update arrives at the next off flip, and its pause fails.
+  await lib();
+  const later = shipped(t, 'line-up', { minutes: 20 });
+  mend = failPause(app, 'line-up');
+  assert.deepEqual((await lib(later, { off: true })).results.map(each => each.state), ['failed', 'same']);
+  assert.equal(approvedVersion({ origin: ORIGIN, email: JO, key: 'line-up' }, env), app.schedules.get('line-up').version);
+  assert.deepEqual([app.schedules.get('line-up').run.minutes, states(app), kept().off], [20, ['on', 'paused'], false]);
+  mend();
+  assert.deepEqual((await lib(later, { off: true })).results[0], { key: 'line-up', state: 'same', checkins: 'paused' });
+  assert.deepEqual([states(app), marks(kept), kept().off], [['paused', 'paused'], [true, true], true]);
 });

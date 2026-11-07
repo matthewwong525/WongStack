@@ -53,7 +53,7 @@ Each chat checks its own stops, in Claude Code or Codex, in Paseo or not. When a
 
 **What waits for you:** a question asked with the question tool, which holds the chat until you answer; a risky step; a finished plan; and the sixth check-in in a row. Each check-in writes one line to [the journal](#the-journal).
 
-**Turn check-ins off** with *stop check-ins* in any chat, or `D checkins off`: every chat in this checkout then stops for you, and the worker stops too. A background schedule run due then does not start, and the Inbox says *check-ins are off*. *Start check-ins*, or `D checkins on`, turns them back on.
+**Turn check-ins off** with *stop check-ins* in any chat, or `D checkins off`: every chat in this checkout then stops for you, and the worker stops too. A background schedule run due then does not start, and the Inbox says *check-ins are off*. The [default schedules](../stack/host-schedules.md#default-schedules) you did not change wait *Paused*, so they add no such runs. *Start check-ins*, or `D checkins on`, turns them back on, and the defaults with them.
 
 **Done means checked.** It marks a chat's task done only after it opened the link, saw the checks pass, or found the file.
 

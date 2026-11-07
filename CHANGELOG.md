@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.10.0 — Default schedules wait paused while check-ins are off
+
+- **Stop check-ins, and the default schedules pause.** *Keep my chats in line* and *Wiki tidy* show *Paused* in the Inbox's *Schedules* list on this computer, so their run lists get no more *didn't start, check-ins are off* lines. *Start check-ins*, and both go on again ([default schedules](wiki/stack/host-schedules.md#default-schedules)).
+- **Your own choice wins.** A default you paused, changed or ended stays as you set it. One you resume while check-ins are off stays on.
+
+**Updating.** Nothing to do: if check-ins are off on a computer, its next chat pauses both default schedules.
+
 ## 50.9.0 — Your chats hear each other's news
 
 - **The daily keeps your chats in line.** A few minutes after a chat has something new, one background run reads it and tells the other chats in this project what changes their work: a newer choice you made, work another chat already does, or an answer you already gave. Each note names the chat and time it came from ([your chats in line](wiki/development/daily.md#your-chats-in-line)).
