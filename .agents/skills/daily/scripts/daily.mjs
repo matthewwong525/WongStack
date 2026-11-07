@@ -17,8 +17,9 @@ import { BUCKETS, allow, answer, chiefDay, chiefEnv, doneAgent, hand, mark, note
   serviceAlive, status, todoLink, writeJson } from './chief.mjs';
 import { RUN_AGENTS, SettingsError, defaultSettings, loadSettings, localDay, mondayOf, settingsFor, slotOf } from './config.mjs';
 import { addLine, format, newLines, readLines } from './journal.mjs';
+import { lineUpData, saveMap, tell } from './line-up.mjs';
 import { refuseRuns, scheduleApp, takeRuns, waitingRuns } from './schedule-runs.mjs';
-import { alive, codeStamp, dropServeLock, loadSweeps, lockedBy, morningFile, serveDaily, stopGroup, takeServeLock } from './worker.mjs';
+import { DEFAULT_SCHEDULES, alive, codeStamp, dropServeLock, loadSweeps, lockedBy, morningFile, serveDaily, stopGroup, takeServeLock } from './worker.mjs';
 
 const LAUNCHER = fileURLToPath(new URL('../../schedule/scripts/workspace.mjs', import.meta.url));
 const REPO = fileURLToPath(new URL('../../../../', import.meta.url));
@@ -240,16 +241,18 @@ const USAGE = `usage: daily.mjs who | start [--dry-run] [--report]
        daily.mjs answer --agent <a> --request <id> --file <text file> --bucket keep-going|pick|person --label <line>
        daily.mjs allow --agent <a> --request <id> --bucket keep-going|person --label <line>
        daily.mjs done-agent --agent <a> --proof <text> | todo link --agent <a> --url <https link> | note-end --line <words>
+       daily.mjs line-up | map --file <json file> | tell --agent <a> --file <text file> [--now] [--covered-by <a>] | tell --drop <a>
        daily.mjs mark
   each but the mark hook takes --config <settings file>; a hook never fails; chief-service is serve`;
 const FLAGS = { who: [], start: ['dry-run', 'report'], 'start-task': ['id', 'note'], remind: ['day', 'text'],
   serve: ['agent', 'seconds', 'once', 'dry-run'], ensure: ['agent'], 'checkins off': [], 'checkins on': [], journal: ['new', 'line', 'run'], status: [],
   hand: ['agent'],
   reply: ['agent', 'file', 'bucket', 'label', 'mark'], answer: ['agent', 'request', 'file', 'bucket', 'label'], allow: ['agent', 'request', 'bucket', 'label'],
-  'done-agent': ['agent', 'proof'], 'todo link': ['agent', 'url'], 'note-end': ['line'] };
+  'done-agent': ['agent', 'proof'], 'todo link': ['agent', 'url'], 'note-end': ['line'], 'line-up': [], map: ['file'],
+  tell: ['agent', 'file', 'now', 'covered-by', 'drop'] };
 const NEEDS = { 'start-task': ['id'], remind: ['day', 'text'], hand: ['agent'], reply: ['agent', 'file', 'bucket', 'label'],
   answer: ['agent', 'request', 'file', 'bucket', 'label'], allow: ['agent', 'request', 'bucket', 'label'], 'done-agent': ['agent', 'proof'],
-  'todo link': ['agent', 'url'], 'note-end': ['line'] };
+  'todo link': ['agent', 'url'], 'note-end': ['line'], map: ['file'] };
 /** An answer that changed nothing it was asked to change. */
 const REFUSED = new Set(['refused', 'unknown', 'ambiguous', 'failed', 'not confirmed', 'unsupported']);
 
@@ -257,8 +260,8 @@ const REFUSED = new Set(['refused', 'unknown', 'ambiguous', 'failed', 'not confi
 export function readArgs(args) {
   const { values, positionals } = parseCli({ usage: USAGE, allowPositionals: true, args, options: Object.fromEntries([
     ...['config', 'seconds', 'id', 'note', 'agent', 'file', 'bucket', 'label', 'request', 'day', 'text', 'mark', 'proof', 'url', 'line',
-      'run'].map(name => [name, { type: 'string' }]),
-    ...['dry-run', 'once', 'report', 'new'].map(name => [name, { type: 'boolean' }])]) });
+      'run', 'covered-by', 'drop'].map(name => [name, { type: 'string' }]),
+    ...['dry-run', 'once', 'report', 'new', 'now'].map(name => [name, { type: 'boolean' }])]) });
   const [first, ...extra] = positionals;
   const named = ['todo', 'checkins'].includes(first) ? `${first} ${extra.shift()}` : first;
   const command = named === 'chief-service' ? 'serve' : named;
@@ -272,14 +275,18 @@ export function readArgs(args) {
   if (['serve', 'ensure'].includes(command) && values.agent !== undefined && !RUN_AGENTS.includes(values.agent)) {
     usageError(USAGE, `--agent takes ${RUN_AGENTS.join(', ')}.`);
   }
-  if (values.bucket !== undefined && !BUCKETS.includes(values.bucket)) usageError(USAGE, `--bucket takes ${BUCKETS.join(', ')}.`);
+  // A line-up run answers a card a person's choice in another chat settles.
+  const buckets = command === 'answer' ? [...BUCKETS, 'line-up'] : BUCKETS;
+  if (values.bucket !== undefined && !buckets.includes(values.bucket)) usageError(USAGE, `--bucket takes ${buckets.join(', ')}.`);
+  if (command === 'tell' && (Boolean(values.agent) !== Boolean(values.file) || !(values.agent || values.drop))) usageError(USAGE);
   if (command === 'allow' && values.bucket === 'pick') usageError(USAGE, '--bucket takes keep-going or person.');
   return { command, values };
 }
 
 /** Each command, over the settings, the checkout, the state folder and the injected calls. */
 export function commands({ config, project, stateDir, values, call, board, origin = () => board.origin(), env = process.env, addons = runAddons,
-  print = console.log, warn = console.error, keep = () => ensure({ env }), reread = () => personSettings({ repo: project, config: values.config }) }) {
+  print = console.log, warn = console.error, keep = () => ensure({ env }), reread = () => personSettings({ repo: project, config: values.config }),
+  defaults = () => startDefaults({ home: workerHome(project), stateDir, env, timezone: config.timezone }) }) {
   const started = () => startedRecord(stateDir).read();
   const at = { stateDir, started, timezone: config.timezone };
   const chief = async () => ({ ...at, day: chiefDay(at), call, env: chiefEnv(env) });
@@ -311,9 +318,11 @@ export function commands({ config, project, stateDir, values, call, board, origi
           watching: { board: board.tasks, ...(!dryRun && { todos, addons: passAddons }) } });
       } finally { if (dryRun) rmSync(dir, { recursive: true, force: true }); else dropServeLock(stateDir); }
     },
-    'checkins off': () => checkinsOff({ stateDir, timezone: config.timezone }),
+    // The default schedules pause or go on again at once, not at the next chat.
+    'checkins off': () => { const result = checkinsOff({ stateDir, timezone: config.timezone }); defaults(); return result; },
     'checkins on': () => {
       rmSync(offFile(stateDir), { force: true });
+      defaults();
       addLine({ stateDir, timezone: config.timezone, line: 'Check-ins on.', kind: 'checkins' });
       return { state: 'on', worker: keep().state };
     },
@@ -332,6 +341,14 @@ export function commands({ config, project, stateDir, values, call, board, origi
     'done-agent': async () => doneAgent({ ...(await chief()), agent: values.agent, proof: values.proof, board }),
     'todo link': async () => todoLink({ ...(await chief()), agent: values.agent, url: values.url, board, hosts: await hosts() }),
     'note-end': async () => { const { stateDir: dir, day } = await chief(); return noteEnd({ stateDir: dir, day, line: values.line }); },
+    'line-up': async () => lineUpData(await chief()),
+    map: () => {
+      let read;
+      try { read = JSON.parse(readFileSync(values.file, 'utf8')); } catch (error) { return { status: 'refused', reason: 'map', error: oneLine(error.message) }; }
+      return saveMap({ stateDir, chats: read?.chats });
+    },
+    tell: async () => tell({ ...(await chief()), agent: values.agent, text: values.file && readFileSync(values.file, 'utf8'), urgent: Boolean(values.now),
+      coveredBy: values['covered-by'], drop: values.drop }),
   };
 }
 
@@ -356,11 +373,12 @@ export function checkinsOff({ stateDir, timezone, kill = stopGroup, isAlive = al
   return { state: 'off', stopped };
 }
 
-/** True when the worker has work: board to-dos, add-ons, a background schedule run handed over, or a job on the
- * default list merged with the person's own. */
-function hasJobs(config, project, env) {
+/** True when the worker has work: board to-dos, add-ons, a background schedule run handed over, a default schedule
+ * this computer added, or an event job on the default list merged with the person's own. */
+function hasJobs(config, project, env, stateDir) {
   if (config.sources.tasks || config.addons?.morning?.length || config.addons?.pass?.length || waitingRuns(env).length) return true;
-  try { const jobs = loadSweeps({ project, file: config.sweeps }); return jobs.sweeps.length > 0 || Object.keys(jobs.events).length > 0; } catch { return false; }
+  if (Object.keys(readJson(defaultsFile(stateDir), {}).added ?? {}).length) return true;
+  try { return Object.keys(loadSweeps({ project, file: config.sweeps }).events).length > 0; } catch { return false; }
 }
 
 /** The worker's env: not this chat's Paseo id or Claude Code session. */
@@ -401,24 +419,41 @@ function waitGone(pid, isAlive) {
   for (let waited = 0; waited < 1000 && isAlive(pid); waited += LOCK_RETRY_MS) wait(LOCK_RETRY_MS);
 }
 
-/** Once a day, while the person's file still holds routines, starts the schedule skill's unattended move to the app,
- * detached; best effort. */
-export function startMoveIn({ home, stateDir, env, now = Date.now(), timezone, run = spawn }) {
+/** `{stamp, day, off, added: {key: {version, timing, checkins}}}`: the defaults this computer added, those check-ins
+ * paused, the off state last applied, and the stamp and day `D ensure` last started `schedule.mjs defaults`. */
+export const defaultsFile = stateDir => join(stateDir, 'defaults.json');
+const listStamp = file => { try { return createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 16); } catch { return null; } };
+
+/** Starts `schedule.mjs <command> --unattended` detached, once a day or when `stamp` changes, by the `marker` file's
+ * `day` and `stamp`; false when it did not, or the schedule skill is missing. */
+function startSchedule(command, marker, { home, env, now, timezone, run, stamp = null }) {
   const script = join(home.dir, '..', '..', 'schedule', 'scripts', 'schedule.mjs');
-  const marker = join(stateDir, 'move-in.json'), day = localDay(new Date(now), timezone);
-  if (!existsSync(script) || readJson(marker, {}).day === day) return false;
-  writeJson(marker, { day });
-  const child = run(process.execPath, [script, 'move-in', '--unattended'], { cwd: home.repo, detached: true, stdio: 'ignore', env: workerEnv(env) });
+  const kept = readJson(marker, {}), day = localDay(new Date(now), timezone);
+  if (!existsSync(script) || (kept.day === day && (kept.stamp ?? null) === stamp)) return false;
+  writeJson(marker, { ...kept, day, ...(stamp && { stamp }) });
+  const child = run(process.execPath, [script, command, '--unattended'], { cwd: home.repo, detached: true, stdio: 'ignore', env: workerEnv(env) });
   child.on('error', () => {});
   child.unref();
   return true;
+}
+
+/** Once a day, while the person's file still holds routines, starts the schedule skill's unattended move to the app. */
+export const startMoveIn = ({ home, stateDir, env, now = Date.now(), timezone, run = spawn }) =>
+  startSchedule('move-in', join(stateDir, 'move-in.json'), { home, env, now, timezone, run });
+
+/** Once a day, and when the shipped list or the off switch changes, starts the unattended add of WongStack's default
+ * schedules. */
+export function startDefaults({ home, stateDir, env, now = Date.now(), timezone, run = spawn, list = DEFAULT_SCHEDULES }) {
+  const stamp = listStamp(list);
+  return startSchedule('defaults', defaultsFile(stateDir), { home, env, now, timezone, run,
+    stamp: stamp && existsSync(offFile(stateDir)) ? `${stamp}:off` : stamp });
 }
 
 /** `D ensure`: starts the main checkout's worker, detached, when the person has a job and none runs, and restarts one
  * whose code is not the main checkout's; returns at once. Off, it takes handed-over schedule runs as `refused`. */
 export function ensure({ repo = REPO, home = workerHome(repo), env = process.env, agent = RUN_AGENTS[0],
   resolve: settings = () => personSettings({ repo: home.repo }), spawnServe = startServe, root, now = Date.now(), isAlive = alive, kill = stopGroup,
-  code = codeStamp(home.dir), stamped = stamps(home.dir), moveIn = startMoveIn } = {}) {
+  code = codeStamp(home.dir), stamped = stamps(home.dir), moveIn = startMoveIn, defaults = startDefaults } = {}) {
   if (RUN_FLAGS.some(name => env[name])) return { state: 'run' };
   const { config } = settings();
   if (!config) return { state: 'no-person' };
@@ -426,6 +461,7 @@ export function ensure({ repo = REPO, home = workerHome(repo), env = process.env
   if (config.checks?.length) {
     try { moveIn({ home, stateDir, env, now, timezone: config.timezone }); } catch { /* best effort */ }
   }
+  try { defaults({ home, stateDir, env, now, timezone: config.timezone }); } catch { /* best effort */ }
   if (existsSync(offFile(stateDir))) {
     const refused = waitingRuns(env).length ? takeRuns({ env, project: primaryRoot(repo).primary, emails: config.emails, stateDir, now }) : [];
     return { state: 'off', ...(refused.length ? { refused } : {}) };
@@ -433,7 +469,7 @@ export function ensure({ repo = REPO, home = workerHome(repo), env = process.env
   const holder = lockedBy(stateDir, { isAlive, now });
   const changed = stamped && oldCode(stateDir, holder, code);
   if (!changed && (serviceAlive(stateDir, now) || holder)) return { state: 'running' };
-  if (!hasJobs(config, primaryRoot(repo).primary, env)) return { state: 'no-jobs' };
+  if (!hasJobs(config, primaryRoot(repo).primary, env, stateDir)) return { state: 'no-jobs' };
   const stop = changed && holder && holder !== process.pid ? holder : null;
   if (stop) {
     kill(stop);

@@ -1105,13 +1105,12 @@ test('a snapshot keeps each ref\'s box in the tab file, and a new page drops the
   assert.equal(names(), undefined);
 });
 
-test("status names an added password manager, and its refusal of a step reaches the agent as the server gives it", t => {
+test("status names each added add-on, and a password manager's refusal of a step reaches the agent as the server gives it", t => {
   const f = fixture(t);
-  const choice = join(f.camofox.install, 'password-manager.json');
-  writeFileSync(choice, JSON.stringify({ state: 'added', guid: 'pm@maker.example', name: 'PM' }));
-  assert.match(ok(f, 'status'), /\nBROWSE_ADDON=PM\n$/);
-  writeFileSync(choice, JSON.stringify({ state: 'declined' }));
-  assert.doesNotMatch(ok(f, 'status'), /BROWSE_ADDON/, 'an old answer is ignored');
+  writeFileSync(join(f.camofox.install, 'addons.json'), JSON.stringify({ added: [{ guid: 'pm@maker.example', name: 'PM' }, { guid: 'blocker@maker.example', name: 'Blocker' }] }));
+  assert.match(ok(f, 'status'), /\nBROWSE_ADDON=PM\nBROWSE_ADDON=Blocker\n$/);
+  writeFileSync(join(f.camofox.install, 'addons.json'), JSON.stringify({ added: [] }));
+  assert.doesNotMatch(ok(f, 'status'), /BROWSE_ADDON/, 'none added, no line');
   ok(f, 'open', SHOP);
   f.camofox.set('click-refused', "that is the password manager's own; the person uses it in the live view");
   const out = f.run('click', '#pm-menu');
@@ -1123,7 +1122,7 @@ test('no password manager question: install, status and a task\'s first open pri
   const f = fixture(t);
   assert.equal(ok(f, 'open', SHOP), `BROWSE_URL=${SHOP}\n`);
   assert.doesNotMatch(ok(f, 'status'), /BROWSE_ADDON/);
-  assert.ok(!existsSync(join(f.camofox.install, 'password-manager.json')), 'nothing is saved');
+  assert.ok(!existsSync(join(f.camofox.install, 'addons.json')), 'nothing is saved');
   for (const verb of ['asked', 'decline']) {
     const out = f.run('addon', verb);
     assert.equal(out.status, 2, verb);

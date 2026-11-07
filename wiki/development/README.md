@@ -25,7 +25,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
   - [Browser proxies](browser-proxy.md) — with the proxy on, the browser goes through your home proxy, then a backup, then this computer's network; how to save them, check the route, and turn them off.
   - [Live view](live-view.md) — the one place you type something sensitive: a private link shows the agent's browser for your turn to sign in, pay, type a backup code, pass a robot check, or tap through a stuck step, then *Hand back*; where the browser has a window, your turn happens there.
     - [Watch link](watch-link.md) — the live view the agent drives while it connects your tools on a server: *Take over*, *Hand back*, and a turn to sign in.
-  - [Your password manager in the browser](password-manager.md) — a password manager add-on you add yourself, like any add-on, or the agent adds with checks when you ask; the agent never uses it.
+  - [Your password manager in the browser](password-manager.md) — a password manager or any other add-on the agent adds with checks when you ask, side by side; the agent never uses it.
 - [Memory dream](wiki-dream.md) — type `/dream-memory` and the assistant checks the wiki, saved facts, specs, and plans against each other and the code: what it fixes, what it only lists, the dry run, and how to undo one.
 - [Session memory](memory.md) — the private fact store: who sees what, the company sign-in and its expiry, the start-of-session digest, capture by `/save` and the background run, and consolidation.
   - [Document retrieval](document-retrieval.md) — task recall with cited wiki/OpenSpec passages, optional local semantic setup, scopes, freshness and fallback.

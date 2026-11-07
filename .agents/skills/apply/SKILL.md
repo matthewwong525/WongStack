@@ -6,7 +6,7 @@ user-invocable: true
 
 # /apply
 
-Build [the chosen plan](../../../wiki/development/the-change-loop.md). Run `node .claude/skills/explore/scripts/step-title.mjs set APPLY` just before a build, to-do, or preview.
+Build [the chosen plan](../../../wiki/development/the-change-loop.md). Run `node .claude/skills/explore/scripts/step-title.mjs set APPLY --task "<plan or to-do title>"` before a build, to-do, or preview.
 
 **No repo file** → [work the to-do](#work-that-changes-no-repo-file). Repo code or process, [mini apps](../../../wiki/stack/mini-apps.md) included → resolve the plan.
 

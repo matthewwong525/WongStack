@@ -1,7 +1,7 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { approve } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
@@ -88,15 +88,16 @@ test('checkRun passes only the approved version the app still holds, for the sig
 });
 
 /** A worker over `w` with fake runs; `check` answers a schedule's check. */
-function rig(w, { check = '', maxRuns } = {}) {
-  const spawned = [];
+function rig(w, { check = '', maxRuns, git } = {}) {
+  const spawned = [], killed = [];
   const sweeps = { ...loadSweeps({ project: w.project }), sweeps: [], ...(maxRuns && { maxRuns }) };
   const worker = makeWorker({ stateDir: w.stateDir, project: w.project, timezone: 'America/Toronto', sweeps, briefs: [SKILL_BRIEFS], env: w.env,
-    now: () => w.t ?? NOW, isAlive: () => true, app: w.app, call: async () => [],
+    now: () => w.t ?? NOW, isAlive: pid => !killed.includes(pid) && !w.ended?.includes(pid), kill: pid => killed.push(pid),
+    app: w.app, call: async () => [], ...(git && { git }),
     takeRuns: () => takeRuns({ env: w.env, project: w.project, emails: ['jo@example.com'], stateDir: w.stateDir, now: w.t ?? NOW }),
     runCheck: async ({ sweep }) => { if (check instanceof Error) throw check; spawned.check = sweep.check; return check; },
-    launch: run => { spawned.push(run); return { pid: 100 + spawned.length, on: () => {} }; } });
-  return { worker, spawned, pass: async () => { await worker.sweep(); await worker.pump(); } };
+    launch: run => { spawned.push({ ...run, pid: 101 + spawned.length }); return { pid: 100 + spawned.length, on: () => {} }; } });
+  return { worker, spawned, killed, pass: async () => { await worker.sweep(); await worker.pump(); } };
 }
 const lines = w => readLines({ stateDir: w.stateDir }).map(entry => entry.line);
 
@@ -152,4 +153,62 @@ test("another person's hand-over stays for their own worker, and a run that wait
 test("a chat's stop mark never takes a hand-over's name", () => {
   const home = temp('home');
   assert.equal(mark({ env: { HOME: home, PASEO_AGENT_ID: `schedule-run-${runId(1)}.json` } }).status, 'skipped');
+});
+
+/** A git that records each command and makes or removes the copy's folder as git would. */
+function fakeGit(calls, { fail = null } = {}) {
+  return (cwd, args) => {
+    const command = args.join(' ');
+    calls.push(command);
+    if (fail && command.startsWith(fail)) throw new Error(`git ${fail} failed`);
+    if (command.startsWith('worktree add')) mkdirSync(args[4], { recursive: true });
+    if (command.startsWith('worktree remove')) rmSync(args[3], { recursive: true, force: true });
+    return '';
+  };
+}
+
+test('a run in a copy works in its own copy of origin/main for its minutes; the copy goes when it ends, is stopped, or at boot', async () => {
+  const w = world({ run: { place: 'copy', minutes: 90 } }), calls = [];
+  const r = rig(w, { git: fakeGit(calls) });
+  handOver(w.env, w.event(1));
+  await r.pass();
+  const copy = r.spawned[0].project;
+  assert.match(copy, /\/copies\/schedule-run-\d{8}T\d{6}-\w+$/);
+  assert.ok(copy.startsWith(w.stateDir) && existsSync(copy));
+  assert.deepEqual(calls, ['fetch -q origin main', `worktree add -q --detach ${copy} origin/main`]);
+  // A linked company-knowledge copy outlives the run's copy.
+  const knowledge = join(w.stateDir, 'knowledge-copy');
+  mkdirSync(knowledge);
+  writeFileSync(join(knowledge, 'page.md'), '# Page\n');
+  symlinkSync(knowledge, join(copy, 'knowledge'), 'dir');
+  w.ended = [r.spawned[0].pid];
+  await r.worker.pump();
+  assert.deepEqual([existsSync(copy), existsSync(join(knowledge, 'page.md'))], [false, true]);
+  assert.deepEqual(calls.slice(2), [`worktree remove --force ${copy}`, 'worktree prune']);
+  // Past 30 minutes the next run still works; at its 90 it is stopped and its copy goes.
+  w.t = NOW + 60 * 60e3;
+  handOver(w.env, w.event(2), new Date(w.t));
+  await r.pass();
+  const second = r.spawned[1];
+  w.t += 89 * 60e3;
+  await r.worker.pump();
+  assert.deepEqual(r.killed, []);
+  w.t += 60e3;
+  await r.worker.pump();
+  assert.deepEqual([r.killed, existsSync(second.project)], [[second.pid], false]);
+  assert.ok(lines(w).includes('Not finished: Tidy the orders — stopped after 90 minutes'));
+  // A copy a crash left behind goes at the next boot.
+  mkdirSync(join(w.stateDir, 'copies', 'schedule-run-left'), { recursive: true });
+  r.worker.boot();
+  assert.equal(existsSync(join(w.stateDir, 'copies', 'schedule-run-left')), false);
+});
+
+test('a copy that git can not make starts no run, and the app hears it failed', async () => {
+  const w = world({ run: { place: 'copy', minutes: 90 } });
+  const r = rig(w, { git: fakeGit([], { fail: 'fetch' }) });
+  handOver(w.env, w.event(1));
+  await r.pass();
+  assert.equal(r.spawned.length, 0);
+  assert.deepEqual(lines(w), ['Not started: Tidy the orders — git fetch failed']);
+  assert.deepEqual(w.reports, [{ id: runId(1), state: 'failed', reason: 'not_started' }]);
 });

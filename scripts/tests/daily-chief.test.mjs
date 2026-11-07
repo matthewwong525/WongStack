@@ -755,6 +755,14 @@ test('status marks a finished chat with no open card, and asks nothing about a c
 });
 
 
+test('status marks a stopped chat the line-up told another chat covers, by that chat\'s title; never a working one', async () => {
+  const t = day();
+  writeFileSync(join(t.stateDir, 'line-up.json'), JSON.stringify({ chats: { 'agent-job': { covered: 'agent-email' },
+    'agent-email': { title: 'Answer email', covered: 'agent-job' } } }));
+  const read = await status({ ...t.at, day: '2026-10-21', env, finishedOf: async () => false });
+  assert.deepEqual(read.agents.map(row => [row.agent, row.covered ?? null]), [['agent-job', 'Answer email'], ['agent-email', null]]);
+});
+
 test('pass add-ons post lines, pass events through, skip chats, and a failed one is one not-read', async () => {
   const t = day();
   const seen = [];

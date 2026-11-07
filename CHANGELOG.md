@@ -13,6 +13,72 @@
 
 **Updating.** Nothing to do: the home and backup proxies this computer already saved carry over with no step, and so do `BROWSE_FIRST_PROXY` and `BROWSE_UPSTREAM_PROXY` in your `.env`. A repo with its own copy of the browser's proxy route keeps it until this update, which takes this one in its place. The running browser keeps its route until it starts again: ask the person before you stop it.
 
+## 50.11.1 — A memory area for WongStack's own admin address
+
+Memory's list of areas gains one entry, for the address of the app the WongStack source runs for itself. Your install has no such files, so nothing changes in how memory files or finds your facts.
+
+**Updating.** Nothing to do.
+
+## 50.11.0 — Each chat is named for its current work
+
+- **Each step names the work at that time.** When a step starts, the chat's name changes to a few words for the work: the idea while you explore, then the plan's title while it is planned, built, and published. `DONE` keeps the words it has ([chat names](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **A name Paseo made gives way.** A Paseo name from your first message, a handed-over chat, or a later message changes to the step's words.
+- **A name you give stays.** Rename a chat in Paseo after it has a step name, and the next steps keep your words; only the step word changes.
+- **Names stay short.** Words longer than 60 characters are cut at a word.
+
+**Updating.** Nothing to do. Old chats keep their names until their next step.
+
+## 50.10.1 — Access starts when the sign-in rule has no session time
+
+- **Access starts when Cloudflare sends the sign-in rule without a session time.** At your first open, the app reads who can sign in, adds them to People, and turns Access on. Company knowledge and project code then work ([company knowledge](wiki/stack/company-knowledge.md)).
+- **Changes to who can sign in save on that rule too.** The app sends the new list and keeps the session time as it was: kept when there is one, left out when there is none.
+- **A failed start says why.** The app writes one log line with the reason, and People shows a *Why:* line under *The sign-in list could not be read yet*, with the reason code to give your assistant.
+
+**Updating.** Nothing to do: your next open of Access starts it.
+
+## 50.10.0 — Default schedules wait paused while check-ins are off
+
+- **Stop check-ins, and the default schedules pause.** *Keep my chats in line* and *Wiki tidy* show *Paused* in the Inbox's *Schedules* list on this computer, so their run lists get no more *didn't start, check-ins are off* lines. *Start check-ins*, and both go on again ([default schedules](wiki/stack/host-schedules.md#default-schedules)).
+- **Your own choice wins.** A default you paused, changed or ended stays as you set it. One you resume while check-ins are off stays on.
+
+**Updating.** Nothing to do: if check-ins are off on a computer, its next chat pauses both default schedules.
+
+## 50.9.0 — Your chats hear each other's news
+
+- **The daily keeps your chats in line.** A few minutes after a chat has something new, one background run reads it and tells the other chats in this project what changes their work: a newer choice you made, work another chat already does, or an answer you already gave. Each note names the chat and time it came from ([your chats in line](wiki/development/daily.md#your-chats-in-line)).
+- **It picks when.** A note goes straight into a working chat's running step when waiting would waste work, else at the chat's next stop. Nothing stops a step in the middle.
+- **A waiting chat goes on.** When the change or the work a chat waits for lands, the daily tells that chat.
+- **Covered chats.** A chat told that another chat covers its work hands over and waits; *what's going on?* offers to close it with the finished chats.
+- **Check-ins use your other chats.** A check-in takes an answer you gave in another chat as settled, your newest answers first.
+- **The same limits.** Risky steps wait for you, no chat closes without your pick, and notes count toward the five actions in a row. Each note writes one journal line.
+- **Default schedules.** The line-up and the small wiki tidy are now two schedules in the Inbox's *Schedules* list, *Keep my chats in line* and *Wiki tidy*, so you pause or change them where your other schedules live ([default schedules](wiki/stack/host-schedules.md#default-schedules)). An update changes only a default you did not change.
+- **Quieter run lists.** A schedule's runs leave out the checks that found nothing to do, and show how many there were.
+
+**Updating.** Nothing to do: your next chat adds both schedules. To turn off only one, pause it in the Inbox's *Schedules* list.
+
+## 50.8.0 — The assistant adds a well-known add-on when you ask
+
+- **Your ask is your yes for a well-known add-on.** Say *add 1Password*: when one add-on fits your words, and Mozilla features it or 10,000 or more people use it each day, the assistant names its maker, website, and daily users, and adds it at once. It still asks first when your words fit more than one add-on, or when the add-on is little-used ([the checks](wiki/development/password-manager.md#the-checks)).
+- **Then it opens a password manager's sign-in page for you**, in the browser window or a live view. You sign in there: that is your only step. The assistant never sends you to Firefox's add-on site to add it yourself.
+
+**Updating.** Nothing to do.
+
+## 50.7.0 — Any add-on, side by side, and a live view that shows the whole window
+
+- **The assistant adds any add-on you ask for**, not only a password manager: Dark Reader, a translator, anything on Firefox's add-on site. It names the maker, website, and daily users, warns on a little-used one, checks the file, and waits for your yes ([ask the agent](wiki/development/password-manager.md#ask-the-agent)). For an add-on the browser already has, such as uBlock Origin, it says it is built in and adds nothing.
+- **Your add-ons stay side by side.** A second one no longer removes the first. Ask what's added, or remove one by name. Each still updates once a week.
+- **Its add replaces a copy you added yourself.** 1Password added from Firefox's add-on site never worked in the assistant's browser: no setup page, and a button that did nothing. When you ask for an add-on you already added, your copy and anything saved in it go, and the working copy loads.
+- **The vault advice comes only with a password manager.** "Keep a separate vault, lock after 5 minutes" is no longer said for another add-on, such as Dark Reader.
+- **A live view shows the whole browser window on your password manager's own page too.** Before, the window could stay bigger than the screen, and the toolbar's right side and the page's bottom were cut off.
+
+**Updating.** Nothing to do. An add-on the assistant added before stays, and moves to the new list by itself.
+
+## 50.6.2 — The browser tells sites your computer's real system
+
+- **The browser tells sites the real system:** Mac on a Mac, Windows on Windows, Linux on Linux. Before, it told every site it ran on Linux, and put Linux fonts over your Mac's own. Now it uses your computer's own fonts, so its own pages, such as its add-ons page and your password manager's pop-up, read correctly. Websites look the same as before ([the device identity](wiki/development/browsing.md#saved-browser-logins)).
+
+**Updating.** On a Mac or Windows computer, the browser's next start makes a new device identity, once. A site may ask you to sign in again, one time. A Linux computer keeps its identity.
+
 ## 50.6.1 — A live view keeps an add-on's pop-up open
 
 - **An add-on's pop-up stays open in a live view.** Before, it closed about a second after you tapped its toolbar button, because the view brought the page back to the front every 2 seconds. Now the view waits while a pop-up shows, such as your password manager's, until you pick from it or tap outside it. Then your page comes back to the front ([a pop-up stays open](wiki/development/live-view.md#what-the-link-can-do)).
@@ -36,7 +102,7 @@
 - **On a Mac, the browser window stays out of sight until your turn.** The assistant works in it hidden, so it never covers what you do. It comes to the front on your chat's tab when a step needs you, and hides again when your turn ends. Say *show me the browser* to see it at any time ([where it shows](wiki/development/browser-window.md#where-it-shows)).
 - **The proxy is a setting, off by default.** The browser goes straight to sites. Say *turn the browser proxy on* if a site does not load; it applies from the browser's next start ([the proxy setting](wiki/development/browsing.md#the-proxy-setting)).
 - **Both settings stay on each computer**, in `~/.wong-stack/browser-settings.json`, never in a repo, so no teammate gets yours ([settings stay on this computer](wiki/development/browser-window.md#settings-stay-on-this-computer)).
-- **No password manager question.** The assistant no longer asks which password manager you use. You add one yourself in the browser, from Firefox's add-on site, like any add-on; or ask the assistant to add one with its checks. The assistant still never opens, reads, or types into any add-on ([add it yourself](wiki/development/password-manager.md#add-it-yourself)).
+- **No password manager question.** The assistant no longer asks which password manager you use. You add one yourself in the browser, from Firefox's add-on site, like any add-on; or ask the assistant to add one with its checks. The assistant still never opens, reads, or types into any add-on ([ask the agent](wiki/development/password-manager.md#ask-the-agent)).
 
 **Updating.** Nothing to do for most computers. The proxy is now off from the browser's next start, on every computer. If a site that loaded before stops loading, such as UPS, say *turn the browser proxy on*, then ask the assistant to restart the browser. A browser that is running now keeps its proxy until it stops.
 

@@ -4,7 +4,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { localDay, morningOf, placePath } from '../../../daily/scripts/config.mjs';
 import { firstMessage } from '../../../daily/scripts/daily.mjs';
-import { AT_GRACE_MIN, briefFolders, DEFAULT_SWEEPS } from '../../../daily/scripts/worker.mjs';
+import { briefFolders, DEFAULT_SCHEDULES } from '../../../daily/scripts/worker.mjs';
 import { appCall, appTiming, approveHere, approver, definition, readSchedule, saveDefinition, send } from './app.mjs';
 import { approvedVersion } from './approvals.mjs';
 import { validateReceipt } from './hosts.mjs';
@@ -14,6 +14,8 @@ import { scheduleVersion } from './version.mjs';
 
 const MINUTE = 60_000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 const RUN_FLOOR_MS = 10 * MINUTE;
+// A timed job's `at` time counted this long after it in the worker's old loop, so its schedule may be this late.
+const AT_GRACE_MIN = 15;
 const ENDED = ['cancelled', 'completed', 'superseded'];
 const keyOf = id => id.slice(0, 64).replace(/-+$/, '');
 const clock = text => String(text).split(':').map(Number);
@@ -117,7 +119,8 @@ function fromCheck(check, { config, primary, source, today }) {
     paused: !check.enabled || check.start === 'offer' || check.cadence.kind === 'manual' || Boolean(resumeOn) };
 }
 
-function fromSweep(sweep, { brief, primary, timezone }) {
+/** The schedules one timed job becomes, each with its definition, or why it can not be one. */
+export function fromSweep(sweep, { brief, primary, timezone }) {
   const found = sweepTimings(sweep, timezone);
   if (!found.timings) return [{ id: `sweep:${sweep.id}`, reason: found.reason }];
   if (brief === null) return [{ id: `sweep:${sweep.id}`, reason: `no brief ${sweep.brief}` }];
@@ -141,7 +144,7 @@ function fromRecord(item) {
 }
 
 const readJson = file => JSON.parse(readFileSync(file, 'utf8'));
-const readBrief = (root, name) => {
+export const readBrief = (root, name) => {
   const file = briefFolders(root).map(folder => join(folder, name)).find(path => existsSync(path));
   return file ? readFileSync(file, 'utf8').trim() : null;
 };
@@ -156,7 +159,7 @@ export function gather({ root, primary, me, config, records = listRecords(root),
     catch (error) { found.push({ id: `${check.team ? 'team' : 'check'}:${check.id}`, reason: error.message }); }
   }
   if (config?.sweeps) {
-    const defaults = new Set((readJson(DEFAULT_SWEEPS).sweeps ?? []).map(sweep => sweep.id));
+    const defaults = new Set(readJson(DEFAULT_SCHEDULES).schedules.map(schedule => schedule.id));
     const own = (readJson(resolve(root, config.sweeps)).sweeps ?? []).filter(sweep => !defaults.has(sweep?.id) && sweep.off !== true
       && (sweep.every || sweep.at));
     for (const sweep of own) found.push(...fromSweep(sweep, { brief: readBrief(root, sweep.brief), primary, timezone: config.timezone }));

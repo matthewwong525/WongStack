@@ -12,6 +12,7 @@ import { findPaseo, runPaseo } from '../../schedule/scripts/lib/paseo.mjs';
 import { PLACEHOLDERS, renameArgs } from '../../schedule/scripts/workspace.mjs';
 
 const USAGE = `usage: step-title.mjs set <STEP> [--task <words>]   a skill moves this chat to STEP
+--task words, cut at a word to 60 characters, replace the earlier ones unless the person renamed the chat in Paseo.
        step-title.mjs hook --agent claude|codex [--event session-start]   a hook; reads the hook JSON on stdin
 STEP is one of EXPLORE, PLAN, APPLY, SHIP, DONE. The hook gives a step only for a typed command: /explore EXPLORE,
 /plan or /improve-code PLAN, another repo skill its name in capitals (/verify VERIFY); /apply, /continue, /ship none.
@@ -25,7 +26,7 @@ const SKILL = /^[/$]([a-z][a-z0-9:-]*)(?=\s|$)/;
 const LEADING_STEP = new RegExp(`^(?:${STEPS.join('|')}):\\s*`);
 const BRANCH = /^[a-z0-9]+(-[a-z0-9]+)+$/;
 const RUN_FLAGS = ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK'];
-const TASK_MAX = 50;
+const TASK_MAX = 60;
 const SELF = fileURLToPath(import.meta.url);
 
 /** What a message starts with: `{ loop: true }` for a loop verb, `{ other: true }` for another skill, else `{}`. */
@@ -62,21 +63,28 @@ export function goodTask(raw) {
 /** A host name minus a leading step word. */
 export const withoutStep = name => String(name ?? '').replace(LEADING_STEP, '').trim();
 
-/** The first clause of a message, its step verb removed, cut at a word to 50 characters. */
+/** Task words cut at a word to TASK_MAX characters, with no trailing comma, colon, dash, or `and`. */
+export function cutWords(text) {
+  let words = String(text ?? '').replace(/\s+/g, ' ').trim();
+  if (words.length > TASK_MAX) words = words.slice(0, TASK_MAX + 1).replace(/\s+\S*$/, '').slice(0, TASK_MAX);
+  return words.replace(/(?:[\s,:;–—-]|\sand)+$/i, '');
+}
+
+/** The first clause of a message, its step verb removed, cut by `cutWords`. */
 export function clauseOf(prompt) {
   const text = String(prompt ?? '').trim().replace(SKILL, '').trim();
-  let clause = text.split(/\n|[.?!;](?:\s|$)/)[0].trim();
-  if (clause.length > TASK_MAX) clause = clause.slice(0, TASK_MAX + 1).replace(/\s+\S*$/, '');
-  clause = clause.replace(/[\s,:;-]+$/, '');
+  const clause = cutWords(text.split(/\n|[.?!;](?:\s|$)/)[0]);
   return goodTask(clause && clause.charAt(0).toUpperCase() + clause.slice(1));
 }
 
-/** The next state: any step, back as well as forward; given task words replace weak ones. */
+/** The next state: any step, back as well as forward; given task words replace any but a name the person gave. */
 export function nextState(state, { step, task = null }) {
-  const given = goodTask(task);
-  const weak = !state?.task || state.taskFrom === 'prompt';
-  const keep = state?.task && !(given && weak);
-  return { step, task: keep ? state.task : given, taskFrom: keep ? state.taskFrom : given && 'task', shown: state?.shown ?? null };
+  const given = goodTask(cutWords(task));
+  const keep = state?.task && !(given && state.taskFrom !== 'person');
+  return {
+    step, task: keep ? state.task : given, taskFrom: keep ? state.taskFrom : given && 'task',
+    shown: state?.shown ?? null, seen: state?.seen ?? null,
+  };
 }
 
 export const titleOf = state => (state?.step && state.task ? `${state.step}: ${state.task}` : null);
@@ -113,8 +121,21 @@ export function skipReason({ env, folder, record }) {
   return null;
 }
 
-/** The task words from the host's name at the first write: Paseo's chat name, minus a step word. */
-const hostTask = record => goodTask(withoutStep(record?.title));
+/** The task words from the host's name: Paseo's chat name, minus a step word. */
+const hostTask = record => goodTask(cutWords(withoutStep(record?.title)));
+const sameWords = title => squash(withoutStep(title));
+
+/** A Paseo name that is none of the names this chat had or wrote: the person's, kept as the task from now on. */
+export function adoptRename(state, record) {
+  const title = record?.title;
+  if (!state?.seen || !title || state.seen.some(each => sameWords(each) === sameWords(title))) return state;
+  const task = hostTask(record);
+  return task ? { ...state, task, taskFrom: 'person' } : state;
+}
+
+/** The state with titles added to `seen`; a state with none starts it from the host's name. */
+const withSeen = (state, record, title) =>
+  ({ ...state, seen: [...new Set([...(state.seen ?? [record?.title]), title].filter(Boolean))] });
 
 /** Paseo: the chat's name, and its workspace's when the workspace is this worktree alone. */
 export async function writePaseo({ env, title, top }) {
@@ -176,12 +197,12 @@ export async function setStep({ step, task, env = process.env, cwd = process.cwd
   const skip = skipReason({ env, folder, record });
   const id = chatId(env);
   if (skip || !id) return `STEP_TITLE=skipped ${skip ?? 'no chat id'}`;
-  const before = readState(folder, id);
+  const before = adoptRename(readState(folder, id), record);
   const next = nextState(before, { step, task });
   // A state with no task means the hook refused the host's name, as a copy or a command.
   if (!before && !next.task && hostTask(record)) Object.assign(next, { task: hostTask(record), taskFrom: 'name' });
-  writeState(folder, id, next);
   const title = titleOf(next);
+  writeState(folder, id, withSeen(next, record, title));
   if (!title) return 'STEP_TITLE=skipped no task words';
   const failed = await writeHosts({ env, title, top: folder.top, codexId: env.CODEX_THREAD_ID });
   const reached = Boolean(env.PASEO_AGENT_ID) + Boolean(env.CODEX_THREAD_ID);
@@ -190,12 +211,12 @@ export async function setStep({ step, task, env = process.env, cwd = process.cwd
 }
 
 /** The hook's state: only a typed repo command gives a step. With no task words yet, take the host's name unless it
- * copies the message or a command, else the first clause, which `--task` may replace. /compact changes nothing. */
+ * copies the message or a command, else the first clause. /compact changes nothing. */
 function stateFor(prompt, before, record, top) {
   const { loop, other } = verbOf(prompt);
   const step = commandStep(prompt, top);
   if ((other && !step) || (before && !loop && !other)) return before;
-  const base = before ?? { step: null, task: null, taskFrom: null, shown: null };
+  const base = before ?? { step: null, task: null, taskFrom: null, shown: null, seen: null };
   const next = { ...base, step: step ?? base.step };
   if (base.task) return next.step === base.step ? before : next;
   const name = hostTask(record);
@@ -214,14 +235,18 @@ export function hookTurn({ input, agent, event, env = process.env, home = homedi
   const start = event === 'session-start' || input?.hook_event_name === 'SessionStart';
   if (skipReason({ env, folder, record }) || !id || (!start && typeof input?.prompt !== 'string')) return none;
   const before = readState(folder, id);
-  let state = before;
+  const adopted = adoptRename(before, record);
+  let state = adopted;
   let write = null;
   if (!start) {
-    state = stateFor(input?.prompt, before, record, folder.top);
-    if (titleOf(state) !== titleOf(before)) write = titleOf(state);
+    state = stateFor(input?.prompt, adopted, record, folder.top);
+    if (titleOf(state) !== titleOf(adopted)) write = titleOf(state);
+    if (write) state = withSeen(state, record, write);
   }
+  // The person renamed the chat: a start or a plain message shows no step title over their name.
+  if (!write && adopted !== before) state = { ...state, shown: titleOf(state) };
   const title = titleOf(state);
-  const show = agent === 'claude' && title && (start || title !== state.shown);
+  const show = agent === 'claude' && title && ((start && adopted === before) || title !== state.shown);
   if (state !== before || show) writeState(folder, id, { ...state, shown: show ? title : state.shown });
   const hookEventName = start ? 'SessionStart' : 'UserPromptSubmit';
   return { out: show ? { hookSpecificOutput: { hookEventName, sessionTitle: title } } : null, write, top: folder.top };

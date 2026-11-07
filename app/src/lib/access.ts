@@ -36,6 +36,8 @@ const project = z.enum(['ready', 'key', 'setup', 'live'])
 export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
   viewer: z.object({ email: z.string(), owner: z.boolean() }),
   key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(),
+  // Why this open could not start permissions: a reason code; null once started; absent on a save or an older status.
+  startError: z.string().nullable().optional(),
   keysStarted: z.boolean(),
   apps: z.array(z.object({ id: z.string(), title: z.string(), description: z.string() })),
   unticked: z.object({ people: z.array(z.object({ email: z.string(), apps: z.array(z.string()) })), roles: z.array(z.object({ name: z.string(), apps: z.array(z.string()) })) }),

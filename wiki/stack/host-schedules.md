@@ -62,7 +62,16 @@ When a call would help, the assistant offers it through a verified question surf
 
 ## Manage a schedule
 
-In the Inbox's *Schedules* list you can pause, resume, run now, or cancel a waiting run, and tap a schedule to see its last ten runs and its instructions. In a chat, `/schedule` also lists, inspects, changes, approves, and ends your schedules. A change saves a new version, so it waits for your OK on each computer that runs it. A failed or uncertain change is inspected before a retry.
+In the Inbox's *Schedules* list you can pause, resume, run now, or cancel a waiting run, and tap a schedule to see its last ten runs that did work, how many quiet checks found nothing to do, and its instructions. In a chat, `/schedule` also lists, inspects, changes, approves, and ends your schedules. A change saves a new version, so it waits for your OK on each computer that runs it. A failed or uncertain change is inspected before a retry.
+
+## Default schedules
+
+WongStack ships two background schedules in [its list](../../.agents/skills/daily/references/schedules.json): *Keep my chats in line*, every 5 minutes, runs [the line-up](../development/daily.md#your-chats-in-line), and *Wiki tidy*, every 30 minutes, runs [the small wiki tidy](../development/wiki-dream.md#the-small-wiki-tidy). Most checks find nothing to do and start no run. A chat start adds each one you lack and approves it on this computer, because it comes from this checkout's own code.
+
+- **A default you changed, paused or ended stays yours.** An update never changes it or adds it back.
+- **A default you did not change** takes an update's new version, approved here.
+- **An `off` entry** in [your own jobs](../development/daily.md#your-own-jobs) adds that default paused.
+- **A default you did not change waits paused while [check-ins are off](../development/daily.md#check-ins)** on this computer, and goes on again when they go on. If you resume it while they are off, it stays on.
 
 ## Existing schedules
 

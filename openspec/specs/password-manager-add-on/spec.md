@@ -7,7 +7,7 @@ Lets a person add their own password manager's browser add-on to the agent's sha
 
 ### Requirement: The person's choice of add-on, after their yes
 
-The agent SHALL add a password manager add-on only from Firefox's add-on site, and SHALL add any add-on there that the person says yes to. Before it adds one, it SHALL name the add-on, its maker, the maker's website and its daily users in the chat, SHALL warn when Mozilla does not feature it and fewer than 10,000 people use it each day, and SHALL wait for the person's yes. It SHALL check the downloaded file against the fingerprint the add-on site gives, and SHALL keep at most one password manager add-on in the browser.
+The agent SHALL add an add-on only from Firefox's add-on site, and SHALL add any add-on there that the person says yes to, a password manager or any other. Before it adds one, it SHALL name the add-on, its maker, the maker's website and its daily users in the chat, SHALL warn when Mozilla does not feature it and fewer than 10,000 people use it each day, and SHALL wait for the person's yes. It SHALL check the downloaded file against the fingerprint the add-on site gives. Adding one SHALL keep the add-ons the agent added before. For an add-on the browser already ships, the agent SHALL say that it is built in, before it asks, and SHALL add nothing.
 
 #### Scenario: The person's password manager is added
 
@@ -24,6 +24,16 @@ The agent SHALL add a password manager add-on only from Firefox's add-on site, a
 - **WHEN** the downloaded file does not match the fingerprint the add-on site gives
 - **THEN** nothing is added, and the agent tells the person why
 
+#### Scenario: A second add-on joins the first
+
+- **WHEN** the agent added 1Password, and the person then says yes to Dark Reader
+- **THEN** from the next start the browser has both, and 1Password keeps its sign-in
+
+#### Scenario: An add-on the browser ships is not added
+
+- **WHEN** the person asks for uBlock Origin, which the browser already ships
+- **THEN** the agent says it is built into the browser, downloads nothing, and adds nothing
+
 ### Requirement: The add-on stays from start to start
 
 The added add-on SHALL load at every browser start, with its own storage kept, so the person signs in to their password manager account in it once, not at each browser start. It SHALL stay up to date with the add-on site; a failed update SHALL keep the version that works.
@@ -35,16 +45,21 @@ The added add-on SHALL load at every browser start, with its own storage kept, s
 
 ### Requirement: The agent never uses the password manager
 
-The agent SHALL NOT click, type in, or read the password manager add-on's own button, menus, or fill lists, and SHALL NOT unlock it. Its page readings SHALL leave out the add-on's own parts, and a click or a typing step aimed at one SHALL be refused. The agent SHALL tell the person, when it adds the add-on, to keep in it only the logins the agent needs and to set a short auto-lock.
+The agent SHALL NOT click, type in, or read the password manager add-on's own button, menus, or fill lists, and SHALL NOT unlock it. Its page readings SHALL leave out the add-on's own parts, and a click or a typing step aimed at one SHALL be refused. When it adds an add-on that Firefox's add-on site tags as a password manager, the agent SHALL tell the person to keep in it only the logins the agent needs and to set a short auto-lock; it SHALL NOT give that advice for another add-on.
 
 #### Scenario: A fill list is on the page
 
 - **WHEN** the agent reads a login page while the password manager shows its fill list there
 - **THEN** the reading holds no part of that list, and a click aimed at it is refused
 
+#### Scenario: No vault advice for another add-on
+
+- **WHEN** the agent adds Dark Reader after the person's yes
+- **THEN** it says nothing about a vault or an auto-lock
+
 ### Requirement: Remove or swap it on request
 
-When the person asks, the agent SHALL remove the add-on from the browser together with its stored data, so no sign-in to the password manager stays behind, or SHALL swap it for another password manager by the same checks.
+When the person asks, the agent SHALL remove the add-on they name from the browser together with its stored data, so no sign-in to it stays behind, and SHALL leave the other added add-ons in place. It SHALL swap a password manager for another by the same checks when asked.
 
 #### Scenario: Removed
 
@@ -53,7 +68,7 @@ When the person asks, the agent SHALL remove the add-on from the browser togethe
 
 ### Requirement: The person adds an add-on themselves
 
-The agent SHALL NOT ask the person which password manager they use or offer to add one. The person SHALL be able to add any add-on from Firefox's add-on site in the browser themselves, and it SHALL stay from start to start. The agent SHALL NOT click, type in, read, or unlock any add-on's own button, pages, menus, or frames, whether the person or the agent added it.
+The agent SHALL NOT ask the person which password manager they use or offer to add one. The person SHALL be able to add any add-on from Firefox's add-on site in the browser themselves, and it SHALL stay from start to start, but it is not promised to work: the help SHALL tell the person to ask the agent to add an add-on instead. The agent SHALL NOT click, type in, read, or unlock any add-on's own button, pages, menus, or frames, whether the person or the agent added it.
 
 #### Scenario: A new browser install
 
@@ -64,3 +79,36 @@ The agent SHALL NOT ask the person which password manager they use or offer to a
 
 - **WHEN** the agent reads a page where an add-on the person added shows its own frame
 - **THEN** the reading holds no part of that frame, and a click aimed at it is refused
+
+### Requirement: The agent's add replaces the person's own copy
+
+When the agent adds an add-on that the person already added themselves from Firefox's add-on site, the agent's add SHALL remove the person's copy and its stored data, so only the agent's copy loads from the next start. Other add-ons the person added SHALL stay.
+
+#### Scenario: 1Password added both ways
+
+- **WHEN** the person added 1Password from Firefox's add-on site, then says yes to the agent adding 1Password
+- **THEN** from the next start the browser has one 1Password, and its toolbar button opens 1Password's own page
+
+### Requirement: One ask adds a well-known add-on, and its page opens
+
+When the person asks for one add-on by name, and the best match on Firefox's add-on site is the only plausible one and is featured by Mozilla or used by at least 10,000 people each day, and the agent has not added it already, the ask SHALL count as the person's yes: the agent SHALL name the add-on, its maker, the maker's website and its daily users in the chat and add it in the same turn, with no further question. When the words fit more than one add-on, the agent SHALL name the matches and add only the one the person picks. The agent SHALL NOT ask the person to add an add-on themselves from the add-on site. Right after it adds a password manager, the agent SHALL open its own page and show it to the person, so their only step is to sign in.
+
+#### Scenario: Asking for a well-known add-on adds it at once
+
+- **WHEN** the person says "add 1Password", and the best match is featured with more than 10,000 daily users
+- **THEN** the agent names its maker, website and daily users, adds it without a further question, and opens 1Password's own page for the person to sign in
+
+#### Scenario: Words that fit more than one add-on
+
+- **WHEN** the person's words fit more than one add-on on the site
+- **THEN** the agent names the matches and adds only the one the person picks
+
+#### Scenario: An add-on the agent already added
+
+- **WHEN** the agent added 1Password, and the person says "add 1Password" again
+- **THEN** the agent says it is already there and adds nothing, so its sign-in stays
+
+#### Scenario: Never sent to press the button
+
+- **WHEN** the person asks the agent to add an add-on
+- **THEN** the agent does not open the add-on site for the person to press *Add to Firefox*

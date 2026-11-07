@@ -8,7 +8,7 @@ Browsing lets the agent use websites as you: the browser's own sign-ins, picture
 
 ## Saved browser logins
 
-The agent reaches your accounts (mail, calendar, banking) in [Camoufox](https://camoufox.com), a Firefox that more sites let in, not through connectors. One script drives it: [`browse.mjs`](../../.agents/skills/browser/scripts/browse.mjs), through a small server beside it, [`browser-server.mjs`](../../.agents/skills/browser/scripts/browser-server.mjs). Your logins stay in the browser's profile folder in your home folder, outside every repo, and survive a restart. The browser also keeps one device identity, made once per Camoufox version, so a site does not see a new device at each restart.
+The agent reaches your accounts (mail, calendar, banking) in [Camoufox](https://camoufox.com), a Firefox that more sites let in, not through connectors. One script drives it: [`browse.mjs`](../../.agents/skills/browser/scripts/browse.mjs), through a small server beside it, [`browser-server.mjs`](../../.agents/skills/browser/scripts/browser-server.mjs). Your logins stay in the browser's profile folder in your home folder, outside every repo, and survive a restart. The browser also keeps one device identity, made once per Camoufox version, so a site does not see a new device at each restart. The identity tells sites your computer's real system: Mac on a Mac, Windows on Windows, Linux on Linux. So the browser uses your computer's own fonts, and its own pages, such as its add-ons page, read correctly.
 
 ```bash
 B=.claude/skills/browser/scripts/browse.mjs

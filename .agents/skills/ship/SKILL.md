@@ -38,7 +38,7 @@ Check [preconditions](../save/references/preconditions.md), then run `prepare`. 
 
 ## Step 2 — archive the change
 
-Run `node .claude/skills/explore/scripts/step-title.mjs set SHIP`, again after each `apply` until `finish` merges, then `set DONE`. `CHANGE_NAME` is separate from `BRANCH`. Pass `--change` for a change the person or this chat named; without it `prepare` picks by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). None selects → follow `NEXT:`; a new change comes from [the new-plan fallback](../save/references/new-plan.md).
+Run `node .claude/skills/explore/scripts/step-title.mjs set SHIP --task "<plan title>"`, again after each `apply` until `finish` merges, then `set DONE`. `CHANGE_NAME` is separate from `BRANCH`. Pass `--change` for a change the person or this chat named; without it `prepare` picks by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). None selects → follow `NEXT:`; a new change comes from [the new-plan fallback](../save/references/new-plan.md).
 
 `prepare` archives by [the CLI contract](../plan/references/openspec-cli.md#validate-and-archive), which owns `--skip-specs`, after two stops:
 

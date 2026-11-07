@@ -2,7 +2,7 @@
 // The person's schedules in the company app: show, save and approve here, manage, start a run, and the move to the
 // app. No git. wiki/stack/host-schedules.md
 import { parseArgs } from 'node:util';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { computerId, helperService } from '../../hand-over/scripts/lib/computer.mjs';
@@ -11,14 +11,15 @@ import { approveHere, approvalState, approver, appHost, definition, heldDefiniti
 import { checkRun, mirrorRound } from './lib/app-runs.mjs';
 import { paseoAdapter, selectHost, validateReceipt } from './lib/hosts.mjs';
 import { legacyAdapter, legacyContext, teardownLegacy } from './lib/legacy.mjs';
+import { addDefaults } from './lib/defaults.mjs';
 import { moveIn } from './lib/move-in.mjs';
 import { appProgress } from './lib/progress.mjs';
 import { listRecords, loadRecord, requireValue, ScheduleError } from './lib/records.mjs';
 import { scheduleVersion } from './lib/version.mjs';
 
-const USAGE = 'usage: schedule.mjs list | inspect|show <key> | show --file <json> | save --file <json> [--approve [--version <sha>]] [--team <emails>] | approve <key> --version <sha> | pause|resume|run <key> | cancel <key> [--run <id>] | end <key> --evidence <text> | start --key <key> --run <id> --version <sha> | progress --key <key> --run <id> --file <json> | release --key <key> --run <id> | move-in [--unattended] [--dry-run] [--keep <id>] [--drop <id>] | move <key> | hosts | mirror | legacy list|inspect|pause|resume|cancel|teardown [native-id]';
+const USAGE = 'usage: schedule.mjs list | inspect|show <key> | show --file <json> | save --file <json> [--approve [--version <sha>]] [--team <emails>] | approve <key> --version <sha> | pause|resume|run <key> | cancel <key> [--run <id>] | end <key> --evidence <text> | start --key <key> --run <id> --version <sha> | progress --key <key> --run <id> --file <json> | release --key <key> --run <id> | move-in [--unattended] [--dry-run] [--keep <id>] [--drop <id>] | move <key> | defaults [--unattended] [--dry-run] | hosts | mirror | legacy list|inspect|pause|resume|cancel|teardown [native-id]';
 const COMMANDS = ['list', 'ls', 'inspect', 'show', 'save', 'approve', 'pause', 'resume', 'run', 'cancel', 'end', 'start', 'progress', 'release', 'move-in', 'move',
-  'hosts', 'mirror', 'legacy'];
+  'defaults', 'hosts', 'mirror', 'legacy'];
 const UNREACHABLE = 'The app can not be reached; no times are shown.';
 const iso = at => (Number.isFinite(at) ? new Date(at).toISOString() : null);
 const primaryOf = root => { try { return primaryRoot(root).primary; } catch { return root; } };
@@ -63,6 +64,25 @@ async function control(command, key, world, client) {
   return { host: 'paseo', receipt };
 }
 
+/** `defaults`: WongStack's default schedules for this person, added and approved here. Unattended with no sign-in, it
+ *  adds nothing and journals why. */
+async function defaults(values, world) {
+  const { root, primary, computer, env, email } = world;
+  const [{ offFile, personSettings, stateOf }, { addLine }] = await Promise.all([import('../../daily/scripts/daily.mjs'), import('../../daily/scripts/journal.mjs')]);
+  const { config } = (world.settings ?? personSettings)({ repo: root });
+  requireValue(config, 'No daily settings and no sign-in: nothing to add the default schedules for.');
+  const stateDir = world.stateDir ?? stateOf(config, root);
+  let client = null;
+  if (!values['dry-run']) {
+    try { client = await connect(world); approver(client, { email }); } catch (error) {
+      if (!values.unattended) throw error;
+      addLine({ stateDir, timezone: config.timezone, line: 'Default schedules wait: sign in to the company app (`D who` gives the link).', kind: 'defaults' });
+      return { skipped: 'no_sign_in' };
+    }
+  }
+  return addDefaults({ root, primary, config, stateDir, client, computer, env, email, dryRun: values['dry-run'], off: existsSync(offFile(stateDir)) });
+}
+
 async function run(command, values, key, world) {
   const { root, env } = world, primary = world.primary ?? primaryOf(root);
   const computer = world.computer ?? computerId(env), email = world.email;
@@ -87,6 +107,7 @@ async function run(command, values, key, world) {
     return moveIn({ root, primary, me, config, records: listRecords(root), client, computer, env, email, paseo: world.paseo ?? paseoAdapter({ env }),
       note, unattended: values.unattended, dryRun: values['dry-run'], keep: values.keep, drop: values.drop, only: command === 'move' ? `record:${key}` : null });
   }
+  if (command === 'defaults') return defaults(values, { ...world, primary, computer, email });
   const client = await connect(world);
   if (['list', 'ls'].includes(command)) {
     let listed;

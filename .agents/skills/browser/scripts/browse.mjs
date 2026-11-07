@@ -39,15 +39,20 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   close                         close this task's tab
   status | install | stop       the install and the server; status prints both settings, BROWSE_NETWORK=
                                 the route in use, BROWSE_SHOWN=window|link|none for a running browser, and
-                                BROWSE_ADDON=<name> once one is added
+                                BROWSE_ADDON=<name> for each add-on added
   addon find <name>             up to three Firefox add-ons: BROWSE_ADDON_FOUND=<slug> | <name> | <maker> |
                                 <website> | <daily users> | featured or not; BROWSE_ADDON_WARN=<slug> when
-                                not featured and under 10,000 daily users
-  addon add <slug>              add the password manager after the person's yes, its file checked; any other
-                                one goes, and the browser stops so the next command starts with it;
-                                BROWSE_ADDON_TELL= is the advice to pass on
-  addon open                    open its sign-in page in this task's tab, for the person in a live view
-  addon status | remove         BROWSE_ADDON=none|<name>; remove takes it out with its stored data`;
+                                not featured and under 10,000 daily users; BROWSE_ADDON_BUILT_IN=<slug> when
+                                the browser ships it already
+  addon add <slug>              add any add-on after the person's yes, its file checked, beside the others and in
+                                place of the person's own copy of it; the browser stops so the next command
+                                starts with it; BROWSE_ADDON_TELL= is what to tell the person; refuses one the
+                                browser ships
+  addon open                    open the newest password manager's page, else the newest add-on's, in this
+                                task's tab, for the person in a live view
+  addon status                  BROWSE_ADDON=<name> for each added add-on, or BROWSE_ADDON=none
+  addon remove [<name>]         take out the add-on its slug or name names, with its stored data; no name
+                                takes out the only one`;
 
 /** The only versions installed, moved together: the library's disguise is made for the build it pins, and
  * launch-config.py refuses a start when the library, its pin and the installed build disagree. */
@@ -64,7 +69,7 @@ export const FILES = {
   server: join(DIR, 'server.json'), key: join(DIR, 'api-key'), lock: join(DIR, 'start.lock'), tmp: join(DIR, 'tmp'), tabs: join(DIR, 'tabs'),
   profile: join(DIR, 'profile'), cache: join(DIR, 'cache'), marker: join(DIR, 'migrated'), fingerprint: join(DIR, 'fingerprint.json'), venv: join(DIR, 'venv', CAMOUFOX.python),
   settings: join(homedir(), '.wong-stack', 'browser-settings.json'),
-  addons: join(DIR, 'addons'), addon: join(DIR, 'password-manager.json'), log: join(DIR, 'server.log'),
+  addons: join(DIR, 'addons'), added: join(DIR, 'addons.json'), log: join(DIR, 'server.log'),
 };
 /** The old camofox browser's profiles, read once for the login move. */
 export const OLD_PROFILES = join(homedir(), '.wong-stack', 'camofox', 'profiles');
@@ -584,8 +589,7 @@ async function status() {
     const differs = (running.windowSetting ?? running.window === true) !== windowSetting() || (running.proxy ?? true) !== proxySetting();
     if (differs) console.log(`The running browser started with other settings. ${NEXT_START}`);
   }
-  const added = (await import('./addons.mjs')).addonStatus();
-  if (added !== 'none') console.log(`BROWSE_ADDON=${added}`);
+  for (const name of (await import('./addons.mjs')).addonStatus()) console.log(`BROWSE_ADDON=${name}`);
 }
 
 
@@ -828,7 +832,9 @@ function addonRunner([verb, ...words], usage) {
     const { ADDON_VERBS } = await import('./addons.mjs');
     if (!Object.hasOwn(ADDON_VERBS, verb)) usage('addon takes find, add, open, status, or remove');
     const [count, runner] = ADDON_VERBS[verb];
-    if (words.length !== count) usage(`addon ${verb} takes ${count} word${count === 1 ? '' : 's'} after it`);
+    const [least, most = least] = [count].flat();
+    const counted = least === most ? least : `${least} or ${most}`;
+    if (words.length < least || words.length > most) usage(`addon ${verb} takes ${counted} word${most === 1 ? '' : 's'} after it`);
     await runner(page, words, flags);
   };
 }

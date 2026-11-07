@@ -14,6 +14,7 @@ import { BUCKETS, HOLD_MS, STREAK, paseoRecord, readJson, writeJson } from './ch
 import { RUN_AGENTS } from './config.mjs';
 import { RUN_FLAGS, hookInput, offFile, personSettings, stateOf } from './daily.mjs';
 import { addLine } from './journal.mjs';
+import { elsewhere } from './line-up.mjs';
 import { readChat } from './transcript.mjs';
 import { fillText, needsYouChats, runEnv, stopGroup } from './worker.mjs';
 
@@ -96,7 +97,8 @@ export async function stopCheck({ input, agent = RUN_AGENTS[0], env = process.en
     writeJson(file, { ...streak, told: true });
     return skip('streak');
   }
-  const prompt = fillText(brief(), { title, tail: tailOf(chat.messages, input.last_assistant_message) });
+  const prompt = fillText(brief(), { title, tail: tailOf(chat.messages, input.last_assistant_message),
+    elsewhere: elsewhere(stateDir, env.PASEO_AGENT_ID) });
   const cwd = input.cwd || process.cwd();
   const [command, args] = headlessCommand({ agent, prompt, access: { readOnly: true, tools: ['Read', 'Grep', 'Glob'], dir: cwd } });
   const ran = await judge({ command, args, cwd, env: judgeEnv(env, agent) });

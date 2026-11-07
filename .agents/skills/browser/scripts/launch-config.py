@@ -1,13 +1,13 @@
 """Prints the shared browser's launch config from the official camoufox library, as one JSON line.
 
 usage: launch-config.py --library <version> --build <tag> [--check] [--proxy <url>] [--display <:n> | --window]
-                        [--fingerprint <file>] [--addon <folder>]
+                        [--fingerprint <file>] [--addon <folder>]...
 
 --check only compares the pins with what is installed. A refusal prints {"error", "needs"} and exits 3;
 "needs" names the part to install again: python, library, build, or pins (the two pins disagree).
---fingerprint keeps the browser's identity in <file> (mode 600), made once per library and build, so each start
-shows sites the same device. --window shows the browser on the computer's own screen, as off Linux.
---addon loads the person's password manager from its unzipped folder, keeps its
+--fingerprint keeps the browser's identity in <file> (mode 600), made once per library, build, and system, so
+each start shows sites the same device. --window shows the browser on the computer's own screen, as off Linux.
+--addon, once per add-on, loads an add-on the person chose from its unzipped folder, keeps its
 storage from start to start, and lets it open its own tabs.
 browser-server.mjs runs it at each start; browse.mjs status runs --check.
 """
@@ -18,6 +18,11 @@ import json
 import os
 import sys
 from importlib import metadata
+
+
+# The computer's own system, which the browser tells sites: on a Mac, another system's
+# bundled fonts cover the Mac's and scramble the browser's own pages, such as about:addons.
+HOST_OS = {'darwin': 'macos', 'win32': 'windows'}.get(sys.platform, 'linux')
 
 
 class Refusal(Exception):
@@ -71,20 +76,21 @@ def country_of(proxy):
 
 
 def saved_fingerprint(path, versions):
-    """The identity saved in `path` for these versions, else a new one saved there; and whether it was saved."""
+    """The identity saved in `path` for these versions and this system, else a new one saved there; and whether it
+    was saved. A file with no `os` was made as Linux."""
     try:
         with open(path, encoding='utf-8') as file:
             saved = json.load(file)
-        if saved.get('versions') == versions and isinstance(saved.get('fingerprint'), dict):
+        if saved.get('versions') == versions and saved.get('os', 'linux') == HOST_OS and isinstance(saved.get('fingerprint'), dict):
             return saved['fingerprint'], True
     except (OSError, ValueError, AttributeError):
         pass
     from camoufox.fingerprints import generate_fingerprint
 
-    fingerprint = generate_fingerprint(os='linux')
+    fingerprint = generate_fingerprint(os=HOST_OS)
     temp = f'{path}.tmp'
     with open(os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), 'w', encoding='utf-8') as file:
-        json.dump({'versions': versions, 'fingerprint': fingerprint}, file, default=str)
+        json.dump({'versions': versions, 'os': HOST_OS, 'fingerprint': fingerprint}, file, default=str)
     os.chmod(temp, 0o600)
     os.replace(temp, path)
     return fingerprint, False
@@ -98,21 +104,21 @@ KEEP_ADDON_PREFS = {
 }
 
 
-def addon_options(addon):
-    """The launch options that load the password manager's folder, or none."""
-    if not addon:
+def addon_options(addons):
+    """The launch options that load each add-on folder, or none."""
+    if not addons:
         return {}
-    return {'addons': [addon], 'allow_addon_new_tab': True, 'firefox_user_prefs': dict(KEEP_ADDON_PREFS)}
+    return {'addons': list(addons), 'allow_addon_new_tab': True, 'firefox_user_prefs': dict(KEEP_ADDON_PREFS)}
 
 
-def launch(proxy, display, fingerprint=None, window=False, addon=None):
+def launch(proxy, display, fingerprint=None, window=False, addons=None):
     """The persistent-context options for this start, English for the country the proxy's address is in."""
     from camoufox.utils import launch_options, persistent_context_options, spoofs_window_dimensions
 
     address, country = country_of(proxy)
     locale = f'en-{country}' if country else 'en-US'
     options = launch_options(
-        os='linux',
+        os=HOST_OS,
         headless=not (display or window),
         virtual_display=display or None,
         humanize=True,
@@ -121,7 +127,7 @@ def launch(proxy, display, fingerprint=None, window=False, addon=None):
         locale=locale,
         proxy={'server': proxy} if proxy else None,
         fingerprint=fingerprint,
-        **addon_options(addon),
+        **addon_options(addons),
     )
     return {'options': persistent_context_options(options, spoofs_window_dimensions(options)), 'locale': locale}
 
@@ -142,7 +148,7 @@ def main():
     parser.add_argument('--display')
     parser.add_argument('--window', action='store_true')
     parser.add_argument('--fingerprint')
-    parser.add_argument('--addon')
+    parser.add_argument('--addon', action='append')
     args = parser.parse_args()
     out = sys.stdout
     try:

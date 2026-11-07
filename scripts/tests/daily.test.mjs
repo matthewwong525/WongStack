@@ -11,7 +11,7 @@ import { SettingsError, defaultSettings, loadSettings, mondayOf, morningOf, plac
   from '../../.agents/skills/daily/scripts/config.mjs';
 import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { checkinsOff, commandSettings, commands, ensure, firstMessage, holds, offFile, personSettings, readArgs, start,
-  startMoveIn, startReport, startServe, startTask, startedRecord, stateDirectory, stateOf, taskMessage, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
+  startDefaults, startMoveIn, startReport, startServe, startTask, startedRecord, stateDirectory, stateOf, taskMessage, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { codeStamp } from '../../.agents/skills/daily/scripts/worker.mjs';
 
@@ -237,9 +237,17 @@ test('readArgs takes each command with its flags, chief-service as serve, and re
   assert.deepEqual(['off', 'on'].map(word => readArgs(['checkins', word]).command), ['checkins off', 'checkins on']);
   assert.equal(readArgs(['journal', '--new']).values.new, true);
   assert.deepEqual([readArgs(['journal', '--line', 'x', '--run', 'y']).values.line, readArgs(['journal', '--line', 'x', '--run', 'y']).values.run], ['x', 'y']);
+  assert.equal(readArgs(['line-up']).command, 'line-up');
+  assert.equal(readArgs(['map', '--file', 'm.json']).values.file, 'm.json');
+  const told = readArgs(['tell', '--agent', 'a', '--file', 'f', '--now', '--covered-by', 'b', '--drop', 'a']).values;
+  assert.deepEqual([told.now, told['covered-by'], told.drop], [true, 'b', 'a']);
+  assert.equal(readArgs(['tell', '--drop', 'a']).command, 'tell');
+  assert.equal(readArgs(['answer', '--agent', 'a', '--request', 'r', '--file', 'f', '--bucket', 'line-up', '--label', 'x']).values.bucket, 'line-up');
   for (const bad of [['nope'], ['start', '--agent', 'a'], ['hand'], ['watch'], ['serve', '--hours', '3'], ['ensure', '--agent', 'gpt'], ['checkins'],
     ['checkins', 'maybe'], ['allow', '--agent', 'a', '--request', 'r', '--bucket', 'pick', '--label', 'x'],
-    ['hand', '--agent', 'a', '--source', 'asked'], ['open-daily'], ['picture'], ['close', '--agent', 'a'], ['journal', '--hook'], ['journal', '--agent', 'a'], ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'maybe', '--label', 'x']]) {
+    ['hand', '--agent', 'a', '--source', 'asked'], ['open-daily'], ['picture'], ['close', '--agent', 'a'], ['journal', '--hook'], ['journal', '--agent', 'a'], ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'maybe', '--label', 'x'],
+    ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'line-up', '--label', 'x'], ['map'], ['tell'], ['tell', '--agent', 'a'], ['tell', '--file', 'f'],
+    ['tell', '--now'], ['line-up', '--agent', 'a']]) {
     const run = spawnSync(process.execPath, ['-e', `import(${JSON.stringify(join(SKILL, 'scripts/daily.mjs'))}).then(m => m.readArgs(${JSON.stringify(bad)}))`],
       { encoding: 'utf8' });
     assert.notEqual(run.status, 0, bad.join(' '));
@@ -258,6 +266,14 @@ test('commands wire the settings to the board: remind adds a task on its day, an
   assert.equal((await run('remind', { day: '2020-01-01', text: 'x' })).state, 'refused');
   assert.equal((await run('status', {})).status, 'unsupported');
   assert.equal((await run('todo link', { agent: 'a', url: 'https://evil.test/' })).status, 'unsupported');
+  assert.equal((await run('line-up', {})).status, 'unsupported');
+  assert.equal((await run('tell', { drop: 'a' })).status, 'unsupported');
+  const map = join(stateDir, 'map.json');
+  writeFileSync(map, 'not json');
+  assert.equal((await run('map', { file: map })).reason, 'map');
+  writeFileSync(map, JSON.stringify({ chats: { a: { title: 'Checkout', goal: 'Stripe checkout' } } }));
+  assert.deepEqual(await run('map', { file: map }), { status: 'saved', chats: 1 });
+  assert.equal(JSON.parse(readFileSync(join(stateDir, 'line-up.json'), 'utf8')).chats.a.goal, 'Stripe checkout');
   assert.equal(stateDirectory('/w/main', 'alex', '/s'), stateDirectory('/w/main/', 'alex', '/s'));
 });
 
@@ -303,29 +319,29 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   const { root, states } = checkout();
   const spawned = [];
   const go = (config, more = {}) => ensure({ repo: root, root: states, env: { HOME: states }, agent: 'codex', resolve: () => ({ config }), isAlive: () => false,
-    spawnServe: args => spawned.push(args), ...more }).state;
+    spawnServe: args => spawned.push(args), defaults: () => {}, ...more }).state;
   const jobs = validateConfig(settings());
   const plain = defaultSettings({ email: 'alex@example.com', timezone: ZONE });
   assert.equal(go(jobs, { env: { WONG_STOP_CHECK: '1' } }), 'run');
   assert.equal(go(jobs, { env: { WONG_MEMORY_RUN: '1' } }), 'run');
   assert.equal(go(null), 'no-person');
-  // The default list's wiki tidy is a job, so the defaults start it until the person turns it off.
-  const own = sweeps => { writeFileSync(join(root, 'jobs.json'), JSON.stringify({ sweeps })); return { ...plain, sweeps: 'jobs.json' }; };
-  assert.equal(go(own([{ id: 'wiki-tidy', off: true }])), 'no-jobs');
-  // A routine left in the file is no job, but starts its move to the app; a handed-over schedule run is a job.
-  const moved = [];
-  assert.equal(go({ ...own([{ id: 'wiki-tidy', off: true }]), checks: [routine()] }, { moveIn: args => moved.push(args) }), 'no-jobs');
-  assert.deepEqual(moved.map(each => [each.home.repo, each.timezone]), [[root, ZONE]]);
-  assert.equal(go({ ...plain, checks: [routine()] }, { moveIn: () => { throw new Error('no app'); } }), 'started', 'a failed move stops nothing');
+  // A routine left in the file is no job, but starts its move to the app; each call starts the add of the defaults.
+  const plainState = stateOf(plain, root, states), moved = [], added = [];
+  assert.equal(go({ ...plain, checks: [routine()] }, { moveIn: args => moved.push(args), defaults: args => added.push(args) }), 'no-jobs');
+  assert.deepEqual([...moved, ...added].map(each => [each.home.repo, each.stateDir, each.timezone]), Array(2).fill([root, plainState, ZONE]));
+  const broken = () => { throw new Error('no app'); };
+  assert.equal(go({ ...plain, checks: [routine()] }, { moveIn: broken, defaults: broken }), 'no-jobs', 'a failed move or add stops nothing');
+  // A handed-over schedule run is a job, and so is a default schedule this computer added.
   const handed = join(states, '.wong-stack/agent-events', `schedule-run-${'a'.repeat(32)}.json`);
   mkdirSync(join(handed, '..'), { recursive: true });
   writeFileSync(handed, '{}');
-  assert.equal(go(own([{ id: 'wiki-tidy', off: true }])), 'started');
+  assert.equal(go(plain), 'started');
   rmSync(handed);
-  assert.equal(go(own([{ id: 'wrap-up', off: true }])), 'started');
+  mkdirSync(plainState, { recursive: true });
+  writeFileSync(join(plainState, 'defaults.json'), JSON.stringify({ added: { 'line-up': { version: 'a'.repeat(64) } } }));
   assert.equal(go(plain), 'started');
   assert.equal(go(jobs), 'started');
-  assert.deepEqual(spawned.map(each => [each.repo, each.agent]), Array(5).fill([root, 'codex']));
+  assert.deepEqual(spawned.map(each => [each.repo, each.agent]), Array(3).fill([root, 'codex']));
   const stateDir = stateOf(jobs, root, states);
   mkdirSync(stateDir, { recursive: true });
   writeFileSync(join(stateDir, 'serve.lock'), '4242\n');
@@ -335,12 +351,13 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   assert.equal(go(jobs), 'running');
   writeFileSync(offFile(stateDir), 'x');
   assert.equal(go(jobs), 'off');
-  assert.equal(spawned.length, 6);
+  assert.equal(spawned.length, 4);
   // Off, a handed-over schedule run is taken to be reported as not started, never left for a worker.
   const event = { event: 'schedule-run', key: 'tidy', run: 'b'.repeat(32), version: 'c'.repeat(64), email: 'alex@example.com', cwd: root };
   const waiting = join(states, '.wong-stack/agent-events', `schedule-run-${event.run}.json`);
   writeFileSync(waiting, JSON.stringify({ event }));
-  const off = ensure({ repo: root, root: states, env: { HOME: states }, resolve: () => ({ config: jobs }), isAlive: () => false, spawnServe: () => {} });
+  const off = ensure({ repo: root, root: states, env: { HOME: states }, resolve: () => ({ config: jobs }), isAlive: () => false, spawnServe: () => {},
+    defaults: () => {} });
   assert.deepEqual(off, { state: 'off', refused: [event] });
   assert.equal(existsSync(waiting), false);
 });
@@ -361,6 +378,29 @@ test('the move of left routines to the app starts once a day, detached, with no 
   assert.deepEqual([node, args, options.cwd, options.detached, options.env], [process.execPath, [script, 'move-in', '--unattended'], root, true, { PATH: '/bin' }]);
 });
 
+test('the add of the default schedules starts once a day, and again the same day when the shipped list or the off switch changes', () => {
+  const root = temp('defaults'), stateDir = temp('state'), runs = [], list = join(temp('list'), 'schedules.json');
+  const dir = join(root, '.agents/skills/daily/scripts'), script = join(root, '.agents/skills/schedule/scripts/schedule.mjs');
+  mkdirSync(join(script, '..'), { recursive: true });
+  writeFileSync(script, '');
+  writeFileSync(list, '{"schedules":[]}');
+  const run = (...args) => { runs.push(args); return { on: () => {}, unref: () => {} }; };
+  const add = now => startDefaults({ home: { repo: root, dir }, stateDir, env: { PATH: '/bin' }, now, timezone: ZONE, run, list });
+  writeFileSync(join(stateDir, 'defaults.json'), JSON.stringify({ added: { 'line-up': {} } }));
+  assert.equal(add(NOW.getTime()), true);
+  assert.equal(add(NOW.getTime() + 3600e3), false, 'the same day and list');
+  writeFileSync(list, '{"schedules":[{"id":"line-up"}]}');
+  assert.equal(add(NOW.getTime() + 3600e3), true, 'a changed list');
+  assert.equal(add(NOW.getTime() + 24 * 3600e3), true);
+  writeFileSync(offFile(stateDir), 'now\n');
+  assert.equal(add(NOW.getTime() + 24 * 3600e3), true, 'check-ins went off');
+  assert.equal(add(NOW.getTime() + 24 * 3600e3), false);
+  rmSync(offFile(stateDir));
+  assert.equal(add(NOW.getTime() + 24 * 3600e3), true, 'check-ins went on');
+  assert.deepEqual(runs.map(([, args]) => args), Array(5).fill([script, 'defaults', '--unattended']));
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(stateDir, 'defaults.json'), 'utf8'))), ['added', 'day', 'stamp'], 'the add keeps its own list');
+});
+
 test("ensure restarts a worker whose beat holds older code or none, and leaves a current one alone", () => {
   const { root, states } = checkout();
   const config = validateConfig(settings());
@@ -373,7 +413,7 @@ test("ensure restarts a worker whose beat holds older code or none, and leaves a
     writeFileSync(join(stateDir, 'serve.json'), JSON.stringify({ pid: beatPid, at: new Date().toISOString(), seconds: 60, ...(code && { code }) }));
   };
   const go = () => ensure({ repo: root, root: states, env: {}, resolve: () => ({ config }), isAlive: pid => live.has(pid),
-    kill: pid => { killed.push(pid); live.delete(pid); }, spawnServe: args => spawned.push(args) }).state;
+    kill: pid => { killed.push(pid); live.delete(pid); }, spawnServe: args => spawned.push(args), defaults: () => {} }).state;
   worker(4242, 4242);
   assert.equal(go(), 'restarted', 'a beat from before the stamp');
   worker(4343, 4343, codeStamp());
@@ -449,7 +489,7 @@ test("each pass re-reads the settings from the main checkout, not from the copy 
   assert.deepEqual(printed.filter(item => item.wouldRun), [{ wouldRun: 'add-on', addon: 'a.mjs' }]);
 });
 
-test('checkins off writes the off file, stops the running worker and journals it; on removes it and runs ensure', async () => {
+test('checkins off writes the off file, stops the running worker and journals it; on removes it and runs ensure; both start the defaults', async () => {
   const { root, states } = checkout();
   const config = validateConfig(settings());
   const stateDir = stateOf(config, root, states);
@@ -460,11 +500,14 @@ test('checkins off writes the off file, stops the running worker and journals it
   assert.deepEqual(killed, [4242]);
   rmSync(join(stateDir, 'serve.lock'));
   assert.ok(existsSync(offFile(stateDir)));
-  assert.equal(ensure({ repo: root, root: states, env: {}, resolve: () => ({ config }), spawnServe: () => assert.fail('started while off') }).state, 'off');
+  assert.equal(ensure({ repo: root, root: states, env: {}, resolve: () => ({ config }), spawnServe: () => assert.fail('started while off'),
+    defaults: () => {} }).state, 'off');
+  const flips = [];
   const run = command => commands({ config, project: root, stateDir, values: {}, call: async () => [], board: fakeBoard().board, env: {},
-    keep: () => ({ state: 'started' }) })[command]();
+    keep: () => ({ state: 'started' }), defaults: () => flips.push(existsSync(offFile(stateDir))) })[command]();
   assert.deepEqual(await run('checkins on'), { state: 'on', worker: 'started' });
   assert.ok(!existsSync(offFile(stateDir)));
   assert.equal((await run('checkins off')).state, 'off');
+  assert.deepEqual(flips, [false, true], 'each flip starts the add of the defaults after the off file changes');
   assert.deepEqual(readLines({ stateDir }).map(entry => entry.kind), ['checkins', 'checkins', 'checkins']);
 });

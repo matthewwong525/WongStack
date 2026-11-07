@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { loginAuthority, reconcileLogin } from "./login-management";
+import { admittedEmails, loginAuthority, reconcileLogin } from "./login-management";
 import { accessStatus, changeMember } from "./members";
 import { cloudflare, fixture, site, employee, key } from "../../tests/employee-access/connections";
 import { lease } from "./core";
@@ -49,6 +49,18 @@ it("sends the live policy back with only its email list changed, to the recorded
   f.sql.exec("UPDATE wong_access_connections SET generation = 9; UPDATE wong_access_work SET status = 'pending' WHERE kind = 'policy'");
   await reconcileLogin(f.core, "policy");
   expect(f.sql.prepare("SELECT generation FROM wong_access_connections").get()).toEqual({ generation: 9 });
+});
+
+it("reads, imports and writes a policy that Cloudflare sends with no session time, and adds none", async () => {
+  delete cf.policy.session_duration;
+  cf.policy.include = [...owners, { email: { email: "ana@example.com" } }];
+  expect(await admittedEmails(f.core, loginAuthority(f.env)!)).toEqual([site.ownerEmail, "ana@example.com"]);
+  await hold(); await add();
+  await reconcileLogin(f.core, "policy");
+  expect(cf.writes).toHaveLength(1);
+  expect(Object.keys(cf.writes[0])).not.toContain("session_duration");
+  expect(cf.writes[0]).toMatchObject({ name: "Business people", approval_required: true, require: cf.policy.require });
+  expect(work()).toEqual({ generation: 2, status: "ready", outcome: "policy_readback_matches", error_code: null });
 });
 
 it("makes no provider call on a preview, without the key, or before permissions start", async () => {
