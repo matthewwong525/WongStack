@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · name-the-current-work</title>
+<title>Review · 2026-11-07-name-the-current-work</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="name-the-current-work" data-own-back>
+<body data-change="2026-11-07-name-the-current-work" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>name-the-current-work</h1>
+  <h1>2026-11-07-name-the-current-work</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -449,6 +449,8 @@
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: a name you give in Paseo after the chat has a step name stays, because the change-loop spec already promises that a name you gave stays; in Claude Code and Codex alone the script can not read the name, so the step's words win there.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: words are cut at a word to 60 characters, the same length Paseo uses for a new chat's name, because longer names are cut in the list of chats.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: a <code>minor</code> release, because the names of chats change in a new way.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: the hook also keeps a name you gave, so a typed command such as <code>/verify</code> after a rename changes only the step word, because the spec says a name you gave keeps its words.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-07</p>Archived for publish: the build plus one fix from the second look (a plain message or a resumed chat no longer writes the step word over a name you gave in Paseo); local checks pass.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Each chat is named for its current work
+## 50.11.0 — Each chat is named for its current work
 
 - **Each step names the work at that time.** When a step starts, the chat's name changes to a few words for the work: the idea while you explore, then the plan's title while it is planned, built, and published. `DONE` keeps the words it has ([chat names](wiki/development/the-change-loop.md#what-each-step-may-change)).
 - **A name Paseo made gives way.** A Paseo name from your first message, a handed-over chat, or a later message changes to the step's words.

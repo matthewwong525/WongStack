@@ -1,7 +1,7 @@
 # Name each chat for its current work
 
-**Status:** planned
-**Branch:** boring-lionfish
+**Status:** ready-to-ship
+**Branch:** rename-workspace-on-state-change
 **Open questions:** none
 
 ## Why
@@ -61,3 +61,4 @@ None.
 - **2026-11-07** — Assumed: words are cut at a word to 60 characters, the same length Paseo uses for a new chat's name, because longer names are cut in the list of chats.
 - **2026-11-07** — Assumed: a `minor` release, because the names of chats change in a new way.
 - **2026-11-07** — Assumed: the hook also keeps a name you gave, so a typed command such as `/verify` after a rename changes only the step word, because the spec says a name you gave keeps its words.
+- **2026-11-07** — Archived for publish: the build plus one fix from the second look (a plain message or a resumed chat no longer writes the step word over a name you gave in Paseo); local checks pass.
