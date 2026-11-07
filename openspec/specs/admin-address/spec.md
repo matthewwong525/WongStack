@@ -1,7 +1,7 @@
 # admin-address Specification
 
 ## Purpose
-TBD - created by archiving change admin-app-on-wongstack-com. Update Purpose after archive.
+The short address of WongStack's own app, kept in this repo: the app answers at admin.wongstack.com and its workers.dev address, and a preview never takes the name.
 
 ## Requirements
 
