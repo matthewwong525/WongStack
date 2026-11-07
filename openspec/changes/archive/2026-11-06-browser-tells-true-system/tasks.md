@@ -16,4 +16,4 @@
 ## 4. Checks
 
 - [x] 4.1 Run `node --test scripts/tests/launch-config.test.mjs` and `node .github/scripts/checks.mjs --worktree`
-- [ ] 4.2 `/save`, then confirm CI passes
+- [x] 4.2 `/save`, then confirm CI passes

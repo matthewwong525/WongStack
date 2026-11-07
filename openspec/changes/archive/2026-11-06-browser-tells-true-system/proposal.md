@@ -1,6 +1,6 @@
 # The browser tells sites your computer's real system
 
-**Status:** built, saving for review
+**Status:** shipping
 **Branch:** test-camoufox-password-manager
 **Open questions:** none
 
@@ -43,3 +43,4 @@ Non-goals: no change to the browser's other settings, its version, or where it s
 - **2026-11-06** — Assumed: a Linux computer keeps its saved identity, because its system does not change; an identity with no recorded system reads as Linux.
 - **2026-11-06** — Review found that CI, on Linux only, never tested the Mac case → fixed: the fake library can make Python report `darwin` or `linux`, and a test checks a Mac's launch, its new identity, and reuse on every host.
 - **2026-11-06** — Assumed: saved under /ship for final acceptance, after the review's one fix (a test that pretends to be a Mac).
+- **2026-11-06** — Assumed: archived for publishing as 50.6.2, after CI passed on PR #533.

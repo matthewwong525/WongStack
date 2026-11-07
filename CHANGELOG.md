@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — The browser tells sites your computer's real system
+## 50.6.2 — The browser tells sites your computer's real system
 
 - **The browser tells sites the real system:** Mac on a Mac, Windows on Windows, Linux on Linux. Before, it told every site it ran on Linux, and put Linux fonts over your Mac's own. Now it uses your computer's own fonts, so its own pages, such as its add-ons page and your password manager's pop-up, read correctly. Websites look the same as before ([the device identity](wiki/development/browsing.md#saved-browser-logins)).
 
