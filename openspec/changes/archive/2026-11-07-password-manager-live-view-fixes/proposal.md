@@ -10,19 +10,19 @@ You added 1Password from Firefox's add-on site, and in the assistant's browser i
 
 ## What Changes
 
-- **The agent adds any add-on you ask for, with the same checks**, not only a password manager: an ad blocker, a translator, anything on Firefox's add-on site. It names the maker, website, and daily users, warns on a little-used one, checks the file, and waits for your yes, as it does for 1Password today.
+- **The agent adds any add-on you ask for, with the same checks**, not only a password manager: Dark Reader, a translator, anything on Firefox's add-on site. It names the maker, website, and daily users, warns on a little-used one, checks the file, and waits for your yes, as it does for 1Password today. For an add-on the browser already ships, such as uBlock Origin, it says the add-on is built in and adds nothing.
 - **Your add-ons stay side by side.** Adding a second one no longer removes the first. You can ask what's added, and remove one by name. Each still updates once a week.
 - **Asking the agent to add an add-on replaces a copy of it you added yourself.** Today the two copies clash, and neither works. It can't be undone: anything saved in your own copy goes. A copy that doesn't work never got your sign-in, so in practice nothing is lost.
   ```mermaid
   flowchart TD
-    A["You: add uBlock, or 1Password"] --> B["Agent names maker, users; you say yes"]
+    A["You: add Dark Reader, or 1Password"] --> B["Agent names maker, users; you say yes"]
     B --> C{"Your own copy in the browser?"}
     C -- yes --> D["Removed"]
     C -- no --> E["Agent adds the checked copy"]
     D --> E
     E --> F["Loads at every start, beside the others"]
   ```
-- **The safety advice goes only with a password manager.** "Keep a separate vault, lock after 5 minutes" makes no sense for an ad blocker, so the agent says it only for an add-on Firefox's site tags as a password manager.
+- **The safety advice goes only with a password manager.** "Keep a separate vault, lock after 5 minutes" makes no sense for Dark Reader, so the agent says it only for an add-on Firefox's site tags as a password manager.
 - **A live view always shows the whole browser window**, on 1Password's own page too. Today the view leaves that page at whatever size the browser started with, which can be bigger than the screen you see.
 - **The help page says to ask the agent for an add-on**, not to add it yourself. It says what happened with 1Password added from Firefox's site: no setup page, and a button that does nothing.
 
@@ -74,3 +74,12 @@ You added 1Password from Firefox's add-on site, and in the assistant's browser i
 - **2026-11-07** — Assumed: `password-manager.json` joins `scripts/retired-names.json`, allowed only in `addons.mjs` (its one-time move) and `addons.test.mjs`, so no doc names the old file again. The 50.5.0 changelog entry's link to the old `#add-it-yourself` heading now points at `#ask-the-agent`.
 - **2026-11-07** — Checked: `wiki/development/live-view.md` and `browsing.md` name no one-add-on rule and no add-on page size, so neither changed.
 - **2026-11-07** — Built tasks 1–3 and 4.2 on branch `little-alpacka`; saved before task 4.1, the by-hand check in a throwaway browser on a private Xvfb, which stays open.
+- **2026-11-07** — Checked (task 4.1, throwaway home and browser): with only the person's xpi removed, the agent's 1Password showed no button and did not open its page on the first start; it worked from the second. So `removeOwnCopy` also deletes `extensions.json` and `addonStartup.json.lz4`; from a fresh profile, both starts then work. 1Password with uBlock Origin and Dark Reader shows each button; one fit sizes a 1920×1036 window on 1Password's page to 1280×720 with the whole toolbar.
+- **2026-11-07** — Found: Camoufox ships its own uBlock Origin under the same id, so the agent's add of uBlock is not the copy that runs, and its dashboard loaded blank with both in place. Open for the person: warn on, or refuse, an add-on Camoufox already ships.
+- **2026-11-07** — Review fix: the record moved from `password-manager.json` gets the tag `password manager`, because the old file only held a password manager, and with no tag `addon open` showed a later add-on instead; the weekly update also takes the site's current tags.
+- **2026-11-07** — Review fix: a test checks that `extensions.json` and `addonStartup.json.lz4` stay when the person has no own copy of the add-on.
+- **2026-11-07** — Review fix: the help, both specs, the changelog, and What Changes give Dark Reader as the example in place of uBlock Origin and "an ad blocker", because Camoufox ships its own uBlock Origin, so the agent's add of it is not the copy that runs. No warn or refuse is built; that stays the open question.
+- **2026-11-07** — Asked what the agent does when asked for an add-on Camoufox already ships (uBlock Origin) → chose say it is built in and add nothing.
+- **2026-11-07** — Built: `addon find` marks an add-on the browser ships (`BROWSE_ADDON_BUILT_IN`), read from the active Camoufox build's `addons/<name>/manifest.json` ids (today only uBlock Origin, `uBlock0@raymondhill.net`), and `addon add` refuses it before any download: *uBlock Origin is built into the browser already; nothing to add.* (tasks 6.1–6.2).
+- **2026-11-07** — Review fix: the built-in check also reads a Mac build's add-ons, which Camoufox keeps in `Camoufox.app/Contents/Resources/addons/`, not beside the binary as on Linux (task 6.3).
+- **2026-11-07** — Review fix: the check also runs at each start, because it finds nothing before the browser is installed: `startArgs` skips a record the browser ships, and `removeAddon` keeps that add-on's stored data, since the browser's own copy uses it (task 6.4).

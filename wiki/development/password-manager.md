@@ -1,10 +1,10 @@
 # Your password manager in the browser
 
-The agent's browser can hold a password manager add-on, such as 1Password or Bitwarden, and any other add-on, such as an ad blocker. You ask the agent to add it, sign in to it, and fill a login from your vault. The agent never uses it.
+The agent's browser can hold a password manager add-on, such as 1Password or Bitwarden, and any other add-on, such as Dark Reader. You ask the agent to add it, sign in to it, and fill a login from your vault. The agent never uses it.
 
 ## Ask the agent
 
-The agent asks nothing about a password manager. When you want an add-on, say so: *add my password manager*, or *add uBlock Origin*. The agent names its maker and waits for your yes, with [the checks](#the-checks).
+The agent asks nothing about a password manager. When you want an add-on, say so: *add my password manager*, or *add Dark Reader*. The agent names its maker and waits for your yes, with [the checks](#the-checks). An add-on the browser already has, such as uBlock Origin, is built in: the agent says so and adds nothing.
 
 Ask the agent, not the add-on site in the browser. 1Password added from [Firefox's add-on site](https://addons.mozilla.org) in Camoufox 158.0.1-beta.41 opened no setup page, and its button did nothing; the copy the agent added worked. When you ask the agent for an add-on you already added yourself, its add removes your copy and its stored data, so only the working copy loads.
 
@@ -48,7 +48,7 @@ At a browser start, once a week, each add-on the agent added is checked for a ne
 
 ## Remove or change it
 
-Name the add-on: *remove my password manager*, or *remove uBlock*. `addon remove <name>` deletes that add-on and its stored data, so no signed-in session stays, and leaves the others. To change to another password manager, ask for the new one, then remove the old one.
+Name the add-on: *remove my password manager*, or *remove Dark Reader*. `addon remove <name>` deletes that add-on and its stored data, so no signed-in session stays, and leaves the others. To change to another password manager, ask for the new one, then remove the old one.
 
 An add-on you added yourself, you remove in the browser's own add-ons page (`about:addons`). The agent's ones, by hand: delete `~/.wong-stack/camoufox/addons/` and `addons.json` with the browser stopped. An answer saved by an older version, *None* included, is ignored.
 

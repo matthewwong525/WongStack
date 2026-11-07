@@ -150,13 +150,25 @@ test('the agent\'s add removes the person\'s own copy of that add-on and its dat
   const extensions = join(PROFILE, 'extensions');
   mkdirSync(join(extensions, POPULAR.guid), { recursive: true });
   for (const guid of [FEATURED.guid, 'theirs@maker.example']) writeFileSync(join(extensions, `${guid}.xpi`), 'a signed file');
+  const lists = ['extensions.json', 'addonStartup.json.lz4'].map(name => join(PROFILE, name));
+  for (const list of lists) writeFileSync(list, 'Firefox\'s add-on list');
   await addAddon(FEATURED.slug);
   assert.ok(!existsSync(join(extensions, `${FEATURED.guid}.xpi`)), 'their copy of the same add-on goes');
   assert.ok(!stored(FEATURED.guid, 'vault-uuid'), 'with its stored data');
+  assert.ok(lists.every(list => !existsSync(list)), 'with the add-on lists that still name it');
   assert.ok(existsSync(join(extensions, 'theirs@maker.example.xpi')) && stored('theirs@maker.example', 'theirs-uuid'), 'another add-on of theirs stays, with its data');
   await addAddon(POPULAR.slug);
   assert.ok(!existsSync(join(extensions, POPULAR.guid)), 'a copy kept as a folder goes too');
   assert.deepEqual(addonStatus(), [FEATURED.name, POPULAR.name]);
+});
+
+test('with no own copy of the add-on, Firefox\'s add-on lists stay', async () => {
+  reset();
+  profileWith({});
+  const lists = ['extensions.json', 'addonStartup.json.lz4'].map(name => join(PROFILE, name));
+  for (const list of lists) writeFileSync(list, 'Firefox\'s add-on list');
+  await addAddon(FEATURED.slug);
+  assert.ok(lists.every(list => existsSync(list)), 'nothing to clash with, so the lists stay');
 });
 
 test('a file that does not match the site\'s fingerprint, or is not an extension, is refused, and nothing changes', async () => {
@@ -175,6 +187,59 @@ test('a file that does not match the site\'s fingerprint, or is not an extension
   const out = await run('addon', 'add', 'bad-hash');
   assert.equal(out.status, 1);
   assert.match(out.stdout, /^BROWSE_ERROR=the downloaded file does not match the fingerprint the add-on site gives, so nothing was added\n$/);
+});
+
+/** A Camoufox install, as the library lays it out, whose build ships the add-on `guid` in its own `addons/` folder:
+ * beside the binary on Linux, in the app bundle's Resources on a Mac. */
+function shipInBrowser(guid, { mac = false } = {}) {
+  const cache = join(DIR, 'cache', 'camoufox');
+  const active = 'browsers/official/158.0.1-beta.41-3f2eb1d0';
+  const dir = join(cache, active, ...(mac ? ['Camoufox.app', 'Contents', 'Resources'] : []), 'addons', 'UBO');
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(cache, 'config.json'), JSON.stringify({ active_version: active }));
+  writeFileSync(join(dir, 'manifest.json'), manifest(guid));
+}
+
+test('a Mac build\'s add-ons, in its app bundle, count as built in too', () => {
+  reset();
+  shipInBrowser(BLOCKER.guid, { mac: true });
+  assert.deepEqual(addons.builtInGuids(), new Set([BLOCKER.guid]));
+});
+
+test('an add-on added before the browser shipped it is not loaded at start, and its remove keeps the browser\'s copy\'s data', async () => {
+  reset();
+  await addAddon(BLOCKER.slug, { now: 1 });
+  await addAddon(FEATURED.slug, { now: 1 });
+  shipInBrowser(BLOCKER.guid);
+  profileWith({ [BLOCKER.guid]: 'blocker-uuid' });
+  assert.deepEqual(await startArgs({ now: 2 }), ['--addon', folderOf(FEATURED.guid)], 'no --addon for the one the browser ships');
+  assert.equal(await removeAddon(BLOCKER.slug), BLOCKER.name, 'its record still goes');
+  assert.deepEqual(addonStatus(), [FEATURED.name]);
+  assert.ok(stored(BLOCKER.guid, 'blocker-uuid'), 'the browser\'s own copy keeps its data');
+});
+
+test('an add-on the browser ships is found as built in, and its add is refused before any download, with nothing changed', async () => {
+  reset();
+  assert.deepEqual(addons.builtInGuids(), new Set(), 'no install, so none is built in');
+  const ubo = publish({ slug: 'ublock-origin', guid: 'uBlock0@raymondhill.net', name: 'uBlock Origin', users: 10_000_000, promoted: [{ category: 'recommended' }] });
+  shipInBrowser(ubo.guid);
+  assert.deepEqual(addons.builtInGuids(), new Set([ubo.guid]));
+  assert.deepEqual(foundLines(await findAddons('ublock')), [
+    'BROWSE_ADDON_FOUND=ublock-origin | uBlock Origin | uBlock Origin Inc. | https://ublock-origin.example | 10000000 | featured',
+    'BROWSE_ADDON_BUILT_IN=ublock-origin',
+  ]);
+  await addAddon(FEATURED.slug, { now: 1 });
+  const before = readFileSync(LIST, 'utf8');
+  files.delete(ubo.current_version.file.url.slice(SITE.length));
+  await assert.rejects(addAddon(ubo.slug), /uBlock Origin is built into the browser already; nothing to add\./);
+  assert.equal(readFileSync(LIST, 'utf8'), before, 'no list entry');
+  assert.ok(!existsSync(folderOf(ubo.guid)) && !existsSync(`${folderOf(ubo.guid)}.new`), 'no download');
+  const out = await run('addon', 'add', ubo.slug);
+  assert.equal(out.status, 1);
+  assert.equal(out.stdout, 'BROWSE_ERROR=uBlock Origin is built into the browser already; nothing to add.\n');
+  await addAddon(BLOCKER.slug, { now: 2 });
+  assert.deepEqual(addonStatus(), [FEATURED.name, BLOCKER.name], 'an add-on the browser does not ship still adds');
+  for (const slug of ['ublock-origin', 'uBlock0@raymondhill.net']) records.delete(slug);
 });
 
 test('an add-on with no id of its own gets the site\'s, and a path out of its folder stops the add', async () => {
@@ -215,16 +280,23 @@ test('status names each added add-on or none, an old answer is ignored, and an a
   assert.equal((await run('addon', 'status')).stdout, `BROWSE_ADDON=${FEATURED.name}\nBROWSE_ADDON=${BLOCKER.name}\n`);
 });
 
-test('an older version\'s one add-on moves to the list once, and its old file goes', () => {
+test('an older version\'s one add-on moves to the list once as a password manager, and its old file goes', async () => {
   reset();
   mkdirSync(DIR, { recursive: true });
   const old = { slug: 'onepassword', guid: '{d634138d-c276-4fc8-924b-40a0ea21d284}', name: '1Password', page: 'app/app.html#/page/welcome', version: '8', checkedAt: 5 };
+  const moved = { ...old, tags: ['password manager'] };
   writeFileSync(OLD_CHOICE, JSON.stringify({ state: 'added', ...old }));
-  assert.deepEqual(addedList(), [old]);
+  assert.deepEqual(addedList(), [moved]);
   assert.ok(!existsSync(OLD_CHOICE), 'the old file goes');
-  assert.deepEqual(JSON.parse(readFileSync(LIST, 'utf8')), { added: [old] });
+  assert.deepEqual(JSON.parse(readFileSync(LIST, 'utf8')), { added: [moved] });
   writeFileSync(OLD_CHOICE, JSON.stringify({ state: 'added', ...old, name: 'Stale' }));
   assert.deepEqual(addonStatus(), ['1Password'], 'once the list is there, an old file is never read again');
+  await addAddon(BLOCKER.slug);
+  profileWith({ [old.guid]: 'op-uuid', [BLOCKER.guid]: 'blocker-uuid' });
+  assert.equal(pageUrl(), 'moz-extension://op-uuid/app/app.html#/page/welcome', 'addon open shows the moved password manager, not a newer ad blocker');
+  publish({ slug: old.slug, guid: old.guid, name: old.name, users: 1_000_000, version: old.version, tags: ['password manager', 'security'] });
+  await startArgs({ now: UPDATE_MS + 5 });
+  assert.deepEqual(saved(old.guid).tags, ['password manager', 'security'], 'the weekly check takes the site\'s tags');
 });
 
 test('remove takes out the add-on it names with its stored data, leaves the others, and says which are added when unsure', async () => {

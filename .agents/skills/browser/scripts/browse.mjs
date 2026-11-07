@@ -39,10 +39,12 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
                                 window|link|none for a running browser, and BROWSE_ADDON=<name> for each add-on added
   addon find <name>             up to three Firefox add-ons: BROWSE_ADDON_FOUND=<slug> | <name> | <maker> |
                                 <website> | <daily users> | featured or not; BROWSE_ADDON_WARN=<slug> when
-                                not featured and under 10,000 daily users
+                                not featured and under 10,000 daily users; BROWSE_ADDON_BUILT_IN=<slug> when
+                                the browser ships it already
   addon add <slug>              add any add-on after the person's yes, its file checked, beside the others and in
                                 place of the person's own copy of it; the browser stops so the next command
-                                starts with it; BROWSE_ADDON_TELL= is what to tell the person
+                                starts with it; BROWSE_ADDON_TELL= is what to tell the person; refuses one the
+                                browser ships
   addon open                    open the newest password manager's page, else the newest add-on's, in this
                                 task's tab, for the person in a live view
   addon status                  BROWSE_ADDON=<name> for each added add-on, or BROWSE_ADDON=none

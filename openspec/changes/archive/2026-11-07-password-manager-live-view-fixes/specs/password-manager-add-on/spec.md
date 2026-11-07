@@ -2,7 +2,7 @@
 
 ### Requirement: The person's choice of add-on, after their yes
 
-The agent SHALL add an add-on only from Firefox's add-on site, and SHALL add any add-on there that the person says yes to, a password manager or any other. Before it adds one, it SHALL name the add-on, its maker, the maker's website and its daily users in the chat, SHALL warn when Mozilla does not feature it and fewer than 10,000 people use it each day, and SHALL wait for the person's yes. It SHALL check the downloaded file against the fingerprint the add-on site gives. Adding one SHALL keep the add-ons the agent added before.
+The agent SHALL add an add-on only from Firefox's add-on site, and SHALL add any add-on there that the person says yes to, a password manager or any other. Before it adds one, it SHALL name the add-on, its maker, the maker's website and its daily users in the chat, SHALL warn when Mozilla does not feature it and fewer than 10,000 people use it each day, and SHALL wait for the person's yes. It SHALL check the downloaded file against the fingerprint the add-on site gives. Adding one SHALL keep the add-ons the agent added before. For an add-on the browser already ships, the agent SHALL say that it is built in, before it asks, and SHALL add nothing.
 
 #### Scenario: The person's password manager is added
 
@@ -21,8 +21,13 @@ The agent SHALL add an add-on only from Firefox's add-on site, and SHALL add any
 
 #### Scenario: A second add-on joins the first
 
-- **WHEN** the agent added 1Password, and the person then says yes to uBlock Origin
+- **WHEN** the agent added 1Password, and the person then says yes to Dark Reader
 - **THEN** from the next start the browser has both, and 1Password keeps its sign-in
+
+#### Scenario: An add-on the browser ships is not added
+
+- **WHEN** the person asks for uBlock Origin, which the browser already ships
+- **THEN** the agent says it is built into the browser, downloads nothing, and adds nothing
 
 ### Requirement: The agent never uses the password manager
 
@@ -33,9 +38,9 @@ The agent SHALL NOT click, type in, or read the password manager add-on's own bu
 - **WHEN** the agent reads a login page while the password manager shows its fill list there
 - **THEN** the reading holds no part of that list, and a click aimed at it is refused
 
-#### Scenario: No vault advice for an ad blocker
+#### Scenario: No vault advice for another add-on
 
-- **WHEN** the agent adds uBlock Origin after the person's yes
+- **WHEN** the agent adds Dark Reader after the person's yes
 - **THEN** it says nothing about a vault or an auto-lock
 
 ### Requirement: Remove or swap it on request

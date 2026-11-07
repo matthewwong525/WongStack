@@ -23,5 +23,18 @@
 
 ## 4. Checks
 
-- [ ] 4.1 By hand on a private Xvfb (`.scratch/`, not the person's browser): in a throwaway profile copy holding a site-installed 1Password, check whether removing the xpi alone leaves the agent's copy working after two starts; if not, also delete `extensions.json` and `addonStartup.json.lz4` in 1.2, and log the result in the proposal's Decision log. Then add 1Password and uBlock Origin: both buttons show, and 1Password's opens its welcome page. And a fresh start sent to the add-on page at 1920×1036 on a 1280×720 screen shows the whole toolbar after one fit.
+- [x] 4.1 By hand on a private Xvfb (`.scratch/`, not the person's browser): in a throwaway profile copy holding a site-installed 1Password, check whether removing the xpi alone leaves the agent's copy working after two starts; if not, also delete `extensions.json` and `addonStartup.json.lz4` in 1.2, and log the result in the proposal's Decision log. Then add 1Password and uBlock Origin: both buttons show, and 1Password's opens its welcome page. And a fresh start sent to the add-on page at 1920×1036 on a 1280×720 screen shows the whole toolbar after one fit.
 - [x] 4.2 Run `node .github/scripts/checks.mjs --worktree` and fix what it reports (payload links, retired names such as `password-manager.json`, context size).
+
+## 5. Review fixes
+
+- [x] 5.1 `addons.mjs`: the record moved from the old file gets `tags: ['password manager']`, and the weekly `update` takes the site record's `tags`; the migration test checks that `addon open` picks the moved record over a later add-on with other tags, and that a weekly check refreshes its tags.
+- [x] 5.2 `addons.test.mjs`: with no own copy of the add-on, `extensions.json` and `addonStartup.json.lz4` stay after `addAddon`.
+- [x] 5.3 Examples that offered uBlock Origin, which Camoufox ships under the same id, use Dark Reader: `password-manager.md`, both specs' scenarios ("A second add-on joins the first", "No vault advice for another add-on"), the changelog entry, the proposal's What Changes, and the design's help line.
+
+## 6. An add-on the browser ships
+
+- [x] 6.1 `addons.mjs`: `builtInGuids()` reads the ids of the add-ons the active Camoufox build ships (`<cache>/camoufox/config.json` `active_version`, then each `addons/<name>/manifest.json`); `addon find` prints `BROWSE_ADDON_BUILT_IN=<slug>` for one, and `addAddon` refuses one before any download (`<name> is built into the browser already; nothing to add.`). The `addon` help lines and `.agents/skills/browser/SKILL.md` tell the agent to say it is built in, before it asks, and add nothing. Docs: `password-manager.md`, both specs, the changelog entry.
+- [x] 6.2 Tests: `addons.test.mjs`: a built-in add-on is found as built in, its add is refused with no list entry and no download, and an add-on the browser does not ship still adds.
+- [x] 6.3 `addons.mjs`: `builtInGuids()` also reads a Mac build's add-ons, at `<active_version>/Camoufox.app/Contents/Resources/addons/` (the camoufox package's `build_file`/`get_path`). Test: `shipInBrowser` takes `{ mac: true }`, and a Mac build's add-on counts as built in.
+- [x] 6.4 `addons.mjs`: `startArgs` skips a record whose guid the browser ships (no update check, no pin, no `--addon`), so an add made before the install, or before a later build shipped it, never loads beside the browser's own copy; `removeAddon` drops that record but keeps its stored data, which is the browser's own copy's. Tests: such a record gets no `--addon`, and its remove keeps the data.

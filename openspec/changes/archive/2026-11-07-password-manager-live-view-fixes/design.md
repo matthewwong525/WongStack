@@ -57,7 +57,7 @@ In `view.mjs` `liveView().fit`, when `page.resize(...)` resolves with `addonPage
 
 ### Help
 
-`password-manager.md` keeps its address. "Add it yourself" becomes "Ask the agent": say *add uBlock Origin* or *add my password manager*; the agent names the maker and waits for a yes. One line says what a self-added 1Password did (Camoufox 158.0.1-beta.41: no setup page, a dead button), and that the agent's add replaces such a copy. The "one at a time" line goes; the remove section says to name the add-on. The vault advice stays, scoped to a password manager. The `wiki/development/README.md` entry's summary follows. `browser/SKILL.md` line 18 covers any add-on, with the advice only when `BROWSE_ADDON_TELL` gives it. `live-view.md` gets nothing new unless it describes the add-on page's size; the build checks.
+`password-manager.md` keeps its address. "Add it yourself" becomes "Ask the agent": say *add Dark Reader* or *add my password manager*; the agent names the maker and waits for a yes. One line says what a self-added 1Password did (Camoufox 158.0.1-beta.41: no setup page, a dead button), and that the agent's add replaces such a copy. The "one at a time" line goes; the remove section says to name the add-on. The vault advice stays, scoped to a password manager. The `wiki/development/README.md` entry's summary follows. `browser/SKILL.md` line 18 covers any add-on, with the advice only when `BROWSE_ADDON_TELL` gives it. `live-view.md` gets nothing new unless it describes the add-on page's size; the build checks.
 
 ## Risks / Trade-offs
 

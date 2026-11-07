@@ -25,15 +25,17 @@ const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); 
 const save = added => { mkdirSync(dirname(FILES.added), { recursive: true, mode: 0o700 }); writeFileSync(FILES.added, `${JSON.stringify({ added })}\n`, { mode: 0o600 }); };
 export const folderOf = guid => join(FILES.addons, guid);
 
-/** The added add-ons, oldest first. An older version's one add-on moves here once; its other answers mean none. */
+/** The added add-ons, oldest first. An older version's one add-on, always a password manager, moves here once with
+ * that tag; its other answers mean none. */
 export function addedList() {
   const list = readJson(FILES.added)?.added;
   if (Array.isArray(list)) return list;
   const { state, ...old } = readJson(OLD_CHOICE) ?? {};
   if (state !== 'added') return [];
-  save([old]);
+  const moved = { ...old, tags: ['password manager'] };
+  save([moved]);
   rmSync(OLD_CHOICE, { force: true });
-  return [old];
+  return [moved];
 }
 
 /** True for an add-on Firefox's add-on site tags as a password manager. */
@@ -67,11 +69,29 @@ async function site(path) {
   return response;
 }
 
-/** Up to three Firefox extensions for `name`, each with its facts. */
+/** The ids of the add-ons the installed Camoufox build ships in its own `addons/<name>/` folders, which it loads at
+ * each start: an agent's copy of one clashes with the browser's own (uBlock Origin's dashboard showed blank). */
+export function builtInGuids(cache = FILES.cache) {
+  const active = readJson(join(cache, 'camoufox', 'config.json'))?.active_version;
+  if (typeof active !== 'string') return new Set();
+  const build = join(cache, 'camoufox', active);
+  const idOf = manifest => (manifest?.browser_specific_settings ?? manifest?.applications)?.gecko?.id;
+  // Linux keeps them beside the binary; a Mac, in the app bundle's Resources, as the library's build_file finds them.
+  const ids = [join(build, 'addons'), join(build, 'Camoufox.app', 'Contents', 'Resources', 'addons')].flatMap(dir => {
+    try { return readdirSync(dir).map(name => idOf(readJson(join(dir, name, 'manifest.json')))); } catch { return []; }
+  });
+  return new Set(ids.filter(Boolean));
+}
+
+/** What the agent tells the person, in place of an add, for an add-on the browser ships. */
+export const builtInText = name => `${name} is built into the browser already; nothing to add.`;
+
+/** Up to three Firefox extensions for `name`, each with its facts and whether the browser ships it. */
 export async function findAddons(name) {
   const query = new URLSearchParams({ q: name, type: 'extension', app: 'firefox', lang: 'en-US', page_size: '3' });
   const { results = [] } = await (await site(`/api/v5/addons/search/?${query}`)).json();
-  return results.slice(0, 3).map(factsOf);
+  const builtIn = builtInGuids();
+  return results.slice(0, 3).map(factsOf).map(facts => ({ ...facts, builtIn: builtIn.has(facts.guid) }));
 }
 
 /** The lines `find` prints. */
@@ -80,6 +100,7 @@ export function foundLines(found) {
   return found.flatMap(addon => [
     `BROWSE_ADDON_FOUND=${[addon.slug, addon.name, addon.maker, addon.website || 'no website', addon.users, addon.featured ? 'featured' : 'not featured'].join(' | ')}`,
     ...(addon.warn ? [`BROWSE_ADDON_WARN=${addon.slug}`] : []),
+    ...(addon.builtIn ? [`BROWSE_ADDON_BUILT_IN=${addon.slug}`] : []),
   ]);
 }
 
@@ -206,19 +227,22 @@ async function stopForChange(what) {
 }
 
 /** Removes the copy of `guid` the person added from the add-on site, with its stored data: in Camoufox it clashes
- * with the agent's copy, and neither works. Firefox forgets a missing one at its next start. */
+ * with the agent's copy, and neither works. Firefox's add-on lists still name it, so they go too; it rebuilds them. */
 function removeOwnCopy(profile, guid) {
   const own = [guid, `${guid}.xpi`].map(name => join(profile, 'extensions', name)).filter(file => existsSync(file));
   for (const file of own) rmSync(file, { recursive: true, force: true });
-  if (own.length) clearStorage(profile, guid);
+  if (!own.length) return;
+  clearStorage(profile, guid);
+  for (const list of ['extensions.json', 'addonStartup.json.lz4']) rmSync(join(profile, list), { force: true });
 }
 
 /** Adds the add-on `slug` after its checks, beside the others, in place of the person's own copy of it; the browser
- * restarts with it. */
+ * restarts with it. One the browser ships is refused before any download. */
 export async function addAddon(slug, { profile = FILES.profile, now = Date.now() } = {}) {
   const record = await (await site(`/api/v5/addons/addon/${encodeURIComponent(slug)}/?lang=en-US`)).json();
   if (record.type !== 'extension') throw new BrowseError(`${slug} is a ${record.type ?? 'thing'}, not an extension`);
   const facts = factsOf(record);
+  if (builtInGuids().has(facts.guid)) throw new BrowseError(builtInText(facts.name));
   const { staging, page, version } = await fetchChecked(record);
   try {
     await stopForChange(`add ${facts.name}`);
@@ -255,7 +279,7 @@ export async function removeAddon(name, { profile = FILES.profile } = {}) {
   const gone = named(list, name);
   await stopForChange(`remove ${gone.name}`);
   rmSync(folderOf(gone.guid), { recursive: true, force: true });
-  clearStorage(profile, gone.guid);
+  if (!builtInGuids().has(gone.guid)) clearStorage(profile, gone.guid); // the browser's own copy keeps that data
   save(list.filter(added => added.guid !== gone.guid));
   return gone.name;
 }
@@ -268,30 +292,35 @@ export const ADVICE = 'In your password manager, keep only the logins my errands
 /** What the agent tells the person once `added` is in. */
 export const tellOf = added => (isPasswordManager(added) ? ADVICE : `${added.name} loads from the browser's next start.`);
 
-/** A newer version, swapped in by the same checks; any failure keeps the working folder. Either way, the check date
- * moves on, so a dead network never slows each start. */
+/** The site's current tags, and a newer version swapped in by the same checks; any failure keeps the working folder.
+ * Either way, the check date moves on, so a dead network never slows each start. */
 async function update(saved, now) {
+  let fresh = saved;
   try {
     const record = await (await site(`/api/v5/addons/addon/${encodeURIComponent(saved.guid)}/?lang=en-US`)).json();
-    if (record.guid === saved.guid && record.current_version?.version !== saved.version) {
+    if (record.guid !== saved.guid) return { ...saved, checkedAt: now };
+    if (Array.isArray(record.tags)) fresh = { ...saved, tags: record.tags };
+    if (record.current_version?.version !== saved.version) {
       const { staging, page, version } = await fetchChecked(record);
       swapIn(staging, saved.guid);
-      return { ...saved, version, page, checkedAt: now };
+      fresh = { ...fresh, version, page };
     }
   } catch { /* the working folder stays */ }
-  return { ...saved, checkedAt: now };
+  return { ...fresh, checkedAt: now };
 }
 
-/** launch-config.py's words for this start: each add-on's folder, updated weekly and pinned to the toolbar. */
+/** launch-config.py's words for this start: each add-on's folder, updated weekly and pinned to the toolbar. One the
+ * browser has come to ship since its add is skipped, so it never loads beside the browser's own copy. */
 export async function startArgs({ profile = FILES.profile, now = Date.now() } = {}) {
+  const builtIn = builtInGuids();
   let list = addedList();
-  const due = added => !(now - (Number(added.checkedAt) || 0) < UPDATE_MS);
+  const due = added => !builtIn.has(added.guid) && !(now - (Number(added.checkedAt) || 0) < UPDATE_MS);
   if (list.some(due)) {
     const checked = [];
     for (const added of list) checked.push(due(added) ? await update(added, now) : added);
     save(list = checked);
   }
-  return list.filter(added => existsSync(join(folderOf(added.guid), 'manifest.json'))).flatMap(added => {
+  return list.filter(added => !builtIn.has(added.guid) && existsSync(join(folderOf(added.guid), 'manifest.json'))).flatMap(added => {
     pin(profile, added.guid);
     return ['--addon', folderOf(added.guid)];
   });

@@ -15,6 +15,6 @@ disable-model-invocation: true
 - `show` brings this task's tab to the front, with no turn, for a finished page only. On `BROWSE_SHOWN=link` or `none`, send a picture instead: [ask for the browser](../../../wiki/development/browser-window.md#ask-for-the-browser).
 - A box in a frame from another site sits at the end of `snapshot`, under the first-line note: use its ref, not a selector.
 - `save` and `close` keep the logins; `status`, `install`, and `stop` manage the browser.
-- Never ask about a [password manager](../../../wiki/development/password-manager.md). Asked to add any add-on: `addon find <name>`, name the match's maker, website, and daily users, with any `BROWSE_ADDON_WARN`, `addon add <slug>` on their yes, then tell them its `BROWSE_ADDON_TELL`. Run `addon open` only before a sign-in turn. Never click, read, type into, or unlock any add-on yourself.
+- Never ask about a [password manager](../../../wiki/development/password-manager.md). Asked to add any add-on: `addon find <name>`; for a `BROWSE_ADDON_BUILT_IN` match, say it is built into the browser and add nothing; else name the match's maker, website, and daily users, with any `BROWSE_ADDON_WARN`, `addon add <slug>` on their yes, then tell them its `BROWSE_ADDON_TELL`. Run `addon open` only before a sign-in turn. Never click, read, type into, or unlock any add-on yourself.
 
 Preview checks stay on [agent-browser](../agent-browser/SKILL.md).
