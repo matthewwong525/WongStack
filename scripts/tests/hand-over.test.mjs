@@ -666,7 +666,7 @@ test('the screen answers only the link\'s key, sent as the subprotocol, and carr
 function openAddonPage(f) {
   f.openPage();
   const install = f.camofox.install;
-  writeFileSync(join(install, 'password-manager.json'), JSON.stringify({ state: 'added', guid: 'pm@maker.example', name: 'PM', page: 'popup/index.html' }));
+  writeFileSync(join(install, 'addons.json'), JSON.stringify({ added: [{ guid: 'pm@maker.example', name: 'PM', page: 'popup/index.html', tags: ['password manager'] }] }));
   mkdirSync(join(install, 'profile'), { recursive: true });
   writeFileSync(join(install, 'profile', 'prefs.js'), `user_pref("extensions.webextensions.uuids", ${JSON.stringify(JSON.stringify({ 'pm@maker.example': 'pm-uuid' }))});\n`);
   const shown = spawnSync(process.execPath, [browse, 'addon', 'open', '--session', SESSION], { cwd: f.cwd, env: f.env, encoding: 'utf8', timeout: 30_000 });

@@ -95,12 +95,14 @@ test('the identity is made once per library and build, then each start reuses it
   }
 });
 
-test('--addon loads one add-on folder, lets it open its own tab, and keeps its data when it is taken out for an update', () => {
+test('--addon loads each add-on folder, lets it open its own tab, and keeps its data when it is taken out for an update', () => {
   const { status, out } = run({}, '--addon', '/data/addons/pm@maker.example');
   assert.equal(status, 0);
   assert.deepEqual(out.options.given.addons, ['/data/addons/pm@maker.example']);
   assert.equal(out.options.given.allow_addon_new_tab, true);
   assert.deepEqual(out.options.given.firefox_user_prefs, { 'extensions.webextensions.keepStorageOnUninstall': true, 'extensions.webextensions.keepUuidOnUninstall': true });
+  const both = run({}, '--addon', '/data/addons/pm@maker.example', '--addon', '/data/addons/blocker@maker.example');
+  assert.deepEqual(both.out.options.given.addons, ['/data/addons/pm@maker.example', '/data/addons/blocker@maker.example'], 'each --addon loads its folder');
   const without = run({}).out.options.given;
   for (const key of ['addons', 'allow_addon_new_tab', 'firefox_user_prefs']) assert.ok(!(key in without), `${key} is only for a start with an add-on`);
 });

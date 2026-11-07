@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Any add-on, side by side, and a live view that shows the whole window
+
+- **The assistant adds any add-on you ask for**, not only a password manager: an ad blocker, a translator, anything on Firefox's add-on site. It names the maker, website, and daily users, warns on a little-used one, checks the file, and waits for your yes ([ask the agent](wiki/development/password-manager.md#ask-the-agent)).
+- **Your add-ons stay side by side.** A second one no longer removes the first. Ask what's added, or remove one by name. Each still updates once a week.
+- **Its add replaces a copy you added yourself.** 1Password added from Firefox's add-on site never worked in the assistant's browser: no setup page, and a button that did nothing. When you ask for an add-on you already added, your copy and anything saved in it go, and the working copy loads.
+- **The vault advice comes only with a password manager.** "Keep a separate vault, lock after 5 minutes" is no longer said for an ad blocker.
+- **A live view shows the whole browser window on your password manager's own page too.** Before, the window could stay bigger than the screen, and the toolbar's right side and the page's bottom were cut off.
+
+**Updating.** Nothing to do. An add-on the assistant added before stays, and moves to the new list by itself.
+
 ## 50.6.1 — A live view keeps an add-on's pop-up open
 
 - **An add-on's pop-up stays open in a live view.** Before, it closed about a second after you tapped its toolbar button, because the view brought the page back to the front every 2 seconds. Now the view waits while a pop-up shows, such as your password manager's, until you pick from it or tap outside it. Then your page comes back to the front ([a pop-up stays open](wiki/development/live-view.md#what-the-link-can-do)).
@@ -26,7 +36,7 @@
 - **On a Mac, the browser window stays out of sight until your turn.** The assistant works in it hidden, so it never covers what you do. It comes to the front on your chat's tab when a step needs you, and hides again when your turn ends. Say *show me the browser* to see it at any time ([where it shows](wiki/development/browser-window.md#where-it-shows)).
 - **The proxy is a setting, off by default.** The browser goes straight to sites. Say *turn the browser proxy on* if a site does not load; it applies from the browser's next start ([the proxy setting](wiki/development/browsing.md#the-proxy-setting)).
 - **Both settings stay on each computer**, in `~/.wong-stack/browser-settings.json`, never in a repo, so no teammate gets yours ([settings stay on this computer](wiki/development/browser-window.md#settings-stay-on-this-computer)).
-- **No password manager question.** The assistant no longer asks which password manager you use. You add one yourself in the browser, from Firefox's add-on site, like any add-on; or ask the assistant to add one with its checks. The assistant still never opens, reads, or types into any add-on ([add it yourself](wiki/development/password-manager.md#add-it-yourself)).
+- **No password manager question.** The assistant no longer asks which password manager you use. You add one yourself in the browser, from Firefox's add-on site, like any add-on; or ask the assistant to add one with its checks. The assistant still never opens, reads, or types into any add-on ([ask the agent](wiki/development/password-manager.md#ask-the-agent)).
 
 **Updating.** Nothing to do for most computers. The proxy is now off from the browser's next start, on every computer. If a site that loaded before stops loading, such as UPS, say *turn the browser proxy on*, then ask the assistant to restart the browser. A browser that is running now keeps its proxy until it stops.
 
