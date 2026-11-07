@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The browser goes through your home proxy, with a backup
+## 50.12.0 — The browser goes through your home proxy, with a backup
 
 - **With the proxy on, the browser goes through your saved proxies first.** You can save two: a first proxy, such as one at your home, and a backup, such as a paid home address. Each page tries the first proxy, then the backup, then this computer's own network, so a page still loads when both are down. Sites see your home address, and the browser's language and clock follow it ([the order of routes](wiki/development/browser-proxy.md#the-order-of-routes)).
 - **A first proxy that is off does not slow you down.** When it fails and the backup works, the browser skips it for one minute, then tries it again. Pages on this computer always go straight.

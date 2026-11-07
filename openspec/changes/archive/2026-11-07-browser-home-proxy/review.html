@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · browser-home-proxy</title>
+<title>Review · 2026-11-07-browser-home-proxy</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="browser-home-proxy" data-own-back>
+<body data-change="2026-11-07-browser-home-proxy" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>browser-home-proxy</h1>
+  <h1>2026-11-07-browser-home-proxy</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -457,6 +457,7 @@
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: the existing forwarder test that mocks the listener now undoes each mock before the next, because stacked mocks restored in the wrong order and broke the new route tests after it; the test checks the same things.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: the live check ran the branch's forwarder with a temporary home holding copies of the two saved lines, not a whole second browser, because a second browser would download its own copy and the route is the forwarder's job; the home line showed Toronto and <code>upstream</code>, and a closed first port showed Burlington, Canada and <code>upstream (backup)</code>.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-07</p>Built: the browser reads the two saved proxy lines while the proxy is on, and the review found one fix: the new page linked tests that do not ship, so it now links them on GitHub. ClaymooApp updates from this release in the same ship, because the person asked to ship it there too; WongOS and Relay Everything already route this way.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-07</p>Archived for publishing. Main's newest release left the counted instructions one word over their limit, so the seed development hub now says <i>browser window</i> and <i>proxies</i> for two of its links.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

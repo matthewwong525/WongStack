@@ -20,4 +20,4 @@
 
 - [x] 4.1 Run `node --test scripts/tests/forwarder.test.mjs scripts/tests/proxy-lines.test.mjs scripts/tests/browser-server.test.mjs scripts/tests/browse.test.mjs` and `node .github/scripts/checks.mjs --worktree`; all pass.
 - [x] 4.2 Start a throwaway browser server from this branch with a temporary home holding copies of this computer's two lines (never the running browser): `status` shows `BROWSE_NETWORK=upstream`, a page reports a Canadian address, and with the first line pointed at a closed port it shows `upstream (backup)`.
-- [ ] 4.3 `/save`, then CI passes.
+- [x] 4.3 `/save`, then CI passes.
