@@ -1,6 +1,6 @@
 # The agent adds an add-on in one ask, and you only sign in
 
-**Status:** shipping
+**Status:** ready-to-ship
 **Branch:** browser-addon-skill-update
 **Open questions:** none
 
