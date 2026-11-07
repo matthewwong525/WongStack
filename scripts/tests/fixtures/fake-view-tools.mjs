@@ -26,6 +26,7 @@ if (has('x11vnc-listens')) net.createServer().listen(0, '127.0.0.1', serve);
 else serve();`,
   xdotool: `if (has('xdotool-fails')) process.exit(1);
 const tabs = has('tabs.json') ? JSON.parse(fs.readFileSync(file('tabs.json'), 'utf8')) : [];
+const sized = has('windows.json') ? JSON.parse(fs.readFileSync(file('windows.json'), 'utf8')) : {};
 const [command] = args;
 if (command === 'getdisplaygeometry') console.log(${JSON.stringify(SCREEN.join(' '))});
 else if (args.join(' ') === 'search --onlyvisible --classname ^Camoufox$') {
@@ -35,8 +36,14 @@ else if (args.join(' ') === 'search --onlyvisible --classname ^Camoufox$') {
   if (args[1] !== '--classname' || args[2] !== 'Navigator' || !tabs.length) process.exit(1);
   tabs.forEach((tab, index) => console.log(100 + index));
 } else if (command === 'getwindowgeometry') {
-  const [width, height] = tabs[Number(args.at(-1)) - 100].size;
-  console.log(['WINDOW=' + args.at(-1), 'X=0', 'Y=0', 'WIDTH=' + width, 'HEIGHT=' + (height + ${BAR}), 'SCREEN=0'].join('\\n'));
+  // A window is its page plus the bar, or the size windowsize gave it until the page's size changes.
+  const { size } = tabs[Number(args.at(-1)) - 100];
+  const given = sized[args.at(-1)];
+  const [width, height] = given && String(given.page) === String(size) ? given.window : [size[0], size[1] + ${BAR}];
+  console.log(['WINDOW=' + args.at(-1), 'X=0', 'Y=0', 'WIDTH=' + width, 'HEIGHT=' + height, 'SCREEN=0'].join('\\n'));
+} else if (command === 'windowsize' && args[4] === 'windowmove') {
+  const page = tabs[Number(args[1]) - 100].size;
+  fs.writeFileSync(file('windows.json'), JSON.stringify({ ...sized, [args[1]]: { window: [Number(args[2]), Number(args[3])], page } }));
 } else if (command !== 'windowraise') process.exit(1);`,
   'apt-get': `if (has('apt-fails')) process.exit(1);
 for (const made of has('apt-creates.json') ? JSON.parse(fs.readFileSync(file('apt-creates.json'), 'utf8')) : []) fs.writeFileSync(made, '#!/bin/sh\\n', { mode: 0o755 });`,

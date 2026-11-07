@@ -359,6 +359,7 @@ function fakePage(f, first = [2560, 1328]) {
 }
 
 const raised = f => f.tools.calls('xdotool').filter(args => args[0] === 'windowraise').map(args => args[1]);
+const sizedWindows = f => f.tools.calls('xdotool').filter(args => args[0] === 'windowsize').map(args => args[1]);
 
 test('the first fit reads the bar and fits wide; a phone gets a 480 strip of the same height; each raises the page\'s own window', async t => {
   const f = setup(t);
@@ -443,11 +444,29 @@ test('a first fit on the password manager\'s page reads no bar, and the first fi
   await live.fit();
   assert.deepEqual(page.now, [1280, 663], 'its page keeps the size it was given');
   assert.deepEqual(raised(f), ['100'], 'and its window, as tall as the screen, comes to the front');
+  assert.deepEqual(sizedWindows(f), ['101'], 'a window that already fits the screen is left alone; only the other, bigger one is sized');
   page.addon = false;
   assert.deepEqual(await live.fit(), { kind: 'wide', width: 1280, screen: SCREEN });
   assert.deepEqual(page.calls.slice(-2), [[1280, 720], [1280, 663]], 'back on the site, the bar is read, so the page fits under it');
   assert.deepEqual(page.now, [1280, 663]);
   assert.deepEqual(raised(f).at(-1), '100');
+});
+
+test('on the password manager\'s page, a window bigger than the screen is sized to it, then raised, so the toolbar shows', async t => {
+  const f = setup(t);
+  const page = fakePage(f, [1920, 979]);
+  page.addon = true;
+  const live = liveView({ size: null, display: ':97', ...standIn(t, f) }, page);
+  assert.deepEqual(await live.fit('phone'), { kind: 'phone', width: 480, screen: SCREEN });
+  assert.deepEqual(page.now, [1920, 979], 'the browser keeps that page\'s own size');
+  const calls = f.tools.calls('xdotool').map(args => args.join(' '));
+  assert.deepEqual(calls.filter(line => line.startsWith('windowsize')), ['windowsize 100 1280 720 windowmove 100 0 0', 'windowsize 101 1280 720 windowmove 101 0 0'],
+    'the whole screen, even for a phone: the page can not be narrowed there');
+  assert.ok(calls.findIndex(line => line.startsWith('windowraise')) > calls.findIndex(line => line.startsWith('windowsize')), 'sized first, then raised');
+  assert.deepEqual(raised(f), ['100']);
+  await live.fit();
+  assert.equal(sizedWindows(f).length, 2, 'the keep-alive leaves a window that now fits alone');
+  assert.deepEqual(raised(f), ['100', '100']);
 });
 
 test('fits take turns, and a failed one does not stop the next', async t => {

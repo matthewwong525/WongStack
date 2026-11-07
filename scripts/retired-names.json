@@ -171,5 +171,6 @@
   {"name": "addon asked", "replacement": "nothing: the person adds a password manager themselves, and the assistant asks nothing"},
   {"name": "addon decline", "replacement": "nothing: the person adds a password manager themselves, and the assistant asks nothing"},
   {"name": "macApp", "replacement": "nothing: the browser window stays shown on a Mac"},
-  {"name": "hideIdle", "replacement": "nothing: the browser window stays shown on a Mac"}
+  {"name": "hideIdle", "replacement": "nothing: the browser window stays shown on a Mac"},
+  {"name": "password-manager.json", "replacement": "`~/.wong-stack/camoufox/addons.json`, the list of added add-ons", "allow": [".agents/skills/browser/scripts/addons.mjs", "scripts/tests/addons.test.mjs"], "why": "addons.mjs moves an older version's file to the list once, and its test writes one"}
 ]

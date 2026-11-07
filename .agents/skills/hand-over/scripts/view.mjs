@@ -231,6 +231,16 @@ function pageWindows(display) {
   }
 }
 
+/** Sizes each page window bigger than the screen to the screen, at its corner: on an add-on's page the browser keeps
+ * the page's size, and a window from a bigger start would hang off the screen, toolbar included. */
+function fitWindows(display, screen) {
+  for (const win of pageWindows(display).filter(each => each.width > screen.width || each.height > screen.height)) {
+    try {
+      xdotool(display, 'windowsize', win.id, String(screen.width), String(screen.height), 'windowmove', win.id, '0', '0');
+    } catch { /* the next fit tries again */ }
+  }
+}
+
 /** True while a browser pop-up shows on `display`, such as an add-on's toolbar pop-up or a menu: Firefox draws each as
  * a window of its own, X instance name `Camoufox`, where a page's window is `Navigator`. */
 export function popupOpen(display) {
@@ -268,10 +278,10 @@ export function liveView(view, page) {
   const fitted = () => ({ width: kind === 'phone' ? Math.min(PHONE_WIDTH, screen.width) : screen.width, height: screen.height - (bar ?? 0) });
   const describe = () => screen && { kind, width: fitted().width, screen: [screen.width, screen.height] };
   /** The bar above the page: how much taller its window is than the page, read with the page as tall as the screen.
-   * None on the password manager's page, which keeps its size, so the next fit on a site reads it. */
+   * None on the password manager's page, which keeps its size; a window only the screen's size was sized there. */
   const measureBar = async () => {
     if ((await page.resize(screen.width, screen.height))?.addonPage) return null;
-    const over = pageWindows(view.display).filter(win => win.width === screen.width && win.height >= screen.height).map(win => win.height - screen.height);
+    const over = pageWindows(view.display).filter(win => win.width === screen.width && win.height > screen.height).map(win => win.height - screen.height);
     return over.length ? Math.min(...over) : null;
   };
   /** Raises and focuses a window as tall as the screen and at least as wide as the fit (the browser's stops near 500).
@@ -296,7 +306,7 @@ export function liveView(view, page) {
       kind = next;
       screen ??= screenSize(view.display);
       bar ??= await measureBar();
-      await page.resize(fitted().width, fitted().height);
+      if ((await page.resize(fitted().width, fitted().height))?.addonPage) fitWindows(view.display, screen);
       front();
       return describe();
     }),
