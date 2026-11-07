@@ -392,3 +392,21 @@ it("takes a computer's word that a run could not start", async () => {
     expect((await call(sam, "POST", "run-result", { id, state: "blocked", reason })).json.run).toMatchObject({ state: "blocked", result: reason });
   }
 });
+
+it("leaves runs that found nothing to do out of the runs and the last run, and counts those since the oldest shown", async () => {
+  await putSchedule(sam);
+  const report = async (state: string, reason?: string) => {
+    later(1000);
+    const id = (await call(sam, "POST", "run-now", { key: "sales-digest" })).json.run.id;
+    await claim();
+    return (await call(sam, "POST", "run-result", { id, state, ...(reason && { reason }) })).json.run;
+  };
+  const detail = async () => (await call(sam, "GET", "schedule", { key: "sales-digest" })).json;
+  await report("blocked", "no_work");
+  const started = await report("started");
+  await report("blocked", "no_work");
+  expect(await detail()).toMatchObject({ runs: [started], quiet: 2, schedule: { lastRun: { id: started.id } } });
+
+  for (let count = 0; count < 9; count += 1) await report("started");
+  expect(await detail()).toMatchObject({ quiet: 1 });
+});

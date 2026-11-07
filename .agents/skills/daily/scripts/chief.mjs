@@ -32,14 +32,16 @@ export function writeJson(file, value) {
   renameSync(`${file}.tmp`, file);
 }
 
-const watchFile = (stateDir, day) => join(stateDir, `${day}.watch.json`);
+export const watchFile = (stateDir, day) => join(stateDir, `${day}.watch.json`);
+/** The line-up's map of the watched chats and its pending notes: line-up.mjs owns it. */
+export const lineUpFile = stateDir => join(stateDir, 'line-up.json');
 const handsFile = (stateDir, day) => join(stateDir, `${day}.hands.json`);
 const actionsFile = (stateDir, day) => join(stateDir, `${day}.actions.jsonl`);
 const oneLine = value => String(value).split('\n')[0].slice(0, 200);
 const lowered = value => String(value ?? '').toLowerCase();
-const live = agent => agent && agent.status !== 'closed' && !agent.archivedAt;
+export const live = agent => agent && agent.status !== 'closed' && !agent.archivedAt;
 const folder = (cwd, home = homedir()) => String(cwd ?? '').replace(/^~(?=\/|$)/, home).replace(/\/+$/, '');
-const working = status => status === 'running' || status === 'initializing';
+export const working = status => status === 'running' || status === 'initializing';
 
 /** The rows `start` and `start-task` recorded on `day`: routine keys, and `task:<id>` keys with their task id. */
 function startedOn(record, timezone, day) {
@@ -193,7 +195,7 @@ export function findAgents(list, name) {
   return [];
 }
 
-function watchedRow(rows, name) {
+export function watchedRow(rows, name) {
   const want = lowered(name);
   return rows.find(row => row.agentId === name) ?? rows.find(row => name.length >= 4 && row.agentId.startsWith(name))
     ?? rows.find(row => lowered(row.title) === want || lowered(row.workspace) === want || (row.cwd && lowered(basename(folder(row.cwd))) === want))
@@ -205,7 +207,9 @@ export const messageMark = text => (text === null || text === undefined ? null :
 /** The mark of a message as the log shows it to the watch: its first line, at most 200 characters. */
 export const userMarkOf = text => messageMark(String(text).trim().split('\n')[0].slice(0, PREVIEW));
 
-const USER = '[User] ';
+export const USER = '[User] ';
+/** An agent's words in log lines: what the watch marks as its turn. */
+export const saidOf = lines => lines.filter(each => !/^\[[A-Za-z]+\] /.test(each)).join('\n').trim();
 
 /** The agent's last turn, `{said, mark, userMark}`: its text after the last `[User]` entry; null when unread. */
 export async function readTurn(call, agentId) {
@@ -218,7 +222,7 @@ export async function readTurn(call, agentId) {
   if (typeof text !== 'string') return null;
   const lines = text.split('\n');
   const at = lines.findLastIndex(each => each.startsWith(USER));
-  const said = lines.slice(at + 1).filter(each => !/^\[[A-Za-z]+\] /.test(each)).join('\n').trim();
+  const said = saidOf(lines.slice(at + 1));
   return { said, mark: messageMark(said), userMark: at < 0 ? undefined : userMarkOf(lines[at].slice(USER.length)) };
 }
 
@@ -520,27 +524,28 @@ async function handFor({ stateDir, day, started, timezone, agent: name, text, bu
   return { row, agent: list.find(entry => entry.id === row.agentId), log };
 }
 
-/** Sends `text` through a private temporary file, as `paseo send --prompt-file` takes it. */
-export async function sendText(call, agentId, text) {
+/** Sends `text` through a private file, as `paseo send --prompt-file` takes it; `steer` puts it into a running turn. */
+export async function sendText(call, agentId, text, behavior = null) {
   const directory = mkdtempSync(join(tmpdir(), 'daily-chief-'));
   try {
     const file = join(directory, 'message.txt');
     writeFileSync(file, `${text.trim()}\n`, { mode: 0o600 });
-    await call(['send', agentId, '--prompt-file', file, '--no-wait']);
+    await call(['send', agentId, '--prompt-file', file, ...(behavior ? ['--behavior', behavior] : []), '--no-wait']);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 }
 
-/** Sends a watched, stopped agent one message. With `mark`, it refuses a stop that moved on since that line. */
-export async function reply({ text, mark: stopMark, ...args }) {
+/** Sends a watched, stopped agent one message, or with `steer` a working one too. With `mark`, it refuses a stop
+ * that moved on since that line. */
+export async function reply({ text, mark: stopMark, behavior = null, ...args }) {
   const { refused, row, agent, log } = await handFor({ ...args, text });
   if (refused) return refused;
   if (!live(agent)) return { status: 'refused', reason: 'gone', ...describe(row), error: `${row.title} is gone.` };
-  if (working(agent.status)) return { status: 'refused', reason: 'running', ...describe(row), error: `${row.title} is working; wait for it to stop.` };
+  if (working(agent.status) && behavior !== 'steer') return { status: 'refused', reason: 'running', ...describe(row), error: `${row.title} is working; wait for it to stop.` };
   if (stopMark && (await readTurn(args.call, row.agentId))?.mark !== stopMark) {
     return { status: 'refused', reason: 'moved', ...describe(row), error: `${row.title} moved on since that stop: nothing sent.` };
   }
-  await sendText(args.call, row.agentId, text);
-  return { status: 'sent', ...log({ kind: 'reply' }, text) };
+  await sendText(args.call, row.agentId, text, behavior);
+  return { status: 'sent', ...log({ kind: working(agent.status) ? 'steer' : 'reply' }, text) };
 }
 
 async function pendingAsk(call, agentId, request) {
@@ -605,7 +610,7 @@ export async function allow({ request, ...args }) {
 }
 
 /** Each watched agent with its status, open cards and last action, and `finished` on one with no card that
- * `finishedOf` passes; the last 5 actions. */
+ * `finishedOf` passes, `covered` on one the line-up told another chat covers; the last 5 actions. */
 export async function status({ stateDir, day, started, timezone, call, env = process.env, project = process.cwd(),
   finishedOf = agent => finished({ agent, project, inspect: id => call(['inspect', id]) }) }) {
   if (!env.PASEO_AGENT_ID) return unsupported;
@@ -613,12 +618,15 @@ export async function status({ stateDir, day, started, timezone, call, env = pro
   try { read = await readPaseo(call); } catch (error) { return notPaseo(error) ? unsupported : { state: 'not-read', error: oneLine(error.message) }; }
   const log = actions({ stateDir, day });
   const rows = watched({ stateDir, day, started, timezone, list: read.list, self: env.PASEO_AGENT_ID });
+  const map = readJson(lineUpFile(stateDir), {})?.chats ?? {};
+  const titleOf = id => map[id]?.title ?? rows.find(row => row.agentId === id)?.title ?? id;
   const agents = [];
   for (const row of rows) {
     const agent = read.list.find(entry => entry.id === row.agentId && live(entry));
     const asking = read.pending.filter(ask => ask.agentId === row.agentId).length;
+    const covered = !asking && agent && !working(agent.status) && map[row.agentId]?.covered;
     agents.push({ ...describe(row), status: agent?.status ?? 'gone', asking, last: log.filter(entry => entry.agent === row.agentId).at(-1) ?? null,
-      ...(!asking && agent && await finishedOf(agent) && { finished: true }) });
+      ...(!asking && agent && await finishedOf(agent) && { finished: true }), ...(covered && { covered: titleOf(covered) }) });
   }
   return { state: 'read', day, agents, recent: log.filter(entry => entry.label).slice(-5).map(entry => entry.label) };
 }

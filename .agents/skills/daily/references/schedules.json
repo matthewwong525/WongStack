@@ -1,0 +1,9 @@
+{
+  "$comment": "WongStack's default schedules: schedule.mjs defaults adds each one the person lacks to the company app, approved on this computer. An install's sweeps file replaces one by its id, or adds it paused with off: wiki/stack/host-schedules.md#default-schedules.",
+  "schedules": [
+    { "id": "line-up", "title": "Keep my chats in line", "every": "5m", "check": ".agents/skills/daily/scripts/line-up-check.mjs",
+      "brief": "line-up.md", "minutes": 15 },
+    { "id": "wiki-tidy", "title": "Wiki tidy", "every": "30m", "check": ".agents/skills/daily/scripts/wiki-tidy-check.mjs",
+      "brief": "wiki-tidy.md", "place": "copy", "minutes": 90 }
+  ]
+}

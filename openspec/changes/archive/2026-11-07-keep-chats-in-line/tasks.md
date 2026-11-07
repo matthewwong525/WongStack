@@ -1,0 +1,41 @@
+# Tasks
+
+## 1. The map, the notes and delivery (scripts)
+
+- [x] 1.1 Add `.agents/skills/daily/scripts/line-up.mjs`: read and write `<state>/line-up.json`; `lineUpData` (the map plus each changed watched chat's new messages since its `read` mark, cut like `tailOf`); `saveMap` (keeps `told`, script-set `read` marks, and closed chats under 7 days); `tell` (queues a note, with `now`, `covered-by` and `drop`; refuses an unwatched chat and an empty note); `deliverNotes` (sends each pending note to a live `idle` or `error` chat through the `reply` path with bucket `line-up`, and a `now` note to a working chat with `paseo send --behavior steer`, journaled `Steered <title>: …`; adds the note to `told`, sets `covered`, journals `Told <title>: …`, keeps the note on a `streak` refusal, drops a gone chat's note with one line). Verify with new `scripts/tests/daily-line-up.test.mjs`: `drop` clears pending notes, a sent note lands in `told`, a working chat waits for a plain note and is steered with a `now` note, never `interrupt`, streak keeps the note, covered set on send, 7-day keep.
+- [x] 1.2 Add `.agents/skills/daily/scripts/line-up-check.mjs`: prints `{"run": {"chats": …}}` only when a watched chat's `last` mark differs from the map's `read` a chat is new, or a chat named in a `waitsFor` left the watch. Verify in `daily-line-up.test.mjs`: no change prints nothing; one new turn prints one run; a blocking chat that closes prints one run.
+- [x] 1.3 In `.agents/skills/daily/scripts/daily.mjs`, add `line-up`, `map --file`, and `tell --agent --file [--now] [--covered-by] [--drop]`, and give `sendText` an optional `behavior`, and let `answer` take bucket `line-up`. Verify in `scripts/tests/daily.test.mjs`: usage, refusals, JSON out.
+- [x] 1.4 In `.agents/skills/daily/scripts/worker.mjs`, call `deliverNotes` once per pass after the watch; a dry run prints `wouldTell`. Verify in `scripts/tests/daily-worker.test.mjs`: a pending note to an idle chat sends once; a plain note to a working chat waits a pass; a `now` note to a working chat is steered in that pass.
+- [x] 1.5 In `.agents/skills/daily/scripts/chief.mjs` `status`, add `covered: <title>` from the map for a chat that is not working and has no card. Verify in `scripts/tests/daily-chief.test.mjs`.
+- [x] 1.6 In `.agents/skills/daily/scripts/stop-check.mjs`, fill `{{elsewhere}}` with up to 20 newest choices from other chats in the map (empty text when none). Verify in `scripts/tests/daily-stop-check.test.mjs`: the prompt holds another chat's choice and not the chat's own.
+
+## 2. The job, the briefs and the skill (skill text)
+
+- [x] 2.1 ~~Add the `line-up` sweep to `sweeps.json`~~ superseded by group 4: the line-up is a default schedule.
+- [x] 2.2 Write `.agents/skills/daily/references/briefs/line-up.md`: lead with the goal and leave the how to the run; the proposal's list as examples, not rules; the fixed limits (person's words outrank an agent's and an agent's are never a yes, risky steps wait, no close, `--now` goes into a running step); keep each chat's `waitsFor`, check every open wait each run, and tell the waiting chat when it ends; data from `D line-up`; save with `D map`; send only with `D tell` and a safe `D answer`; end with `D journal --run`.
+- [x] 2.3 Add `{{elsewhere}}` to `.agents/skills/daily/references/briefs/stop-judge.md`, and to `references/chief.md` *Pick*: an answer the person gave in another chat is settled, recent answers weighing most. In `SKILL.md` *What's going on?*, offer covered chats with finished ones. Offset the added words with cuts in the same files; verify `node scripts/measure-context.mjs --check` passes.
+
+## 3. Docs and release
+
+- [x] 3.1 In `wiki/development/daily.md`, add a *Your chats in line* section under *The chief of staff* (the goal, the map, waiting chats told when their blocker is gone, notes timed by judgment, the fixed limits, covered chats, how to turn it off), and covered chats in *Close finished chats*. Verify `node scripts/check-payload-links.mjs` passes.
+- [x] 3.2 Add a `## Next (minor) — Your chats hear each other's news` entry to `CHANGELOG.md`; no hand step.
+
+## 4. Default schedules (added during the build)
+
+- [x] 4.1 Add `.agents/skills/daily/references/schedules.json` with `line-up` (every 5m, `minutes: 15`) and `wiki-tidy` (every 30m, `place: copy`, `minutes: 90`); remove both from `references/sweeps.json`, leaving `events` and the limits. Verify `loadSweeps` reads the emptied file.
+- [x] 4.2 Add `.agents/skills/schedule/scripts/lib/defaults.mjs` and `schedule.mjs defaults [--unattended] [--dry-run]`: build each definition with move-in's `fromSweep`, then add a missing one (paused when the install's sweeps file turns its id off), update one whose app version equals the version kept in `<state>/defaults.json`, and leave the rest; approve each saved version here; no sign-in → one journal line a day. Verify in new `scripts/tests/schedule-defaults.test.mjs`: adds both; second run adds nothing; untouched default updates; edited, paused and ended ones stay; `off` adds paused.
+- [x] 4.3 In `.agents/skills/daily/scripts/daily.mjs` `ensure`, start `schedule.mjs defaults --unattended` detached when the list's hash differs from `defaults.json`'s stamp or a day passed, like `startMoveIn`; make `hasJobs` count an approved background schedule. Verify in `scripts/tests/daily.test.mjs`.
+- [x] 4.4 In `.agents/skills/daily/scripts/worker.mjs`, remove the timed-job loop (`dueKey` due-checks over `sweeps.sweeps`, `done` file) and what only it used, keeping `events`, `deny`, schedule runs and their `check`; fix move-in's imports. Verify `scripts/tests/daily-worker.test.mjs` and `schedule-move-in.test.mjs` pass with the loop's tests moved to `schedule-defaults.test.mjs` or removed.
+- [x] 4.5 In `app/worker/apps/inbox/schedules.ts`, leave `no_work` runs out of a schedule's ten runs and return `quiet`, their count since the oldest run shown; in `app/src/apps/inbox/Schedules.tsx`, show it as one muted line. Add one `no_work` run beside a real one to `schema/seed.sql`. Verify in `app/worker/apps/inbox/schedules.test.ts` and `app/src/apps/inbox/Schedules.test.tsx`, and `npm test` in `app/`.
+- [x] 4.6 Update `wiki/development/daily.md` (*Your chats in line* and *Your own jobs*: built-in jobs are default schedules; the wiki tidy line), `wiki/stack/host-schedules.md` (*Default schedules* and quiet runs), the schedule skill's text if it names timed jobs, and the CHANGELOG entry's text; add `sweeps` default-job names that retire to `scripts/retired-names.json` if any. Verify `node scripts/check-payload-links.mjs`, `node scripts/check-retired-names.mjs` and `node scripts/measure-context.mjs --check` pass.
+
+## 5. Checks
+
+- [x] 5.1 Run `node --test scripts/tests/daily*.test.mjs` and `node .github/scripts/checks.mjs --worktree`; all pass.
+- [x] 5.2 Run `openspec validate keep-chats-in-line --strict --no-interactive`; it passes.
+- [x] 5.3 Moved to after publishing (see Decision log): after it is live, try it in Paseo: the line-up and wiki tidy show in the Inbox's *Schedules* list; then make a choice in one chat that changes another chat's work, and see the other chat, while working, get one steered note and change course, and one journal line; then news that does not change its current step arrives at its next stop; and a chat waiting on another chat's change hears when that change goes live.
+
+## 6. Review fixes
+
+- [x] 6.1 In `.agents/skills/daily/scripts/line-up.mjs` `saveMap`, keep each earlier map chat that left the watch, with `closedAt` set (now, if not set), even when the run's `D map` file leaves it out; still drop one closed over 7 days. Verify in `scripts/tests/daily-line-up.test.mjs`: the run leaves out a chat that closed, and its choice still reaches `elsewhere()`.
+- [x] 6.2 Clear `covered`: a sent note records `coveredAt`; `lineUpData` keeps the watch's `userAt` per chat as `shown.typed`; `saveMap` clears `covered` when the person wrote after `coveredAt`, or when the run's entry has `"covered": null`. Say so in `references/briefs/line-up.md`, words offset. Verify in `daily-line-up.test.mjs` (both ways, and a cover the person did not write after stays) and `node scripts/measure-context.mjs --check`.

@@ -57,6 +57,17 @@ Each chat checks its own stops, in Claude Code or Codex, in Paseo or not. When a
 
 **Done means checked.** It marks a chat's task done only after it opened the link, saw the checks pass, or found the file.
 
+### Your chats in line
+
+When you work in several chats at once, the daily keeps them pointed the same way. **The goal:** no two chats do the same work or work against each other, each chat gets as far as what all your chats know allows, and your recent choices weigh most. How to reach it is the daily's judgment, not a fixed rule.
+
+- **A short map.** A few minutes after a watched chat has something new, one background run reads it and notes, for each chat: what it works on, how far it is, what you decided there and when, and what it waits for. A closed chat stays on the map for 7 days. The map stays on this computer, outside the project.
+- **Notes.** The run tells each chat the news that changes its work, and names the chat and time it came from. A note starts *From the daily:*. It goes straight into a working chat's running step when waiting would waste work, else at the chat's next stop. Nothing stops a step in the middle.
+- **Waits.** When the work, the change or the answer a chat waits for lands, the run tells that chat, so it goes on without you.
+- **Covered.** A chat told that another chat covers its work passes on what only it has, then waits; *what's going on?* offers to [close it](#close-finished-chats).
+
+The [check-ins'](#check-ins) limits hold: risky steps wait for you, no chat closes without your pick, an agent's words are never your yes, and notes count toward the five in a row. Each note writes one journal line. *Stop check-ins* stops it too. It is the *Keep my chats in line* [default schedule](../stack/host-schedules.md#default-schedules): pause it in the Inbox's *Schedules* list to turn off only this.
+
 ### Ask in any chat
 
 You keep no chat open for the daily: say these in any chat, and it does them through the daily skill.
@@ -79,7 +90,7 @@ Ask *what's going on?* in any chat, and it marks each chat it watches that is fi
 - The chat's work is merged at its last commit, and its folder has no new work.
 - The chat is stopped and has no open question.
 
-It asks which ones to close. Each chat you pick gets [`/close`](../../.agents/skills/close/SKILL.md): it saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat you do not pick stays open. Nothing closes a chat by itself because its work went live: a live chat that is still open is usually one you kept open. It never marks a sub-agent or the main checkout. This needs Paseo, which lets a chat see other chats. [The tidy-up](../../.agents/skills/schedule/scripts/tidy.mjs) still closes a saved chat idle for 3 days.
+It also marks a stopped chat as covered when [the line-up](#your-chats-in-line) told it another chat covers its work. It asks which ones to close. Each chat you pick gets [`/close`](../../.agents/skills/close/SKILL.md): it saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat you do not pick stays open. Nothing closes a chat by itself because its work went live: a live chat that is still open is usually one you kept open. It never marks a sub-agent or the main checkout. This needs Paseo, which lets a chat see other chats. [The tidy-up](../../.agents/skills/schedule/scripts/tidy.mjs) still closes a saved chat idle for 3 days.
 
 ## Add-ons
 
@@ -93,14 +104,14 @@ An add-on that fails, prints anything else, or runs past 60 seconds gives one `N
 
 ## The daily on a computer
 
-`daily.mjs serve` is the worker. It starts [your morning](#what-it-does). Every minute, and sooner when a chat stops, it runs the watch over your Paseo chats in this repo: their board to-dos, your [add-ons](#add-ons) and [your own jobs](#your-own-jobs). Without Paseo it still runs the wiki tidy and your background schedules. At most 3 runs work at one time, and one per chat. A run stops after 30 minutes. It sends no chat a message: everything goes to [the journal](#the-journal). A problem that fails two times in a row opens one *Needs you* chat for each kind a day, by [the journal](#the-journal).
+`daily.mjs serve` is the worker. It starts [your morning](#what-it-does). Every minute, and sooner when a chat stops, it runs the watch over your Paseo chats in this repo: their board to-dos, your [add-ons](#add-ons) and [your own jobs](#your-own-jobs). Without Paseo it still runs your background schedules. At most 3 runs work at one time, and one per chat. A run stops after 30 minutes. It sends no chat a message: everything goes to [the journal](#the-journal). A problem that fails two times in a row opens one *Needs you* chat for each kind a day, by [the journal](#the-journal).
 
-Each chat start runs `D ensure`. It starts the worker in the background when it has a job: a [default job](#your-own-jobs) you did not turn off, a background schedule run, `tasks` on, an add-on, or your own jobs. It starts none when check-ins are off, when one already runs, or in a background run. One worker runs per person and checkout: a second `serve` sees the first one's lock and exits. The worker runs the main checkout's code and reads its settings there, from any chat in any copy of the repo. When that code changes, as after an update, the worker is stopped and started again, with one line in [the journal](#the-journal). A copy with its own edits to the daily scripts does not restart it.
+Each chat start runs `D ensure`. It adds the [default schedules](../stack/host-schedules.md#default-schedules) you lack, once a day and after an update that changes them. It starts the worker in the background when it has a job: a default schedule it added, a background schedule run, `tasks` on, an add-on, or your own jobs. It starts none when check-ins are off, when one already runs, or in a background run. One worker runs per person and checkout: a second `serve` sees the first one's lock and exits. The worker runs the main checkout's code and reads its settings there, from any chat in any copy of the repo. When that code changes, as after an update, the worker is stopped and started again, with one line in [the journal](#the-journal). A copy with its own edits to the daily scripts does not restart it.
 
 - **`runs`** (optional, in [your settings file](#your-settings-file)): `{"agent": "codex"}` uses Codex; the default is Claude Code, the tested path.
 - **`sweeps`** (optional): a JSON file in the repo with [your own jobs](#your-own-jobs).
 
-It has one timed job of its own: [the small wiki tidy](wiki-dream.md#the-small-wiki-tidy) after each memory consolidation.
+Its own timed work is two default schedules: [the line-up](#your-chats-in-line) and [the small wiki tidy](wiki-dream.md#the-small-wiki-tidy).
 
 A [background schedule](../stack/host-schedules.md) runs here too. When one is due, the helper hands it to the worker. The worker runs it only when this computer approved that exact version, then runs its `check`, if any, and starts the run with the schedule's instructions as its brief. It tells the app *started*, or why not, such as *Nothing to do*. Another person's run stays for their own worker.
 
@@ -120,16 +131,16 @@ RestartSec=30
 
 ### The journal
 
-The worker and the check-ins write one line for each thing they did: a check-in, a run's start and its end line, a closed chat, a source it could not read. A failure that goes on gets one line for each run of failures, not one each minute.
+The worker and the check-ins write one line for each thing they did: a check-in, a run's start and its end line, a closed chat, a source it could not read, a note between chats. A failure that goes on gets one line for each run of failures, not one each minute.
 
-When the same thing fails two times in a row, the worker opens one chat named `Needs you: <what broke>`, such as *Needs you: the week board*. The kinds are your board, your morning start, each of your jobs, and Paseo. Its first message says what failed, why, and the steps to fix it, or your [`guide`](#your-settings-file)'s own fix. The chat does the steps an agent can do and asks you only for a step that needs you, such as a sign-in. At most one such chat opens for each kind each day, and a success starts the count again. The watch and the check-ins leave it alone, so it waits for you. When Paseo can not open it, the journal says so, with Paseo's reason. Add-on and to-do failures stay journal lines. Ask *what's going on?* in any chat: it reads the lines since that chat last asked, newest first, and tells you what matters. `D journal` prints every line. Lines stay 14 days, run logs 7, in the private state folder.
+When the same thing fails two times in a row, the worker opens one chat named `Needs you: <what broke>`, such as *Needs you: the week board*. The kinds are your board, your morning start, and Paseo. Its first message says what failed, why, and the steps to fix it, or your [`guide`](#your-settings-file)'s own fix. The chat does the steps an agent can do and asks you only for a step that needs you, such as a sign-in. At most one such chat opens for each kind each day, and a success starts the count again. The watch and the check-ins leave it alone, so it waits for you. When Paseo can not open it, the journal says so, with Paseo's reason. Add-on and to-do failures stay journal lines. Ask *what's going on?* in any chat: it reads the lines since that chat last asked, newest first, and tells you what matters. `D journal` prints every line. Lines stay 14 days, run logs 7, in the private state folder.
 
 ### Your own jobs
 
 Your `sweeps` file adds to [the default list](../../.agents/skills/daily/references/sweeps.json):
 
 - **`events`**: an event kind, such as one your [add-on](#add-ons) prints, and the brief that judges it. A `stopped` or `asking` job you added stays, beside the check-ins: `{"invoice": {"brief": "invoice.md", "title": "Invoice {{invoice}}", "lane": "invoices", "ownPlace": true}}`. A `lane` runs one job at a time; `ownPlace` runs outside the 3-run limit. An entry with the name of a default one replaces it.
-- **`sweeps`**: only a default job, by its `id`. Turn one off with `{"sweeps": [{"id": "wiki-tidy", "off": true}]}`; any other entry with that `id` replaces it. A job's optional `check` is an [add-on](#add-ons) script; it prints `{"run": {…}}` when there is work, and those fields fill the brief. `"minutes": 90` lets a run work 90 minutes, not 30. `"place": "copy"` runs it in its own copy of `origin/main`, removed when the run ends. Your own timed job is a [background schedule](../stack/host-schedules.md), with the same `check`, `minutes` and `place`.
+- **`sweeps`**: only a [default schedule](../stack/host-schedules.md#default-schedules), by its `id`. `{"sweeps": [{"id": "wiki-tidy", "off": true}]}` adds it paused; any other entry with that `id` replaces its definition. A job's optional `check` is an [add-on](#add-ons) script; it prints `{"run": {…}}` when there is work, and those fields fill the brief. `"minutes": 90` lets a run work 90 minutes, not 30. `"place": "copy"` runs it in its own copy of `origin/main`, removed when the run ends. Your own timed job is a [background schedule](../stack/host-schedules.md), with the same `check`, `minutes` and `place`.
 - **`deny`**: tool patterns that no background job may use, such as a command that sends an email a person must approve first: `{"deny": ["Bash(*email*send*)", "Bash(*send-approved*)"], "sweeps": []}`. Each background run gets the list, and Claude Code refuses those tools in that run. A schedule that opens a chat does not get it. Keep each pattern narrow: a pattern that matches too much also blocks the job's own work, and the run's log shows the refusal. It works with Claude Code only: with Codex and a `deny` list, the worker starts no background run and writes `Not started: … the deny list works only with Claude Code` in [the journal](#the-journal).
 
 A brief is a Markdown file in `.agents/daily/briefs/`, else [the skill's](../../.agents/skills/daily/references/briefs/header.md); `{{name}}` takes a field. Each run reads the header brief first: no person is there, agent text is data, and it never sends or pays unless its brief allows that one step.

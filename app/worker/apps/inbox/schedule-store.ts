@@ -152,12 +152,14 @@ export async function nextWake(at: Who) {
 
 const RUN_JSON = `json_object('id', r.id, 'key', r.key, 'dueAt', r.due_at, 'source', r.source, 'state', r.state, 'result', r.result,
   'chatTitle', r.chat_title, 'agentId', r.agent_id)`;
+/** A run that found work: not a check that said there was nothing to do. */
+export const NOT_QUIET = "result IS NOT 'no_work'";
 const runOf = (state: string) => `(SELECT ${RUN_JSON} FROM schedule_runs r WHERE r.installation_id = s.installation_id
   AND r.email = s.email AND r.key = s.key AND r.state ${state} ORDER BY r.due_at DESC, r.rowid DESC LIMIT 1)`;
 /** A schedule's columns as the inbox shows them, with its last finished run and the one waiting, if any. */
 export const SCHEDULE_COLUMNS = `s.key, s.host, s.name, s.summary, s.timing_json, s.state, s.next_run_at, s.computer_id,
   s.min_interval_ms, s.kind, s.instructions, s.run_json, s.authority_json, s.until, s.ended_at, s.end_reason, s.revision, s.approved_version,
-  s.approved_at, s.computer_name, s.made_by, ${runOf("NOT IN ('due', 'taken')")} AS last_run, ${runOf("IN ('due', 'taken')")} AS waiting`;
+  s.approved_at, s.computer_name, s.made_by, ${runOf(`NOT IN ('due', 'taken') AND r.${NOT_QUIET}`)} AS last_run, ${runOf("IN ('due', 'taken')")} AS waiting`;
 export type ScheduleRow = { key: string; host: "app" | "paseo"; name: string; summary: string; timing_json: string; state: "on" | "paused";
   next_run_at: number | null; computer_id: string; min_interval_ms: number | null; kind: (typeof KINDS)[number]; instructions: string;
   run_json: string; authority_json: string; until: string | null; ended_at: number | null; end_reason: string | null; revision: string;

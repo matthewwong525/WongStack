@@ -84,11 +84,12 @@ function ScheduleCard({ schedule, now, onChanged, onOpen }: { schedule: Schedule
   </Card>
 }
 
-/** A schedule's instructions, as plain text the view never changes, and its ten newest runs. */
+/** A schedule's instructions, as plain text the view never changes, its ten newest runs, and the quiet ones counted. */
 function Detail({ schedule, now, onClose }: { schedule: Schedule; now: number; onClose: () => void }) {
-  const [runs, setRuns] = useState<Run[] | null>(null)
+  const [found, setFound] = useState<{ runs: Run[]; quiet: number } | null>(null)
   const [failed, setFailed] = useState(false)
-  useEffect(() => { void readSchedule(schedule.key).then(answer => setRuns(answer.runs), () => setFailed(true)) }, [schedule.key])
+  useEffect(() => { void readSchedule(schedule.key).then(setFound, () => setFailed(true)) }, [schedule.key])
+  const runs = found?.runs
   const { timezone } = schedule.timing
   return <Sheet open onOpenChange={onClose}>
     <SheetContent className="w-full overflow-y-auto sm:max-w-md">
@@ -105,10 +106,12 @@ function Detail({ schedule, now, onClose }: { schedule: Schedule; now: number; o
           <h2 id="runs" className="text-sm font-semibold">Last runs</h2>
           {failed && <p role="alert" className="text-sm">The runs could not be loaded.</p>}
           {!failed && !runs && <Loading label="Loading…" className="grid gap-2"><Skeleton className="h-4" /><Skeleton className="h-4" /></Loading>}
-          {runs?.length === 0 && <p className="text-sm text-muted-foreground">No runs yet.</p>}
+          {runs?.length === 0 && !found?.quiet && <p className="text-sm text-muted-foreground">No runs yet.</p>}
           {runs && runs.length > 0 && <ul className="grid gap-1 text-sm">
             {runs.map(run => <li key={run.id}>{when(run.dueAt, timezone, now)} · {outcome(run)}</li>)}
           </ul>}
+          {found?.quiet ? <p className="text-sm text-muted-foreground">
+            {found.quiet === 1 ? '1 quiet check found' : `${found.quiet} quiet checks found`} nothing to do</p> : null}
         </section>
       </div>
     </SheetContent>
