@@ -1,5 +1,5 @@
-// The password manager a person asks the agent to add: one checked Firefox add-on, found on Firefox's add-on site,
-// loaded at each start, kept up to date, and removed with its stored data. `browse.mjs addon <verb>` runs it.
+// The add-ons a person asks the agent to add: checked Firefox add-ons, found on Firefox's add-on site, loaded side by
+// side at each start, kept up to date, and removed by name with their stored data. `browse.mjs addon <verb>` runs it.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -18,11 +18,28 @@ const OWN_PAGES = { '{d634138d-c276-4fc8-924b-40a0ea21d284}': 'app/app.html#/pag
 const UUIDS = 'extensions.webextensions.uuids';
 const TOOLBAR = 'browser.uiCustomization.state';
 
+/** Where an older version kept its one add-on. */
+const OLD_CHOICE = join(dirname(FILES.added), 'password-manager.json');
+
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
-/** The added add-on, `{state: 'added', ...}`; an older answer, such as `{state: 'declined'}`, means none. */
-export const choice = () => readJson(FILES.addon);
-const save = value => { mkdirSync(dirname(FILES.addon), { recursive: true, mode: 0o700 }); writeFileSync(FILES.addon, `${JSON.stringify(value)}\n`, { mode: 0o600 }); };
+const save = added => { mkdirSync(dirname(FILES.added), { recursive: true, mode: 0o700 }); writeFileSync(FILES.added, `${JSON.stringify({ added })}\n`, { mode: 0o600 }); };
 export const folderOf = guid => join(FILES.addons, guid);
+
+/** The added add-ons, oldest first. An older version's one add-on, always a password manager, moves here once with
+ * that tag; its other answers mean none. */
+export function addedList() {
+  const list = readJson(FILES.added)?.added;
+  if (Array.isArray(list)) return list;
+  const { state, ...old } = readJson(OLD_CHOICE) ?? {};
+  if (state !== 'added') return [];
+  const moved = { ...old, tags: ['password manager'] };
+  save([moved]);
+  rmSync(OLD_CHOICE, { force: true });
+  return [moved];
+}
+
+/** True for an add-on Firefox's add-on site tags as a password manager. */
+export const isPasswordManager = added => Array.isArray(added.tags) && added.tags.includes('password manager');
 
 /** One language's text from the site's answer, which may give it as a string or a map of languages. */
 function text(value) {
@@ -52,11 +69,29 @@ async function site(path) {
   return response;
 }
 
-/** Up to three Firefox extensions for `name`, each with its facts. */
+/** The ids of the add-ons the installed Camoufox build ships in its own `addons/<name>/` folders, which it loads at
+ * each start: an agent's copy of one clashes with the browser's own (uBlock Origin's dashboard showed blank). */
+export function builtInGuids(cache = FILES.cache) {
+  const active = readJson(join(cache, 'camoufox', 'config.json'))?.active_version;
+  if (typeof active !== 'string') return new Set();
+  const build = join(cache, 'camoufox', active);
+  const idOf = manifest => (manifest?.browser_specific_settings ?? manifest?.applications)?.gecko?.id;
+  // Linux keeps them beside the binary; a Mac, in the app bundle's Resources, as the library's build_file finds them.
+  const ids = [join(build, 'addons'), join(build, 'Camoufox.app', 'Contents', 'Resources', 'addons')].flatMap(dir => {
+    try { return readdirSync(dir).map(name => idOf(readJson(join(dir, name, 'manifest.json')))); } catch { return []; }
+  });
+  return new Set(ids.filter(Boolean));
+}
+
+/** What the agent tells the person, in place of an add, for an add-on the browser ships. */
+export const builtInText = name => `${name} is built into the browser already; nothing to add.`;
+
+/** Up to three Firefox extensions for `name`, each with its facts and whether the browser ships it. */
 export async function findAddons(name) {
   const query = new URLSearchParams({ q: name, type: 'extension', app: 'firefox', lang: 'en-US', page_size: '3' });
   const { results = [] } = await (await site(`/api/v5/addons/search/?${query}`)).json();
-  return results.slice(0, 3).map(factsOf);
+  const builtIn = builtInGuids();
+  return results.slice(0, 3).map(factsOf).map(facts => ({ ...facts, builtIn: builtIn.has(facts.guid) }));
 }
 
 /** The lines `find` prints. */
@@ -65,6 +100,7 @@ export function foundLines(found) {
   return found.flatMap(addon => [
     `BROWSE_ADDON_FOUND=${[addon.slug, addon.name, addon.maker, addon.website || 'no website', addon.users, addon.featured ? 'featured' : 'not featured'].join(' | ')}`,
     ...(addon.warn ? [`BROWSE_ADDON_WARN=${addon.slug}`] : []),
+    ...(addon.builtIn ? [`BROWSE_ADDON_BUILT_IN=${addon.slug}`] : []),
   ]);
 }
 
@@ -190,82 +226,114 @@ async function stopForChange(what) {
   await stopServer();
 }
 
-/** Removes the saved add-on's folder and stored data, with the browser stopped. */
-function dropAddon(saved, profile) {
-  if (saved?.state !== 'added') return;
-  rmSync(folderOf(saved.guid), { recursive: true, force: true });
-  clearStorage(profile, saved.guid);
+/** Removes the copy of `guid` the person added from the add-on site, with its stored data: in Camoufox it clashes
+ * with the agent's copy, and neither works. Firefox's add-on lists still name it, so they go too; it rebuilds them. */
+function removeOwnCopy(profile, guid) {
+  const own = [guid, `${guid}.xpi`].map(name => join(profile, 'extensions', name)).filter(file => existsSync(file));
+  for (const file of own) rmSync(file, { recursive: true, force: true });
+  if (!own.length) return;
+  clearStorage(profile, guid);
+  for (const list of ['extensions.json', 'addonStartup.json.lz4']) rmSync(join(profile, list), { force: true });
 }
 
-/** Adds the add-on `slug` after its checks, removing any other one first; the browser restarts with it. */
+/** Adds the add-on `slug` after its checks, beside the others, in place of the person's own copy of it; the browser
+ * restarts with it. One the browser ships is refused before any download. */
 export async function addAddon(slug, { profile = FILES.profile, now = Date.now() } = {}) {
   const record = await (await site(`/api/v5/addons/addon/${encodeURIComponent(slug)}/?lang=en-US`)).json();
   if (record.type !== 'extension') throw new BrowseError(`${slug} is a ${record.type ?? 'thing'}, not an extension`);
   const facts = factsOf(record);
+  if (builtInGuids().has(facts.guid)) throw new BrowseError(builtInText(facts.name));
   const { staging, page, version } = await fetchChecked(record);
   try {
-    await stopForChange('add the password manager');
+    await stopForChange(`add ${facts.name}`);
   } catch (error) {
     rmSync(staging, { recursive: true, force: true });
     throw error;
   }
-  const saved = choice();
-  if (saved?.guid !== facts.guid) dropAddon(saved, profile);
+  removeOwnCopy(profile, facts.guid);
   swapIn(staging, facts.guid);
-  const added = { state: 'added', slug: facts.slug, guid: facts.guid, name: facts.name, maker: facts.maker, website: facts.website, version, page, checkedAt: now };
-  save(added);
+  const tags = Array.isArray(record.tags) ? record.tags : [];
+  const added = { slug: facts.slug, guid: facts.guid, name: facts.name, maker: facts.maker, website: facts.website, version, page, tags, checkedAt: now, addedAt: now };
+  save([...addedList().filter(other => other.guid !== facts.guid), added]);
   return added;
 }
 
-/** Takes the add-on out with its stored data; resolves to its name, or null when none was added. */
-export async function removeAddon({ profile = FILES.profile } = {}) {
-  const saved = choice();
-  if (saved?.state !== 'added') return null;
-  await stopForChange('remove the password manager');
-  dropAddon(saved, profile);
-  rmSync(FILES.addon, { force: true });
-  return saved.name;
+/** The added add-on `name` names, by slug, id, or part of its name; with no name, the only one. */
+function named(list, name) {
+  const names = list.map(added => added.name).join(', ');
+  if (name === undefined) {
+    if (list.length === 1) return list[0];
+    throw new BrowseError(`several add-ons are added (${names}); name the one to remove`);
+  }
+  const exact = list.filter(added => added.slug === name || added.guid === name);
+  const matches = exact.length ? exact : list.filter(added => added.name.toLowerCase().includes(name.toLowerCase()));
+  if (matches.length === 1) return matches[0];
+  throw new BrowseError(`${matches.length ? 'several' : 'no'} added add-ons match "${name}"; added: ${names}`);
 }
 
-/** The added add-on's name, or `none`. */
-export function addonStatus() {
-  const saved = choice();
-  return saved?.state === 'added' ? saved.name : 'none';
+/** Takes the named add-on out with its stored data and leaves the others; resolves to its name, or null when none
+ * was added. */
+export async function removeAddon(name, { profile = FILES.profile } = {}) {
+  const list = addedList();
+  if (!list.length) return null;
+  const gone = named(list, name);
+  await stopForChange(`remove ${gone.name}`);
+  rmSync(folderOf(gone.guid), { recursive: true, force: true });
+  if (!builtInGuids().has(gone.guid)) clearStorage(profile, gone.guid); // the browser's own copy keeps that data
+  save(list.filter(added => added.guid !== gone.guid));
+  return gone.name;
 }
 
-/** What the agent tells the person once the add-on is in. */
+/** The added add-ons' names. */
+export const addonStatus = () => addedList().map(added => added.name);
+
+/** What the agent tells the person once a password manager is in. */
 export const ADVICE = 'In your password manager, keep only the logins my errands need, in a vault of their own, and set it to lock after 5 minutes.';
+/** What the agent tells the person once `added` is in. */
+export const tellOf = added => (isPasswordManager(added) ? ADVICE : `${added.name} loads from the browser's next start.`);
 
-/** A newer version, swapped in by the same checks; any failure keeps the working folder. Either way, the check date
- * moves on, so a dead network never slows each start. */
+/** The site's current tags, and a newer version swapped in by the same checks; any failure keeps the working folder.
+ * Either way, the check date moves on, so a dead network never slows each start. */
 async function update(saved, now) {
+  let fresh = saved;
   try {
     const record = await (await site(`/api/v5/addons/addon/${encodeURIComponent(saved.guid)}/?lang=en-US`)).json();
-    if (record.guid === saved.guid && record.current_version?.version !== saved.version) {
+    if (record.guid !== saved.guid) return { ...saved, checkedAt: now };
+    if (Array.isArray(record.tags)) fresh = { ...saved, tags: record.tags };
+    if (record.current_version?.version !== saved.version) {
       const { staging, page, version } = await fetchChecked(record);
       swapIn(staging, saved.guid);
-      Object.assign(saved, { version, page });
+      fresh = { ...fresh, version, page };
     }
   } catch { /* the working folder stays */ }
-  save({ ...saved, checkedAt: now });
+  return { ...fresh, checkedAt: now };
 }
 
-/** launch-config.py's words for this start: the add-on's folder, updated weekly and pinned to the toolbar, or none. */
+/** launch-config.py's words for this start: each add-on's folder, updated weekly and pinned to the toolbar. One the
+ * browser has come to ship since its add is skipped, so it never loads beside the browser's own copy. */
 export async function startArgs({ profile = FILES.profile, now = Date.now() } = {}) {
-  const saved = choice();
-  if (saved?.state !== 'added') return [];
-  if (!(now - (Number(saved.checkedAt) || 0) < UPDATE_MS)) await update(saved, now);
-  const folder = folderOf(saved.guid);
-  if (!existsSync(join(folder, 'manifest.json'))) return [];
-  pin(profile, saved.guid);
-  return ['--addon', folder];
+  const builtIn = builtInGuids();
+  let list = addedList();
+  const due = added => !builtIn.has(added.guid) && !(now - (Number(added.checkedAt) || 0) < UPDATE_MS);
+  if (list.some(due)) {
+    const checked = [];
+    for (const added of list) checked.push(due(added) ? await update(added, now) : added);
+    save(list = checked);
+  }
+  return list.filter(added => !builtIn.has(added.guid) && existsSync(join(folderOf(added.guid), 'manifest.json'))).flatMap(added => {
+    pin(profile, added.guid);
+    return ['--addon', folderOf(added.guid)];
+  });
 }
 
-/** The add-on's own sign-in page in the running browser, or null before its first start has saved its address. */
+/** The add-on whose page `addon open` shows: the newest password manager, else the newest add-on. */
+const shownAddon = list => list.findLast(isPasswordManager) ?? list.at(-1);
+
+/** That add-on's own sign-in page in the running browser, or null before its first start has saved its address. */
 export function pageUrl(profile = FILES.profile) {
-  const saved = choice();
-  const uuid = saved?.state === 'added' && saved.page ? uuidOf(profile, saved.guid) : null;
-  return uuid ? `moz-extension://${uuid}/${saved.page}` : null;
+  const shown = shownAddon(addedList());
+  const uuid = shown?.page ? uuidOf(profile, shown.guid) : null;
+  return uuid ? `moz-extension://${uuid}/${shown.page}` : null;
 }
 
 const sleep = wait => new Promise(done => setTimeout(done, wait));
@@ -273,19 +341,25 @@ const sleep = wait => new Promise(done => setTimeout(done, wait));
 /** Opens the add-on's sign-in page in this task's tab, for the person in the live view; waits for the browser to save
  * the add-on's address on a first start. */
 async function openPage(page) {
-  if (choice()?.state !== 'added') throw new BrowseError('no password manager is added; run `browse.mjs addon find <name>` first');
+  if (!addedList().length) throw new BrowseError('no add-on is added; run `browse.mjs addon find <name>` first');
   await page.ready();
   let url = pageUrl();
   for (let tries = 0; !url && tries < 20; tries++) { await sleep(500); url = pageUrl(); }
-  if (!url) throw new BrowseError('the password manager has no page to open yet; run `browse.mjs stop`, then try again');
+  if (!url) throw new BrowseError('the add-on has no page to open yet; run `browse.mjs stop`, then try again');
   await page.openAddon(url);
 }
 
-/** Each `addon` verb: how many words follow it, and what it runs. */
+/** Each `addon` verb: how many words follow it, `[least, most]` when that varies, and what it runs. */
 export const ADDON_VERBS = {
   find: [1, async (_, [name]) => console.log(foundLines(await findAddons(name)).join('\n'))],
-  add: [1, async (_, [slug]) => console.log(`BROWSE_ADDON_ADDED=${(await addAddon(slug)).name}\nBROWSE_ADDON_TELL=${ADVICE}\nBROWSE_SERVER=stopped`)],
-  remove: [0, async () => console.log(`BROWSE_ADDON_REMOVED=${(await removeAddon()) ?? 'none'}`)],
-  status: [0, () => console.log(`BROWSE_ADDON=${addonStatus()}`)],
+  add: [1, async (_, [slug]) => {
+    const added = await addAddon(slug);
+    console.log(`BROWSE_ADDON_ADDED=${added.name}\nBROWSE_ADDON_TELL=${tellOf(added)}\nBROWSE_SERVER=stopped`);
+  }],
+  remove: [[0, 1], async (_, [name]) => console.log(`BROWSE_ADDON_REMOVED=${(await removeAddon(name)) ?? 'none'}`)],
+  status: [0, () => {
+    const names = addonStatus();
+    console.log((names.length ? names : ['none']).map(name => `BROWSE_ADDON=${name}`).join('\n'));
+  }],
   open: [0, async page => { await openPage(page); console.log('BROWSE_ADDON_PAGE=opened'); }],
 };
