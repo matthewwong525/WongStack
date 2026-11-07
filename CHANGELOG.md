@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Your chats hear each other's news
+## 50.9.0 — Your chats hear each other's news
 
 - **The daily keeps your chats in line.** A few minutes after a chat has something new, one background run reads it and tells the other chats in this project what changes their work: a newer choice you made, work another chat already does, or an answer you already gave. Each note names the chat and time it came from ([your chats in line](wiki/development/daily.md#your-chats-in-line)).
 - **It picks when.** A note goes straight into a working chat's running step when waiting would waste work, else at the chat's next stop. Nothing stops a step in the middle.

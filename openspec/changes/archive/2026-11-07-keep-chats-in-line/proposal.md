@@ -1,6 +1,7 @@
 # Your chats hear each other's news
 
-**Status:** planned
+**Status:** ready-to-ship
+**Branch:** daily-cross-chat-context
 **Open questions:** none
 
 ## Why
@@ -105,3 +106,4 @@ Nothing from you: no key, no account. It needs your company app sign-in, as ever
 - **2026-11-07** — Assumed: the once-a-day *timed jobs wait* journal marker moved to `<state>/waiting.json`, with the `done` file gone.
 - **2026-11-07** — Check: the worker tests for the timed-job loop (due times, the loop's dry run, a timed job's check failing two times, an install's timed job replacing a default) are removed with the loop; the copy tests moved to `daily-schedule-runs.test.mjs` as `place: copy` schedule runs, and the add, update and keep rules are in `schedule-defaults.test.mjs`.
 - **2026-11-07** — Asked whether to publish before the live try in Paseo, which needs the new code on the main copy → chose publish, then try it live and fix what fails.
+- **2026-11-07** — Archived for publishing (archive checkpoint) by /ship on branch daily-cross-chat-context, release 50.9.0, after the build, two review fixes and a clean second review; the live try in Paseo follows publishing.

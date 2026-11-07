@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · keep-chats-in-line</title>
+<title>Review · 2026-11-07-keep-chats-in-line</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="keep-chats-in-line" data-own-back>
+<body data-change="2026-11-07-keep-chats-in-line" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>keep-chats-in-line</h1>
+  <h1>2026-11-07-keep-chats-in-line</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -465,6 +465,19 @@
 <li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: a shipped default is approved on this computer when added, because it comes with WongStack's code, as the move-in approves routines the person saved in the repo; any edit makes a new version that waits for the person's OK.</li>
 <li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: a default the person never changed takes WongStack's new version at an update, and one they changed or ended is left alone, because an update should not undo the person's own setting.</li>
 <li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: an install's <code>{&quot;id&quot;: &quot;wiki-tidy&quot;, &quot;off&quot;: true}</code> adds that default paused, because the person turned it off on purpose.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: a default counts as untouched only when it is on and its version and time both match what this computer added, because the version leaves out the time, and an update must not undo a time the person set.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: the line-up's <code>minIntervalMs</code> is 150000 (half the 5-minute gap), not 4 minutes, because the defaults reuse the move-in's conversion unchanged.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: when a schedule shows fewer than ten runs, <code>quiet</code> counts all its quiet runs, because the short list already holds every run that did work.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: <code>schema/seed.sql</code> needs no new row, because its sales digest already has a <code>no_work</code> run beside a started one.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: the wiki tidy, now a schedule run, counts in the 3-run limit, as every schedule run does.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: a timed job's <i>Needs you</i> chat goes with the loop; a failed schedule run shows in the app's run list.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: <code>hasJobs</code> counts the defaults this computer added (<code>defaults.json</code>), not every approved schedule, because the helper's hand-over already starts the worker for any other.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: an install's own sweeps entry with a default's id replaces that default's definition, as it replaced the built-in job.</li>
+<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: a chat stops being covered when the person writes in it after the note, or when the line-up run clears it, because new work from the person means it is no longer covered.</li>
+<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: the once-a-day <i>timed jobs wait</i> journal marker moved to <code>&lt;state&gt;/waiting.json</code>, with the <code>done</code> file gone.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-07</p>Check: the worker tests for the timed-job loop (due times, the loop's dry run, a timed job's check failing two times, an install's timed job replacing a default) are removed with the loop; the copy tests moved to <code>daily-schedule-runs.test.mjs</code> as <code>place: copy</code> schedule runs, and the add, update and keep rules are in <code>schedule-defaults.test.mjs</code>.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-07</p>Asked whether to publish before the live try in Paseo, which needs the new code on the main copy → chose publish, then try it live and fix what fails.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-07</p>Archived for publishing (archive checkpoint) by /ship on branch daily-cross-chat-context, release 50.9.0, after the build, two review fixes and a clean second review; the live try in Paseo follows publishing.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
