@@ -95,7 +95,7 @@ Every chat starts in plan; only you move it on. Each step may read, research, ru
 
 You move it on by typing a step, tapping *Build it* or *Build and publish* on a plan's page, or picking build or publish when asked. A step run inside another, such as `/plan` inside `/ship`, keeps the outer step's reach. Add your own step as `.agents/skills/<name>/SKILL.md`, linked from this page.
 
-**A chat's name starts with the step at work**: `EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `, then its task. It moves as each step starts; a chat that starts none, such as a question, keeps its name. A typed command shows at once: `/plan` as `PLAN`, `/verify` as `VERIFY`; `/apply`, `/continue` and `/ship` wait for their step. A plan's title replaces a name Paseo copied from your first message. [`step-title.mjs`](../../.agents/skills/explore/scripts/step-title.mjs) writes it, at once in Paseo and Codex; in Claude Code alone, a later step shows at your next message. The Daily chat, routines and helpers keep theirs.
+**A chat's name starts with the step at work**: `EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `, then its task. It moves as each step starts; a chat that starts none, such as a question, keeps its name. A typed command shows at once: `/plan` as `PLAN`, `/verify` as `VERIFY`; `/apply`, `/continue` and `/ship` wait for their step. Each step names the work at that time, a plan's title once there is a plan: any name Paseo made gives way, and a name you give in Paseo stays. [`step-title.mjs`](../../.agents/skills/explore/scripts/step-title.mjs) writes it, at once in Paseo and Codex; in Claude Code alone, a later step shows at your next message. The Daily chat, routines and helpers keep theirs.
 
 ### Fix it or ask
 

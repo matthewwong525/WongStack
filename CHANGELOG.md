@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.11.0 — Each chat is named for its current work
+
+- **Each step names the work at that time.** When a step starts, the chat's name changes to a few words for the work: the idea while you explore, then the plan's title while it is planned, built, and published. `DONE` keeps the words it has ([chat names](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **A name Paseo made gives way.** A Paseo name from your first message, a handed-over chat, or a later message changes to the step's words.
+- **A name you give stays.** Rename a chat in Paseo after it has a step name, and the next steps keep your words; only the step word changes.
+- **Names stay short.** Words longer than 60 characters are cut at a word.
+
+**Updating.** Nothing to do. Old chats keep their names until their next step.
+
 ## 50.10.1 — Access starts when the sign-in rule has no session time
 
 - **Access starts when Cloudflare sends the sign-in rule without a session time.** At your first open, the app reads who can sign in, adds them to People, and turns Access on. Company knowledge and project code then work ([company knowledge](wiki/stack/company-knowledge.md)).
