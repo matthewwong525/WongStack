@@ -9,8 +9,9 @@ import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { startArgs as addonArgs } from './addons.mjs';
 import { FILES, LAUNCH_MS, OLD_PROFILES, launchConfig, proxySetting, windowSetting } from './browse.mjs';
-import { startForwarder } from './forwarder.mjs';
+import { NETWORK_FILE, startForwarder } from './forwarder.mjs';
 import { moveLogins } from './login-move.mjs';
+import { resolveFirst, resolveUpstream } from './proxy-lines.mjs';
 import { ADDON_PAGE, ADDON_REFUSAL, MAX_FRAMES, buildSnapshot, frameHasBoxes, frameLabel, frameSkipped, windowSnapshot } from './refs.mjs';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 
@@ -496,11 +497,13 @@ export function windowLaunch({ platform, setting, env = {} }) {
   return { args: shown ? ['--window'] : [], env: screen, record: shown ? { window: true } : {}, xvfb: linux && !shown };
 }
 
-/** The local forwarder when the proxy setting is on: its launch flags and its close; none when off. A forwarder that
- * fails to start fails the browser's start. */
-export async function startProxy(on, start = startForwarder) {
+const savedLines = () => ({ first: resolveFirst(), upstream: resolveUpstream() });
+
+/** The local forwarder through the saved routes when the proxy setting is on: its launch flags and its close; none
+ * when off, and the saved lines are not read. A forwarder that fails to start fails the browser's start. */
+export async function startProxy(on, start = startForwarder, lines = savedLines) {
   if (!on) return { on: false, args: [], close: () => {} };
-  const proxy = await start();
+  const proxy = await start({ ...lines(), networkFile: NETWORK_FILE });
   return { on: true, args: ['--proxy', `http://127.0.0.1:${proxy.port}`], close: () => proxy.close() };
 }
 

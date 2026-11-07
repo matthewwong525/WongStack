@@ -22,6 +22,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
   - [Steps for you to finish](finish-steps.md) — numbered steps, with links, when a login or check stops the agent.
   - [Shopping](shopping.md) — the agent finds, compares, and buys products through Shop: no account to look, your yes to connect and to pay, one payment per purchase, and no card detail the agent can read.
   - [The browser window](browser-window.md) — one window with a tab for each chat, shown on your screen by default; the Linux link setting, asking for the browser, and the window and proxy settings each computer keeps.
+  - [Browser proxies](browser-proxy.md) — with the proxy on, the browser goes through your home proxy, then a backup, then this computer's network; how to save them, check the route, and turn them off.
   - [Live view](live-view.md) — the one place you type something sensitive: a private link shows the agent's browser for your turn to sign in, pay, type a backup code, pass a robot check, or tap through a stuck step, then *Hand back*; where the browser has a window, your turn happens there.
     - [Watch link](watch-link.md) — the live view the agent drives while it connects your tools on a server: *Take over*, *Hand back*, and a turn to sign in.
   - [Your password manager in the browser](password-manager.md) — a password manager or any other add-on the agent adds with checks when you ask, side by side; the agent never uses it.

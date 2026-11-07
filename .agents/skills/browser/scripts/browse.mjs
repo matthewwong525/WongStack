@@ -9,6 +9,7 @@ import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
+import { NETWORK_FILE, networkLine } from './forwarder.mjs';
 import { MOVE_MS } from './login-move.mjs';
 import { INTERACTIVE_ROLES, MAX_REFS, SKIP_PATTERNS, parseLine } from './refs.mjs';
 
@@ -32,11 +33,13 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
   window [on|off]               show the browser in a window on this computer's screen, from its next start;
                                 on Linux, off (or no screen) sends a live-view link instead;
                                 prints BROWSE_WINDOW=on|off; alone, the setting (on unless turned off)
-  proxy [on|off]                reach sites through a local proxy on this computer, from the browser's next
-                                start; prints BROWSE_PROXY=on|off; alone, the setting (off unless turned on)
+  proxy [on|off]                reach sites through a local proxy on this computer, and on through the saved
+                                first and backup proxies, from the browser's next start; prints
+                                BROWSE_PROXY=on|off; alone, the setting (off unless turned on)
   close                         close this task's tab
-  status | install | stop       the install and the server; status prints both settings, BROWSE_SHOWN=
-                                window|link|none for a running browser, and BROWSE_ADDON=<name> for each add-on added
+  status | install | stop       the install and the server; status prints both settings, BROWSE_NETWORK=
+                                the route in use, BROWSE_SHOWN=window|link|none for a running browser, and
+                                BROWSE_ADDON=<name> for each add-on added
   addon find <name>             up to three Firefox add-ons: BROWSE_ADDON_FOUND=<slug> | <name> | <maker> |
                                 <website> | <daily users> | featured or not; BROWSE_ADDON_WARN=<slug> when
                                 not featured and under 10,000 daily users; BROWSE_ADDON_BUILT_IN=<slug> when
@@ -579,6 +582,7 @@ async function status() {
   console.log(`BROWSE_SERVER=${running ? 'running' : 'stopped'}`);
   if (!check || check.error) return;
   for (const [name, read] of Object.entries(SETTINGS)) console.log(`BROWSE_${name.toUpperCase()}=${read() ? 'on' : 'off'}`);
+  console.log(`BROWSE_NETWORK=${networkLine(readJson(NETWORK_FILE), running?.pid ?? null)}`);
   if (running) {
     console.log(`BROWSE_SHOWN=${shownAs(running)}`);
     // A browser from before the proxy setting started with the proxy.
