@@ -131,3 +131,12 @@ While the person has a browser pop-up open in a live view, such as an add-on's t
 
 - **WHEN** the person picks a login in the pop-up and the pop-up closes
 - **THEN** the view brings the turn's page to the front again within its next poll
+
+### Requirement: A live view shows the whole browser window
+
+A live view SHALL fit the browser window to the screen the person sees, on every page of the turn's tab, the password manager's own page included, so the toolbar and the page's edges are never cut off.
+
+#### Scenario: The password manager's page right after a browser start
+
+- **WHEN** a live view opens over 1Password's own page in a browser that has just started at a size bigger than the view's screen
+- **THEN** the person sees the whole window, the toolbar with 1Password's button included

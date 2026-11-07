@@ -10,7 +10,7 @@ You asked the agent to add 1Password. It opened Firefox's add-on page and told y
 
 ## What Changes
 
-- **Your ask is your yes for a safe match.** You name one add-on, such as 1Password. When the best match is featured by Mozilla, or used by more than 10,000 people a day, the agent adds it at once, with the same checks. It names the maker, website, and daily users as it adds it. It still asks first when the match is little-used, when your words fit more than one add-on, or when it would replace an add-on you have.
+- **Your ask is your yes for a safe match.** You name one add-on, such as 1Password. When the best match is featured by Mozilla, or used by more than 10,000 people a day, the agent adds it at once, with the same checks. It names the maker, website, and daily users as it adds it. It still asks first when the match is little-used, when your words fit more than one add-on, or when the agent already added it.
   ```mermaid
   flowchart TD
     A["You: add 1Password"] --> B["Agent finds it on Firefox's site"]
@@ -68,3 +68,4 @@ You asked the agent to add 1Password. It opened Firefox's add-on page and told y
 - **2026-11-07** — Assumed (review): the release is minor, not patch, because the agent gains new behavior ([the release rules](../../../.agents/rules/payload.md)).
 - **2026-11-07** — Saved for publish (`/ship`); task 3.2 waits on this save's CI.
 - **2026-11-07** — Archived for publish as release 50.7.0.
+- **2026-11-07** — Assumed: on merging PR #532 (50.7.0, add-ons side by side), the replace rule became "already added → say so and add nothing", and `addon open` runs only after a password manager is added, because an add no longer removes another add-on, and `addon open` would show a password manager's page after an add of, say, Dark Reader.

@@ -1,60 +1,58 @@
 # Your password manager in the browser
 
-The agent's browser can hold a password manager add-on, such as 1Password or Bitwarden. You ask the agent to add it, sign in to it, and fill a login from your vault. The agent never uses it.
+The agent's browser can hold a password manager add-on, such as 1Password or Bitwarden, and any other add-on, such as Dark Reader. You ask the agent to add it, sign in to it, and fill a login from your vault. The agent never uses it.
 
-## Add it yourself
+## Ask the agent
 
-The agent asks nothing about a password manager. When you want one, say *add my password manager*: the agent adds it with [the checks](#the-checks), so you only sign in. You can also add one as in your own Firefox, but 1Password added that way did not work:
+The agent asks nothing about a password manager. When you want an add-on, say so: *add my password manager*, or *add Dark Reader*. The agent adds a well-known one at once, with [the checks](#the-checks), and opens a password manager's sign-in page, so you only sign in. An add-on the browser already has, such as uBlock Origin, is built in: the agent says so and adds nothing.
 
-1. Open the browser: [the window](browser-window.md#where-it-shows), or a live view you [ask for](browser-window.md#ask-for-the-browser).
-2. Go to [Firefox's add-on site](https://addons.mozilla.org), find your password manager, and add it. Check its maker first: a look-alike can read every page.
-3. Sign in to it. It stays from start to start.
+Ask the agent, not the add-on site in the browser. 1Password added from [Firefox's add-on site](https://addons.mozilla.org) in Camoufox 158.0.1-beta.41 opened no setup page, and its button did nothing; the copy the agent added worked. When you ask the agent for an add-on you already added yourself, its add removes your copy and its stored data, so only the working copy loads.
 
-**An add-on you add does not update itself:** Camoufox turns add-on updates off. When it stops working, remove it and add it again.
-
-Any other add-on goes in the same way. The agent's guard covers every add-on, whoever added it: see [use it at a sign-in](#use-it-at-a-sign-in).
+An add-on you add yourself stays from start to start, but it is not promised to work, and it does not update itself: Camoufox turns add-on updates off. The agent's guard covers every add-on, whoever added it: see [use it at a sign-in](#use-it-at-a-sign-in).
 
 ## The checks
 
-You can also say *add my password manager*: the agent then adds one for you, with these checks, and opens its sign-in page. It never sends you to the add-on site to add it yourself. [`addons.mjs`](../../.agents/skills/browser/scripts/addons.mjs) does each step, through `browse.mjs addon <verb>`. An add-on can read every page of a browser signed in as you, so a look-alike is a real risk.
+[`addons.mjs`](../../.agents/skills/browser/scripts/addons.mjs) does each step, through `browse.mjs addon <verb>`. The agent never sends you to the add-on site to add it yourself. An add-on can read every page of a browser signed in as you, so a look-alike is a real risk.
 
 - **Firefox's add-on site only.** `addon find <name>` lists up to three extensions from [addons.mozilla.org](https://addons.mozilla.org), each with its maker, website, daily users, and whether Mozilla features it.
-- **Your ask is your yes for a well-known one.** When one add-on fits your words, and Mozilla features it or 10,000 or more people use it each day, the agent names its maker, website, and daily users, and adds it at once. It asks first when the add would replace another add-on, since that one's sign-in goes with it.
+- **Your ask is your yes for a well-known one.** When one add-on fits your words, and Mozilla features it or 10,000 or more people use it each day, the agent names its maker, website, and daily users, and adds it at once. When the agent already added it, it says so and adds nothing.
 - **It asks first for a doubtful match.** When your words fit more than one add-on, the agent names the matches and adds the one you pick. It warns you and waits for your yes when an add-on is not featured and has under 10,000 daily users: on 2026-11-05 every big manager had more than 67,000, and a look-alike had 4.
 - **The file must match.** `addon add <slug>` refuses a download whose sha256 fingerprint is not the one the site gives.
-- **One at a time.** A new add-on replaces the old one and deletes its stored data.
+- **Side by side.** A new add-on joins the others. The same add-on again replaces only its own copy.
 
 An add stops the browser, and the next command starts it with the add-on. While a live view is open in any chat, the add stops at once and changes nothing: the agent tries again once the view closes.
 
-Right after the add, the agent opens the password manager's own page and [sends you the browser](browser-window.md#ask-for-the-browser). You sign in to it there: that is your only step.
+Right after it adds a password manager, the agent opens its own page and [sends you the browser](browser-window.md#ask-for-the-browser). You sign in to it there: that is your only step.
 
 ## Use it at a sign-in
 
 In [the browser window](browser-window.md#your-turn-in-the-window), use it as in your own Firefox. In a live view, with the one the agent added:
 
-1. The agent runs `addon open` right after an add, and before [a sign-in turn](live-view.md#sign-in). The password manager's own page opens in the task's tab.
+1. The agent runs `addon open` right after it adds a password manager, and before [a sign-in turn](live-view.md#sign-in). The password manager's own page opens in the task's tab: the newest one added, else the newest add-on.
 2. The agent sends the live view. You sign in to the password manager, or unlock it. The view opens over that page: its finish is not met there, since the site does not show.
 3. You press *Back* until the site shows: each of the password manager's own steps takes one press. Then you fill the login from the list the password manager shows in the page. Back on the site, or at the view's end, the page gets its own size again.
 
-The add-on's button is on the toolbar, from the second start of a new browser. Its small pop-up also works in a live view: it stays open until you pick from it or tap outside it. Tap its box, then type, such as your password to unlock it ([a pop-up stays open](live-view.md#what-the-link-can-do)).
+On the password manager's page, the browser keeps the page's own size, so the view sizes the browser's window to your screen instead: the whole toolbar shows.
+
+Each add-on's button is on the toolbar, from the second start of a new browser. Its small pop-up also works in a live view: it stays open until you pick from it or tap outside it. Tap its box, then type, such as your password to unlock it ([a pop-up stays open](live-view.md#what-the-link-can-do)).
 
 The agent's own steps skip the password manager, and every other add-on. `snapshot` leaves out their frames, and a click, typing, a key, or a choice aimed at one stops with `BROWSE_ERROR=that is the password manager's own; the person uses it in the live view`. While its page shows in the tab, every step but a new address stops the same way, and the agent can not see that page.
 
 ## Keep it safe
 
-When it adds the add-on, the agent tells you these two steps: `addon add` prints them as `BROWSE_ADDON_TELL=`. They hold for one you add too.
+When it adds an add-on that Firefox's add-on site tags as a password manager, the agent tells you these two steps: `addon add` prints them as `BROWSE_ADDON_TELL=`. For any other add-on, it says only that the add-on loads from the next start.
 
 - **Use a separate vault** that holds only the logins the agent's errands need.
 - **Set auto-lock to 5 minutes.** The guard stops the agent's routine reading and clicks, not a script it runs in a page. A locked vault gives a script nothing.
 
 ## Updates
 
-At a browser start, once a week, the add-on the agent added is checked for a newer version and swapped in by the same checks. A password manager far behind stops working. A failed check keeps the working copy, so a dead network never stops a start.
+At a browser start, once a week, each add-on the agent added is checked for a newer version and swapped in by the same checks. A password manager far behind stops working. A failed check keeps the working copy, so a dead network never stops a start.
 
 ## Remove or change it
 
-Say *remove my password manager*: `addon remove` deletes the add-on the agent added and its stored data, so no signed-in session stays. To change to another one, add it: the old one goes.
+Name the add-on: *remove my password manager*, or *remove Dark Reader*. `addon remove <name>` deletes that add-on and its stored data, so no signed-in session stays, and leaves the others. To change to another password manager, ask for the new one, then remove the old one.
 
-An add-on you added yourself, you remove in the browser's own add-ons page (`about:addons`). The agent's one, by hand: delete `~/.wong-stack/camoufox/addons/` and `password-manager.json` with the browser stopped. An answer saved by an older version, *None* included, is ignored.
+An add-on you added yourself, you remove in the browser's own add-ons page (`about:addons`). The agent's ones, by hand: delete `~/.wong-stack/camoufox/addons/` and `addons.json` with the browser stopped. An answer saved by an older version, *None* included, is ignored.
 
 Part of [browsing](browsing.md), in [development](README.md).
