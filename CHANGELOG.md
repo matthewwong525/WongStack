@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.6.2 — The browser tells sites your computer's real system
+
+- **The browser tells sites the real system:** Mac on a Mac, Windows on Windows, Linux on Linux. Before, it told every site it ran on Linux, and put Linux fonts over your Mac's own. Now it uses your computer's own fonts, so its own pages, such as its add-ons page and your password manager's pop-up, read correctly. Websites look the same as before ([the device identity](wiki/development/browsing.md#saved-browser-logins)).
+
+**Updating.** On a Mac or Windows computer, the browser's next start makes a new device identity, once. A site may ask you to sign in again, one time. A Linux computer keeps its identity.
+
 ## 50.6.1 — A live view keeps an add-on's pop-up open
 
 - **An add-on's pop-up stays open in a live view.** Before, it closed about a second after you tapped its toolbar button, because the view brought the page back to the front every 2 seconds. Now the view waits while a pop-up shows, such as your password manager's, until you pick from it or tap outside it. Then your page comes back to the front ([a pop-up stays open](wiki/development/live-view.md#what-the-link-can-do)).
