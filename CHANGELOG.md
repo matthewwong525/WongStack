@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Each chat is named for its current work
+
+- **Each step names the work at that time.** When a step starts, the chat's name changes to a few words for the work: the idea while you explore, then the plan's title while it is planned, built, and published. `DONE` keeps the words it has ([chat names](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **A name Paseo made gives way.** A Paseo name from your first message, a handed-over chat, or a later message changes to the step's words.
+- **A name you give stays.** Rename a chat in Paseo after it has a step name, and the next steps keep your words; only the step word changes.
+- **Names stay short.** Words longer than 60 characters are cut at a word.
+
+**Updating.** Nothing to do. Old chats keep their names until their next step.
+
 ## 50.10.0 — Default schedules wait paused while check-ins are off
 
 - **Stop check-ins, and the default schedules pause.** *Keep my chats in line* and *Wiki tidy* show *Paused* in the Inbox's *Schedules* list on this computer, so their run lists get no more *didn't start, check-ins are off* lines. *Start check-ins*, and both go on again ([default schedules](wiki/stack/host-schedules.md#default-schedules)).
