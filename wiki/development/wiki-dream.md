@@ -13,9 +13,9 @@ It uses your own assistant's model allowance, so it costs what a long chat costs
 
 ## The small wiki tidy
 
-On each computer, [the daily's worker](daily.md#the-daily-on-a-computer) starts one small tidy after each memory [consolidation](memory.md#consolidation), about once a day. A background run, in its own copy of the repo, takes the facts saved since the last tidy or dream. It puts each lasting one on the page that owns it, by [placing a fact on a page](#placing-a-fact-on-a-page). It fixes only those pages and the pages those facts name. Then it saves a [company knowledge](../stack/company-knowledge.md) page at once, and publishes any other page through the normal checks, with no question.
+On each computer, the *Wiki tidy* [default schedule](../stack/host-schedules.md#default-schedules) checks every 30 minutes, and starts one small tidy after each memory [consolidation](memory.md#consolidation), about once a day. A background run, in its own copy of the repo, takes the facts saved since the last tidy or dream. It puts each lasting one on the page that owns it, by [placing a fact on a page](#placing-a-fact-on-a-page). It fixes only those pages and the pages those facts name. Then it saves a [company knowledge](../stack/company-knowledge.md) page at once, and publishes any other page through the normal checks, with no question.
 
-It is `/dream-memory --small`. It never tidies memory again (consolidation just did), never checks specs or plans, and never corrects a saved fact. It never edits [a page WongStack ships](#your-pages-and-shipped-pages). Its record counts as the last dream, so the next tidy or dream starts after the facts it read. Ask any chat *what's going on?* to see `Wiki tidy: 3 facts on 2 pages (…)` or `Wiki tidy: nothing to add`. To turn it off, [add an `off` entry](daily.md#your-own-jobs) for `wiki-tidy`.
+It is `/dream-memory --small`. It never tidies memory again (consolidation just did), never checks specs or plans, and never corrects a saved fact. It never edits [a page WongStack ships](#your-pages-and-shipped-pages). Its record counts as the last dream, so the next tidy or dream starts after the facts it read. Ask any chat *what's going on?* to see `Wiki tidy: 3 facts on 2 pages (…)` or `Wiki tidy: nothing to add`. To turn it off, pause *Wiki tidy* in the Inbox's *Schedules* list.
 
 ## What it reads
 

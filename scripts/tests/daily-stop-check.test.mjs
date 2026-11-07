@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
+import { writeJson } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { offFile, stateOf } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { chatTitle, judgeLine, runJudge, stopCheck, tailOf } from '../../.agents/skills/daily/scripts/stop-check.mjs';
@@ -49,6 +50,22 @@ function world({ agent = 'claude', rows = [['user', 'Build the export page.', NO
   const stateDir = stateOf(config, undefined, root);
   return { stop, judged, transcript, stateDir, dir, root, journal: () => readLines({ stateDir }).map(entry => entry.line) };
 }
+
+test("the judge sees the person's newest choices from other chats, not this chat's own", async () => {
+  const w = world();
+  writeJson(join(w.stateDir, 'line-up.json'), { chats: { 'agent-b': { title: 'Report page', choices: [{ at: '2026-11-03T14:00:00Z', text: 'Dark theme for all report pages' }] },
+    'agent-self': { title: 'This chat', choices: [{ at: '2026-11-03T14:30:00Z', text: 'Light theme here' }] } } });
+  await w.stop({ env: { PASEO_AGENT_ID: 'agent-self' } });
+  const prompt = w.judged[0].args[1];
+  assert.match(prompt, /<elsewhere>\n2026-11-03T14:00:00Z — Report page: Dark theme for all report pages\n<\/elsewhere>/);
+  assert.doesNotMatch(prompt, /Light theme here/);
+});
+
+test('a note from the daily is not the person\'s message: the check-in still judges the stop', async () => {
+  const w = world({ rows: [['user', 'Build the export page.', NOW - 40 * MIN], ['assistant', 'On it.', NOW - 30 * MIN],
+    ['user', 'From the daily: use Stripe, not PayPal (Checkout, 10:00).', NOW - 2 * MIN], ['assistant', NEXT, NOW - MIN]] });
+  assert.equal((await w.stop()).why, 'keep-going');
+});
 
 for (const agent of ['claude', 'codex']) {
   const wrapped = reply => (agent === 'codex' ? `<hook_prompt hook_run_id="r">${reply}</hook_prompt>` : `Stop hook feedback:\n${reply}`);

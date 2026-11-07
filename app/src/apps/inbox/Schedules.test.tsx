@@ -24,7 +24,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(NOW)
   calls = []
-  server = { schedules: [], online: true, board: true, items: 200, week: 500, runs: () => Response.json({ runs: [] }), change: () => Response.json({}) }
+  server = { schedules: [], online: true, board: true, items: 200, week: 500, runs: () => Response.json({ runs: [], quiet: 0 }), change: () => Response.json({}) }
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
     calls.push({ path, body: init?.body && JSON.parse(init.body as string) })
     const url = new URL(path, 'https://app.test')
@@ -174,28 +174,35 @@ it('shows a run waiting for the computer with Cancel until the computer takes it
   expect(within(card('Daily plan')).getByRole('alert').textContent).toBe('Your computer already took that run.')
 })
 
-it('opens a schedule to its instructions as plain text and its ten newest runs', async () => {
+it('opens a schedule to its instructions as plain text, its ten newest runs, and the count of quiet ones', async () => {
   server.schedules = [schedule('daily-plan', 'Daily plan', { instructions: 'Read my email.\nPlan the day.' }),
     schedule('research', 'Weekly research', { host: 'paseo', instructions: '' }),
     schedule('once', 'Tax reminder', { timing: { mode: 'once', timezone: 'UTC', dueAt: '2026-12-01T09:00:00Z' } })]
   server.runs = () => Response.json({ runs: [run('daily-plan', 'started', { id: 'a', dueAt: at(0, 8) }),
-    run('daily-plan', 'blocked', { id: 'b', dueAt: at(-1, 8), result: 'no_work' })] })
+    run('daily-plan', 'blocked', { id: 'b', dueAt: at(-1, 8), result: 'not_approved' })], quiet: 12 })
   await open()
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Daily plan' })) })
   const sheet = within(screen.getByRole('dialog'))
   expect(sheet.getByRole('heading', { name: 'Daily plan' })).toBeTruthy()
   expect(sheet.getByText('Every weekday at 8:00')).toBeTruthy()
   expect(sheet.getByText(/Read my email/).textContent).toBe('Read my email.\nPlan the day.')
-  expect(sheet.getAllByRole('listitem').map(item => item.textContent)).toEqual(['today 8:00 · done', 'yesterday 8:00 · nothing to do'])
+  expect(sheet.getAllByRole('listitem').map(item => item.textContent)).toEqual(['today 8:00 · done', "yesterday 8:00 · didn't start, needs your OK"])
+  expect(sheet.getByText('12 quiet checks found nothing to do')).toBeTruthy()
   expect(sheet.queryByRole('textbox')).toBeNull()
   expect(calls.at(-1)!.path).toBe('/apps/inbox/api/schedule?key=daily-plan')
   await act(async () => { fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' }) })
   expect(screen.queryByRole('dialog')).toBeNull()
 
-  server.runs = () => Response.json({ runs: [] })
+  server.runs = () => Response.json({ runs: [], quiet: 0 })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Weekly research' })) })
   expect(within(screen.getByRole('dialog')).getByText('None here: it runs in Paseo.')).toBeTruthy()
   expect(within(screen.getByRole('dialog')).getByText('No runs yet.')).toBeTruthy()
+  await act(async () => { fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' }) })
+
+  server.runs = () => Response.json({ runs: [], quiet: 1 })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Weekly research' })) })
+  expect(within(screen.getByRole('dialog')).getByText('1 quiet check found nothing to do')).toBeTruthy()
+  expect(within(screen.getByRole('dialog')).queryByText('No runs yet.')).toBeNull()
   await act(async () => { fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' }) })
 
   server.runs = () => new Response(null, { status: 503 })

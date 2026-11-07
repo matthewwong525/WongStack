@@ -25,7 +25,7 @@ const schedule = z.object({ key: z.string(), host: z.enum(['app', 'paseo']), nam
   ended: z.object({ at: z.number(), reason: z.string() }).nullable(), version: z.string(), approvedVersion: z.string().nullable(),
   approvedAt: z.number().nullable(), computerName: z.string().nullable() })
 const schedules = z.object({ schedules: z.array(schedule), computerOnline: z.boolean() })
-const scheduleRuns = z.object({ schedule, runs: z.array(run) })
+const scheduleRuns = z.object({ schedule, runs: z.array(run), quiet: z.number() })
 export type Tap = z.infer<typeof tap>
 export type Plan = z.infer<typeof one>
 export type Archived = NonNullable<Plan['item']['archived']>
@@ -85,7 +85,7 @@ export const readReviews = (q: string, before?: Review) => call(reviews, `review
 export const readTap = (id: string) => call(tapped, `tap?id=${id}`).then(answer => answer.tap)
 export const cancelTap = (id: string) => call(tapped, 'tap-cancel', { id }).then(answer => answer.tap)
 export const readSchedules = () => call(schedules, 'schedules')
-/** One schedule and its ten newest runs. */
+/** One schedule, its ten newest runs that found work, and how many quiet ones came between. */
 export const readSchedule = (key: string) => call(scheduleRuns, `schedule?key=${encodeURIComponent(key)}`)
 
 /** Pauses, resumes or runs a schedule, or cancels its waiting run: null when done, else why not, as the app's code. */

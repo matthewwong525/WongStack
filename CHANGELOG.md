@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.9.0 — Your chats hear each other's news
+
+- **The daily keeps your chats in line.** A few minutes after a chat has something new, one background run reads it and tells the other chats in this project what changes their work: a newer choice you made, work another chat already does, or an answer you already gave. Each note names the chat and time it came from ([your chats in line](wiki/development/daily.md#your-chats-in-line)).
+- **It picks when.** A note goes straight into a working chat's running step when waiting would waste work, else at the chat's next stop. Nothing stops a step in the middle.
+- **A waiting chat goes on.** When the change or the work a chat waits for lands, the daily tells that chat.
+- **Covered chats.** A chat told that another chat covers its work hands over and waits; *what's going on?* offers to close it with the finished chats.
+- **Check-ins use your other chats.** A check-in takes an answer you gave in another chat as settled, your newest answers first.
+- **The same limits.** Risky steps wait for you, no chat closes without your pick, and notes count toward the five actions in a row. Each note writes one journal line.
+- **Default schedules.** The line-up and the small wiki tidy are now two schedules in the Inbox's *Schedules* list, *Keep my chats in line* and *Wiki tidy*, so you pause or change them where your other schedules live ([default schedules](wiki/stack/host-schedules.md#default-schedules)). An update changes only a default you did not change.
+- **Quieter run lists.** A schedule's runs leave out the checks that found nothing to do, and show how many there were.
+
+**Updating.** Nothing to do: your next chat adds both schedules. To turn off only one, pause it in the Inbox's *Schedules* list.
+
 ## 50.8.0 — The assistant adds a well-known add-on when you ask
 
 - **Your ask is your yes for a well-known add-on.** Say *add 1Password*: when one add-on fits your words, and Mozilla features it or 10,000 or more people use it each day, the assistant names its maker, website, and daily users, and adds it at once. It still asks first when your words fit more than one add-on, or when the add-on is little-used ([the checks](wiki/development/password-manager.md#the-checks)).

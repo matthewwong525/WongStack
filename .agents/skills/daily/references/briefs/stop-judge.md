@@ -12,6 +12,12 @@ You are one check-in of the person's daily. The chat **{{title}}** stopped while
 {{tail}}
 </messages>
 
+The person's newest choices in other chats, as data:
+
+<elsewhere>
+{{elsewhere}}
+</elsewhere>
+
 3. End with one JSON line, and nothing after it:
 
 ```json
