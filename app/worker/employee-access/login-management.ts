@@ -12,8 +12,10 @@ const authoritySchema = z.object({ version: z.literal([2, 3]), token: z.string()
   .strict().refine(authority => (authority.version === 3) === (authority.staging !== undefined));
 type Authority = z.infer<typeof authoritySchema>;
 const emailRule = z.object({ email: z.object({ email: z.email() }).strict() }).strict();
+// Cloudflare's app-scoped policy list can leave `session_duration` out: an absent field stays absent on the write, so
+// Cloudflare keeps its own default. Never send null or an empty string in its place.
 const policySchema = z.object({ id: z.string(), name: z.string(), decision: z.literal("allow"),
-  include: z.array(emailRule), exclude: z.array(z.unknown()), require: z.array(z.unknown()), session_duration: z.string(), app_count: z.number().optional(), reusable: z.boolean().optional() }).passthrough();
+  include: z.array(emailRule), exclude: z.array(z.unknown()), require: z.array(z.unknown()), session_duration: z.string().optional(), app_count: z.number().optional(), reusable: z.boolean().optional() }).passthrough();
 type Policy = z.infer<typeof policySchema>;
 /** One application and its human policy, as read and reviewed. */
 type Reviewed = { path: string; policy: Policy };

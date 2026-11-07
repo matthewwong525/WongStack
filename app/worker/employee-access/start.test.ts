@@ -114,6 +114,39 @@ it("changes nothing when the key is missing or the sign-in list cannot be read",
   expect(await accessStatus(core)).toMatchObject({ started: false, key: "ready" });
 });
 
+it("logs one line and returns the reason when the sign-in list cannot be read, and leaves permissions off", async () => {
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+  try {
+    cf.policy.reusable = true;
+    expect(await startPermissions(core)).toBe("login_policy_review_required");
+    expect(log.mock.calls).toEqual([[JSON.stringify({ event: "permissions_start_failed", error: "login_policy_review_required" })]]);
+    // An answer in a shape this app does not read has its own reason.
+    cf.policy.reusable = false; cf.policy.decision = "deny"; log.mockClear();
+    expect(await startPermissions(core)).toBe("login_policy_unreadable");
+    expect(log.mock.calls).toEqual([[JSON.stringify({ event: "permissions_start_failed", error: "login_policy_unreadable" })]]);
+    // A timeout or a failed connection means Cloudflare did not answer.
+    cf.policy.decision = "allow"; log.mockClear();
+    fetch.mockImplementationOnce(async () => { throw new TypeError("fetch failed"); });
+    expect(await startPermissions(core)).toBe("provider_unavailable");
+    expect(log.mock.calls).toEqual([[JSON.stringify({ event: "permissions_start_failed", error: "provider_unavailable" })]]);
+    expect(people()).toEqual([]);
+    expect(installation()).toEqual({ policy_enabled: 0, revision: 1 });
+    // The missing key shows its own step, and a start that works has no reason.
+    log.mockClear(); cf.policy.decision = "allow";
+    expect(await startPermissions({ ...core, env: { ...f.env, WONG_ACCESS_LOGIN_MANAGEMENT: undefined } })).toBeNull();
+    expect(await startPermissions(core)).toBeNull();
+    expect(log).not.toHaveBeenCalled();
+    expect(installation()).toEqual({ policy_enabled: 1, revision: 2 });
+  } finally { log.mockRestore(); }
+});
+
+it("starts when the sign-in rule has no session time", async () => {
+  delete cf.policy.session_duration;
+  expect(await startPermissions(core)).toBeNull();
+  expect(people().map(person => person.email)).toEqual(["ana@example.com", "bo@example.com"]);
+  expect(installation()).toEqual({ policy_enabled: 1, revision: 2 });
+});
+
 it("changes nothing when the import cannot be saved", async () => {
   f.sql.exec("CREATE TRIGGER fail_start BEFORE UPDATE ON wong_access_installation BEGIN SELECT RAISE(ABORT, 'fail'); END");
   await expect(startPermissions(core)).rejects.toThrow();

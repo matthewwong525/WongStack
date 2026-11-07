@@ -23,6 +23,15 @@ export function FinishStep({ plain = false, say = 'Finish Access setup', request
   return plain ? <div className="grid gap-2">{step}</div> : <Notice>{step}</Notice>
 }
 
+// Why the sign-in list could not be read, by the reason code the status read sends. Anything else: an odd answer.
+const startReasons: Record<string, string> = {
+  login_policy_review_required: 'The sign-in list has a rule this app does not manage, so a person must check it.',
+  login_resource_mismatch: 'The sign-in app does not match this app.',
+  provider_unavailable: 'Cloudflare did not answer.',
+  provider_not_found: 'Cloudflare did not answer.',
+}
+const startReason = (code: string) => startReasons[code] ?? 'Cloudflare\'s answer was not in a shape this app reads.'
+
 // The one spot for notices, under the views on every owner screen: the last change, a preview's practice list, who
 // an update unticked and, on People alone, the steps left before sign-in. The missing key is the owner's step.
 export function Notices({ status, view, said, pending, save, reload }: ViewProps) {
@@ -51,6 +60,8 @@ export function Notices({ status, view, said, pending, save, reload }: ViewProps
       : <Notice><p><strong>One step left for the owner.</strong> You can choose apps now. New people can sign in once {status.ownerEmail} finishes Access setup.</p></Notice>)}
     {people && status.key === 'ready' && !status.started && <Notice>
       <p>The sign-in list could not be read yet. Everyone keeps every app until it can.</p>
+      {/* The code is for the owner to hand to their assistant. */}
+      {status.startError && <p className="text-muted-foreground">Why: {startReason(status.startError)} <small>({status.startError})</small></p>}
       <Button type="button" variant="outline" size="sm" onClick={reload}>Read it again</Button>
     </Notice>}
     {people && status.imported > 0 && <Notice><p>

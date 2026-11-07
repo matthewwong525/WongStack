@@ -1,18 +1,26 @@
 // Permissions, then key levels, start by themselves at the owner's first open, and take nothing away.
-import { type Core, now, permissionsStarted } from "./core.ts";
+import { ZodError } from "zod";
+import { type Core, AccessError, now, permissionsStarted } from "./core.ts";
 import { admittedEmails, loginAuthority } from "./login-management.ts";
 import { audit, businessApps, catalogueWrites } from "./sets.ts";
 
 /** On the live app, everyone the sign-in list already admits becomes a person with every built app, and the switch
- *  turns on, in one batch. A missing key or a failed read changes nothing, so nobody is locked out. */
-export async function startPermissions(core: Core): Promise<void> {
-  if (await permissionsStarted(core)) return;
+ *  turns on, in one batch. A missing key or a failed read changes nothing; a failed read logs, then returns why. */
+export async function startPermissions(core: Core): Promise<string | null> {
+  if (await permissionsStarted(core)) return null;
   let admitted: string[] = [];
   if (core.live) {
     const authority = loginAuthority(core.env);
-    if (!authority) return;
+    if (!authority) return null;
     try { admitted = await admittedEmails(core, authority); }
-    catch { return; }
+    catch (failure) {
+      // A schema mismatch is an answer this app could not parse, such as a field it did not expect; any other throw,
+      // such as the provider's timeout or a failed connection, means Cloudflare did not answer.
+      const error = failure instanceof AccessError ? failure.code
+        : failure instanceof ZodError ? "login_policy_unreadable" : "provider_unavailable";
+      console.log(JSON.stringify({ event: "permissions_start_failed", error }));
+      return error;
+    }
   }
   const id = core.installationId;
   const known = await core.db.prepare("SELECT email FROM wong_access_members WHERE installation_id = ?")
@@ -30,6 +38,7 @@ export async function startPermissions(core: Core): Promise<void> {
     core.db.prepare("UPDATE wong_access_installation SET policy_enabled = 1, revision = revision + 1 WHERE installation_id = ? AND policy_enabled = 0").bind(id),
     audit(core, `permissions_started:${fresh.length}`),
   ]);
+  return null;
 }
 
 /** Once permissions have started, key levels turn on and nothing else changes: nobody is given a level, and a level
