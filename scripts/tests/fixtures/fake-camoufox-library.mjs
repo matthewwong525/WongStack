@@ -2,9 +2,9 @@
 import { chmodSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-/** Writes a fake `camoufox` package under `dir`: `version` is the library's, `pin` the build it pins, and
- * `installed` the build `version.json` names, or null for none. Returns the folder to put on PYTHONPATH. */
-export function fakeLibrary(dir, { version = '0.5.9', pin = 'v158.0.1-beta.41', installed = '158.0.1-beta.41', country = 'CA' } = {}) {
+/** Writes a fake `camoufox` package under `dir` (`installed`: the build `version.json` names, or null; `platform`: a
+ * `sys.platform` that a `sitecustomize.py` sets, such as 'darwin'). Returns the folder to put on PYTHONPATH. */
+export function fakeLibrary(dir, { version = '0.5.9', pin = 'v158.0.1-beta.41', installed = '158.0.1-beta.41', country = 'CA', platform = null } = {}) {
   const lib = join(dir, 'lib');
   const pkg = join(lib, 'camoufox');
   mkdirSync(pkg, { recursive: true });
@@ -13,6 +13,7 @@ export function fakeLibrary(dir, { version = '0.5.9', pin = 'v158.0.1-beta.41', 
   writeFileSync(join(lib, `camoufox-${version}.dist-info`, 'METADATA'), `Metadata-Version: 2.1\nName: camoufox\nVersion: ${version}\n`);
   writeFileSync(join(lib, 'playwright', '__init__.py'), '');
   writeFileSync(join(pkg, '__init__.py'), '');
+  if (platform) writeFileSync(join(lib, 'sitecustomize.py'), `import sys\n\nsys.platform = ${JSON.stringify(platform)}\n`);
   const [, pinVersion, pinBuild] = /^v(.*?)-(.*)$/.exec(pin);
   writeFileSync(join(pkg, 'browser_pin.py'), `from types import SimpleNamespace\n\ndef load_pin():\n    return SimpleNamespace(tag=${JSON.stringify(pin)}, version=${JSON.stringify(pinVersion)}, build=${JSON.stringify(pinBuild)})\n`);
   const build = join(dir, 'build');

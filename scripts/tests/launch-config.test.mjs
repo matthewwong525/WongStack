@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +9,8 @@ import { fakeLibrary } from './fixtures/fake-camoufox-library.mjs';
 
 const SCRIPT = fileURLToPath(new URL('../../.agents/skills/browser/scripts/launch-config.py', import.meta.url));
 const PINS = ['--library', '0.5.9', '--build', 'v158.0.1-beta.41'];
+/** The system the browser tells sites: this computer's own. */
+const HOST_OS = { darwin: 'macos', win32: 'windows' }[process.platform] ?? 'linux';
 
 /** Runs launch-config.py on a fake library; resolves to its exit code and its one JSON line. */
 function run(library, ...args) {
@@ -36,7 +38,7 @@ test('the launch config is one JSON line: versions, the context options, English
   assert.equal(out.locale, 'en-CA');
   assert.match(out.driver, /playwright[/\\]driver[/\\]package$/);
   const { given, ...options } = out.options;
-  assert.deepEqual(given, { os: 'linux', headless: false, virtual_display: ':7', humanize: true, enable_cache: true, geoip: '203.0.113.7', locale: 'en-CA', proxy: { server: 'http://127.0.0.1:4000' }, fingerprint: null });
+  assert.deepEqual(given, { os: HOST_OS, headless: false, virtual_display: ':7', humanize: true, enable_cache: true, geoip: '203.0.113.7', locale: 'en-CA', proxy: { server: 'http://127.0.0.1:4000' }, fingerprint: null });
   assert.equal(options.no_viewport, true);
   assert.equal(options.executable_path, '/fake/camoufox-bin');
 });
@@ -48,12 +50,12 @@ test('a failed country lookup starts in US English with no geoip', () => {
   assert.equal(out.options.given.headless, true);
 });
 
-test('--window shows the browser on the computer\'s own screen, with no virtual display and a Linux identity', () => {
+test('--window shows the browser on the computer\'s own screen, with no virtual display and the computer\'s own system', () => {
   const { status, out } = run({}, '--window');
   assert.equal(status, 0);
   assert.equal(out.options.given.headless, false);
   assert.equal(out.options.given.virtual_display, null);
-  assert.equal(out.options.given.os, 'linux');
+  assert.equal(out.options.given.os, HOST_OS);
 });
 
 test('--check gives only the versions', () => {
@@ -90,6 +92,35 @@ test('the identity is made once per library and build, then each start reuses it
     assert.notDeepEqual(raised.out.options.given.fingerprint, first.out.options.given.fingerprint);
     writeFileSync(file, '{not json');
     assert.equal(run({}, '--fingerprint', file).out.fingerprint, 'new', 'a broken file is made again');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('a Mac\'s launch and identity tell macos; one saved with no system, or for another, is made again, then reused', () => {
+  // CI runs on Linux: the fake library makes Python report another system, as on that computer.
+  const dir = mkdtempSync(join(tmpdir(), 'launch-config-system-'));
+  const file = join(dir, 'fingerprint.json');
+  const saved = () => JSON.parse(readFileSync(file, 'utf8'));
+  const linux = (...args) => run({ platform: 'linux' }, '--fingerprint', file, ...args);
+  const mac = (...args) => run({ platform: 'darwin' }, '--fingerprint', file, ...args);
+  try {
+    const made = linux();
+    assert.equal(made.out.options.given.os, 'linux', 'the pretended system reaches the script');
+    const unmarked = saved();
+    delete unmarked.os;
+    writeFileSync(file, JSON.stringify(unmarked));
+    assert.equal(linux().out.fingerprint, 'saved', 'a file with no system was made as Linux');
+    const remade = mac();
+    assert.equal(remade.status, 0);
+    assert.equal(remade.out.options.given.os, 'macos', 'the launch tells macos');
+    assert.equal(remade.out.fingerprint, 'new', 'a file with no system is made again on a Mac');
+    assert.equal(remade.out.options.given.fingerprint.os, 'macos', 'the new identity is made for macos');
+    assert.equal(saved().os, 'macos', 'the file records the system');
+    const reused = mac();
+    assert.equal(reused.out.fingerprint, 'saved');
+    assert.deepEqual(reused.out.options.given.fingerprint, remade.out.options.given.fingerprint);
+    assert.equal(linux().out.fingerprint, 'new', 'an identity saved for macos is made again on Linux');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
