@@ -10,7 +10,7 @@ People pages live in `knowledge/people/`. The [memory digest](../development/mem
 
 ## Where it lives
 
-Setup makes the repository `<repo>-knowledge` in the account's Cloudflare Artifacts, with one empty first commit, and binds only the live app to it ([provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md)). Previews have no binding, so they answer `code_unavailable`: a preview never reads or changes company knowledge. Every install needs Cloudflare's paid plan for this ([what it costs](getting-started.md)).
+Setup makes the repository `<repo>-knowledge` in the account's Cloudflare Artifacts, with one empty first commit, and binds only the live app to it ([provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md)). Previews have no binding, so they answer `code_unavailable`: a preview never reads or changes company knowledge. On the live app, company knowledge and project code also answer `code_unavailable` until [Access](employee-access.md) starts at the owner's first open. Every install needs Cloudflare's paid plan for this ([what it costs](getting-started.md)).
 
 The app hands it out at `/api/access/knowledge/git/`, beside [the project's Git address](project-git-route.md). Every call, a save included, needs the **Project code** tick on [the Access screens](access-screens.md); a service token is refused. A save may only move `main` forward: a new branch, a tag, a delete or a second ref is refused. The app logs each save as `knowledge_saved` and each refusal as `knowledge_refused`, with who and the commit.
 

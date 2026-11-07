@@ -21,9 +21,10 @@ export async function management(request: Request, env: ConnectionEnv, identity:
       // A read lists every built app and, the first time, starts permissions and then key levels.
       // An Admin's read runs the same steps: they take nothing away, and do nothing once run.
       await core.db.batch(catalogueWrites(core));
-      await startPermissions(core);
+      // A failed start's reason is this open's own: the start reruns at each open until it works.
+      const startError = await startPermissions(core);
       await startKeyLevels(core);
-      return reply(await accessStatus(core));
+      return reply({ ...await accessStatus(core), startError });
     }
     if (request.method !== "POST") return reply({ code: "method_not_allowed" }, 405);
     if (path === "status") return reply({ code: "not_found" }, 404);

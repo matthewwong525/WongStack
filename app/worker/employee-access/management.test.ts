@@ -96,14 +96,15 @@ it('keeps a failed sign-in step pending for Try again, and the retry finishes it
 it('puts a person saved before the first read on the sign-in list once the read works, without adding them again', async () => {
   f.sql.close(); f = fixture({ started: false });
   // The sign-in list cannot be read: the save commits, and nothing is sent to it.
+  // The status read says why, from this open's own attempt.
   cf.extras = [{ id: 'unreviewed', decision: 'allow', include: [] }];
-  expect(await (await run('status', 'GET')).json()).toMatchObject({ started: false, key: 'ready', people: [] });
+  expect(await (await run('status', 'GET')).json()).toMatchObject({ started: false, startError: 'login_policy_review_required', key: 'ready', people: [] });
   expect(await (await run('people', 'POST', person('bo@example.com', ['orders']))).json()).toMatchObject({ started: false,
     work: [{ kind: 'policy', status: 'pending' }], people: [{ email: 'bo@example.com', settled: false, apps: ['orders'] }] });
   expect(cf.writes).toEqual([]);
   // The read works: permissions start, and Bo's line now offers Try again.
   cf.extras = [];
-  expect(await (await run('status', 'GET')).json()).toMatchObject({ started: true, key: 'ready', environment: 'live',
+  expect(await (await run('status', 'GET')).json()).toMatchObject({ started: true, startError: null, key: 'ready', environment: 'live',
     work: [{ kind: 'policy', status: 'pending' }], people: [{ email: 'bo@example.com', settled: false, apps: ['orders'] }] });
   expect(cf.writes).toEqual([]);
   expect(await (await run('retry')).json()).toMatchObject({ work: [{ kind: 'policy', status: 'ready', outcome: 'policy_readback_matches' }],

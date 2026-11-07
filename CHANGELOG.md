@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 50.10.1 — Access starts when the sign-in rule has no session time
+
+- **Access starts when Cloudflare sends the sign-in rule without a session time.** At your first open, the app reads who can sign in, adds them to People, and turns Access on. Company knowledge and project code then work ([company knowledge](wiki/stack/company-knowledge.md)).
+- **Changes to who can sign in save on that rule too.** The app sends the new list and keeps the session time as it was: kept when there is one, left out when there is none.
+- **A failed start says why.** The app writes one log line with the reason, and People shows a *Why:* line under *The sign-in list could not be read yet*, with the reason code to give your assistant.
+
+**Updating.** Nothing to do: your next open of Access starts it.
+
 ## 50.10.0 — Default schedules wait paused while check-ins are off
 
 - **Stop check-ins, and the default schedules pause.** *Keep my chats in line* and *Wiki tidy* show *Paused* in the Inbox's *Schedules* list on this computer, so their run lists get no more *didn't start, check-ins are off* lines. *Start check-ins*, and both go on again ([default schedules](wiki/stack/host-schedules.md#default-schedules)).
