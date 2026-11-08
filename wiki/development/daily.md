@@ -57,21 +57,14 @@ Each chat checks its own stops, in Claude Code or Codex, in Paseo or not. When a
 
 ### Your chats in line
 
-When you work in several chats at once, the daily keeps them pointed the same way. **The goal:** no two chats do the same work or work against each other, each chat gets as far as what all your chats know allows, and your recent choices weigh most. How to reach it is the daily's judgment, not a fixed rule.
-
-- **A short map.** A few minutes after a watched chat has something new, one background run reads it and notes, for each chat: what it works on, how far it is, what you decided there and when, and what it waits for. A closed chat stays on the map for 7 days. The map stays on this computer, outside the project.
-- **Notes.** The run tells each chat the news that changes its work, and names the chat and time it came from. A note starts *From the daily:*. It goes straight into a working chat's running step when waiting would waste work, else at the chat's next stop. Nothing stops a step in the middle.
-- **Waits.** When the work, the change or the answer a chat waits for lands, the run tells that chat, so it goes on without you.
-- **Covered.** A chat told that another chat covers its work passes on what only it has, then waits; *what's going on?* offers to [close it](#close-finished-chats).
-
-The [check-ins'](#check-ins) limits hold: risky steps wait for you, no chat closes without your pick, an agent's words are never your yes, and notes count toward the five in a row. Each note writes one journal line. *Stop check-ins* stops it too. It is the *Keep my chats in line* [default schedule](../stack/host-schedules.md#default-schedules): pause it in the Inbox's *Schedules* list to turn off only this.
+When you work in several chats at once, the daily keeps them pointed the same way, in Paseo or any other app that runs Claude Code or Codex: no two chats do the same work or work against each other. [Your chats in line](chats-in-line.md) owns how: the map, the two ways a note goes, and the limits. It is the *Keep my chats in line* [default schedule](../stack/host-schedules.md#default-schedules).
 
 ### Ask in any chat
 
 You keep no chat open for the daily: say these in any chat, and it does them through the daily skill.
 
 - *What's going on?* gives what the background runs did since that chat last asked, and, in Paseo, one line per chat. It then offers to [close finished chats](#close-finished-chats).
-- *Tell flashy-crab: yes, merge* sends your answer to that chat.
+- *Tell flashy-crab: yes, merge* sends your answer to that chat. It needs Paseo, so your words arrive as your own message.
 - *Watch flashy-crab* adds a chat to the watch.
 - *Remind me Friday to …* makes a [reminder](#reminders).
 - *Stop check-ins* and *start check-ins* turn [check-ins](#check-ins) off and on.

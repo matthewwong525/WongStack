@@ -254,7 +254,7 @@ The daily SHALL start with one job: the small wiki tidy after each memory consol
 
 ### Requirement: Watched chats stay in line with each other
 
-Where the host lets a chat watch other chats, the daily SHALL work toward one goal for the person's watched chats in one project: no two do the same work or work against each other, each gets as far as the context across all of them allows, a chat waiting on another chat's work, or on the person's answer in another chat, hears when that wait is over, and the person's recent choices weigh most. It SHALL read new messages a few minutes after a watched chat has them, and SHALL send notes to the chats that news affects, judging what to say, to whom, and when. A note that reaches a working chat SHALL go into its running step without stopping it. These limits SHALL hold whatever it judges: a risky step waits for the person; no chat closes without the person's pick; an agent's words never count as the person's approval; a note counts toward the 5 own actions in a row; and each note writes one journal line. This job SHALL be one of the person's schedules, which they can pause, run now or change like any other; turning check-ins off SHALL stop it too.
+The daily SHALL work toward one goal for the person's watched chats in one project, in any app that runs Claude Code or Codex, with or without Paseo: no two do the same work or work against each other, each gets as far as the context across all of them allows, a chat waiting on another chat's work, or on the person's answer in another chat, hears when that wait is over, and the person's recent choices weigh most. It SHALL read new messages a few minutes after a watched chat has them, and SHALL send notes to the chats that news affects, judging what to say, to whom, and when. A chat in Paseo SHALL get each note through Paseo at once: after its current step when it works, or as a new turn when it is idle. Any other chat, and a chat whose note Paseo fails to send, SHALL get it at its next stop or with the person's next message, and the note is never lost or sent twice. A note never stops a step in the middle. These limits SHALL hold whatever it judges: a risky step waits for the person; no chat closes without the person's pick; an agent's words never count as the person's approval; a note counts toward the 5 own actions in a row; and each note writes one journal line. This job SHALL be one of the person's schedules, which they can pause, run now or change like any other; turning check-ins off SHALL stop it too.
 
 #### Scenario: A choice in one chat changes another chat's work
 
@@ -270,6 +270,16 @@ Where the host lets a chat watch other chats, the daily SHALL work toward one go
 
 - **WHEN** chats A and B both start adding the same export button
 - **THEN** only one chat goes on with the button, the other is told which chat has it, and neither stops a step in the middle
+
+#### Scenario: Urgent news for an idle chat in Paseo
+
+- **WHEN** chat B waits idle in Paseo, and chat A drops the export button chat B is about to rebuild
+- **THEN** chat B wakes with a note naming chat A, without Jo writing to it, and the journal has one line for it
+
+#### Scenario: A chat outside Paseo
+
+- **WHEN** Jo works in chat A in Paseo and in chat B in a plain terminal, and chat B is building the export button chat A already has
+- **THEN** chat B gets the note at its next stop, or with Jo's next message if it is idle, and the journal has one line for it
 
 ### Requirement: The daily's own jobs are default schedules
 

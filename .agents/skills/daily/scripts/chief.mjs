@@ -479,11 +479,13 @@ export async function hand({ stateDir, day, started, timezone, agent: name, call
   return { status: 'handed', ...describe(entry) };
 }
 
-// What reply, answer and allow share: a watched agent, a message, and room left in the streak.
-async function handFor({ stateDir, day, started, timezone, agent: name, text, bucket, label, call, env = process.env, now = new Date(), typedAt = userAt }) {
+// What reply, answer and allow share: a watched agent, or the line-up's `row` for a chat with a card, a message, and
+// room left in the streak.
+async function handFor({ stateDir, day, started, timezone, agent: name, text, bucket, label, call, env = process.env, now = new Date(), typedAt = userAt,
+  row: given = null }) {
   if (!env.PASEO_AGENT_ID) return { refused: unsupported };
   const list = await call(['ls', '--global']);
-  const row = watchedRow(watched({ stateDir, day, started, timezone, list, self: env.PASEO_AGENT_ID }), name);
+  const row = given ?? watchedRow(watched({ stateDir, day, started, timezone, list, self: env.PASEO_AGENT_ID }), name);
   if (!row) return { refused: { status: 'refused', reason: 'unwatched', error: `${name} is not a chat the watch has: hand it first.` } };
   if (!String(text ?? '').trim()) return { refused: { status: 'refused', reason: 'message', error: 'The message is empty.' } };
   if (bucket !== 'person' && streak(actions({ stateDir, day }), row.agentId, typedAt(row.agentId)) >= STREAK) {
@@ -590,12 +592,14 @@ export async function status({ stateDir, day, started, timezone, call, env = pro
   const log = actions({ stateDir, day });
   const rows = watched({ stateDir, day, started, timezone, list: read.list, self: env.PASEO_AGENT_ID });
   const map = readJson(lineUpFile(stateDir), {})?.chats ?? {};
+  // The line-up keys its map by chat key, and keeps each chat's Paseo id.
+  const mapped = id => map[id] ?? Object.values(map).find(chat => chat?.paseoId === id);
   const titleOf = id => map[id]?.title ?? rows.find(row => row.agentId === id)?.title ?? id;
   const agents = [];
   for (const row of rows) {
     const agent = read.list.find(entry => entry.id === row.agentId && live(entry));
     const asking = read.pending.filter(ask => ask.agentId === row.agentId).length;
-    const covered = !asking && agent && !working(agent.status) && map[row.agentId]?.covered;
+    const covered = !asking && agent && !working(agent.status) && mapped(row.agentId)?.covered;
     agents.push({ ...describe(row), status: agent?.status ?? 'gone', asking, last: log.filter(entry => entry.agent === row.agentId).at(-1) ?? null,
       ...(!asking && agent && await finishedOf(agent) && { finished: true }), ...(covered && { covered: titleOf(covered) }) });
   }
