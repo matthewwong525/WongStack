@@ -5,7 +5,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { localDay, morningOf, placePath } from '../../../daily/scripts/config.mjs';
 import { firstMessage } from '../../../daily/scripts/daily.mjs';
 import { briefFolders, DEFAULT_SCHEDULES } from '../../../daily/scripts/worker.mjs';
-import { appCall, appTiming, approveHere, approver, definition, readSchedule, saveDefinition, send } from './app.mjs';
+import { appTiming, approveHere, approver, definition, readSchedule, saveDefinition, send } from './app.mjs';
 import { approvedVersion } from './approvals.mjs';
 import { validateReceipt } from './hosts.mjs';
 import { localProgress } from './progress.mjs';
@@ -245,9 +245,12 @@ function removeMoved(done, { root, me, config, owner }) {
   return removed;
 }
 
-/** Whether the signed-in person is the app's owner: the app gives the week board to the owner alone. */
-async function isOwner(client) {
-  try { return (await appCall(client, 'items')).value?.board === true; } catch { return false; }
+/** Whether one of the person's emails is the owner's, as the app's committed settings name it. */
+function isOwner(root, emails) {
+  try {
+    const owner = /"WONG_OWNER_EMAIL"\s*:\s*"([^"]+)"/.exec(readFileSync(join(root, 'app', 'wrangler.jsonc'), 'utf8'))?.[1];
+    return !!owner && emails.has(owner.trim().toLowerCase());
+  } catch { return false; }
 }
 
 /** `move-in`: moves the person's schedules to the app, or with `dryRun` only shows them. Interactive, it holds a
@@ -272,7 +275,8 @@ export async function moveIn({ root, primary, me, config, records, client, compu
     if (result.state === 'moved' && entry.resumeOn) note(`${entry.def.name} moved paused: resume it on ${entry.resumeOn}, when it starts.`);
   }
   if (open.length && unattended) note(`Waiting for your choice: these look like the same job and did not move: ${pairs.map(pair => pair.map(each => each.name).join(' / ')).join('; ')}.`);
-  const owner = !unattended && done.some(entry => entry.source === 'team') && await isOwner(client);
+  const emails = new Set([email, me.email, ...(config?.emails ?? [])].filter(Boolean).map(each => String(each).toLowerCase()));
+  const owner = !unattended && done.some(entry => entry.source === 'team') && isOwner(primary ?? root, emails);
   const removed = unattended ? null : removeMoved(done, { root, me, config, owner });
   const team = !owner && done.some(entry => entry.source === 'team') ? config.teamFile ?? null : null;
   return { results, refused, duplicates: pairs, ...(removed ? { removed } : {}), ...(team ? { teamFileLeft: team } : {}),

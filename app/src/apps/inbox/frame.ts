@@ -12,7 +12,7 @@ const message = z.discriminatedUnion('type', [
     question: z.string().min(1).max(300), data: bytes }),
   z.strictObject({ type: z.literal('inbox:notes-get'), key }),
   z.strictObject({ type: z.literal('inbox:notes-set'), key, value: z.string().max(1_000_000) }),
-  // The page's own Back was tapped: the inbox opens the week board.
+  // The page's own Back was tapped: the inbox opens the chat list.
   z.strictObject({ type: z.literal('inbox:back') }),
 ])
 export type FrameMessage = z.infer<typeof message>

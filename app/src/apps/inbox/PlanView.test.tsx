@@ -127,13 +127,13 @@ it('leaves Back to a page that draws its own: none shows outside the frame, and 
   expect(document.documentElement.dataset.bars).toBeUndefined()
 })
 
-it("opens the week board when the page's own Back is tapped", async () => {
+it("opens the chat list when the page's own Back is tapped", async () => {
   const { port } = await open()
   port.postMessage({ type: 'inbox:back' })
   await until(() => screen.queryByTitle('One inbox') === null)
   expect(screen.queryByTitle('One inbox')).toBeNull()
-  await until(() => calls.some(call => call.path === '/apps/inbox/api/items'))
-  expect(calls.some(call => call.path === '/apps/inbox/api/items')).toBe(true)
+  await until(() => calls.some(call => call.path === '/apps/inbox/api/chats'))
+  expect(calls.some(call => call.path === '/apps/inbox/api/chats')).toBe(true)
 })
 
 it("greets the page in the app's look and tells it each time the app's switch changes it, and nothing else", async () => {
@@ -458,9 +458,9 @@ it('says an archived page had no answer and when it closed, and an action the pa
   expect(screen.getByRole('status').textContent).toBe(`Archived · Build, ${when(3_000)}`)
 })
 
-it('answers any tap or file from an archived page with closed, sends none, keeps no notes, and goes Back to the Reviews list', async () => {
+it('answers any tap or file from an archived page with closed, sends none, keeps no notes, and goes Back to the chat list', async () => {
   answer = archived([])
-  const { heard, say, port } = await open(`/apps/inbox/?item=${PLAN}&from=reviews`)
+  const { heard, say, port } = await open()
   await say({ type: 'inbox:tap', action: 'send', text: 'More notes' })
   await say({ type: 'inbox:tap', action: 'build', text: '' })
   expect(heard).toEqual([{ type: 'inbox:result', state: 'closed' }, { type: 'inbox:result', state: 'closed' }])
@@ -470,7 +470,7 @@ it('answers any tap or file from an archived page with closed, sends none, keeps
   expect(calls.filter(call => call.path.startsWith('/apps/inbox/api/file?'))).toEqual([])
   await say({ type: 'inbox:notes-set', key: NOTES, value: '{"notes":[]}' })
   expect(localStorage.getItem(NOTES)).toBeNull()
-  expect(screen.getByRole('link', { name: 'Back' }).getAttribute('href')).toBe('/apps/inbox/?view=reviews')
+  expect(screen.getByRole('link', { name: 'Back' }).getAttribute('href')).toBe('/apps/inbox/')
   port.postMessage({ type: 'inbox:back' })
   await until(() => calls.some(call => call.path.startsWith('/apps/inbox/api/reviews')))
   expect(screen.queryByTitle('One inbox')).toBeNull()

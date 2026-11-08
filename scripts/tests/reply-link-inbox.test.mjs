@@ -100,7 +100,7 @@ test('the company client signs in from a folder\'s checkout, counts only once it
   }
 });
 
-test('an inbox that answers takes the plan, and the link is the app address: no tunnel starts', async t => {
+test('an inbox that answers takes the plan with its chat\'s agent id, and the link is the app address: no tunnel starts', async t => {
   const at = home(t);
   const app = fakeApp();
   const file = join(at.dir, 'review.html');
@@ -114,10 +114,11 @@ test('an inbox that answers takes the plan, and the link is the app address: no 
   assert.equal(started, 1);
   assert.equal(existsSync(join(at.dir, '.wong-stack', 'reply-link', 'server.json')), false, 'no tunnel server');
   const sent = app.items.get(id);
-  assert.deepEqual(Object.keys(sent).sort(), ['actions', 'body', 'closesAt', 'id', 'kind', 'title', 'version', 'workspace']);
+  assert.deepEqual(Object.keys(sent).sort(), ['actions', 'body', 'chat', 'closesAt', 'id', 'kind', 'title', 'version', 'workspace']);
+  assert.equal(sent.chat, 'chat-1', 'the item carries its chat\'s agent id, so the Inbox shows it on that chat\'s row');
   assert.deepEqual([sent.kind, sent.title, sent.actions, sent.version], ['plan', 'Review · example & more', ['build'], sha(readFileSync(file, 'utf8'))]);
   assert.ok(Math.abs(sent.closesAt - Date.now() - 24 * 3_600_000) < 60_000, 'open for 24 hours');
-  assert.doesNotMatch(JSON.stringify(sent), /chat-1|Notes on the plan|run \/apply/, 'the app never holds the chat or its messages');
+  assert.doesNotMatch(JSON.stringify(sent), /Notes on the plan|run \/apply/, 'the app never holds the chat\'s messages');
   const kept = JSON.parse(readFileSync(join(at.state.items, `${id}.json`), 'utf8'));
   assert.deepEqual([kept.target.agentId, kept.header, kept.actions], ['chat-1', HEADER, { build: BUILD }]);
   assert.deepEqual(kept.app, { cwd: at.dir, origin: ORIGIN }, 'the item names the folder it signed in from, and its app');

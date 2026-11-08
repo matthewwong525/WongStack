@@ -54,13 +54,12 @@
       }
     },
     {
-      // A folder inside a mini app's server side keeps the same bounds, one level down. The week board's Worker also
-      // reads the board's rules, which its screen shares.
+      // A folder inside a mini app's server side keeps the same bounds, one level down.
       "files": ["worker/apps/*/*/**"],
       "rules": {
         "no-restricted-imports": ["error", { "patterns": [{
-          "group": ["../../**", "!../../../api/contract.ts", "!../../../api/body.ts", "!../../../../src/lib/board.ts"],
-          "message": "A mini app's server side imports only its own folder, worker/api/contract.ts and src/lib/board.ts."
+          "group": ["../../**", "!../../../api/contract.ts", "!../../../api/body.ts"],
+          "message": "A mini app's server side imports only its own folder and worker/api/contract.ts."
         }] }]
       }
     },

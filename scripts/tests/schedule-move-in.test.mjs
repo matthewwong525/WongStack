@@ -56,8 +56,8 @@ test("a month's nth weekday is monthly, and weekly jobs on different days are ne
     item('recap-mid', 'Midweek meeting notes', '0 8 * * 3-5')]), [['reconcile', 'close'], ['recap', 'recap-mid']]);
 });
 
-/** An install with Jo's routines, a team routine, timed jobs and a Paseo-bound repo record; Jo owns the app unless
- *  `owner` is false. */
+/** An install with Jo's routines, a team routine, timed jobs and a Paseo-bound repo record; Jo owns the app, by its
+ *  committed owner email, unless `owner` is false. */
 function install(t, { owner = true } = {}) {
   const root = folder(t), env = { HOME: folder(t) }, daily = path.join(root, '.agents/daily');
   mkdirSync(path.join(daily, 'briefs'), { recursive: true });
@@ -73,7 +73,9 @@ function install(t, { owner = true } = {}) {
   writeFileSync(path.join(daily, 'team.json'), JSON.stringify({ version: 1, checks: [check('team-standup', 'Team standup notes', { kind: 'weekly', weekdays: [1] })] }));
   writeRecord(root, { key: 'monthly-books-close', name: 'Monthly books close', timing: { mode: 'recurring', timezone: 'UTC', cron: '0 9 1 * *', allowedLatenessMs: DAY } });
   writeRecord(root, { key: 'kims-job', owner: 'kim@example.test' });
-  const app = fakeApp({ owner }), paseo = { calls: [], jobs: new Set(['job-1']) };
+  mkdirSync(path.join(root, 'app'));
+  writeFileSync(path.join(root, 'app', 'wrangler.jsonc'), `{ "vars": { "WONG_OWNER_EMAIL": "${owner ? 'Jo@Example.test' : 'boss@example.test'}" } }\n`);
+  const app = fakeApp(), paseo = { calls: [], jobs: new Set(['job-1']) };
   const receipt = (action, id) => ({ version: 1, host: 'paseo', action, nativeId: id, outcome: 'verified', observedAt: 'now', observation: { id } });
   Object.assign(paseo, {
     async inspect(id) { if (!this.jobs.has(id)) throw new Error('gone'); return { id, status: 'paused' }; },

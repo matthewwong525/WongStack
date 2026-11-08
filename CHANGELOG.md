@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — The Inbox shows your chats
+
+- **The Inbox opens on your chats.** Each open chat is one row, with its name, its step, such as *Plan* or *Apply*, and its folder. A chat that waits on your review sits on top under *Needs you*; a tap opens the review. The chats that are working come next, then the *Archive* of past reviews with its search. Rows show no dates ([in your inbox first](wiki/development/reply-links.md#in-your-inbox-first)).
+- **A row follows its chat.** It shows the step the chat is on now, and it leaves when the chat closes. *Close chat* in a row's menu sends that chat `/close` once you have been quiet there for 15 minutes ([your chat list](wiki/development/daily.md#your-chat-list)).
+- **A schedule's run opens a chat when it has something for you.** A background run that finds something, such as *3 invoices are late*, opens one chat named for the schedule, with what it found. A run that finds nothing opens no chat ([the handoff](wiki/development/daily.md#a-background-runs-handoff)).
+- **Schedules is one button in the Inbox's top bar.** Its *Back* returns to your chats.
+- **The week board is deleted.** Its days, tasks, backlog groups, week goals and task search go, with *start a task* and *clean up my board*. *Remind me Friday to call Kim* still works: it makes a one-time schedule that opens a chat on Friday ([reminders](wiki/development/daily.md#reminders)). If a *Needs you* chat opens about the chat list, sign in to the app again.
+
+**Updating.** This update deletes the week board and every task on it, and you can not get them back. Before the update goes live, list the undone tasks on the board for the person, and ask which ones to keep as reminders; make each one they name a one-time schedule with `/schedule`. If the install's own code, outside WongStack's files, uses a table named `tasks`, `backlog_groups` or `week_goals`, keep that table: leave out the lines of the new database step that remove it, and tell the person. The `tasks` entry in a daily settings file now does nothing; you can remove it. If one of the install's own mini apps imports `checkerOwns` from `app/worker/api/contract.ts`, change that app to check the owner itself, because the shared code no longer gives `checkerOwns`.
+
 ## 50.12.0 — The browser goes through your home proxy, with a backup
 
 - **With the proxy on, the browser goes through your saved proxies first.** You can save two: a first proxy, such as one at your home, and a backup, such as a paid home address. Each page tries the first proxy, then the backup, then this computer's own network, so a page still loads when both are down. Sites see your home address, and the browser's language and clock follow it ([the order of routes](wiki/development/browser-proxy.md#the-order-of-routes)).

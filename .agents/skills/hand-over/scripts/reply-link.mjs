@@ -432,9 +432,10 @@ function titleOf(text, file) {
   return (named || basename(file)).slice(0, 200);
 }
 
-/** What the app keeps of an item: its words and actions, never its target chat or messages. */
+/** What the app keeps of an item: its words, actions and chat's agent id, never its target chat or messages. */
 const shown = (item, body) => ({ id: item.id, kind: item.kind, title: item.title, workspace: item.workspace, body,
-  actions: Object.keys(item.actions), version: item.version, closesAt: item.deadline, ...(item.hidden && { hidden: true }) });
+  actions: Object.keys(item.actions), version: item.version, closesAt: item.deadline, ...(item.hidden && { hidden: true }),
+  ...(item.chat && { chat: item.chat }) });
 
 /** The item's body as it stands: a plan's file, or the words it was made with; null when the file is gone. */
 function bodyOf(item) {
@@ -488,7 +489,7 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
     deadline: Date.now() + spec.hours * 3_600_000, version: sha(body), ...(file === null && { body }), done: kept?.done ?? { version: null, names: [] },
     uploads: spec.uploads ?? uploadsFor(file ?? join(spec.cwd, 'inbox', 'item'), spec.cwd),
     app: { cwd: spec.cwd, origin }, ...(spec.hidden && { hidden: true }), ...(spec.keepOpen && { keepOpen: true, hours: spec.hours }),
-    ...(spec.stop && { stop: spec.stop }) };
+    ...(spec.stop && { stop: spec.stop }), ...(env.PASEO_AGENT_ID && { chat: env.PASEO_AGENT_ID.slice(0, 128) }) };
   if (!(await upload(client, shown(item, body)))) return null;
   writeItem(state, item);
   rememberApp(spec.cwd, env);

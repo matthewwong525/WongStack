@@ -99,6 +99,18 @@ it("hands a run that came due to its own computer once, and takes its result onc
   expect(detail.json.runs).toEqual([started.json.run]);
 });
 
+it("keeps a started run's handoff chat: the worker reports the run started, then the chat it opened", async () => {
+  await putSchedule(sam);
+  later(3_600_000);
+  const [run] = await claim();
+  await call(sam, "POST", "run-result", { id: run.id, state: "started", chatTitle: "Sales digest" });
+  const handed = await call(sam, "POST", "run-result", { id: run.id, state: "started", chatTitle: "Sales digest", agentId: "agent-2" });
+  expect(handed.json.run).toMatchObject({ state: "started", chatTitle: "Sales digest", agentId: "agent-2" });
+  // A second handoff report changes nothing: the run has its chat.
+  await call(sam, "POST", "run-result", { id: run.id, state: "started", chatTitle: "Other", agentId: "agent-3" });
+  expect((await call(sam, "GET", "schedule", { key: "sales-digest" })).json.runs).toMatchObject([{ chatTitle: "Sales digest", agentId: "agent-2" }]);
+});
+
 it("misses a run past its lateness, and a newer due time misses the one still waiting", async () => {
   await putSchedule(sam);
   later(3_600_000);

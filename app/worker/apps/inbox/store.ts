@@ -27,6 +27,8 @@ const PREVIEW = 200;
 
 export const itemId = z.string().regex(/^[0-9a-f]{32}$/);
 export const actionName = z.string().regex(/^[a-z][a-z0-9-]{0,30}$/);
+/** A chat's id: its Paseo agent id, else its own session id. */
+export const agentId = z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/);
 const time = z.number().int().nonnegative();
 const tapState = z.enum(["waiting", "delivering", "sent", "failed", "changed", "cancelled", "expired"]);
 /** An approval's or a question's words: what it asks, a question's options, and whether it takes several of them. */
@@ -89,7 +91,8 @@ const ERRORS = {
   bad_detail: "An approval or question needs its words as JSON.", bad_link: "A link needs its kind and an https tunnel address, and no actions.",
   bad_start: "A plan card needs its state, a plan within the limits once ready, and go and skip.", bad_agent: "An agent's status needs its state and short lines, and no actions.",
   bad_action: "The item offers no such action, or the notes are empty.", files_gone: "A file sent with this is no longer held; pick it again.",
-  too_soon: "Wait a few seconds, then try again.",
+  too_soon: "Wait a few seconds, then try again.", not_yours: "Another person's chat has this id.",
+  retired: "The week board is gone; the Inbox lists your chats.",
   bad_file: "This is not a file the page takes, or it is empty.", full: "The inbox holds too many waiting files; try again later.",
   already_waiting: "A run is already waiting for your computer.", not_app: "This schedule runs elsewhere; ask your assistant to move it here.",
   paused: "Resume this schedule first.", bad_timing: "The timing needs a cadence, a timezone and a lateness the app can read.",
@@ -98,12 +101,15 @@ const ERRORS = {
 };
 export const fail = (code: keyof typeof ERRORS, status: number) => Response.json({ error: { code } }, { status });
 
-type Spec = Pick<Action, "operationId" | "summary" | "description" | "input" | "output" | "encoding" | "effect" | "limits">;
+type Spec = Pick<Action, "operationId" | "summary" | "description" | "input" | "output" | "encoding" | "effect" | "limits" | "confirmWith">;
 
-/** An inbox route: the signed-in person alone, never a service token or an open workspace, and no assistant's tool. */
-export function inboxAction<Input>({ run, ...spec }: Spec & { run: (at: Scope, input: Input) => Promise<Response> }): Action {
+/** An inbox route: the signed-in person alone, never a service token or an open workspace. Only an `agentAvailable`
+ *  one, which a skill calls as the person, is an assistant's tool. */
+export function inboxAction<Input>({ run, agentAvailable = false, examples = [], ...spec }: Spec & {
+  agentAvailable?: boolean; examples?: Action["examples"]; run: (at: Scope, input: Input) => Promise<Response>;
+}): Action {
   return defineAction({
-    ...spec, agentAvailable: false, requiresIdentity: false, allowed: identity => humanEmail(identity) !== null, errors: ERRORS, examples: [],
+    ...spec, agentAvailable, requiresIdentity: false, allowed: identity => humanEmail(identity) !== null, errors: ERRORS, examples,
     handler: async (_request, env, { identity, input }) => run(await scope(env, identity), input as Input),
   });
 }

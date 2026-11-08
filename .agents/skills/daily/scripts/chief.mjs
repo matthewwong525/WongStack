@@ -1,4 +1,4 @@
-// The watch over the person's chats for the daily's helpers, their replies, the chat to-dos and reminders. Its
+// The watch over the person's chats for the daily's helpers, their replies and the Inbox's chat list. Its
 // limits live here, not in a model: only watched agents, 5 own actions in a row, outward commands wait for the person.
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync,
@@ -7,9 +7,9 @@ import { createHash } from 'node:crypto';
 import { homedir, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { EXIT, PaseoError, findPaseo, paseo } from '../../schedule/scripts/lib/paseo.mjs';
-import { localDay, mondayOf, slotOf, validDay } from './config.mjs';
+import { localDay } from './config.mjs';
 import { finished } from './finished.mjs';
-import { finishTodo, keepTodos, todoOf } from './todos.mjs';
+import { keepChats, openChats } from './todos.mjs';
 
 export const BUCKETS = ['keep-going', 'pick', 'person'];
 // The watch's own actions in a row on one agent before the next stop is left for the person.
@@ -43,11 +43,11 @@ export const live = agent => agent && agent.status !== 'closed' && !agent.archiv
 const folder = (cwd, home = homedir()) => String(cwd ?? '').replace(/^~(?=\/|$)/, home).replace(/\/+$/, '');
 export const working = status => status === 'running' || status === 'initializing';
 
-/** The rows `start` and `start-task` recorded on `day`: routine keys, and `task:<id>` keys with their task id. */
+/** The rows `start` recorded on `day`, by their keys. */
 function startedOn(record, timezone, day) {
   return Object.entries(record).filter(([, entry]) => entry?.at && !entry.pending && localDay(new Date(entry.at), timezone) === day)
     .map(([key, entry]) => ({ agentId: entry.agentId ?? null, cwd: entry.cwd ?? null, title: entry.title ?? key.split(':')[0],
-      workspace: entry.workspace ?? null, source: 'started', ...(key.startsWith('task:') ? { task: entry.id ?? key.slice(5) } : {}) }));
+      workspace: entry.workspace ?? null, source: 'started' }));
 }
 
 const watchDays = stateDir => {
@@ -89,7 +89,7 @@ async function workspaceNames(call) {
   return new Map((Array.isArray(list) ? list : []).filter(each => each?.cwd && each.name).map(each => [folder(each.cwd), each.name]));
 }
 
-// The board shows `workspace`; `cwd` keeps the folder, so a folder name still finds the chat.
+// A row shows `workspace`; `cwd` keeps the folder, so a folder name still finds the chat.
 const placeOf = (names, cwd) => ({ workspace: names.get(folder(cwd)) ?? (basename(folder(cwd)) || null), cwd: cwd ?? null });
 
 /** A folder's git common dir, real path, or null when it is gone or not in git. */
@@ -135,8 +135,7 @@ async function admit({ rows, list, state, call, self, ignore = [], now, skip = n
   }
 }
 
-const describe = row => ({ agent: row.agentId, title: row.title ?? null, workspace: row.workspace ?? null, source: row.source,
-  ...(row.task ? { task: row.task } : {}) });
+const describe = row => ({ agent: row.agentId, title: row.title ?? null, workspace: row.workspace ?? null, source: row.source });
 
 /** The watch's logged actions on `day`, oldest first. */
 export function actions({ stateDir, day }) {
@@ -315,32 +314,6 @@ async function notice({ rows, list, pending, state, log, record, call, line, now
   }
 }
 
-async function readWeek({ day, board, missed, cleared }) {
-  try {
-    const week = await board(mondayOf(day));
-    if (!Array.isArray(week?.tasks)) throw new Error('No tasks in the answer.');
-    cleared('board');
-    return week;
-  } catch (error) { missed('board', error); return null; }
-}
-
-/** `done` once for each watched board task the board shows done. */
-function doneTasks({ rows, state, week, line }) {
-  for (const row of rows.filter(each => each.task && !state.done.includes(each.task))) {
-    if (week.tasks.find(task => task.id === row.task)?.status !== 'done') continue;
-    line({ event: 'done', ...describe(row) });
-    state.done.push(row.task);
-  }
-}
-
-/** A plan's link for a task: https on the app's own address or a tunnel page, never a look-alike. */
-export function linkAllowed(url, hosts = []) {
-  let parsed;
-  try { parsed = new URL(String(url ?? '')); } catch { return false; }
-  return parsed.protocol === 'https:' && !parsed.username && !parsed.password && !parsed.port
-    && (hosts.includes(parsed.hostname) || /^[a-z0-9-]+\.trycloudflare\.com$/.test(parsed.hostname));
-}
-
 /** The pass add-ons' answer: posts and events as lines, `skip` kept for this pass, one `not-read` per failed add-on. */
 async function passAddons({ addons, state, line, missed, cleared }) {
   const out = await addons(state.lastEvents ?? []);
@@ -361,9 +334,10 @@ export async function watch({ stops = () => null, ...args }) {
   try { return await passes({ ...args, wake }); } finally { watcher?.close?.(); }
 }
 
-async function passes({ stateDir, started, timezone, call, board, todos = null, addons = null, env = process.env, self = env.PASEO_AGENT_ID,
+// `chats`, `{sync, computer}`, sends the Inbox's chat list each pass; without it the pass sends none.
+async function passes({ stateDir, started, timezone, call, chats = null, addons = null, env = process.env, self = env.PASEO_AGENT_ID,
   ignore = [], service = false, print = console.log, seconds = 60, once = false, now = () => Date.now(),
-  sleep = ms => new Promise(done => setTimeout(done, ms)), wake, typedAt = userAt, shell, ownRepo = () => true }) {
+  sleep = ms => new Promise(done => setTimeout(done, ms)), wake, typedAt = userAt, ownRepo = () => true }) {
   let printed = [];
   const line = event => { printed.push(event); print(JSON.stringify(event)); };
   if (!service && !self) { line({ event: 'unsupported', reason: UNSUPPORTED }); return null; }
@@ -372,7 +346,7 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
   if (service) endEarlier(stateDir, day);
   for (;;) {
     wake.heard = false;
-    const state = { startedAt: new Date(now()).toISOString(), agents: {}, gone: [], done: [], notRead: [], chats: [], known: {}, skip: [],
+    const state = { startedAt: new Date(now()).toISOString(), agents: {}, gone: [], notRead: [], chats: [], known: {}, skip: [],
       ...(service && { read: [] }), ...readJson(file, {}) };
     if (state.ended) return day;
     // The service also hears each repeat failure and each read after a failure or first that day, so the worker counts
@@ -396,7 +370,7 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
     };
     if (newerDay({ stateDir, started, timezone, day })) return end('next-day');
     printed = [];
-    const addonsRead = addons ? await passAddons({ addons, state, line, missed, cleared }) : true;
+    if (addons) await passAddons({ addons, state, line, missed, cleared });
     let read = null;
     try {
       read = await readPaseo(call);
@@ -413,13 +387,10 @@ async function passes({ stateDir, started, timezone, call, board, todos = null, 
       wake.ids = new Set(rows.map(row => row.agentId));
       const log = actions({ stateDir, day });
       await notice({ rows, ...read, state, log, record: action => logAction(stateDir, day, action), call, line, now, typedAt });
-      const week = rows.some(row => row.task && !state.done.includes(row.task)) ? await readWeek({ day, board, missed, cleared }) : null;
-      if (week) doneTasks({ rows, state, week, line });
-      if (todos) {
-        await keepTodos({ stateDir, rows, list: read.list, started, board: todos, timezone, skip, adding: addonsRead, now: new Date(now()),
-          read: name => readJson(name, {}), write: writeJson, log: text => missed('to-dos', new Error(text)), ...(shell && { shell }),
-          send: agentId => sendText(call, agentId, '/close'), typedAt, line, never: new Set([self, ...ignore].filter(Boolean)) })
-          .catch(error => missed('to-dos', error));
+      if (chats) {
+        const open = openChats({ rows, list: read.list, known: state.known, ignore, self, ownRepo: cwd => ownRepo(folder(cwd)) });
+        await keepChats({ stateDir, chats: open, ...chats, list: read.list, send: agentId => sendText(call, agentId, '/close'), typedAt, line,
+          now: new Date(now()), read: name => readJson(name, {}), write: writeJson }).then(() => cleared('chats'), error => missed('chats', error));
       }
     }
     state.lastEvents = printed.slice(-KEPT_EVENTS);
@@ -640,49 +611,14 @@ export function noteEnd({ stateDir, day, line, now = new Date() }) {
   return { status: 'noted', line: words };
 }
 
-/** Marks a watched chat's to-do, or the board task it started from, done with the proof the judge checked. */
-export async function doneAgent({ stateDir, day, started, timezone, agent: name, proof, call, board, env = process.env }) {
+/** A watched chat's done, with the proof the judge checked; it changes nothing, as the person picks what closes. */
+export async function doneAgent({ stateDir, day, started, timezone, agent: name, proof, call, env = process.env }) {
   if (!env.PASEO_AGENT_ID) return unsupported;
   const row = watchedRow(watched({ stateDir, day, started, timezone, list: await call(['ls', '--global']), self: env.PASEO_AGENT_ID }), name);
   if (!row) return { status: 'refused', reason: 'unwatched', error: `${name} is not a chat the watch has.` };
   const words = String(proof ?? '').trim().slice(0, 2000);
   if (!words) return { status: 'refused', reason: 'proof', error: 'Done needs its proof.' };
-  let todo = await finishTodo({ stateDir, agentId: row.agentId, proof: words, board, read: file => readJson(file, {}), write: writeJson });
-  if (todo.state === 'none' && row.task) {
-    todo = await board.status({ id: row.task, status: 'done' }).then(() => ({ state: 'done', task: row.task }),
-      error => ({ state: 'not confirmed', reason: oneLine(error.message) }));
-  }
-  return { status: todo.state === 'not confirmed' ? 'not confirmed' : 'marked', ...describe(row), proof: words, todo: todo.state,
-    ...(todo.reason && { reason: todo.reason }) };
-}
-
-/** Shows a plan's link on a watched chat's task: its to-do, or the board task it started from. */
-export async function todoLink({ stateDir, day, started, timezone, agent: name, url, call, board, hosts = [], env = process.env }) {
-  if (!env.PASEO_AGENT_ID) return unsupported;
-  if (!linkAllowed(url, hosts)) return { status: 'refused', reason: 'url', error: 'The link must be an https page on the app or a trycloudflare.com tunnel.' };
-  const row = watchedRow(watched({ stateDir, day, started, timezone, list: await call(['ls', '--global']), self: env.PASEO_AGENT_ID }), name);
-  if (!row) return { status: 'refused', reason: 'unwatched', error: `${name} is not a chat the watch has.` };
-  const id = row.task ?? todoOf({ stateDir, agentId: row.agentId, read: file => readJson(file, {}) })?.taskId;
-  if (!id) return { status: 'refused', reason: 'no-task', ...describe(row), error: `${row.title ?? name} has no task on the board yet.` };
-  try { await board.link({ id, link: url }); } catch (error) { return { status: 'not confirmed', ...describe(row), task: id, reason: oneLine(error.message) }; }
-  return { status: 'linked', ...describe(row), task: id };
-}
-
-/** A reminder's key, from its day and words: the same reminder adds one task. */
-export const remindKey = (day, words) => `daily:remind:${day}:${createHash('sha256').update(words.toLowerCase()).digest('hex').slice(0, 16)}`;
-
-/** Adds one task with the person's words on `day` of their board, one time per day and words. A past day is refused. */
-export async function remind({ day, text, today, add }) {
-  const words = String(text ?? '').replace(/\s+/g, ' ').trim();
-  if (!validDay(day)) return { state: 'refused', error: 'The reminder needs its day as YYYY-MM-DD.' };
-  if (!words || words.length > 200) return { state: 'refused', error: 'The reminder needs its words, at most 200 characters.' };
-  if (day < today) return { state: 'refused', error: `${day} is in the past.` };
-  try {
-    const task = await add({ importKey: remindKey(day, words), title: words, week: mondayOf(day), slot: slotOf(day) });
-    return { state: task?.created === false ? 'already' : 'added', day, title: words, id: task?.id ?? null };
-  } catch (error) {
-    return { state: 'not confirmed', day, title: words, reason: oneLine(error.message) };
-  }
+  return { status: 'marked', ...describe(row), proof: words };
 }
 
 /** The Paseo CLI, one `--json` call at a time. */

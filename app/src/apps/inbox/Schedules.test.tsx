@@ -18,19 +18,18 @@ const schedule = (key: string, name: string, more: Partial<Schedule> = {}): Sche
   timing: { mode: 'recurring', cron: '0 8 * * 1-5', timezone: 'UTC' }, state: 'on', nextRunAt: null, lastRun: null, waiting: null,
   instructions: `Do the ${name}.`, ended: null, version: V1, approvedVersion: V1, approvedAt: null, computerName: 'Desk', ...more })
 
-let server: { schedules: Schedule[] | null; online: boolean; board: boolean; items: number; week: number; runs: () => Response; change: () => Response }
+let server: { schedules: Schedule[] | null; online: boolean; runs: () => Response; change: () => Response }
 let calls: { path: string; body: unknown }[]
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(NOW)
   calls = []
-  server = { schedules: [], online: true, board: true, items: 200, week: 500, runs: () => Response.json({ runs: [], quiet: 0 }), change: () => Response.json({}) }
+  server = { schedules: [], online: true, runs: () => Response.json({ runs: [], quiet: 0 }), change: () => Response.json({}) }
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
     calls.push({ path, body: init?.body && JSON.parse(init.body as string) })
     const url = new URL(path, 'https://app.test')
     const route = url.pathname.replace('/apps/inbox/api/', '')
-    if (route === 'items') return Response.json({ items: [], computerOnline: server.online, board: server.board }, { status: server.items })
-    if (route === 'week') return new Response(null, { status: server.week })
+    if (route === 'chats' || route === 'reviews') return Response.json({ chats: [], computerOnline: server.online, waiting: [], archived: [], more: false })
     if (route === 'schedules') return server.schedules ? Response.json({ schedules: server.schedules, computerOnline: server.online })
       : new Response(null, { status: 503 })
     if (route === 'schedule') {
@@ -54,7 +53,7 @@ const open = async () => { show(); await screen.findByRole('region', { name: 'Sc
 const card = (name: string) => screen.getByRole('button', { name }).closest<HTMLElement>('[data-slot="card"]')!
 const buttons = (name: string) => within(card(name)).getAllByRole('button').map(button => button.textContent).slice(1)
 const press = (name: string, inside: HTMLElement) => act(async () => { fireEvent.click(within(inside).getByRole('button', { name })) })
-const changes = () => calls.filter(call => !/\/(schedules|items|week)$/.test(call.path)).map(call => [call.path.split('/').at(-1), call.body])
+const changes = () => calls.filter(call => !/\/(schedules|chats|reviews)(\?|$)/.test(call.path)).map(call => [call.path.split('/').at(-1), call.body])
 
 it('shows each schedule in plain words: what it does, when it runs next, how its last run went, and what you can do', async () => {
   server.schedules = [
@@ -66,7 +65,7 @@ it('shows each schedule in plain words: what it does, when it runs next, how its
     schedule('stock', 'Stock check', { lastRun: run('stock', 'blocked', { result: 'no_work' }) }),
   ]
   await open()
-  expect(screen.getByRole('radio', { name: 'Schedules' }).getAttribute('aria-checked')).toBe('true')
+  expect(screen.getByRole('heading', { level: 1, name: 'Schedules' })).toBeTruthy()
   expect(screen.getByText('Computer online')).toBeTruthy()
   const daily = within(card('Daily plan'))
   expect(daily.getByText('On')).toBeTruthy()
@@ -219,27 +218,9 @@ it('says when the schedules could not be loaded, and that none are set up yet, w
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry' })) })
   expect(screen.getByText('No schedules yet')).toBeTruthy()
   expect(screen.getByText('Ask a chat to do something every week, or on a date.')).toBeTruthy()
-  // Tapping the view already shown keeps it; the owner's Day goes to the board.
-  await act(async () => { fireEvent.click(screen.getByRole('radio', { name: 'Schedules' })) })
+  // Back goes to the chat list, whose top bar opens Schedules again.
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Back' })) })
+  expect(screen.getByTestId('where').textContent).toBe('/apps/inbox/')
+  await act(async () => { fireEvent.click(await screen.findByRole('link', { name: 'Schedules' })) })
   expect(screen.getByTestId('where').textContent).toBe('/apps/inbox/?view=schedules')
-  await act(async () => { fireEvent.click(screen.getByRole('radio', { name: 'Day' })) })
-  expect(screen.getByTestId('where').textContent).toBe('/apps/inbox/?view=day')
-})
-
-it('opens a teammate with no week board on their own schedules, with no Day or Week', async () => {
-  server.board = false
-  server.week = 403
-  server.schedules = [schedule('daily-plan', 'Daily plan')]
-  show('/apps/inbox/')
-  await screen.findByRole('region', { name: 'Schedules' })
-  expect(screen.getByTestId('where').textContent).toBe('/apps/inbox/?view=schedules')
-  expect(screen.getAllByRole('radio').map(radio => radio.textContent)).toEqual(['Reviews', 'Schedules'])
-  await act(async () => { fireEvent.click(screen.getByRole('radio', { name: 'Reviews' })) })
-  expect(screen.getByTestId('where').textContent).toBe('/apps/inbox/?view=reviews')
-})
-
-it("keeps Day and Week for the preview checker, whom the Inbox list refuses while the board lets it in", async () => {
-  server.items = 403
-  await open()
-  expect(screen.getAllByRole('radio').map(radio => radio.textContent)).toEqual(['Day', 'Week', 'Reviews', 'Schedules'])
 })

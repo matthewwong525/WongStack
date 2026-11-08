@@ -11,7 +11,7 @@ import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
 import { commands, personSettings, start } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { addLine, readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { DEFAULT_SWEEPS, SKILL_BRIEFS, briefFolders, briefFor, codeStamp, dropServeLock, fillText, loadSweeps, lockHolder, makeWorker,
-  morningPass, runEnv, runOf, serveDaily, serveWorker, takeServeLock, workerPass }
+  handOff, handoffFile, morningPass, runEnv, runOf, serveDaily, serveWorker, takeServeLock, workerPass }
   from '../../.agents/skills/daily/scripts/worker.mjs';
 
 const TZ = 'America/Toronto';
@@ -66,11 +66,11 @@ test('no event sends any chat a message: stops start runs up to the cap, and the
   await workerPass({ worker, stateDir, seconds: 60, now: () => world.t, watchOnce: async () => [
     stop('a'), ask('b', 'r1'), stop('c'), stop('d'), stop('e'), { event: 'gone', agent: 'x', title: 'old-chat' },
     { event: 'not-read', source: 'add-on orders.mjs', error: 'down' }, { event: 'post', text: 'Two new orders' },
-    { event: 'done', agent: 'y', title: 'Dentist', task: 't1' }, { event: 'end', reason: 'time' }, { event: 'odd', x: 1 },
+    { event: 'close', agent: 'y', title: 'Dentist' }, { event: 'end', reason: 'time' }, { event: 'odd', x: 1 },
     { event: 'unsupported', reason: 'no' }] });
   assert.ok(!world.calls.some(call => call.startsWith('send')));
   assert.deepEqual(lines(stateDir).slice(0, 6), ['Closed: old-chat', 'Not read: add-on orders.mjs — down', 'Two new orders',
-    'Done on the board: Dentist', 'Watch ended: time', 'odd: {"event":"odd","x":1}']);
+    'Sent /close: Dentist', 'Watch ended: time', 'odd: {"event":"odd","x":1}']);
   assert.equal(JSON.parse(readFileSync(join(stateDir, 'serve.json'), 'utf8')).seconds, 60);
   // b's card had closed; a, c and d fill the 3 places, and e waits.
   assert.deepEqual(world.spawned.map(agentOf), ['a', 'c', 'd']);
@@ -174,10 +174,55 @@ test('a dry run stops no live run past 30 minutes: it prints wouldStop', async (
   assert.deepEqual(printed.map(item => item.wouldStop), ['Judge a', 'Judge b']);
 });
 
-test('a board that can not be read goes to the journal only, and sends no chat a message', async () => {
+// ---------------------------------------------------------------------------
+// A run's handoff
+
+/** A worker whose app keeps each report and whose chat opener answers chat-9; `running` holds three ended runs. */
+function handoffRig({ dryRun = false } = {}) {
+  const r = rig();
+  const opened = [], reports = [], printed = [];
+  const worker = r.make({ dryRun, print: item => printed.push(item), app: { report: async (id, result) => { reports.push({ id, ...result }); } },
+    openChat: async chat => { opened.push(chat); return { agentId: 'chat-9' }; } });
+  const run = (runId, kind = 'schedule-run') => ({ runId, pid: 1, kind, title: 'Tidy the orders', report: `report-${runId.slice(-4)}`,
+    startedAt: new Date(r.world.t).toISOString(), ...(kind === 'schedule-run' && { schedule: 'tidy-orders' }) });
+  const running = ['schedule-run-20261031T140000-ab12', 'schedule-run-20261031T140100-cd34', 'stopped-20261031T140200-ef56'];
+  writeFileSync(join(r.stateDir, 'worker-queue.json'), JSON.stringify({ queue: [], running: [run(running[0]), run(running[1]),
+    run(running[2], 'stopped')] }));
+  const hand = (runId, text = 'Three orders need a reply.') =>
+    handOff({ stateDir: r.stateDir, timezone: TZ, env: { WONG_DAILY_RUN_ID: runId }, text, now: new Date(r.world.t) });
+  return { ...r, worker, opened, reports, printed, running, hand };
+}
+
+test('a schedule run that hands off opens one chat named for the schedule once it ends; a run with no handoff opens none', async () => {
+  const r = handoffRig();
+  assert.deepEqual(r.hand(r.running[0]), { status: 'handed', run: r.running[0] });
+  assert.equal(r.hand(r.running[0], 'Again.').reason, 'already', 'one chat a run');
+  // A check-in's run that hands off still opens nothing: it keeps what it found in its own chat.
+  r.hand(r.running[2]);
+  await r.worker.pump();
+  await r.worker.pump();
+  assert.deepEqual(r.opened, [{ title: 'Tidy the orders', message: 'Three orders need a reply.', schedule: 'tidy-orders' }]);
+  assert.deepEqual(r.reports, [{ id: 'report-ab12', state: 'started', chatTitle: 'Tidy the orders', agentId: 'chat-9' }]);
+  assert.deepEqual(lines(r.stateDir).filter(line => /^(Handed off|Opened)/.test(line)),
+    ['Handed off: Three orders need a reply.', 'Handed off: Three orders need a reply.', 'Opened: Tidy the orders']);
+  assert.equal(existsSync(handoffFile(r.stateDir, r.running[0])), false);
+});
+
+test('a handoff needs a run and words; a dry run prints wouldOpen and keeps the file', async () => {
+  const r = handoffRig({ dryRun: true });
+  assert.equal(handOff({ stateDir: r.stateDir, timezone: TZ, env: {}, text: 'x' }).reason, 'run');
+  assert.equal(r.hand(r.running[0], '  ').reason, 'text');
+  assert.equal(r.hand(r.running[0], 'x'.repeat(20001)).reason, 'text');
+  r.hand(r.running[0]);
+  await r.worker.pump();
+  assert.deepEqual([r.printed.filter(item => item.wouldOpen), r.opened], [[{ wouldOpen: 'Tidy the orders', run: r.running[0] }], []]);
+  assert.equal(existsSync(handoffFile(r.stateDir, r.running[0])), true);
+});
+
+test('a chat list the app does not take goes to the journal only, and sends no chat a message', async () => {
   const { world, worker, stateDir } = rig();
-  await worker.dispatch([{ event: 'not-read', source: 'board', error: 'unavailable: sign in again' }]);
-  assert.deepEqual(lines(stateDir), ['Not read: board — unavailable: sign in again']);
+  await worker.dispatch([{ event: 'not-read', source: 'chats', error: 'unavailable: sign in again' }]);
+  assert.deepEqual(lines(stateDir), ['Not read: chats — unavailable: sign in again']);
   assert.deepEqual(world.calls, []);
   assert.equal(Object.hasOwn(JSON.parse(readFileSync(join(stateDir, 'worker-queue.json'), 'utf8')), 'told'), false);
 });
@@ -297,7 +342,7 @@ test("a heard stop starts the service's next pass within a second, and with none
 test("each pass after the watch tells an idle chat its note once, keeps a plain note for a working chat, and steers a now note in", async () => {
   const stateDir = folder(), project = folder();
   writeFileSync(join(project, 'jobs.json'), JSON.stringify({ sweeps: [{ id: 'wiki-tidy', off: true }, { id: 'line-up', off: true }] }));
-  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
+  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { chats: true },
     places: { home: '.' }, checks: [], sweeps: 'jobs.json' });
   const list = [{ id: 'chat-a', name: 'Checkout', status: 'idle', cwd: '/w/a' }, { id: 'chat-b', name: 'Payments', status: 'running', cwd: '/w/b' }];
   const sent = [];
@@ -311,7 +356,7 @@ test("each pass after the watch tells an idle chat its note once, keeps a plain 
   };
   const note = (agent, text, now = false) => ({ id: text, agent, title: agent, text, now, at: new Date().toISOString() });
   writeFileSync(join(stateDir, 'line-up.json'), JSON.stringify({ chats: {}, notes: [note('chat-a', 'Use Stripe.'), note('chat-b', 'Sign-in is live.')] }));
-  const serve = more => serveDaily({ config, project, stateDir, call, env: { HOME: folder() }, once: true, watching: { board: async () => ({ tasks: [] }) },
+  const serve = more => serveDaily({ config, project, stateDir, call, env: { HOME: folder() }, once: true, watching: {},
     started: () => ({}), watcher: () => ({ close() {} }), ownRepo: () => true, typedAt: () => null, ...more });
   const printed = [];
   await serve({ dryRun: true, print: item => printed.push(item) });
@@ -331,7 +376,7 @@ test("each pass after the watch tells an idle chat its note once, keeps a plain 
 test("serve's next pass comes right after a chat's stop report and after a run's end, not a minute later", async () => {
   const stateDir = folder();
   await makeWorker({ stateDir, project: '/repo', timezone: TZ, sweeps: defaults(), typedAt: () => null }).dispatch([stop('a')]);
-  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
+  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { chats: true },
     places: { home: '.' }, checks: [] });
   let passes = 0, report = null, runEnd = null;
   const seen = [], logs = [], done = new Error('three sleeps');
@@ -348,7 +393,7 @@ test("serve's next pass comes right after a chat's stop report and after a run's
   };
   const launch = () => ({ pid: process.pid, on: (name, handler) => { if (name === 'exit') runEnd = handler; } });
   const watcher = (_dir, notice) => { report = notice; return { close: () => {} }; };
-  await assert.rejects(serveDaily({ config, project: folder(), stateDir, call, env: { HOME: folder() }, watching: { board: async () => ({ tasks: [] }) },
+  await assert.rejects(serveDaily({ config, project: folder(), stateDir, call, env: { HOME: folder() }, watching: {},
     started: () => ({}), seconds: 60, log: text => logs.push(text), launch, watcher, sleep }), error => error === done);
   assert.deepEqual(logs, []);
   assert.deepEqual(seen, [1, 2, 3]);
@@ -357,10 +402,10 @@ test("serve's next pass comes right after a chat's stop report and after a run's
 test('serve --dry-run prints what it would do, starts nothing, and leaves the live state alone', async () => {
   const stateDir = folder();
   const printed = [];
-  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
+  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { chats: true },
     places: { home: '.' }, checks: [] });
   const call = async args => (args[0] === 'ls' || args[0] === 'permit' ? [] : { ok: true });
-  await commands({ config, project: folder(), stateDir, values: { 'dry-run': true, seconds: 60 }, call, board: { tasks: async () => ({ tasks: [] }) },
+  await commands({ config, project: folder(), stateDir, values: { 'dry-run': true, seconds: 60 }, call, chats: { origin: async () => null },
     env: {}, print: text => printed.push(JSON.parse(text)), reread: () => ({ me: { file: null }, config }) }).serve();
   assert.deepEqual(printed.at(-1), { dryRun: true, waiting: [] });
   assert.equal(existsSync(join(stateDir, 'serve.json')), false);
@@ -433,10 +478,10 @@ test('a second serve prints one line and returns, starting nothing', async () =>
   const stateDir = folder();
   writeFileSync(join(stateDir, 'serve.lock'), `${process.ppid}\n`);
   const warned = [], printed = [];
-  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
+  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { chats: true },
     places: {}, checks: [] });
   const call = async () => { throw new Error('no call expected'); };
-  const result = await commands({ config, project: folder(), stateDir, values: { seconds: 60, once: true }, call, board: { tasks: call }, env: {},
+  const result = await commands({ config, project: folder(), stateDir, values: { seconds: 60, once: true }, call, chats: { origin: async () => null }, env: {},
     print: text => printed.push(text), warn: text => warned.push(text) }).serve();
   assert.deepEqual([result, printed, warned], [undefined, [], ['Another daily worker runs for this person and repo.']]);
   assert.equal(existsSync(join(stateDir, 'serve.json')), false);
@@ -449,10 +494,10 @@ test("without Paseo the worker's pass still runs, and an own timed job waits to 
     { id: 'wiki-tidy', every: '15m', brief: 'pay.md' }, { id: 'line-up', off: true }] }));
   const call = async () => { throw new PaseoError(EXIT.noPaseo, 'Paseo is not installed.'); };
   const stateDir = folder(), spawned = [], logs = [];
-  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: true, chats: true },
+  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { chats: true },
     places: {}, checks: [], sweeps: '.agents/daily/jobs.json' });
   await serveDaily({ config, project, stateDir, call, env: { HOME: folder() }, agent: 'codex', once: true, log: text => logs.push(text),
-    watching: { board: call, todos: { tasks: call } }, started: () => ({}), watcher: () => ({ close() {} }),
+    watching: {}, started: () => ({}), watcher: () => ({ close() {} }),
     launch: run => { spawned.push(run.command); return { pid: process.pid, on: () => {} }; } });
   assert.deepEqual([logs, spawned], [[], []]);
   assert.deepEqual(lines(stateDir), ['Timed jobs wait to move to the app, and do not run: pay']);
@@ -494,32 +539,32 @@ function needsRig(answer = opened => ({ ok: true, agentId: `needs-${opened.lengt
   const openChat = async chat => { opened.push(chat); const out = answer(opened); if (out instanceof Error) throw out; return out; };
   return { ...r, opened, worker: r.make({ openChat, guide: () => '.agents/daily/guide.md' }) };
 }
-const boardDown = (again = false) => ({ event: 'not-read', source: 'board', error: 'unavailable: sign in again', ...(again && { again: true }) });
+const chatsDown = (again = false) => ({ event: 'not-read', source: 'chats', error: 'unavailable: sign in again', ...(again && { again: true }) });
 const needs = stateDir => JSON.parse(readFileSync(join(stateDir, 'needs-you.json'), 'utf8'));
 
-test('one board failure writes one line and opens nothing; a second in a row opens one Needs you chat with the reason, steps and guide', async () => {
+test('one chat list failure writes one line and opens nothing; a second in a row opens one Needs you chat with the reason, steps and guide', async () => {
   const { worker, stateDir, opened, world } = needsRig();
-  await worker.dispatch([boardDown()]);
-  assert.deepEqual([lines(stateDir), opened], [['Not read: board — unavailable: sign in again'], []]);
-  await worker.dispatch([boardDown(true)]);
+  await worker.dispatch([chatsDown()]);
+  assert.deepEqual([lines(stateDir), opened], [['Not read: chats — unavailable: sign in again'], []]);
+  await worker.dispatch([chatsDown(true)]);
   assert.equal(opened.length, 1);
-  assert.equal(opened[0].title, 'Needs you: the week board');
-  assert.match(opened[0].message, /failed two times in a row at the week board\.\nReason: unavailable: sign in again\n/);
+  assert.equal(opened[0].title, 'Needs you: the chat list');
+  assert.match(opened[0].message, /failed two times in a row at the chat list\.\nReason: unavailable: sign in again\n/);
   assert.match(opened[0].message, /First read \.agents\/daily\/guide\.md\. When it gives its own fix for this problem, follow that/);
   assert.match(opened[0].message, /1\. Run `node \.claude\/skills\/daily\/scripts\/daily\.mjs who`\. On `missing` or `expired`, run its `login` command/);
   assert.match(opened[0].message, /Ask the person only for a step that needs them/);
-  assert.deepEqual(lines(stateDir), ['Not read: board — unavailable: sign in again', 'Opened: Needs you: the week board']);
+  assert.deepEqual(lines(stateDir), ['Not read: chats — unavailable: sign in again', 'Opened: Needs you: the chat list']);
   assert.deepEqual([worker.ignored(), world.calls], [['needs-1'], []]);
   // A third failure, and a later run of failures that day, open none; the later run's first failure is one line.
-  await worker.dispatch([boardDown(true)]);
-  await worker.dispatch([{ event: 'read', source: 'board' }]);
-  await worker.dispatch([boardDown()]);
-  await worker.dispatch([boardDown(true)]);
+  await worker.dispatch([chatsDown(true)]);
+  await worker.dispatch([{ event: 'read', source: 'chats' }]);
+  await worker.dispatch([chatsDown()]);
+  await worker.dispatch([chatsDown(true)]);
   assert.equal(opened.length, 1);
   assert.equal(lines(stateDir).length, 3);
   // The next day opens one again.
   world.t = Date.parse('2026-11-01T14:00:00Z');
-  await worker.dispatch([boardDown(true)]);
+  await worker.dispatch([chatsDown(true)]);
   assert.equal(opened.length, 2);
   assert.deepEqual(needs(stateDir).chats, ['needs-1', 'needs-2']);
 });
@@ -527,42 +572,42 @@ test('one board failure writes one line and opens nothing; a second in a row ope
 test('a success between two failures opens none, and each kind counts alone', async () => {
   const { worker, opened, stateDir } = needsRig();
   const paseoDown = { event: 'not-read', source: 'workspaces', error: 'daemon stopped' };
-  await worker.dispatch([boardDown(), paseoDown, { event: 'read', source: 'board' }]);
-  await worker.dispatch([boardDown(), { event: 'not-read', source: 'to-dos', error: 'git' }, { event: 'not-read', source: 'add-on a.mjs', again: true }]);
+  await worker.dispatch([chatsDown(), paseoDown, { event: 'read', source: 'chats' }]);
+  await worker.dispatch([chatsDown(), { event: 'not-read', source: 'to-dos', error: 'git' }, { event: 'not-read', source: 'add-on a.mjs', again: true }]);
   assert.deepEqual(opened, []);
-  assert.deepEqual(lines(stateDir), ['Not read: board — unavailable: sign in again', 'Not read: workspaces — daemon stopped',
-    'Not read: board — unavailable: sign in again', 'Not read: to-dos — git']);
+  assert.deepEqual(lines(stateDir), ['Not read: chats — unavailable: sign in again', 'Not read: workspaces — daemon stopped',
+    'Not read: chats — unavailable: sign in again', 'Not read: to-dos — git']);
   await worker.dispatch([{ ...paseoDown, again: true }]);
   assert.deepEqual(opened.map(chat => chat.title), ['Needs you: Paseo']);
   assert.match(opened[0].message, /1\. Run `paseo ls`\./);
-  assert.deepEqual(needs(stateDir).counts, { board: 1, paseo: 2 });
+  assert.deepEqual(needs(stateDir).counts, { chats: 1, paseo: 2 });
 });
 
 test('a chat Paseo can not open journals Not opened with the reason, and is not tried again that day', async () => {
   const { worker, opened, stateDir } = needsRig(() => new Error('Paseo daemon is not running'));
-  for (const again of [false, true, true]) await worker.dispatch([boardDown(again)]);
+  for (const again of [false, true, true]) await worker.dispatch([chatsDown(again)]);
   assert.equal(opened.length, 1);
-  assert.deepEqual(lines(stateDir).slice(1), ['Not opened: Needs you: the week board — Paseo daemon is not running']);
+  assert.deepEqual(lines(stateDir).slice(1), ['Not opened: Needs you: the chat list — Paseo daemon is not running']);
   assert.deepEqual(worker.ignored(), []);
   const none = needsRig(() => ({ ok: true }));
-  for (const again of [false, true]) await none.worker.dispatch([boardDown(again)]);
-  assert.deepEqual(lines(none.stateDir).slice(1), ['Not opened: Needs you: the week board — Paseo did not start the chat.']);
+  for (const again of [false, true]) await none.worker.dispatch([chatsDown(again)]);
+  assert.deepEqual(lines(none.stateDir).slice(1), ['Not opened: Needs you: the chat list — Paseo did not start the chat.']);
 });
 
 test('a dry run prints wouldOpen and opens nothing', async () => {
   const r = needsRig();
-  await r.worker.dispatch([boardDown()]);
+  await r.worker.dispatch([chatsDown()]);
   const printed = [];
   const dry = r.make({ dryRun: true, print: item => printed.push(item), openChat: async () => assert.fail('opened') });
-  await dry.dispatch([boardDown(true)]);
-  assert.deepEqual(printed.map(item => item.wouldOpen), ['Needs you: the week board']);
-  assert.deepEqual(needs(r.stateDir), { counts: { board: 1 }, opened: {}, chats: [] });
+  await dry.dispatch([chatsDown(true)]);
+  assert.deepEqual(printed.map(item => item.wouldOpen), ['Needs you: the chat list']);
+  assert.deepEqual(needs(r.stateDir), { counts: { chats: 1 }, opened: {}, chats: [] });
 });
 
 test("the service watch leaves a Needs you chat alone", async () => {
   const stateDir = folder();
   writeFileSync(join(stateDir, 'needs-you.json'), JSON.stringify({ counts: {}, opened: {}, chats: ['needs-1'] }));
-  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
+  const config = validateConfig({ version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { chats: true },
     places: { home: '.' }, checks: [] });
   const inspected = [];
   const chat = id => ({ id, shortId: id, name: id, provider: 'claude', status: 'idle', cwd: `/w/${id}`, created: '2026-11-03T13:00:00Z' });
@@ -571,7 +616,7 @@ test("the service watch leaves a Needs you chat alone", async () => {
     if (args[0] === 'inspect') { inspected.push(args[1]); return { Id: args[1], ParentAgentId: null, UpdatedAt: '2026-11-03T13:30:00Z' }; }
     return [];
   };
-  await serveDaily({ config, project: folder(), stateDir, call, env: { HOME: folder() }, once: true, watching: { board: async () => ({ tasks: [] }) },
+  await serveDaily({ config, project: folder(), stateDir, call, env: { HOME: folder() }, once: true, watching: {},
     started: () => ({}), watcher: () => ({ close() {} }), ownRepo: () => true, now: () => Date.parse('2026-11-03T14:00:00Z') });
   assert.deepEqual(inspected, ['other-1']);
 });
@@ -584,7 +629,7 @@ function morningRig({ morning, addonEvents = [] } = {}) {
   const project = folder(), stateDir = folder(), ran = [];
   mkdirSync(join(project, '.agents/daily'), { recursive: true });
   writeFileSync(join(project, '.agents/daily/jobs.json'), JSON.stringify({ sweeps: [{ id: 'wiki-tidy', off: true }, { id: 'line-up', off: true }] }));
-  const raw = { version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { tasks: false, chats: true },
+  const raw = { version: 1, person: 'alex', emails: ['alex@example.com'], timezone: TZ, sources: { chats: true },
     places: { home: '.' }, sweeps: '.agents/daily/jobs.json', addons: { morning: ['shop.mjs'], pass: [] }, ...(morning && { morning }),
     checks: [{ id: 'news', enabled: true, title: 'Morning news', place: 'home', scope: 'Today', result: 'A list', procedure: '.agents/skills/news/SKILL.md',
       cadence: { kind: 'daily' }, effects: 'Reads only', activeFrom: '2026-01-05', start: 'run', missed: 'latest' }] };
@@ -594,7 +639,7 @@ function morningRig({ morning, addonEvents = [] } = {}) {
   const startDay = options => start({ config, project, stateDir, addons, ...options });
   const call = async args => (args[0] === 'ls' || args[0] === 'permit' ? [] : { ok: true });
   const serve = (at, more = {}) => serveDaily({ config, project, stateDir, call, env: { HOME: folder() }, once: true, hasFile: true, start: startDay,
-    watching: { board: async () => ({ tasks: [] }) }, started: () => ({}), watcher: () => ({ close() {} }), ownRepo: () => true,
+    watching: {}, started: () => ({}), watcher: () => ({ close() {} }), ownRepo: () => true,
     now: () => Date.parse(at), ...more });
   return { raw, config, project, stateDir, ran, addons, startDay, serve };
 }

@@ -10,8 +10,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { changeSchedule, readSchedule, readSchedules, type Run, type Schedule, type Schedules as Listing } from './api'
 import { cadence, outcome, when } from './cadence'
 import { useFresh } from './line'
-import { useBoard } from './week/hooks'
-import { ViewToggle } from './week/Parts'
 
 type Route = Parameters<typeof changeSchedule>[0]
 const PROBLEM: Record<string, string | undefined> = {
@@ -121,7 +119,6 @@ function Detail({ schedule, now, onClose }: { schedule: Schedule; now: number; o
 /** The signed-in person's own schedules, one card each; ended ones wait in a closed section below. */
 export function Schedules() {
   const navigate = useNavigate()
-  const board = useBoard()
   // Each read keeps the moment it came back, so *today* and *tomorrow* are said from then.
   const [data, setData] = useState<Listing & { now: number } | null>(null)
   const [error, setError] = useState(false)
@@ -134,10 +131,10 @@ export function Schedules() {
   const ended = data?.schedules.filter(schedule => schedule.ended) ?? []
   return <>
     <div className="mb-6 flex min-h-11 items-center gap-2">
-      <h1 className="min-w-0 truncate">Inbox</h1>
+      <Button variant="ghost" className="min-h-11" onClick={() => void navigate('/apps/inbox/')}>Back</Button>
+      <h1 className="min-w-0 truncate">Schedules</h1>
       {data && (data.computerOnline ? <Badge variant="secondary">Computer online</Badge> : <Badge variant="destructive">Computer offline</Badge>)}
     </div>
-    <div className="mb-5"><ViewToggle view="schedules" board={board} onView={view => void navigate(`/apps/inbox/?view=${view}`)} /></div>
     {error && !data && <Alert variant="destructive">
       <AlertTitle>Schedules could not be loaded.</AlertTitle>
       <AlertDescription><Button size="sm" onClick={() => void load()}>Retry</Button></AlertDescription>
