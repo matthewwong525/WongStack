@@ -28,7 +28,7 @@ const out = text => { process.stdout.write(text + '\\n'); process.exit(0); };
 const fail = (text, code = 1) => { process.stderr.write(text + '\\n'); process.exit(code); };
 if (line.startsWith('api repos/:owner/:repo/commits/main/check-runs') && line.endsWith('--jq .total_count')) { if (s.mainCountError) fail(s.mainCountError); out(s.mainCount ?? ''); }
 if (line.startsWith('api repos/:owner/:repo/commits/main/check-runs')) { if (s.mainChecksError) fail(s.mainChecksError); out(s.mainChecks ?? 'test\tsuccess'); }
-if (line.startsWith('repo view --json defaultBranchRef')) out('main');
+if (line.startsWith('repo view --json defaultBranchRef')) out(s.defaultBranch ?? 'main');
 if (line.startsWith('repo view --json nameWithOwner')) out('team/repo');
 if (line.startsWith('pr view --json number --jq')) out('7');
 if (line.startsWith('pr view --json title')) out('feat: a thing');
@@ -585,9 +585,37 @@ test('finish prints merge.sh\'s lines unchanged, promotes secrets, and looks at 
   assert.match(r.stdout, /^merged=yes\npr=7 url=https:\/\/github\.com\/team\/repo\/pull\/7\nretargeted=\nbranch=deleted\nsynced=.*\/work \(switched from work\)\n/);
   assert.equal(f.git('branch', '--show-current'), 'main', 'a clean primary checkout leaves the merged branch');
   assert.match(r.stdout, /^SECRETS=\{"primary":true,/m);
+  assert.match(r.stdout, /^PLAN_PAGE=none$/m, 'no change shipped, so no plan page');
   assert.match(r.stdout, /^LIVE_LOOK=unknown\nREASON=this repo records no release to wait for\nNEXT: it merged\. Report it is live, with REASON as one line\.$/m);
   assert.match(f.calls(), new RegExp(`gh pr merge --squash --match-head-commit ${f.git('rev-parse', 'work')} --subject feat: a thing \\(#7\\)\\n`));
   assert.equal(f.git('ls-remote', '--heads', 'origin', 'work'), '');
+});
+
+test('finish closes the shipped change\'s plan page after the merge, and a page it can not close never fails the ship', t => {
+  const f = fixture(t);
+  const { 'openspec/changes/demo/proposal.md': proposal, 'openspec/changes/demo/review.html': page } = f.change('demo');
+  f.commit({ [`${ARCHIVE}/proposal.md`]: proposal, [`${ARCHIVE}/review.html`]: page });
+  f.git('push', '-q', '-u', 'origin', 'work');
+  const r = f.run(['finish']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.match(r.stdout, /^merged=yes$/m);
+  assert.match(r.stdout, /^SECRETS=.*\nPLAN_PAGE=skipped \(no app is connected here\)\n/m, 'read before the merge moved the folder to main');
+  assert.match(r.stdout, /^NEXT: it merged\./m);
+});
+
+test('finish finds the shipped change against a default branch not named main', t => {
+  const f = fixture(t, { gh: { defaultBranch: 'trunk' } });
+  f.git('push', '-q', 'origin', 'main:trunk');
+  f.git(`--git-dir=${join(f.dir, 'origin.git')}`, 'symbolic-ref', 'HEAD', 'refs/heads/trunk');
+  f.git('push', '-q', 'origin', ':main');
+  f.git('fetch', '-q', '--prune', 'origin');
+  f.git('branch', '-q', '-m', 'main', 'trunk');
+  const { 'openspec/changes/demo/proposal.md': proposal, 'openspec/changes/demo/review.html': page } = f.change('demo');
+  f.commit({ [`${ARCHIVE}/proposal.md`]: proposal, [`${ARCHIVE}/review.html`]: page });
+  f.git('push', '-q', '-u', 'origin', 'work');
+  const r = f.run(['finish']);
+  assert.match(r.stdout, /^merged=yes$/m, `${r.stdout}${r.stderr}`);
+  assert.match(r.stdout, /^PLAN_PAGE=skipped \(no app is connected here\)$/m, 'the change was found, not PLAN_PAGE=none');
 });
 
 test('a number another release took passes merge.sh\'s code through, with the recovery', t => {
