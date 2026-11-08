@@ -68,6 +68,16 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/explore/scripts/ask-check.mjs\" links",
+            "timeout": 3
+          }
+        ]
       }
     ],
     "Stop": [
