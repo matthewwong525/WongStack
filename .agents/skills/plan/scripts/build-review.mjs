@@ -67,7 +67,8 @@ const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
        build-review.mjs <folder> --kind review [--action "<name>=<label>|<message>"]... [--confirm <name>]... [--link]
   Prints the plan as chat Markdown above the link line, for a reply that ends on the review line.
-  --link  print the page's reply link, whose buttons send notes to this chat or ask it to build; the file where none can open
+  --link  print the page's reply link, whose buttons send notes to this chat or ask it to build; the file where none can open,
+          or for a change under openspec/changes/archive/
   --kind review  a page for work that is not a plan, from <folder>/review.md: # <ask>, ## Why, ## To review, optional ## Decisions
   --action  one of its buttons, 6 at most: the name, the label it shows, and the message it sends this chat
   --confirm  a button that can't be undone, which asks once more on the page`;
@@ -889,7 +890,9 @@ if (isMain(import.meta.url)) {
       console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
       const page = resolve(root, 'review.html');
       const name = basename(resolve(root));
-      const link = args.values.link && result.kind === 'current' ? await linked(page, notesHeader(name), planActions(name)) : page;
+      // A shipped plan's link is its saved file: a live page would wait on the person again, with build buttons.
+      const shipped = /[\\/]openspec[\\/]changes[\\/]archive[\\/]/.test(page);
+      const link = args.values.link && result.kind === 'current' && !shipped ? await linked(page, notesHeader(name), planActions(name)) : page;
       const next = link === page ? REVIEW_IN_CHAT : REVIEW_ON_PAGE;
       const copy = result.kind === 'current' ? chatCopy(name, readFileSync(join(root, 'proposal.md'), 'utf8')) : '';
       // The link comes first: a chat that folds a long reply would hide a link at its end.

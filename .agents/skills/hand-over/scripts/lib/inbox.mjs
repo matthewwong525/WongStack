@@ -43,6 +43,11 @@ export function inTime(call) {
 export const listLink = (client, { id, what, title, url, closesAt, workspace }) => inTime(upload(client,
   { id, kind: 'link', title, workspace, body: JSON.stringify({ what, url }), actions: [], version: 'link', closesAt }));
 export const closeItem = (client, id) => inTime(ask(client, 'item-close', 'POST', { id }));
+/** The person's review pages still waiting, whose titles hold the words of `q`: `[{id, title, …}]`, or null. */
+export const waitingReviews = async (client, q) => {
+  const answer = await inTime(ask(client, `reviews?q=${encodeURIComponent(q)}`, 'GET'));
+  return Array.isArray(answer?.waiting) ? answer.waiting : null;
+};
 /** Collects the taps waiting on `items`, `[{id, item, action, text, version, files}]`, or null. Each one is this
  * computer's to deliver from then on: the app hands it out once, and fails it when no result comes. */
 export const checkin = async (client, items) => (await ask(client, 'checkin', 'POST', { items }))?.taps ?? null;
