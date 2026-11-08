@@ -29,7 +29,7 @@ The assistant builds the change with `/apply`. When the change has a page, it gi
 
 The assistant saves the change with `/save`. It shows you the link to the saved change, and says who [makes it live](../../stack/employee-project.md#who-publishes): the owner or an Admin. A person who holds *Can publish* can do it later with `/ship`.
 
-**The lesson always stops here**, even when you may publish: the owner sees your first change before it goes live. The lesson ends with `/close`, not *publish it?*
+**The lesson always stops here**, even when you may publish: the owner sees your first change before it goes live. The lesson ends with *Close this chat?*, not *publish it?*
 
 ## 6. Come back to unfinished work
 

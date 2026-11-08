@@ -4,6 +4,7 @@
 Gives each separately publishable part of a request its own Paseo workspace, so parts never share a chat or a branch, and the person chooses in one question whether to open them.
 
 ## Requirements
+
 ### Requirement: Separate parts are asked about once
 When a request holds two or more parts that could each be planned and published alone, the agent SHALL ask once, in `/explore`'s exit round: open a new workspace for each other part *(Recommended)*, do them here one at a time, or keep them as one change. Steps of one change SHALL NOT count as parts. Without a running Paseo, the question SHALL leave out new workspaces and say they need Paseo.
 
@@ -105,21 +106,6 @@ Opening a workspace SHALL pass its brief to the new agent as its first message w
 - **WHEN** a schedule's run opens a workspace with a brief whose first line is `- **Goal**: …`
 - **THEN** the workspace opens and its agent's first message is that brief, unchanged
 
-### Requirement: A publish opens the next work, then closes
-When `/ship` finishes in a Paseo worktree, it SHALL open each asked-for part with no workspace yet in a new workspace, then run `/close`, with no closing question. Outside a Paseo worktree, its closing question SHALL offer the next part *(Recommended)* when one remains, a walk of the merged app, and stopping. A failed live look, or a `/ship` that `/close` invoked, SHALL NOT close.
-
-#### Scenario: More work after a publish
-- **WHEN** `/ship` merges part A from a Paseo worktree and the asked-for part B has no workspace yet
-- **THEN** it opens B in a new workspace, then runs `/close`
-
-#### Scenario: Nothing left after a publish
-- **WHEN** `/ship` merges from a Paseo worktree and no other asked-for work waits
-- **THEN** it runs `/close` with no question
-
-#### Scenario: Outside Paseo
-- **WHEN** `/ship` merges outside a Paseo worktree and part B remains
-- **THEN** the closing question offers B first and recommended
-
 ### Requirement: A script can open a tagged workspace and find it again
 
 A repo's own script SHALL be able to open a workspace through the same opener a person's chat uses, with the same checks, and MAY give it one `key=value` tag that Paseo keeps on the new agent. A tag with any other shape SHALL be refused before anything opens.
@@ -133,3 +119,18 @@ A repo's own script SHALL be able to open a workspace through the same opener a 
 
 - **WHEN** a script asks for the tag `job=42; rm -rf ~`
 - **THEN** the opener refuses it and no workspace opens
+
+### Requirement: A publish opens the next work, then asks to close
+When `/ship` finishes in a Paseo worktree, it SHALL open each asked-for part with no workspace yet in a new workspace, then ask *Close this chat?*, and SHALL run `/close` only on a yes. Outside a Paseo worktree, its closing question SHALL offer the next part *(Recommended)* when one remains, a walk of the merged app, and stopping. A failed live look, or a `/ship` that `/close` invoked, SHALL NOT ask to close.
+
+#### Scenario: More work after a publish
+- **WHEN** `/ship` merges part A from a Paseo worktree and the asked-for part B has no workspace yet
+- **THEN** it opens B in a new workspace, then asks *Close this chat?*
+
+#### Scenario: Nothing left after a publish
+- **WHEN** `/ship` merges from a Paseo worktree, no other asked-for work waits, and the person answers *Keep it open*
+- **THEN** the chat and its workspace stay open
+
+#### Scenario: Outside Paseo
+- **WHEN** `/ship` merges outside a Paseo worktree and part B remains
+- **THEN** the closing question offers B first and recommended

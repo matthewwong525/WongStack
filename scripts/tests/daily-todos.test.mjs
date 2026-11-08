@@ -65,6 +65,39 @@ test('a step-named chat goes as its task and step, and a schedule\'s chat with i
     { agentId: 'a2', name: 'Late invoices', step: null, folder: 'a2', source: 'schedule:invoice-check' }]);
 });
 
+test('a schedule\'s chat shows only once it has stopped 2 minutes, its label read from Paseo\'s record', () => {
+  const NOW = Date.parse('2026-11-08T12:00:00Z');
+  const ago = minutes => new Date(NOW - minutes * 60e3).toISOString();
+  const label = { 'wong-schedule': 'news' };
+  const records = {
+    running: { labels: label, lastActivityAt: ago(10) },
+    just: { labels: label, lastActivityAt: ago(1) },
+    settled: { labels: label, lastActivityAt: ago(3) },
+    archived: { labels: label, lastActivityAt: ago(10) },
+    timeless: { labels: label },
+    mine: { lastActivityAt: ago(0) },
+  };
+  const list = [{ id: 'running', name: 'News', status: 'running', cwd: '/w/a' }, { id: 'just', name: 'News', status: 'idle', cwd: '/w/b' },
+    { id: 'settled', name: 'News', status: 'idle', cwd: '/w/c' }, { id: 'archived', name: 'News', status: 'idle', cwd: '/w/d', archivedAt: ago(9) },
+    { id: 'timeless', name: 'News', status: 'idle', cwd: '/w/e' }, { id: 'mine', name: 'My chat', status: 'idle', cwd: '/w/f' }];
+  const known = Object.fromEntries(list.map(agent => [agent.id, { parent: null }]));
+  const open = openChats({ rows: [], list, known, record: id => records[id], now: NOW });
+  assert.deepEqual(open.map(chat => [chat.agentId, chat.source]), [
+    ['settled', 'schedule:news'], ['timeless', 'schedule:news'], ['mine', null]]);
+});
+
+test('a running schedule\'s chat the person wrote in after its first minute is in the list; its run\'s own message is not', () => {
+  const label = { 'wong-schedule': 'news' };
+  const records = {
+    taken: { labels: label, createdAt: '2026-11-08T11:00:00Z', lastUserMessageAt: '2026-11-08T11:20:00Z' },
+    own: { labels: label, createdAt: '2026-11-08T11:00:00Z', lastUserMessageAt: '2026-11-08T11:00:03Z' },
+  };
+  const list = [{ id: 'taken', name: 'News', status: 'running', cwd: '/w/a' }, { id: 'own', name: 'News', status: 'running', cwd: '/w/b' }];
+  const known = { taken: { parent: null }, own: { parent: null } };
+  const open = openChats({ rows: [], list, known, record: id => records[id], now: Date.parse('2026-11-08T12:00:00Z') });
+  assert.deepEqual(open.map(chat => [chat.agentId, chat.source]), [['taken', 'schedule:news']]);
+});
+
 test('a chat named by another repo skill goes as its task and step; a capital word no skill has stays in the name', () => {
   const list = [{ id: 'a1', name: 'VERIFY: Fix the invoice total', status: 'idle', cwd: '/w/a1' },
     { id: 'a2', name: 'SYNC: Take the new release', status: 'idle', cwd: '/w/a2' },

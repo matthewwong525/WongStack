@@ -337,7 +337,7 @@ export async function watch({ stops = () => null, ...args }) {
 // `chats`, `{sync, computer}`, sends the Inbox's chat list each pass; without it the pass sends none.
 async function passes({ stateDir, started, timezone, call, chats = null, addons = null, env = process.env, self = env.PASEO_AGENT_ID,
   ignore = [], service = false, print = console.log, seconds = 60, once = false, now = () => Date.now(),
-  sleep = ms => new Promise(done => setTimeout(done, ms)), wake, typedAt = userAt, ownRepo = () => true }) {
+  sleep = ms => new Promise(done => setTimeout(done, ms)), wake, typedAt = userAt, agentRecord = paseoRecord, ownRepo = () => true }) {
   let printed = [];
   const line = event => { printed.push(event); print(JSON.stringify(event)); };
   if (!service && !self) { line({ event: 'unsupported', reason: UNSUPPORTED }); return null; }
@@ -388,7 +388,8 @@ async function passes({ stateDir, started, timezone, call, chats = null, addons 
       const log = actions({ stateDir, day });
       await notice({ rows, ...read, state, log, record: action => logAction(stateDir, day, action), call, line, now, typedAt });
       if (chats) {
-        const open = openChats({ rows, list: read.list, known: state.known, ignore, self, ownRepo: cwd => ownRepo(folder(cwd)) });
+        const open = openChats({ rows, list: read.list, known: state.known, ignore, self, ownRepo: cwd => ownRepo(folder(cwd)),
+          record: id => agentRecord(id), now: now() });
         await keepChats({ stateDir, chats: open, ...chats, list: read.list, send: agentId => sendText(call, agentId, '/close'), typedAt, line,
           now: new Date(now()), read: name => readJson(name, {}), write: writeJson }).then(() => cleared('chats'), error => missed('chats', error));
       }

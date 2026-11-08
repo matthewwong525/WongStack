@@ -76,6 +76,7 @@ The Inbox opens on your open chats, by [the Inbox](reply-links.md#in-your-inbox-
 
 - **A step writes its row.** Each step, such as *Plan* or *Apply*, sends the chat's name, step and folder to the app, and so does a chat's start. A send that fails writes one line and the step goes on.
 - **The worker checks the list.** Each minute, [the worker](#the-daily-on-a-computer) sends the app every open Paseo chat on this computer, and the app drops the rows of chats that are gone. When that send fails two times in a row, *Needs you: the chat list* opens, by [the journal](#the-journal).
+- **A schedule's chat waits until it stops.** A chat a [schedule](../stack/host-schedules.md#where-it-runs) opened sends no row while it works. Once it stops and stays open, the worker adds its row 2 minutes later, under *Working*, marked *From a schedule*. A run that closes itself never shows. Once you write in it, it shows like any chat.
 - **`/close` removes its row** as its last step. A row not heard from in 3 days goes, for a computer whose worker is off.
 - **A review links to its chat.** A review page carries its chat's id, so it shows on that chat's row. An older page with no id joins the chat in its folder.
 
@@ -83,7 +84,7 @@ Tap *Close chat* in a row's menu, and the watch sends that chat [`/close`](../..
 
 ## A background run's handoff
 
-A [background schedule](../stack/host-schedules.md#where-it-runs) run has no chat. When it finds something you should see, such as *3 invoices are late*, it writes what it found to a file and runs `D handoff --file <path>`, then stops. After the run, the worker opens one chat named for the schedule, with that text as its first message. That chat makes the review page, and it shows in [your chat list](#your-chat-list). A run that finds nothing for you opens no chat.
+A [background schedule](../stack/host-schedules.md#where-it-runs) run has no chat. When it finds something you should see, such as *3 invoices are late*, it writes what it found to a file and runs `D handoff --file <path>`, then stops. After the run, the worker opens one chat named for the schedule, with that text as its first message. That chat makes the review page, and it shows in [your chat list](#your-chat-list) once it stops. A run that finds nothing for you opens no chat.
 
 ## Close finished chats
 
@@ -92,7 +93,7 @@ Ask *what's going on?* in any chat, and it marks each chat it watches that is fi
 - The chat's work is merged at its last commit, and its folder has no new work.
 - The chat is stopped and has no open question.
 
-It also marks a stopped chat as covered when [the line-up](#your-chats-in-line) told it another chat covers its work. It asks which ones to close. Each chat you pick gets [`/close`](../../.agents/skills/close/SKILL.md): it saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat you do not pick stays open. Nothing closes a chat by itself because its work went live: a live chat that is still open is usually one you kept open. It never marks a sub-agent or the main checkout. This needs Paseo, which lets a chat see other chats. [The tidy-up](../../.agents/skills/schedule/scripts/tidy.mjs) still closes a saved chat idle for 3 days.
+It also marks a stopped chat as covered when [the line-up](#your-chats-in-line) told it another chat covers its work. It asks which ones to close. Each chat you pick gets [`/close`](../../.agents/skills/close/SKILL.md): it saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat you do not pick stays open. Nothing closes a chat by itself because its work went live: a live chat that is still open is usually one you kept open. It never marks a sub-agent or the main checkout. This needs Paseo, which lets a chat see other chats.
 
 ## Add-ons
 
