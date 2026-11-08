@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseEnv } from 'node:util';
 import { client, installed, windowSetting } from '../../browser/scripts/browse.mjs';
-import { finished, seen, setLine, startTurn, watchControl } from '../../hand-over/scripts/hand-over.mjs';
+import { setLine, startTurn, watchControl } from '../../hand-over/scripts/hand-over.mjs';
 import { checkView } from '../../hand-over/scripts/view.mjs';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
@@ -37,14 +37,12 @@ const REF = /^@?e\d+$/;
 const TOOL = /^[a-z][a-z0-9-]*$/;
 const SIGN_IN = /password|passcode|one-time|verification code|2fa|sign-in code/i;
 const SIGN_IN_PAGE = /password|passcode|sign.?in|log.?in/i;
-/** Every box a sign-in asks in, on any of its steps: none may show when a turn ends. */
-const SIGN_IN_BOXES = 'input[type=password], input[type=email], input[autocomplete~=username], input[autocomplete~=one-time-code]';
 const HAND_OVER = join(dirname(fileURLToPath(import.meta.url)), '../../hand-over/scripts/hand-over.mjs');
 const WATCH_NOTE = 'The assistant is connecting your tools.';
 const WAIT_MS = 10_000;
 const PAUSES = {
   person: ['CONNECT_PAUSED=taken-over', 'The person took over the browser. Run `hand-over.mjs wait` in the background and send the browser nothing until it prints handed-back.'],
-  turn: ['CONNECT_PAUSED=your-turn', 'It is the person\'s turn to sign in. Run `hand-over.mjs wait` in the background until it prints signed-in or handed-back; in a browser window, run `hand-over.mjs close` once they say done.'],
+  turn: ['CONNECT_PAUSED=your-turn', 'It is the person\'s turn to sign in. Run `hand-over.mjs wait` in the background until it prints handed-back; in a browser window, run `hand-over.mjs close` once they say done.'],
 };
 
 /** An error whose first line, a marker such as CONNECT_PAUSED=taken-over, goes to stdout for the chat to act on. */
@@ -272,29 +270,19 @@ function watch() {
   return '';
 }
 
-/** A sign-in turn's finish: the key page's own path, with or without a query, never a wider `**`, and no sign-in box,
- *  so an email-first step at that address, or a key page at a site's root, ends no turn. */
-export function signInFinish(opened) {
-  const { origin, pathname } = new URL(opened);
-  return { until: [`${origin}${pathname}`, `${origin}${pathname}?**`], untilGone: SIGN_IN_BOXES, untilText: null };
-}
-
 /** Gives the person a turn to sign in, in the browser window or on the watch link, opened first when none is, until
- * the key page shows no sign-in box. A link that does not open passes its answer, such as HANDOVER_NEEDS, through. */
+ * they tap Hand back or say done. A link that does not open passes its answer, such as HANDOVER_NEEDS, through. */
 async function signIn(tool) {
   if (!/^[^\n]{1,60}$/.test(tool ?? '')) throw new Error('sign-in needs --tool <title>, the tool\'s name as the person knows it.');
   camoufox.check();
   if (!SIGN_IN_PAGE.test((await reading()).text)) throw new Error('This page shows no sign-in. Read it again.');
-  const finish = signInFinish(state().opened);
-  // A turn that would end at once ends before the person signs in: refuse it, as a view whose finish holds is.
-  if (finished(finish, await seen(page(), finish))) throw new Error('The page already meets the sign-in finish: it is the key page with no sign-in box. Read it again.');
   const window = Boolean(checkView().window);
   const already = Boolean(watchControl());
   if (!already && !openWatch()) return '';
   // A Mac's window may sit behind the person's app: the Dock brings it up.
   const dock = process.platform === 'darwin' ? ' If it\'s behind, click Camoufox in the Dock.' : '';
-  const note = window ? `Sign in to ${tool} in the browser window, then say done.${dock}` : `Sign in to ${tool}. I go on once you're in.`;
-  if (!startTurn(finish, note)) throw new Error('The watch link did not stay open: run `sign-in` again.');
+  const note = window ? `Sign in to ${tool} in the browser window, then say done.${dock}` : `Sign in to ${tool}, then tap Hand back.`;
+  if (!startTurn(note)) throw new Error('The watch link did not stay open: run `sign-in` again.');
   // A watch opened here printed HANDOVER_VIEW itself; one open already says it again, so the chat names the window.
   return already && window ? `HANDOVER_VIEW=window\n${PAUSES.turn[0]}` : PAUSES.turn[0];
 }

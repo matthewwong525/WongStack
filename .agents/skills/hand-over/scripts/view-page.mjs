@@ -50,9 +50,9 @@ export function shapeOf(width) {
   return width < PHONE_BELOW ? 'phone' : 'wide';
 }
 
-/** The closing line for a receipt: done when the finish showed or the person handed back. */
+/** The closing line for a receipt: done only when the person handed back. */
 export function ending(receipt) {
-  if (receipt?.result !== 'done' && receipt?.result !== 'handed-back') return ENDINGS.closed;
+  if (receipt?.result !== 'handed-back') return ENDINGS.closed;
   return receipt.notification === 'notified' ? ENDINGS.done : ENDINGS.unannounced;
 }
 

@@ -4,7 +4,7 @@ When a site asks for a one-time code after you [sign in in a live view](live-vie
 
 ## Spot the code step
 
-*Hand back* after a sign-in, or a finish the site met, doesn't prove you're signed in: the site may still want a check or a code. So the agent takes a snapshot of the next page and reads what it asks for, before it says it's signed in:
+*Hand back* after a sign-in doesn't prove you're signed in: the site may still want a check or a code. So the agent takes a snapshot of the next page and reads what it asks for, before it says it's signed in:
 
 - **A robot check:** a tick box such as *I'm not a robot*, or a picture puzzle. It comes first: the agent offers [a live view](live-view.md) for you to tap through, then reads the page again.
 - **A code box:** a field labelled code, OTP, verification, or 2FA, or one marked `autocomplete="one-time-code"`.
