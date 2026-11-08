@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** inbox-cleanup-and-knowledge
 **Open questions:** none
 
@@ -78,3 +78,4 @@ Non-goals: no merge of the app's database and memory's database into one; no cha
 - **2026-11-07** — Check: `app/.oxlintrc.json` drops the board's allowance to import `src/lib/board.ts`, because that file is deleted; the rule is now stricter, not looser.
 - **2026-11-07** — Assumed: `checkerOwns` leaves the shared contract, with a line in the update note, because only the board used it and this is already a major release.
 - **2026-11-08** — Built inside /ship. The live board had no undone tasks in the five weeks before, so no reminders were made. Two review rounds fixed a handoff chat's id never saved, step words left in synced chat names, a chat's schedule never recorded, and a worker pass that could bring back an old step. Local checks pass, apart from two that clear once the specs are updated, which this save does.
+- **2026-11-08** — Archived at ship. The preview walk at phone width passed with two test chats and one test review page on the test copy: the chat list, a tap into the review and *Back*, *Close chat*, the Archive search, and *Schedules* and its *Back*. The test chats were removed after; the closed test page stays in the test copy's Archive.

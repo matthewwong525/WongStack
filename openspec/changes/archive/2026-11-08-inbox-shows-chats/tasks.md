@@ -43,4 +43,4 @@
 
 ## 8. Checks
 
-- [ ] 8.1 Run `node .github/scripts/checks.mjs --worktree`, then `/save`, and walk the preview at phone width as a signed-in person: the chat list with a waiting review, a tap into it and *Back*, *Close chat*, the Archive search, *Schedules* and its *Back*. Verify: CI passes and each step behaves as the `inbox` spec says.
+- [x] 8.1 Run `node .github/scripts/checks.mjs --worktree`, then `/save`, and walk the preview at phone width as a signed-in person: the chat list with a waiting review, a tap into it and *Back*, *Close chat*, the Archive search, *Schedules* and its *Back*. Verify: CI passes and each step behaves as the `inbox` spec says.

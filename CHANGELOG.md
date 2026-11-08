@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — The Inbox shows your chats
+## 51.0.0 — The Inbox shows your chats
 
 - **The Inbox opens on your chats.** Each open chat is one row, with its name, its step, such as *Plan* or *Apply*, and its folder. A chat that waits on your review sits on top under *Needs you*; a tap opens the review. The chats that are working come next, then the *Archive* of past reviews with its search. Rows show no dates ([in your inbox first](wiki/development/reply-links.md#in-your-inbox-first)).
 - **A row follows its chat.** It shows the step the chat is on now, and it leaves when the chat closes. *Close chat* in a row's menu sends that chat `/close` once you have been quiet there for 15 minutes ([your chat list](wiki/development/daily.md#your-chat-list)).

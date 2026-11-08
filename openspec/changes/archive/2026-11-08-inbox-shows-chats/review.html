@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · inbox-shows-chats</title>
+<title>Review · 2026-11-08-inbox-shows-chats</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="inbox-shows-chats" data-own-back>
+<body data-change="2026-11-08-inbox-shows-chats" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>inbox-shows-chats</h1>
+  <h1>2026-11-08-inbox-shows-chats</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -455,6 +455,7 @@
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-07</p>Check: <code>app/.oxlintrc.json</code> drops the board's allowance to import <code>src/lib/board.ts</code>, because that file is deleted; the rule is now stricter, not looser.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-07</p>Assumed: <code>checkerOwns</code> leaves the shared contract, with a line in the update note, because only the board used it and this is already a major release.</li>
 <li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-08</p>Built inside /ship. The live board had no undone tasks in the five weeks before, so no reminders were made. Two review rounds fixed a handoff chat's id never saved, step words left in synced chat names, a chat's schedule never recorded, and a worker pass that could bring back an old step. Local checks pass, apart from two that clear once the specs are updated, which this save does.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-08</p>Archived at ship. The preview walk at phone width passed with two test chats and one test review page on the test copy: the chat list, a tap into the review and <i>Back</i>, <i>Close chat</i>, the Archive search, and <i>Schedules</i> and its <i>Back</i>. The test chats were removed after; the closed test page stays in the test copy's Archive.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
