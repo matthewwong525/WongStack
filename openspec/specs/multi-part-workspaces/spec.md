@@ -4,7 +4,6 @@
 Gives each separately publishable part of a request its own Paseo workspace, so parts never share a chat or a branch, and the person chooses in one question whether to open them.
 
 ## Requirements
-
 ### Requirement: Separate parts are asked about once
 When a request holds two or more parts that could each be planned and published alone, the agent SHALL ask once, in `/explore`'s exit round: open a new workspace for each other part *(Recommended)*, do them here one at a time, or keep them as one change. Steps of one change SHALL NOT count as parts. Without a running Paseo, the question SHALL leave out new workspaces and say they need Paseo.
 
@@ -103,7 +102,7 @@ Opening a workspace SHALL pass its brief to the new agent as its first message w
 
 #### Scenario: A brief written as a list
 
-- **WHEN** the daily opens a workspace for a board task with a brief whose first line is `- **Goal**: …`
+- **WHEN** a schedule's run opens a workspace with a brief whose first line is `- **Goal**: …`
 - **THEN** the workspace opens and its agent's first message is that brief, unchanged
 
 ### Requirement: A publish opens the next work, then closes

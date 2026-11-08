@@ -1,6 +1,22 @@
 import { z } from "zod";
 import { endedAt, inboxAction, itemId, type ItemRow, mine, type Scope, settleTaps } from "./store.ts";
-import { titlePatterns } from "./tasks/board.ts";
+
+/** A search reads this many words, each cut to this many characters. */
+const WORDS = 8;
+const WORD_CHARS = 100;
+
+/** The query's distinct words, in any case, within the limits. */
+function searchWords(query: string) {
+  const words = new Map<string, string>();
+  for (const raw of query.split(/\s+/)) {
+    const word = raw.slice(0, WORD_CHARS);
+    if (word && !words.has(word.toLowerCase()) && words.size < WORDS) words.set(word.toLowerCase(), word);
+  }
+  return [...words.values()];
+}
+
+/** Each search word as a `LIKE … ESCAPE '\\'` pattern found anywhere: `100%` finds only itself, `a_b` never `axb`. */
+const titlePatterns = (query: string) => searchWords(query).map(word => `%${word.replace(/[\\%_]/g, character => `\\${character}`)}%`);
 
 /** The Archive reads this many pages at a time; *Show more* reads the next. */
 const PAGE = 50;

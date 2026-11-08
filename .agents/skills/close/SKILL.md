@@ -38,10 +38,11 @@ Use active/archived `CHANGE_NAME`; without one, omit show/--change. On main omit
 S="$(git rev-parse --show-toplevel)/.claude/skills"
 node "$S/memory/scripts/memory.mjs" keep-transcript current # never stops the close
 node "$S/hand-over/scripts/hand-over.mjs" close # only when this chat's private link is open
+node "$S/explore/scripts/step-title.mjs" remove # off the Inbox's chat list; never stops the close
 node "$S/schedule/scripts/tidy.mjs" close # --discard on that route
 ```
 
-After the reply, archiving stops workspace processes; shared services keep running.
+After the reply, archiving stops workspace processes, not shared services.
 
 - **Exit 0:** say the workspace is closing. Archived chat remains readable.
 - **Exit 2:** in the main checkout or outside Paseo, say there's no workspace to close; else give its `error` in plain words.

@@ -1,6 +1,7 @@
-// The inbox's server side: items, taps, sent files and schedules, each for the signed-in person alone, and the owner's
-// week board (tasks/), which the week screen and the daily change. wiki/development/reply-links.md
+// The inbox's server side: items, taps, sent files, schedules and the chat list, each for the signed-in person alone.
+// wiki/development/reply-links.md
 import type { Route } from "../../api/contract.ts";
+import { chatClose, chatPut, chatRemove, chats, chatsSync, retiredRoutes } from "./chats.ts";
 import { checkin } from "./checkin.ts";
 import { claim } from "./claim.ts";
 import { fileRead, fileUpload } from "./files.ts";
@@ -21,8 +22,6 @@ import { tapCancel } from "./tap-cancel.ts";
 import { tapResult } from "./tap-result.ts";
 import { tapStatus } from "./tap-status.ts";
 import { tap } from "./tap.ts";
-import { dailyRoutes } from "./tasks/daily-routes.ts";
-import { weekRoutes } from "./tasks/week-routes.ts";
 
 export const routes = new Map<string, Route>([
   ["GET items", items], ["GET item", item], ["GET reviews", reviews], ["POST tap", tap], ["GET tap", tapStatus], ["POST tap-cancel", tapCancel],
@@ -31,5 +30,6 @@ export const routes = new Map<string, Route>([
   ["POST delete", scheduleDelete], ["POST run-now", runNow], ["POST run-cancel", runCancel], ["POST claim", claim],
   ["POST run-result", runResult], ["PUT team-schedule", teamSchedulePut], ["POST schedule-approved", scheduleApproved],
   ["POST schedule-end", scheduleEnd], ["GET schedule-progress", scheduleProgress], ["PUT schedule-progress", scheduleProgressPut],
-  ["POST schedule-progress-claim", scheduleProgressClaim], ["PUT mirror", mirror], ["POST file", fileUpload], ["GET file", fileRead], ...weekRoutes, ...dailyRoutes,
+  ["POST schedule-progress-claim", scheduleProgressClaim], ["PUT mirror", mirror], ["POST file", fileUpload], ["GET file", fileRead], ["GET chats", chats],
+  ["PUT chat", chatPut], ["POST chats-sync", chatsSync], ["POST chat-remove", chatRemove], ["POST chat-close", chatClose], ...retiredRoutes,
 ]);

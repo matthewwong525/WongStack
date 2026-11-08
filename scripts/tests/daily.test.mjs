@@ -6,12 +6,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readOutput, runAddons, runNode } from '../../.agents/skills/daily/scripts/addons.mjs';
-import { BoardError, boardCalls, boardClient } from '../../.agents/skills/daily/scripts/board.mjs';
-import { SettingsError, defaultSettings, loadSettings, mondayOf, morningOf, placePath, settingsFor, slotOf, validateConfig, validateTeam }
+import { ChatListError, chatCalls, chatClient } from '../../.agents/skills/daily/scripts/chats.mjs';
+import { SettingsError, defaultSettings, loadSettings, morningOf, placePath, settingsFor, validateConfig, validateTeam }
   from '../../.agents/skills/daily/scripts/config.mjs';
 import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
-import { checkinsOff, commandSettings, commands, ensure, firstMessage, holds, offFile, personSettings, readArgs, start,
-  startDefaults, startMoveIn, startReport, startServe, startTask, startedRecord, stateDirectory, stateOf, taskMessage, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
+import { REMIND, checkinsOff, commandSettings, commands, ensure, firstMessage, holds, ignoreTasks, launcherArgs, offFile, personSettings, readArgs,
+  start, startDefaults, startMoveIn, startReport, startServe, startedRecord, stateDirectory, stateOf, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { codeStamp } from '../../.agents/skills/daily/scripts/worker.mjs';
 
@@ -26,7 +26,7 @@ const temp = name => { const dir = mkdtempSync(join(tmpdir(), `daily-${name}-`))
 
 const routine = (more = {}) => ({ id: 'review', enabled: true, title: 'Review', place: 'home', scope: 'Last week', result: 'A list', procedure: '.agents/skills/review/SKILL.md',
   cadence: { kind: 'daily' }, effects: 'Reads only', activeFrom: '2026-10-01', start: 'run', missed: 'skip', ...more });
-const settings = (more = {}) => ({ version: 1, person: 'alex', emails: ['Alex@Example.com'], timezone: ZONE, sources: { tasks: true, chats: true },
+const settings = (more = {}) => ({ version: 1, person: 'alex', emails: ['Alex@Example.com'], timezone: ZONE, sources: { chats: true },
   places: { home: '.' }, ...more });
 
 /** A repo with the review skill, the person's settings and, when given, a team file. */
@@ -40,16 +40,10 @@ function repo({ config = settings(), team } = {}) {
   return root;
 }
 
-/** A fake board: tasks by week; `down` makes each call throw; `calls` keeps each call. */
-function fakeBoard(tasks = []) {
-  const box = { tasks, calls: [], down: false };
-  const go = (name, act) => async body => { box.calls.push([name, body]); if (box.down) throw new BoardError('unavailable: no app'); return act(body); };
-  box.board = {
-    tasks: go('tasks', week => ({ week, tasks: box.tasks.filter(task => task.week === week || (task.slot === 'backlog' && week === '2026-10-19')) })),
-    add: go('add', body => ({ id: 'new', ...body, created: true })),
-    status: go('status', body => body), link: go('link', body => body), place: go('place', body => body), remove: go('remove', body => body),
-    origin: async () => 'https://app.example.com',
-  };
+/** Fake chat-list calls: `sent` keeps each sync; `origin` is the app's, or null with none. */
+function fakeChats(origin = 'https://app.example.com') {
+  const box = { sent: [] };
+  box.chats = { sync: async body => { box.sent.push(body); return { chats: [] }; }, put: async body => body, remove: async body => body, origin: async () => origin };
   return box;
 }
 
@@ -94,10 +88,6 @@ test('the settings file is found by any email in any case; the team routines joi
   assert.throws(() => placePath({ places: {} }, 'x', root), /No place x/);
 });
 
-test('the board week starts on Monday, and a date names its board day', () => {
-  assert.deepEqual([mondayOf('2026-10-25'), slotOf('2026-10-25'), slotOf('2026-10-21')], ['2026-10-19', 'sun', 'wed']);
-});
-
 test('who names the settings, the team file and the guide; with no app it uses the git email', () => {
   const root = repo({ config: settings({ guide: '.agents/daily/alex.md' }) });
   const me = who({ repo: root, ctx: { author: 'alex@example.com' }, origin: null });
@@ -133,6 +123,11 @@ test("a teammate with no file is never the only file's person: check-ins, the of
 test('a settings file with a misspelled person still fails on its bad field, not as no settings', () => {
   const root = repo({ config: { version: 1, Person: 'alex', emails: ['x@example.com'] } });
   assert.match(who({ repo: root, ctx: { author: 'x@example.com' }, origin: null }).error, /Invalid daily settings/);
+});
+
+test('a schedule\'s handoff chat opens with its schedule\'s label; another chat with none', () => {
+  assert.deepEqual(launcherArgs({ title: 'Late invoices', brief: 'b.txt', schedule: 'invoice-check' }).slice(-2), ['--label', 'wong-schedule=invoice-check']);
+  assert.equal(launcherArgs({ title: 'Needs you', brief: 'b.txt' }).includes('--label'), false);
 });
 
 test('start opens no routine: one left in the file is only named as waiting, and a dry run names the add-ons it would run', async () => {
@@ -186,49 +181,28 @@ test('add-ons run as scripts with the context on stdin; bad output or a missing 
   await assert.rejects(runNode({ file: join(root, 'crash.mjs'), cwd: root, input: {} }), /it broke/);
 });
 
-test('the board calls go to the Inbox routes as the person; with no app each call is unavailable, never an empty week', async () => {
+test('the chat-list calls go to the Inbox routes as the person; with no app each call is unavailable, never an empty list', async () => {
   const seen = [];
-  const client = { http: async (path, init) => { seen.push([path, init.method, init.body ?? null]); return path.includes('remove') ? { value: { error: { code: 'not_found' } }, status: 404 } : { value: { tasks: [] }, status: 200 }; },
+  const client = { http: async (path, init) => { seen.push([path, init.method, init.body]); return path.endsWith('remove') ? { value: { error: { code: 'not_found' } }, status: 404 } : { value: { chats: [] }, status: 200 }; },
     target: () => 'https://app.example.com' };
-  const board = boardCalls(Promise.resolve(client));
-  assert.deepEqual(await board.tasks('2026-10-19'), { tasks: [] });
-  await board.add({ importKey: 'daily:x', title: 'X' });
-  await assert.rejects(board.remove({ importKey: 'chat:a' }), /404: not_found/);
-  for (const name of ['place', 'status', 'link']) await board[name]({ id: 't' });
-  assert.deepEqual(seen.map(([path, method]) => [path, method]), [['/apps/inbox/api/daily-tasks?week=2026-10-19', 'GET'], ['/apps/inbox/api/daily-task-add', 'POST'],
-    ['/apps/inbox/api/daily-task-remove', 'POST'], ['/apps/inbox/api/daily-task-place', 'POST'], ['/apps/inbox/api/daily-task-status', 'POST'],
-    ['/apps/inbox/api/daily-task-link', 'POST']]);
-  assert.equal(await board.origin(), 'https://app.example.com');
-  const none = boardCalls(Promise.resolve(null));
-  await assert.rejects(none.tasks('2026-10-19'), error => error instanceof BoardError && error.message.startsWith('unavailable'));
+  const chats = chatCalls(Promise.resolve(client));
+  assert.deepEqual(await chats.sync({ computer: 'c', chats: [] }), { chats: [] });
+  await chats.put({ agentId: 'a' });
+  await assert.rejects(chats.remove({ agentId: 'a' }), /404: not_found/);
+  assert.deepEqual(seen, [['/apps/inbox/api/chats-sync', 'POST', '{"computer":"c","chats":[]}'], ['/apps/inbox/api/chat', 'PUT', '{"agentId":"a"}'],
+    ['/apps/inbox/api/chat-remove', 'POST', '{"agentId":"a"}']]);
+  assert.equal(await chats.origin(), 'https://app.example.com');
+  const none = chatCalls(Promise.resolve(null));
+  await assert.rejects(none.sync({ computer: 'c', chats: [] }), error => error instanceof ChatListError && error.message.startsWith('unavailable'));
   assert.equal(await none.origin(), null);
-  assert.equal(await boardClient(temp('noapp'), async () => ({ companyClient: () => { throw new Error('no app'); } })), null);
-  assert.equal(await boardClient(fileURLToPath(new URL('../../', import.meta.url)), async () => ({ companyClient: () => client })), client);
-});
-
-test('start-task opens a task of today once ever, names its chat and marks it in progress; any other task is refused', async () => {
-  const stateDir = temp('state');
-  const config = validateConfig(settings());
-  const box = fakeBoard([{ id: 'a', title: '-Call the bank', week: '2026-10-19', slot: 'wed', status: 'open' },
-    { id: 'b', title: 'Tomorrow', week: '2026-10-19', slot: 'thu', status: 'open' },
-    { id: 'c', title: 'Has a chat', week: '2026-10-19', slot: 'wed', status: 'open', chat: 'old-elk' }]);
-  const opened = [];
-  const launch = async args => { opened.push(args); return { ok: true, cwd: '/w/kind-owl', workspaceName: args.title, agentId: 'agent-t' }; };
-  const go = (id, more = {}) => startTask({ config, project: '/w/main', stateDir, id, now: NOW, board: box.board, launch, ...more });
-  assert.deepEqual(await go('a', { note: 'use the app' }), { day: '2026-10-21', title: '-Call the bank', state: 'started', workspace: 'Task: -Call the bank' });
-  assert.equal(opened[0].title, 'Task: -Call the bank');
-  assert.equal(opened[0].message, taskMessage({ title: '-Call the bank', note: 'use the app' }));
-  assert.match(opened[0].message, /^Call the bank\nNote: use the app\n/);
-  assert.deepEqual(box.calls.filter(([name]) => name !== 'tasks'), [['link', { id: 'a', chat: 'Task: -Call the bank' }], ['status', { id: 'a', status: 'in_progress' }]]);
-  assert.equal((await go('a')).state, 'already');
-  assert.equal(opened.length, 1);
-  assert.equal((await go('b')).state, 'refused');
-  assert.deepEqual(await go('c'), { state: 'already', title: 'Has a chat', workspace: 'old-elk' });
+  assert.equal(await chatClient(temp('noapp'), async () => ({ companyClient: () => { throw new Error('no app'); } })), null);
+  assert.equal(await chatClient(fileURLToPath(new URL('../../', import.meta.url)), async () => ({ companyClient: () => client })), client);
   assert.equal(holds({ pending: true, at: new Date(Date.now() - 11 * 60e3).toISOString() }), false, 'an old claim is a failed launch');
 });
 
 test('readArgs takes each command with its flags, chief-service as serve, and refuses the rest', () => {
-  assert.deepEqual(readArgs(['todo', 'link', '--agent', 'a', '--url', 'https://x']).command, 'todo link');
+  assert.equal(readArgs(['handoff', '--file', 'found.md']).values.file, 'found.md');
+  assert.equal(readArgs(['remind', '--day', '2026-10-23', '--text', 'Call Kim']).command, 'remind');
   assert.equal(readArgs(['chief-service']).command, 'serve');
   assert.deepEqual(readArgs(['serve', '--seconds', '30']).values.seconds, 30);
   assert.equal(readArgs(['serve', '--dry-run']).values['dry-run'], true);
@@ -247,25 +221,26 @@ test('readArgs takes each command with its flags, chief-service as serve, and re
     ['checkins', 'maybe'], ['allow', '--agent', 'a', '--request', 'r', '--bucket', 'pick', '--label', 'x'],
     ['hand', '--agent', 'a', '--source', 'asked'], ['open-daily'], ['picture'], ['close', '--agent', 'a'], ['journal', '--hook'], ['journal', '--agent', 'a'], ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'maybe', '--label', 'x'],
     ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'line-up', '--label', 'x'], ['map'], ['tell'], ['tell', '--agent', 'a'], ['tell', '--file', 'f'],
-    ['tell', '--now'], ['line-up', '--agent', 'a']]) {
+    ['tell', '--now'], ['line-up', '--agent', 'a'], ['handoff'], ['todo', 'link', '--agent', 'a', '--url', 'https://x'], ['start', '--id', 'a']]) {
     const run = spawnSync(process.execPath, ['-e', `import(${JSON.stringify(join(SKILL, 'scripts/daily.mjs'))}).then(m => m.readArgs(${JSON.stringify(bad)}))`],
       { encoding: 'utf8' });
     assert.notEqual(run.status, 0, bad.join(' '));
   }
 });
 
-test('commands wire the settings to the board: remind adds a task on its day, and a past day is refused', async () => {
+test('commands wire the settings: remind points to /schedule, and a handoff outside a background run is refused', async () => {
   const stateDir = temp('state');
   const config = validateConfig(settings());
-  const box = fakeBoard();
-  const run = (command, values) => commands({ config, project: '/w/main', stateDir, values, call: async () => [], board: box.board, env: {} })[command]();
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date());
-  const added = await run('remind', { day: today, text: 'Call  the bank' });
-  assert.deepEqual([added.state, added.title], ['added', 'Call the bank']);
-  assert.match(box.calls[0][1].importKey, /^daily:remind:\d{4}-\d{2}-\d{2}:[0-9a-f]{16}$/);
-  assert.equal((await run('remind', { day: '2020-01-01', text: 'x' })).state, 'refused');
+  const run = (command, values, env = {}) => commands({ config, project: '/w/main', stateDir, values, call: async () => [], chats: fakeChats().chats, env })[command]();
+  assert.deepEqual(await run('remind', { day: '2026-10-23', text: 'Call the bank' }), { status: 'refused', reason: 'schedule', error: REMIND });
+  assert.match(REMIND, /one-time chat schedule.*\/schedule/);
+  const found = join(stateDir, 'found.md');
+  writeFileSync(found, '3 invoices are late.\n');
+  assert.equal((await run('handoff', { file: found })).reason, 'run');
+  assert.deepEqual(await run('handoff', { file: found }, { WONG_DAILY_RUN_ID: 'schedule-run-20261021T140000-ab12' }),
+    { status: 'handed', run: 'schedule-run-20261021T140000-ab12' });
   assert.equal((await run('status', {})).status, 'unsupported');
-  assert.equal((await run('todo link', { agent: 'a', url: 'https://evil.test/' })).status, 'unsupported');
+  assert.equal((await run('done-agent', { agent: 'a', proof: 'x' })).status, 'unsupported');
   assert.equal((await run('line-up', {})).status, 'unsupported');
   assert.equal((await run('tell', { drop: 'a' })).status, 'unsupported');
   const map = join(stateDir, 'map.json');
@@ -277,12 +252,22 @@ test('commands wire the settings to the board: remind adds a task on its day, an
   assert.equal(stateDirectory('/w/main', 'alex', '/s'), stateDirectory('/w/main/', 'alex', '/s'));
 });
 
+test("an older file's tasks source still loads, and gets one journal line that it does nothing", () => {
+  const stateDir = temp('state');
+  const older = validateConfig(settings({ sources: { tasks: true, chats: true } }));
+  ignoreTasks({ config: older, stateDir });
+  ignoreTasks({ config: older, stateDir });
+  ignoreTasks({ config: validateConfig(settings()), stateDir: temp('other') });
+  assert.deepEqual(readLines({ stateDir }).map(entry => entry.kind), ['tasks-ignored']);
+  assert.match(readLines({ stateDir })[0].line, /tasks.*week board is gone/);
+});
+
 // ---------------------------------------------------------------------------
 // Check-ins for everyone
 
 test('default settings take the email before the @ as the person, check-ins only, in the given time zone', () => {
   const made = defaultSettings({ email: 'Jo.Lee+work@Example.com', timezone: ZONE });
-  assert.deepEqual(made, { version: 1, person: 'jo-lee-work', emails: ['Jo.Lee+work@Example.com'], timezone: ZONE, sources: { tasks: false, chats: true },
+  assert.deepEqual(made, { version: 1, person: 'jo-lee-work', emails: ['Jo.Lee+work@Example.com'], timezone: ZONE, sources: { chats: true },
     places: {}, teamFile: null });
   assert.equal(defaultSettings({ email: 'team@example.com' }).person, 'team-member');
   assert.equal(defaultSettings({ email: '...@example.com' }).person, 'me');
@@ -302,8 +287,8 @@ test("person settings: the file wins; else the sign-in email while it is good, e
   assert.equal(expired.config.person, 'git');
   const nobody = personSettings({ repo: empty, ctx: { author: '' }, origin: null });
   assert.equal(nobody.config, null);
-  for (const command of ['start', 'start-task', 'remind']) assert.throws(() => commandSettings(command, signed), /No daily settings for Sam\.Lee@example\.com/);
-  assert.equal(commandSettings('journal', signed).person, 'sam-lee');
+  assert.throws(() => commandSettings('start', signed), /No daily settings for Sam\.Lee@example\.com/);
+  for (const command of ['journal', 'remind', 'handoff']) assert.equal(commandSettings(command, signed).person, 'sam-lee');
   assert.equal(commandSettings('start', found).person, 'alex');
   assert.throws(() => commandSettings('journal', nobody), SettingsError);
 });
@@ -320,7 +305,7 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   const spawned = [];
   const go = (config, more = {}) => ensure({ repo: root, root: states, env: { HOME: states }, agent: 'codex', resolve: () => ({ config }), isAlive: () => false,
     spawnServe: args => spawned.push(args), defaults: () => {}, ...more }).state;
-  const jobs = validateConfig(settings());
+  const jobs = validateConfig(settings({ addons: { pass: ['check.mjs'] } }));
   const plain = defaultSettings({ email: 'alex@example.com', timezone: ZONE });
   assert.equal(go(jobs, { env: { WONG_STOP_CHECK: '1' } }), 'run');
   assert.equal(go(jobs, { env: { WONG_MEMORY_RUN: '1' } }), 'run');
@@ -331,6 +316,10 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   assert.deepEqual([...moved, ...added].map(each => [each.home.repo, each.stateDir, each.timezone]), Array(2).fill([root, plainState, ZONE]));
   const broken = () => { throw new Error('no app'); };
   assert.equal(go({ ...plain, checks: [routine()] }, { moveIn: broken, defaults: broken }), 'no-jobs', 'a failed move or add stops nothing');
+  // The chat list is a job once the person has an app, unless their settings turn it off.
+  assert.equal(go(plain, { resolve: () => ({ me: { origin: null }, config: plain }) }), 'no-jobs');
+  assert.equal(go(plain, { resolve: () => ({ me: { origin: 'https://app.example.com' }, config: { ...plain, sources: { chats: false } } }) }), 'no-jobs');
+  assert.equal(go(plain, { resolve: () => ({ me: { origin: 'https://app.example.com' }, config: plain }) }), 'started');
   // A handed-over schedule run is a job, and so is a default schedule this computer added.
   const handed = join(states, '.wong-stack/agent-events', `schedule-run-${'a'.repeat(32)}.json`);
   mkdirSync(join(handed, '..'), { recursive: true });
@@ -341,7 +330,7 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   writeFileSync(join(plainState, 'defaults.json'), JSON.stringify({ added: { 'line-up': { version: 'a'.repeat(64) } } }));
   assert.equal(go(plain), 'started');
   assert.equal(go(jobs), 'started');
-  assert.deepEqual(spawned.map(each => [each.repo, each.agent]), Array(3).fill([root, 'codex']));
+  assert.deepEqual(spawned.map(each => [each.repo, each.agent]), Array(4).fill([root, 'codex']));
   const stateDir = stateOf(jobs, root, states);
   mkdirSync(stateDir, { recursive: true });
   writeFileSync(join(stateDir, 'serve.lock'), '4242\n');
@@ -351,7 +340,7 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   assert.equal(go(jobs), 'running');
   writeFileSync(offFile(stateDir), 'x');
   assert.equal(go(jobs), 'off');
-  assert.equal(spawned.length, 4);
+  assert.equal(spawned.length, 5);
   // Off, a handed-over schedule run is taken to be reported as not started, never left for a worker.
   const event = { event: 'schedule-run', key: 'tidy', run: 'b'.repeat(32), version: 'c'.repeat(64), email: 'alex@example.com', cwd: root };
   const waiting = join(states, '.wong-stack/agent-events', `schedule-run-${event.run}.json`);
@@ -403,7 +392,7 @@ test('the add of the default schedules starts once a day, and again the same day
 
 test("ensure restarts a worker whose beat holds older code or none, and leaves a current one alone", () => {
   const { root, states } = checkout();
-  const config = validateConfig(settings());
+  const config = validateConfig(settings({ addons: { pass: ['check.mjs'] } }));
   const stateDir = stateOf(config, root, states);
   mkdirSync(stateDir, { recursive: true });
   const live = new Set(), killed = [], spawned = [];
@@ -447,7 +436,7 @@ test("the worker belongs to the main checkout: a copy's own scripts restart noth
   const { primary, copy, main, states } = twoCopies();
   assert.deepEqual(workerHome(copy), { repo: primary, script: join(main, 'daily.mjs'), dir: main });
   assert.notEqual(codeStamp(join(copy, '.agents/skills/daily/scripts')), codeStamp(main));
-  const config = validateConfig(settings());
+  const config = validateConfig(settings({ addons: { pass: ['check.mjs'] } }));
   const stateDir = stateOf(config, copy, states);
   mkdirSync(stateDir, { recursive: true });
   const live = new Set([4242]), killed = [], spawned = [];
@@ -485,7 +474,7 @@ test("each pass re-reads the settings from the main checkout, not from the copy 
   // The worker's start-time settings are the defaults: only the main checkout's file names the add-on.
   await commands({ config: defaultSettings({ email: 'alex@example.com', timezone: ZONE }), project: root, stateDir: temp('state'),
     values: { 'dry-run': true, seconds: 60 }, call: async args => (args[0] === 'ls' || args[0] === 'permit' ? [] : { ok: true }),
-    board: fakeBoard().board, env: {}, print: text => printed.push(JSON.parse(text)) }).serve();
+    chats: fakeChats().chats, env: {}, print: text => printed.push(JSON.parse(text)) }).serve();
   assert.deepEqual(printed.filter(item => item.wouldRun), [{ wouldRun: 'add-on', addon: 'a.mjs' }]);
 });
 
@@ -503,7 +492,7 @@ test('checkins off writes the off file, stops the running worker and journals it
   assert.equal(ensure({ repo: root, root: states, env: {}, resolve: () => ({ config }), spawnServe: () => assert.fail('started while off'),
     defaults: () => {} }).state, 'off');
   const flips = [];
-  const run = command => commands({ config, project: root, stateDir, values: {}, call: async () => [], board: fakeBoard().board, env: {},
+  const run = command => commands({ config, project: root, stateDir, values: {}, call: async () => [], chats: fakeChats().chats, env: {},
     keep: () => ({ state: 'started' }), defaults: () => flips.push(existsSync(offFile(stateDir))) })[command]();
   assert.deepEqual(await run('checkins on'), { state: 'on', worker: 'started' });
   assert.ok(!existsSync(offFile(stateDir)));

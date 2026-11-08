@@ -5,7 +5,7 @@
   "timezone": "America/New_York",
   "morning": "08:00",
   "guide": ".agents/daily/alex.md",
-  "sources": { "tasks": true, "chats": true },
+  "sources": { "chats": true },
   "places": { "home": "." },
   "addons": { "morning": [], "pass": [] }
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { Loading } from '@/components/Loading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -40,8 +40,8 @@ function Watch({ waiting, look }: { waiting: boolean; look: () => void }) {
 export function PlanView({ id }: { id: string }) {
   const [plan, setPlan] = useState<Plan | null>(null)
   const navigate = useNavigate()
-  // Back returns to the Reviews list when a row there opened this page, else to the week.
-  const back = useSearchParams()[0].get('from') === 'reviews' ? '/apps/inbox/?view=reviews' : '/apps/inbox/'
+  // Back returns to the chat list, which holds the Archive too.
+  const back = '/apps/inbox/'
   const [gone, setGone] = useState<'closed' | 'unavailable' | null>(null)
   const [tap, setTap] = useState<Tap | null>(null)
   // When this view first saw its tap reach the chat: the computer closes the page soon after, so it reads closed now.

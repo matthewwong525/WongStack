@@ -1,10 +1,9 @@
 # inbox Specification
 
 ## Purpose
-One inbox in the live app that opens on the person's week board, where they mark, move and delete their tasks, and where a plan's link still opens its page.
+One inbox in the live app that opens on the person's open chats, with the review pages that wait on them on top and past ones in an Archive, and where a plan's link still opens its page.
 
 ## Requirements
-
 ### Requirement: A plan opens inside the inbox without reaching the app
 
 A plan item SHALL show the same review page the plan's file holds, with its notes and its actions. The page SHALL run sealed from the app: it SHALL be unable to read the person's sign-in, call the app, or change anything but its own notes, the files the person sends with a tap, and the actions its item offers.
@@ -126,21 +125,7 @@ A plan opened in the inbox SHALL fill the screen below the app's bar, edge to ed
 #### Scenario: Back at the top
 
 - **WHEN** the person scrolls a plan back to its top and taps *Back*
-- **THEN** *Back* and the workspace show above the plan's title, and the tap opens the week board
-
-### Requirement: The inbox opens on the person's week
-
-The inbox mini app SHALL open on the signed-in person's week board, where they tick, move, drag, delete and add tasks. A plan item SHALL still open from its own link.
-
-#### Scenario: Opening the inbox
-
-- **WHEN** Jo opens the inbox
-- **THEN** Jo sees this week's days with their tasks, and the backlog
-
-#### Scenario: A plan's link
-
-- **WHEN** Jo opens a plan's link from a chat
-- **THEN** the plan opens in the inbox as before
+- **THEN** *Back* and the workspace show above the plan's title, and the tap opens the chat list
 
 ### Requirement: An older plan keeps its pinned Back
 
@@ -165,20 +150,6 @@ A file sent with a tap SHALL be kept by the app only for that tap's item and per
 - **WHEN** a file waits 24 hours and the computer has not taken it
 - **THEN** no one can open it, and the next time the Inbox is used the app deletes it and its tap shows as not delivered
 
-### Requirement: The inbox lists the person's review pages
-
-The inbox SHALL show every signed-in person a Reviews list of their own review pages, whether or not they use the daily: the pages waiting on them first, then an Archive of every answered or closed page, each part newest first. A search SHALL find pages in both parts by their title. The list SHALL show no other person's pages, and no question, approval, private link or hidden item.
-
-#### Scenario: Looking back at a past plan
-
-- **WHEN** Jo, who never set up the daily, opens *Reviews* and searches *profit*
-- **THEN** Jo sees each version of the profit plan they reviewed, newest first, and no one else's pages
-
-#### Scenario: A page that ran out of time
-
-- **WHEN** a review page's 24 hours pass with no answer
-- **THEN** it leaves *Waiting* and shows in the Archive with no answer
-
 ### Requirement: An archived review page opens read-only
 
 An archived review page SHALL open in the same view as a waiting one, showing the same page. It SHALL offer no action and take no notes, and no tap on it SHALL ever reach a chat. Above the page it SHALL say what reached the chat and when, with any notes sent, or that no answer came and when it closed. A page whose answer has just reached the chat SHALL look the same at once, before it moves to the Archive.
@@ -198,14 +169,51 @@ An archived review page SHALL open in the same view as a waiting one, showing th
 - **WHEN** an archived page built before this change sends its notes
 - **THEN** nothing reaches the chat, and the page says the link has closed
 
-### Requirement: The inbox lists the person's schedules
+### Requirement: The inbox opens on the person's chats
 
-The inbox SHALL have a Schedules view, next to Reviews, that lists the signed-in person's own schedules, and only theirs. A teammate with no week board SHALL still reach it. Each SHALL show what it does, when it runs next, and how its last run went, and SHALL offer Pause, Resume, Run now, and Cancel for a run that waits. A schedule SHALL open to its ten newest runs and its instructions, which the view SHALL show and never change. A schedule that waits for the person's OK SHALL say so and name the computer. A schedule that runs on another host SHALL show as running there, with no buttons. Making or changing a schedule SHALL stay in a chat.
+The inbox SHALL open on a list of the signed-in person's open chats, one row each, with the chat's name, its current step and its folder, and only that person's chats. A chat with a review page waiting on the person SHALL sit on top under *Needs you*, and a tap SHALL open that page. A waiting review page whose chat the app does not know SHALL also show under *Needs you*, as its own row. A row SHALL leave the list when its chat closes, and SHALL show the step the chat is on now, not the step it had when it opened. The inbox SHALL show no days, dates, tasks or backlog. A plan item SHALL still open from its own link.
 
-#### Scenario: A teammate with no week board
+#### Scenario: Opening the inbox
 
-- **WHEN** Kim, a teammate with no week board, opens the Inbox
-- **THEN** Kim can open Schedules and sees Kim's own schedules, and none of the owner's
+- **WHEN** Jo has three open chats, one of them waiting on Jo's review of its plan
+- **THEN** Jo sees that chat under *Needs you* with its step and folder, the other two under it, and no days or tasks, and a tap on the first opens its plan
+
+#### Scenario: A chat moves to the next step
+
+- **WHEN** a chat Jo sees under *Plan* moves to *Apply*
+- **THEN** its row shows *Apply* the next time the inbox reads the list, and no second row appears
+
+### Requirement: The person closes a chat from its row
+
+A chat's row SHALL offer *Close chat*. It SHALL send that chat `/close` once the person has been quiet in it for 15 minutes, and SHALL never close a chat the person did not pick.
+
+#### Scenario: Close a finished chat
+
+- **WHEN** Jo taps *Close chat* on a chat Jo last wrote in an hour ago
+- **THEN** that chat gets `/close` once, and its row leaves the list when the chat has closed
+
+### Requirement: The inbox keeps past review pages in an Archive
+
+Below the chats, the inbox SHALL show every signed-in person an Archive of their own answered or closed review pages, newest first, whether or not they use the daily. A search SHALL find pages by their title, waiting or archived. The Archive SHALL show no other person's pages, and no question, approval, private link or hidden item.
+
+#### Scenario: Looking back at a past plan
+
+- **WHEN** Jo, who never set up the daily, opens the inbox and searches *profit*
+- **THEN** Jo sees each version of the profit plan they reviewed, newest first, and no one else's pages
+
+#### Scenario: A page that ran out of time
+
+- **WHEN** a review page's 24 hours pass with no answer
+- **THEN** its chat leaves *Needs you*, and the page shows in the Archive with no answer
+
+### Requirement: The inbox's Schedules button lists the person's schedules
+
+The inbox SHALL have a *Schedules* button in its top bar that opens the signed-in person's own schedules, and only theirs. Each SHALL show what it does, when it runs next, and how its last run went, and SHALL offer Pause, Resume, Run now, and Cancel for a run that waits. A schedule SHALL open to its ten newest runs and its instructions, which the view SHALL show and never change. A schedule that waits for the person's OK SHALL say so and name the computer. A schedule that runs on another host SHALL show as running there, with no buttons. Making or changing a schedule SHALL stay in a chat.
+
+#### Scenario: A teammate
+
+- **WHEN** Kim, a teammate, opens the Inbox and taps *Schedules*
+- **THEN** Kim sees Kim's own schedules, and none of the owner's
 
 #### Scenario: A schedule that needs an OK
 

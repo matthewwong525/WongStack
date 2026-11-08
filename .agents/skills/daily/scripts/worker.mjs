@@ -140,10 +140,35 @@ export function quietLine(event) {
     case 'gone': return `Closed: ${name}`;
     case 'not-read': return `Not read: ${event.source}${event.error ? ` — ${event.error}` : ''}`;
     case 'post': return String(event.text);
-    case 'done': return `Done on the board: ${name}`;
+    case 'close': return `Sent /close: ${name}`;
+    case 'not-closed': return `Not closed: ${name}${event.error ? ` — ${event.error}` : ''}`;
     case 'end': return `Watch ended: ${event.reason}`;
     default: return `${event.event}: ${JSON.stringify(event).slice(0, 200)}`;
   }
+}
+
+// ---------------------------------------------------------------------------
+// A run's handoff: its words for one chat the worker opens after the run
+
+const RUN_NAME = /^[A-Za-z0-9][A-Za-z0-9-]{0,127}$/;
+const HANDOFF_CHARS = 20000;
+/** Beside the run's log, so the run logs' tidy removes one a crash left. */
+export const handoffFile = (stateDir, runId) => join(stateDir, 'runs', `${runId}.handoff.md`);
+
+/** `D handoff`: keeps a background run's words for the one chat the worker opens after it ends. */
+export function handOff({ stateDir, timezone, env = process.env, text, now = new Date() }) {
+  const runId = env.WONG_DAILY_RUN_ID;
+  if (!RUN_NAME.test(runId ?? '')) return { status: 'refused', reason: 'run', error: 'Only a background run hands off.' };
+  const words = String(text ?? '').trim();
+  if (!words || words.length > HANDOFF_CHARS) return { status: 'refused', reason: 'text', error: `The file needs words, at most ${HANDOFF_CHARS}.` };
+  const file = handoffFile(stateDir, runId);
+  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+  try { writeFileSync(file, `${words}\n`, { flag: 'wx', mode: 0o600 }); } catch (error) {
+    if (error.code === 'EEXIST') return { status: 'refused', reason: 'already', error: 'This run handed off already: one chat a run.' };
+    throw error;
+  }
+  addLine({ stateDir, timezone, line: `Handed off: ${oneLine(words)}`, kind: 'handoff', run: runId, now });
+  return { status: 'handed', run: runId };
 }
 
 // ---------------------------------------------------------------------------
@@ -155,8 +180,8 @@ export const needsYouFile = stateDir => join(stateDir, 'needs-you.json');
 export const needsYouChats = stateDir => readJson(needsYouFile(stateDir), {}).chats ?? [];
 const DAILY = 'node .claude/skills/daily/scripts/daily.mjs';
 const NEEDS_YOU = {
-  board: { what: 'the week board', steps: [`Run \`${DAILY} who\`. On \`missing\` or \`expired\`, run its \`login\` command in the background and show the person its link.`,
-    'The worker reads the board again within a minute of the sign-in.'] },
+  chats: { what: 'the chat list', steps: [`Run \`${DAILY} who\`. On \`missing\` or \`expired\`, run its \`login\` command in the background and show the person its link.`,
+    'The worker sends the list again within a minute of the sign-in.'] },
   paseo: { what: 'Paseo', steps: ['Run `paseo ls`.', 'Fix what its error names, such as a stopped Paseo daemon.'] },
   morning: { what: 'the morning start', steps: [`Run \`${DAILY} start --dry-run\`.`,
     'Fix the settings file it names, by wiki/development/daily.md#your-settings-file.'] },
@@ -171,7 +196,7 @@ export function needsYouMessage({ what, reason, steps, guide }) {
 }
 
 // The watch sources that count as a kind; other sources stay journal lines.
-const NEEDS_SOURCES = { board: 'board', workspaces: 'paseo' };
+const NEEDS_SOURCES = { chats: 'chats', workspaces: 'paseo' };
 
 // ---------------------------------------------------------------------------
 // The worker
@@ -279,6 +304,10 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
         journal(`Not finished: ${run.title} — stopped after ${limit} minutes`, { kind: 'not-finished', run: run.runId });
       }
       if (run.copy && !dryRun) removeCopy(run.copy);
+      // Only a schedule's run hands off: a check-in leaves what it found in its own chat.
+      if (run.kind === 'schedule-run') {
+        state.handoffs = [...state.handoffs ?? [], { runId: run.runId, title: run.title, report: run.report, schedule: run.schedule }];
+      }
       return false;
     });
   }
@@ -319,7 +348,8 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     if (item.report) await app?.report(item.report, { state: 'started', chatTitle: item.title });
     child.on?.('exit', () => { exited.add(runId); wake(); });
     state.running.push({ runId, pid: child.pid, kind: item.kind, title: item.title, lane: item.lane, ownPlace: item.ownPlace,
-      startedAt: date().toISOString(), ...(item.minutes && { minutes: item.minutes }), ...(copy && { copy }) });
+      startedAt: date().toISOString(), ...(item.minutes && { minutes: item.minutes }), ...(copy && { copy }), ...(item.report && { report: item.report }),
+      ...(item.kind === 'schedule-run' && { schedule: item.fields.schedule }) });
     journal(`Started: ${item.title}`, { kind: 'start', run: runId, title: item.fields.title ?? undefined, workspace: item.fields.workspace ?? undefined });
   }
 
@@ -363,6 +393,27 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
       place: run.place === 'copy' ? 'copy' : null, minutes: run.minutes ?? null, cwd: run.cwd, report: event.run, at: date().toISOString() });
   }
 
+  // An ended run's handoff opens its one chat, named for the run and labeled with its schedule; the app's run shows it.
+  async function openHandoffs(state) {
+    for (const run of state.handoffs ?? []) {
+      const file = handoffFile(stateDir, run.runId);
+      let message;
+      try { message = readFileSync(file, 'utf8').trim(); } catch { continue; }
+      if (dryRun) { print({ wouldOpen: run.title, run: run.runId }); continue; }
+      // Gone before the open, so a failed or repeated pass never opens a second chat for the run.
+      rmSync(file, { force: true });
+      try {
+        const opened = await openChat({ title: run.title, message, schedule: run.schedule ?? null });
+        if (!opened?.agentId) throw new Error(opened?.error ?? 'Paseo did not start the chat.');
+        journal(`Opened: ${run.title}`, { kind: 'opened', title: run.title, run: run.runId });
+        if (run.report) await app?.report(run.report, { state: 'started', chatTitle: run.title, agentId: opened.agentId });
+      } catch (error) {
+        journal(`Not opened: ${run.title} — ${oneLine(error)}`, { kind: 'not-opened', run: run.runId });
+      }
+    }
+    state.handoffs = [];
+  }
+
   // Copies a crash left behind: no running run holds them.
   function sweepCopies(state) {
     if (dryRun) return;
@@ -404,6 +455,7 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
     async pump() {
       const state = load();
       reap(state, 'the run ended with no line');
+      await openHandoffs(state);
       let pending;
       const permits = () => (pending ??= Promise.resolve().then(() => call(['permit', 'ls']))
         .then(list => (Array.isArray(list) ? list : null), () => null));
@@ -557,8 +609,8 @@ export async function serveWorker({ worker, pass, signal, seconds = 60, once = f
   }
 }
 
-/** `daily.mjs serve`: `watching` holds the board, to-dos and add-ons; `start` runs the morning when `settings()`, read
- * each pass, has a file; `openChat` opens a *Needs you* chat. A dry run works on a state copy and starts nothing. */
+/** `daily.mjs serve`: `watching` holds the chat list and add-ons; `start` runs the morning when `settings()`, read
+ * each pass, has a file; `openChat` opens a *Needs you* or handoff chat. A dry run starts nothing, on a state copy. */
 export async function serveDaily({ config, project, stateDir, call, env = process.env, watching, started, hasFile = false,
   settings = () => ({ config, hasFile }), start = null, seconds = 60, once = false, dryRun = false, print = item => console.log(JSON.stringify(item)),
   log, launch, watcher, sleep, agent = RUN_AGENTS[0], ownRepo = sameRepo(project), now = () => Date.now(), code = codeStamp(), openChat,

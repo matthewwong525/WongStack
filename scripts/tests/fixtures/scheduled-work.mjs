@@ -17,9 +17,8 @@ export function folder(t, prefix = 'wong-schedule-') {
   return dir;
 }
 
-/** The app's routes for one signed-in person, the owner unless `owner` is false. `broken[route]` is 'throw' (network
- *  error) or 'ignore' (500). */
-export function fakeApp({ origin = ORIGIN, broken = {}, claimable = [], owner = true } = {}) {
+/** The app's routes for one signed-in person. `broken[route]` is 'throw' (network error) or 'ignore' (500). */
+export function fakeApp({ origin = ORIGIN, broken = {}, claimable = [] } = {}) {
   const schedules = new Map(), runs = [], results = [], calls = [], team = [], held = new Map();
   const reply = (value, status = 200) => ({ value: structuredClone(value), status });
   const refuse = (code, status) => reply({ error: { code } }, status);
@@ -39,7 +38,7 @@ export function fakeApp({ origin = ORIGIN, broken = {}, claimable = [], owner = 
       schedules.set(key, row);
       return reply({ schedule: row });
     }
-    if (route === 'items') return reply({ items: [], computerOnline: true, board: owner });
+    if (route === 'items') return reply({ items: [], computerOnline: true });
     if (route === 'team-schedule') { team.push(body); return reply({ copied: body.people.length, skipped: 0 }); }
     if (route === 'schedules') return reply({ schedules: [...schedules.values()], computerOnline: true });
     if (route === 'claim') return reply({ runs: claimable.splice(0) });

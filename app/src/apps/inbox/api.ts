@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import type { BacklogGroup, SweepDestination, Task, TaskSearchResult, TaskSlot, TaskStatus, WeekPlan } from '@/lib/board'
 
 // The inbox's own routes, read in the shapes app/worker/apps/inbox/ writes.
 const tap = z.object({ id: z.string(), item: z.string(), action: z.string(), text: z.string(),
@@ -11,8 +10,13 @@ const item = z.object({ id: z.string(), kind: z.string(), title: z.string(), wor
 const review = z.object({ id: z.string(), title: z.string(), workspace: z.string(), createdAt: z.number(), closesAt: z.number(),
   endedAt: z.number().nullable(), answered: z.boolean() })
 const reviews = z.object({ waiting: z.array(review), archived: z.array(review), more: z.boolean() })
-// `board` is false for a teammate with no week board.
-const list = z.object({ computerOnline: z.boolean(), board: z.boolean().optional() })
+const list = z.object({ computerOnline: z.boolean() })
+// An open chat, with the review page it waits on; a page whose chat the app doesn't know has no agent id.
+const chat = z.object({ agentId: z.string().nullable(), name: z.string(), step: z.string().nullable(), folder: z.string(),
+  source: z.string().nullable(), closeAskedAt: z.number().nullable(),
+  review: z.object({ id: z.string(), title: z.string(), createdAt: z.number(), closesAt: z.number() }).nullable() })
+const chats = z.object({ chats: z.array(chat), computerOnline: z.boolean() })
+const closed = z.object({ agentId: z.string(), closeAskedAt: z.number() })
 const one = z.object({ item, computerOnline: z.boolean() })
 const tapped = z.object({ tap })
 const refused = z.object({ error: z.object({ code: z.string() }) })
@@ -30,6 +34,7 @@ export type Tap = z.infer<typeof tap>
 export type Plan = z.infer<typeof one>
 export type Archived = NonNullable<Plan['item']['archived']>
 export type Review = z.infer<typeof review>
+export type Chat = z.infer<typeof chat>
 export type Timing = z.infer<typeof timing>
 export type Run = z.infer<typeof run>
 export type Schedule = z.infer<typeof schedule>
@@ -53,31 +58,19 @@ export class Failed extends Error {
   constructor(status: number) { super(`HTTP ${status}`); this.status = status }
 }
 
-let writes = 0
-const writers = new Set<() => void>()
-const count = (step: number) => { writes += step; for (const writer of writers) writer() }
-/** The writes on their way. A reload waits for them, so it never paints over an edit the app has not stored yet. */
-export const pendingWrites = {
-  count: () => writes,
-  subscribe: (listener: () => void) => { writers.add(listener); return () => { writers.delete(listener) } },
-}
-
 async function ask<T>(route: string, method = 'GET', input?: object): Promise<T> {
-  const write = method !== 'GET'
-  if (write) count(1)
-  try {
-    const response = await fetch(`/apps/inbox/api/${route}`, write
-      ? { method, headers: { 'content-type': 'application/json' }, body: input && JSON.stringify(input) } : undefined)
-    if (!response.ok) throw new Failed(response.status)
-    return await response.json() as T
-  } finally {
-    if (write) count(-1)
-  }
+  const response = await fetch(`/apps/inbox/api/${route}`, method === 'GET'
+    ? undefined : { method, headers: { 'content-type': 'application/json' }, body: input && JSON.stringify(input) })
+  if (!response.ok) throw new Failed(response.status)
+  return await response.json() as T
 }
 const call = async <T>(schema: z.ZodType<T>, route: string, input?: object) =>
   schema.parse(await ask(route, input ? 'POST' : 'GET', input))
 
 export const readInbox = () => call(list, 'items')
+export const readChats = () => call(chats, 'chats')
+/** Asks the person's computer to send the chat `/close` once they are quiet in it. */
+export const closeChat = (agentId: string) => call(closed, 'chat-close', { agentId })
 export const readPlan = (id: string) => call(one, `item?id=${encodeURIComponent(id)}`)
 /** The person's review pages matching `q`; `before` reads the Archive's next page after that row. */
 export const readReviews = (q: string, before?: Review) => call(reviews, `reviews?${new URLSearchParams({
@@ -135,23 +128,4 @@ export async function sendFile(input: { item: string; name: string; question: st
   } catch {
     return FILE_REFUSALS.failed
   }
-}
-
-const q = encodeURIComponent
-/** A task change sends only what changed, so a check-off never races a rename. */
-export type TaskChange = { title?: string; status?: TaskStatus; week?: string; slot?: TaskSlot; backlogGroupId?: string; index?: number }
-
-/** The week board's routes: one week and the backlog, its tasks, and the backlog's groups. */
-export const board = {
-  week: (week: string) => ask<{ plan: WeekPlan }>(`week?week=${q(week)}`),
-  goal: (week: string, goal: string) => ask<{ week: string; goal: string }>('week-goal', 'PUT', { week, goal }),
-  sweep: (week: string, to: SweepDestination) => ask<{ plan: WeekPlan }>('sweep', 'POST', { week, to }),
-  search: (text: string) => ask<{ tasks: TaskSearchResult[] }>(`task-search?q=${q(text)}`),
-  add: (input: { title: string; week: string; slot: TaskSlot; backlogGroupId?: string }) => ask<{ task: Task }>('task', 'POST', input),
-  change: (id: string, change: TaskChange) => ask<{ task: Task }>('task', 'PATCH', { id, ...change }),
-  remove: (id: string) => ask<{ id: string }>(`task?id=${q(id)}`, 'DELETE'),
-  addGroup: (name: string) => ask<{ group: BacklogGroup }>('group', 'POST', { name }),
-  renameGroup: (id: string, name: string) => ask<{ group: BacklogGroup }>('group', 'PATCH', { id, name }),
-  moveGroup: (id: string, index: number) => ask<{ groups: BacklogGroup[] }>('group-move', 'POST', { id, index }),
-  removeGroup: (id: string, week: string) => ask<{ plan: WeekPlan }>(`group?id=${q(id)}&week=${q(week)}`, 'DELETE'),
 }

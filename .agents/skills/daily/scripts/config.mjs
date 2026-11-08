@@ -71,6 +71,7 @@ export function validateConfig(config) {
   if (typeof config.timezone !== 'string') fail('timezone');
   for (const name of ['profile', 'guide']) if (config[name] !== undefined && !safePath(config[name])) fail(name);
   if (config.context !== undefined && !paths(config.context)) fail('context');
+  // An older file's `tasks` loads, and the worker says one time that it does nothing.
   if (!keys(config.sources, ['tasks', 'chats']) || !Object.values(config.sources).every(value => typeof value === 'boolean')) fail('sources');
   if (!plain(config.places) || !Object.entries(config.places).every(([id, path]) => idPattern.test(id) && placeOk(path))) fail('places');
   if (config.addons !== undefined && (!keys(config.addons, ['morning', 'pass']) || !Object.values(config.addons).every(list => paths(list, 10)))) {
@@ -133,7 +134,7 @@ export function loadSettings(file, repo) {
 export function defaultSettings({ email, timezone = Intl.DateTimeFormat().resolvedOptions().timeZone }) {
   const id = String(email).split('@')[0].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 72) || 'me';
   const person = id === 'team' ? 'team-member' : id;
-  return { ...validateConfig({ version: 1, person, emails: [email], timezone, sources: { tasks: false, chats: true }, places: {} }),
+  return { ...validateConfig({ version: 1, person, emails: [email], timezone, sources: { chats: true }, places: {} }),
     teamFile: null };
 }
 
@@ -154,8 +155,3 @@ export const addDays = (day, count) => {
   date.setUTCDate(date.getUTCDate() + count);
   return date.toISOString().slice(0, 10);
 };
-/** The Monday of the board week that holds `day`. Sunday is the last day of its week. */
-export const mondayOf = day => addDays(day, -((new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7));
-const SLOTS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-/** The board day of a date: `2026-10-15` is `thu`. */
-export const slotOf = day => SLOTS[new Date(`${day}T12:00:00Z`).getUTCDay()];

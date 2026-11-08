@@ -1,5 +1,4 @@
-// The Inbox on the seeded database: Fay's seeded items, an item and a schedule saved and read back, and the owner's
-// week board.
+// The Inbox on the seeded database: Fay's seeded items, an item and a schedule saved and read back, and her chat list.
 import { beforeAll, expect, it } from "vitest";
 import { call, type AppTests } from "../context.ts";
 import { resetToSeed } from "../setup.ts";
@@ -48,14 +47,13 @@ export const inbox: AppTests = context => {
       .toEqual({ host: "app", state: "on", computer_id: COMPUTER, name: "Runtime digest", due: 1 });
   });
 
-  it("keeps the owner's week board in the real database: add, read and move a task", async () => {
-    const board = (method: string, route: string, body?: object) =>
-      call(context(), `/apps/inbox/api/${route}`, { token: context().signed.owner, method, body });
-    const added = await board("POST", "task", { title: "Runtime task (1)", week: "2026-10-05", slot: "mon" });
-    expect(added.status).toBe(200);
-    const { task } = await added.json() as { task: { id: string } };
-    expect((await board("PATCH", "task", { id: task.id, slot: "tue", week: "2026-10-05", index: 0 })).status).toBe(200);
-    const { plan } = await (await board("GET", "week?week=2026-10-05")).json() as { plan: { slots: Record<string, { title: string }[]> } };
-    expect([plan.slots.mon, plan.slots.tue.map(each => each.title)]).toEqual([[], ["Runtime task"]]);
+  it("lists Fay's seeded chats, those with a waiting page first, and keeps a put chat in the real database", async () => {
+    const before = await (await asFay("GET", "chats")).json() as { chats: { agentId: string | null; review: { id: string } | null }[] };
+    expect(before.chats.slice(0, 2).map(chat => [chat.agentId, chat.review?.id])).toEqual([
+      ["agent-weekly-profit", "a0000000000000000000000000000006"], ["agent-bfcm-launch-1", "a0000000000000000000000000000007"]]);
+    const put = await asFay("PUT", "chat", { agentId: "runtime-agent", computer: COMPUTER, name: "Runtime chat", step: "APPLY",
+      folder: "runtime" });
+    expect([put.status, await put.json()]).toEqual([200, { agentId: "runtime-agent" }]);
+    expect(await row("SELECT name, step FROM chats WHERE owner = ? AND agent_id = ?", "runtime-agent")).toEqual({ name: "Runtime chat", step: "APPLY" });
   });
 };
