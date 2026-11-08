@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The line-up keeps every chat in line, in Paseo or not
+## 51.3.0 — The line-up keeps every chat in line, in Paseo or not
 
 - **Your chats stay in line in any app.** The *Keep my chats in line* schedule now sees every Claude Code and Codex chat open in the project: in Paseo, in a plain terminal, or in another app. Before, it saw only chats in Paseo, so a terminal chat could build what another chat had already dropped ([your chats in line](wiki/development/chats-in-line.md)).
 - **Two ways to get a note to a chat.** A chat in Paseo, Claude Code or Codex, gets it through Paseo, as before. Any other chat gets it at its next stop, or with your next message. A note Paseo fails to send waits the same way, so no note is lost.

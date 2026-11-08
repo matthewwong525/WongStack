@@ -1,6 +1,6 @@
 # The line-up keeps every chat in line, in Paseo or not
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** ruthless-bat
 **Open questions:** none
 
@@ -77,3 +77,4 @@ Nothing from you: no key, no account.
 - **2026-11-08** — Assumed, after the second-look review: the worker's note delivery starts an older map fresh too, and only a new map gets the chat-key mark, so no write marks an older map as new.
 - **2026-11-08** — Assumed, after the second-look review: `D tell --drop` and the waiting notes take only a chat key or an open chat's name, so a name such as `../x` never reaches outside the notes folder.
 - **2026-11-08** — Saved the build for the live check: every task but 6.3 is done, the second-look review is clean, and the local checks pass.
+- **2026-11-08** — Archived as 51.3.0 after the live check passed: an idle Paseo chat woke with its note, and a terminal chat got its note at its next stop, with one journal line each.

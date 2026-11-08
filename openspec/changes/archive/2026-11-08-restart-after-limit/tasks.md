@@ -31,4 +31,4 @@
 
 - [x] 6.1 `wiki/development/chats-in-line.md` and `daily.md`: works in any app; Paseo first, else a waiting note at the next stop or message; *Tell* stays Paseo-only. `CHANGELOG.md` entry to match; no hand step.
 - [x] 6.2 Run `node .github/scripts/checks.mjs --worktree` and `openspec validate restart-after-limit --strict --no-interactive`; fix what fails.
-- [ ] 6.3 Live check, after `/save`: with a temporary state folder, run the line-up on one chat in Paseo and one in a plain terminal; see the idle Paseo chat wake with its note, the terminal chat get its note at its next stop, and the journal have one line for each.
+- [x] 6.3 Live check, after `/save`: with a temporary state folder, run the line-up on one chat in Paseo and one in a plain terminal; see the idle Paseo chat wake with its note, the terminal chat get its note at its next stop, and the journal have one line for each.
