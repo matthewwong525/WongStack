@@ -1,6 +1,6 @@
 # A shipped plan leaves Needs you
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** browser-home-proxy-review-status
 **Open questions:** none
 
@@ -63,3 +63,4 @@ None.
 - **2026-11-08** — Assumed: the inbox helper's `PROTOCOL` rises from 13 to 15, not 14, because two other copies on this computer already run 14, and a lower number would leave an older helper running without the new close.
 - **2026-11-08** — Assumed: the four cut facts on `wiki/development/reply-links.md` go back where they were, and tighter wording elsewhere on the page keeps it under 3,000 words with no page split, because the page was at its word limit and these facts still hold.
 - **2026-11-08** — Built: `/ship` closes the shipped plan's Inbox page after the merge, a closed chat's page still closes through another folder for the same app, and `--link` on an archived plan opens nothing. The second look found four fixes, all made; local checks pass.
+- **2026-11-08** — Archived for publishing as 51.1.1. After main came in, one key link test (`keys.test.mjs`) failed once under the full local run and passed alone; the rerun could not start because another chat held the checks, so CI decides.

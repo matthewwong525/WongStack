@@ -17,4 +17,4 @@
 ## 4. Checks
 
 - [x] 4.1 Run `node --test scripts/tests/reply-link-inbox.test.mjs scripts/tests/reply-link.test.mjs scripts/tests/ship-commands.test.mjs` and the build-review test, `node scripts/measure-context.mjs --check`, `node scripts/check-payload-links.mjs`, and `node .github/scripts/checks.mjs --worktree`; all pass.
-- [ ] 4.2 `/save`, then CI passes.
+- [x] 4.2 `/save`, then CI passes.

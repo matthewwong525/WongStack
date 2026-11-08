@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — A shipped plan leaves Needs you
+## 51.1.1 — A shipped plan leaves Needs you
 
 - **Shipping a change closes its plan in the Inbox.** Once the change is live, its plan moves from *Needs you* to the Archive, whichever chat, folder or computer made it. If the Inbox does not answer, the ship report says so in one line, and the ship goes on ([in your inbox first](wiki/development/reply-links.md#in-your-inbox-first)).
 - **A closed chat's plan still closes.** When the chat's folder is gone, the computer closes its page through another folder that uses the same app.
