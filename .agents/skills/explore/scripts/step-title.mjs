@@ -7,7 +7,7 @@ import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
-import { LOOP_STEPS, STEPS, chatCalls, chatClient, skillStep, sourceOf, withoutStep } from '../../daily/scripts/chats.mjs';
+import { LOOP_STEPS, STEPS, chatCalls, chatClient, scheduleRun, skillStep, sourceOf, withoutStep } from '../../daily/scripts/chats.mjs';
 import { paseoRecord } from '../../daily/scripts/chief.mjs';
 import { computerId } from '../../hand-over/scripts/lib/computer.mjs';
 import { findPaseo, runPaseo } from '../../schedule/scripts/lib/paseo.mjs';
@@ -225,8 +225,9 @@ export async function setStep({ step, task, env = process.env, cwd = process.cwd
   if (!before && !next.task && hostTask(record)) Object.assign(next, { task: hostTask(record), taskFrom: 'name' });
   const title = titleOf(next);
   writeState(folder, id, withSeen(next, record, title));
-  const put = putChat(chatRow({ env, id, sessionId: sessionOf(env), state: next, top: folder.top, record }), chats ?? appCalls(folder.top))
-    .then(reason => reason && warn(`STEP_TITLE_CHAT=not put: ${reason}`));
+  const put = scheduleRun(record?.labels, record) ? Promise.resolve()
+    : putChat(chatRow({ env, id, sessionId: sessionOf(env), state: next, top: folder.top, record }), chats ?? appCalls(folder.top))
+      .then(reason => reason && warn(`STEP_TITLE_CHAT=not put: ${reason}`));
   if (!title) { await put; return 'STEP_TITLE=skipped no task words'; }
   const [failed] = await Promise.all([writeHosts({ env, title, top: folder.top, codexId: env.CODEX_THREAD_ID }), put]);
   const reached = Boolean(env.PASEO_AGENT_ID) + Boolean(env.CODEX_THREAD_ID);
@@ -274,8 +275,9 @@ export function hookTurn({ input, agent, event, env = process.env, home = homedi
   const show = agent === 'claude' && title && ((start && adopted === before) || title !== state.shown);
   if (state !== before || show) writeState(folder, id, { ...state, shown: show ? title : state.shown });
   const hookEventName = start ? 'SessionStart' : 'UserPromptSubmit';
-  // A start, or a typed command's new step, puts the chat's row; a plain message changes nothing there.
-  const put = start || write ? { id, session } : null;
+  // A start, or a typed command's new step, puts the chat's row; a plain message changes nothing there. A schedule's
+  // run puts none: the worker adds its row once it stops. One the person wrote in puts like any chat.
+  const put = (start || write) && !scheduleRun(record?.labels, record) ? { id, session } : null;
   return { out: show ? { hookSpecificOutput: { hookEventName, sessionTitle: title } } : null, write, put, top: folder.top };
 }
 

@@ -218,6 +218,16 @@ test('the chat list holds the watched and top-level chats and the Needs-you chat
     source: null });
 });
 
+test("the chat list leaves out a running schedule's chat, its label read from Paseo's agent record", async () => {
+  const t = day();
+  t.own('agent-news', 'News', { status: 'running' });
+  const agentRecord = id => (id === 'agent-news' ? { labels: { 'wong-schedule': 'news' } } : {});
+  await t.once(START, { agentRecord });
+  const sent = t.app.sent[0].chats.map(chat => chat.agentId);
+  assert.ok(sent.includes('agent-job'));
+  assert.ok(!sent.includes('agent-news'));
+});
+
 test("the service watch says each repeat failure as again, and read once a source reads again; a chat's watch says neither", async () => {
   const t = day();
   const chatEvents = () => t.lines.splice(0).filter(line => line.source === 'chats')

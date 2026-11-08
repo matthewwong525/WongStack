@@ -35,6 +35,15 @@ export const stepOf = name => leadingStep().exec(String(name ?? '').trim())?.[1]
 /** The Paseo label on a chat a schedule's run opened; its row's source is `schedule:<key>`. */
 export const SCHEDULE_LABEL = 'wong-schedule';
 export const sourceOf = labels => (labels?.[SCHEDULE_LABEL] ? `schedule:${labels[SCHEDULE_LABEL]}` : null);
+// A run sends its own first message as its chat opens; a message later than this is the person's.
+export const TAKEN_OVER_MS = 60e3;
+/** A schedule's run: a chat with the schedule label, until the person writes in it; after that it is an ordinary
+ *  chat that keeps its source. `record` is Paseo's agent record, with `createdAt` and `lastUserMessageAt`. */
+export function scheduleRun(labels, record) {
+  if (!sourceOf(labels)) return false;
+  const typed = Date.parse(record?.lastUserMessageAt) - Date.parse(record?.createdAt);
+  return !(typed > TAKEN_OVER_MS);
+}
 
 /** The person's company client for the checkout holding `cwd`, or null with no app. `load` is for tests. */
 export async function chatClient(cwd = process.cwd(), load = () => import('../../../../scripts/company-api.mjs')) {

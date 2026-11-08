@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
-  emptyReport, formatBytes, inside, isIdle, isOldTemp, mergeReports, mergedAtTip, orphanPids, ownWorkspace,
+  emptyReport, formatBytes, inside, isOldTemp, mergeReports, mergedAtTip, orphanPids, ownWorkspace,
   reportLine, savedState, takeLock,
 } from '../../.agents/skills/schedule/scripts/tidy.mjs';
 
@@ -159,17 +159,6 @@ test('saved means a clean tree and every commit on a remote, or merged at this c
   assert.equal(mergedAtTip({ state: 'MERGED', headRefOid: 'a1' }, 'b2'), false);
   assert.equal(mergedAtTip({ state: 'OPEN', headRefOid: 'a1' }, 'a1'), false);
   assert.equal(mergedAtTip(null, 'a1'), false);
-});
-
-test('idle needs every agent stopped and the newest activity 3 days old', () => {
-  const old = new Date(NOW - 4 * DAY).toISOString();
-  const recent = new Date(NOW - 2 * DAY).toISOString();
-  assert.equal(isIdle([{ status: 'idle', updatedAt: old }], NOW), true);
-  assert.equal(isIdle([{ status: 'idle', updatedAt: old }, { status: 'idle', updatedAt: recent }], NOW), false);
-  assert.equal(isIdle([{ status: 'running', updatedAt: old }], NOW), false);
-  assert.equal(isIdle([{ status: 'idle', updatedAt: null }], NOW), false);
-  assert.equal(isIdle([], NOW, { fallbackMs: NOW - 5 * DAY }), true);
-  assert.equal(isIdle([], NOW), false);
 });
 
 test('only this user\'s processes in a deleted worktree under a root are orphans', () => {
@@ -383,61 +372,55 @@ test('close --discard with no pull request or online branch, and never in the pr
   assert.equal(git(s.primary, 'status', '--porcelain'), '', 'the primary checkout is untouched');
 });
 
+// One idle, saved worktree of this repo, its chat stopped 4 days ago, as Paseo would list it.
 function sweepFixture(t) {
   const s = setup(t);
   const idle = s.worktree('idle');
-  mkdirSync(path.join(idle.dir, '.scratch'));
-  writeFileSync(path.join(s.primary, '.git', 'info', 'exclude'), '.scratch/\n');
-  writeFileSync(path.join(idle.dir, '.scratch', 'note.md'), 'x\n');
-  const unpushed = s.worktree('unpushed', { push: false });
-  const running = s.worktree('running');
-  const current = s.worktree('current');
-  const fresh = s.worktree('fresh');
-  const other = setup(t).worktree('other');
-  const ws = (id, name, dir) => ({ workspaceId: id, name, isolation: 'worktree', cwd: dir });
-  const workspaces = [
-    ws('ws-idle', 'Idle part', idle.dir), ws('ws-unpushed', 'Weekly plan', unpushed.dir),
-    ws('ws-running', 'Running part', running.dir), ws('ws-current', 'This chat', current.dir),
-    ws('ws-fresh', 'Fresh part', fresh.dir), ws('ws-other', 'Other repo', other.dir),
-    { workspaceId: 'ws-local', name: 'Primary', isolation: 'local', cwd: s.primary },
-  ];
-  const agents = [
-    { id: 'a-idle', status: 'idle', cwd: idle.dir }, { id: 'a-unpushed', status: 'idle', cwd: unpushed.dir },
-    { id: 'a-running', status: 'running', cwd: running.dir }, { id: 'a-current', status: 'idle', cwd: current.dir },
-    { id: 'a-fresh', status: 'idle', cwd: path.join(fresh.dir, 'app') }, { id: 'a-other', status: 'idle', cwd: other.dir },
-  ];
-  const inspect = {
-    'a-idle': { UpdatedAt: ago(4 * DAY) }, 'a-unpushed': { UpdatedAt: ago(5 * DAY) }, 'a-current': { UpdatedAt: ago(9 * DAY) },
-    'a-fresh': { UpdatedAt: ago(HOUR) }, 'a-other': { UpdatedAt: ago(9 * DAY) },
-  };
+  const workspaces = [{ workspaceId: 'ws-idle', name: 'Idle part', isolation: 'worktree', cwd: idle.dir }];
   const env = envFor(s, {
-    PASEO_AGENT_ID: 'a-current', FAKE_WORKSPACES: JSON.stringify(workspaces),
-    FAKE_AGENTS: JSON.stringify(agents), FAKE_INSPECT: JSON.stringify(inspect),
+    FAKE_WORKSPACES: JSON.stringify(workspaces),
+    FAKE_AGENTS: JSON.stringify([{ id: 'a-idle', status: 'idle', cwd: idle.dir }]),
+    FAKE_INSPECT: JSON.stringify({ 'a-idle': { UpdatedAt: ago(4 * DAY) } }),
   });
-  return { s, env, idle, unpushed, running, current, fresh, other };
+  return { s, env, idle };
 }
 
-test('sweep archives an idle saved workspace and leaves unsaved, running, current, fresh, and other repos\' ones', t => {
+test('sweep closes no chat, yet cleans old temp, old scratch, and a server left in a deleted worktree', async t => {
   const f = sweepFixture(t);
+  const oldWong = path.join(f.s.temp, 'wong-memory-repo-x1');
+  mkdirSync(oldWong);
+  age(oldWong, 7 * DAY);
+  const scratch = path.join(f.s.primary, '.scratch');
+  mkdirSync(scratch);
+  writeFileSync(path.join(scratch, 'old.md'), 'old\n');
+  age(path.join(scratch, 'old.md'), 2 * DAY);
+  const proc = existsSync('/proc/self/cwd');
+  let orphan;
+  if (proc) {
+    const gone = f.s.worktree('gone');
+    orphan = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { cwd: gone.dir, stdio: 'ignore' });
+    t.after(() => orphan.kill('SIGKILL'));
+    await waitFor(() => existsSync(`/proc/${orphan.pid}/cwd`), 'the sleeper');
+    rmSync(gone.dir, { recursive: true, force: true });
+  }
+  const exited = proc && new Promise(done => orphan.on('exit', (code, signal) => done(signal)));
+
   const result = run(f.s.primary, ['sweep'], f.env);
   assert.equal(result.status, 0, result.stdout);
-  const archives = f.s.calls().filter(call => call[1] === 'workspace' && call[2] === 'archive').map(call => call[3]);
-  assert.deepEqual(archives, ['ws-idle']);
-  assert.ok(!existsSync(f.idle.dir));
-  for (const kept of [f.unpushed, f.running, f.current, f.fresh, f.other]) assert.ok(existsSync(kept.dir));
-  assert.deepEqual(result.json.closed, ['Idle part']);
-  assert.deepEqual(result.json.left, [{ name: 'Weekly plan', reason: 'it has unsaved work' }]);
-  const inspected = f.s.calls().filter(call => call[1] === 'inspect').map(call => call[2]);
-  assert.ok(!inspected.includes('a-running') && !inspected.includes('a-current'));
-
-  const line = run(f.s.primary, ['sweep', '--report'], f.env);
-  assert.equal(line.stdout, 'Tidy-up: closed 1 workspace ("Idle part"); left "Weekly plan" open: it has unsaved work.\n');
-  assert.equal(run(f.s.primary, ['sweep', '--report'], f.env).stdout, '', 'the report prints once');
+  assert.ok(!f.s.calls().some(call => call[0] === 'paseo'), 'the sweep asks Paseo nothing and archives nothing');
+  assert.ok(existsSync(f.idle.dir));
+  assert.deepEqual(result.json.closed, []);
+  assert.deepEqual(result.json.left, []);
+  assert.ok(!existsSync(oldWong) && !existsSync(path.join(scratch, 'old.md')));
+  if (proc) {
+    assert.equal(result.json.stopped, 1);
+    assert.equal(await exited, 'SIGTERM');
+  }
 });
 
 test('sweep runs at most every 6 hours, and never beside another sweep', t => {
   const f = sweepFixture(t);
-  assert.equal(run(f.s.primary, ['sweep'], f.env).json.closed.length, 1);
+  assert.equal(run(f.s.primary, ['sweep'], f.env).json.ok, true);
   const soon = run(f.s.primary, ['sweep'], f.env);
   assert.match(soon.json.skipped, /under 6 hours ago/);
   const tidy = path.join(f.s.primary, '.git', 'wong-tidy');
@@ -491,17 +474,7 @@ test('sweep deletes only old wong- temp entries and old primary scratch files', 
   assert.ok(!existsSync(path.join(scratch, 'old.md')) && !existsSync(path.join(scratch, 'sub')));
   assert.ok(existsSync(path.join(scratch, 'new.md')));
   assert.equal(result.json.deleted, 4);
-  assert.match(result.json.skippedNotes.join('\n'), /Paseo is not installed/);
   assert.match(run(s.primary, ['sweep', '--report'], env).stdout, /deleted 4 old temp or scratch entries, freeing \d+ bytes\./);
-});
-
-test('sweep skips the workspaces and says so when Paseo\'s output changed', t => {
-  const s = setup(t);
-  const env = envFor(s, { FAKE_WORKSPACES: '{"workspaces":[]}' });
-  const result = run(s.primary, ['sweep'], env);
-  assert.equal(result.status, 0, result.stdout);
-  assert.match(result.json.skippedNotes[0], /output has changed/);
-  assert.match(run(s.primary, ['sweep', '--report'], env).stdout, /skipped closing idle workspaces: Paseo's output has changed/);
 });
 
 test('sweep stops a process left in a deleted worktree, and not one in a live folder', { skip: !existsSync('/proc/self/cwd') }, async t => {

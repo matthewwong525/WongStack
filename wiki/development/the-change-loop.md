@@ -55,7 +55,7 @@ No offer after a code change you built, or in an unattended run.
 
 ### One task, one workspace
 
-A [Paseo](https://paseo.sh) workspace holds one task. Done, the agent runs [`/close`](../../.agents/skills/close/SKILL.md) unasked, after any [offer](#offer-a-routine-or-an-app); never at a plan's review, mid-build, or on a blocker, failed check, declined publish or open question. A new task opens [a new workspace](../../.agents/skills/plan/references/new-workspace.md#new-task-in-this-chat), unless it is a question on this task or the person says *do it here*. Any chat [closes a finished chat](daily.md#close-finished-chats) you pick.
+A [Paseo](https://paseo.sh) workspace holds one task. Done, the agent asks *Close this chat?*, any [offer](#offer-a-routine-or-an-app) beside it; only a yes runs [`/close`](../../.agents/skills/close/SKILL.md); never at a plan's review, mid-build, or on a blocker, failed check, declined publish or open question. A new task opens [a new workspace](../../.agents/skills/plan/references/new-workspace.md#new-task-in-this-chat), unless it is a question on this task or the person says *do it here*. Any chat [closes a finished chat](daily.md#close-finished-chats) you pick.
 
 ### Several parts, several workspaces
 
@@ -79,7 +79,7 @@ Each skill owns its procedure; this list says what each stage is for.
 - **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, and returns a preview URL; it also records the session's facts in the [memory store](memory.md). With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so git, PR, and CI logic exists once.
 - **[`/continue`](../../.agents/skills/continue/SKILL.md)** resumes a change or an open non-code thread, cold, on any machine, and hands off to `/apply`. Work new to this computer is shown and asked about first.
 - **[`/ship`](../../.agents/skills/ship/SKILL.md)** archives the change, runs `/save` and [`/verify`](#verifying-the-app) once each, plus once more after a failed walk's one fix, squash-merges on [the gate](#the-gate), then [looks at the live app](staging-walkthrough.md#what-it-is-not). An unfinished change goes through `/apply` first. The walk replays [kept checks](kept-checks.md#when-it-replays) and saves new ones. A check only possible after publishing is a Decision-log line: it refuses unticked tasks.
-- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up any finished chat, with no question. It records the chat's aim and what is left, keeps unfinished work saved (or throws it away when asked), moves repeatable facts to the wiki in their own pull request, and closes the Paseo workspace. A workspace closed another way leaves its facts to [the small wiki tidy](wiki-dream.md#the-small-wiki-tidy) where the daily helper runs, else [a dream](wiki-dream.md).
+- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up a chat you chose to close, with no question. It records the chat's aim and what is left, keeps unfinished work saved, moves repeatable facts to the wiki in their own pull request, and closes the workspace. A workspace closed another way leaves its facts to [the small wiki tidy](wiki-dream.md#the-small-wiki-tidy) where the daily helper runs, else [a dream](wiki-dream.md).
 
 Loop back any time: re-`/plan` if the spec needs to change.
 

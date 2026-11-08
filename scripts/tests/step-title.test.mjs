@@ -12,7 +12,7 @@ const cli = new URL('../../.agents/skills/explore/scripts/step-title.mjs', impor
 const unix = { skip: process.platform === 'win32' && 'the fake paseo is a shell script' };
 
 // A main checkout and one linked worktree, a fake `paseo` that logs its arguments, and an empty Codex home.
-function world(t, { workspaces, fail = false, title = null, labels = {} } = {}) {
+function world(t, { workspaces, fail = false, title = null, labels = {}, record = {} } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'wong-test-step-title-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const main = path.join(dir, 'main');
@@ -42,7 +42,7 @@ console.log(args[0] === 'workspace' && args[1] === 'ls' ? ${JSON.stringify(JSON.
   const agents = path.join(home, '.paseo', 'agents', 'p1');
   mkdirSync(agents, { recursive: true });
   // Stands in for a Paseo name change, by Paseo saving a write or by the person.
-  const retitle = name => writeFileSync(path.join(agents, 'agent-1.json'), JSON.stringify({ title: name, labels, internal: false }));
+  const retitle = name => writeFileSync(path.join(agents, 'agent-1.json'), JSON.stringify({ title: name, labels, internal: false, ...record }));
   retitle(title);
   const codex = path.join(dir, 'codex');
   mkdirSync(codex);
@@ -376,8 +376,22 @@ test('each set puts the chat\'s row with its new step; the folder names a chat w
   assert.deepEqual([w.chats.puts.at(-1).agentId, w.chats.puts.at(-1).sessionId, w.chats.puts.at(-1).folder], ['c9', 'claude:c9', 'main']);
 });
 
-test('a chat a schedule\'s run opened puts its row with that schedule as its source', unix, async t => {
+test('a chat a schedule\'s run opened puts no row at its start or a set; a plain chat still puts', unix, async t => {
   const w = world(t, { title: 'PLAN: Late invoices', labels: { 'wong-schedule': 'invoice-check' } });
+  const start = hookTurn({ input: { session_id: 's', cwd: w.tree }, agent: 'claude', event: 'session-start', env: w.env, home: w.home });
+  assert.equal(start.put, null);
+  assert.equal(await set(w, 'APPLY'), 'STEP_TITLE=APPLY: Late invoices');
+  assert.deepEqual(w.chats.puts, []);
+  const plain = world(t, { title: 'PLAN: Late invoices' });
+  const plainStart = hookTurn({ input: { session_id: 's', cwd: plain.tree }, agent: 'claude', event: 'session-start', env: plain.env, home: plain.home });
+  assert.deepEqual(plainStart.put, { id: 'agent-1', session: 'claude:s' });
+  await set(plain, 'APPLY');
+  assert.equal(plain.chats.puts.length, 1);
+});
+
+test('a schedule\'s chat the person wrote in puts its row at a set, keeping the schedule as its source', unix, async t => {
+  const w = world(t, { title: 'PLAN: Late invoices', labels: { 'wong-schedule': 'invoice-check' },
+    record: { createdAt: '2026-11-08T12:00:00Z', lastUserMessageAt: '2026-11-08T12:05:00Z' } });
   await set(w, 'APPLY');
   assert.deepEqual([w.chats.puts[0].name, w.chats.puts[0].step, w.chats.puts[0].source], ['Late invoices', 'APPLY', 'schedule:invoice-check']);
 });
