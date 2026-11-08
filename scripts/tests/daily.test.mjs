@@ -10,7 +10,7 @@ import { ChatListError, chatCalls, chatClient } from '../../.agents/skills/daily
 import { SettingsError, defaultSettings, loadSettings, morningOf, placePath, settingsFor, validateConfig, validateTeam }
   from '../../.agents/skills/daily/scripts/config.mjs';
 import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
-import { REMIND, checkinsOff, commandSettings, commands, ensure, firstMessage, holds, ignoreTasks, launcherArgs, markHook, offFile, personSettings, readArgs,
+import { REMIND, checkinsOff, commandSettings, commands, defaultsDone, defaultsFailed, defaultsFile, defaultsStamp, ensure, firstMessage, holds, ignoreTasks, launcherArgs, markHook, offFile, personSettings, readArgs,
   start, startDefaults, startMoveIn, startReport, startServe, startedRecord, stateDirectory, stateOf, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { codeStamp } from '../../.agents/skills/daily/scripts/worker.mjs';
@@ -368,7 +368,8 @@ test('the move of left routines to the app starts once a day, detached, with no 
   assert.deepEqual([node, args, options.cwd, options.detached, options.env], [process.execPath, [script, 'move-in', '--unattended'], root, true, { PATH: '/bin' }]);
 });
 
-test('the add of the default schedules starts once a day, and again the same day when the shipped list or the off switch changes', () => {
+/** A checkout with the schedule skill, a shipped list, and `startDefaults` with a fake start. */
+function defaultsCheckout() {
   const root = temp('defaults'), stateDir = temp('state'), runs = [], list = join(temp('list'), 'schedules.json');
   const dir = join(root, '.agents/skills/daily/scripts'), script = join(root, '.agents/skills/schedule/scripts/schedule.mjs');
   mkdirSync(join(script, '..'), { recursive: true });
@@ -376,19 +377,94 @@ test('the add of the default schedules starts once a day, and again the same day
   writeFileSync(list, '{"schedules":[]}');
   const run = (...args) => { runs.push(args); return { on: () => {}, unref: () => {} }; };
   const add = now => startDefaults({ home: { repo: root, dir }, stateDir, env: { PATH: '/bin' }, now, timezone: ZONE, run, list });
-  writeFileSync(join(stateDir, 'defaults.json'), JSON.stringify({ added: { 'line-up': {} } }));
+  const kept = () => JSON.parse(readFileSync(defaultsFile(stateDir), 'utf8'));
+  const done = now => defaultsDone({ stateDir, timezone: ZONE, list, now });
+  return { stateDir, runs, list, script, add, kept, done };
+}
+
+const HOUR = 3600e3;
+
+test('the add of the default schedules starts until a try works, and again the same day when the shipped list or the off switch changes', () => {
+  const { stateDir, runs, list, script, add, kept, done } = defaultsCheckout();
+  writeFileSync(defaultsFile(stateDir), JSON.stringify({ added: { 'line-up': {} } }));
   assert.equal(add(NOW.getTime()), true);
-  assert.equal(add(NOW.getTime() + 3600e3), false, 'the same day and list');
+  assert.deepEqual([kept().tried.at, kept().day, kept().stamp], [NOW.getTime(), undefined, undefined], 'a start marks a try, not the day');
+  done(NOW.getTime() + 60e3);
+  assert.equal(add(NOW.getTime() + HOUR), false, 'the same day and list');
   writeFileSync(list, '{"schedules":[{"id":"line-up"}]}');
-  assert.equal(add(NOW.getTime() + 3600e3), true, 'a changed list');
-  assert.equal(add(NOW.getTime() + 24 * 3600e3), true);
+  assert.equal(add(NOW.getTime() + HOUR), true, 'a changed list');
+  done(NOW.getTime() + HOUR);
+  assert.equal(add(NOW.getTime() + 24 * HOUR), true);
+  done(NOW.getTime() + 24 * HOUR);
   writeFileSync(offFile(stateDir), 'now\n');
-  assert.equal(add(NOW.getTime() + 24 * 3600e3), true, 'check-ins went off');
-  assert.equal(add(NOW.getTime() + 24 * 3600e3), false);
+  assert.equal(add(NOW.getTime() + 24 * HOUR), true, 'check-ins went off');
+  done(NOW.getTime() + 24 * HOUR);
+  assert.equal(add(NOW.getTime() + 24 * HOUR), false);
   rmSync(offFile(stateDir));
-  assert.equal(add(NOW.getTime() + 24 * 3600e3), true, 'check-ins went on');
+  assert.equal(add(NOW.getTime() + 24 * HOUR), true, 'check-ins went on');
   assert.deepEqual(runs.map(([, args]) => args), Array(5).fill([script, 'defaults', '--unattended']));
-  assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(stateDir, 'defaults.json'), 'utf8'))), ['added', 'day', 'stamp'], 'the add keeps its own list');
+  assert.deepEqual(Object.keys(kept()).sort(), ['added', 'day', 'stamp', 'tried'], 'the add keeps its own list');
+});
+
+test('a try that runs starts no second one for an hour; one silent past the hour is journaled as stopped and started again', () => {
+  const { stateDir, runs, add, kept } = defaultsCheckout();
+  assert.equal(add(NOW.getTime()), true);
+  assert.equal(add(NOW.getTime() + HOUR - 1), false, 'a try still runs');
+  assert.equal(add(NOW.getTime() + HOUR + 1), true);
+  assert.deepEqual([kept().tried.at, kept().failed.reason], [NOW.getTime() + HOUR + 1, 'the last try stopped with no result']);
+  assert.deepEqual(readLines({ stateDir }).map(entry => [entry.kind, entry.line]),
+    [['defaults', 'Default schedules not set up: the last try stopped with no result. Trying again in an hour.']]);
+  assert.equal(runs.length, 2);
+});
+
+test('a failed try waits an hour for the same stamp, not for a changed one', () => {
+  const { stateDir, list, add, kept } = defaultsCheckout();
+  const fail = now => defaultsFailed({ stateDir, timezone: ZONE, list, reason: 'wiki-tidy: refused', now });
+  assert.equal(add(NOW.getTime()), true);
+  fail(NOW.getTime() + 60e3);
+  assert.equal(kept().tried, undefined, 'the failure ends the try');
+  assert.equal(add(NOW.getTime() + 30 * 60e3), false, 'within the hour');
+  assert.equal(add(NOW.getTime() + HOUR + 60e3), true, 'an hour later');
+  fail(NOW.getTime() + HOUR + 2 * 60e3);
+  assert.equal(readLines({ stateDir }).length, 1, 'the same reason the same day is one line');
+  writeFileSync(offFile(stateDir), 'now\n');
+  assert.equal(add(NOW.getTime() + HOUR + 3 * 60e3), true, 'check-ins went off: a new stamp');
+});
+
+test('a running try does not hold back a changed stamp, and a try marks done the stamp it started with', () => {
+  const { stateDir, runs, list, add, kept } = defaultsCheckout();
+  assert.equal(add(NOW.getTime()), true);
+  const started = kept().tried.stamp;
+  writeFileSync(offFile(stateDir), 'now\n');
+  assert.equal(add(NOW.getTime() + 60e3), true, 'check-ins went off while a try runs');
+  assert.deepEqual(readLines({ stateDir }), [], 'a try that a new stamp replaced is not stopped');
+  defaultsDone({ stateDir, timezone: ZONE, list, stamp: started, now: NOW.getTime() + 2 * 60e3 });
+  assert.deepEqual([kept().stamp, kept().tried.stamp], [started, `${started}:off`], 'the first try marks its own stamp and keeps the newer try');
+  assert.equal(add(NOW.getTime() + 3 * 60e3), false, 'the off try still runs');
+  assert.equal(runs.length, 2);
+});
+
+test("a try's stamp comes from the list of the copy whose schedule skill it starts, not this chat's own", () => {
+  const root = temp('defaults'), stateDir = temp('state'), runs = [];
+  const dir = join(root, '.agents/skills/daily/scripts'), own = join(root, '.agents/skills/daily/references/schedules.json');
+  mkdirSync(join(root, '.agents/skills/schedule/scripts'), { recursive: true });
+  mkdirSync(join(own, '..'), { recursive: true });
+  writeFileSync(join(root, '.agents/skills/schedule/scripts/schedule.mjs'), '');
+  writeFileSync(own, '{"schedules":[{"id":"main-only"}]}');
+  const run = (...args) => { runs.push(args); return { on: () => {}, unref: () => {} }; };
+  assert.equal(startDefaults({ home: { repo: root, dir }, stateDir, env: {}, now: NOW.getTime(), timezone: ZONE, run }), true);
+  assert.equal(JSON.parse(readFileSync(defaultsFile(stateDir), 'utf8')).tried.stamp, defaultsStamp(stateDir, own));
+});
+
+test('the move of left routines to the app still starts once a day, whatever its child does', () => {
+  const root = temp('move'), stateDir = temp('state'), runs = [];
+  const dir = join(root, '.agents/skills/daily/scripts');
+  mkdirSync(join(root, '.agents/skills/schedule/scripts'), { recursive: true });
+  writeFileSync(join(root, '.agents/skills/schedule/scripts/schedule.mjs'), '');
+  const run = (...args) => { runs.push(args); return { on: () => {}, unref: () => {} }; };
+  const move = now => startMoveIn({ home: { repo: root, dir }, stateDir, env: {}, now, timezone: ZONE, run });
+  assert.deepEqual([move(NOW.getTime()), move(NOW.getTime() + 2 * HOUR), move(NOW.getTime() + 24 * HOUR)], [true, false, true]);
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(stateDir, 'move-in.json'), 'utf8'))), ['day']);
 });
 
 test("ensure restarts a worker whose beat holds older code or none, and leaves a current one alone", () => {
@@ -500,6 +576,14 @@ test('checkins off writes the off file, stops the running worker and journals it
   assert.equal((await run('checkins off')).state, 'off');
   assert.deepEqual(flips, [false, true], 'each flip starts the add of the defaults after the off file changes');
   assert.deepEqual(readLines({ stateDir }).map(entry => entry.kind), ['checkins', 'checkins', 'checkins']);
+});
+
+test('checkins off and on still answer when the start of the defaults throws', async () => {
+  const stateDir = temp('state'), config = validateConfig(settings());
+  const run = command => commands({ config, project: temp('repo'), stateDir, values: {}, call: async () => [], chats: fakeChats().chats, env: {},
+    keep: () => ({ state: 'started' }), defaults: () => { throw new Error('no node'); } })[command]();
+  assert.deepEqual(await run('checkins off'), { state: 'off', stopped: null });
+  assert.deepEqual(await run('checkins on'), { state: 'on', worker: 'started' });
 });
 
 test("each tool's hooks run mark at start, message and stop; mark writes the card but the stop's, and keeps Paseo's stop mark", () => {
