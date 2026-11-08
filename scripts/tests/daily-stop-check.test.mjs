@@ -9,7 +9,7 @@ import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
 import { writeJson } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { offFile, stateOf } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
-import { chatTitle, judgeLine, runJudge, stopCheck, tailOf } from '../../.agents/skills/daily/scripts/stop-check.mjs';
+import { askText, chatTitle, judgeLine, runJudge, stopCheck, tailOf } from '../../.agents/skills/daily/scripts/stop-check.mjs';
 import { needsYouFile } from '../../.agents/skills/daily/scripts/worker.mjs';
 import { ensureDaily } from '../../.agents/skills/memory/scripts/session-start.mjs';
 
@@ -128,6 +128,53 @@ for (const agent of ['claude', 'codex']) {
     assert.deepEqual(await w.stop({ now: NOW + 34 * MIN }), { out: null, why: 'person here' });
   });
 }
+
+test('judgeLine takes an ask with an empty reply; keep-going and pick still need one', () => {
+  assert.deepEqual(judgeLine('{"bucket":"ask","reply":"","line":"Asked to show choices: x"}'), { bucket: 'ask', reply: '', line: 'Asked to show choices: x' });
+  assert.deepEqual(judgeLine('{"bucket":"ask","line":"x"}'), { bucket: 'ask', line: 'x' });
+  assert.equal(judgeLine('{"bucket":"pick","reply":" ","line":"x"}'), null);
+});
+
+const ASK = { stdout: `{"bucket": "ask", "reply": "", "line": "Asked to show choices: export"}` };
+const QUESTION = 'Should I keep the old page or remove it?';
+for (const [agent, tool] of [['claude', 'AskUserQuestion'], ['codex', 'request_user_input']]) {
+  const wrapped = reply => (agent === 'codex' ? `<hook_prompt hook_run_id="r">${reply}</hook_prompt>` : `Stop hook feedback:\n${reply}`);
+  test(`${agent}: a typed question goes back once to ask with ${tool}; a second one before the person writes waits, with one journal line`, async () => {
+    const w = world({ agent, answer: ASK, rows: [['user', 'Build the export page.', NOW - 40 * MIN], ['assistant', QUESTION, NOW - MIN]] });
+    const text = askText(agent);
+    assert.match(text, new RegExp(`with ${tool}: 2 to 4 short options, your recommended one first, marked \\(Recommended\\)`));
+    assert.deepEqual(await w.stop(), { out: { decision: 'block', reason: text }, why: 'ask' });
+    assert.deepEqual(w.journal(), ['Asked to show choices: export']);
+    const file = join(w.stateDir, 'stops', 's1.json');
+    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')).count, 1);
+    // The chat could not show the question tool and typed the question again: the send-back is not the person's word.
+    w.transcript.add(['user', wrapped(text), NOW + 1000], ['assistant', QUESTION, NOW + 2000]);
+    assert.deepEqual(await w.stop({ now: NOW + MIN }), { out: null, why: 'asked' });
+    assert.deepEqual(w.journal().slice(1), [`Waits in its chat: ${w.dir.split('/').at(-1)} — asked once with no question tool`]);
+    // A word from the person resets the flag, after the 15-minute wait.
+    w.transcript.add(['user', 'Keep it for now, and go on.', NOW + 2 * MIN], ['assistant', QUESTION, NOW + 3 * MIN]);
+    assert.equal((await w.stop({ now: NOW + 30 * MIN })).why, 'ask');
+    assert.equal(JSON.parse(readFileSync(file, 'utf8')).asked, 0);
+    // The chat asked with the tool and the person tapped: a tap is no typed message, yet the next question goes back.
+    appendFileSync(w.transcript.file, `${JSON.stringify(agent === 'codex'
+      ? { timestamp: iso(NOW + 31 * MIN), type: 'response_item', payload: { type: 'function_call', name: tool, arguments: '{}' } }
+      : { type: 'assistant', timestamp: iso(NOW + 31 * MIN), message: { role: 'assistant', content: [{ type: 'tool_use', name: tool, input: {} }] } })}\n`);
+    w.transcript.add(['assistant', QUESTION, NOW + 32 * MIN]);
+    assert.equal((await w.stop({ now: NOW + 33 * MIN })).why, 'ask');
+    assert.equal(JSON.parse(readFileSync(file, 'utf8')).asked, 1);
+  });
+}
+
+test('an ask counts toward the five in a row', async () => {
+  const answers = [ASK, ...Array(4).fill({ stdout: '{"bucket": "keep-going", "reply": "Keep going.", "line": "Kept going: export"}' })];
+  const w = world({ answer: () => answers.shift() ?? assert.fail('judged a sixth time') });
+  for (let n = 0; n < 5; n++) {
+    const { out } = await w.stop({ now: NOW + n * MIN });
+    assert.ok(out);
+    w.transcript.add(['user', `Stop hook feedback:\n${out.reason}`, NOW + n * MIN + 1000], ['assistant', NEXT, NOW + n * MIN + 2000]);
+  }
+  assert.deepEqual(await w.stop({ now: NOW + 6 * MIN }), { out: null, why: 'streak' });
+});
 
 test("a journal line names the chat by its Paseo title, else its folder; a bad or missing record falls back", async () => {
   const home = temp();

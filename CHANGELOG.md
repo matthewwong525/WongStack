@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 51.2.0 — A chat that asks you in plain text asks again with tap answers
+
+- **A typed question comes back as tap answers.** While you are away, a chat that stops on a question it typed as plain text, such as *Should I keep the old page or remove it?*, is sent back once. It then asks with 2 to 4 short answers, its recommended answer first, and waits for your tap. You can also type your own answer ([check-ins](wiki/development/daily.md#check-ins)).
+- **The check-in answers a small question itself.** A small, safe decision or an obvious question, such as *should I run the tests?*, gets the plain best answer, even when the chat recommended none, and the chat goes on. A risky question, such as *send this email?*, always waits for your tap.
+- **Some stops stay as they are.** A finished plan, a sign-in, key or payment step, and a question that already has answer buttons wait for you as before. A chat that stops again with no buttons after the one send-back waits for you, so no chat goes around in a loop. The send-back counts toward the five check-ins in a row.
+
 ## 51.1.1 — A shipped plan leaves Needs you
 
 - **Shipping a change closes its plan in the Inbox.** Once the change is live, its plan moves from *Needs you* to the Archive, whichever chat, folder or computer made it. If the Inbox does not answer, the ship report says so in one line, and the ship goes on ([in your inbox first](wiki/development/reply-links.md#in-your-inbox-first)).
