@@ -137,5 +137,5 @@ Every live view, and every turn the agent gives the person on its browser, SHALL
 
 #### Scenario: An old finish flag
 
-- **WHEN** the agent runs `open --view --until "**/browse**" --note <line>`
+- **WHEN** the agent asks to open a live view that ends at a named page
 - **THEN** nothing opens and the command exits with a usage fault
