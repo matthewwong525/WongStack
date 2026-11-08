@@ -7,13 +7,14 @@ import path from 'node:path';
 import { main } from '../../.agents/skills/schedule/scripts/schedule.mjs';
 import { approvedVersion } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
 import { addDefaults } from '../../.agents/skills/schedule/scripts/lib/defaults.mjs';
-import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
+import { localDay, validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { DEFAULT_SCHEDULES } from '../../.agents/skills/daily/scripts/worker.mjs';
-import { offFile } from '../../.agents/skills/daily/scripts/daily.mjs';
+import { defaultsStamp, offFile } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { COMPUTER, ORIGIN, fakeApp, folder } from './fixtures/scheduled-work.mjs';
 
 const JO = 'jo@example.test';
+const readJsonOr = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const saves = app => app.calls.filter(([method]) => method !== 'GET').length;
 
 /** A checkout with Jo's settings, a fake app, and `defaults` run as a chat or the worker would. */
@@ -90,13 +91,77 @@ test("an install's off entry adds that default paused, and its own entry with th
 });
 
 test('a dry run calls no app; unattended with no sign-in it adds nothing and writes one journal line', async t => {
-  const { app, stateDir, call } = install(t);
+  const { app, stateDir, call, kept } = install(t);
   const dry = await call(['--dry-run']);
   assert.deepEqual([dry.schedules.map(each => each.key), app.calls], [['line-up', 'wiki-tidy'], []]);
   assert.deepEqual(await call(['--unattended'], { email: () => null }), { ok: true, skipped: 'no_sign_in' });
   assert.deepEqual(app.calls, []);
-  assert.deepEqual(readLines({ stateDir }).map(entry => entry.line), ['Default schedules wait: sign in to the company app (`D who` gives the link).']);
+  assert.deepEqual(await call(['--unattended'], { email: () => null }), { ok: true, skipped: 'no_sign_in' });
+  assert.deepEqual(readLines({ stateDir }).map(entry => entry.line), ['Default schedules wait: sign in to the company app (`D who` gives the link).'],
+    'one line a day for the same reason');
+  assert.equal(kept().failed.reason, 'no_sign_in');
+  assert.equal(kept().day, undefined);
   assert.equal((await call([], { email: () => null })).ok, false, 'asked in a chat, the missing sign-in is an error');
+});
+
+test('a run that sets up every default marks today and the current stamp done, and forgets the try and the last failure', async t => {
+  const { stateDir, call, kept } = install(t);
+  writeFileSync(path.join(stateDir, 'defaults.json'), JSON.stringify({ tried: 1, failed: { day: '2026-01-01', stamp: 'x', reason: 'old', at: 1 } }));
+  await call(['--unattended']);
+  assert.deepEqual([kept().day, kept().stamp, kept().tried, kept().failed], [localDay(new Date(), 'America/Toronto'), defaultsStamp(stateDir), undefined, undefined]);
+  assert.deepEqual(readLines({ stateDir }), []);
+});
+
+test('a run marks done the stamp it started with, not one check-ins changed during it', async t => {
+  const { stateDir, app, call, kept } = install(t);
+  const http = app.http;
+  app.http = async (address, init = {}) => {
+    if (address.endsWith('/schedule') && init.method === 'PUT') writeFileSync(offFile(stateDir), 'now\n');
+    return http(address, init);
+  };
+  await call(['--unattended']);
+  assert.equal(kept().stamp, defaultsStamp(stateDir, undefined, false), 'the on stamp, so the next chat start applies the off');
+});
+
+/** Makes the app refuse the save of `key`. */
+function refuseSave(app, key) {
+  const http = app.http;
+  app.http = async (address, init = {}) => {
+    if (address.endsWith('/schedule') && init.method === 'PUT' && JSON.parse(init.body).key === key) return { value: { error: { code: 'invalid' } }, status: 400 };
+    return http(address, init);
+  };
+}
+
+test('an unattended run with a default the app refuses marks no day, and journals the key and reason once a day', async t => {
+  const { app, stateDir, call, kept } = install(t);
+  refuseSave(app, 'wiki-tidy');
+  assert.deepEqual((await call(['--unattended'])).results.map(each => each.state), ['add', 'failed']);
+  assert.deepEqual([kept().day, kept().failed.reason], [undefined, 'wiki-tidy: invalid']);
+  await call(['--unattended']);
+  assert.deepEqual(readLines({ stateDir }).map(entry => [entry.kind, entry.line]),
+    [['defaults', 'Default schedules not set up: wiki-tidy: invalid. Trying again in an hour.']]);
+});
+
+test('a chat run with a default the app refuses marks no day either, so the daily tries again', async t => {
+  const { app, stateDir, call, kept } = install(t);
+  refuseSave(app, 'wiki-tidy');
+  assert.deepEqual((await call([])).results.map(each => each.state), ['add', 'failed']);
+  assert.deepEqual([kept().day, kept().stamp, kept().failed], [undefined, undefined, undefined]);
+  assert.deepEqual(readLines({ stateDir }), [], 'a chat shows the failure; it journals nothing');
+});
+
+test('a throw while reading the defaults is journaled unattended; asked in a chat it is an error and marks nothing', async t => {
+  const { stateDir, call, kept } = install(t);
+  const list = path.join(folder(t), 'schedules.json');
+  writeFileSync(list, '{broken');
+  const unattended = await call(['--unattended'], { list });
+  assert.equal(unattended.ok, true);
+  assert.match(unattended.failed, /JSON/);
+  assert.deepEqual([kept().day, kept().failed.reason], [undefined, unattended.failed]);
+  assert.equal(readLines({ stateDir }).length, 1);
+  rmSync(path.join(stateDir, 'defaults.json'));
+  assert.equal((await call([], { list })).ok, false);
+  assert.equal(readJsonOr(path.join(stateDir, 'defaults.json')), null, 'a chat sees the error; no failure is kept');
 });
 
 const states = app => ['line-up', 'wiki-tidy'].map(key => app.schedules.get(key).state);

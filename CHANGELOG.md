@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Default schedules setup says when it fails and tries again
+
+- **A failed setup of the default schedules tries again the same day.** A chat start sets up *Keep my chats in line* and *Wiki tidy* in the background. Before, it marked the day done before it tried, so a try that failed left you with no defaults until the next day. Now the day counts as done only after a try works. A chat start about an hour after a failed try tries again ([default schedules](wiki/stack/host-schedules.md#default-schedules)).
+- **The journal says why.** A failure writes one line in [the journal](wiki/development/daily.md#the-journal) with its reason, such as *wiki-tidy: invalid*, so *what's going on?* tells you. The same reason writes one line a day, not one for each try. A try that stops with no word is journaled at the next chat start as *the last try stopped with no result*.
+- **Stop check-ins and start check-ins still answer** when the setup can not start.
+
+**Updating.** Nothing to do. The next chat start tries the setup again if the last one failed.
+
 ## 51.1.0 — The browser comes back only when you tap Hand back
 
 - **Your turn ends only when you tap *Hand back*.** The agent no longer takes its browser back when the page looks finished, such as a signed-in page or a receipt. The live view stays open through every page until you tap *Hand back*, say *done* in the chat, or the time limit passes. This applies to a sign-in, a payment, a backup code, a robot check, a stuck step, and a view you ask for ([live view](wiki/development/live-view.md#when-it-opens)).
