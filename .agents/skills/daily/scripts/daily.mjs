@@ -18,8 +18,10 @@ import { BUCKETS, allow, answer, chiefDay, chiefEnv, doneAgent, hand, mark, note
   serviceAlive, status, writeJson } from './chief.mjs';
 import { RUN_AGENTS, SettingsError, defaultSettings, loadSettings, localDay, settingsFor } from './config.mjs';
 import { addLine, format, newLines, readLines } from './journal.mjs';
+import { writeCard } from './chat-list.mjs';
 import { lineUpData, saveMap, tell } from './line-up.mjs';
 import { refuseRuns, scheduleApp, takeRuns, waitingRuns } from './schedule-runs.mjs';
+import { handOver } from './waiting-notes.mjs';
 import { DEFAULT_SCHEDULES, alive, codeStamp, dropServeLock, handOff, loadSweeps, lockedBy, morningFile, serveDaily, stopGroup,
   takeServeLock } from './worker.mjs';
 
@@ -80,7 +82,7 @@ export const PENDING_MS = 10 * 60e3;
 const wait = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 /** Runs `work` while this process holds `<file>.lock`; a lock older than 10 s is a dead run's, and is taken over. */
-function withLock(file, work) {
+export function withLock(file, work) {
   const lock = `${file}.lock`;
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
   for (;;) {
@@ -210,7 +212,7 @@ const USAGE = `usage: daily.mjs who | start [--dry-run] [--report] | handoff --f
        daily.mjs allow --agent <a> --request <id> --bucket keep-going|person --label <line>
        daily.mjs done-agent --agent <a> --proof <text> | note-end --line <words>
        daily.mjs line-up | map --file <json file> | tell --agent <a> --file <text file> [--now] [--covered-by <a>] | tell --drop <a>
-       daily.mjs mark
+       daily.mjs mark [--agent claude|codex]
   each but the mark hook takes --config <settings file>; a hook never fails; chief-service is serve`;
 const FLAGS = { who: [], start: ['dry-run', 'report'], handoff: ['file'], remind: ['day', 'text'],
   serve: ['agent', 'seconds', 'once', 'dry-run'], ensure: ['agent'], 'checkins off': [], 'checkins on': [], journal: ['new', 'line', 'run'], status: [],
@@ -298,10 +300,14 @@ export function commands({ config, project, stateDir, values, call, chats, env =
       } finally { if (dryRun) rmSync(dir, { recursive: true, force: true }); else dropServeLock(stateDir); }
     },
     // The default schedules pause or go on again at once, not at the next chat.
-    'checkins off': () => { const result = checkinsOff({ stateDir, timezone: config.timezone }); defaults(); return result; },
+    'checkins off': () => {
+      const result = checkinsOff({ stateDir, timezone: config.timezone });
+      try { defaults(); } catch { /* best effort, as in ensure */ }
+      return result;
+    },
     'checkins on': () => {
       rmSync(offFile(stateDir), { force: true });
-      defaults();
+      try { defaults(); } catch { /* best effort, as in ensure */ }
       addLine({ stateDir, timezone: config.timezone, line: 'Check-ins on.', kind: 'checkins' });
       return { state: 'on', worker: keep().state };
     },
@@ -319,13 +325,13 @@ export function commands({ config, project, stateDir, values, call, chats, env =
     allow: async () => allow({ ...(await chief()), agent: values.agent, request: values.request, bucket: values.bucket, label: values.label }),
     'done-agent': async () => doneAgent({ ...(await chief()), agent: values.agent, proof: values.proof }),
     'note-end': async () => { const { stateDir: dir, day } = await chief(); return noteEnd({ stateDir: dir, day, line: values.line }); },
-    'line-up': async () => lineUpData(await chief()),
+    'line-up': async () => lineUpData({ ...(await chief()), project }),
     map: () => {
       let read;
       try { read = JSON.parse(readFileSync(values.file, 'utf8')); } catch (error) { return { status: 'refused', reason: 'map', error: oneLine(error.message) }; }
       return saveMap({ stateDir, chats: read?.chats });
     },
-    tell: async () => tell({ ...(await chief()), agent: values.agent, text: values.file && readFileSync(values.file, 'utf8'), urgent: Boolean(values.now),
+    tell: async () => tell({ ...(await chief()), project, agent: values.agent, text: values.file && readFileSync(values.file, 'utf8'), urgent: Boolean(values.now),
       coveredBy: values['covered-by'], drop: values.drop }),
   };
 }
@@ -397,34 +403,77 @@ function waitGone(pid, isAlive) {
   for (let waited = 0; waited < 1000 && isAlive(pid); waited += LOCK_RETRY_MS) wait(LOCK_RETRY_MS);
 }
 
-/** `{stamp, day, off, added: {key: {version, timing, checkins}}}`: the defaults this computer added, those check-ins
- * paused, the off state last applied, and the stamp and day `D ensure` last started `schedule.mjs defaults`. */
+/** `{stamp, day, off, added, tried, failed}`: the defaults added here, the off state applied, the day and stamp a try
+ * last set up every default, the running try `{at, stamp}`, and the last failure `{day, stamp, reason, at}`. */
 export const defaultsFile = stateDir => join(stateDir, 'defaults.json');
 const listStamp = file => { try { return createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 16); } catch { return null; } };
+const RETRY_MS = 60 * 60e3;
 
-/** Starts `schedule.mjs <command> --unattended` detached, once a day or when `stamp` changes, by the `marker` file's
- * `day` and `stamp`; false when it did not, or the schedule skill is missing. */
-function startSchedule(command, marker, { home, env, now, timezone, run, stamp = null }) {
-  const script = join(home.dir, '..', '..', 'schedule', 'scripts', 'schedule.mjs');
-  const kept = readJson(marker, {}), day = localDay(new Date(now), timezone);
-  if (!existsSync(script) || (kept.day === day && (kept.stamp ?? null) === stamp)) return false;
-  writeJson(marker, { ...kept, day, ...(stamp && { stamp }) });
-  const child = run(process.execPath, [script, command, '--unattended'], { cwd: home.repo, detached: true, stdio: 'ignore', env: workerEnv(env) });
+/** The shipped list's stamp, with `:off` while check-ins are `off`; null when the list can not be read. */
+export function defaultsStamp(stateDir, list = DEFAULT_SCHEDULES, off = existsSync(offFile(stateDir))) {
+  const stamp = listStamp(list);
+  return stamp && off ? `${stamp}:off` : stamp;
+}
+
+/** The running try as `{at, stamp}`; an older file's plain time is a try of no known stamp. */
+const triedOf = kept => (typeof kept.tried === 'number' ? { at: kept.tried } : kept.tried);
+
+/** The file without its running try when that try is the one for `stamp`, or of no known stamp; a newer try stays. */
+function endTry(kept, stamp) {
+  const tried = triedOf(kept);
+  if (tried && tried.stamp !== undefined && tried.stamp !== stamp) return kept;
+  const { tried: _tried, ...rest } = kept;
+  return rest;
+}
+
+/** Marks today and `stamp`, the one the run started with, as set up, and forgets its try and the last failure. */
+export function defaultsDone({ stateDir, timezone, list = DEFAULT_SCHEDULES, stamp = defaultsStamp(stateDir, list), now = Date.now() }) {
+  const { failed: _failed, ...kept } = endTry(readJson(defaultsFile(stateDir), {}), stamp);
+  writeJson(defaultsFile(stateDir), { ...kept, day: localDay(new Date(now), timezone), ...(stamp && { stamp }) });
+}
+
+/** Records a failed try of `stamp` and journals it, once a day for the same reason. */
+export function defaultsFailed({ stateDir, timezone, list = DEFAULT_SCHEDULES, stamp = defaultsStamp(stateDir, list), reason, line, now = Date.now() }) {
+  const kept = endTry(readJson(defaultsFile(stateDir), {}), stamp), day = localDay(new Date(now), timezone);
+  const told = kept.failed?.day === day && kept.failed.reason === reason;
+  writeJson(defaultsFile(stateDir), { ...kept, failed: { day, stamp, reason, at: now } });
+  if (!told) addLine({ stateDir, timezone, line: line ?? `Default schedules not set up: ${reason}. Trying again in an hour.`, kind: 'defaults', now: new Date(now) });
+}
+
+const scheduleScript = home => join(home.dir, '..', '..', 'schedule', 'scripts', 'schedule.mjs');
+
+/** Starts `schedule.mjs <command> --unattended` detached, with the worker's env. */
+function runSchedule(command, { home, env, run }) {
+  const child = run(process.execPath, [scheduleScript(home), command, '--unattended'], { cwd: home.repo, detached: true, stdio: 'ignore', env: workerEnv(env) });
   child.on('error', () => {});
   child.unref();
+}
+
+/** Once a day, while the person's file still holds routines, starts the schedule skill's unattended move to the app;
+ * false when it did not, or the schedule skill is missing. */
+export function startMoveIn({ home, stateDir, env, now = Date.now(), timezone, run = spawn }) {
+  const marker = join(stateDir, 'move-in.json'), kept = readJson(marker, {}), day = localDay(new Date(now), timezone);
+  if (!existsSync(scheduleScript(home)) || kept.day === day) return false;
+  writeJson(marker, { ...kept, day });
+  runSchedule('move-in', { home, env, run });
   return true;
 }
 
-/** Once a day, while the person's file still holds routines, starts the schedule skill's unattended move to the app. */
-export const startMoveIn = ({ home, stateDir, env, now = Date.now(), timezone, run = spawn }) =>
-  startSchedule('move-in', join(stateDir, 'move-in.json'), { home, env, now, timezone, run });
-
-/** Once a day, and when the shipped list or the off switch changes, starts the unattended add of WongStack's default
- * schedules. */
-export function startDefaults({ home, stateDir, env, now = Date.now(), timezone, run = spawn, list = DEFAULT_SCHEDULES }) {
-  const stamp = listStamp(list);
-  return startSchedule('defaults', defaultsFile(stateDir), { home, env, now, timezone, run,
-    stamp: stamp && existsSync(offFile(stateDir)) ? `${stamp}:off` : stamp });
+/** Starts the unattended add of the default schedules until a try works today; a running or failed try waits an hour
+ * unless the stamp changed. The stamp reads the started copy's list, so the child marks the same one. */
+export function startDefaults({ home, stateDir, env, now = Date.now(), timezone, run = spawn, list = join(home.dir, '..', 'references', 'schedules.json') }) {
+  if (!existsSync(scheduleScript(home))) return false;
+  const kept = readJson(defaultsFile(stateDir), {}), day = localDay(new Date(now), timezone), stamp = defaultsStamp(stateDir, list);
+  if (kept.day === day && (kept.stamp ?? null) === stamp) return false;
+  const tried = triedOf(kept), { failed } = kept;
+  if (tried) {
+    const running = now - tried.at < RETRY_MS;
+    if (running && (tried.stamp ?? null) === stamp) return false;
+    if (!running) defaultsFailed({ stateDir, timezone, list, stamp: tried.stamp, reason: 'the last try stopped with no result', now });
+  } else if (failed?.day === day && (failed.stamp ?? null) === stamp && now - failed.at < RETRY_MS) return false;
+  writeJson(defaultsFile(stateDir), { ...readJson(defaultsFile(stateDir), {}), tried: { at: now, stamp } });
+  runSchedule('defaults', { home, env, run });
+  return true;
 }
 
 /** `D ensure`: starts the main checkout's worker, detached, when the person has a job and none runs, and restarts one
@@ -458,6 +507,18 @@ export function ensure({ repo = REPO, home = workerHome(repo), env = process.env
   return { state: stop ? 'restarted' : 'started' };
 }
 
+/** The `mark` hook, Claude Code or Codex: the chat's card at its start and each message; on a message, its waiting
+ * notes as added context; Paseo's stop mark on a stop or notice. The stop check writes a stop's card. Never throws. */
+export function markHook({ tool = 'claude', input = {}, env = process.env, home = homedir(), now = Date.now(), print = console.log }) {
+  const event = input.hook_event_name;
+  try {
+    if (event !== 'Stop') writeCard({ tool, input, env, home, now });
+    const notes = event === 'UserPromptSubmit' ? handOver({ home, key: input.session_id || env.CODEX_THREAD_ID, now }) : null;
+    if (notes) print(notes);
+  } catch { /* a hook never fails the chat */ }
+  if (!['SessionStart', 'UserPromptSubmit'].includes(event)) mark({ env, now: new Date(now) });
+}
+
 /** A hook's JSON input on stdin, or {}. */
 export function hookInput() {
   try { return JSON.parse(readFileSync(0, 'utf8') || '{}') ?? {}; } catch { return {}; }
@@ -473,8 +534,8 @@ export function commandSettings(command, { me, config }) {
 }
 
 async function main(args = process.argv.slice(2)) {
-  // The stop hook runs mark: it never fails the chat. A chat opened before the update still runs the old prompt hook.
-  if (args[0] === 'mark') { mark(); return; }
+  // Each chat's hooks run mark: it never fails the chat. A chat opened before the update runs the old prompt hook.
+  if (args[0] === 'mark') { markHook({ tool: args.includes('codex') ? 'codex' : 'claude', input: hookInput() }); return; }
   if (args[0] === 'journal' && args.includes('--hook')) return;
   const { command, values } = readArgs(args);
   if (command === 'ensure') {

@@ -130,5 +130,5 @@ test('an old prompt hook, from a chat opened before the update, prints nothing a
 test('the Claude Code settings have no prompt hook for the journal', () => {
   const settings = JSON.parse(readFileSync(fileURLToPath(new URL('../../.agents/settings.json', import.meta.url)), 'utf8'));
   const commandsOf = list => (list ?? []).flatMap(entry => entry.hooks.map(hook => hook.command));
-  assert.ok(!commandsOf(settings.hooks.UserPromptSubmit).some(command => command.includes('daily.mjs')));
+  assert.ok(!commandsOf(settings.hooks.UserPromptSubmit).some(command => /daily\.mjs" journal/.test(command)));
 });

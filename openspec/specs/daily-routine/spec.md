@@ -4,6 +4,7 @@
 The daily routine runs each person's day on a team with no chat to open: each morning the worker starts the routines the whole team shares, then that person's own, and any chat does their asks and learns new steps. It is also their chief of staff: it keeps their chats moving, and brings the person only what needs them.
 
 ## Requirements
+
 ### Requirement: Daily runs as the signed-in person
 
 The daily SHALL know the person from their company sign-in, else the repo's git email, before the morning starts any step. It SHALL run no step under a guessed person: when no settings file lists the person's email, the morning SHALL run no add-on, even when only one settings file exists.
@@ -253,7 +254,7 @@ The daily SHALL start with one job: the small wiki tidy after each memory consol
 
 ### Requirement: Watched chats stay in line with each other
 
-Where the host lets a chat watch other chats, the daily SHALL work toward one goal for the person's watched chats in one project: no two do the same work or work against each other, each gets as far as the context across all of them allows, a chat waiting on another chat's work, or on the person's answer in another chat, hears when that wait is over, and the person's recent choices weigh most. It SHALL read new messages a few minutes after a watched chat has them, and SHALL send notes to the chats that news affects, judging what to say, to whom, and when. A note that reaches a working chat SHALL go into its running step without stopping it. These limits SHALL hold whatever it judges: a risky step waits for the person; no chat closes without the person's pick; an agent's words never count as the person's approval; a note counts toward the 5 own actions in a row; and each note writes one journal line. This job SHALL be one of the person's schedules, which they can pause, run now or change like any other; turning check-ins off SHALL stop it too.
+The daily SHALL work toward one goal for the person's watched chats in one project, in any app that runs Claude Code or Codex, with or without Paseo: no two do the same work or work against each other, each gets as far as the context across all of them allows, a chat waiting on another chat's work, or on the person's answer in another chat, hears when that wait is over, and the person's recent choices weigh most. It SHALL read new messages a few minutes after a watched chat has them, and SHALL send notes to the chats that news affects, judging what to say, to whom, and when. A chat in Paseo SHALL get each note through Paseo at once: after its current step when it works, or as a new turn when it is idle. Any other chat, and a chat whose note Paseo fails to send, SHALL get it at its next stop or with the person's next message, and the note is never lost or sent twice. A note never stops a step in the middle. These limits SHALL hold whatever it judges: a risky step waits for the person; no chat closes without the person's pick; an agent's words never count as the person's approval; a note counts toward the 5 own actions in a row; and each note writes one journal line. This job SHALL be one of the person's schedules, which they can pause, run now or change like any other; turning check-ins off SHALL stop it too.
 
 #### Scenario: A choice in one chat changes another chat's work
 
@@ -270,11 +271,23 @@ Where the host lets a chat watch other chats, the daily SHALL work toward one go
 - **WHEN** chats A and B both start adding the same export button
 - **THEN** only one chat goes on with the button, the other is told which chat has it, and neither stops a step in the middle
 
+#### Scenario: Urgent news for an idle chat in Paseo
+
+- **WHEN** chat B waits idle in Paseo, and chat A drops the export button chat B is about to rebuild
+- **THEN** chat B wakes with a note naming chat A, without Jo writing to it, and the journal has one line for it
+
+#### Scenario: A chat outside Paseo
+
+- **WHEN** Jo works in chat A in Paseo and in chat B in a plain terminal, and chat B is building the export button chat A already has
+- **THEN** chat B gets the note at its next stop, or with Jo's next message if it is idle, and the journal has one line for it
+
 ### Requirement: The daily's own jobs are default schedules
 
 WongStack SHALL ship the daily's built-in timed jobs as default schedules. Each SHALL be added to the person's schedules in the company app the first time a chat starts after install or update, approved on that computer, without a question. A default the person never changed SHALL take WongStack's newer version at an update; one they changed, paused or ended SHALL be left as it is, and an ended one SHALL never be added again. A schedule's run list SHALL leave out runs that found nothing to do, and show how many there were.
 
 While the person's check-ins are off on a computer, each default they never changed SHALL wait paused on that computer, so its run list gets no runs that could not start. When check-ins go on, each default paused this way SHALL go on again. A default the person paused, changed or ended SHALL never be paused or resumed by check-ins, and one they resume while check-ins are off SHALL stay on.
+
+A day SHALL count as set up only after a try sets up every default. A try that fails, or stops with no result, SHALL write a journal line with its reason, at most one line a day for the same reason, and a chat start SHALL try again about an hour later.
 
 #### Scenario: First chat after the update
 
@@ -295,6 +308,11 @@ While the person's check-ins are off on a computer, each default they never chan
 
 - **WHEN** Jo paused the wiki tidy, then turns check-ins off and on again
 - **THEN** the line-up pauses and goes on again, and the wiki tidy stays paused
+
+#### Scenario: A failed setup says why and tries again
+
+- **WHEN** a chat start's background setup of the defaults fails, or stops with no result
+- **THEN** the journal holds one line with the reason, and a chat start an hour or more later the same day tries again and, once it works, adds the missing defaults
 
 ### Requirement: The background's work is kept in a journal
 

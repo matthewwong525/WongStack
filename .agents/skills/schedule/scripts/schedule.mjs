@@ -64,23 +64,38 @@ async function control(command, key, world, client) {
   return { host: 'paseo', receipt };
 }
 
-/** `defaults`: WongStack's default schedules for this person, added and approved here. Unattended with no sign-in, it
- *  adds nothing and journals why. */
+const SIGN_IN = 'Default schedules wait: sign in to the company app (`D who` gives the link).';
+const notSetUp = each => each.state === 'failed' || each.state === 'refused';
+
+/** `defaults`: WongStack's default schedules for this person, added and approved here. A run that sets up every
+ *  default marks the day done; an unattended one that fails, with no sign-in included, journals why. */
 async function defaults(values, world) {
-  const { root, primary, computer, env, email } = world;
-  const [{ offFile, personSettings, stateOf }, { addLine }] = await Promise.all([import('../../daily/scripts/daily.mjs'), import('../../daily/scripts/journal.mjs')]);
+  const { root, primary, computer, env, email, list } = world;
+  const { defaultsDone, defaultsFailed, defaultsStamp, offFile, personSettings, stateOf } = await import('../../daily/scripts/daily.mjs');
   const { config } = (world.settings ?? personSettings)({ repo: root });
   requireValue(config, 'No daily settings and no sign-in: nothing to add the default schedules for.');
   const stateDir = world.stateDir ?? stateOf(config, root);
-  let client = null;
-  if (!values['dry-run']) {
+  // The run marks the stamp it applies, read with the off switch before it starts, not one that changed meanwhile.
+  const off = existsSync(offFile(stateDir)), stamp = defaultsStamp(stateDir, list, off);
+  const at = { stateDir, timezone: config.timezone, stamp };
+  if (values['dry-run']) return addDefaults({ root, primary, config, stateDir, client: null, computer, env, email, dryRun: true, list });
+  try {
+    let client;
     try { client = await connect(world); approver(client, { email }); } catch (error) {
       if (!values.unattended) throw error;
-      addLine({ stateDir, timezone: config.timezone, line: 'Default schedules wait: sign in to the company app (`D who` gives the link).', kind: 'defaults' });
+      defaultsFailed({ ...at, reason: 'no_sign_in', line: SIGN_IN });
       return { skipped: 'no_sign_in' };
     }
+    const result = await addDefaults({ root, primary, config, stateDir, client, computer, env, email, list, off });
+    const failed = result.results.filter(notSetUp);
+    if (!failed.length) defaultsDone(at);
+    else if (values.unattended) defaultsFailed({ ...at, reason: failed.map(each => `${each.key ?? each.id}: ${each.reason}`).join('; ') });
+    return result;
+  } catch (error) {
+    if (!values.unattended) throw error;
+    defaultsFailed({ ...at, reason: error.message });
+    return { failed: error.message };
   }
-  return addDefaults({ root, primary, config, stateDir, client, computer, env, email, dryRun: values['dry-run'], off: existsSync(offFile(stateDir)) });
 }
 
 async function run(command, values, key, world) {

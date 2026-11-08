@@ -9,7 +9,8 @@ import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
 import { writeJson } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { offFile, stateOf } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
-import { askText, chatTitle, judgeLine, runJudge, stopCheck, tailOf } from '../../.agents/skills/daily/scripts/stop-check.mjs';
+import { askText, chatTitle, judgeLine, runJudge, stopCard, stopCheck, tailOf } from '../../.agents/skills/daily/scripts/stop-check.mjs';
+import { appendNote, takeNotes } from '../../.agents/skills/daily/scripts/waiting-notes.mjs';
 import { needsYouFile } from '../../.agents/skills/daily/scripts/worker.mjs';
 import { ensureDaily } from '../../.agents/skills/memory/scripts/session-start.mjs';
 
@@ -40,22 +41,22 @@ function chat(dir, agent, rows) {
 
 /** One world: a checkout's state root, a judge that answers `answer`, and `stop()` for one Stop hook call. */
 function world({ agent = 'claude', rows = [['user', 'Build the export page.', NOW - 40 * MIN], ['assistant', NEXT, NOW - MIN]], answer } = {}) {
-  const root = temp(), dir = temp();
+  const root = temp(), dir = temp(), home = temp();
   const transcript = chat(dir, agent, rows);
   const judged = [];
   const reply = answer ?? { stdout: `Read the chat.\n${JSON.stringify({ bucket: 'keep-going', reply: 'Keep going.', line: 'Kept going: export' })}\n` };
   const judge = async run => { judged.push(run); return typeof reply === 'function' ? reply(run) : reply; };
-  const stop = async ({ now = NOW, env = {}, input = {} } = {}) => stopCheck({ agent, env, now, root, judge, resolve: () => ({ config }),
+  const stop = async ({ now = NOW, env = {}, input = {} } = {}) => stopCheck({ agent, env, now, root, home, judge, resolve: () => ({ config }),
     input: { session_id: 's1', transcript_path: transcript.file, cwd: dir, stop_hook_active: true, ...input } });
   const stateDir = stateOf(config, undefined, root);
-  return { stop, judged, transcript, stateDir, dir, root, journal: () => readLines({ stateDir }).map(entry => entry.line) };
+  return { stop, judged, transcript, stateDir, dir, root, home, journal: () => readLines({ stateDir }).map(entry => entry.line) };
 }
 
 test("the judge sees the person's newest choices from other chats, not this chat's own", async () => {
   const w = world();
   writeJson(join(w.stateDir, 'line-up.json'), { chats: { 'agent-b': { title: 'Report page', choices: [{ at: '2026-11-03T14:00:00Z', text: 'Dark theme for all report pages' }] },
-    'agent-self': { title: 'This chat', choices: [{ at: '2026-11-03T14:30:00Z', text: 'Light theme here' }] } } });
-  await w.stop({ env: { PASEO_AGENT_ID: 'agent-self' } });
+    s1: { title: 'This chat', choices: [{ at: '2026-11-03T14:30:00Z', text: 'Light theme here' }] } } });
+  await w.stop();
   const prompt = w.judged[0].args[1];
   assert.match(prompt, /<elsewhere>\n2026-11-03T14:00:00Z — Report page: Dark theme for all report pages\n<\/elsewhere>/);
   assert.doesNotMatch(prompt, /Light theme here/);
@@ -66,6 +67,22 @@ test('a note from the daily is not the person\'s message: the check-in still jud
     ['user', 'From the daily: use Stripe, not PayPal (Checkout, 10:00).', NOW - 2 * MIN], ['assistant', NEXT, NOW - MIN]] });
   assert.equal((await w.stop()).why, 'keep-going');
 });
+
+for (const agent of ['claude', 'codex']) {
+  test(`${agent}: a waiting note goes back before the judge runs, counts toward the streak, and writes one journal line`, async () => {
+    const w = world({ agent });
+    appendNote({ home: w.home, key: 's1', note: { text: 'From the daily: Use Stripe (Checkout, 10:00).', title: 'Payments', stateDir: w.stateDir,
+      timezone: TZ, at: iso(NOW) } });
+    assert.deepEqual(await w.stop(), { out: { decision: 'block', reason: 'From the daily: Use Stripe (Checkout, 10:00).' }, why: 'note' });
+    assert.deepEqual([w.judged.length, w.journal()], [0, ['Told Payments: Use Stripe (Checkout, 10:00).']]);
+    assert.equal(JSON.parse(readFileSync(join(w.stateDir, 'stops', 's1.json'), 'utf8')).count, 1);
+    assert.equal((await w.stop({ now: NOW + MIN })).why, 'keep-going');
+    writeFileSync(join(w.stateDir, 'stops', 's1.json'), JSON.stringify({ count: 5, since: iso(NOW - 40 * MIN), sent: [], told: true }));
+    appendNote({ home: w.home, key: 's1', note: { text: 'From the daily: later', title: 'Payments', stateDir: w.stateDir, timezone: TZ, at: iso(NOW) } });
+    assert.equal((await w.stop({ now: NOW + 2 * MIN })).why, 'streak');
+    assert.equal(takeNotes({ home: w.home, key: 's1' }).length, 1, 'past the streak, the note waits for the person');
+  });
+}
 
 for (const agent of ['claude', 'codex']) {
   const wrapped = reply => (agent === 'codex' ? `<hook_prompt hook_run_id="r">${reply}</hook_prompt>` : `Stop hook feedback:\n${reply}`);
@@ -265,12 +282,33 @@ test('the judge run gives its output, and is stopped with its group after the ti
   assert.match((await runJudge({ command: join(tmpdir(), 'no-such-judge'), args: [], cwd: tmpdir(), env: process.env })).error, /did not start/);
 });
 
+test('the stop\'s card stays working when the check or the ask check sends the stop back, else it is idle', () => {
+  const home = temp(), dir = temp();
+  const card = () => JSON.parse(readFileSync(join(home, '.local', 'state', 'wongstack', 'chats', 's1.json'), 'utf8')).state;
+  const typed = 'Which one next?\n- Build the page (Recommended)\n- Write the docs';
+  for (const agent of ['claude', 'codex']) {
+    const { file } = chat(dir, agent, [['user', 'Build the export page.', NOW - 40 * MIN], ['assistant', NEXT, NOW - MIN]]);
+    const input = { hook_event_name: 'Stop', session_id: 's1', transcript_path: file, cwd: dir };
+    const stop = (out, more = {}) => { stopCard({ input: { ...input, ...more }, agent, out, env: {}, home, now: NOW }); return card(); };
+    assert.equal(stop({ decision: 'block', reason: 'Keep going.' }), 'working', agent);
+    assert.equal(stop(null), 'idle', agent);
+    assert.equal(stop(null, { last_assistant_message: typed }), agent === 'claude' ? 'working' : 'idle', agent);
+    assert.equal(stop(null, { last_assistant_message: typed, stop_hook_active: true }), 'idle', agent);
+  }
+});
+
 test('the hook command prints nothing and exits 0 on input it can not use; a wrong command line is a usage error', () => {
   for (const input of ['', '{}', 'not json', JSON.stringify({ transcript_path: '/no/such/file', session_id: 'x' })]) {
     const run = spawnSync(process.execPath, [SCRIPT, 'stop', '--agent', 'claude'], { input, encoding: 'utf8', env: { ...process.env, WONG_DAILY_RUN: '' } });
     assert.deepEqual([run.status, run.stdout], [0, ''], input);
   }
   assert.equal(spawnSync(process.execPath, [SCRIPT, 'stop', '--agent', 'gpt'], { input: '{}' }).status, 2);
+  const home = temp();
+  const run = spawnSync(process.execPath, [SCRIPT, 'stop', '--agent', 'codex'], { encoding: 'utf8',
+    input: JSON.stringify({ hook_event_name: 'Stop', session_id: 'chat-9', cwd: home }),
+    env: { ...process.env, HOME: home, WONG_DAILY_RUN: '', WONG_MEMORY_RUN: '', WONG_STOP_CHECK: '' } });
+  assert.deepEqual([run.status, run.stdout], [0, '']);
+  assert.equal(JSON.parse(readFileSync(join(home, '.local', 'state', 'wongstack', 'chats', 'chat-9.json'), 'utf8')).state, 'idle');
 });
 
 test('chat start starts the daily worker check, except in a background run', () => {
