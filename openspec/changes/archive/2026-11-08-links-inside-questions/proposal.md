@@ -1,7 +1,7 @@
 # A question that needs you to open something shows its link inside the question
 
-**Status:** ready-to-build
-**Branch:** greedy-stingray
+**Status:** ready-to-ship
+**Branch:** print-plan-link-in-questions
 **Open questions:** none
 
 ## Why
@@ -71,3 +71,4 @@ Nothing from you: no key, no account.
 - **2026-11-08** — Assumed: the check waits up to 2 seconds for the question's own row in the chat record before it reads, because the first live test showed Claude Code writes that row, and the text above it, just after the hook starts, so the check saw no link.
 - **2026-11-08** — Assumed: the one failing script test, a password-manager view in `hand-over.test.mjs`, is flaky and not this change's, because it passed and failed on two runs alone and this change touches no browser file; CI decides.
 - **2026-11-08** — Assumed: after you answer a question, the check counts only links shown after that answer, found by the second look, because an answer is not a typed message and a later, different question was otherwise sent back for an old link.
+- **2026-11-08** — Assumed: archived for /ship as 51.4.0, because the build, the second look and the live check were done.

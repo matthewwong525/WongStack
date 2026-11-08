@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · links-inside-questions</title>
+<title>Review · 2026-11-08-links-inside-questions</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -408,11 +408,11 @@
 })();
 </script>
 </head>
-<body data-change="links-inside-questions" data-own-back>
+<body data-change="2026-11-08-links-inside-questions" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>links-inside-questions</h1>
+  <h1>2026-11-08-links-inside-questions</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
@@ -458,6 +458,7 @@
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-08</p>Assumed: the check waits up to 2 seconds for the question's own row in the chat record before it reads, because the first live test showed Claude Code writes that row, and the text above it, just after the hook starts, so the check saw no link.</li>
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-08</p>Assumed: the one failing script test, a password-manager view in <code>hand-over.test.mjs</code>, is flaky and not this change's, because it passed and failed on two runs alone and this change touches no browser file; CI decides.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-08</p>Assumed: after you answer a question, the check counts only links shown after that answer, found by the second look, because an answer is not a typed message and a later, different question was otherwise sent back for an old link.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-08</p>Assumed: archived for /ship as 51.4.0, because the build, the second look and the live check were done.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A question that needs you to open a link shows the link
+## 51.4.0 — A question that needs you to open a link shows the link
 
 - **The link is also inside the question.** When a chat asks you to open, read, or do something at a link, such as *review the plan* or *sign in on this page*, the question itself now shows the full link. The link also stays on its own line above the question, so you can click it there. The answer buttons still only name the link, such as *Review the plan* ([end every reply with the next step](.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step)).
 - **A check catches a question with no link.** In Claude Code, just before a question goes out, a check looks at the reply. If the reply showed a link, or the plan or preview builder printed one, and the question leaves it out, the check sends the question back once. The chat then asks again with the link. You may see a short hook notice when this happens. Codex follows the written rule, with no check.
