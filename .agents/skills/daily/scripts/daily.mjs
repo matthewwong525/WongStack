@@ -401,9 +401,8 @@ function waitGone(pid, isAlive) {
   for (let waited = 0; waited < 1000 && isAlive(pid); waited += LOCK_RETRY_MS) wait(LOCK_RETRY_MS);
 }
 
-/** `{stamp, day, off, added: {key: {version, timing, checkins}}, tried: {at, stamp}, failed: {day, stamp, reason, at}}`:
- * the defaults this computer added, those check-ins paused, the off state last applied, the stamp and day a try last set
- * up every default, when `D ensure` started the try now running and for which stamp, and the last failure. */
+/** `{stamp, day, off, added, tried, failed}`: the defaults added here, the off state applied, the day and stamp a try
+ * last set up every default, the running try `{at, stamp}`, and the last failure `{day, stamp, reason, at}`. */
 export const defaultsFile = stateDir => join(stateDir, 'defaults.json');
 const listStamp = file => { try { return createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 16); } catch { return null; } };
 const RETRY_MS = 60 * 60e3;
@@ -458,10 +457,8 @@ export function startMoveIn({ home, stateDir, env, now = Date.now(), timezone, r
   return true;
 }
 
-/** Starts the unattended add of WongStack's default schedules until a try sets up every default for today's day and
- * stamp: never while a try of the same stamp runs, and an hour after a failed one unless the stamp changed. A changed
- * stamp starts a try at once. A try that ran an hour with no word is journaled as stopped. The stamp reads the list of the
- * copy whose `schedule.mjs` it starts, so the child marks the same one. */
+/** Starts the unattended add of the default schedules until a try works today; a running or failed try waits an hour
+ * unless the stamp changed. The stamp reads the started copy's list, so the child marks the same one. */
 export function startDefaults({ home, stateDir, env, now = Date.now(), timezone, run = spawn, list = join(home.dir, '..', 'references', 'schedules.json') }) {
   if (!existsSync(scheduleScript(home))) return false;
   const kept = readJson(defaultsFile(stateDir), {}), day = localDay(new Date(now), timezone), stamp = defaultsStamp(stateDir, list);
