@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — A chat that asks you in plain text asks again with tap answers
+
+- **A typed question comes back as tap answers.** While you are away, a chat that stops on a question it typed as plain text, such as *Should I keep the old page or remove it?*, is sent back once. It then asks with 2 to 4 short answers, its recommended answer first, and waits for your tap. You can also type your own answer ([check-ins](wiki/development/daily.md#check-ins)).
+- **The check-in answers a small question itself.** A small, safe decision or an obvious question, such as *should I run the tests?*, gets the plain best answer, even when the chat recommended none, and the chat goes on. A risky question, such as *send this email?*, always waits for your tap.
+- **Some stops stay as they are.** A finished plan, a sign-in, key or payment step, and a question that already has answer buttons wait for you as before. A chat that stops again with no buttons after the one send-back waits for you, so no chat goes around in a loop. The send-back counts toward the five check-ins in a row.
+
 ## 51.1.0 — The browser comes back only when you tap Hand back
 
 - **Your turn ends only when you tap *Hand back*.** The agent no longer takes its browser back when the page looks finished, such as a signed-in page or a receipt. The live view stays open through every page until you tap *Hand back*, say *done* in the chat, or the time limit passes. This applies to a sign-in, a payment, a backup code, a robot check, a stuck step, and a view you ask for ([live view](wiki/development/live-view.md#when-it-opens)).
