@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — A question that needs you to open a link shows the link
+
+- **The link is also inside the question.** When a chat asks you to open, read, or do something at a link, such as *review the plan* or *sign in on this page*, the question itself now shows the full link. The link also stays on its own line above the question, so you can click it there. The answer buttons still only name the link, such as *Review the plan* ([end every reply with the next step](.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step)).
+- **A check catches a question with no link.** In Claude Code, just before a question goes out, a check looks at the reply. If the reply showed a link, or the plan or preview builder printed one, and the question leaves it out, the check sends the question back once. The chat then asks again with the link. You may see a short hook notice when this happens. Codex follows the written rule, with no check.
+
+**Updating.** Nothing to do. If the install's own `.claude/settings.json` was changed, keep the new `PreToolUse` entry for `AskUserQuestion`.
+
 ## 51.2.0 — A chat that asks you in plain text asks again with tap answers
 
 - **A typed question comes back as tap answers.** While you are away, a chat that stops on a question it typed as plain text, such as *Should I keep the old page or remove it?*, is sent back once. It then asks with 2 to 4 short answers, its recommended answer first, and waits for your tap. You can also type your own answer ([check-ins](wiki/development/daily.md#check-ins)).

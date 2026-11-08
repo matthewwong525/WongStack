@@ -20,7 +20,7 @@ Every WongStack ask has one shape: **two or three real options, the recommended 
 
 ## Write in plain words
 
-Write every plan, question, and report in plain words, for everyone. Give more detail only when the person asks, for one reply or from now on. A standing ask goes on their person page ([the People rules](../../../../wiki/wiki-style.md#people)), never guessed from one message.
+Write every plan, question, and report in plain words, for everyone. Give more detail only when the person asks, for one reply or, [on their person page](../../../../wiki/wiki-style.md#people), from now on.
 
 - **Name what the person will see, get, lose, or risk**: *what happens to the accounts that exist today?*, not *how should the migration handle the schema?* Use no file path, identifier, command, or engineering term they did not use first.
 - **Fix before you ask.** Never offer a choice that needs judgment the reader lacks. Where the skill allows, try the fix, then ask about the outcome: *the sign-up button does not work on the preview: fix it first, or publish anyway?*
@@ -51,7 +51,7 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 
 ## End every reply with the next step
 
-**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never in the tool's question or options nor only in your reasoning; an option may name a link, never repeat it. Only a finished plan, ending on [its link and review line](#print-the-plans-link), the replies to *Review the plan* and *See the preview*, and finished work that closes end without a question.
+**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never only in your reasoning. **A question about a link repeats it whole in its question text**, as some hosts hide text above the card; an option may name a link, never hold it. Only a finished plan, ending on [its link and review line](#print-the-plans-link), the replies to *Review the plan* and *See the preview*, and finished work that closes end without a question.
 
 - Finished standalone `/explore`: *Plan it (Recommended)* / *Keep thinking* / *Stop*.
 - Blocked task: the supported ways to clear it, below the intact blocker report.
@@ -64,8 +64,8 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 
 When a reply makes or changes a plan or its checklist, print *Click here to see the plan:* and the link as [one chat line](#end-every-reply-with-the-next-step) near the top, even when the build goes on: it adds no stop. Copy the line whole from the page builder, never shortened: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file; on *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are record-keeping, not a change.
 
-**A finished plan's reply asks nothing:** it prints the builder's output as is: link, copy, then the review line, which sends a live page to its build buttons and a file to the chat. Some hosts hide text above a question card, so **any other closing question in a reply that made or changed a plan offers *Review the plan*.** Picking it starts nothing and ends the same way. Leave the copy and the review line out of every other reply.
+**A finished plan's reply asks nothing:** it prints the builder's output as is: link, copy, then the review line, which sends a live page to its build buttons and a file to the chat. **Any other closing question in a reply that made or changed a plan offers *Review the plan***, the link in its question. Picking it starts nothing and ends the same way. Leave the copy and the review line out of every other reply.
 
 ## Print the preview's link
 
-Print a preview, or any link to open, the same way: a folded reply hides its end. *Click here to see the preview:* takes the full URL of the page showing the change (`/apps/<name>/`, `/settings`), the home page only when none does. Its closing question offers *See the preview*, whose reply ends with that line and no question, and starts nothing.
+Print a preview, or any link to open, the same way: a folded reply hides its end. *Click here to see the preview:* takes the full URL of the page showing the change (`/apps/<name>/`, `/settings`), the home page only when none does. Its closing question holds the link and offers *See the preview*, whose reply ends with that line and no question, and starts nothing.
