@@ -354,8 +354,9 @@ test("each pass after the watch tells an idle chat its note once, keeps a plain 
     if (args[0] === 'send') { sent.push([args[1], readFileSync(args[3], 'utf8').trim(), args.slice(4).join(' ')]); return { ok: true }; }
     throw new Error(`unexpected ${args.join(' ')}`);
   };
-  const note = (agent, text, now = false) => ({ id: text, agent, title: agent, text, now, at: new Date().toISOString() });
-  writeFileSync(join(stateDir, 'line-up.json'), JSON.stringify({ chats: {}, notes: [note('chat-a', 'Use Stripe.'), note('chat-b', 'Sign-in is live.')] }));
+  const note = (agent, text, now = false) => ({ id: text, agent: `codex-${agent}`, paseoId: agent, way: 'paseo', title: agent, text, now,
+    at: new Date().toISOString() });
+  writeFileSync(join(stateDir, 'line-up.json'), JSON.stringify({ keys: 'chat', chats: {}, notes: [note('chat-a', 'Use Stripe.'), note('chat-b', 'Sign-in is live.')] }));
   const serve = more => serveDaily({ config, project, stateDir, call, env: { HOME: folder() }, once: true, watching: {},
     started: () => ({}), watcher: () => ({ close() {} }), ownRepo: () => true, typedAt: () => null, ...more });
   const printed = [];

@@ -10,7 +10,7 @@ import { ChatListError, chatCalls, chatClient } from '../../.agents/skills/daily
 import { SettingsError, defaultSettings, loadSettings, morningOf, placePath, settingsFor, validateConfig, validateTeam }
   from '../../.agents/skills/daily/scripts/config.mjs';
 import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
-import { REMIND, checkinsOff, commandSettings, commands, ensure, firstMessage, holds, ignoreTasks, launcherArgs, offFile, personSettings, readArgs,
+import { REMIND, checkinsOff, commandSettings, commands, ensure, firstMessage, holds, ignoreTasks, launcherArgs, markHook, offFile, personSettings, readArgs,
   start, startDefaults, startMoveIn, startReport, startServe, startedRecord, stateDirectory, stateOf, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { codeStamp } from '../../.agents/skills/daily/scripts/worker.mjs';
@@ -241,8 +241,9 @@ test('commands wire the settings: remind points to /schedule, and a handoff outs
     { status: 'handed', run: 'schedule-run-20261021T140000-ab12' });
   assert.equal((await run('status', {})).status, 'unsupported');
   assert.equal((await run('done-agent', { agent: 'a', proof: 'x' })).status, 'unsupported');
-  assert.equal((await run('line-up', {})).status, 'unsupported');
-  assert.equal((await run('tell', { drop: 'a' })).status, 'unsupported');
+  // The line-up works outside Paseo: /w/main is in no repo, so it has no chats.
+  assert.deepEqual((await run('line-up', {})).chats, []);
+  assert.deepEqual(await run('tell', { drop: 'a' }), { status: 'dropped', agent: 'a', dropped: 0 });
   const map = join(stateDir, 'map.json');
   writeFileSync(map, 'not json');
   assert.equal((await run('map', { file: map })).reason, 'map');
@@ -499,4 +500,22 @@ test('checkins off writes the off file, stops the running worker and journals it
   assert.equal((await run('checkins off')).state, 'off');
   assert.deepEqual(flips, [false, true], 'each flip starts the add of the defaults after the off file changes');
   assert.deepEqual(readLines({ stateDir }).map(entry => entry.kind), ['checkins', 'checkins', 'checkins']);
+});
+
+test("each tool's hooks run mark at start, message and stop; mark writes the card but the stop's, and keeps Paseo's stop mark", () => {
+  for (const [file, tool] of [['settings.json', 'claude'], ['hooks.json', 'codex']]) {
+    const hooks = JSON.parse(readFileSync(fileURLToPath(new URL(`../../.agents/${file}`, import.meta.url)), 'utf8')).hooks;
+    const marks = event => hooks[event].flatMap(group => group.hooks).filter(hook => hook.command.endsWith(`daily.mjs" mark --agent ${tool}`));
+    for (const event of ['SessionStart', 'UserPromptSubmit', 'Stop']) assert.equal(marks(event).length, 1, `${file} ${event}`);
+  }
+  for (const tool of ['claude', 'codex']) {
+    const home = temp('mark');
+    const env = { HOME: home, PASEO_AGENT_ID: 'agent-7' };
+    const card = () => JSON.parse(readFileSync(join(home, '.local', 'state', 'wongstack', 'chats', 'chat-1.json'), 'utf8'));
+    const events = join(home, '.wong-stack', 'agent-events', 'agent-7');
+    markHook({ tool, env, home, now: NOW.getTime(), input: { hook_event_name: 'SessionStart', session_id: 'chat-1', cwd: '/w/repo' } });
+    assert.deepEqual([card().tool, card().state, card().paseoId, existsSync(events)], [tool, 'working', 'agent-7', false]);
+    markHook({ tool, env, home, now: NOW.getTime(), input: { hook_event_name: 'Stop', session_id: 'chat-1', cwd: '/w/repo' } });
+    assert.deepEqual([card().state, existsSync(events)], ['working', true], 'the stop check writes the stop\'s card');
+  }
 });

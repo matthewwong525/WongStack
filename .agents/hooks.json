@@ -14,6 +14,11 @@
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/hand-over/scripts/helper.mjs\" start",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
+            "timeout": 3
           }
         ]
       }
@@ -24,6 +29,11 @@
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/explore/scripts/step-title.mjs\" hook --agent codex",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
             "timeout": 3
           }
         ]
@@ -46,7 +56,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
             "timeout": 3
           },
           {

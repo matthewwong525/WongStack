@@ -18,8 +18,10 @@ import { BUCKETS, allow, answer, chiefDay, chiefEnv, doneAgent, hand, mark, note
   serviceAlive, status, writeJson } from './chief.mjs';
 import { RUN_AGENTS, SettingsError, defaultSettings, loadSettings, localDay, settingsFor } from './config.mjs';
 import { addLine, format, newLines, readLines } from './journal.mjs';
+import { writeCard } from './chat-list.mjs';
 import { lineUpData, saveMap, tell } from './line-up.mjs';
 import { refuseRuns, scheduleApp, takeRuns, waitingRuns } from './schedule-runs.mjs';
+import { handOver } from './waiting-notes.mjs';
 import { DEFAULT_SCHEDULES, alive, codeStamp, dropServeLock, handOff, loadSweeps, lockedBy, morningFile, serveDaily, stopGroup,
   takeServeLock } from './worker.mjs';
 
@@ -80,7 +82,7 @@ export const PENDING_MS = 10 * 60e3;
 const wait = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 /** Runs `work` while this process holds `<file>.lock`; a lock older than 10 s is a dead run's, and is taken over. */
-function withLock(file, work) {
+export function withLock(file, work) {
   const lock = `${file}.lock`;
   mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
   for (;;) {
@@ -210,7 +212,7 @@ const USAGE = `usage: daily.mjs who | start [--dry-run] [--report] | handoff --f
        daily.mjs allow --agent <a> --request <id> --bucket keep-going|person --label <line>
        daily.mjs done-agent --agent <a> --proof <text> | note-end --line <words>
        daily.mjs line-up | map --file <json file> | tell --agent <a> --file <text file> [--now] [--covered-by <a>] | tell --drop <a>
-       daily.mjs mark
+       daily.mjs mark [--agent claude|codex]
   each but the mark hook takes --config <settings file>; a hook never fails; chief-service is serve`;
 const FLAGS = { who: [], start: ['dry-run', 'report'], handoff: ['file'], remind: ['day', 'text'],
   serve: ['agent', 'seconds', 'once', 'dry-run'], ensure: ['agent'], 'checkins off': [], 'checkins on': [], journal: ['new', 'line', 'run'], status: [],
@@ -319,13 +321,13 @@ export function commands({ config, project, stateDir, values, call, chats, env =
     allow: async () => allow({ ...(await chief()), agent: values.agent, request: values.request, bucket: values.bucket, label: values.label }),
     'done-agent': async () => doneAgent({ ...(await chief()), agent: values.agent, proof: values.proof }),
     'note-end': async () => { const { stateDir: dir, day } = await chief(); return noteEnd({ stateDir: dir, day, line: values.line }); },
-    'line-up': async () => lineUpData(await chief()),
+    'line-up': async () => lineUpData({ ...(await chief()), project }),
     map: () => {
       let read;
       try { read = JSON.parse(readFileSync(values.file, 'utf8')); } catch (error) { return { status: 'refused', reason: 'map', error: oneLine(error.message) }; }
       return saveMap({ stateDir, chats: read?.chats });
     },
-    tell: async () => tell({ ...(await chief()), agent: values.agent, text: values.file && readFileSync(values.file, 'utf8'), urgent: Boolean(values.now),
+    tell: async () => tell({ ...(await chief()), project, agent: values.agent, text: values.file && readFileSync(values.file, 'utf8'), urgent: Boolean(values.now),
       coveredBy: values['covered-by'], drop: values.drop }),
   };
 }
@@ -458,6 +460,18 @@ export function ensure({ repo = REPO, home = workerHome(repo), env = process.env
   return { state: stop ? 'restarted' : 'started' };
 }
 
+/** The `mark` hook, Claude Code or Codex: the chat's card at its start and each message; on a message, its waiting
+ * notes as added context; Paseo's stop mark on a stop or notice. The stop check writes a stop's card. Never throws. */
+export function markHook({ tool = 'claude', input = {}, env = process.env, home = homedir(), now = Date.now(), print = console.log }) {
+  const event = input.hook_event_name;
+  try {
+    if (event !== 'Stop') writeCard({ tool, input, env, home, now });
+    const notes = event === 'UserPromptSubmit' ? handOver({ home, key: input.session_id || env.CODEX_THREAD_ID, now }) : null;
+    if (notes) print(notes);
+  } catch { /* a hook never fails the chat */ }
+  if (!['SessionStart', 'UserPromptSubmit'].includes(event)) mark({ env, now: new Date(now) });
+}
+
 /** A hook's JSON input on stdin, or {}. */
 export function hookInput() {
   try { return JSON.parse(readFileSync(0, 'utf8') || '{}') ?? {}; } catch { return {}; }
@@ -473,8 +487,8 @@ export function commandSettings(command, { me, config }) {
 }
 
 async function main(args = process.argv.slice(2)) {
-  // The stop hook runs mark: it never fails the chat. A chat opened before the update still runs the old prompt hook.
-  if (args[0] === 'mark') { mark(); return; }
+  // Each chat's hooks run mark: it never fails the chat. A chat opened before the update runs the old prompt hook.
+  if (args[0] === 'mark') { markHook({ tool: args.includes('codex') ? 'codex' : 'claude', input: hookInput() }); return; }
   if (args[0] === 'journal' && args.includes('--hook')) return;
   const { command, values } = readArgs(args);
   if (command === 'ensure') {
