@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { checkin, closeItem, companyFor, listLink, probe, tapResult, upload } from '../../.agents/skills/hand-over/scripts/lib/inbox.mjs';
-import { closeInboxItem, inboxTick, openInboxItem, openReplyLink, startInbox, unlist } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
+import { closeInboxItem, closePlanPages, inboxTick, openInboxItem, openReplyLink, startInbox, unlist } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
 
 const ORIGIN = 'https://app.example.com';
 const BUILD = 'Build it now: run /apply for the plan example.';
@@ -27,6 +27,10 @@ function fakeApp(origin = ORIGIN) {
     if (route === 'items') return { items: [...app.items.values()], computerOnline: true };
     if (route === 'item') { app.items.set(body.id, body); return { id: body.id, version: body.version }; }
     if (route === 'item-close') { app.items.delete(body.id); return { id: body.id }; }
+    if (route.startsWith('reviews?')) {
+      const q = new URLSearchParams(route.slice(8)).get('q');
+      return { waiting: [...app.items.values()].filter(item => item.kind === 'plan' && item.title.includes(q)), archived: [], more: false };
+    }
     if (route.startsWith('file?')) {
       const query = new URLSearchParams(route.slice(5)), file = app.files.get(query.get('id')), n = Number(query.get('part'));
       if (!file || !(n < file.parts.length)) return null;
@@ -74,7 +78,7 @@ function waker(answer = 'notified') {
   return { woken, wake };
 }
 
-const tick = (at, app, options = {}) => inboxTick(at.state, { clientFor: async () => app.client, chats: async () => new Set(['chat-1']), wait: async () => {}, ...options });
+const tick = (at, app, options = {}) => inboxTick(at.state, { env: at.env, clientFor: async () => app.client, chats: async () => new Set(['chat-1']), wait: async () => {}, ...options });
 const reported = app => app.calls.filter(call => call.route === 'tap-result').map(call => call.body.state);
 
 test('the company client signs in from a folder\'s checkout, counts only once it names an app, and each call answers null unless it succeeded', async t => {
@@ -274,14 +278,14 @@ test('an inbox helper from older code is replaced by the next start; a current o
   const started = record();
   pids.push(started.pid);
   assert.notEqual(started.pid, old.pid);
-  assert.equal(started.protocol, 13);
+  assert.equal(started.protocol, 15);
   assert.equal(alive(old.pid), false, 'the older helper ended');
 
   const current = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1e6)'], { detached: true, stdio: 'ignore' });
   pids.push(current.pid);
-  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 13 }));
+  writeFileSync(at.state.inbox, JSON.stringify({ pid: current.pid, protocol: 15 }));
   await startInbox(at.state, at.env);
-  assert.deepEqual(record(), { pid: current.pid, protocol: 13 }, 'no second helper starts');
+  assert.deepEqual(record(), { pid: current.pid, protocol: 15 }, 'no second helper starts');
   assert.ok(alive(current.pid));
 });
 
@@ -297,7 +301,7 @@ test('a recorded pid that is not the inbox helper is a stale record: a new helpe
   const started = JSON.parse(readFileSync(at.state.inbox, 'utf8'));
   pids.push(started.pid);
   assert.notEqual(started.pid, other.pid);
-  assert.equal(started.protocol, 13);
+  assert.equal(started.protocol, 15);
   assert.ok(alive(other.pid), 'the other program is left running');
 });
 
@@ -606,4 +610,81 @@ test('a long read of one tap\'s files fails no other tap of its round, and each 
   assert.deepEqual(app.calls.filter(call => call.route === 'tap-result').map(call => [call.body.id, call.body.state]), [['t1', 'sent'], ['t2', 'sent']]);
   const order = app.calls.map(call => call.route === 'tap-result' ? call.body.id : call.route === 'item-close' ? `close ${call.body.id}` : null).filter(Boolean);
   assert.equal(order[0], 't1', 'the first is told before the second is delivered');
+});
+
+// The folders the background helper remembers, each signed in to its own app.
+const rememberFolders = (at, ...folders) => {
+  mkdirSync(join(at.dir, '.wong-stack', 'helper'), { recursive: true });
+  writeFileSync(join(at.dir, '.wong-stack', 'helper', 'folders.json'), JSON.stringify({ apps: folders.map(cwd => ({ cwd })) }));
+};
+
+test('a shipped change closes each waiting plan page of its exact title, here and in the app, wherever it was opened', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const file = join(at.dir, 'review.html');
+  writeFileSync(file, `${MARK}<title>Review · demo</title>`);
+  const mine = await openPlan(at, app, file);
+  const [elsewhere, near] = ['e', 'f'].map(n => n.repeat(32));
+  app.items.set(elsewhere, { id: elsewhere, kind: 'plan', title: 'Review · demo' });
+  app.items.set(near, { id: near, kind: 'plan', title: 'Review · demo-two' });
+  const clientFor = async () => app.client;
+  assert.equal(await closePlanPages(at.dir, 'demo', { env: at.env, clientFor }), 'closed=2');
+  assert.deepEqual([...app.items.keys()], [near], 'a near title stays');
+  assert.equal(existsSync(join(at.state.items, `${mine.id}.json`)), false, 'and the page is closed here');
+  assert.deepEqual(app.calls.filter(call => call.route.startsWith('reviews?')).map(call => call.route), ['reviews?q=demo']);
+  assert.equal(await closePlanPages(at.dir, 'demo', { env: at.env, clientFor }), 'closed=0');
+  assert.equal(await closePlanPages(at.dir, 'demo', { env: at.env, clientFor: async () => null }), 'skipped (no app is connected here)');
+  app.down = true;
+  assert.equal(await closePlanPages(at.dir, 'demo-two', { env: at.env, clientFor }), 'skipped (the Inbox did not answer)');
+});
+
+test('a page whose own close fails, then closes through the app\'s list, counts once, as closed', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const file = join(at.dir, 'review.html');
+  writeFileSync(file, `${MARK}<title>Review · demo</title>`);
+  const mine = await openPlan(at, app, file);
+  // Its chat's folder reaches no app, so only the shipping folder's list closes it.
+  const clientFor = async cwd => (cwd === at.dir ? app.client : null);
+  assert.equal(await closePlanPages(at.dir, 'demo', { env: at.env, clientFor }), 'closed=1');
+  assert.equal(app.items.has(mine.id), false);
+  assert.equal(existsSync(join(at.state.items, `${mine.id}.json`)), false, 'and its kept record goes too');
+});
+
+test('a record whose folder is deleted closes in its app through another folder; with none, it stays until its deadline', async t => {
+  const at = home(t);
+  const { a, b, folders, clientFor } = twoApps();
+  const quote = await approvalOf(at, a, 'Send the quote', { cwd: '/w/a', clientFor });
+  delete folders['/w/a'];
+  folders['/w/a2'] = a;
+  rememberFolders(at, '/w/b', '/w/a2');
+  assert.equal(await closeInboxItem(quote.id, { env: at.env, clientFor }), true);
+  assert.equal(a.items.has(quote.id), false, 'closed in its own app');
+  assert.deepEqual(callsTo(b, 'item-close'), [], 'never in the other app');
+  assert.equal(existsSync(join(at.state.items, `${quote.id}.json`)), false);
+  const van = await approvalOf(at, b, 'Book the van', { cwd: '/w/b', clientFor });
+  delete folders['/w/b'];
+  rememberFolders(at, '/w/a2');
+  assert.equal(await closeInboxItem(van.id, { env: at.env, clientFor }), true);
+  const kept = join(at.state.items, `${van.id}.json`);
+  assert.equal(JSON.parse(readFileSync(kept, 'utf8')).ended, true, 'no folder reaches its app: the record stays, ended');
+  b.taps.push(tapOn('tb', van, 'Book the van'));
+  const { woken, wake } = waker();
+  await tick(at, a, { wake, clientFor });
+  assert.ok(existsSync(kept), 'a round before its deadline keeps it');
+  assert.deepEqual(woken, [], 'and an ended item takes no tap');
+  folders['/w/b2'] = b;
+  rememberFolders(at, '/w/a2', '/w/b2');
+  await tick(at, a, { wake, clientFor });
+  assert.equal(existsSync(kept), false, 'a later round closes it once a folder reaches its app');
+  assert.equal(b.items.has(van.id), false);
+  assert.deepEqual(woken, [], 'its app reached, the ended item still takes no tap');
+  assert.ok(callsTo(b, 'checkin').every(body => !body.items.includes(van.id)), 'its taps are never collected');
+  assert.deepEqual(b.taps.map(tap => tap.id), ['tb']);
+  assert.deepEqual(callsTo(b, 'tap-result'), [], 'and none is reported delivered');
+  const late = await approvalOf(at, b, 'Pay the deposit', { cwd: '/w/b2', clientFor });
+  delete folders['/w/b2'];
+  await closeInboxItem(late.id, { env: at.env, clientFor });
+  await tick(at, a, { wake, clientFor, now: Date.now() + 11 * 3_600_000 });
+  assert.equal(readdirSync(at.state.items).length, 0, 'past its deadline it goes here; the app hides it by then');
 });

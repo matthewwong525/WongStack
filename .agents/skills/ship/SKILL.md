@@ -59,7 +59,7 @@ Any verdict but `FAILURE` → report it and merge. `FAILURE` after `/verify`'s o
 
 ## Step 5 — merge and sync
 
-Run `finish` once; allow 12 minutes. It merges the gated commit, promotes deferred [secret edits](../../../wiki/development/secrets.md), and looks at the live app. A skipped sync or a secrets error is one report line, never a failed ship. Not merged → report the error and stop, unless `NEXT:` gives a recovery; then `finish` again only on `SUCCESS` or `NONE`.
+Run `finish` once; allow 12 minutes. It merges the gated commit, promotes deferred [secret edits](../../../wiki/development/secrets.md), closes the plan's Inbox page, and looks at the live app. A skipped sync, a secrets error, or `PLAN_PAGE=skipped` is one report line, never a failed ship. Not merged → report the error and stop, unless `NEXT:` gives a recovery; then `finish` again only on `SUCCESS` or `NONE`.
 
 Merge, not rebase, unless asked. Never check out, switch, stash, reset, or force a branch to make the sync succeed, or delete a local branch.
 

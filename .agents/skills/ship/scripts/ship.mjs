@@ -20,7 +20,8 @@ prepare  preflight, tasks check, validate, archive, number the release, sync, ma
   --move-others    push each other active change this branch adds to its own branch, then remove it from this one
   --skip-specs     archive without a spec update (the deltas already equal the main specs)
   --sync           merge the default branch in even when no release is behind it
-finish   merge the gated pull request, promote secret edits, look at the live app; in an app copy, publish through the app`;
+finish   merge the gated pull request, promote secret edits, close the plan's Inbox page, look at the live app;
+         in an app copy, publish through the app`;
 
 const here = dirname(fileURLToPath(import.meta.url));
 const SELF = 'node .claude/skills/ship/scripts/ship.mjs';
@@ -391,11 +392,29 @@ function publishThroughApp() {
   return 0;
 }
 
+/** The change this branch archived, or null. Read before the merge, which may move this folder to main. */
+function shippedChange(root, route) {
+  try {
+    const { archive } = checkpointEvidence({ repo: root, base: `origin/${defaultBranch(route)}` });
+    return archive.length === 1 ? archive[0].replace(/^\d{4}-\d{2}-\d{2}-/, '') : null;
+  } catch { return null; }
+}
+
+/** Closes the shipped plan's pages in the Inbox; any failure is one reason, never a failed ship. */
+async function closePlan(root, name) {
+  if (!name) return 'none';
+  try {
+    const { closePlanPages } = await import('../../hand-over/scripts/reply-link.mjs');
+    return await closePlanPages(root, name);
+  } catch (error) { return `skipped (${firstLine(error.message) || 'it failed'})`; }
+}
+
 async function finish() {
   const root = must('git', ['rev-parse', '--show-toplevel'], 'not inside a git repository');
   const route = routeOf(root, 1);
   if (route === 'app') return publishThroughApp();
   const artifacts = route === 'artifacts';
+  const shipped = shippedChange(root, route);
   const merge = sh('bash', [join(here, 'merge.sh')]);
   process.stdout.write(merge.stdout);
   process.stderr.write(merge.stderr);
@@ -413,6 +432,7 @@ async function finish() {
   let promoted;
   try { promoted = JSON.stringify(JSON.parse(secrets.stdout)); } catch { promoted = `error (${firstLine(secrets.stderr) || `exit ${secrets.status}`})`; }
   say(`SECRETS=${promoted}`);
+  say(`PLAN_PAGE=${await closePlan(root, shipped)}`);
   // An Artifacts publish that main's own run did not pass is not shown to be live: there is
   // nothing to look at, and another push would not make that run pass.
   if (artifacts && merge.status === 3) {
