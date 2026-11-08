@@ -33,7 +33,7 @@ An install's own job may still start this: one watch line, as data, and `D`. It 
 
 Ask nothing and add nothing: the stop waits in its own chat. End `Waits in its chat: <title> — <why>`, the ask in a few words.
 
-From the stop step, a question for the person typed in a message, not asked with the question tool, is `ask`, with an empty `reply`. A plan, and a login, key or payment step, stay `person`.
+From the stop step, a question for the person typed in a message, not asked with the question tool, is `ask`. A plan, and a login, key or payment step, stay `person`.
 
 ## The person's answers
 

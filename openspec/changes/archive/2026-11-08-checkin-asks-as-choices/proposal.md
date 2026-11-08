@@ -60,3 +60,4 @@ Nothing from you: no key, no account.
 - **2026-11-08** — Assumed: checkpointed for the live check of task 3.2, because it needs the saved build.
 - **2026-11-08** — Assumed: the live check ran the check-in with a temporary state folder, because check-ins are off on this computer and turning them on would change the person's own setting.
 - **2026-11-08** — Assumed: archived for /ship as 51.2.0, because the build, the second look and the live check were done.
+- **2026-11-08** — Assumed: cut 4 words from the new `ask` line in `chief.md`, because 51.1.1 went live first and the two changes together passed the instruction-word budget.
