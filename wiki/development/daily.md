@@ -42,12 +42,14 @@ The chief of staff keeps your chats moving while you are away.
 Each chat checks its own stops, in Claude Code or Codex, in Paseo or not. When a chat stops and your last message there is more than 15 minutes old, one read-only AI run of the same tool reads the chat's last messages and sorts the stop. It never answers a chat you are typing in. The chat waits up to 4 minutes for it. Each stop lands in one bucket:
 
 1. **Keep going.** *Tests pass; next I'll update the wiki page.* It replies *keep going*.
-2. **Obvious pick.** A safe answer that stays inside the work and can be undone, or a safe command.
+2. **Obvious pick.** A safe answer that stays inside the work and can be undone, even to a small question with no recommendation, such as *run the tests?*; or a safe command.
 3. **Needs you.** Everything else waits in its own chat, where you see it.
 
 **It never approves alone** anything that sends or posts, pays or buys, publishes or merges, deletes, accepts terms, changes a business record, or shares a key, even when the agent recommends it. A finished plan waits for you, on its chat's row in [your chat list](#your-chat-list). After five check-ins in a row on one chat with no word from you, that chat waits for you.
 
-**What waits for you:** a question asked with the question tool, which holds the chat until you answer; a risky step; a finished plan; and the sixth check-in in a row. Each check-in writes one line to [the journal](#the-journal).
+**A question typed for you comes back once as tap answers**, recommended first, unless the check-in can pick it. You tap one, or type your own. A risky question gets buttons too. A chat that stops again with no buttons waits for you.
+
+**What waits for you:** a question asked with the question tool; a risky step; a finished plan; and the sixth check-in in a row. Each check-in writes one line to [the journal](#the-journal).
 
 **Turn check-ins off** with *stop check-ins* in any chat, or `D checkins off`: every chat in this checkout then stops for you, and the worker stops too. A background schedule run due then does not start, and the Inbox says *check-ins are off*. The [default schedules](../stack/host-schedules.md#default-schedules) you did not change wait *Paused*, so they add no such runs. *Start check-ins*, or `D checkins on`, turns them back on, and the defaults with them.
 

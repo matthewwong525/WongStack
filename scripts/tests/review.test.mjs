@@ -411,6 +411,23 @@ test('--link prints the reply link in the same line, with the plan\'s header and
   }
 }));
 
+test('--link on a shipped change prints its saved file, and opens no page that waits on the person', () => fixture(root => {
+  const archived = join(dirname(root), 'openspec', 'changes', 'archive', '2026-11-08-example');
+  mkdirSync(dirname(archived), { recursive: true });
+  renameSync(root, archived);
+  const home = join(dirname(root), 'home');
+  const bin = join(home, 'bin');
+  mkdirSync(bin, { recursive: true });
+  fakeTunnel(bin, join(home, 'calls.log'));
+  fakePaseo(bin, join(home, 'sent.jsonl'));
+  const env = { ...process.env, ...TUNNEL_ENV, REPLY_LINK: '', PASEO_AGENT_ID: 'a-chat', PASEO_HOME: '', PASEO_HOST: '', HANDOVER_PASEO_BIN: '', HOME: home, PATH: `${bin}:/usr/bin:/bin` };
+  const out = spawnSync(process.execPath, [builder, archived, '--require-current', '--link'], { encoding: 'utf8', env, timeout: 30_000 });
+  assert.equal(out.status, 0, out.stderr);
+  assert.match(out.stdout, new RegExp(`^${planLink(join(resolve(archived), 'review.html')).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'));
+  assert.equal(existsSync(join(home, '.wong-stack')), false, 'no link opened');
+  renameSync(archived, root);
+}));
+
 test('the review line sends a live page to its buttons and a file to the chat', () => {
   assert.equal(REVIEW_ON_PAGE, 'Review the plan, then tap Build it or Build and publish on its page.');
   assert.equal(REVIEW_IN_CHAT, 'Review the plan. When you\'re ready, say "build it" or "build and publish".');

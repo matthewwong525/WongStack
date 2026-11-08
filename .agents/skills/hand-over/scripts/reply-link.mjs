@@ -14,7 +14,7 @@ import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { lookCss } from '../../plan/scripts/look.mjs';
 import { computerId, readApps, rememberApp } from './lib/computer.mjs';
 import { logAction } from './lib/helper-log.mjs';
-import { checkin, closeItem, companyFor, inTime, listLink, openSocket, probe, readFile, tapResult, upload } from './lib/inbox.mjs';
+import { checkin, closeItem, companyFor, inTime, listLink, openSocket, probe, readFile, tapResult, upload, waitingReviews } from './lib/inbox.mjs';
 import { appLines, nextPoll, waiter } from './lib/line.mjs';
 import { bytesRefused, FILE_LIMITS, filesLines, nameRefused, removeFile, saveFile, savedPath, uploadsFor } from './lib/uploads.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
@@ -23,7 +23,7 @@ import { canWake, chatTarget, liveChats, wakeChat } from './lib/wake.mjs';
 const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [--action <name>=<message>]... [--uploads <dir>]
        reply-link.mjs item --title "<words>" --header "<line>" [--hours N] [--action <name>=<message>]...
                       [--hidden] [--keep-open] [--stop "<message>"]
-       reply-link.mjs close <file> | list
+       reply-link.mjs close <file> | close-plan <change> | list
   open    show one self-contained HTML file at a link that closes itself and print
           REPLY_LINK=<url>; its page sends text to this chat under the header line.
           A plan's review page opens in the live app's inbox when it answers this person;
@@ -41,12 +41,14 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
           --keep-open: a tap leaves it open, and moves its close to --hours from then
           --stop: the one message this chat gets when it closes at its time
   close   close the file's link
+  close-plan  close each plan page titled "Review · <change>" waiting in the app, wherever it was
+          opened; prints PLAN_PAGE=closed=<n> or PLAN_PAGE=skipped (<reason>)
   list    print each open page's file and when it closes`;
 export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300, actions: 6 };
 const HOURS = 24;
 // Raised when the server or inbox helper changes: one from older code is swapped for this one. Every project on the
 // computer shares both, so a copy that changes either raises it past every other copy's number.
-export const PROTOCOL = 13;
+export const PROTOCOL = 15;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act|file)?$/;
@@ -497,24 +499,34 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
   return { id: item.id, link: `${origin}/apps/inbox/?item=${item.id}` };
 }
 
-/** Closes the item in the app and here. */
-async function endItem(state, client, item) {
-  rmSync(itemFile(state, item.id), { force: true });
-  if (client) await closeItem(client, item.id);
+/** Closes the item in the app, then here; true once the app took it. Until then, or its deadline, it stays here
+ * marked ended, so each round tries the close again and no tap reaches it. */
+async function endItem(state, client, item, now = Date.now()) {
+  const closed = Boolean(client && await closeItem(client, item.id));
+  if (closed || item.deadline <= now) rmSync(itemFile(state, item.id), { force: true });
+  else keepItem(state, { ...item, ended: true });
+  return closed;
 }
 
 /** The app an item or listed page was put in; one from older code names none, and was opened from its chat's folder. */
 const appOf = record => record.app ?? { cwd: record.target?.cwd };
 
-/** Each record's client, signed in from its app's folder once per folder; null when that folder can't sign in, or
- * now signs in to another app than the record's, which must never get this one's ids. */
-function clientsFor(clientFor) {
+/** Each record's client, signed in from its app's folder once per folder, else from a remembered folder signed in to
+ * the record's app; null when none is, as another app must never get this one's ids. */
+function clientsFor(clientFor, env = process.env) {
   const byFolder = new Map();
+  const signIn = cwd => { if (!byFolder.has(cwd)) byFolder.set(cwd, clientFor(cwd)); return byFolder.get(cwd); };
+  const fits = (client, origin) => Boolean(client && (!origin || client.target() === origin));
   return async record => {
     const { cwd, origin } = appOf(record);
-    if (!byFolder.has(cwd)) byFolder.set(cwd, clientFor(cwd));
-    const client = await byFolder.get(cwd);
-    return client && (!origin || client.target() === origin) ? client : null;
+    const own = await signIn(cwd);
+    if (fits(own, origin)) return own;
+    // A closed chat's folder is deleted; its item still reaches its app through another folder.
+    for (const app of origin ? readApps(env) : []) {
+      const client = await signIn(app.cwd);
+      if (fits(client, origin)) return client;
+    }
+    return null;
   };
 }
 
@@ -522,8 +534,29 @@ function clientsFor(clientFor) {
 export async function closeInboxItem(id, { env = process.env, clientFor = companyFor } = {}) {
   const state = files(env);
   const item = readItem(state, id);
-  if (item) await endItem(state, await clientsFor(clientFor)(item), item);
+  if (item) await endItem(state, await clientsFor(clientFor, env)(item), item);
   return Boolean(item);
+}
+
+/** Closes each plan page titled `Review · <name>`: this computer's own, then each still waiting in the app of the
+ * folder `cwd`, wherever it was opened. Answers `closed=<n>`, or `skipped (<reason>)`. */
+export async function closePlanPages(cwd, name, { env = process.env, clientFor = companyFor } = {}) {
+  const title = `Review · ${name}`;
+  const state = files(env);
+  const clientOf = clientsFor(clientFor, env);
+  // Page id → closed: a page whose own close failed and the app's list then closed counts once, as closed.
+  const pages = new Map();
+  for (const item of openItems(state).filter(open => open.title === title)) pages.set(item.id, await endItem(state, await clientOf(item), item));
+  const client = await clientFor(cwd);
+  const waiting = client && await waitingReviews(client, name);
+  if (!waiting) return `skipped (${client ? 'the Inbox did not answer' : 'no app is connected here'})`;
+  for (const review of waiting.filter(page => page.title === title)) {
+    const done = Boolean(await closeItem(client, review.id));
+    if (done && pages.has(review.id)) rmSync(itemFile(state, review.id), { force: true });
+    pages.set(review.id, pages.get(review.id) || done);
+  }
+  const closed = [...pages.values()].filter(Boolean).length, missed = pages.size - closed;
+  return missed ? `skipped (${missed} of ${pages.size} did not close)` : `closed=${closed}`;
 }
 
 /** The tap's files, each read from the app, checked as a tunnel's are, and saved in the item's uploads folder; null
@@ -590,7 +623,7 @@ async function report(reported) {
   return [...reported.values()].some(untold);
 }
 
-const isEnded = (item, body, { live, now }) => item.deadline <= now || body === null || Boolean(live && !live.has(item.target?.agentId));
+const isEnded = (item, body, { live, now }) => item.ended || item.deadline <= now || body === null || Boolean(live && !live.has(item.target?.agentId));
 
 /** The items whose taps can go this round, by app origin: `origin → {client, items}`. One that ran out, lost its chat
  * or its file closes; one whose app can't be reached waits, as does a rebuilt plan the app has not taken. */
@@ -604,8 +637,8 @@ async function readyApps(state, { clientOf, chats, now, wake }) {
     const body = bodyOf(item);
     if (isEnded(item, body, { live, now })) {
       // Only an item that ran out of time tells its chat, once: a lost chat or file has no one to tell.
-      if (item.stop && item.deadline <= now && body !== null && !(live && !live.has(item.target?.agentId))) await wake(item.target, item.stop);
-      await endItem(state, client, item);
+      if (item.stop && !item.ended && item.deadline <= now && body !== null && !(live && !live.has(item.target?.agentId))) await wake(item.target, item.stop);
+      await endItem(state, client, item, now);
       continue;
     }
     if (!client) continue;
@@ -628,9 +661,9 @@ async function reachable(state, clientOf) {
 
 /** One inbox round, each item through its own app: close what ran out, re-upload rebuilt plans, deliver taps.
  * `reported` and `lastWake` carry across rounds. Resolves to the open items whose app answers. */
-export async function inboxTick(state, { clientFor, wake = wakeChat, chats = liveChats, now = Date.now(), reported = new Map(),
-  lastWake = new Map(), wait = sleep, log = () => {} }) {
-  const clientOf = clientsFor(clientFor);
+export async function inboxTick(state, { clientFor, env = process.env, wake = wakeChat, chats = liveChats, now = Date.now(),
+  reported = new Map(), lastWake = new Map(), wait = sleep, log = () => {} }) {
+  const clientOf = clientsFor(clientFor, env);
   const earlier = report(reported);
   const apps = [...(await readyApps(state, { clientOf, chats, now, wake })).values()];
   // Side by side: an app that never answers would otherwise hold another's taps past DELIVER_MS.
@@ -669,7 +702,7 @@ async function serveApp(state, { client, items }, { wake, reported, lastWake, wa
 /** The apps to keep a line to, `origin → {client, roots}`: each open item's app, and in service mode each remembered
  * one. `roots` are the primary checkouts signed in to that app, where its schedule records live. */
 async function watchedApps(state, { clientFor, env, service }) {
-  const clientOf = clientsFor(clientFor);
+  const clientOf = clientsFor(clientFor, env);
   const apps = new Map();
   const add = (client, cwd) => {
     let origin;
@@ -723,10 +756,10 @@ function takeInbox(state) {
 
 /** True once this helper may end, no item reaching its app. Its record goes first: an item written meanwhile
  * starts a new helper, or is taken up here. */
-async function released(state, clientFor) {
+async function released(state, clientFor, env) {
   if (readJson(state.inbox)?.pid !== process.pid) return true;
   rmSync(state.inbox, { force: true });
-  if (!(await reachable(state, clientsFor(clientFor)))) return true;
+  if (!(await reachable(state, clientsFor(clientFor, env)))) return true;
   writeInbox(state, process.pid);
   return false;
 }
@@ -748,11 +781,11 @@ export async function serveInbox({ service = false, env = process.env, clientFor
       try {
         const apps = await watchedApps(state, { clientFor, env, service });
         lines.sync(new Map([...apps].map(([origin, app]) => [origin, app.client])));
-        count = await inboxTick(state, { clientFor, ...memory });
+        count = await inboxTick(state, { clientFor, env, ...memory });
         if (service) await scheduleRounds(apps, { rounds, computer, log, mirrored });
       } catch (error) { if (!service) throw error; }
       const owed = [...memory.reported.values()].some(untold);
-      if (!service && !count && !owed && await released(state, clientFor)) return;
+      if (!service && !count && !owed && await released(state, clientFor, env)) return;
       await wakeUp.wait(pollFor(lines.allOpen() && !owed, env), stop);
       await rest(started, roundGap, stop);
     }
@@ -857,7 +890,7 @@ function list() {
 if (isMain(import.meta.url)) {
   const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' }, action: { type: 'string', multiple: true }, service: { type: 'boolean' },
     title: { type: 'string' }, hidden: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, stop: { type: 'string' }, uploads: { type: 'string' } } });
-  const takes = { open: 1, item: 0, close: 1, list: 0, serve: 2, 'serve-inbox': 0 }[command];
+  const takes = { open: 1, item: 0, close: 1, 'close-plan': 1, list: 0, serve: 2, 'serve-inbox': 0 }[command];
   if (takes === undefined || rest.length !== takes) usageError(USAGE, command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const hours = Number(values.hours ?? HOURS);
   if (!(hours > 0)) usageError(USAGE, '--hours must be a positive number');
@@ -873,7 +906,8 @@ if (isMain(import.meta.url)) {
   let actions;
   try { actions = checkActions((values.action ?? []).map(pair => pair.split(/=(.*)/s).slice(0, 2))); } catch (error) { usageError(USAGE, error.message); }
   const itemSpec = { title, header, actions, hours, hidden: Boolean(values.hidden), keepOpen: Boolean(values['keep-open']), stop };
-  await { open: () => open(rest[0], { header, actions, hours, uploads: values.uploads }), item: () => putItem(itemSpec), close: () => close(rest[0]), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': () => serveInbox({ service: Boolean(values.service) }) }[command]();
+  await { open: () => open(rest[0], { header, actions, hours, uploads: values.uploads }), item: () => putItem(itemSpec), close: () => close(rest[0]),
+    'close-plan': async () => console.log(`PLAN_PAGE=${await closePlanPages(process.cwd(), rest[0])}`), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': () => serveInbox({ service: Boolean(values.service) }) }[command]();
   // An app call past its 3 s wait would keep the process, and the chat's answer, alive until it fails.
-  if (opens || command === 'close') process.exit(process.exitCode ?? 0);
+  if (opens || command === 'close' || command === 'close-plan') process.exit(process.exitCode ?? 0);
 }

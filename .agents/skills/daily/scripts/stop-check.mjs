@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// The Stop hook's check-in, Claude Code and Codex: while the person is away, one read-only AI run judges the stop, and
-// a keep-going or safe pick goes back as the chat's next turn. wiki/development/daily.md#check-ins
+// The Stop hook's check-in, Claude Code and Codex: while the person is away, one read-only AI run judges the stop,
+// and a keep-going, safe pick or typed question to ask by tap goes back as a turn. wiki/development/daily.md#check-ins
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
@@ -23,6 +23,18 @@ const BRIEF = fileURLToPath(new URL('../references/briefs/stop-judge.md', import
 export const JUDGE_MS = 240e3;
 const TAIL_MESSAGES = 40, TAIL_CHARS = 60_000, TAIL_BYTES = 100_000, KEPT_REPLIES = 5;
 const MOVES = ['keep-going', 'pick'];
+const JUDGED = [...BUCKETS, 'ask'];
+const ASK_TOOLS = { claude: 'AskUserQuestion', codex: 'request_user_input' };
+
+/** The fixed send-back for an `ask`: the chat writes the question and options itself, with its own tool's name. */
+export function askText(agent) {
+  const tool = ASK_TOOLS[agent] ?? ASK_TOOLS[RUN_AGENTS[0]];
+  return `The person is away and answers by tap. Ask what you need from them now with ${tool}: 2 to 4 short options, `
+    + `your recommended one first, marked (Recommended). Don't repeat the report. If ${tool} isn't callable here, end the turn and say nothing more.`;
+}
+
+// Question-tool calls so far, from the raw file: a tap is a tool result, never the person's message.
+const askCalls = (file, agent) => readFileSync(file, 'utf8').split(`"name":"${ASK_TOOLS[agent]}"`).length - 1;
 
 /** The judge's data: the last 40 messages, cut to 60,000 characters and to what one command-line argument holds. */
 export function tailOf(messages, last = '') {
@@ -39,7 +51,7 @@ export function judgeLine(stdout) {
   const last = String(stdout ?? '').split('\n').map(each => each.trim()).filter(each => each && !each.startsWith('```')).at(-1);
   let answer;
   try { answer = JSON.parse(last); } catch { return null; }
-  if (!BUCKETS.includes(answer?.bucket) || typeof answer.line !== 'string') return null;
+  if (!JUDGED.includes(answer?.bucket) || typeof answer.line !== 'string') return null;
   if (MOVES.includes(answer.bucket) && !(typeof answer.reply === 'string' && answer.reply.trim())) return null;
   return answer;
 }
@@ -88,7 +100,7 @@ export async function stopCheck({ input, agent = RUN_AGENTS[0], env = process.en
   const chat = readChat(input.transcript_path, saved.sent);
   if (agent === 'claude' && stopDecision(input, env)) return skip('ask-check');
   const since = chat.person.at(-1)?.at ?? null;
-  const streak = saved.since === since ? saved : { ...saved, count: 0, since, told: false };
+  const streak = saved.since === since ? saved : { ...saved, count: 0, since, told: false, asked: false };
   if (since && now - Date.parse(since) < HOLD_MS) { writeJson(file, { ...streak, count: 0 }); return skip('person here'); }
   const title = chatTitle({ env, cwd: input.cwd, home });
   const journal = line => addLine({ stateDir, timezone: config.timezone, line, kind: 'checkin', title, now: new Date(now) });
@@ -107,10 +119,18 @@ export async function stopCheck({ input, agent = RUN_AGENTS[0], env = process.en
     journal(`No check-in: ${title} — ${ran.timeout ? 'the check ran past 4 minutes' : ran.error ?? 'the check gave no answer'}`);
     return skip('no answer');
   }
+  // One send-back until the person writes or the chat uses the question tool: a chat that can not show it then waits.
+  const calls = askCalls(input.transcript_path, agent);
+  if (answer.bucket === 'ask' && Number.isInteger(streak.asked) && calls <= streak.asked) {
+    journal(`Waits in its chat: ${title} — asked once with no question tool`);
+    return skip('asked');
+  }
   journal(answer.line.trim() || `${answer.bucket}: ${title}`);
-  if (!MOVES.includes(answer.bucket)) return skip('person');
-  writeJson(file, { ...streak, count: streak.count + 1, sent: [...streak.sent, answer.reply.trim()].slice(-KEPT_REPLIES) });
-  return { out: { decision: 'block', reason: answer.reply.trim() }, why: answer.bucket };
+  if (answer.bucket !== 'ask' && !MOVES.includes(answer.bucket)) return skip('person');
+  const reply = answer.bucket === 'ask' ? askText(agent) : answer.reply.trim();
+  writeJson(file, { ...streak, count: streak.count + 1, asked: answer.bucket === 'ask' ? calls : streak.asked,
+    sent: [...streak.sent, reply].slice(-KEPT_REPLIES) });
+  return { out: { decision: 'block', reason: reply }, why: answer.bucket };
 }
 
 if (isMain(import.meta.url)) {
