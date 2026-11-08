@@ -147,23 +147,6 @@ export const fieldScript = selector => `(() => { let field; try { field = docume
 /** Counts a selector's matches in the main page. */
 export const countScript = selector => `(() => { try { return document.querySelectorAll(${JSON.stringify(selector)}).length; } catch (error) { if (error.name === 'SyntaxError') return ${JSON.stringify(BAD_SELECTOR)}; throw error; } })()`;
 
-/** Counts a selector's shown matches in the main page, by the click pick's test: a size, and `visibility: visible`. A
- * `display: none` box, or one inside it, has no size. It runs in the page, so it uses nothing outside itself. */
-export function shownCount(document, selector, bad) {
-  let found;
-  try { found = [...document.querySelectorAll(selector)]; } catch (error) { if (error.name === 'SyntaxError') return bad; throw error; }
-  return found.filter(element => {
-    const { width, height } = element.getBoundingClientRect();
-    return width > 0 && height > 0 && document.defaultView.getComputedStyle(element).visibility === 'visible';
-  }).length;
-}
-
-/** True when the main page's shown text holds `words`, case and spaces aside. It runs in the page. */
-export function hasWords(document, words) {
-  const plain = text => String(text ?? '').toLowerCase().replace(/\s+/g, ' ').trim();
-  return plain(document.body?.innerText).includes(plain(words));
-}
-
 /** A box's text as the snapshot quotes it, unquoted, with its spaces as Playwright collapses them. */
 function plain(text) {
   let unquoted = text;
@@ -724,10 +707,6 @@ export function client(given, { retry = true, start = true } = {}) {
     enter: target => act('type', target, { text: '', mode: 'keyboard', pressEnter: true }),
     url: async () => noteUrl(await evaluate('location.href')),
     count: selector => bySelector(selector, countScript(selector)),
-    /** The selector's matches a person can see: a hidden card frame counts 0. */
-    countShown: selector => bySelector(selector, `(${shownCount})(document, ${JSON.stringify(selector)}, ${JSON.stringify(BAD_SELECTOR)})`),
-    /** True when the page shows `words`; it reads no text back. */
-    hasText: async words => (await evaluate(`(${hasWords})(document, ${JSON.stringify(words)})`)) === true,
     /** The page's size, `[width, height]`; on the password manager's page, the size the site gets back. */
     size: () => evaluate('[innerWidth, innerHeight]').catch(error => error.size ?? Promise.reject(error)),
     /** Each ref's box at the last snapshot, as `refNames` gives it; `{}` before one. */

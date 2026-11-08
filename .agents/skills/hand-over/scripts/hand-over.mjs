@@ -25,24 +25,20 @@ import { checkView, endView, installView, liveView, MANUAL, OFF_LINUX, reply, sc
 
 export { keyMatches, tunnelOrigin } from './lib/tunnel.mjs';
 
-const USAGE = `usage: hand-over.mjs open --view <finish> --note <line> [--session <name>] [--minutes N]
-       hand-over.mjs open --view --keep-open --note <line> [--session <name>] [--minutes N]
+const USAGE = `usage: hand-over.mjs open --view --note <line> [--session <name>] [--minutes N]
        hand-over.mjs open --watch [--session <name>] [--note <line>] [--minutes N]
        hand-over.mjs open --keys NAME[,NAME] [--guide <file>] [--minutes N]
        hand-over.mjs wait | close [--stopped] | install-view
-       hand-over.mjs line <text> | turn <finish> --note <line>
+       hand-over.mjs line <text> | turn --note <line>
   open    start the private link, print HANDOVER_LINK=<url> once it answers through
           Cloudflare, then HANDOVER_SEND=<reminder to end the turn with the link>, list its address
-          in the app's inbox, and watch for the finish
+          in the app's inbox, and watch until it ends
           --view: the person's turn in the browser, as a live view of the --session page: a
           payment, a backup code, a sign-in, a check that asks whether a person is there, or a
           stuck step; the person types or pastes on the real site, and the agent sees nothing
           until the turn ends; the page shows --note as its one line (what to do now), with
-          Hand back; open for 480 minutes
-          <finish>: one or more of --until <glob> (the address), --until-gone <selector>
-          (no match shown), and --until-text <words> (shown on the page); all must hold
-          --keep-open, in place of a finish: the turn ends only on Hand back, close, or the time
-          limit; it reads no finish
+          Hand back; the turn ends only on Hand back, close, or the time limit, never on a page
+          change; open for 480 minutes
           HANDOVER_VIEW=window, with no link, where the browser shows in its own window: the
           task's tab is brought to the front and held there, the person does the step there
           and says done in the chat, and close ends the turn; while a turn is open, no other
@@ -50,10 +46,10 @@ const USAGE = `usage: hand-over.mjs open --view <finish> --note <line> [--sessio
           screen to show, and HANDOVER_NEEDS=live-view (exit 3) with a line per missing tool
           --watch: a live view the agent drives while the person watches, as one
           for connecting tools: the person's taps reach the browser only after they
-          tap Take over, or on their turn; it reads no finish and ends at close;
+          tap Take over, or on their turn; it ends at close;
           open for 480 minutes, the one live view as --view is; where the browser
           shows in its own window, HANDOVER_VIEW=window with no link: the person
-          watches that window, and a turn is theirs there until its finish or close
+          watches that window, and a turn is theirs there until close
           --keys: one box per declared name; it ends on cancellation or
           once every key is saved (exit 2 with KEYS_UNDECLARED= or KEYS_AMBIGUOUS=);
           an unopened one gives way to a new open from the same chat
@@ -61,17 +57,17 @@ const USAGE = `usage: hand-over.mjs open --view <finish> --note <line> [--sessio
           steps, and check {url, auth}, shown on the key page (exit 2 with KEYS_GUIDE=)
           --minutes: time limit for any link, default 1440 (24 hours); 480 for --view
   wait    block until the link closes; print HANDOVER_RESULT=done|handed-back|closed|timeout|error:
-          for a view, done when the page meets the finish, handed-back on Hand back (or close of a
-          window); then HANDOVER_SAVED=<name>,<name>,
+          done for a key link's save, handed-back for a view's Hand back (or close of a window);
+          then HANDOVER_SAVED=<name>,<name>,
           HANDOVER_APP_KEYS=<name>,<name> and HANDOVER_OPENED=yes|no (whether
           anyone opened it) for a key link, then HANDOVER_REPLACED_BY=<folder>
           for a key link that gave way to a newer link from this same chat
   close   close an open link (the person said done); --stopped ends a watch as stopped
   line    set the one line a watch link shows: what the agent does now (exit 1 with no watch open)
-  turn    give a watch link's browser to the person, as for a sign-in, until the page meets the
-          finish or they tap Hand back; --note is what to do (exit 1 unless the agent holds it)
+  turn    give a watch link's browser to the person, as for a sign-in, until they tap Hand back
+          (close, in a window); --note is what to do (exit 1 unless the agent holds it)
   wait on a watch link prints each change once, as HANDOVER_RESULT=opened (the page's first
-          load), taken-over, handed-back, or signed-in (a turn's finish), and at the end done
+          load), taken-over, or handed-back, and at the end done
           (close), stopped (close --stopped), or timeout
   install-view
           add the live view's tools once the person agrees: prints
@@ -80,7 +76,7 @@ const USAGE = `usage: hand-over.mjs open --view <finish> --note <line> [--sessio
 // Chat apps often hide text between tool calls; only the turn's last message shows for sure.
 const SEND_REMINDER = 'Run wait in the background, then end this turn with the link above on its own line; text between tool calls may not show.';
 const WINDOW_REMINDER = 'Run wait in the background, then end this turn telling the person what to do in the browser window, and to say done there in the chat; on done, run close.';
-/** The longest --note or --until-text. */
+/** The longest --note. */
 const NOTE_MOST = 140;
 /** How a view ends by the person's own hand: each wakes the chat. */
 const PERSON_ENDS = new Set(['done', 'handed-back']);
@@ -118,25 +114,7 @@ const pages = name => ({
 });
 const PAGES = { keys: pages('keys-page'), view: pages('view-page') };
 const ROUTES = { keys: KEY_ROUTES, view: VIEW_ROUTES };
-/** Why a view can not open on a page that already meets its finish. */
-const MET = 'The page already meets the finish, so the view would close at once; name where the site goes once the person is through.';
 const sleep = ms => new Promise(done => setTimeout(done, ms));
-
-/** A URL glob as a whole-string RegExp: `**` any run, `*` anything but `/`. */
-export function globToRegExp(glob) {
-  const body = glob.split('**').map(part => part.split('*').map(text => text.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('[^/]*')).join('.*');
-  return new RegExp(`^${body}$`);
-}
-
-/** True when the finish is met: every named check holds, and at least one was named. `until` is one glob, or a list
- * of which any one matches, as a sign-in turn's exact key page with or without a query. */
-export function finished({ until, untilGone, untilText }, { url, count, text }) {
-  if (!until && !untilGone && !untilText) return false;
-  if (until && !(url != null && [until].flat().some(glob => globToRegExp(glob).test(url)))) return false;
-  if (untilGone && count !== 0) return false;
-  if (untilText && text !== true) return false;
-  return true;
-}
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
 const readText = file => { try { return readFileSync(file, 'utf8'); } catch { return ''; } };
@@ -173,12 +151,12 @@ export function setLine(text) {
   return true;
 }
 
-/** Gives the watch's browser to the person until the page meets `finish` or they hand it back, with `note` on the
- * page; false unless the agent holds it. */
-export function startTurn(finish, note) {
+/** Gives the watch's browser to the person until they hand it back, with `note` on the page; false unless the agent
+ * holds it. */
+export function startTurn(note) {
   if (watchControl() !== 'assistant') return false;
   const n = Math.max(readJson(FILES.turn)?.n ?? 0, readJson(FILES.control)?.turnDone ?? 0) + 1;
-  writeWhole(FILES.turn, { n, ...finish, note });
+  writeWhole(FILES.turn, { n, note });
   return true;
 }
 
@@ -287,26 +265,6 @@ async function pageAnswers(port, pid) {
   return false;
 }
 
-/** What the tab gives while it shows the password manager's own page, which no one reads: no finish is met there. */
-const ON_ADDON = { url: 'moz-extension:', count: null, text: false };
-/** A failed read's value: the password manager's when its page shows, else `failed`. */
-const orAddon = (name, failed) => error => (error?.addonPage ? ON_ADDON[name] : failed);
-/** The page's address, or null when it can not be read. */
-const urlOf = page => page.url().catch(orAddon('url', null));
-
-/** What a finish is judged by: the page's address, the named element's shown count, and whether the named words
- * show, each read only when named. An address or words that can not be read are null, and a count NaN. */
-export async function seen(page, { until, untilGone, untilText }) {
-  return {
-    ...(until && { url: await urlOf(page) }),
-    ...(untilGone && { count: await page.countShown(untilGone).then(Number, orAddon('count', NaN)) }),
-    ...(untilText && { text: await page.hasText(untilText).catch(orAddon('text', null)) }),
-  };
-}
-
-/** True when a read failed: the page is gone, or the browser didn't answer. */
-const unread = now => now.url === null || Number.isNaN(now.count) || now.text === null;
-
 /** The `--guide` file's entries for `names`, or null once it has said why not. */
 function readGuide(file, names) {
   const { guide, fault } = checkGuide(readJson(file), names);
@@ -354,12 +312,10 @@ async function givesWay(pid) {
   return !alive(pid);
 }
 
-/** Why a link with a finish can not open on `page`, or null: no page, or a finish already met (`met`). */
-export async function pageFault(page, finish, met) {
-  const named = Boolean(finish.until || finish.untilGone || finish.untilText);
-  const now = named ? await seen(page, finish) : { url: await urlOf(page) };
-  if (unread(now)) return 'No page is open in this browser session; open the site\'s page with browse.mjs first, or name its --session.';
-  return finished(finish, now) ? met : null;
+/** Why a view can not open on `page`, or null: no page answers. The password manager's own page counts as one. */
+export async function pageFault(page) {
+  const open = await page.url().then(() => true, error => Boolean(error?.addonPage));
+  return open ? null : 'No page is open in this browser session; open the site\'s page with browse.mjs first, or name its --session.';
 }
 
 /** Says this computer can not show the browser, and resolves to exit code 1. */
@@ -380,15 +336,15 @@ function viewRefusal() {
   return 3;
 }
 
-/** A view's state for the session's page, its screen source started; one `keepOpen`, or a `watch`, reads no finish.
- * Null, once it has said so, when the browser has no screen. Throws when the source does not start. */
-async function openView(session, note, keepOpen = false, watch = false) {
+/** A view's state for the session's page, its screen source started. Null, once it has said so, when the browser has
+ * no screen. Throws when the source does not start. */
+async function openView(session, note, watch = false) {
   const display = screenOf();
   if (!display) return void unsupported('The browser has no screen to show.');
   // On the password manager's page, the size is the one the site gets back; an older browser server gives none.
   const size = await pageOf(session).size().catch(error => (error.addonPage ? null : Promise.reject(error)));
   // The screen's socket stays in the computer's place: a long chat folder would pass the 108-character socket limit.
-  return { note: note ?? null, ...(keepOpen && { keepOpen }), ...(watch && { watch }), size, display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
+  return { note: note ?? null, ...(watch && { watch }), size, display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
 }
 
 /** Adds the live view's tools and says how it went; resolves to the exit code. */
@@ -486,7 +442,6 @@ async function startLink(values, keys) {
   let tunnelPid = null;
   let watcher = null;
   let view = null;
-  const finish = { until: values.until ?? null, untilGone: values['until-gone'] ?? null, untilText: values['until-text'] ?? null };
   const session = values.view ? sessionName(values.session) : null;
   const fail = async message => {
     if (message) console.error(message);
@@ -494,15 +449,15 @@ async function startLink(values, keys) {
     await teardown('error', { tunnelPid, view, session });
     return 1;
   };
-  const fault = session && (await pageFault(pageOf(session), finish, MET));
+  const fault = session && (await pageFault(pageOf(session)));
   if (fault) return fail(fault);
   // The task's tab comes to the front first; a turn holds it there, so no other task's tab takes its place.
   const busy = session && (await pageOf(session).front(values.watch ? {} : { turn: true }).then(() => null, error => (BUSY.test(error.message) ? error : null)));
   if (busy) return fail('The person is using the browser in another chat\'s tab; open this view once their turn ends.');
   const completionId = randomBytes(16).toString('hex');
   if (window) {
-    view = { note: values.note, ...(values['keep-open'] && { keepOpen: true }), ...(values.watch && { watch: true }), window: true };
-    writeState({ completionId, ...chatTarget(), session, view, ...finish, deadline });
+    view = { note: values.note, ...(values.watch && { watch: true }), window: true };
+    writeState({ completionId, ...chatTarget(), session, view, deadline });
     watcher = startWatcher();
     console.log('HANDOVER_VIEW=window');
     console.log(`HANDOVER_SEND=${WINDOW_REMINDER}`);
@@ -510,7 +465,7 @@ async function startLink(values, keys) {
   }
   if (values.view) {
     try {
-      view = await openView(session, values.note, values['keep-open'], values.watch);
+      view = await openView(session, values.note, values.watch);
     } catch (error) {
       return fail(error.message);
     }
@@ -524,7 +479,7 @@ async function startLink(values, keys) {
   tunnelPid = tunnel.pid;
   if (!tunnel.origin) return fail(tunnelDown);
   const listing = listingOf({ completionId, key, keys, view, deadline }, tunnel.origin);
-  writeState({ completionId, ...chatTarget(), tunnelPid, port, session, key, keys, view, ...finish, deadline });
+  writeState({ completionId, ...chatTarget(), tunnelPid, port, session, key, keys, view, deadline });
   // The listing rides in the watcher's environment, never in a file.
   watcher = startWatcher({ ...process.env, HANDOVER_LISTING: JSON.stringify(listing) });
   if (!(await pageAnswers(port, watcher))) return fail('The link\'s page did not start; try again.');
@@ -552,8 +507,8 @@ async function list(listing) {
   return client;
 }
 
-/** Serves the page until its finish, Hand back, `close`, or the deadline; a window view serves none. Polls read
- * only the address, a shown count, and named words; one call a minute keeps an idle page. */
+/** Serves the page until Hand back, a key link's save, `close`, or the deadline; a window view serves none. Polls
+ * never read the page; one call a minute keeps an idle page. */
 async function watch() {
   const state = readJson(FILES.state);
   if (!state) return 1;
@@ -565,7 +520,7 @@ async function watch() {
   const page = state.session ? pageOf(state.session) : null;
   const window = Boolean(state.view?.window);
   const live = state.view && !window ? liveView(state.view, page) : null;
-  const watchSide = watchLink(state, page);
+  const watchSide = watchLink(state);
   const saved = state.keys ? [] : undefined;
   const saveState = () => writeState(state);
   // The inbox's listing of the link, once open has printed it: every end below closes it.
@@ -630,16 +585,14 @@ async function watch() {
     holding = person;
     await page.front(person ? { turn: true, ...(window || popup ? { raise: false } : { reselect: true }) } : { turn: false }).catch(() => {});
   };
-  /** One poll of a view: a stopped screen source starts again, the finish is read unless the view stays open, the turn
-   * is renewed, and the tab and window come to the front unless a pop-up shows. Resolves to what ends it, or null. */
+  /** One poll of a view: a stopped screen source starts again, the turn is renewed, and the tab and window come to
+   * the front unless a pop-up shows. Resolves to 'error' when the source can not start, or null. */
   const pollView = async () => {
     try {
       if (await live?.revive()) saveState();
     } catch {
       return 'error';
     }
-    if (watchSide) await watchSide.poll();
-    else if (!state.view.keepOpen && finished(state, await seen(page, state))) return 'done';
     await holdTurn(!watchSide || watchSide.personHolds(), live?.popupOpen());
     live?.front();
     return null;
@@ -652,7 +605,7 @@ async function watch() {
     if (!listed && listing && existsSync(FILES.shown)) listed = list(listing);
     if (Date.now() >= state.deadline) return finish('timeout', { cause: 'deadline' });
     const ended = state.view && (await pollView());
-    if (ended) return finish(ended, { cause: ended === 'error' ? 'error' : 'finish' });
+    if (ended) return finish(ended, { cause: 'error' });
     if (page && !done && Date.now() >= keepAt) {
       keepAt = Date.now() + KEEP_MS;
       await keepOpen().catch(() => {});
@@ -661,9 +614,9 @@ async function watch() {
   }
 }
 
-/** A watch link's side of the watcher, or null for any other link: it alone writes `control`, ends a turn whose finish
- * holds, and wakes the chat when the person takes the browser. Each change is an event `wait` prints once. */
-function watchLink(state, page) {
+/** A watch link's side of the watcher, or null for any other link: it alone writes `control`, and wakes the chat when
+ * the person takes the browser. Each change is an event `wait` prints once. */
+function watchLink(state) {
   if (!state.view?.watch) return null;
   let control = { control: 'assistant', turnDone: 0, opened: false, event: null };
   const now = () => controlOf(control, readJson(FILES.turn));
@@ -686,11 +639,6 @@ function watchLink(state, page) {
       shown: () => { if (!control.opened) change({ opened: true }, 'opened'); },
       take: () => (now() === 'assistant' ? change({ control: 'person' }, 'taken-over') : null),
       give: () => (['person', 'turn'].includes(now()) ? endTurn('handed-back') : null),
-    },
-    /** One poll: a turn ended once its finish holds. */
-    async poll() {
-      const turn = readJson(FILES.turn);
-      if (now() === 'turn' && finished(turn, await seen(page, turn))) endTurn('signed-in');
     },
     /** Whether the person holds the browser: they took over, or it is their turn. */
     personHolds: () => now() !== 'assistant',
@@ -804,7 +752,7 @@ function usageError(message) {
 function parse(args) {
   let parsed;
   try {
-    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { view: { type: 'boolean' }, watch: { type: 'boolean' }, stopped: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, note: { type: 'string' }, until: { type: 'string' }, 'until-gone': { type: 'string' }, 'until-text': { type: 'string' }, session: { type: 'string' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
+    parsed = parseArgs({ args, allowPositionals: true, strict: true, options: { view: { type: 'boolean' }, watch: { type: 'boolean' }, stopped: { type: 'boolean' }, note: { type: 'string' }, session: { type: 'string' }, keys: { type: 'string' }, guide: { type: 'string' }, minutes: { type: 'string' }, help: { type: 'boolean' } } });
   } catch (error) {
     usageError(error.message);
   }
@@ -830,27 +778,20 @@ function parse(args) {
 function checkMode(values) {
   if (values.guide !== undefined && values.keys === undefined) usageError('--guide goes with --keys only');
   if ([values.keys, values.view, values.watch].filter(mode => mode !== undefined).length !== 1) usageError('open takes one of --keys, --view, or --watch');
-  const finish = ['until', 'until-gone', 'until-text'].some(name => values[name] !== undefined);
   if (values.keys !== undefined) {
-    if (finish || ['session', 'note', 'keep-open'].some(name => values[name] !== undefined)) usageError('--until, --until-gone, --until-text, --session, --note, and --keep-open go with --view only');
+    if (['session', 'note'].some(name => values[name] !== undefined)) usageError('--session and --note go with --view only');
     return;
   }
   if (values.watch) {
-    if (finish || values['keep-open']) usageError('--watch takes no --until, --until-gone, --until-text, or --keep-open: it ends at close');
     if (values.note !== undefined && !oneLine(values.note, NOTE_MOST)) usageError(`--note takes one line of up to ${NOTE_MOST} characters`);
     return;
   }
-  if (values['keep-open'] && finish) usageError('--keep-open takes no --until, --until-gone, or --until-text: the turn ends only on the person\'s Hand back, close, or the time limit');
-  if (!finish && !values['keep-open']) usageError('--view needs --until, --until-gone, or --until-text, to tell when the person is through, or --keep-open');
   if (values.note === undefined || !oneLine(values.note, NOTE_MOST)) usageError(`--view needs --note, the one line the person sees: what to do now, up to ${NOTE_MOST} characters`);
-  if (values['until-text'] !== undefined && !oneLine(values['until-text'], NOTE_MOST)) usageError(`--until-text takes one line of up to ${NOTE_MOST} characters`);
 }
 
-/** `turn` takes a finish and a one-line `--note`, and nothing else, or a usage error. */
+/** `turn` takes a one-line `--note`, and nothing else, or a usage error. */
 function checkTurn(values) {
-  const finish = ['until', 'until-gone', 'until-text'].some(name => values[name] !== undefined);
-  const others = Object.keys(values).filter(name => !['until', 'until-gone', 'until-text', 'note'].includes(name));
-  if (!finish || others.length) usageError('turn takes --until, --until-gone, or --until-text, and --note');
+  if (Object.keys(values).some(name => name !== 'note')) usageError('turn takes --note only');
   if (values.note === undefined || !oneLine(values.note, NOTE_MOST)) usageError(`turn takes --note, one line of up to ${NOTE_MOST} characters`);
 }
 
@@ -863,8 +804,7 @@ function lineCommand({ text }) {
 
 /** `turn`: gives the watch link's browser to the person; exit 1 unless the agent holds it. */
 function turnCommand(values) {
-  const finish = { until: values.until ?? null, untilGone: values['until-gone'] ?? null, untilText: values['until-text'] ?? null };
-  if (startTurn(finish, values.note)) return 0;
+  if (startTurn(values.note)) return 0;
   const holder = watchControl();
   console.error(holder ? `The watch link's browser is not the assistant's now: ${holder}.` : 'No watch link is open in this chat.');
   return 1;

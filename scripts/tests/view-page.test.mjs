@@ -250,15 +250,8 @@ test('when a phone\'s keyboard opens, the page shrinks to what is in sight and t
   assert.equal(p.$('#view').style.height, '420px');
 });
 
-test('once the site lets the person through, the page ends on Done', async t => {
-  const p = await live(t, { receipts: [[200, { result: 'done', notification: 'notified' }]] });
-  p.$('#text').value = 'half typed';
-  await p.viewers[0].emit('disconnect');
-  assert.deepEqual(p.shown(), { live: false, line: DONE });
-  assert.equal(p.$('#text').value, '');
-  assert.equal(p.viewers.length, 1, 'and connects no more');
-
-  const quiet = await live(t, { receipts: [[200, { result: 'done', notification: 'unavailable' }]] });
+test('a turn that ends with no person to tell says to go back and say continue', async t => {
+  const quiet = await live(t, { receipts: [[200, { result: 'handed-back', notification: 'unavailable' }]] });
   await quiet.viewers[0].emit('disconnect');
   assert.equal(quiet.shown().line, 'Done. Go back to the chat, and say continue.');
 });
@@ -270,8 +263,11 @@ test('Hand back ends the turn: the button goes quiet, and the receipt says it is
   assert.deepEqual(p.calls.at(-1), { path: 'give', key: 'secret', body: {} });
   assert.equal(p.$('#hand').disabled, true, 'one press: the turn ends once');
   assert.equal(p.$('#stop'), null, 'no Stop: to give up, the person hands back and says so in the chat');
+  p.$('#text').value = 'half typed';
   await p.viewers[0].emit('disconnect');
   assert.deepEqual(p.shown(), { live: false, line: DONE });
+  assert.equal(p.$('#text').value, '');
+  assert.equal(p.viewers.length, 1, 'and connects no more');
 });
 
 test('a paste anywhere on the view types into the browser; a paste in the box is the box\'s own', async t => {
@@ -297,7 +293,7 @@ test('a link that closed, timed out, or stopped answering ends on the closed lin
 });
 
 test('a screen that drops while the link is open connects again', async t => {
-  const p = await live(t, { receipts: [[202, { finishing: false }], [202, { finishing: true }], [200, { result: 'done', notification: 'notified' }]] });
+  const p = await live(t, { receipts: [[202, { finishing: false }], [202, { finishing: true }], [200, { result: 'handed-back', notification: 'notified' }]] });
   const dropped = p.viewers[0].emit('disconnect');
   await settle();
   assert.deepEqual(p.shown(), { live: false, line: CONNECTING });
@@ -393,7 +389,7 @@ const WATCHED = { note: 'The assistant is connecting your tools.', watch: true }
 const SHOWN = {
   assistant: { line: 'Clicking New integration…', hand: 'Take over', main: 'btn-primary', hands: false },
   person: { line: 'Tap Hand back when you\'re done.', hand: 'Hand back', main: 'btn-primary', hands: true },
-  turn: { line: 'Sign in to Notion. I go on once you\'re in.', hand: 'Hand back', main: 'btn-ghost', hands: true },
+  turn: { line: 'Sign in to Notion, then tap Hand back.', hand: 'Hand back', main: 'btn-ghost', hands: true },
 };
 
 test('a watch link shows one short line, no tag, and the button for who holds the browser, on a phone and a wide screen', async t => {
@@ -439,10 +435,9 @@ test('the pure helpers: the shape a width reports, and the closing line', () => 
   assert.deepEqual(watchShows({ control: 'person', line: 'Clicking Save…' }).text, 'Tap Hand back when you\'re done.', 'the person\'s hold keeps its own line');
   assert.equal(watchShows({ line: 'Clicking Save…' }).text, 'Clicking Save…', 'the agent\'s line while it works');
   assert.deepEqual([shapeOf(320), shapeOf(699), shapeOf(700), shapeOf(1440)], ['phone', 'phone', 'wide', 'wide']);
-  assert.equal(ending({ result: 'done', notification: 'notified' }), DONE);
-  assert.equal(ending({ result: 'done', notification: 'unconfirmed' }), 'Done. Go back to the chat, and say continue.');
   assert.equal(ending({ result: 'handed-back', notification: 'notified' }), DONE);
-  for (const receipt of [{ result: 'stopped' }, { result: 'closed' }, { result: 'timeout' }, { result: 'error' }, null, undefined]) assert.equal(ending(receipt), CLOSED);
+  assert.equal(ending({ result: 'handed-back', notification: 'unconfirmed' }), 'Done. Go back to the chat, and say continue.');
+  for (const receipt of [{ result: 'done', notification: 'notified' }, { result: 'stopped' }, { result: 'closed' }, { result: 'timeout' }, { result: 'error' }, null, undefined]) assert.equal(ending(receipt), CLOSED);
   assert.deepEqual(strokes('', 'aÿ'), [0x61, 0xff]);
   assert.deepEqual(strokes('a', 'a名\n'), [0x01000000 + 0x540d, ENTER], 'past Latin-1, X\'s Unicode keysym; a line break is Enter');
   assert.deepEqual(strokes('😀x', '😀'), [BACK], 'one Backspace per character, not per code unit');

@@ -6,7 +6,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { JSDOM } from 'jsdom';
-import { BAD_SELECTOR, boxAt, boxChanged, boxesIn, CAMOUFOX, countScript, FRAMES_SCRIPT, frameSites, hasWords, hostOf, installedLine, labelFrames, NO_REF_NOTE, refNames, relabel, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, selectorError, sessionName, shownCount, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
+import { boxAt, boxChanged, boxesIn, CAMOUFOX, countScript, FRAMES_SCRIPT, frameSites, hostOf, installedLine, labelFrames, NO_REF_NOTE, refNames, relabel, SECRETS_SCRIPT, fieldScript, hideSecrets, joinPieces, selectorError, sessionName, targetOf, valueIn } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { windowLaunch } from '../../.agents/skills/browser/scripts/browser-server.mjs';
 import { BROWSE_ENV, fakeCamofox, fakePython } from './fixtures/fake-camofox.mjs';
 
@@ -1058,22 +1058,6 @@ test('a selector the page can not read says to use the box\'s ref, not a code er
   assert.equal(selectorError('#x').message.endsWith('use the box\'s ref'), true);
   const broken = { querySelectorAll: () => { throw new TypeError('broken page'); } };
   assert.throws(() => new Function('document', `return ${countScript('#x')}`)(broken), TypeError, 'only a selector error becomes the plain stop');
-});
-
-test('a shown count leaves out a hidden match, as a saved card\'s kept frame', () => {
-  const box = (width, visibility = 'visible') => ({ getBoundingClientRect: () => ({ width, height: width }), visibility });
-  const page = matches => ({ querySelectorAll: () => matches, defaultView: { getComputedStyle: element => ({ visibility: element.visibility }) } });
-  assert.equal(shownCount(page([box(300), box(0)]), 'iframe#ccFrame', BAD_SELECTOR), 1);
-  assert.equal(shownCount(page([box(0), box(300, 'hidden')]), 'iframe#ccFrame', BAD_SELECTOR), 0);
-  const bad = { querySelectorAll() { throw Object.assign(new Error('bad'), { name: 'SyntaxError' }); } };
-  assert.equal(shownCount(bad, 'iframe >> input', BAD_SELECTOR), BAD_SELECTOR);
-});
-
-test('page words match with case and spaces aside', () => {
-  const page = text => ({ body: { innerText: text } });
-  assert.equal(hasWords(page('Step 3\n  REVIEW   your\torder'), 'Review your order'), true);
-  assert.equal(hasWords(page('Payment details'), 'Review your order'), false);
-  assert.equal(hasWords({}, 'Review your order'), false);
 });
 
 test('each ref names its box by role and name; page text holding a ref is no box', () => {

@@ -80,14 +80,6 @@ function evaluate(tab, expression) {
   if (expression === `[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`) return [has('secrets.json') ? JSON.parse(text('secrets.json')) : [], has('frames.json') ? JSON.parse(text('frames.json')) : []];
   const querySelectorAll = selector => (parse(selector), Array.from({ length: has('count') ? Number(text('count')) : 1 }));
   if (expression.startsWith('(() => { try { return document.querySelectorAll(')) return new Function('document', `return ${expression}`)({ querySelectorAll });
-  // A shown count sees `count` matches with a size, of which `hidden-count` are hidden; page words are `page-text`.
-  if (expression.startsWith('(function shownCount(')) {
-    const hidden = has('hidden-count') ? Number(text('hidden-count')) : 0;
-    const shown = (_, at) => ({ getBoundingClientRect: () => ({ width: 300, height: 40 }), visibility: at < hidden ? 'hidden' : 'visible' });
-    const getComputedStyle = element => ({ visibility: element.visibility });
-    return new Function('document', `return ${expression}`)({ querySelectorAll: selector => querySelectorAll(selector).map(shown), defaultView: { getComputedStyle } });
-  }
-  if (expression.startsWith('(function hasWords(')) return new Function('document', `return ${expression}`)({ body: { innerText: has('page-text') ? text('page-text') : '' } });
   if (!/document\.querySelector\(".*"\)/.test(expression)) throw new Error(`the fake evaluates no such expression: ${expression}`);
   // A field read runs as written, on a page whose picked fields are dropdowns and the rest plain text boxes.
   const querySelector = selector => {

@@ -246,7 +246,7 @@ test('an opened key link refuses a second link', async t => {
 
 test('--keys takes declared-style names and no other mode', t => {
   const f = fixture(t);
-  for (const args of [['--view'], ['--until', '**'], ['--until-gone', '#x']]) assert.equal(f.run('open', '--keys', 'MAPS_API_KEY', ...args).status, 2, args.join(' '));
+  for (const args of [['--view'], ['--until', '**'], ['--keep-open']]) assert.equal(f.run('open', '--keys', 'MAPS_API_KEY', ...args).status, 2, args.join(' '));
   for (const names of ['', 'lower_case', 'A,,B', 'A B', Array.from({ length: LIMITS.names + 1 }, (_, i) => `K${i}`).join(',')]) {
     assert.equal(f.run('open', '--keys', names).status, 2, names.slice(0, 20));
   }
