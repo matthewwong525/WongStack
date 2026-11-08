@@ -65,4 +65,4 @@ Nothing.
 - **2026-11-08** — Assumed: a running try records its stamp, a changed stamp starts a new try at once, and a run marks done only the stamp it started with, because check-ins off or on must start a try at once.
 - **2026-11-08** — Assumed: `startDefaults` stamps a try from the list of the copy whose `schedule.mjs` it starts, because a worktree chat's own list can differ from the main checkout's and the try would then never count as done.
 - **2026-11-08** — Assumed: a `patch` release, because it fixes a fault and adds no feature.
-- **2026-11-08** — Assumed: archive checkpoint at /ship as 51.2.1, with every task built and tested, the `daily-routine` delta reconciled into the main spec at archive, and `main` (51.2.0) merged in with all local checks passing; the hourly retry on a real failed setup is covered by tests, not run live.
+- **2026-11-08** — Assumed: archive checkpoint at /ship as 51.3.1, with every task built and tested, the `daily-routine` delta reconciled into the main spec at archive, and `main` (51.3.0) merged in with all local checks passing; the hourly retry on a real failed setup is covered by tests, not run live.
