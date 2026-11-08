@@ -155,7 +155,7 @@ for (const [agent, tool] of [['claude', 'AskUserQuestion'], ['codex', 'request_u
     w.transcript.add(['user', 'Keep it for now, and go on.', NOW + 2 * MIN], ['assistant', QUESTION, NOW + 3 * MIN]);
     assert.equal((await w.stop({ now: NOW + 30 * MIN })).why, 'ask');
     assert.equal(JSON.parse(readFileSync(file, 'utf8')).asked, 0);
-    // The chat asked with the tool and the person tapped: a tap is no typed message, but the next typed question goes back.
+    // The chat asked with the tool and the person tapped: a tap is no typed message, yet the next question goes back.
     appendFileSync(w.transcript.file, `${JSON.stringify(agent === 'codex'
       ? { timestamp: iso(NOW + 31 * MIN), type: 'response_item', payload: { type: 'function_call', name: tool, arguments: '{}' } }
       : { type: 'assistant', timestamp: iso(NOW + 31 * MIN), message: { role: 'assistant', content: [{ type: 'tool_use', name: tool, input: {} }] } })}\n`);
