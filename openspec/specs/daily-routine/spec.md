@@ -4,6 +4,7 @@
 The daily routine runs each person's day on a team with no chat to open: each morning the worker starts the routines the whole team shares, then that person's own, and any chat does their asks and learns new steps. It is also their chief of staff: it keeps their chats moving, and brings the person only what needs them.
 
 ## Requirements
+
 ### Requirement: Daily runs as the signed-in person
 
 The daily SHALL know the person from their company sign-in, else the repo's git email, before the morning starts any step. It SHALL run no step under a guessed person: when no settings file lists the person's email, the morning SHALL run no add-on, even when only one settings file exists.
@@ -257,6 +258,8 @@ WongStack SHALL ship the daily's built-in timed jobs as default schedules. Each 
 
 While the person's check-ins are off on a computer, each default they never changed SHALL wait paused on that computer, so its run list gets no runs that could not start. When check-ins go on, each default paused this way SHALL go on again. A default the person paused, changed or ended SHALL never be paused or resumed by check-ins, and one they resume while check-ins are off SHALL stay on.
 
+A day SHALL count as set up only after a try sets up every default. A try that fails, or stops with no result, SHALL write a journal line with its reason, at most one line a day for the same reason, and a chat start SHALL try again about an hour later.
+
 #### Scenario: First chat after the update
 
 - **WHEN** Jo opens a chat after the update and has no line-up or wiki tidy schedule
@@ -276,6 +279,11 @@ While the person's check-ins are off on a computer, each default they never chan
 
 - **WHEN** Jo paused the wiki tidy, then turns check-ins off and on again
 - **THEN** the line-up pauses and goes on again, and the wiki tidy stays paused
+
+#### Scenario: A failed setup says why and tries again
+
+- **WHEN** a chat start's background setup of the defaults fails, or stops with no result
+- **THEN** the journal holds one line with the reason, and a chat start an hour or more later the same day tries again and, once it works, adds the missing defaults
 
 ### Requirement: The background's work is kept in a journal
 
