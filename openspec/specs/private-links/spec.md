@@ -70,26 +70,6 @@ A link opened by an older copy of the tool, in the shared place, SHALL keep work
 - **WHEN** the shared place holds a live link whose state names chat A, and chat B, with no link of its own, runs `wait` or `close`
 - **THEN** chat B hears that no private link is open, and chat A's link stays open
 
-### Requirement: The finish ignores hidden parts and may name words
-A finish that waits for a part of the page to go SHALL count only parts the person can see. A finish MAY name words that show on the page once the site accepts, and is met only when they show.
-
-#### Scenario: A hidden card frame after the card is saved
-- **WHEN** the site hides its card frame and shows the saved card's summary
-- **THEN** a finish that waits for the card frame to go is met
-
-#### Scenario: Words that never show
-- **WHEN** the finish names *Review your order* and the page never shows it
-- **THEN** the finish is not met
-
-### Requirement: A live view can stay open until the person closes it
-
-A live view opened to stay open SHALL take no finish, and SHALL end only when the person taps *Hand back* on its page, when the chat closes it, or at its time limit. It SHALL stay open through every page change on the site.
-
-#### Scenario: Several steps in one view
-
-- **WHEN** the person taps through two checkout steps in a view that stays open
-- **THEN** the view stays open until the person taps *Hand back*
-
 ### Requirement: A click that may not count is reported
 When a click reaches the page only through the page's own script, not as a pointer press, the browser tool SHALL say so, so the agent can offer a live view instead of clicking again.
 
@@ -140,3 +120,22 @@ A live view SHALL fit the browser window to the screen the person sees, on every
 
 - **WHEN** a live view opens over 1Password's own page in a browser that has just started at a size bigger than the view's screen
 - **THEN** the person sees the whole window, the toolbar with 1Password's button included
+
+### Requirement: Every live view stays open until the person ends it
+
+Every live view, and every turn the agent gives the person on its browser, SHALL take no finish. It SHALL end only when the person taps *Hand back* on its page (or says *done* for a window turn), when the chat closes it, or at its time limit. It SHALL stay open through every page change on the site, a signed-in page or a receipt included. A request to open a view with a finish SHALL fail as a usage fault.
+
+#### Scenario: Several steps in one view
+
+- **WHEN** the person taps through two checkout steps in a live view
+- **THEN** the view stays open until the person taps *Hand back*
+
+#### Scenario: A sign-in reaches the signed-in page
+
+- **WHEN** the person signs in during a live view and the site shows its signed-in page
+- **THEN** the view stays open, and the chat waits until the person taps *Hand back*
+
+#### Scenario: An old finish flag
+
+- **WHEN** the agent asks to open a live view that ends at a named page
+- **THEN** nothing opens and the command exits with a usage fault

@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 51.1.0 — The browser comes back only when you tap Hand back
+
+- **Your turn ends only when you tap *Hand back*.** The agent no longer takes its browser back when the page looks finished, such as a signed-in page or a receipt. The live view stays open through every page until you tap *Hand back*, say *done* in the chat, or the time limit passes. This applies to a sign-in, a payment, a backup code, a robot check, a stuck step, and a view you ask for ([live view](wiki/development/live-view.md#when-it-opens)).
+- **The same in the browser window on your own computer.** Your turn there ends when you say *done* in the chat, not when the page changes ([your turn in the window](wiki/development/browser-window.md#your-turn-in-the-window)).
+- **The same when you connect your tools.** The sign-in turn on the watch link says *Sign in to Notion, then tap Hand back.*, and ends on that tap, or on *done* for the window ([watch link](wiki/development/watch-link.md)).
+- **After a payment, you tap *Hand back* too.** The agent still checks the payment from the page after you hand back. A key link still closes when you save.
+
+**Updating.** If one of the install's own skills or pages runs `hand-over.mjs` with `--until`, `--until-gone`, `--until-text` or `--keep-open`, remove that flag and keep `--note`, and end the note with *then tap Hand back*: the script now refuses these flags. If one waits for `HANDOVER_RESULT=signed-in` or `done` from a live view, wait for `handed-back` instead.
+
 ## 51.0.0 — The Inbox shows your chats
 
 - **The Inbox opens on your chats.** Each open chat is one row, with its name, its step, such as *Plan* or *Apply*, and its folder. A chat that waits on your review sits on top under *Needs you*; a tap opens the review. The chats that are working come next, then the *Archive* of past reviews with its search. Rows show no dates ([in your inbox first](wiki/development/reply-links.md#in-your-inbox-first)).

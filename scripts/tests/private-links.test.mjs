@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { refNames } from '../../.agents/skills/browser/scripts/browse.mjs';
-import { finished, pageFault, seen } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { pageFault } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/hand-over/scripts/hand-over.mjs');
 const KEY = 'MAPS_API_KEY';
@@ -149,7 +149,7 @@ test('a second live view is refused from any chat and names the holder', t => {
   const b = f.chat('chat-b');
   const view = f.place(join(f.home, 'links', 'chat-a'), { view: { display: ':97' }, cwd: join(f.root, 'chat-a') });
   const before = snapshot(join(f.home, 'links', 'chat-a'));
-  const out = b.run('open', '--view', '--until', '**/done', '--note', 'Tap Continue.');
+  const out = b.run('open', '--view', '--note', 'Tap Continue.');
   assert.equal(out.status, 1);
   assert.match(out.stderr, /^A live view is already open in chat-a\.$/m);
   assert.doesNotMatch(out.stdout, /^HANDOVER_(LINK|SEND)=/m);
@@ -162,11 +162,11 @@ test('an older link\'s live view still counts; a dead one or another chat\'s key
   const f = fixture(t);
   const b = f.chat('chat-b');
   const old = f.place(f.home, { view: { display: ':97' }, cwd: '/root/.paseo/worktrees/x/modest-toad' });
-  assert.match(b.run('open', '--view', '--until', '**/done', '--note', 'Tap Continue.').stderr, /A live view is already open in modest-toad\./);
+  assert.match(b.run('open', '--view', '--note', 'Tap Continue.').stderr, /A live view is already open in modest-toad\./);
   process.kill(old, 'SIGKILL');
   f.place(join(f.home, 'links', 'chat-a'), { keys: { keys: [] } });
   // Past the check, a HOME without the viewer stops at the missing tools: no browser is asked.
-  const out = b.run('open', '--view', '--until', '**/done', '--note', 'Tap Continue.');
+  const out = b.run('open', '--view', '--note', 'Tap Continue.');
   assert.equal(out.status, 3, out.stderr);
   assert.match(out.stdout, /^HANDOVER_NEEDS=live-view$/m);
 });
@@ -191,11 +191,11 @@ test('a view another chat is still starting counts; its mark goes away on every 
   mkdirSync(a.dir, { recursive: true });
   const opener = f.fakeWatcher();
   writeFileSync(join(a.dir, `view-opener.${opener}`), `${opener}\n`);
-  assert.match(b.run('open', '--view', '--until', '**/done', '--note', 'Tap Continue.').stderr, /^A live view is already open in chat-a\.$/m);
+  assert.match(b.run('open', '--view', '--note', 'Tap Continue.').stderr, /^A live view is already open in chat-a\.$/m);
   process.kill(opener, 'SIGKILL');
   f.viewTools();
   // Past both checks the open fails at the page, since this HOME has no browser; the opener's mark is gone.
-  const out = b.run('open', '--view', '--until', '**/done', '--note', 'Tap Continue.');
+  const out = b.run('open', '--view', '--note', 'Tap Continue.');
   assert.equal(out.status, 1, out.stderr);
   assert.match(out.stderr, /No page is open in this browser session/);
   assert.deepEqual(readdirSync(b.dir).filter(name => name.startsWith('view-opener.')), []);
@@ -259,31 +259,19 @@ printf '{"status":"sent","agentId":"%s"}' "$2"
   assert.ok(existsSync(join(a.dir, 'watcher.pid')), 'chat A\'s link stays open');
 });
 
-test('a hidden frame meets --until-gone, and --until-text holds only when the words show', async () => {
-  const page = { countShown: async () => 0, count: async () => 1, hasText: async words => words === 'Card saved', url: async () => 'https://shop.test/pay' };
-  assert.equal(finished({ untilGone: '#card-frame' }, await seen(page, { untilGone: '#card-frame' })), true);
-  assert.equal(finished({ untilText: 'Card saved' }, await seen(page, { untilText: 'Card saved' })), true);
-  assert.equal(finished({ untilText: 'Order placed' }, await seen(page, { untilText: 'Order placed' })), false);
-  assert.equal(finished({ untilText: 'Card saved' }, { text: null }), false, 'words that can not be read are not met');
-  assert.equal(finished({ until: 'https://shop.test/*', untilText: 'Order placed' }, { url: 'https://shop.test/pay', text: false }), false);
+test('a page that can not be read is no page; the password manager\'s own page is one', async () => {
+  assert.equal(await pageFault({ url: async () => 'https://shop.test/pay' }), null);
+  assert.equal(await pageFault({ url: async () => { throw Object.assign(new Error('add-on page'), { addonPage: true }); } }), null);
+  assert.match(await pageFault({ url: async () => { throw new Error('no tab'); } }), /No page is open/);
 });
 
-test('a finish met at open still refuses, and a page that can not be read is no page', async () => {
-  const page = { countShown: async () => 0, hasText: async () => true, url: async () => 'https://shop.test/pay' };
-  assert.equal(await pageFault(page, { untilText: 'Card saved' }, 'met'), 'met');
-  assert.equal(await pageFault({ ...page, hasText: async () => false }, { untilText: 'Card saved' }, 'met'), null);
-  const gone = { countShown: async () => { throw new Error('no tab'); } };
-  assert.match(await pageFault(gone, { untilGone: '#card-frame' }, 'met'), /No page is open/);
-});
+/** What the fake page answers to a read: its address or its size. */
+const evaluated = (b, expression) => (expression === 'location.href' ? b.url : expression === '[innerWidth, innerHeight]' ? [1280, 720] : expression.startsWith('[') ? [[], []] : 1);
 
-/** What the fake page answers to a read: its address, the shown count, whether its words show, or its size. */
-const evaluated = (b, expression) => (expression === 'location.href' ? b.url : expression.includes('function shownCount') ? b.shown
-  : expression.includes('function hasWords') ? b.text : expression === '[innerWidth, innerHeight]' ? [1280, 720] : expression.startsWith('[') ? [[], []] : 1);
-
-/** A fake browser server in the test's HOME, for session `pay`: a page at `url` with `lines`, `shown` matches of the
- * finish, and `onClick`. It records every step but a read in `calls`; no real browser or site is reached. */
+/** A fake browser server in the test's HOME, for session `pay`: a page at `url` with `lines`, and `onClick`. It
+ * records every step but a read in `calls`; no real browser or site is reached. */
 async function fakeBrowser(t, f, page = {}) {
-  const b = { url: 'https://shop.test/pay', shown: 1, text: false, lines: ['- textbox "Card" [e1]', '- button "Pay" [e2]'], calls: [], onClick: () => {}, ...page };
+  const b = { url: 'https://shop.test/pay', lines: ['- textbox "Card" [e1]', '- button "Pay" [e2]'], calls: [], onClick: () => {}, ...page };
   const server = createServer(async (request, response) => {
     let body = '';
     for await (const chunk of request) body += chunk;
@@ -330,13 +318,12 @@ async function openLink(c, ...args) {
 
 const QUICK = { HANDOVER_POLL_MS: '50' };
 
-test('a view kept open stays through two address changes and ends handed-back on Hand back', async t => {
+test('a view stays through two address changes and ends handed-back on Hand back', async t => {
   const f = fixture(t);
   screenTools(f);
   const b = await fakeBrowser(t, f);
   const c = f.chat('chat-a', QUICK);
-  const { call, state } = await openLink(c, '--view', '--keep-open', '--note', 'Tap Continue on DigiKey.');
-  assert.equal(state.view.keepOpen, true);
+  const { call, state } = await openLink(c, '--view', '--note', 'Tap Continue on DigiKey.');
   const shown = (await call('view')).body;
   assert.deepEqual([shown.control, shown.note], ['turn', 'Tap Continue on DigiKey.']);
   const pid = Number(readFileSync(join(c.dir, 'watcher.pid'), 'utf8'));
@@ -351,16 +338,19 @@ test('a view kept open stays through two address changes and ends handed-back on
   assert.ok(!existsSync(state.view.dir), 'the screen source stopped');
 });
 
-test('--keep-open goes with --view alone, and takes no finish', t => {
+test('a view, a watch, or a key link takes no finish: each old flag is a usage fault', t => {
   const c = fixture(t).chat('chat-a');
   for (const args of [
-    ['--view', '--keep-open', '--until', 'https://shop.test/done*'],
-    ['--view', '--keep-open', '--until-gone', '#card'],
-    ['--view', '--keep-open', '--until-text', 'Thanks'],
+    ['--view', '--until', '**/browse**', '--note', 'Sign in to Netflix, then tap Hand back.'],
+    ['--view', '--until-gone', '#card', '--note', 'x'],
+    ['--view', '--until-text', 'Thanks', '--note', 'x'],
+    ['--view', '--keep-open', '--note', 'x'],
+    ['--watch', '--until', '**'],
     ['--keys', KEY, '--keep-open'],
   ]) {
     const out = c.run('open', ...args);
     assert.equal(out.status, 2, args.join(' '));
-    assert.match(out.stderr, /--keep-open/);
+    assert.match(out.stderr, /usage:/);
   }
+  assert.ok(!existsSync(c.dir), 'nothing opened');
 });

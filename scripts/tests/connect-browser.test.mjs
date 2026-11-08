@@ -6,14 +6,14 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpath
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { signInFinish, whereIs } from '../../.agents/skills/connect/scripts/browser.mjs';
-import { finished } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { whereIs } from '../../.agents/skills/connect/scripts/browser.mjs';
 import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { fakeViewer, fakeViewTools } from './fixtures/fake-view-tools.mjs';
 
 const HELPER = fileURLToPath(new URL('../../.agents/skills/connect/scripts/browser.mjs', import.meta.url));
+const HAND_OVER = fileURLToPath(new URL('../../.agents/skills/hand-over/scripts/hand-over.mjs', import.meta.url));
 
 // A stand-in scripts/cf-secrets.mjs: it logs its argv and a digest of its stdin, never the stdin itself.
 const CF_SECRETS = `import { appendFileSync, readFileSync } from 'node:fs';
@@ -276,7 +276,7 @@ test('while the person holds the watch link\'s browser, every command but done i
   }
 });
 
-test('sign-in and watch work only on the helper\'s own page, and a turn waits for the key page', t => {
+test('sign-in and watch work only on the helper\'s own page, and a turn waits for Hand back', t => {
   const fresh = fixture(t, { camoufox: {} });
   fresh.run(['attach', '--server']);
   for (const args of [['sign-in', '--tool', 'Notion'], ['watch']]) assert.match(fresh.run(args).stderr, /No page is one this helper opened/, args.join(' '));
@@ -285,7 +285,7 @@ test('sign-in and watch work only on the helper\'s own page, and a turn waits fo
   const watch = fakeWatch(t, f, { control: 'assistant', turnDone: 0 });
   const turn = f.run(['sign-in', '--tool', 'Notion']);
   assert.equal(turn.stdout, 'CONNECT_PAUSED=your-turn\n', turn.stderr);
-  assert.deepEqual(watch.turn(), { n: 1, ...signInFinish(INTEGRATIONS), note: 'Sign in to Notion. I go on once you\'re in.' });
+  assert.deepEqual(watch.turn(), { n: 1, note: 'Sign in to Notion, then tap Hand back.' });
   assert.equal(f.run(['read']).stdout, 'CONNECT_PAUSED=your-turn\n');
   const g = onServer(t, '- heading "Integrations"\n- button "New integration" [e1]');
   fakeWatch(t, g, { control: 'assistant', turnDone: 0 });
@@ -323,7 +323,7 @@ test('sign-in with no watch link open opens one and starts the turn, and watch s
       }
       assert.match(out.stdout, /\nCONNECT_PAUSED=your-turn\n$/, 'the link prints before the turn\'s marker');
       assert.deepEqual(JSON.parse(readFileSync(join(dir, 'turn.json'), 'utf8')),
-        { n: 1, ...signInFinish(INTEGRATIONS), note: 'Sign in to Notion. I go on once you\'re in.' });
+        { n: 1, note: 'Sign in to Notion, then tap Hand back.' });
       assert.equal((await f.runFree(['read'], env)).stdout, 'CONNECT_PAUSED=your-turn\n');
     } finally {
       await f.runFree(['done'], env);
@@ -346,25 +346,15 @@ test('each command sets the watch link\'s line, and no line holds a key', t => {
   }));
 });
 
-test('a sign-in turn ends only at the key page\'s own path with no sign-in box, and one already met is refused', t => {
-  const key = signInFinish(INTEGRATIONS);
-  for (const box of ['input[type=password]', 'input[type=email]', 'one-time-code']) assert.ok(key.untilGone.includes(box), box);
-  const at = (finish, url, count = 0) => finished(finish, { url, count });
-  assert.equal(at(key, INTEGRATIONS), true);
-  assert.equal(at(key, `${INTEGRATIONS}?from=login`), true, 'the same path with a query');
-  assert.equal(at(key, INTEGRATIONS, 1), false, 'an email-first step at the key page\'s own address');
-  assert.equal(at(key, `${INTEGRATIONS}/new`), false, 'never a wider path');
-  const root = signInFinish('https://www.notion.so/');
-  assert.equal(at(root, 'https://www.notion.so/login'), false, 'a key page at a site\'s root');
-  assert.equal(at(root, 'https://www.notion.so/?target=x'), true);
-
+test('a sign-in turn opens even on a page an old finish would have met, and holds the browser until Hand back', t => {
   const f = onServer(t, SIGN_IN_PAGE);
   const watch = fakeWatch(t, f, { control: 'assistant', turnDone: 0 });
   f.camofox.set('count', '0');
-  const met = f.run(['sign-in', '--tool', 'Notion']);
-  assert.equal(met.status, 1);
-  assert.match(met.stderr, /already meets the sign-in finish/);
-  assert.equal(existsSync(join(watch.dir, 'turn.json')), false, 'no turn starts');
+  const turn = f.run(['sign-in', '--tool', 'Notion']);
+  assert.equal(turn.stdout, 'CONNECT_PAUSED=your-turn\n', turn.stderr);
+  assert.deepEqual(Object.keys(watch.turn()).sort(), ['n', 'note'], 'the turn holds no finish');
+  assert.equal(f.run(['read']).stdout, 'CONNECT_PAUSED=your-turn\n');
+  assert.match(f.run(['read']).stderr, /until it prints handed-back; in a browser window, run `hand-over\.mjs close` once they say done/);
 });
 
 test('an attach starts afresh: a page an earlier attach opened is not the helper\'s, and --server changes nothing', t => {
@@ -407,7 +397,7 @@ function inWindow(f) {
   writeFileSync(record, JSON.stringify({ ...JSON.parse(readFileSync(record, 'utf8')), window: true }));
 }
 
-test('in a browser window, watch opens nothing, and sign-in gives a turn there that ends on its finish', async t => {
+test('in a browser window, watch opens nothing, and sign-in gives a turn there that a page change never ends', async t => {
   const f = onServer(t, SIGN_IN_PAGE);
   inWindow(f);
   const dir = join(f.dir, '.wong-stack', 'hand-over', 'links', 'wt');
@@ -422,19 +412,16 @@ test('in a browser window, watch opens nothing, and sign-in gives a turn there t
     assert.match(turn.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=[^\n]+\nCONNECT_PAUSED=your-turn\n$/);
     assert.doesNotMatch(turn.stdout, /HANDOVER_LINK|https?:/);
     const note = 'Sign in to Notion in the browser window, then say done.';
-    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'turn.json'), 'utf8')), { n: 1, ...signInFinish(INTEGRATIONS), note });
+    assert.deepEqual(JSON.parse(readFileSync(join(dir, 'turn.json'), 'utf8')), { n: 1, note });
     assert.equal((await f.runFree(['read'], env)).stdout, 'CONNECT_PAUSED=your-turn\n');
 
-    // The person signs in: the key page shows no sign-in box, and the watcher hands the browser back.
+    // The person signs in: the key page shows no sign-in box, and the browser stays theirs until they say done.
     f.camofox.set('count', '0');
-    for (const end = Date.now() + 10_000; (await f.runFree(['read'], env)).status !== 0;) {
-      assert.ok(Date.now() < end, 'the turn ends on its finish');
-      await new Promise(done => setTimeout(done, 50));
-    }
-    f.camofox.unset('count');
-    const again = await f.runFree(['sign-in', '--tool', 'Notion'], env);
-    assert.equal(again.stdout, 'HANDOVER_VIEW=window\nCONNECT_PAUSED=your-turn\n', again.stderr);
-    assert.equal(JSON.parse(readFileSync(join(dir, 'turn.json'), 'utf8')).n, 2, 'the open watch gives the next turn');
+    await new Promise(done => setTimeout(done, 300));
+    assert.equal((await f.runFree(['read'], env)).stdout, 'CONNECT_PAUSED=your-turn\n', 'a page change ends no turn');
+    const closed = await new Promise(done => execFile(process.execPath, [HAND_OVER, 'close'], { cwd: f.worktree, encoding: 'utf8', env: { PATH: process.env.PATH, HOME: f.dir, TMPDIR: f.temp, ...BROWSE_ENV, ...env } }, (_, stdout) => done(stdout)));
+    assert.match(closed, /^HANDOVER_RESULT=done$/m, 'the person said done: close ends the turn');
+    assert.equal((await f.runFree(['read'], env)).status, 0, 'the agent reads the key page again');
   } finally {
     await f.runFree(['done'], env);
   }

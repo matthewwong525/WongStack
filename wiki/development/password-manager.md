@@ -29,7 +29,7 @@ Right after it adds a password manager, the agent opens its own page and [sends 
 In [the browser window](browser-window.md#your-turn-in-the-window), use it as in your own Firefox. In a live view, with the one the agent added:
 
 1. The agent runs `addon open` right after it adds a password manager, and before [a sign-in turn](live-view.md#sign-in). The password manager's own page opens in the task's tab: the newest one added, else the newest add-on.
-2. The agent sends the live view. You sign in to the password manager, or unlock it. The view opens over that page: its finish is not met there, since the site does not show.
+2. The agent sends the live view. You sign in to the password manager, or unlock it. The view opens over that page.
 3. You press *Back* until the site shows: each of the password manager's own steps takes one press. Then you fill the login from the list the password manager shows in the page. Back on the site, or at the view's end, the page gets its own size again.
 
 On the password manager's page, the browser keeps the page's own size, so the view sizes the browser's window to your screen instead: the whole toolbar shows.
