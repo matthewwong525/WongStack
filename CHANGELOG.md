@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 51.3.0 — The line-up keeps every chat in line, in Paseo or not
+
+- **Your chats stay in line in any app.** The *Keep my chats in line* schedule now sees every Claude Code and Codex chat open in the project: in Paseo, in a plain terminal, or in another app. Before, it saw only chats in Paseo, so a terminal chat could build what another chat had already dropped ([your chats in line](wiki/development/chats-in-line.md)).
+- **Two ways to get a note to a chat.** A chat in Paseo, Claude Code or Codex, gets it through Paseo, as before. Any other chat gets it at its next stop, or with your next message. A note Paseo fails to send waits the same way, so no note is lost.
+- **Each chat tells the daily it is open.** Its own hooks write a small status card at its start, each message and each stop, so the line-up finds chats outside Paseo too.
+- **The same limits hold.** Each note starts *From the daily:*, writes one journal line, and counts toward the five actions in a row. An agent's words never count as your answer. *Tell flashy-crab: yes, merge* still needs Paseo, so your words arrive as your own message.
+
+**Updating.** Nothing to do.
+
 ## 51.2.0 — A chat that asks you in plain text asks again with tap answers
 
 - **A typed question comes back as tap answers.** While you are away, a chat that stops on a question it typed as plain text, such as *Should I keep the old page or remove it?*, is sent back once. It then asks with 2 to 4 short answers, its recommended answer first, and waits for your tap. You can also type your own answer ([check-ins](wiki/development/daily.md#check-ins)).
@@ -78,7 +87,7 @@ Memory's list of areas gains one entry, for the address of the app the WongStack
 
 ## 50.9.0 — Your chats hear each other's news
 
-- **The daily keeps your chats in line.** A few minutes after a chat has something new, one background run reads it and tells the other chats in this project what changes their work: a newer choice you made, work another chat already does, or an answer you already gave. Each note names the chat and time it came from ([your chats in line](wiki/development/daily.md#your-chats-in-line)).
+- **The daily keeps your chats in line.** A few minutes after a chat has something new, one background run reads it and tells the other chats in this project what changes their work: a newer choice you made, work another chat already does, or an answer you already gave. Each note names the chat and time it came from ([your chats in line](wiki/development/chats-in-line.md)).
 - **It picks when.** A note goes straight into a working chat's running step when waiting would waste work, else at the chat's next stop. Nothing stops a step in the middle.
 - **A waiting chat goes on.** When the change or the work a chat waits for lands, the daily tells that chat.
 - **Covered chats.** A chat told that another chat covers its work hands over and waits; *what's going on?* offers to close it with the finished chats.

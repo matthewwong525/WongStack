@@ -10,6 +10,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [Staging walkthrough](staging-walkthrough.md) — why `/verify` probes the deployed preview, what you need for it, and what it deliberately is not.
   - [Kept checks](kept-checks.md) — passed preview checks saved in the project and replayed, with no AI, before each publish.
 - [The daily routine](daily.md) — each morning the worker starts the team's routines, then your own; ask any chat for reminders and what's going on, and check-ins keep your chats moving.
+  - [Your chats in line](chats-in-line.md) — the line-up reads every open Claude Code and Codex chat in the project, in Paseo or not, and sends each the notes that change its work: through Paseo, or at the chat's next stop or message.
 - [A teammate's first day](first-day/README.md) — from the owner adding a person in Access to their first saved change: setup, then two lessons they open by typing `lesson 1` and `lesson 2` in a new chat.
   - [Use skills](first-day/use-skills.md) — Lesson 1: who you are, what a skill is, a question card, one real skill, and one task per chat.
   - [Make your first change](first-day/make-a-change.md) — Lesson 2: plan, build and save one small, real change; it stops at the save.

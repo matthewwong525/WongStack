@@ -85,6 +85,7 @@
       "wiki/development/watch-link.md",
       "wiki/development/shopping.md",
       "wiki/development/daily.md",
+      "wiki/development/chats-in-line.md",
       ".github/workflows/test.yml",
       ".github/workflows/guard.yml",
       ".github/actions/change-scope/action.yml",

@@ -11,11 +11,13 @@ import { stopDecision } from '../../explore/scripts/ask-check.mjs';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { headlessCommand } from '../../memory/scripts/lib/headless.mjs';
 import { BUCKETS, HOLD_MS, STREAK, paseoRecord, readJson, writeJson } from './chief.mjs';
+import { writeCard } from './chat-list.mjs';
 import { RUN_AGENTS } from './config.mjs';
 import { RUN_FLAGS, hookInput, offFile, personSettings, stateOf } from './daily.mjs';
 import { addLine } from './journal.mjs';
 import { elsewhere } from './line-up.mjs';
 import { readChat } from './transcript.mjs';
+import { handOver } from './waiting-notes.mjs';
 import { fillText, needsYouChats, runEnv, stopGroup } from './worker.mjs';
 
 const USAGE = 'usage: stop-check.mjs stop --agent claude|codex   the Stop hook; reads the hook\'s JSON on stdin';
@@ -101,7 +103,14 @@ export async function stopCheck({ input, agent = RUN_AGENTS[0], env = process.en
   if (agent === 'claude' && stopDecision(input, env)) return skip('ask-check');
   const since = chat.person.at(-1)?.at ?? null;
   const streak = saved.since === since ? saved : { ...saved, count: 0, since, told: false, asked: false };
-  if (since && now - Date.parse(since) < HOLD_MS) { writeJson(file, { ...streak, count: 0 }); return skip('person here'); }
+  const here = since && now - Date.parse(since) < HOLD_MS;
+  // A waiting note from the line-up goes back before the judge runs, and counts toward the streak.
+  const notes = here || streak.count < STREAK ? handOver({ home, key: input.session_id, now }) : null;
+  if (notes) {
+    writeJson(file, { ...streak, count: (here ? 0 : streak.count) + 1, sent: [...streak.sent, notes].slice(-KEPT_REPLIES) });
+    return { out: { decision: 'block', reason: notes }, why: 'note' };
+  }
+  if (here) { writeJson(file, { ...streak, count: 0 }); return skip('person here'); }
   const title = chatTitle({ env, cwd: input.cwd, home });
   const journal = line => addLine({ stateDir, timezone: config.timezone, line, kind: 'checkin', title, now: new Date(now) });
   if (streak.count >= STREAK) {
@@ -110,7 +119,7 @@ export async function stopCheck({ input, agent = RUN_AGENTS[0], env = process.en
     return skip('streak');
   }
   const prompt = fillText(brief(), { title, tail: tailOf(chat.messages, input.last_assistant_message),
-    elsewhere: elsewhere(stateDir, env.PASEO_AGENT_ID) });
+    elsewhere: elsewhere(stateDir, input.session_id) });
   const cwd = input.cwd || process.cwd();
   const [command, args] = headlessCommand({ agent, prompt, access: { readOnly: true, tools: ['Read', 'Grep', 'Glob'], dir: cwd } });
   const ran = await judge({ command, args, cwd, env: judgeEnv(env, agent) });
@@ -133,9 +142,20 @@ export async function stopCheck({ input, agent = RUN_AGENTS[0], env = process.en
   return { out: { decision: 'block', reason: reply }, why: answer.bucket };
 }
 
+/** The stop's card, written after the checks, as hooks of one event run side by side: a stop that this check or
+ * Claude Code's ask check sends back keeps the chat `working`, so the line-up waits for its real stop. */
+export function stopCard({ input, agent, out, env = process.env, home = homedir(), now = Date.now() }) {
+  const back = Boolean(out) || (agent === 'claude' && Boolean(stopDecision(input, env)));
+  return writeCard({ tool: agent, input, env, home, now, state: back ? 'working' : 'idle' });
+}
+
 if (isMain(import.meta.url)) {
   const { values, positionals } = parseCli({ usage: USAGE, allowPositionals: true, options: { agent: { type: 'string' } } });
   if (positionals.join(' ') !== 'stop' || !RUN_AGENTS.includes(values.agent)) usageError(USAGE);
   // A stop hook never fails the chat: any error lets it stop, with no output.
-  stopCheck({ input: hookInput(), agent: values.agent }).then(({ out }) => { if (out) console.log(JSON.stringify(out)); }, () => {});
+  const input = hookInput();
+  stopCheck({ input, agent: values.agent }).then(({ out }) => out, () => null).then(out => {
+    try { stopCard({ input, agent: values.agent, out }); } catch { /* the card never fails the chat */ }
+    if (out) console.log(JSON.stringify(out));
+  });
 }
