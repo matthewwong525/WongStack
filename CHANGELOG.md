@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A chat that asks you in plain text asks again with tap answers
+## 51.2.0 — A chat that asks you in plain text asks again with tap answers
 
 - **A typed question comes back as tap answers.** While you are away, a chat that stops on a question it typed as plain text, such as *Should I keep the old page or remove it?*, is sent back once. It then asks with 2 to 4 short answers, its recommended answer first, and waits for your tap. You can also type your own answer ([check-ins](wiki/development/daily.md#check-ins)).
 - **The check-in answers a small question itself.** A small, safe decision or an obvious question, such as *should I run the tests?*, gets the plain best answer, even when the chat recommended none, and the chat goes on. A risky question, such as *send this email?*, always waits for your tap.

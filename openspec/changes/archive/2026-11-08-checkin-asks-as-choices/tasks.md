@@ -15,4 +15,4 @@
 ## 3. Checks
 
 - [x] 3.1 Run `node --test scripts/tests/daily-stop-check.test.mjs`, `node scripts/measure-context.mjs --check` (cut offsetting words if it fails), and `node .github/scripts/checks.mjs --worktree`
-- [ ] 3.2 After `/save`, run one check-in by hand on a chat that stopped on a typed question with the person's last message over 15 minutes old, and see it ask with the question tool, recommended first
+- [x] 3.2 After `/save`, run one check-in by hand on a chat that stopped on a typed question with the person's last message over 15 minutes old, and see it ask with the question tool, recommended first (seen 2026-11-08 on this computer: the real judge sorted a typed question `ask`, the second stop waited, and a Paseo Claude chat given the send-back asked with AskUserQuestion, "Remove, fix links (Recommended)" first)

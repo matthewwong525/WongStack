@@ -1,6 +1,6 @@
 # A chat that asks you in plain text asks again with tap answers
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** schedule-checker-recommended-questions
 **Open questions:** none
 
@@ -58,3 +58,5 @@ Nothing from you: no key, no account.
 - **2026-11-08** — Assumed: a tap on the chat's buttons also ends the one-send-back stretch, found by the second look, because a tap is not a typed message and the next typed question was otherwise held back.
 - **2026-11-08** — Assumed: only check-ins change, not the line-up's notes, because the request names the checker of stopped chats.
 - **2026-11-08** — Assumed: checkpointed for the live check of task 3.2, because it needs the saved build.
+- **2026-11-08** — Assumed: the live check ran the check-in with a temporary state folder, because check-ins are off on this computer and turning them on would change the person's own setting.
+- **2026-11-08** — Assumed: archived for /ship as 51.2.0, because the build, the second look and the live check were done.
