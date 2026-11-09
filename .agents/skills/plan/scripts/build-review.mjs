@@ -692,7 +692,7 @@ function sketchOnly(block, ctx, warnings) {
 
 const PICTURE_KINDS = new Set(['ads', 'mermaid', 'svg', 'screen', 'picture', 'page']);
 function changes(section, warnings, ctx) {
-  let html = '', open = false, wide = false;
+  let html = '', open = false;
   for (const block of blocks(section, 'item')) {
     if (!block.n) { html += `${open ? '</ol>\n' : ''}<p class="aside">${inline(block.text)}</p>\n`; open = false; continue; }
     // Text drawings number lines across the item, tables their rows;
@@ -721,12 +721,11 @@ function changes(section, warnings, ctx) {
     // A card has one Try it link; a later one is dropped, with a warning so an older plan still builds.
     for (const extra of panels.filter(panel => panel.tryIt).slice(1)) warnings.push(`${extra.tryAt}: a card takes one Try it; dropped ${extra.tryIt}`);
     const shown = view(panels), text = block.text.replace(/\s*\(review\.html#\/[^)]*\)\s*$/, '');
-    wide ||= !!shown;
     html += `${open ? '' : '<ol class="items">\n'}<li class="item card${shown ? ' has-view' : ''}" id="item-${block.n}"><div class="words"><span class="num">${block.n}</span>`
       + `<div class="body"><div class="text" data-note="item-${block.n}" tabindex="0">${inline(text)}</div></div>${words.join('')}</div>${shown}</li>\n`;
     open = true;
   }
-  return { html: html + (open ? '</ol>' : ''), wide };
+  return html + (open ? '</ol>' : '');
 }
 
 // The decisions as a list, or null when there are none: a page then shows no Decisions section.
@@ -771,7 +770,7 @@ function render(markdown, warnings, root, kind) {
   const ctx = { root, file, warnings }, needed = found['what the build needs'] && needs(found['what the build needs'], ctx);
   const cards = changes(found[list.toLowerCase()], warnings, ctx);
   return `<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>\n<div class="card">\n${why.join('\n')}\n</div></section>\n`
-    + `<section id="changes"${cards.wide ? ' class="wide"' : ''} aria-labelledby="changes-h"><h2 id="changes-h">${list}</h2>\n${cards.html}\n</section>`
+    + `<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">${list}</h2>\n${cards}\n</section>`
     + (needed ? `\n<section id="needs" aria-labelledby="needs-h"><h2 id="needs-h">What the build needs</h2>\n${needed}\n</section>` : '')
     + (decided ? `\n<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>\n${decided}\n</section>` : '');
 }
