@@ -35,30 +35,38 @@
   .card { padding:var(--pad); margin:0 0 10px; }
   .card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
   .items, .decisions, .note-list { list-style:none; margin:0; padding:0; }
-  /* A card: its view of pictures first on a phone, beside the words at 900px and wider. */
-  .item.card { display:flex; flex-direction:column-reverse; padding:0; overflow:hidden; }
+  /* A card on a phone: its words, a row of small pictures, then OK and Note. At 900px and wider the pictures sit right. */
+  .item.card { padding:0; overflow:hidden; }
   .words { display:grid; grid-template-columns:26px minmax(0,1fr); align-content:start; gap:0 10px; min-width:0; padding:var(--pad); }
-  .words > .table, .words > .form, .words > .verdict { grid-column:1 / -1; margin-top:10px; }
+  .words > .table, .words > .form, .words > .live-said { grid-column:1 / -1; margin-top:10px; }
+  .item > .verdict { padding:0 var(--pad) var(--pad); }
+  .text { position:relative; }
   .clamp { display:block; }
+  .text:not(.folded) .clamp { display:inline; }
   .text.folded .clamp { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
-  .more { min-width:0; min-height:32px; padding:0; border:0; background:none; box-shadow:none; color:var(--muted-foreground); font-weight:400; text-decoration:underline; }
-  .view { display:flex; flex-direction:column; min-width:0; background:var(--muted); border-bottom:1px solid var(--border); }
-  .tabs { display:flex; gap:4px; padding:8px 8px 0; overflow-x:auto; scrollbar-width:none; }
-  .tabs .tab { flex:none; min-width:0; min-height:36px; padding:0 12px; border:0; border-radius:var(--radius) var(--radius) 0 0; background:transparent; box-shadow:none; color:var(--muted-foreground); font-weight:400; white-space:nowrap; }
-  .tabs .tab[aria-selected="true"] { background:var(--card); color:var(--foreground); font-weight:600; }
-  .stage { flex:1; display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px; margin:0 8px; padding:12px; background:var(--card); border-radius:0 0 var(--radius) var(--radius); }
-  .stage > * { flex:1 1 280px; min-width:0; }
-  .view-tools { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px; }
-  .view-tools .grow { flex:1; }
-  .view-tools [aria-pressed="true"] { background:var(--secondary); color:var(--secondary-foreground); }
+  .more { min-width:0; min-height:0; padding:0; border:0; background:none; box-shadow:none; color:var(--muted-foreground); font:inherit; font-weight:400; text-decoration:underline; }
+  .text:not(.folded) .more { margin-left:.4em; }
+  .text.folded .more { position:absolute; right:0; padding-left:1.6em; background:linear-gradient(to right, transparent, var(--card) 1.2em); }
+  .view { min-width:0; padding:0 var(--pad) 10px calc(var(--pad) + 36px); }
+  .stage { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; }
+  /* A part: one labelled picture, drawing, page, or live card; a click opens it full screen. */
+  .part { flex:none; width:84px; margin:0; text-align:center; cursor:zoom-in; }
+  .part .clip { position:relative; width:84px; height:112px; overflow:hidden; border:1px solid var(--border); border-radius:8px; background:var(--card); }
+  .part .clip:not(.big) * { pointer-events:none; }
+  .part .clip:not(.big) .pin { pointer-events:auto; }
+  .part figcaption { margin-top:3px; color:var(--muted-foreground); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .part:hover figcaption, .part:focus-visible figcaption { color:var(--foreground); }
+  .part:hover .clip:not(.big) { outline:2px solid var(--ring); outline-offset:2px; }
+  .part .art { margin:0; font-size:var(--f, 13px); }
+  .part .art.screen:not([style]) { width:49.2em; }
+  /* A page or live card taller than its space shows its top; a fade says there is more. */
+  .clip.tall::after { content:""; position:absolute; left:0; right:0; bottom:0; height:48px; background:linear-gradient(to bottom, transparent, var(--card)); pointer-events:none; }
   .item, .decision { scroll-margin-top:8px; }
   .num { flex:0 0 26px; height:26px; border-radius:50%; background:var(--secondary); color:var(--secondary-foreground); font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; }
   .body { flex:1; min-width:0; }
   [data-note] { border-radius:4px; }
   [data-note]:hover, .noting { background:var(--accent); }
-  .frame { overflow:auto; touch-action:pan-y; }
-  .js .frame { overflow:hidden; cursor:zoom-in; }
-  .art { display:block; width:max-content; margin:0 auto; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art { position:relative; display:block; width:max-content; margin:0 auto; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
   .art.pic { box-sizing:content-box; white-space:normal; --pele-bg:transparent; --pele-fg:var(--foreground); --pele-muted:var(--muted-foreground); --pele-line:var(--foreground); --pele-border:var(--ring); --pele-surface:var(--card); --pele-surface-alt:var(--muted); --pele-accent:var(--foreground); --pele-error:var(--destructive); --pele-critical:var(--destructive); }
   .art.pic svg { display:block; width:100%; height:auto; }
   /* A hand-drawn sketch: named colours become classes painted from the look; text inherits the page's ink and font at a fixed size. */
@@ -78,31 +86,25 @@
   .art.screen .gap { gap:.6em; } .art.screen .grow { flex:1 1 0; min-width:0; } .art.screen .muted { margin:0; color:var(--muted-foreground); font-size:inherit; } .art.screen .danger { color:var(--destructive); }
   .art.screen .sk-bar { display:block; height:.75em; border-radius:.375em; background:color-mix(in oklab, var(--muted-foreground) 25%, transparent); }
   .art.screen .tbl, .art.screen table { width:100%; border-collapse:collapse; } .art.screen :is(th, td) { padding:.35em .6em; text-align:left; border-bottom:1px solid var(--border); }
-  /* Picture files: labelled figures in em, so the fit and zoom scale them like a drawing; the kit sets the width for the shown ones. */
-  .art.photo { width:25.6em; display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-start; gap:.8em; white-space:normal; line-height:1.3; }
-  .art.photo figure { flex:0 1 24em; min-width:0; margin:0; text-align:center; }
-  .art.photo figure.wide { flex:1 1 100%; }
-  .art.photo img { display:block; width:100%; height:auto; max-height:40em; object-fit:contain; border:1px solid var(--border); border-radius:.4em; background:var(--background); }
-  .art.photo figcaption { margin-top:.3em; color:var(--muted-foreground); font-size:.95em; }
-  .shot { position:relative; display:block; } .art .pin.spot { position:absolute; z-index:2; margin:0; transform:translate(-50%, -50%); }
-  /* An ad: the card a feed or a story shows, in em like a picture; several sit side by side when they fit. */
-  .ad { flex:1 1 15em; max-width:20em; min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:.6em; background:var(--card); color:var(--card-foreground); text-align:left; }
+  /* A picture file: as wide in em as its file is in px, so the fit and zoom scale it like a drawing. */
+  .art.photo { padding:0; line-height:0; }
+  .art.photo img { display:block; width:20em; height:auto; border:1px solid var(--border); border-radius:.4em; background:var(--background); }
+  .art .pin.spot, .page .pin.spot { position:absolute; z-index:2; margin:0; transform:translate(-50%, -50%); }
+  /* An ad: the card a feed or a story shows, in em like a picture. */
+  .art.ad { width:20em; padding:0; overflow:hidden; border:1px solid var(--border); border-radius:.6em; background:var(--card); color:var(--card-foreground); text-align:left; white-space:normal; line-height:1.3; }
   .ad .ad-account { margin:0; padding:.5em .7em; } .ad .ad-account span { color:var(--muted-foreground); font-size:.85em; }
-  .art.photo .ad img { max-height:none; aspect-ratio:4 / 5; object-fit:cover; border:0; border-radius:0; }
+  .ad img { display:block; width:100%; aspect-ratio:4 / 5; object-fit:cover; }
   .ad-words { display:flex; flex-wrap:wrap; align-items:center; gap:.3em .6em; padding:.6em .7em; }
   .ad-words .ad-text { flex:1 1 100%; margin:0; } .ad-words .ad-headline { flex:1 1 0; min-width:0; }
   .ad-button { padding:.3em .8em; border-radius:.4em; background:var(--primary); color:var(--primary-foreground); font-size:.9em; }
-  .ad.story { position:relative; } .art.photo .ad.story img { aspect-ratio:9 / 16; }
+  .ad.story { position:relative; } .ad.story img { aspect-ratio:9 / 16; }
   .ad.story .ad-account { position:absolute; top:0; left:0; right:0; z-index:1; background:color-mix(in oklab, var(--background) 70%, transparent); }
   .ad.story .ad-words { position:absolute; left:0; right:0; bottom:0; background:color-mix(in oklab, var(--background) 80%, transparent); }
-  /* A page card: a whole page at phone or computer width, scaled to the card; a cover over it takes a tap as a spot note. */
-  .art.page { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; width:auto; padding:0; white-space:normal; }
-  .art.page .shot { flex:none; overflow:hidden; border:1px solid var(--border); border-radius:12px; background:white; }
-  .art.page iframe { display:block; border:0; transform-origin:0 0; }
+  /* A page or a live card: drawn at a phone or computer width, scaled; a cover over a page takes a tap as a spot note. */
+  .page, .live { position:relative; overflow:hidden; margin:0 auto; background:white; }
+  .page iframe, .live iframe { display:block; border:0; transform-origin:0 0; }
+  .live iframe { background:var(--background); }
   .cover { position:absolute; top:0; left:0; right:0; bottom:0; cursor:crosshair; }
-  .page-bar { display:none; }
-  .pages.full { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; overflow:auto; margin:0; padding:0 12px 12px; background:var(--background); }
-  .pages.full .page-bar { position:sticky; top:0; z-index:3; display:flex; justify-content:flex-end; padding:calc(6px + env(safe-area-inset-top)) 0 6px; background:var(--background); }
   .picks { display:flex; flex-wrap:wrap; gap:6px; }
   .pick { position:relative; padding:2px; border:2px solid transparent; border-radius:10px; cursor:pointer; }
   .pick:has(input:checked) { border-color:var(--primary); } .pick:focus-within { outline:2px solid var(--ring); }
@@ -118,12 +120,25 @@
   .tbl tbody tr:last-child td { border-bottom:0; }
   .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
   .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-radius:17px; box-shadow:none; color:var(--muted-foreground); font-size:13px; vertical-align:middle; }
-  .zoom { display:flex; align-items:center; gap:6px; }
-  .zoom .level { margin-right:auto; color:var(--muted-foreground); font-size:13px; }
-  #viewer { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; background:var(--background); }
-  #viewer .zoom { flex:none; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; border-bottom:1px solid var(--border); }
-  #viewer .vframe { flex:1; min-height:0; overflow:auto; background:var(--muted); touch-action:pan-x pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
-  #viewer .vhint { flex:none; margin:0; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--border); color:var(--muted-foreground); font-size:13px; }
+  /* Full screen: the labels and Close on top; the part's own frame fills the middle; what changes it sits at the foot. */
+  #viewer { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; background:var(--muted); }
+  #viewer .vtop { flex:none; display:flex; align-items:center; gap:8px; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; border-bottom:1px solid var(--border); background:var(--background); }
+  #viewer .names { flex:1 1 0; min-width:0; display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; }
+  #viewer .name { flex:none; min-width:0; padding:0 12px; border:0; background:transparent; box-shadow:none; color:var(--muted-foreground); font-weight:400; white-space:nowrap; }
+  #viewer .name[aria-selected="true"] { background:var(--muted); color:var(--foreground); font-weight:600; }
+  #viewer .vspace { flex:1; min-height:0; }
+  #viewer .vfoot { flex:none; display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--border); background:var(--background); }
+  #viewer .vhint { flex:1 1 220px; margin:0; color:var(--muted-foreground); font-size:13px; }
+  .zoom, .sizes { display:flex; align-items:center; gap:6px; }
+  .zoom .level { color:var(--muted-foreground); font-size:13px; }
+  .sizes { gap:0; padding:2px; border-radius:var(--radius); background:var(--muted); }
+  .sizes button { min-height:36px; border:0; background:none; box-shadow:none; color:var(--muted-foreground); font-weight:400; }
+  .sizes button[aria-pressed="true"] { background:var(--card); color:var(--foreground); font-weight:600; box-shadow:var(--look-shadow-xs); }
+  .clip.big { position:fixed; left:0; right:0; top:var(--vtop, 52px); bottom:var(--vfoot, 52px); z-index:9; width:auto !important; height:auto !important; max-height:none !important;
+    padding:12px; overflow:auto; border:0; border-radius:0; background:var(--muted); cursor:auto; touch-action:pan-x pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  .clip.big::after { display:none; }
+  .clip.big > .art, .clip.big > .page, .clip.big > .live { margin:0 auto; }
+  .clip.big > :is(.art.photo, .art.ad, .art.pic, .page) { cursor:crosshair; }
   body.viewing { overflow:hidden; }
   .meta { margin:0 0 4px !important; color:var(--muted-foreground); font-size:13px; }
   .tag { margin-right:8px; vertical-align:1px; }
@@ -166,14 +181,7 @@
   #toast { position:fixed; left:50%; bottom:calc(var(--bar, 76px) - 4px); z-index:7; max-width:90vw; transform:translateX(-50%); padding:8px 14px; border-radius:var(--radius); background:var(--primary); color:var(--primary-foreground); box-shadow:var(--look-shadow-lg); font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
   #toast.show { opacity:1; }
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
-  /* Live cards, forms, files, and the needs list: the look's parts, with inputs at 16px so a phone never zooms. */
-  .live-tools { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px; }
-  .live-tools [aria-pressed="true"] { background:var(--secondary); color:var(--secondary-foreground); }
-  .live-box { overflow:hidden; border:1px solid var(--border); border-radius:var(--radius); background:var(--muted); }
-  .live iframe { display:block; border:0; transform-origin:0 0; background:var(--background); }
-  .live.full { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; margin:0; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; background:var(--background); }
-  .live.full .live-box { flex:1; min-height:0; overflow:auto; }
-  .live.full iframe { margin:0 auto; }
+  /* Forms, files, and the needs list: the look's parts, with inputs at 16px so a phone never zooms. */
   .live-said { margin:6px 0 0; }
   .form { display:grid; gap:14px; }
   .need .form { margin-top:10px; }
@@ -201,15 +209,24 @@
     #ready-confirm, #ready-says { right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
     #ready-confirm { width:320px; }
   }
-  /* Wide screen: Why, Needs, and Decisions keep a readable width; cards with a view grow, words left and view right. */
+  /* Wide screen: Why, Needs, and Decisions keep a readable width; a card's words and buttons sit left, and its
+     pictures sit right, side by side, as tall as the words (the kit sets the height). */
   @media (min-width:900px) {
     main { max-width:1160px; padding:0 24px; }
     main > header, main > section { max-width:700px; margin-left:auto; margin-right:auto; }
     main > #changes.wide { max-width:none; }
     #changes.wide .item:not(.has-view), #changes.wide > .aside { max-width:700px; margin-left:auto; margin-right:auto; }
-    .item.has-view { display:grid; grid-template-columns:minmax(280px, 380px) minmax(0, 1fr); }
-    .item.has-view .words { padding:20px; border-right:1px solid var(--border); }
-    .view { border-bottom:0; }
+    .item.has-view { display:grid; grid-template-columns:minmax(280px, 380px) minmax(0, 1fr); grid-template-rows:auto 1fr; align-items:start; }
+    .item.has-view > .words { grid-column:1; grid-row:1; padding:20px 20px 12px; }
+    .item.has-view > .verdict { grid-column:1; grid-row:2; padding:0 20px 20px; }
+    .item.has-view > .view { grid-column:2; grid-row:1 / span 2; display:flex; padding:0; border-left:1px solid var(--border); background:var(--muted); }
+    .stage { flex:1; min-width:0; gap:16px; padding:16px; align-items:center; }
+    .stage > .part:first-child { margin-left:auto; } .stage > .part:last-child { margin-right:auto; }
+    .part { width:auto; }
+    .part .clip { width:auto; height:auto; border:0; border-radius:0; background:none; }
+    .part[data-kind="draw"] .clip:not(.big) { border:1px solid var(--border); border-radius:var(--radius); background:var(--card); }
+    .part:is([data-kind="page"], [data-kind="live"]) .clip:not(.big) { border:1px solid var(--border); border-radius:12px; background:var(--card); }
+    .part figcaption { margin-top:6px; font-size:14px; }
   }
 </style>
 <!-- theme -->
@@ -221,7 +238,7 @@
   <h1>CHANGE-NAME</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
-  <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a tab to see each screen, and a picture to see it full screen.</span></p>
+  <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
   <p id="script-error" role="alert" hidden></p>
 </header>
 <!-- review:content -->
@@ -239,10 +256,13 @@
   <p class="copies">Saving a note copies all your notes.</p>
   <p class="session" hidden>Notes last for this session only.</p>
 </div>
-<div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
-  <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
-  <div class="vframe"></div>
-  <p class="vhint">Drag to move · pinch or + to zoom<span class="note-it"> · tap a line or picture to note it</span></p>
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Full screen" hidden>
+  <div class="vtop"><div class="names" role="tablist" aria-label="Pictures"></div><button type="button" class="primary" data-close>✕ Close</button></div>
+  <div class="vspace"></div>
+  <div class="vfoot"><p class="vhint"></p>
+    <span class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button></span>
+    <span class="sizes" role="group" aria-label="Width"><button type="button" data-size="0" aria-pressed="true">Phone</button><button type="button" data-size="1" aria-pressed="false">Computer</button></span>
+    <a class="try" target="_blank" rel="noopener noreferrer" hidden>Try it ↗</a></div>
 </div>
 <div class="bar" data-busy="false"><button type="button" class="primary" id="copy"><span class="spinner" hidden aria-hidden="true"></span><span id="copy-label">Copy notes</span></button>
   <div id="ready" hidden>
@@ -257,6 +277,8 @@
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
   window.addEventListener('error', function (e) {
+    // A browser notice that a resize watcher waited a frame is no script error.
+    if (/ResizeObserver loop/.test(e.message)) return;
     $('script-error').hidden = false;
     $('script-error').textContent = 'Review script error: ' + e.message + ' (line ' + e.lineno + ')';
   });
@@ -274,10 +296,10 @@
     document.querySelector('.hint .lead').textContent = 'Tap a picture to see it full screen, then tap it to note it.';
     document.querySelector('.hint .tail').textContent = '';
   }
-  if (REVIEW) document.querySelector('.hint .lead').textContent = 'Tap OK or Change on each card, or select words to note them.';
+  if (REVIEW) document.querySelector('.hint .lead').textContent = 'Tap OK or Note on each card, or select words to note them.';
   const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
   const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
-  const viewer = $('viewer'), vframe = viewer.querySelector('.vframe'), vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button');
+  const viewer = $('viewer');
   const all = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
   const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
 
@@ -335,16 +357,14 @@
   }
   function labelOf(el) {
     const c = el.cloneNode(true);
-    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add, title, desc'), function (n) { n.parentNode.removeChild(n); });
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add, .more, title, desc'), function (n) { n.parentNode.removeChild(n); });
     // A picture's labels are separate SVG text elements: join them with spaces so they read as words.
-    // A table row's cells read joined with a dot.
-    // A screen's words sit in many small boxes: join every piece of text with a space.
-    // Picture files and page versions read as their labels, joined with a dot.
-    const row = el.tagName === 'TR', page = el.classList.contains('page'), photo = page || el.classList.contains('photo');
-    const cells = row ? c.querySelectorAll('td') : page ? c.querySelectorAll('.shot') : photo ? c.querySelectorAll('img')
-      : el.classList.contains('screen') ? texts(c) : el.classList.contains('pic') ? c.querySelectorAll('text') : [c];
-    const text = Array.prototype.map.call(cells, function (n) { return (page ? n.getAttribute('data-label') : photo ? n.alt : n.textContent).replace(/\s+/g, ' ').trim(); })
-      .join(row || photo ? ' · ' : ' ').replace(/\s+/g, ' ').trim();
+    // A table row's cells read joined with a dot. A screen's words sit in many small boxes: join every piece with a space.
+    // A picture file, an ad, and a page read as their label.
+    const row = el.tagName === 'TR', named = el.getAttribute('data-label');
+    const cells = row ? c.querySelectorAll('td') : el.classList.contains('screen') ? texts(c) : el.classList.contains('pic') ? c.querySelectorAll('text') : [c];
+    const text = named !== null ? named : Array.prototype.map.call(cells, function (n) { return n.textContent.replace(/\s+/g, ' ').trim(); })
+      .join(row ? ' · ' : ' ').replace(/\s+/g, ' ').trim();
     return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
   }
   function texts(c) {
@@ -357,12 +377,11 @@
     const m = /^(.*)-(words|spot)-\d+$/.exec(id), el = document.querySelector('[data-note="' + (m ? m[1] : id) + '"]');
     if (!el) return null;
     if (m && m[2] === 'words') return textOf(el).indexOf(rec.quote) >= 0 ? el : null;
-    if (m && !el.querySelectorAll('.shot')[rec.k]) return null;
     return labelOf(el) === rec.label ? el : null;
   }
   function textOf(el) {
     const c = el.cloneNode(true);
-    Array.prototype.forEach.call(c.querySelectorAll('.pin, .add'), function (n) { n.parentNode.removeChild(n); });
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .add, .more'), function (n) { n.parentNode.removeChild(n); });
     return c.textContent.replace(/\s+/g, ' ');
   }
   // A new note on words or a spot takes the next free number on its target.
@@ -411,7 +430,7 @@
         pin.setAttribute('aria-label', (num ? 'Open note ' + num : 'Open draft') + (num && draft ? ' and its draft' : ''));
         if (rec.x !== undefined) {
           pin.className += ' spot'; pin.style.left = rec.x + '%'; pin.style.top = rec.y + '%';
-          el.querySelectorAll('.shot')[rec.k].appendChild(pin);
+          el.appendChild(pin);
         } else slot(el).appendChild(pin);
       }
       const li = document.createElement('li');
@@ -422,7 +441,8 @@
     });
     all('[data-note]', function (el) {
       const id = el.getAttribute('data-note');
-      if (el.closest('.art') || el.querySelector('.pin[data-open="' + id + '"]')) return;
+      // An item's words take their note through the Note button beside OK; a part takes its notes full screen.
+      if (el.closest('.art, .stage') || el.matches('.items > .item .text') || el.querySelector('.pin[data-open="' + id + '"]')) return;
       const add = document.createElement('button');
       add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
       add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
@@ -449,7 +469,6 @@
     if (ids.length || $('note-list').querySelector('.answers')) { const none = $('note-list').querySelector('li.muted'); if (none) none.remove(); }
     fill(); drawFiles();
     views.forEach(counts);
-    drawings.forEach(fit);
     bar();
   }
 
@@ -486,17 +505,15 @@
     if (!t || t.id !== e.pointerId || Date.now() - t.t > 500) return;
     if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
     const el = t.target.closest('[data-note]');
-    const offer = el && (el.closest('#viewer') || t.target.classList.contains('cover') || (e.pointerType === 'mouse' && !el.closest('.frame')));
+    const offer = el && (el.closest('.clip.big') || (e.pointerType === 'mouse' && !el.closest('.stage')));
     if (offer) showChip(el, e.clientX, e.clientY, false, spotAt(el, t.target, e)); else hideChip();
   });
-  // A tap on a picture file in full screen, or on a whole page, notes that spot of it, kept in percent so it holds at any size.
+  // A tap on a whole part full screen notes that spot of it, kept in percent so it holds at any size; a drawing's line is a line.
   function spotAt(el, target, e) {
-    const cover = target.classList.contains('cover');
-    if (!cover && (!el.closest('#viewer') || !el.classList.contains('photo') || target.tagName !== 'IMG')) return null;
-    const box = cover ? target.parentNode : target, r = box.getBoundingClientRect();
+    if (!el.parentNode.classList.contains('big')) return null;
+    const r = el.getBoundingClientRect(), fig = el.closest('.part');
     const pct = function (v, size) { return Math.max(0, Math.min(100, Math.round(v / Math.max(1, size) * 100))); };
-    return { k: Array.prototype.indexOf.call(el.querySelectorAll(cover ? '.shot' : 'img'), box), x: pct(e.clientX - r.left, r.width), y: pct(e.clientY - r.top, r.height),
-      on: cover ? box.getAttribute('data-label') : target.alt };
+    return { k: 0, x: pct(e.clientX - r.left, r.width), y: pct(e.clientY - r.top, r.height), on: fig.querySelector('figcaption').firstChild.textContent };
   }
   // Selected words in one note target offer a note on just those words.
   let picking = 0;
@@ -535,7 +552,8 @@
         el.focus();
       }
       else if (view) closeViewer(true);
-      else if (paged) pageFull(paged, false);
+    } else if (view && !open && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && V.f <= V.lo * 1.001) {
+      openViewer(view.c, view.i + (e.key === 'ArrowRight' ? 1 : -1));
     } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
       e.preventDefault();
       const r = e.target.getBoundingClientRect();
@@ -548,7 +566,6 @@
   function openEditor(id, el, extra) {
     if (readOnly) return;
     closeViewer(false); closeEditor(false); hideChip();
-    if (paged) pageFull(paged, false);
     const note = noteOf(id), draft = data.drafts[id];
     if (el) reveal(el, extra ? extra.k : (draft || note || {}).k);
     const quote = extra && extra.quote, clip = quote && quote.length > 60 ? quote.slice(0, 59) + '…' : quote;
@@ -641,195 +658,238 @@
     }
   });
 
-  // ── drawings: fitted by font size on the page; a tap shows one full screen, where it zooms and scrolls natively ──
-  const BASE = 13, drawings = [];
-  let view = null;
-  const V = { f: BASE, lo: BASE, hi: BASE };
-  function size(art, f, max) {
-    art.style.fontSize = f + 'px';
-    for (let i = 0; i < 3 && art.offsetWidth > max; i += 1) { f *= max / art.offsetWidth; art.style.fontSize = f + 'px'; }
-    return f;
+  // ── OK and Note on each card: an OK is kept with the notes until undone, and goes to the chat with them ──
+  all('.items > .item', function (item) {
+    const v = document.createElement('div');
+    v.className = 'verdict';
+    v.innerHTML = '<span class="tag" hidden>OK</span><button type="button" class="btn-ghost" data-ok="' + item.id + '">OK</button>'
+      + '<button type="button" class="btn-ghost" data-open="' + item.id + '" aria-label="Note on ' + NOUN.toLowerCase() + ' ' + item.id.slice(5) + '">Note</button>';
+    item.appendChild(v);
+  });
+
+  // ── the card view: each part sits in a labelled frame, sized by the card's words; a click opens it full screen ──
+  const BASE = 13, PAGE_W = [390, 1280], FIRST_SCREEN = 760;
+  const WIDE = window.matchMedia ? window.matchMedia('(min-width: 900px)') : { matches: false };
+  const later = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : function (fn) { return setTimeout(fn, 16); };
+  const views = [];
+  // Each page frame's height, as its page posted it at 1 px tall; and each overflow seen at full height, measured once.
+  const pageH = new WeakMap(), pageOver = new WeakMap(), PAGE_MAX = 40000;
+  let view = null, queued = false;
+  // A resize watcher's work waits for the next frame, so a size it sets never loops back into the same frame.
+  function queue() {
+    if (queued) return;
+    queued = true;
+    later(function () { queued = false; views.forEach(layout); if (view && big().paged) fitBig(); });
   }
-  function fit(d) {
-    if (!d.frame.clientWidth || view === d) return;
-    d.art.style.fontSize = BASE + 'px';
-    const w = d.art.offsetWidth, fw = d.frame.clientWidth - 1;
-    if (w > 0 && fw > 0) size(d.art, BASE * Math.min(1.25, fw / w), fw);
+  // A new width measures a page again from 1 px tall, so a shorter page doesn't keep the old height.
+  function pageWidth(f, w) {
+    if (f.style.width === w + 'px') return;
+    f.style.width = w + 'px'; f.style.height = '1px'; pageH.delete(f);
   }
-  // A note's target shows: its tab is picked, by its spot's picture when it has one, and folded words unfold.
-  function reveal(el, k) {
-    const shot = k === undefined ? null : el.querySelectorAll('.shot')[k], c = viewOf(el);
-    if (c && (shot || el).closest('[hidden]')) {
-      const part = (shot || el).closest('[data-part]'), i = c.panels.indexOf(el.closest('.stage > *'));
-      const tab = c.tabs.filter(function (t) { return +t.getAttribute('data-panel') === i && (!part || partsOf(c, t).indexOf(part.getAttribute('data-part')) >= 0); })[0];
-      if (tab) show(c, [tab]);
+  // A page or live card drawn w px wide and h px tall, scaled by k; a page keeps the height its page posted.
+  function frameAt(p, w, h, k) {
+    const f = p.el.querySelector('iframe');
+    if (!f) return;
+    if (p.kind === 'page') pageWidth(f, w); else { f.style.width = w + 'px'; f.style.height = h + 'px'; }
+    f.style.transform = k < 1 ? 'scale(' + k + ')' : '';
+    p.el.style.width = w * k + 'px'; p.el.style.height = h * k + 'px';
+  }
+  // A part's own size: a drawing or picture at the base size, a page or live card at a phone's width.
+  function natural(p) {
+    if (p.kind === 'page') return { w: PAGE_W[0], h: pageH.get(p.el.querySelector('iframe')) || 200 };
+    if (p.kind === 'live') return { w: PAGE_W[0], h: +p.el.getAttribute('data-height') || 640 };
+    p.clip.style.setProperty('--f', BASE + 'px');
+    return { w: p.el.offsetWidth, h: p.el.offsetHeight };
+  }
+  // On a computer the parts are as tall as the words, at least 420 px and at most the window, each shrunk whole
+  // to fit the row down to about 110 px wide, past which the row scrolls. On a phone each is a small picture.
+  function layout(c) {
+    const wide = WIDE.matches, bar = document.querySelector('.bar'), verdict = c.item.querySelector('.verdict');
+    const H = Math.min(Math.max(420, c.words.offsetHeight + (verdict ? verdict.offsetHeight : 0)), Math.max(240, window.innerHeight - (bar ? bar.offsetHeight : 0) - 32));
+    c.el.style.height = wide ? H + 'px' : '';
+    const room = wide ? H - 32 - 30 : 112;
+    const sized = c.parts.map(function (p) {
+      if (p.clip.classList.contains('big')) return null;
+      const s = natural(p);
+      if (!s.w || !s.h) return null;
+      s.p = p;
+      s.k = !wide ? (p.paged ? 84 / s.w : Math.min(84 / s.w, 112 / s.h))
+        : p.paged ? Math.min(1, room / Math.min(s.h, FIRST_SCREEN)) : Math.min(p.kind === 'draw' ? 1.25 : 1, room / s.h);
+      return s;
+    }).filter(Boolean);
+    if (wide) shrink(sized, c.stage.clientWidth - 32 - 16 * (c.parts.length - 1));
+    sized.forEach(function (s) {
+      const p = s.p;
+      if (p.paged) frameAt(p, s.w, s.h, s.k); else p.clip.style.setProperty('--f', BASE * s.k + 'px');
+      const h = s.h * s.k, shown = wide ? Math.min(room, Math.ceil(h)) : 112;
+      p.clip.style.height = wide ? shown + 'px' : '';
+      p.fig.style.width = wide ? Math.ceil(s.w * s.k) + 2 + 'px' : '';
+      p.clip.classList.toggle('tall', h > shown + 2);
+    });
+  }
+  // Parts too wide for the row shrink by one factor; one that would fall under 110 px keeps 110, and the rest share what is left.
+  function shrink(sized, row) {
+    let small = [], f = 1;
+    for (let i = 0; i < sized.length; i += 1) {
+      const rest = sized.filter(function (s) { return small.indexOf(s) < 0; });
+      f = Math.min(1, (row - 110 * small.length) / Math.max(1, rest.reduce(function (t, s) { return t + s.w * s.k; }, 0)));
+      const more = rest.filter(function (s) { return s.w * s.k * f < 110; });
+      if (!more.length) break;
+      small = small.concat(more);
     }
+    sized.forEach(function (s) { s.k *= small.indexOf(s) >= 0 ? Math.min(1, 110 / (s.w * s.k)) : Math.max(f, 0); });
+  }
+  function counts(c) {
+    c.parts.forEach(function (p) {
+      const k = p.clip.querySelectorAll('.pin').length;
+      p.count.textContent = k ? ' · ' + k : '';
+      p.fig.setAttribute('aria-label', p.label + (k ? ', ' + plural(k) : '') + ', open full screen');
+    });
+  }
+  all('.view', function (v) {
+    const item = v.closest('.item'), c = { el: v, item: item, stage: v.querySelector('.stage'), words: item.querySelector('.words'),
+      try: v.getAttribute('data-try') || '', at: 0, parts: [] };
+    Array.prototype.forEach.call(c.stage.children, function (fig) {
+      const cap = fig.querySelector('figcaption'), kind = fig.getAttribute('data-kind');
+      const p = { fig: fig, clip: fig.querySelector('.clip'), el: fig.querySelector('.clip').firstElementChild, kind: kind, paged: kind === 'page' || kind === 'live', label: cap.textContent };
+      p.count = document.createElement('span'); p.count.className = 'count'; cap.appendChild(p.count);
+      fig.tabIndex = 0; fig.setAttribute('role', 'button');
+      c.parts.push(p);
+    });
+    c.stage.addEventListener('click', function (e) {
+      const fig = e.target.closest('.part');
+      if (fig && !e.target.closest('.clip.big, [data-open]')) openViewer(c, partIndex(c, fig));
+    });
+    c.stage.addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('part')) { e.preventDefault(); openViewer(c, partIndex(c, e.target)); }
+    });
+    if (window.ResizeObserver) { const watch = new ResizeObserver(queue); watch.observe(c.words); watch.observe(c.stage); }
+    views.push(c);
+  });
+  const partIndex = function (c, fig) { return c.parts.map(function (p) { return p.fig; }).indexOf(fig); };
+  // A picture file is as wide in em as its file is in px, so it scales like a drawing.
+  all('.art.photo img', function (img) {
+    const size = function () { if (img.naturalWidth) { img.style.width = img.naturalWidth / BASE + 'em'; queue(); } };
+    if (img.complete) size(); else img.addEventListener('load', size);
+  });
+  // A note's target shows: folded words unfold.
+  function reveal(el) {
     folds.forEach(function (f) { if (f.text === el && !f.open) { f.open = true; measure(f); } });
   }
+
+  // ── full screen: one part over everything, the card's labels on top, its changes at the foot; it zooms and scrolls natively ──
+  const vtop = viewer.querySelector('.vtop'), vfoot = viewer.querySelector('.vfoot'), names = viewer.querySelector('.names');
+  const vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button'), sizes = viewer.querySelector('.sizes'), tryIt = viewer.querySelector('.try');
+  const V = { f: BASE, lo: BASE, hi: BASE };
+  const HINTS = { draw: ['Drag to move · pinch or + to zoom', 'tap a line or picture to note it'], photo: ['Pinch or + to zoom', 'tap a spot to note it'],
+    page: ['Scroll to read', 'tap a spot to note it'], live: ['Try it here: what you do goes with your notes', ''] };
+  function big() { return view && view.c.parts[view.i]; }
   function scale(f, cx, cy) {
+    const box = big().clip;
     f = Math.max(V.lo, Math.min(V.hi, f));
-    const k = f / V.f, x = (vframe.scrollLeft + cx) * k - cx, y = (vframe.scrollTop + cy) * k - cy;
-    V.f = f; view.art.style.fontSize = f + 'px';
-    vframe.scrollLeft = x; vframe.scrollTop = y;
+    const k = f / V.f, x = (box.scrollLeft + cx) * k - cx, y = (box.scrollTop + cy) * k - cy;
+    V.f = f; box.style.setProperty('--f', f + 'px');
+    box.scrollLeft = x; box.scrollTop = y;
     const atFit = f <= V.lo * 1.001;
     vbar.firstChild.textContent = (atFit ? 'Fit · ' : '') + Math.round(f / BASE * 100) + '%';
     vb[0].disabled = atFit; vb[2].disabled = f >= V.hi * 0.999;
   }
-  function openViewer(d) {
-    hideChip();
-    view = d; viewer.hidden = false; document.body.classList.add('viewing');
-    vframe.appendChild(d.art);
-    d.art.style.fontSize = BASE + 'px';
-    const fw = vframe.clientWidth - 1;
-    V.lo = size(d.art, BASE * fw / Math.max(1, d.art.offsetWidth), fw);
-    V.hi = Math.max(V.lo * 4, 40); V.f = V.lo;
-    vframe.scrollLeft = vframe.scrollTop = 0;
+  // A drawing fits the screen's width; a picture fits whole; a page or live card shows at the picked width, shrunk to fit.
+  function fitBig() {
+    const p = big();
+    root.style.setProperty('--vtop', vtop.offsetHeight + 'px'); root.style.setProperty('--vfoot', vfoot.offsetHeight + 'px');
+    const aw = p.clip.clientWidth - 24, ah = p.clip.clientHeight - 24;
+    V.f = V.lo = V.hi = BASE;
+    if (p.paged) {
+      const w = PAGE_W[view.c.at], k = Math.min(1, aw / w), f = p.el.querySelector('iframe');
+      frameAt(p, w, p.kind === 'live' ? ah / k : pageH.get(f) || ah / k, k);
+      return;
+    }
+    p.clip.style.setProperty('--f', BASE + 'px');
+    const w = p.el.offsetWidth, h = p.el.offsetHeight;
+    if (!w || !h || aw <= 0) return;
+    V.lo = BASE * (p.kind === 'draw' ? aw / w : Math.min(aw / w, ah / h)); V.hi = Math.max(V.lo * 4, 40); V.f = V.lo;
+    p.clip.scrollLeft = p.clip.scrollTop = 0;
     scale(V.lo, 0, 0);
-    vb[3].focus({ preventScroll: true });
+  }
+  function openViewer(c, i) {
+    hideChip();
+    if (view) big().clip.classList.remove('big');
+    view = { c: c, i: (i + c.parts.length) % c.parts.length };
+    const p = big(), hint = HINTS[p.kind];
+    viewer.hidden = false; document.body.classList.add('viewing');
+    names.innerHTML = c.parts.map(function (q, k) {
+      return '<button type="button" class="name" role="tab" data-i="' + k + '" aria-selected="' + (k === view.i) + '">' + esc(q.label) + '</button>';
+    }).join('');
+    viewer.querySelector('.vhint').innerHTML = esc(hint[0]) + (hint[1] ? '<span class="note-it"> · ' + esc(hint[1]) + '</span>' : '');
+    vbar.hidden = p.paged; sizes.hidden = !p.paged; tryIt.hidden = !c.try;
+    if (c.try) tryIt.href = c.try;
+    Array.prototype.forEach.call(sizes.children, function (b) { b.setAttribute('aria-pressed', String(+b.getAttribute('data-size') === c.at)); });
+    p.clip.classList.add('big');
+    layout(c); fitBig();
+    viewer.querySelector('[data-close]').focus({ preventScroll: true });
   }
   function closeViewer(restore) {
     if (!view) return;
-    const d = view;
-    view = null;
-    d.frame.insertBefore(d.art, d.frame.firstChild);
+    const c = view.c, p = big();
+    p.clip.classList.remove('big'); p.clip.scrollLeft = p.clip.scrollTop = 0;
+    view = null; c.at = 0;
     viewer.hidden = true; document.body.classList.remove('viewing');
-    fit(d); bar();
-    if (restore && d.enlarge) d.enlarge.focus({ preventScroll: true });
+    layout(c); bar();
+    if (restore) p.fig.focus({ preventScroll: true });
   }
-  vbar.addEventListener('click', function (e) {
-    const i = Array.prototype.indexOf.call(vb, e.target);
-    if (i === 3) closeViewer(true);
-    else if (i >= 0) scale([V.f / 1.25, V.lo, V.f * 1.25][i], vframe.clientWidth / 2, vframe.clientHeight / 2);
+  viewer.querySelector('[data-close]').addEventListener('click', function () { closeViewer(true); });
+  names.addEventListener('click', function (e) { const b = e.target.closest('[data-i]'); if (b) openViewer(view.c, +b.getAttribute('data-i')); });
+  sizes.addEventListener('click', function (e) {
+    const b = e.target.closest('[data-size]');
+    if (!b) return;
+    view.c.at = +b.getAttribute('data-size');
+    Array.prototype.forEach.call(sizes.children, function (s) { s.setAttribute('aria-pressed', String(s === b)); });
+    fitBig();
   });
-  vframe.addEventListener('wheel', function (e) {
-    if (!e.ctrlKey && !e.metaKey) return;
+  vbar.addEventListener('click', function (e) {
+    const i = Array.prototype.indexOf.call(vb, e.target), box = big().clip;
+    if (i >= 0) scale([V.f / 1.25, V.lo, V.f * 1.25][i], box.clientWidth / 2, box.clientHeight / 2);
+  });
+  const zoomable = function (e) { return view && !big().paged && e.target.closest && e.target.closest('.clip.big'); };
+  document.addEventListener('wheel', function (e) {
+    if (!zoomable(e) || (!e.ctrlKey && !e.metaKey)) return;
     e.preventDefault();
-    const r = vframe.getBoundingClientRect();
+    const r = big().clip.getBoundingClientRect();
     scale(V.f * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
   }, { passive: false });
-  // One finger scrolls natively; two fingers pinch around their midpoint.
-  let pinch = null;
+  // One finger scrolls natively, or swipes to the next part at fit; two fingers pinch around their midpoint.
+  // A swipe starts only on the shown part, so a swipe along the scrolling label row keeps the part.
+  let pinch = null, swipe = null;
   const span = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1; };
-  vframe.addEventListener('touchstart', function (e) { if (e.touches.length === 2) pinch = { f: V.f, dist: span(e.touches) }; }, { passive: true });
-  vframe.addEventListener('touchmove', function (e) {
+  document.addEventListener('touchstart', function (e) {
+    const t = e.touches, on = e.target.closest && e.target.closest('.clip.big');
+    swipe = view && on && t.length === 1 ? { x: t[0].clientX, y: t[0].clientY } : null;
+    if (zoomable(e) && t.length === 2) pinch = { f: V.f, dist: span(t) };
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
     if (!pinch || e.touches.length !== 2) return;
     if (e.cancelable) e.preventDefault();
-    const r = vframe.getBoundingClientRect(), t = e.touches;
+    const r = big().clip.getBoundingClientRect(), t = e.touches;
     scale(pinch.f * span(t) / pinch.dist, (t[0].clientX + t[1].clientX) / 2 - r.left, (t[0].clientY + t[1].clientY) / 2 - r.top);
   }, { passive: false });
-  vframe.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+  document.addEventListener('touchend', function (e) {
+    const s = swipe, t = e.changedTouches[0];
+    if (e.touches.length < 2) pinch = null;
+    swipe = null;
+    if (!s || !view || !t || V.f > V.lo * 1.001) return;
+    const dx = t.clientX - s.x;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(t.clientY - s.y)) openViewer(view.c, view.i + (dx < 0 ? 1 : -1));
+  });
   document.addEventListener('gesturestart', function (e) { if (view) e.preventDefault(); });
-  all('.drawing', function (fig) {
-    const frame = fig.querySelector('.frame'), d = { fig: fig, frame: frame, art: fig.querySelector('.art'), enlarge: null };
-    drawings.push(d);
-    frame.addEventListener('click', function (e) { if (!e.target.closest('[data-open]')) openViewer(d); });
-  });
 
-  // ── card views: a tab shows its panel, or some parts of it; Before and after shows two tabs side by side ──
-  const views = [];
-  // Each page card frame's height, as its page posted it at 1 px tall; and each overflow seen at full height, measured once.
-  const pageH = new WeakMap(), pageOver = new WeakMap(), PAGE_MAX = 40000;
-  const viewOf = function (el) { return views.filter(function (c) { return c.el.contains(el); })[0] || null; };
-  // A tab's parts: its computer picture when Computer is on, else its own list; none means the whole panel.
-  function partsOf(c, t) {
-    const wide = t.getAttribute('data-wide');
-    return (c.wide && wide !== null ? wide : t.getAttribute('data-parts') || '').split(' ').filter(Boolean);
-  }
-  function show(c, picked) {
-    c.picked = picked;
-    c.tabs.forEach(function (t) { t.setAttribute('aria-selected', String(picked.indexOf(t) >= 0)); });
-    c.panels.forEach(function (p, i) {
-      const mine = picked.filter(function (t) { return +t.getAttribute('data-panel') === i; }), parts = p.querySelectorAll('[data-part]');
-      let on = [];
-      p.hidden = !mine.length;
-      mine.forEach(function (t) { on = on.concat(partsOf(c, t)); });
-      Array.prototype.forEach.call(parts, function (el) { el.hidden = on.length > 0 && on.indexOf(el.getAttribute('data-part')) < 0; });
-      // Picture files sit side by side, shrunk to fit; a computer picture takes the frame's width.
-      const art = p.querySelector('.art.photo'), n = on.length || parts.length;
-      if (art && n) art.style.width = art.querySelector('.wide:not([hidden])') ? '49.2em' : n * (art.classList.contains('ads') ? 20 : 24) + (n - 1) * 0.8 + 1.6 + 'em';
-    });
-    const one = picked.length === 1 ? picked[0] : null, panel = one && c.panels[+one.getAttribute('data-panel')];
-    c.sizes.hidden = !one || !(one.hasAttribute('data-wide') || panel.classList.contains('pages'));
-    if (c.compare) c.compare.setAttribute('aria-pressed', String(picked.length > 1));
-    c.enlarge.hidden = c.panels.every(function (p) { return p.hidden || p.classList.contains('live'); });
-    drawings.forEach(fit);
-    pageFit(c);
-  }
-  function counts(c) {
-    c.tabs.forEach(function (t) {
-      const p = c.panels[+t.getAttribute('data-panel')], on = ((t.getAttribute('data-parts') || '') + ' ' + (t.getAttribute('data-wide') || '')).split(' ').filter(Boolean);
-      const pins = Array.prototype.slice.call(p.querySelectorAll('.pin')).concat(view && p.contains(view.frame) ? Array.prototype.slice.call(view.art.querySelectorAll('.pin')) : []);
-      const k = pins.filter(function (pin) { const part = pin.closest('[data-part]'); return !part || !on.length || on.indexOf(part.getAttribute('data-part')) >= 0; }).length;
-      t.querySelector('.count').textContent = k ? ' · ' + k : '';
-      t.setAttribute('aria-label', t.getAttribute('data-label') + (k ? ', ' + plural(k) : ''));
-    });
-  }
-  function enlarge(c) {
-    const p = c.panels.filter(function (x) { return !x.hidden; })[0], d = drawings.filter(function (x) { return x.fig === p; })[0];
-    if (d) openViewer(d); else if (p && p.classList.contains('pages')) pageFull({ c: c, p: p }, true);
-  }
-  all('.view', function (v) {
-    const tools = v.querySelector('.view-tools'), pair = (v.getAttribute('data-compare') || '').split(' ').filter(Boolean);
-    const c = { el: v, tabs: Array.prototype.slice.call(v.querySelectorAll('.tab')), panels: Array.prototype.slice.call(v.querySelector('.stage').children), wide: false, picked: [] };
-    tools.insertAdjacentHTML('afterbegin', (pair.length ? '<button type="button" class="btn-ghost" data-compare aria-pressed="false">' + esc(v.getAttribute('data-compare-label')) + '</button>' : '')
-      + '<span class="sizes"><button type="button" class="btn-ghost" data-size="phone" aria-pressed="true">Phone</button>'
-      + '<button type="button" class="btn-ghost" data-size="computer" aria-pressed="false">Computer</button></span><span class="grow"></span>');
-    tools.insertAdjacentHTML('beforeend', '<button type="button" class="enlarge">Full screen</button>');
-    c.compare = tools.querySelector('[data-compare]'); c.sizes = tools.querySelector('.sizes'); c.enlarge = tools.querySelector('.enlarge');
-    c.tabs.forEach(function (t) {
-      t.setAttribute('data-label', t.firstChild.textContent);
-      t.addEventListener('click', function () { show(c, [t]); });
-    });
-    tools.addEventListener('click', function (e) {
-      const b = e.target.closest('button');
-      if (b && b === c.compare) show(c, b.getAttribute('aria-pressed') === 'true' ? [c.tabs[+pair[1]]] : [c.tabs[+pair[0]], c.tabs[+pair[1]]]);
-      else if (b && b.hasAttribute('data-size')) {
-        c.wide = b.getAttribute('data-size') === 'computer';
-        Array.prototype.forEach.call(c.sizes.children, function (s) { s.setAttribute('aria-pressed', String(s === b)); });
-        show(c, c.picked);
-      } else if (b === c.enlarge) enlarge(c);
-    });
-    drawings.forEach(function (d) { if (v.contains(d.fig)) d.enlarge = c.enlarge; });
-    views.push(c);
-    show(c, c.tabs.filter(function (t) { return t.getAttribute('aria-selected') === 'true'; }));
-  });
-
-  // ── page cards: each version at its real width, as tall as its page, scaled to the card; a cover takes taps ──
+  // ── page parts: a page posts its height at 1 px tall; a cover over it takes taps ──
   // A page frame is sealed from this page, so the kit's one script in it posts its height, and the link under a point.
-  let paged = null;
-  function pageFit(c) {
-    c.panels.forEach(function (p) {
-      const art = p.querySelector('.art.page');
-      if (!art || p.hidden || !art.clientWidth) return;
-      const full = p.classList.contains('full'), W = c.wide ? 1280 : 390, shots = Array.prototype.filter.call(art.querySelectorAll('.shot'), function (s) { return !s.hidden; });
-      const cols = full || c.wide || root.clientWidth < 600 ? 1 : shots.length, k = full ? 1 : Math.min(1, (art.clientWidth - 12 * (cols - 1)) / cols / W);
-      shots.forEach(function (s) {
-        const f = s.querySelector('iframe');
-        // A new width measures again from 1 px tall, so a shorter page doesn't keep the old height.
-        if (f.style.width !== W + 'px') { f.style.width = W + 'px'; f.style.height = '1px'; pageH.delete(f); }
-        // Until its height comes, a shot keeps some height: a frame out of sight gets no resize to report.
-        const h = pageH.get(f) || 0;
-        f.style.transform = k < 1 ? 'scale(' + k + ')' : '';
-        s.style.width = W * k + 'px'; s.style.height = (h || 200) * k + 'px';
-        if (h && !s.querySelector('.cover')) s.insertAdjacentHTML('beforeend', '<span class="cover"></span>');
-      });
-    });
-  }
-  function pageFull(at, on) {
-    at.p.classList.toggle('full', on); document.body.classList.toggle('viewing', on);
-    paged = on ? at : null;
-    pageFit(at.c);
-    if (!on) { bar(); at.c.enlarge.focus({ preventScroll: true }); }
-  }
-  all('.pages', function (p) {
-    p.insertAdjacentHTML('afterbegin', '<div class="page-bar"><button type="button" class="primary">Close</button></div>');
-    p.querySelector('.page-bar button').addEventListener('click', function () { if (paged) pageFull(paged, false); });
-  });
   // Only a message from one of this page's own page frames counts; a height for an old width is dropped.
   window.addEventListener('message', function (e) {
     const m = e.data;
     if (!m || (m.type !== 'review:page' && m.type !== 'review:link')) return;
-    const f = Array.prototype.find.call(document.querySelectorAll('.art.page iframe'), function (x) { return x.contentWindow === e.source; });
+    const f = Array.prototype.find.call(document.querySelectorAll('.page iframe'), function (x) { return x.contentWindow === e.source; });
     if (!f) return;
     if (m.type === 'review:link') {
       const cover = f.parentNode.querySelector('.cover'), href = typeof m.href === 'string' ? m.href.slice(0, 2000) : '';
@@ -844,7 +904,8 @@
       return;
     }
     pageH.set(f, h); f.style.height = h + 'px';
-    views.forEach(pageFit);
+    if (!f.parentNode.querySelector('.cover')) f.parentNode.insertAdjacentHTML('beforeend', '<span class="cover"></span>');
+    queue();
   });
   // A link in a page goes nowhere: hovering over it shows its address.
   document.addEventListener('mousemove', function (e) {
@@ -854,11 +915,13 @@
     f.contentWindow.postMessage({ type: 'review:point', x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k }, '*');
   });
 
-  // ── long words fold after about two lines behind More; a note on hidden words unfolds them ──
+  // ── long words fold after about two lines behind More, on a phone only; a note on hidden words unfolds them ──
   const folds = [];
   function measure(f) {
     // The fold never cuts the bold first sentence: it keeps at least the lines that sentence takes.
     f.text.classList.remove('folded');
+    f.more.style.top = '';
+    if (WIDE.matches) { f.more.hidden = true; return; }
     const lead = f.clamp.querySelector(':scope > b:first-child'), line = parseFloat(getComputedStyle(f.clamp).lineHeight) || 24;
     const leadLines = lead ? Math.ceil((lead.getBoundingClientRect().bottom - f.clamp.getBoundingClientRect().top - 1) / line) : 0;
     f.clamp.style.webkitLineClamp = String(Math.max(2, leadLines));
@@ -868,6 +931,8 @@
     f.more.hidden = !long;
     f.more.textContent = f.open ? 'Less' : 'More';
     f.more.setAttribute('aria-expanded', String(f.open));
+    // Folded, More sits on the last shown line, at its end.
+    if (long && !f.open) f.more.style.top = f.clamp.offsetTop + f.clamp.clientHeight - line + 'px';
   }
   all('.items > .item .text', function (text) {
     const clamp = document.createElement('span'), more = document.createElement('button'), f = { text: text, clamp: clamp, more: more, open: false };
@@ -875,7 +940,7 @@
     while (text.firstChild) clamp.appendChild(text.firstChild);
     text.appendChild(clamp);
     more.type = 'button'; more.className = 'more';
-    text.parentNode.insertBefore(more, text.nextSibling);
+    text.appendChild(more);
     more.addEventListener('click', function () { f.open = !f.open; measure(f); });
     folds.push(f);
     measure(f);
@@ -1022,27 +1087,12 @@
       function () { toast('Copy failed. Copy the notes list by hand.'); });
   });
 
-  // ── OK and Change on each card: an OK is kept with the notes until undone, and goes to the chat with them ──
-  all('.items > .item', function (item) {
-    const v = document.createElement('div');
-    v.className = 'verdict';
-    v.innerHTML = '<span class="tag" hidden>OK</span><button type="button" class="btn-ghost" data-ok="' + item.id + '">OK</button>'
-      + '<button type="button" class="btn-ghost" data-open="' + item.id + '" aria-label="Change ' + NOUN.toLowerCase() + ' ' + item.id.slice(5) + '">Change</button>';
-    item.querySelector('.words').appendChild(v);
-  });
   document.addEventListener('click', function (e) {
     const b = e.target.closest ? e.target.closest('[data-ok]') : null;
     if (!b) return;
     const id = b.getAttribute('data-ok');
     if (data.ok[id]) delete data.ok[id]; else data.ok[id] = true;
     persist();
-  });
-  // A picture file's spot pins sit over the picture itself.
-  all('.art.photo img', function (img) {
-    const shot = document.createElement('span');
-    shot.className = 'shot';
-    img.parentNode.insertBefore(shot, img);
-    shot.appendChild(img);
   });
 
   // ── the page's own buttons, from the builder; one that can't be undone asks once more above the footer ──
@@ -1366,9 +1416,8 @@
       c.said.textContent = 'This card tried to leave the page.' + (c.resets > 2 ? ' Reload the page to try it again.' : '');
       if (c.resets > 2) { f.remove(); c.port.close(); c.port = null; } else mount(c);
     });
-    c.stage.replaceChildren(f);
-    c.frame = f;
-    fitCard(c);
+    c.box.replaceChildren(f);
+    queue();
   }
   function heardCard(c, m) {
     if (!m || m.type !== 'review:answer' || typeof m.text !== 'string') return;
@@ -1376,61 +1425,28 @@
     if (text.trim()) data.answers[c.id] = text; else delete data.answers[c.id];
     persist();
   }
-  // Phone and Computer draw the page at that width, scaled to the card; full screen shows it at true size.
-  function fitCard(c) {
-    if (!c.frame) return;
-    const full = c.box.classList.contains('full'), k = full ? 1 : Math.min(1, c.stage.clientWidth / c.width);
-    c.frame.style.width = c.width + 'px';
-    c.frame.style.height = full ? '100%' : c.height + 'px';
-    c.frame.style.transform = k < 1 ? 'scale(' + k + ')' : '';
-    c.stage.style.height = full ? '' : Math.ceil(c.height * k) + 'px';
-  }
-  function full(c, on) {
-    c.box.classList.toggle('full', on);
-    document.body.classList.toggle('viewing', on);
-    c.tools.querySelector('[data-full]').textContent = on ? 'Close' : 'Full screen';
-    fitCard(c);
-    if (!on) bar();
-  }
+  // The card's view sizes the frame; a live card never moves, since a moved frame loads again.
   all('.live[data-live]', function (box) {
-    const old = box.querySelector('iframe'), tools = document.createElement('div'), said = document.createElement('p');
-    tools.className = 'live-tools';
-    tools.innerHTML = '<button type="button" class="btn-ghost" data-width="390" aria-pressed="true">Phone</button>'
-      + '<button type="button" class="btn-ghost" data-width="1280" aria-pressed="false">Computer</button><button type="button" class="btn-ghost" data-full>Full screen</button>';
+    const old = box.querySelector('iframe'), said = document.createElement('p');
     said.className = 'muted live-said'; said.setAttribute('role', 'status'); said.hidden = true;
-    const c = { box: box, id: box.getAttribute('data-live'), height: +box.getAttribute('data-height') || 640, width: 390, doc: old.getAttribute('srcdoc'),
-      title: old.title, stage: box.querySelector('.live-box'), tools: tools, said: said, port: null, frame: null, resets: 0 };
-    box.insertBefore(tools, c.stage); box.appendChild(said);
-    tools.addEventListener('click', function (e) {
-      const b = e.target.closest('button');
-      if (!b) return;
-      if (b.hasAttribute('data-full')) { full(c, !box.classList.contains('full')); return; }
-      c.width = +b.getAttribute('data-width');
-      all('[data-live="' + c.id + '"] [data-width]', function (w) { w.setAttribute('aria-pressed', String(w === b)); });
-      fitCard(c);
-    });
+    const c = { box: box, id: box.getAttribute('data-live'), doc: old.getAttribute('srcdoc'), title: old.title, said: said, port: null, resets: 0 };
+    box.closest('.item').querySelector('.words').appendChild(said);
     cards.push(c);
     mount(c);
-    // A stage first laid out at no width, as in an Inbox frame still opening, fits again once it gets its width.
-    if (window.ResizeObserver) new ResizeObserver(function () { if (c.stage.clientWidth !== c.seen) { c.seen = c.stage.clientWidth; fitCard(c); } }).observe(c.stage);
-  });
-  window.addEventListener('load', function () { cards.forEach(fitCard); });
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') cards.forEach(function (c) { if (c.box.classList.contains('full')) full(c, false); });
   });
 
   let width = root.clientWidth;
   window.addEventListener('resize', function () {
     if (root.clientWidth !== width) {
       width = root.clientWidth; hideChip();
-      if (view) { const d = view; closeViewer(false); openViewer(d); }
       folds.forEach(measure);
     }
-    views.forEach(function (c) { show(c, c.picked); });
-    cards.forEach(fitCard);
+    queue();
+    if (view) fitBig();
     if (open) place();
     bar();
   });
+  window.addEventListener('load', queue);
   // ── hosted: in the live app's inbox, a sealed frame that reaches the inbox only through the port its first greeting carries ──
   let hosted = null, port = null;
   const CODES = { sent: 200, changed: 409, done: 409, gone: 409, soon: 429, closed: 410, expired: 410 };

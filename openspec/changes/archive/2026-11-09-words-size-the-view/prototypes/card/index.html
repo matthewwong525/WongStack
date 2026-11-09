@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · the words set the view's height</title>
+<style>
+  :root {
+    --radius: 10px; --bg: #fff; --fg: #1a1a1a; --card: #fff; --muted: #f5f5f5; --muted-fg: #737373;
+    --border: #e5e5e5; --primary: #262626; --primary-fg: #fafafa; --ring: #a3a3a3;
+    --shadow: 0 1px 3px rgb(0 0 0 / .08), 0 1px 2px rgb(0 0 0 / .05);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 700px; margin: 0 auto; padding: 0 12px 90px; }
+  header { padding: 20px 0 4px; }
+  .eyebrow, h2, .muted { margin: 0; color: var(--muted-fg); font-size: 14px; font-weight: 500; }
+  h1 { margin: 2px 0 4px; font-size: 22px; line-height: 1.25; }
+  section { margin: 24px 0; }
+  h2 { margin-bottom: 8px; }
+  .prose p { margin: 0 0 10px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: calc(var(--radius) + 4px); box-shadow: var(--shadow); margin: 0 0 16px; overflow: hidden; }
+  button.b { min-height: 36px; padding: 0 14px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card); color: var(--fg); font: inherit; font-size: 14px; cursor: pointer; }
+  button.b.primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+  button.b[aria-pressed="true"] { background: var(--primary); color: var(--primary-fg); }
+  a.try { color: var(--fg); font-size: 14px; }
+
+  /* A card on a phone: the words, small pictures to tap, then OK and Note. */
+  .words { padding: 14px; }
+  .head { display: flex; gap: 10px; align-items: flex-start; }
+  .num { flex: 0 0 26px; height: 26px; border-radius: 50%; background: var(--muted); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; }
+  .title { margin: 0; font-weight: 700; line-height: 1.35; }
+  .text { margin: 8px 0 0 36px; }
+  .text p { margin: 0 0 8px; }
+  .text.folded p.rest { display: none; }
+  .more { padding: 0; border: 0; background: none; color: var(--muted-fg); font: inherit; cursor: pointer; text-decoration: underline; }
+  .thumbs { display: flex; gap: 8px; margin: 10px 0 0 36px; overflow-x: auto; scrollbar-width: none; }
+  .thumb { flex: none; width: 84px; padding: 0; border: 0; background: none; font: inherit; color: var(--muted-fg); font-size: 12px; cursor: pointer; text-align: center; }
+  .thumb .box { display: block; position: relative; width: 84px; height: 112px; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: var(--muted); }
+  .thumb .inner { position: absolute; top: 0; left: 0; width: 360px; transform: scale(.2333); transform-origin: 0 0; pointer-events: none; }
+  .thumb .inner img { display: block; width: 100%; height: auto; }
+  .thumb .inner figcaption { display: none; }
+  .thumb .inner .mail, .thumb .inner .site { width: 360px; }
+  .thumb .inner iframe { width: 360px; height: 480px; border: 0; }
+  .thumb .inner svg { width: 360px; height: 480px; }
+  .thumb span.label { display: block; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .verdict { display: flex; gap: 8px; margin: 12px 0 0 36px; }
+  .pins-list { margin: 10px 0 0 36px; padding: 0; list-style: none; font-size: 14px; color: var(--muted-fg); }
+  .view { display: none; }
+
+  /* A computer: words left; on the right every picture side by side, as tall as the words: at least 420 px, at most the window. */
+  @media (min-width: 900px) {
+    main { max-width: 1160px; padding: 0 24px 90px; }
+    .item { display: grid; grid-template-columns: minmax(280px, 380px) minmax(0, 1fr); align-items: start; }
+    .words { padding: 20px; border-right: 1px solid var(--border); }
+    .text.folded p.rest { display: block; }
+    .more, .thumbs { display: none; }
+    .view { display: flex; min-width: 0; background: var(--muted); }
+  }
+  .stage { flex: 1; min-width: 0; display: flex; gap: 16px; justify-content: center; align-items: stretch; padding: 16px; overflow-x: auto; }
+  /* Each picture shrinks whole to fit, never cut; a click opens it full screen. */
+  .stage figure { margin: 0; flex: 0 1 320px; min-width: 110px; min-height: 0; display: flex; flex-direction: column; align-items: center; text-align: center; cursor: zoom-in; }
+  .shot { position: relative; display: block; }
+  .stage figure .shot { flex: 1 1 0; min-height: 0; width: fit-content; max-width: 100%; }
+  .stage figure img { display: block; height: 100%; width: auto; max-width: 100%; object-fit: contain; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+  .stage figcaption { margin-top: 6px; color: var(--muted-fg); font-size: 13px; }
+  .stage figure:hover img, .stage figure:hover .clip { outline: 2px solid var(--ring); outline-offset: 2px; }
+  .stage figure:hover figcaption { color: var(--fg); }
+  .clip { position: relative; flex: 1 1 0; min-height: 0; width: 100%; overflow: hidden; border-radius: 12px; }
+  .stage figure.draw-part { flex: 0 1 460px; }
+  .draw-part .clip { display: flex; align-items: center; background: #fff; border: 1px solid var(--border); padding: 8px; }
+  .draw svg { display: block; width: 100%; height: auto; }
+  .stage figure.mail-part { flex: 0 1 300px; }
+  .stage figure.site-part { flex: 0 1 auto; }
+  .site-part .clip { width: auto; }
+  .stage .site iframe { pointer-events: none; }
+  /* A whole page, such as an email, shows its top; a fade says there is more. */
+  .clip.tall::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 64px; background: linear-gradient(to bottom, rgb(245 245 245 / 0), var(--muted)); pointer-events: none; }
+
+  /* Full screen: one picture at a time, a row of names to switch; Phone and Computer only where a width matters. */
+  #full { position: fixed; inset: 0; z-index: 9; display: none; flex-direction: column; background: var(--bg); }
+  #full.on { display: flex; }
+  #full .fbar { display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid var(--border); }
+  #full .close { flex: none; margin-left: auto; }
+  #full .names { flex: 1 1 0; min-width: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  #full .name { flex: none; min-height: 34px; padding: 0 12px; border: 0; border-radius: var(--radius); background: transparent; color: var(--muted-fg); font: inherit; font-size: 14px; cursor: pointer; white-space: nowrap; }
+  #full .name[aria-selected="true"] { background: var(--muted); color: var(--fg); font-weight: 600; }
+  /* The foot holds what changes the picture: its width, and Try it; Close stays alone at the top. */
+  #full .ffoot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 8px 12px; border-top: 1px solid var(--border); }
+  #full .sizes { display: flex; padding: 2px; border-radius: var(--radius); background: var(--muted); }
+  #full .sizes button { min-height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: none; color: var(--muted-fg); font: inherit; font-size: 14px; cursor: pointer; }
+  #full .sizes button[aria-pressed="true"] { background: var(--card); color: var(--fg); font-weight: 600; box-shadow: var(--shadow); }
+  #full .fbody { flex: 1; min-height: 0; overflow: auto; display: flex; justify-content: center; align-items: flex-start; padding: 12px; background: var(--muted); touch-action: pan-y; }
+  #full .fbody > * { flex: none; }
+  #full figure { margin: 0; text-align: center; }
+  #full figure img { display: block; max-width: 96vw; max-height: calc(100dvh - 110px); border-radius: 8px; }
+  #full figcaption { display: none; }
+  #full .shot, #full .mail, #full .draw { cursor: crosshair; }
+  #full .draw { width: min(900px, 94vw); background: #fff; border-radius: 8px; padding: 12px; }
+  #full .mail { width: min(var(--w, 360px), 94vw); }
+  #full .fhint { flex: 1 1 220px; margin: 0; color: var(--muted-fg); font-size: 13px; }
+
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 10px 12px; background: var(--bg); border-top: 1px solid var(--border); }
+  .bar .muted { margin-right: auto; }
+
+  /* The email card's questions, beside its pictures. */
+  .ask { margin: 12px 0 0 36px; display: grid; gap: 6px; }
+  .q { margin: 6px 0 0; font-size: 14px; font-weight: 600; }
+  .picks { display: flex; gap: 6px; }
+  .pick { padding: 2px; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; }
+  .pick[aria-pressed="true"] { border-color: var(--primary); }
+  .sw { display: block; width: 56px; height: 40px; border-radius: 5px; }
+  .rose, .hero.rose { background: linear-gradient(135deg, #f9a8b8, #e11d48); }
+  .sky, .hero.sky { background: linear-gradient(135deg, #bae6fd, #2563eb); }
+  .sand, .hero.sand { background: linear-gradient(135deg, #fde68a, #b45309); }
+  .field { width: 100%; min-height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius); font: inherit; font-size: 14px; }
+  .site { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+  .site iframe { display: block; border: 0; transform-origin: 0 0; }
+  .mail { position: relative; background: #fff; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; text-align: left; font: 15px/1.55 Georgia, serif; color: #222; }
+  .mail .meta { padding: 10px 14px; border-bottom: 1px solid #eee; font: 13px/1.4 system-ui, sans-serif; color: #555; }
+  .mail .meta b { color: #111; }
+  .mail .hero { height: 150px; }
+  .mail .body { padding: 14px 18px 18px; }
+  .mail .body p { margin: 0 0 10px; }
+  .mail a { color: rgb(34, 83, 227); text-decoration: underline; }
+  .spot { position: absolute; z-index: 2; transform: translate(-50%, -50%); min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--primary); color: var(--primary-fg); font: 600 12px/22px system-ui, sans-serif; text-align: center; pointer-events: none; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Review</p>
+    <h1>The Inbox shows only your chats</h1>
+    <p class="muted">0 notes · Why · Changes · Needs · Decisions</p>
+  </header>
+  <section class="prose">
+    <h2>Why</h2>
+    <p>The week board grew into a second to-do list that nobody kept up. Your chats already say what waits for you.</p>
+  </section>
+  <section>
+    <h2>What Changes</h2>
+
+    <div class="card item" data-item="1" data-tabs="[[&quot;Before&quot;, &quot;before&quot;], [&quot;After&quot;, &quot;after&quot;], [&quot;After, Schedules&quot;, &quot;schedules&quot;], [&quot;After, a row&#x27;s menu&quot;, &quot;menu&quot;]]" data-try>
+      <div class="words">
+        <div class="head"><span class="num">1</span><p class="title">The Inbox opens on your chats.</p></div>
+        <div class="text folded"><p>One row for each open chat: its name, its step and its folder. A chat that waits on a review goes on top under <em>Needs you</em>.</p><p class="rest">Rows show no dates or time left. Below are the chats that are working, then the <em>Archive</em> of past reviews with its search. <em>Schedules</em> is one button in the top bar. There are no days, dates, tabs or backlog.</p></div>
+        <div class="thumbs"></div>
+        <ul class="pins-list"></ul>
+        <div class="verdict"><button class="b" type="button">OK</button><button class="b" type="button" data-note>Note</button></div>
+      </div>
+      <div class="view"><div class="stage"></div></div>
+    </div>
+
+    <div class="card item" data-item="2" data-tabs="[[&quot;Today&quot;, &quot;flow-now&quot;], [&quot;After&quot;, &quot;flow-after&quot;]]">
+      <div class="words">
+        <div class="head"><span class="num">2</span><p class="title">A schedule's run opens a chat when it has something for you.</p></div>
+        <div class="text"><p>A run that finds nothing opens nothing. A run that finds something opens one chat, named for the schedule.</p></div>
+        <div class="thumbs"></div>
+        <ul class="pins-list"></ul>
+        <div class="verdict"><button class="b" type="button">OK</button><button class="b" type="button" data-note>Note</button></div>
+      </div>
+      <div class="view"><div class="stage"></div></div>
+    </div>
+
+    <div class="card item" data-item="3" data-tabs="[[&quot;Version A&quot;, &quot;email-a&quot;], [&quot;Version B&quot;, &quot;email-b&quot;]]" data-sizes="360 640">
+      <div class="words">
+        <div class="head"><span class="num">3</span><p class="title">The Valentine's email, as readers will see it.</p></div>
+        <div class="text"><p>Two versions test the subject's opener. Open one and tap a spot to note it.</p></div>
+        <div class="ask">
+          <p class="q">Top picture</p>
+          <div class="picks">
+            <button type="button" class="pick" data-hero="rose" aria-pressed="true"><span class="sw rose"></span></button>
+            <button type="button" class="pick" data-hero="sky" aria-pressed="false"><span class="sw sky"></span></button>
+            <button type="button" class="pick" data-hero="sand" aria-pressed="false"><span class="sw sand"></span></button>
+          </div>
+          <label class="q" for="when">Send time</label>
+          <input id="when" class="field" type="text" value="Thu 12 Feb, 10:00">
+        </div>
+        <div class="thumbs"></div>
+        <ul class="pins-list"></ul>
+        <div class="verdict"><button class="b" type="button">OK</button><button class="b" type="button" data-note>Note</button></div>
+      </div>
+      <div class="view"><div class="stage"></div></div>
+    </div>
+
+    <div class="card item" data-item="4" data-tabs="[[&quot;Before&quot;, &quot;shop-before&quot;], [&quot;After&quot;, &quot;shop-after&quot;]]" data-sizes="390 1280">
+      <div class="words">
+        <div class="head"><span class="num">4</span><p class="title">The shop's home page leads with this week's box.</p></div>
+        <div class="text"><p>One big picture and one button. Open <em>After</em>, the sample itself, and tap <em>Add to cart</em> to try it.</p></div>
+        <div class="thumbs"></div>
+        <ul class="pins-list"></ul>
+        <div class="verdict"><button class="b" type="button">OK</button><button class="b" type="button" data-note>Note</button></div>
+      </div>
+      <div class="view"><div class="stage"></div></div>
+    </div>
+  </section>
+</main>
+
+<div class="bar"><span class="muted">0 notes</span><button class="b" type="button">Send notes</button><button class="b primary" type="button">Build it</button></div>
+<div id="full" role="dialog" aria-label="Full screen">
+  <div class="fbar"><div class="names" role="tablist"></div><button class="b close" type="button" data-close aria-label="Close">✕ Close</button></div>
+  <div class="fbody"></div>
+  <div class="ffoot"><p class="fhint">Tap the picture to note a spot. Swipe, use the arrow keys, or tap a name to switch.</p><div class="sizes" role="group" aria-label="Width"><button type="button" data-size="0">Phone</button><button type="button" data-size="1">Computer</button></div><a class="try" href="#" data-try>Try it ↗</a></div>
+</div>
+
+<template id="before"><figure><span class="shot"><img src="before-week.png" alt="Before"></span><figcaption>Before</figcaption></figure></template>
+<template id="after"><figure><span class="shot"><img src="after-chats.png" alt="After"></span><figcaption>After</figcaption></figure></template>
+<template id="schedules"><figure><span class="shot"><img src="after-schedules.png" alt="After, Schedules"></span><figcaption>After, Schedules</figcaption></figure></template>
+<template id="menu"><figure><span class="shot"><img src="after-close-menu.png" alt="After, a row's menu"></span><figcaption>After, a row's menu</figcaption></figure></template>
+<template id="flow-now"><div class="shot draw">  <svg viewBox="0 0 520 160" role="img" aria-label="Today: every run writes to the board">
+    <g font-family="system-ui, sans-serif" font-size="14" text-anchor="middle">
+      <rect x="20" y="55" width="140" height="50" rx="10" fill="#f5f5f5" stroke="#a3a3a3"/><text x="90" y="85">Scheduled run</text>
+      <line x1="160" y1="80" x2="350" y2="80" stroke="#262626" stroke-width="2" marker-end="url(#a1)"/>
+      <text x="255" y="70" fill="#737373" font-size="12">always</text>
+      <rect x="350" y="55" width="150" height="50" rx="10" fill="#f5f5f5" stroke="#a3a3a3"/><text x="425" y="85">Line on the board</text>
+    </g>
+    <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#262626"/></marker></defs>
+  </svg></div></template>
+<template id="flow-after"><div class="shot draw">  <svg viewBox="0 0 520 220" role="img" aria-label="After: a run opens a chat only when it has something">
+    <g font-family="system-ui, sans-serif" font-size="14" text-anchor="middle">
+      <rect x="20" y="85" width="140" height="50" rx="10" fill="#f5f5f5" stroke="#a3a3a3"/><text x="90" y="115">Scheduled run</text>
+      <line x1="160" y1="100" x2="330" y2="45" stroke="#262626" stroke-width="2" marker-end="url(#a2)"/>
+      <text x="230" y="55" fill="#737373" font-size="12">nothing to do</text>
+      <rect x="330" y="20" width="160" height="46" rx="10" fill="#fff" stroke="#a3a3a3"/><text x="410" y="48">No chat</text>
+      <line x1="160" y1="120" x2="330" y2="175" stroke="#262626" stroke-width="2" marker-end="url(#a2)"/>
+      <text x="230" y="178" fill="#737373" font-size="12">something for you</text>
+      <rect x="330" y="152" width="160" height="46" rx="10" fill="#262626"/><text x="410" y="180" fill="#fafafa">Opens a chat</text>
+    </g>
+    <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" fill="#262626"/></marker></defs>
+  </svg></div></template>
+<template id="email-a">
+  <div class="mail" data-version="Version A">
+    <div class="meta"><b>Carol at Claymoo</b><br>Our last 40 date-night boxes 💌<br><span>Two nights in, no planning needed</span></div>
+    <div class="hero"></div>
+    <div class="body">
+      <p>Hi there!</p>
+      <p>We made 300 Date Night Boxes for Valentine's, and 40 are left. Each one holds two evenings: a clay kit for two and a playlist we made for it.</p>
+      <p>Night one: you each shape a cup for the other. We send the clay, the tools and a short video. It takes about an hour, and nobody has to be good at it.</p>
+      <p>Night two: the cups come back from the kiln, glazed in the colour you picked, with a tea for two to drink from them.</p>
+      <p><a>👉 Tap here to get one of the last 40</a></p>
+      <p>It ships the same day if you order before 2 pm, and it arrives in time for the 14th anywhere in the country.</p>
+      <p>Carol</p>
+    </div>
+  </div>
+</template>
+<template id="email-b">
+  <div class="mail" data-version="Version B">
+    <div class="meta"><b>Carol at Claymoo</b><br>I almost kept one for us 🙈<br><span>Two nights in, no planning needed</span></div>
+    <div class="hero"></div>
+    <div class="body">
+      <p>Hi there!</p>
+      <p>We made 300 Date Night Boxes for Valentine's, and 40 are left. Each one holds two evenings: a clay kit for two and a playlist we made for it.</p>
+      <p>Night one: you each shape a cup for the other. We send the clay, the tools and a short video. It takes about an hour, and nobody has to be good at it.</p>
+      <p>Night two: the cups come back from the kiln, glazed in the colour you picked, with a tea for two to drink from them.</p>
+      <p><a>👉 Tap here to get one of the last 40</a></p>
+      <p>It ships the same day if you order before 2 pm, and it arrives in time for the 14th anywhere in the country.</p>
+      <p>Carol</p>
+    </div>
+  </div>
+</template>
+<template id="shop-before"><div class="site" data-label="Before"><iframe title="Before" srcdoc="&lt;style&gt;body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#1a1a1a}header{display:flex;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #eee}h1{margin:0;font-size:18px}.cart{font-size:14px}.hero{height:220px;background:linear-gradient(135deg,#f9a8b8,#e11d48)}main{padding:16px}h2{margin:0 0 6px;font-size:22px}p{margin:0 0 14px;color:#555}button{min-height:44px;padding:0 18px;border:0;border-radius:10px;background:#262626;color:#fff;font:inherit;cursor:pointer}ul{margin:0;padding:0;list-style:none}li{padding:10px 0;border-bottom:1px solid #eee}&lt;/style&gt;&lt;header&gt;&lt;h1&gt;Claymoo&lt;/h1&gt;&lt;span class=cart&gt;Cart · 0&lt;/span&gt;&lt;/header&gt;&lt;main&gt;&lt;h2&gt;All products&lt;/h2&gt;&lt;ul&gt;&lt;li&gt;Clay kit, small&lt;/li&gt;&lt;li&gt;Clay kit, large&lt;/li&gt;&lt;li&gt;Glaze set&lt;/li&gt;&lt;li&gt;Date Night Box&lt;/li&gt;&lt;li&gt;Gift card&lt;/li&gt;&lt;li&gt;Tools&lt;/li&gt;&lt;/ul&gt;&lt;/main&gt;" style="pointer-events:none"></iframe></div></template>
+<template id="shop-after"><div class="site" data-label="After"><iframe title="After" srcdoc="&lt;style&gt;body{margin:0;font:16px/1.5 system-ui,sans-serif;color:#1a1a1a}header{display:flex;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #eee}h1{margin:0;font-size:18px}.cart{font-size:14px}.hero{height:220px;background:linear-gradient(135deg,#f9a8b8,#e11d48)}main{padding:16px}h2{margin:0 0 6px;font-size:22px}p{margin:0 0 14px;color:#555}button{min-height:44px;padding:0 18px;border:0;border-radius:10px;background:#262626;color:#fff;font:inherit;cursor:pointer}ul{margin:0;padding:0;list-style:none}li{padding:10px 0;border-bottom:1px solid #eee}&lt;/style&gt;&lt;header&gt;&lt;h1&gt;Claymoo&lt;/h1&gt;&lt;span class=cart id=c&gt;Cart · 0&lt;/span&gt;&lt;/header&gt;&lt;div class=hero&gt;&lt;/div&gt;&lt;main&gt;&lt;h2&gt;This week: the Date Night Box&lt;/h2&gt;&lt;p&gt;A clay kit for two and a playlist. Ships today.&lt;/p&gt;&lt;button onclick=&quot;n=(window.n||0)+1;window.n=n;document.getElementById(&#x27;c&#x27;).textContent=&#x27;Cart · &#x27;+n;this.textContent=&#x27;Added ✓&#x27;&quot;&gt;Add to cart&lt;/button&gt;&lt;p style=&quot;margin-top:18px&quot;&gt;Two evenings: shape a cup for each other, then drink tea from them when they come back from the kiln.&lt;/p&gt;&lt;/main&gt;"></iframe></div></template>
+<script>
+  let hero = 'rose', pins = 0;
+  const spots = {}, full = document.getElementById('full'), fbody = full.querySelector('.fbody'), names = full.querySelector('.names');
+  const sizes = full.querySelector('.sizes'), tryIt = full.querySelector('[data-try]');
+  const paint = () => document.querySelectorAll('.mail .hero').forEach((h) => { h.className = 'hero ' + hero; });
+  const tabsOf = (card) => JSON.parse(card.dataset.tabs);
+  const nameOf = (card, id) => tabsOf(card).find((t) => t[1] === id)[0];
+  // Draws one picture, tagged with its id, and puts back the spots noted on it.
+  function render(id) {
+    const el = document.getElementById(id).content.cloneNode(true).firstElementChild;
+    el.dataset.id = id;
+    for (const s of spots[id] || []) addPin(el, s);
+    return el;
+  }
+  const target = (el) => el.matches('figure') ? el.querySelector('.shot') : el;
+  function addPin(el, s) {
+    const pin = document.createElement('span');
+    pin.className = 'spot'; pin.textContent = s.n; pin.style.left = s.x + '%'; pin.style.top = s.y + '%';
+    target(el).append(pin);
+  }
+  // In the card, each picture sits in a labelled frame; a page or site is clipped to its top.
+  function part(card, id) {
+    const el = render(id);
+    if (el.matches('figure')) { el.dataset.open = id; return el; }
+    const fig = document.createElement('figure'), clip = document.createElement('div'), cap = document.createElement('figcaption');
+    fig.className = (el.classList.contains('draw') ? 'draw' : el.classList.contains('mail') ? 'mail' : 'site') + '-part';
+    fig.dataset.open = id; clip.className = 'clip'; cap.textContent = nameOf(card, id);
+    clip.append(el); fig.append(clip, cap);
+    return fig;
+  }
+  // Full screen: a tap places a numbered spot in percent; a site sample keeps its own taps.
+  function spotTap(e) {
+    const root = e.target.closest('[data-id]');
+    if (!root || root.dataset.id === 'shop-after') return;
+    const box = target(root);
+    if (!box || !box.contains(e.target)) return;
+    const r = box.getBoundingClientRect();
+    const s = { n: ++pins, x: Math.round((e.clientX - r.left) / r.width * 100), y: Math.round((e.clientY - r.top) / r.height * 100) };
+    (spots[root.dataset.id] ||= []).push(s);
+    document.querySelectorAll(`[data-id="${root.dataset.id}"]`).forEach((el) => addPin(el, s));
+    const li = document.createElement('li');
+    li.textContent = `${s.n}. ${nameOf(fcard, root.dataset.id)}, spot at ${s.x}% across and ${s.y}% down`;
+    fcard.querySelector('.pins-list').append(li);
+  }
+  let fcard = null, fids = [], fat = 0;
+  function openFull(card, id) {
+    fcard = card; fids = tabsOf(card).map((t) => t[1]);
+    names.replaceChildren(...tabsOf(card).map(([label], i) => {
+      const b = document.createElement('button');
+      b.className = 'name'; b.type = 'button'; b.role = 'tab'; b.textContent = label;
+      b.addEventListener('click', () => showFull(i));
+      return b;
+    }));
+    sizes.style.display = card.dataset.sizes ? '' : 'none';
+    tryIt.style.display = 'try' in card.dataset ? '' : 'none';
+    setSize(+(card.dataset.at || 0));
+    full.classList.add('on');
+    showFull(Math.max(0, fids.indexOf(id)));
+  }
+  function setSize(i) {
+    if (!fcard.dataset.sizes) return;
+    fcard.dataset.at = i;
+    full.style.setProperty('--w', fcard.dataset.sizes.split(' ')[i] + 'px');
+    sizes.querySelectorAll('[data-size]').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.size === i)));
+    fitFull();
+  }
+  // A site full screen is drawn at the picked width and shrunk to fit a narrower screen; it scrolls inside.
+  function fitFull() {
+    const s = fbody.querySelector('.site');
+    if (!s) return;
+    const w = +fcard.dataset.sizes.split(' ')[+(fcard.dataset.at || 0)], h = fbody.clientHeight - 24, k = Math.min(1, (fbody.clientWidth - 24) / w), f = s.querySelector('iframe');
+    f.style.width = w + 'px'; f.style.height = h / k + 'px'; f.style.transform = 'scale(' + k + ')';
+    s.style.width = w * k + 'px'; s.style.height = h + 'px';
+  }
+  function showFull(i) {
+    fat = (i + fids.length) % fids.length;
+    [...names.children].forEach((b, k) => b.setAttribute('aria-selected', String(k === fat)));
+    fbody.replaceChildren(render(fids[fat])); paint(); fitFull();
+  }
+  sizes.querySelectorAll('[data-size]').forEach((b) => b.addEventListener('click', () => setSize(+b.dataset.size)));
+  tryIt.addEventListener('click', (e) => { e.preventDefault(); tryIt.textContent = 'Opens the prototype in a new tab'; });
+  full.querySelector('[data-close]').addEventListener('click', () => full.classList.remove('on'));
+  fbody.addEventListener('click', spotTap);
+  let x0 = null;
+  fbody.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+  fbody.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - x0;
+    if (x0 !== null && Math.abs(dx) > 60) showFull(fat + (dx < 0 ? 1 : -1));
+    x0 = null;
+  });
+  addEventListener('keydown', (e) => {
+    if (!full.classList.contains('on')) return;
+    if (e.key === 'Escape') full.classList.remove('on');
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') showFull(fat + (e.key === 'ArrowRight' ? 1 : -1));
+  });
+
+  for (const card of document.querySelectorAll('.item')) {
+    const stage = card.querySelector('.stage'), tabs = tabsOf(card);
+    stage.append(...tabs.map(([, id]) => part(card, id)));
+    stage.addEventListener('click', (e) => { const f = e.target.closest('[data-open]'); if (f) openFull(card, f.dataset.open); });
+    // A phone shows the same pictures, small, under the words.
+    card.querySelector('.thumbs').append(...tabs.map(([label, id]) => {
+      const b = document.createElement('button'), box = document.createElement('span'), inner = document.createElement('span'), name = document.createElement('span');
+      b.type = 'button'; b.className = 'thumb'; box.className = 'box'; inner.className = 'inner'; name.className = 'label';
+      inner.append(render(id)); name.textContent = label;
+      box.append(inner); b.append(box, name);
+      b.addEventListener('click', () => openFull(card, id));
+      return b;
+    }));
+    // More sits at the end of the words: it reads More when folded and Less when open.
+    const text = card.querySelector('.text.folded');
+    if (text) {
+      const more = document.createElement('button');
+      more.type = 'button'; more.className = 'more';
+      const place = () => {
+        const open = !text.classList.contains('folded');
+        more.textContent = open ? 'Less' : 'More';
+        (open ? text.lastElementChild : text.firstElementChild).append(' ', more);
+      };
+      more.addEventListener('click', () => { text.classList.toggle('folded'); place(); });
+      place();
+    }
+    card.querySelectorAll('.pick').forEach((p) => p.addEventListener('click', () => {
+      card.querySelectorAll('.pick').forEach((q) => q.setAttribute('aria-pressed', String(q === p)));
+      hero = p.dataset.hero; paint();
+    }));
+    card.querySelector('[data-note]').addEventListener('click', (e) => { e.target.textContent = 'Note opened'; });
+  }
+  paint();
+  // A site in the card: drawn at its first width, scaled to the stage's height.
+  function fitSites(card) {
+    const stage = card.querySelector('.stage'), sites = [...stage.querySelectorAll('.site')];
+    if (!sites.length) return;
+    const w = +card.dataset.sizes.split(' ')[0], h = stage.clientHeight - 32 - 24;
+    const k = Math.min(1, h / 760, (stage.clientWidth - 32 - 16 * (sites.length - 1)) / sites.length / w);
+    for (const s of sites) {
+      const f = s.querySelector('iframe');
+      f.style.width = w + 'px'; f.style.height = '760px'; f.style.transform = 'scale(' + k + ')';
+      s.style.width = w * k + 'px'; s.style.height = 760 * k + 'px';
+    }
+  }
+  // On a computer the pictures are as tall as the words: at least 420 px, at most the window.
+  function size() {
+    if (!matchMedia('(min-width: 900px)').matches) return;
+    for (const card of document.querySelectorAll('.item')) {
+      card.querySelector('.view').style.height = Math.min(Math.max(420, card.querySelector('.words').offsetHeight), innerHeight - 140) + 'px';
+      fitSites(card);
+      card.querySelectorAll('.clip').forEach((c) => c.classList.toggle('tall', c.firstElementChild.offsetHeight > c.clientHeight + 2));
+    }
+  }
+  addEventListener('resize', () => requestAnimationFrame(() => { size(); if (fcard) fitFull(); }));
+  size();
+</script>
+</body>
+</html>

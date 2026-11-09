@@ -28,14 +28,14 @@ A card shows what the go makes, as close to the real thing as you can make it. A
 | Job | The card shows |
 |---|---|
 | A plan that adds or changes a screen | *Before*, a screenshot of today's screen; *After*, one picture per state from [the prototype](#the-prototype); and a *Try it* link |
-| A website this app doesn't run, such as a shop's pages | a [live card](#the-live-card) of [its prototype](#a-website-prototype), at *Phone* and *Computer* width |
+| A website this app doesn't run, such as a shop's pages | a [live card](#the-live-card) of [its prototype](#a-website-prototype) as its *After* picture, with no second picture of the same sample |
 | A choice that needs its own control, such as *put these in order* | a [live card](#the-live-card) that sends the pick |
 | Answers or files the build needs from you | [questions](#questions-and-files) in the card, or in [What the build needs](#what-the-build-needs) |
 | A screen when no prototype can run | a `screen` sketch, and a line `No real picture: <the step that failed>` |
 | A flow, states, or a back-and-forth | a `mermaid` picture |
-| A finished build | *Approved* and *Built*, or *Live now* and *Preview*, as tabs |
-| Ads | an [`ad` card](#the-ad-card) per ad, a tab each |
-| A whole designed page, such as an email | a [page card](#the-page-card), a tab a version |
+| A finished build | *Approved* and *Built*, or *Live now* and *Preview*, side by side |
+| Ads | an [`ad` card](#the-ad-card) per ad, side by side |
+| A whole designed page, such as an email | a [page card](#the-page-card), one picture a version |
 | Words to send, such as an email or a post | the real words, as the card's text |
 | Rows of data | a Markdown table |
 
@@ -43,13 +43,13 @@ A card shows what the go makes, as close to the real thing as you can make it. A
 
 ## The card view
 
-A card puts its pictures in one view, with a tab for each picture or drawing. On a screen 900 px or wider, the short words sit on the left and the view takes the right; on a phone, the view comes first.
+A card shows each picture, drawing, ad, page, and live card as one labelled picture, side by side, in the order you write them. There are no tabs.
 
-- **A tab's name** is the picture's label, such as `Before:`, or the text after a fence's kind, such as ```` ```mermaid Today ````; else the kind, such as *Flow* or *Drawing*. A picture with no label takes its file name.
-- **The first tab** is the first *After*, *Built*, or *Preview*, so the result shows first.
-- **Two of a pair**, *Before* and *After*, *Approved* and *Built*, or *Live now* and *Preview*, get a button that shows them side by side.
-- **A phone and a computer picture** of one screen, labelled `Inbox, phone:` and `Inbox, computer:`, share one tab with a *Phone | Computer* switch.
-- **Keep the words short**: lead with what changes in one sentence, and put the detail after it. Words past about two lines fold behind *More*.
+- **On a screen 900 px or wider**, the words sit on the left and the pictures on the right. The pictures are as tall as the words: at least 420 px, so a phone picture stays readable, and at most the window. Each picture shrinks whole to fit, and is never cut. A page or a live card shows its top, with a fade when there is more. All the words show.
+- **On a phone**, the words come first, then a row of small pictures, then *OK* and *Note*. Words past about two lines fold, with *More* at the end of the words.
+- **A click or a tap opens a picture full screen.** The labels sit on top, and *Close* sits alone at the right. Tap a label, swipe, or use the arrow keys to see the next. The bar at the bottom holds *Phone* and *Computer*, only for a page or a live card, and *Try it*. A tap on the background does not close it; *Close* and Escape do.
+- **A picture's name** is its label, such as `Before:`, or the text after a fence's kind, such as ```` ```mermaid Today ````; else the kind, such as *Flow* or *Drawing*. A picture with no label takes its file name. A phone and a computer picture of one screen, labelled `Inbox, phone:` and `Inbox, computer:`, are two pictures.
+- **Keep the words short**: lead with what changes in one sentence, and put the detail after it.
 
 ## The prototype
 
@@ -63,7 +63,7 @@ A plan that adds or changes a screen makes a throwaway copy of the app, changes 
 
 No step needs a go from the person, and git never takes the copy. Only when every way fails, keep the `screen` sketch and add a line `No real picture: <the step that failed>` to the bullet. The builder warns on a sketch with neither a picture nor that line.
 
-After the build, `preview-review.mjs --approved "<title>|<After picture>|<built picture>"` shows the approved picture and the built screen as *Approved* and *Built* tabs.
+After the build, `preview-review.mjs --approved "<title>|<After picture>|<built picture>"` shows the approved picture and the built screen side by side, as *Approved* and *Built*.
 
 ## A website prototype
 
@@ -91,7 +91,7 @@ height: 900
 - **Every file goes inside the page.** The builder copies the page's styles, scripts, pictures, and fonts into it: PNG, JPEG, WebP, GIF, SVG, WOFF, and WOFF2, each checked by its first bytes. A file over 300 KB, a card over 800 KB, a CSS `@import`, a file outside the folder, and any web address stop the build, a link or a form's address too. A page over 800 KB warns, because it opens slowly on a phone; a page over 1.5 MB stops, because the Inbox keeps 1.6 MB a page.
 - **The card runs sealed.** It runs its own script, with no network, no sign-in, and no way to reach the review page or the app. A card that tries to leave says *This card tried to leave the page.* and starts again; after three tries it stops until you reload.
 - **It sends one answer.** The card's script calls `review.answer(text)`, such as `review.answer('Order: Fern, Palm, Ivy')`. The page keeps the newest answer, up to 2,000 characters, and sends it with the notes as `- Card #2 answer: Order: Fern, Palm, Ivy` (`Change #2 answer` on a plan).
-- **Phone, Computer, and Full screen.** *Phone* draws the page 390 px wide and *Computer* 1280 px, scaled to fit the card. *Full screen* shows it at its true size above the page.
+- **It is one of the card's pictures**, named by the text after `live`, such as ```` ```live After ````. The card shows its top at phone width, and a tap there does nothing. Open it full screen to use it: *Phone* draws it 390 px wide and *Computer* 1280 px, shrunk to fit the screen. A live card takes no spot note; *Note* covers it.
 
 ## Questions and files
 
@@ -136,16 +136,16 @@ Every plan lists what its build needs from you, so a build never stops halfway t
 - **The bar waits for it.** An item counts as open until you answer its questions on the page. While any item is open, each button but *Send notes* reads *2 things need you*, and a tap shows the first open item. A key saved on its private link turns *Ready* when the chat builds the page again.
 - **A need still open stops the build**, which says what is missing.
 
-## OK and Change
+## OK and Note
 
-Each numbered card has **OK** and **Change**. *OK* marks the card accepted; tap *Undo* to take it back. *Change* opens a note on the card. Each OK goes to the chat with the notes, one line per card before them, such as `Card #2: OK` (`Change #2: OK` on a plan). An OK alone starts nothing: only a button in the bar does.
+Each numbered card has **OK** and **Note**. *OK* marks the card accepted; tap *Undo* to take it back. *Note* opens a note on the card, for a change or a question. Each OK goes to the chat with the notes, one line per card before them, such as `Card #2: OK` (`Change #2: OK` on a plan). An OK alone starts nothing: only a button in the bar does.
 
 ## Notes on words and spots
 
-A reviewer notes a paragraph, a card, a decision, or a table row with *+ Note*. Two more kinds name a smaller part:
+A reviewer notes a card with its *Note* button, and a *Why* paragraph, a decision, or a table row with *+ Note*. Two more kinds name a smaller part:
 
 - **Selected words.** Select words in one paragraph or card, and the page offers *Note*. The note keeps the words and finds them again by their text, such as `- Card #2 ("Shop now"): Say Buy now.`
-- **A picture spot.** In the full-screen view, tap a point on a screenshot or an ad, or tap a [whole page](#the-page-card) in its card. The note keeps the point in percent, so it stays in place at any size, and the page draws it as a numbered pin, such as `- Card #1, picture 1, spot at 50% across and 25% down on "Spring sale"`.
+- **A picture spot.** Open a picture, a drawing, an ad, or a [whole page](#the-page-card) full screen, and tap a point. The note keeps the point in percent, so it stays in place at any size. The page draws it as a numbered pin, full screen and on the card's picture, such as `- Card #1, picture 1, spot at 50% across and 25% down on "Spring sale"`.
 
 The notes list groups notes under *Why*, each card, and *Decisions*. Notes stay in the browser, or in the Inbox page around it, never in a repo file.
 
@@ -193,7 +193,7 @@ button: Shop now
 ```
 ````
 
-`placement` is `feed` (a 4:5 frame) or `story` (a 9:16 frame); feed is the default. `picture` follows the picture rules: a file in the page's folder, under 300 KB, no web address. Several `ad` fences in one bullet get a tab each, *Feed* or *Story* or the text after `ad`, and *All* shows them side by side. A missing `picture:` line, an unknown placement, or an unknown line stops the build with the card and line.
+`placement` is `feed` (a 4:5 frame) or `story` (a 9:16 frame); feed is the default. `picture` follows the picture rules: a file in the page's folder, under 300 KB, no web address. Several `ad` fences in one bullet sit side by side, each named *Feed* or *Story* or the text after `ad`. A missing `picture:` line, an unknown placement, or an unknown line stops the build with the card and line.
 
 ## The page card
 
@@ -206,11 +206,11 @@ B: email/b.html
 ```
 ````
 
-- **A tab a version**, and *All* shows them side by side. *Phone | Computer* shows each at 390 or 1280 px wide.
+- **One picture a version**, side by side. The card shows each page's top, with a fade; full screen shows the whole page, and *Phone* / *Computer* shows it 390 or 1280 px wide.
 - **It runs none of its own script.** A `<script>`, an `on…` attribute, a `javascript:` address, or a frame stops the build: a page that needs a script is a [live card](#the-live-card). The review page adds one small script of its own, the only one the page lets run, to tell the card how tall the page is, so the card shows the whole page in the Inbox too.
 - **Links look real but go nowhere.** Hover over one to see its address.
 - **Pictures and fonts go inside**, by the live card's rules: a web address stops the build. A file is under 300 KB, and a card's versions together under 800 KB.
-- **A tap places a spot note** that names its version, such as `on "B"`.
+- **A tap full screen places a spot note** that names its version, such as `on "B"`.
 
 ## Add a card kind
 
