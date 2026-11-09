@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Review pages show the real screen first, in tabs
+
+- **A card shows the picture first.** On a computer, the picture is big on the right and the short words sit on the left. On a phone, the picture comes first. Tabs above the picture switch between *Before*, *After*, and each state; *Before and after* puts two side by side. The *After* picture shows first. Long words fold behind *More* ([the card view](wiki/review-pages.md#the-card-view)).
+- **A whole page, such as an email, gets its own card.** A `page` fence shows each version in a tab, and *All* shows them side by side, at phone or computer width. The page runs none of its own script, and its links look real but go nowhere. A tap on the page places a note that names the version ([the page card](wiki/review-pages.md#the-page-card)).
+- **Each ad gets a tab**, and *All* shows them side by side.
+- **A question can ask you to pick a picture**: `pictures: Top picture | a.png, b.png` in a `form` fence ([questions and files](wiki/review-pages.md#questions-and-files)).
+- **More plans show real screens.** A plan's prototype uses sample data for what the copy can't reach. When the copy can't go to the preview address, `prototype.mjs serve` runs it on this computer for the pictures. A gray sketch with no real picture now warns, unless the plan says why ([the prototype](wiki/review-pages.md#the-prototype)).
+- **A finished build's page uses the same tabs**: *Approved* and *Built*, or *Live now* and *Preview*.
+
+**Updating.** Nothing to do. Rebuild an open plan's page to see the new layout.
+
 ## 51.4.0 — A question that needs you to open a link shows the link
 
 - **The link is also inside the question.** When a chat asks you to open, read, or do something at a link, such as *review the plan* or *sign in on this page*, the question itself now shows the full link. The link also stays on its own line above the question, so you can click it there. The answer buttons still only name the link, such as *Review the plan* ([end every reply with the next step](.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step)).

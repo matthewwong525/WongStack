@@ -31,28 +31,39 @@ A card shows what the go makes, as close to the real thing as you can make it. A
 | A website this app doesn't run, such as a shop's pages | a [live card](#the-live-card) of [its prototype](#a-website-prototype), at *Phone* and *Computer* width |
 | A choice that needs its own control, such as *put these in order* | a [live card](#the-live-card) that sends the pick |
 | Answers or files the build needs from you | [questions](#questions-and-files) in the card, or in [What the build needs](#what-the-build-needs) |
-| A screen when no prototype can run | a `screen` sketch, and one plain line that says why there is no real picture |
+| A screen when no prototype can run | a `screen` sketch, and a line `No real picture: <the step that failed>` |
 | A flow, states, or a back-and-forth | a `mermaid` picture |
-| A finished build | *Approved* beside *Built*, or *Live now* beside *Preview* |
-| Ads | an [`ad` card](#the-ad-card) per ad |
+| A finished build | *Approved* and *Built*, or *Live now* and *Preview*, as tabs |
+| Ads | an [`ad` card](#the-ad-card) per ad, a tab each |
+| A whole designed page, such as an email | a [page card](#the-page-card), a tab a version |
 | Words to send, such as an email or a post | the real words, as the card's text |
 | Rows of data | a Markdown table |
 
 [The drawing guide](../.agents/skills/plan/references/drawings.md) says how to write each fence.
 
+## The card view
+
+A card puts its pictures in one view, with a tab for each picture or drawing. On a screen 900 px or wider, the short words sit on the left and the view takes the right; on a phone, the view comes first.
+
+- **A tab's name** is the picture's label, such as `Before:`, or the text after a fence's kind, such as ```` ```mermaid Today ````; else the kind, such as *Flow* or *Drawing*. A picture with no label takes its file name.
+- **The first tab** is the first *After*, *Built*, or *Preview*, so the result shows first.
+- **Two of a pair**, *Before* and *After*, *Approved* and *Built*, or *Live now* and *Preview*, get a button that shows them side by side.
+- **A phone and a computer picture** of one screen, labelled `Inbox, phone:` and `Inbox, computer:`, share one tab with a *Phone | Computer* switch.
+- **Keep the words short**: lead with what changes in one sentence, and put the detail after it. Words past about two lines fold behind *More*.
+
 ## The prototype
 
 A plan that adds or changes a screen makes a throwaway copy of the app, changes the screen there, and puts it on the change's preview address. [`prototype.mjs`](../.agents/skills/plan/scripts/prototype.mjs) runs each step:
 
-1. `prototype.mjs start <change>` makes the copy at `.scratch/<change>-prototype` and prints its path. When an earlier `finish` left a diff, the new copy starts with those edits. Edit the screen in the copy. Write sample data into the screen: the copy changes no database.
-2. `prototype.mjs upload <change>` puts the copy on the change's preview address. A new file in `schema/migrations` stops it, because the preview shares the practice database.
+1. `prototype.mjs start <change>` makes the copy at `.scratch/<change>-prototype` and prints its path. When an earlier `finish` left a diff, the new copy starts with those edits. Edit the screen in the copy. Write sample data into the screen for each state and for data the copy can't reach, such as another service's: the copy changes no database.
+2. `prototype.mjs upload <change>` puts the copy on the change's preview address. A new file in `schema/migrations` stops it, because the preview shares the practice database. When `upload` can't run, `prototype.mjs serve <change>` runs the copy on this computer and prints `PROTOTYPE_URL=`: take the pictures there, and stop it when you are done.
 3. Take one picture per state the plan names, with [the browser](development/browsing.md) (`browse.mjs screenshot`), at phone width and the visible part only. Copy them to `<change>/pictures/`, and write them in the bullet's `picture` fence after the *Before* picture, with a `Try it: <https address>` line. The builder draws *Try it* as a link that opens in a new tab, and stops on any address that is not `https://`.
 4. Notes on the plan change the copy too: upload again, take new pictures, and rebuild the page.
 5. `prototype.mjs finish <change>` keeps the copy's changes as `.scratch/<change>-prototype.diff` and removes the copy. [`/apply`](../.agents/skills/apply/SKILL.md#build-in-a-helper) runs it when the copy is still there, and [its build](../.agents/skills/apply/references/build-helper.md) reads that diff first and builds the same screens properly, with real data and tests.
 
-No step needs a go from the person, and git never takes the copy. A step fails → keep the `screen` sketch and write one line on why.
+No step needs a go from the person, and git never takes the copy. Only when every way fails, keep the `screen` sketch and add a line `No real picture: <the step that failed>` to the bullet. The builder warns on a sketch with neither a picture nor that line.
 
-After the build, `preview-review.mjs --approved "<title>|<After picture>|<built picture>"` shows the approved picture beside the built screen, labelled *Approved* and *Built*.
+After the build, `preview-review.mjs --approved "<title>|<After picture>|<built picture>"` shows the approved picture and the built screen as *Approved* and *Built* tabs.
 
 ## A website prototype
 
@@ -94,11 +105,12 @@ choice: Sale ends | Sunday, Next Sunday
 choices: Colours | Red, Blue, Green
 date: Launch day
 tick: Free shipping over $50
+pictures: Top picture | pictures/a.png, pictures/b.png
 file: Logo | image, pdf | 2
 ```
 ````
 
-`choice` takes one option and `choices` several. `file` takes its types, from `image`, `pdf`, `text` (TXT, CSV, MD, JSON), `office` (DOCX, XLSX, PPTX), and `zip`, and how many files, 1 to 5. A form holds 12 questions at most. An unknown kind or type stops the build.
+`choice` takes one option and `choices` several. `pictures` shows 2 to 12 pictures from the change's folder, each under 300 KB, and takes one. `file` takes its types, from `image`, `pdf`, `text` (TXT, CSV, MD, JSON), `office` (DOCX, XLSX, PPTX), and `zip`, and how many files, 1 to 5. A form holds 12 questions at most. An unknown kind or type stops the build.
 
 - **Answers go with the notes**, and with any button in the bar, one line each, such as `- Card #1, "Shop name": Corner Shop`. The page keeps them like notes and sends each answer once.
 - **A file goes at once** to the computer the chat runs on: drop it on the question, or tap to pick one on a phone. Each shows *Sending…*, *Sent*, or *Refused* with the reason, and a refused one can go again. A file is 25 MB at most, and one page's files 100 MB. The chat gets a `Files:` line per file, with the question, name, size, and the path where it is saved. [Reply links](development/reply-links.md#files-from-a-page) say where files wait and when they go.
@@ -133,7 +145,7 @@ Each numbered card has **OK** and **Change**. *OK* marks the card accepted; tap 
 A reviewer notes a paragraph, a card, a decision, or a table row with *+ Note*. Two more kinds name a smaller part:
 
 - **Selected words.** Select words in one paragraph or card, and the page offers *Note*. The note keeps the words and finds them again by their text, such as `- Card #2 ("Shop now"): Say Buy now.`
-- **A picture spot.** In the full-screen view, tap a point on a screenshot or an ad. The note keeps the point in percent, so it stays in place at any size, and the page draws it as a numbered pin, such as `- Card #1, picture 1, spot at 50% across and 25% down on "Spring sale"`.
+- **A picture spot.** In the full-screen view, tap a point on a screenshot or an ad, or tap a [whole page](#the-page-card) in its card. The note keeps the point in percent, so it stays in place at any size, and the page draws it as a numbered pin, such as `- Card #1, picture 1, spot at 50% across and 25% down on "Spring sale"`.
 
 The notes list groups notes under *Why*, each card, and *Decisions*. Notes stay in the browser, or in the Inbox page around it, never in a repo file.
 
@@ -181,7 +193,24 @@ button: Shop now
 ```
 ````
 
-`placement` is `feed` (a 4:5 frame) or `story` (a 9:16 frame); feed is the default. `picture` follows the picture rules: a file in the page's folder, under 300 KB, no web address. Several `ad` fences in one bullet sit side by side where they fit. A missing `picture:` line, an unknown placement, or an unknown line stops the build with the card and line.
+`placement` is `feed` (a 4:5 frame) or `story` (a 9:16 frame); feed is the default. `picture` follows the picture rules: a file in the page's folder, under 300 KB, no web address. Several `ad` fences in one bullet get a tab each, *Feed* or *Story* or the text after `ad`, and *All* shows them side by side. A missing `picture:` line, an unknown placement, or an unknown line stops the build with the card and line.
+
+## The page card
+
+A `page` fence shows a whole designed page, such as an email, as readers will see it. Each line is one version, `<label>: <file>.html`, from the change's folder:
+
+````markdown
+```page
+A: email/a.html
+B: email/b.html
+```
+````
+
+- **A tab a version**, and *All* shows them side by side. *Phone | Computer* shows each at 390 or 1280 px wide.
+- **It runs none of its own script.** A `<script>`, an `on…` attribute, a `javascript:` address, or a frame stops the build: a page that needs a script is a [live card](#the-live-card). The review page adds one small script of its own, the only one the page lets run, to tell the card how tall the page is, so the card shows the whole page in the Inbox too.
+- **Links look real but go nowhere.** Hover over one to see its address.
+- **Pictures and fonts go inside**, by the live card's rules: a web address stops the build. A file is under 300 KB, and a card's versions together under 800 KB.
+- **A tap places a spot note** that names its version, such as `on "B"`.
 
 ## Add a card kind
 
