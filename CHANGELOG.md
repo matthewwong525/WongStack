@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Simpler review cards: the words set the picture's height
+## 51.7.0 — Simpler review cards: the words set the picture's height
 
 - **A card shows all its pictures side by side, with no tabs.** On a computer, the pictures are as tall as the card's words: at least 420 px and at most the window. Each one shrinks whole to fit. A page or a live card shows its top, with a fade when there is more. All the words show, with no *More* ([the card view](wiki/review-pages.md#the-card-view)).
 - **A click opens a picture full screen.** The labels sit on top, and *Close* sits alone at the right. Tap a label, swipe, or use the arrow keys to see the next. *Phone* / *Computer*, for a page or a live card only, and *Try it* move to a bar at the bottom. A tap on the background no longer closes it.
