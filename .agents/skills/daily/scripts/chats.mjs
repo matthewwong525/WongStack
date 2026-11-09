@@ -54,6 +54,23 @@ export async function chatClient(cwd = process.cwd(), load = () => import('../..
   } catch { return null; }
 }
 
+// The client's own errors: a redirect, a 401 or 403, or another person; then no saved sign-in or token.
+const REFUSED = /redirect refused|session expired or access was denied|signed-in person changed/i;
+const MISSING = /Connect first|session is absent or expired|sign-in did not complete/i;
+/** What the app says of this computer's sign-in, from one read of the chat list: `ok`, `refused`, `missing` or
+ *  `unreachable`. The date in a token is no proof: Access refused one with 25 days left. */
+export async function checkSignIn(client) {
+  const company = await client;
+  if (!company) return 'missing';
+  try {
+    const { status } = await company.http(`${BASE}chats`, { method: 'GET' });
+    if (status >= 200 && status < 300) return 'ok';
+    return (status >= 300 && status < 400) || status === 401 || status === 403 ? 'refused' : 'unreachable';
+  } catch (error) {
+    return REFUSED.test(error.message) ? 'refused' : MISSING.test(error.message) ? 'missing' : 'unreachable';
+  }
+}
+
 /** The chat-list calls over a client promise; each throws a ChatListError on a refusal or with no app.
  *  `put` writes one chat's row, `sync` sends this computer's open chats and drops the rest, `remove` drops one. */
 export function chatCalls(client) {
@@ -70,6 +87,7 @@ export function chatCalls(client) {
     put: body => call('PUT', 'chat', body),
     sync: body => call('POST', 'chats-sync', body),
     remove: body => call('POST', 'chat-remove', body),
+    check: () => checkSignIn(client),
     origin: async () => (await client)?.target() ?? null,
   };
 }

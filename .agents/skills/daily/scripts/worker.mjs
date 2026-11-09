@@ -180,7 +180,7 @@ export const needsYouFile = stateDir => join(stateDir, 'needs-you.json');
 export const needsYouChats = stateDir => readJson(needsYouFile(stateDir), {}).chats ?? [];
 const DAILY = 'node .claude/skills/daily/scripts/daily.mjs';
 const NEEDS_YOU = {
-  chats: { what: 'the chat list', steps: [`Run \`${DAILY} who\`. On \`missing\` or \`expired\`, run its \`login\` command in the background and show the person its link.`,
+  chats: { what: 'the chat list', steps: [`Run \`${DAILY} who\`. On \`app\` \`refused\` or \`missing\`, or \`state\` \`missing\` or \`expired\`, run its \`login\` command in the background and show the person its link. On \`app\` \`unreachable\`, fix the network or the app first.`,
     'The worker sends the list again within a minute of the sign-in.'] },
   paseo: { what: 'Paseo', steps: ['Run `paseo ls`.', 'Fix what its error names, such as a stopped Paseo daemon.'] },
   morning: { what: 'the morning start', steps: [`Run \`${DAILY} start --dry-run\`.`,

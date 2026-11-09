@@ -64,11 +64,28 @@ export function loginUrl(value, origin) {
 }
 /** What the assistant reads when sign-in needs the person: `loginUrl` checked the link, so it is theirs to see. */
 export const signInNotice = link => `Show this link to the person now and wait while they sign in with their own company account. It is safe to show: this business's checked sign-in address, not a credential.\n${link}`;
-export function cloudflared(args, { onLoginUrl = () => {}, timeoutMs = 120000 } = {}) {
+const JWT = /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
+const alive = pid => { try { process.kill(pid, 0); return true; } catch (error) { return error.code !== 'ESRCH'; } };
+/** Deletes each cloudflared `*.lock` whose process ended: a timed-out login leaves one, which fails the next at once.
+ *  A lock that is not JSON, or whose process lives, stays: that login still waits for a person. */
+export function dropStaleLocks(cacheDir) {
+  let files = [];
+  try { files = readdirSync(cacheDir).filter(file => file.endsWith('.lock')); } catch { return; }
+  for (const file of files) {
+    let pid;
+    try { pid = JSON.parse(readFileSync(join(cacheDir, file), 'utf8')).pid; } catch { continue; }
+    if (Number.isInteger(pid) && pid > 0 && !alive(pid)) rmSync(join(cacheDir, file), { force: true });
+  }
+}
+/** cloudflared's own last line with no link, without a token and at most 200 characters, or ''. */
+const toolReason = text => (text.split(/\r?\n/).map(line => line.trim()).filter(line => line && !/https?:\/\//.test(line)).at(-1) ?? '')
+  .replace(JWT, '[token]').slice(0, 200);
+export function cloudflared(args, { onLoginUrl = () => {}, timeoutMs = 120000, cacheDir } = {}) {
   return new Promise((resolve, reject) => {
     const origin = companyOrigin(args.at(-1).replace(/^-app=/, ''));
+    if (args[0] === 'login' && cacheDir) dropStaleLocks(cacheDir);
     const child = spawn('cloudflared', ['access', ...args], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env: cleanEnvironment() });
-    let output = '', pending = '', size = 0;
+    let output = '', errors = '', pending = '', size = 0;
     const timer = setTimeout(() => { child.kill(); reject(new Error('Sign-in timed out. Complete company login again; no action was called.')); }, timeoutMs);
     const capture = chunk => {
       const text = chunk.toString(); size += chunk.length;
@@ -80,11 +97,12 @@ export function cloudflared(args, { onLoginUrl = () => {}, timeoutMs = 120000 } 
       }
     };
     child.stdout.on('data', chunk => { output += chunk.toString(); capture(chunk); });
-    child.stderr.on('data', capture);
+    child.stderr.on('data', chunk => { if (errors.length < MAX_RESPONSE) errors += chunk.toString(); capture(chunk); });
     child.on('error', () => { clearTimeout(timer); reject(new Error(missing('cloudflared', 'https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/'))); });
     child.on('close', code => {
       clearTimeout(timer);
-      if (code !== 0 || size > MAX_RESPONSE) reject(new Error('Company sign-in did not complete. Approve it in a browser as the employee, then run this step again.'));
+      const reason = toolReason(errors);
+      if (code !== 0 || size > MAX_RESPONSE) reject(new Error(`Company sign-in did not complete${reason ? ` (${reason})` : ''}. Approve it in a browser as the employee, then run this step again.`));
       else resolve(output);
     });
   });
@@ -239,7 +257,7 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
   async function token(origin, login = false) {
     safeCache(cacheDir, root);
     // A person needs longer than a token read. No link shown means the computer's existing sign-in was used.
-    if (login) { signIn = 'reused'; await run(['login', origin], { onLoginUrl: link => { signIn = 'new'; onLoginUrl(link); }, timeoutMs: 600000 }); }
+    if (login) { signIn = 'reused'; await run(['login', origin], { onLoginUrl: link => { signIn = 'new'; onLoginUrl(link); }, timeoutMs: 600000, cacheDir }); }
     return employeeToken(await run(['token', `-app=${origin}`], { onLoginUrl }));
   }
   /** The saved connection's session: the same person who connected, or nothing. */

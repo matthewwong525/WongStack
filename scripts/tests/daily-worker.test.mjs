@@ -552,7 +552,8 @@ test('one chat list failure writes one line and opens nothing; a second in a row
   assert.equal(opened[0].title, 'Needs you: the chat list');
   assert.match(opened[0].message, /failed two times in a row at the chat list\.\nReason: unavailable: sign in again\n/);
   assert.match(opened[0].message, /First read \.agents\/daily\/guide\.md\. When it gives its own fix for this problem, follow that/);
-  assert.match(opened[0].message, /1\. Run `node \.claude\/skills\/daily\/scripts\/daily\.mjs who`\. On `missing` or `expired`, run its `login` command/);
+  assert.match(opened[0].message, /1\. Run `node \.claude\/skills\/daily\/scripts\/daily\.mjs who`\. On `app` `refused` or `missing`, or `state` `missing` or `expired`, run its `login` command/);
+  assert.match(opened[0].message, /On `app` `unreachable`, fix the network or the app first\./);
   assert.match(opened[0].message, /Ask the person only for a step that needs them/);
   assert.deepEqual(lines(stateDir), ['Not read: chats — unavailable: sign in again', 'Opened: Needs you: the chat list']);
   assert.deepEqual([worker.ignored(), world.calls], [['needs-1'], []]);
