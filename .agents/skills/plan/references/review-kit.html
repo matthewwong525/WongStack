@@ -857,6 +857,11 @@
   // ── long words fold after about two lines behind More; a note on hidden words unfolds them ──
   const folds = [];
   function measure(f) {
+    // The fold never cuts the bold first sentence: it keeps at least the lines that sentence takes.
+    f.text.classList.remove('folded');
+    const lead = f.clamp.querySelector(':scope > b:first-child'), line = parseFloat(getComputedStyle(f.clamp).lineHeight) || 24;
+    const leadLines = lead ? Math.ceil((lead.getBoundingClientRect().bottom - f.clamp.getBoundingClientRect().top - 1) / line) : 0;
+    f.clamp.style.webkitLineClamp = String(Math.max(2, leadLines));
     f.text.classList.add('folded');
     const long = f.clamp.scrollHeight > f.clamp.clientHeight + 2;
     f.text.classList.toggle('folded', long && !f.open);

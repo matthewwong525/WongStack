@@ -1,7 +1,7 @@
 # Review pages that show the screen first
 
-**Status:** built; final checks pending
-**Branch:** musing-scorpion
+**Status:** ready-to-ship
+**Branch:** redesign-review-page-mockups
 **Open questions:** none
 
 ## Why
@@ -86,3 +86,5 @@ Non-goals: no clickable copy of the app inside the page (pictures and *Try it* d
 - **2026-11-08** — Assumed: a tap on a page card goes to a clear cover over the page, because the page's own content runs no script and can't report a tap itself.
 - **2026-11-08** — Assumed: on a phone, *All* in a page card shows the versions one above the other, because two emails side by side at phone width are too small to read; pictures and ads still sit side by side, shrunk to fit.
 - **2026-11-09** — Saved for the final check: two second-look rounds fixed spot notes on a page card inside the Inbox, `background` pictures in a page, `serve` leaving its server on Ctrl-C, and a page that grew without end; local checks pass apart from a known slow app test under load.
+- **2026-11-09** — Final check: the saved page opened inside the Inbox's sealed frame at 390 and 1280 px, with no script errors and no sideways scroll; the live Inbox itself needed a sign-in this computer's browser did not have. The check found the fold cutting the bold first sentence at 1280 px; the fold now keeps that whole sentence, with a test.
+- **2026-11-09** — Archived for publishing: the plan-first attachment still matches the plan skill, so its checked date moved to today; local checks pass.

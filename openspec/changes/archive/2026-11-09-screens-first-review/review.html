@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · screens-first-review</title>
+<title>Review · 2026-11-09-screens-first-review</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -434,11 +434,11 @@
 })();
 </script>
 </head>
-<body data-change="screens-first-review" data-own-back>
+<body data-change="2026-11-09-screens-first-review" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>screens-first-review</h1>
+  <h1>2026-11-09-screens-first-review</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a tab to see each screen, and a picture to see it full screen.</span></p>
@@ -807,6 +807,8 @@
 <li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-08</p>Assumed: a tap on a page card goes to a clear cover over the page, because the page's own content runs no script and can't report a tap itself.</li>
 <li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-08</p>Assumed: on a phone, <i>All</i> in a page card shows the versions one above the other, because two emails side by side at phone width are too small to read; pictures and ads still sit side by side, shrunk to fit.</li>
 <li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-09</p>Saved for the final check: two second-look rounds fixed spot notes on a page card inside the Inbox, <code>background</code> pictures in a page, <code>serve</code> leaving its server on Ctrl-C, and a page that grew without end; local checks pass apart from a known slow app test under load.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-09</p>Final check: the saved page opened inside the Inbox's sealed frame at 390 and 1280 px, with no script errors and no sideways scroll; the live Inbox itself needed a sign-in this computer's browser did not have. The check found the fold cutting the bold first sentence at 1280 px; the fold now keeps that whole sentence, with a test.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-09</p>Archived for publishing: the plan-first attachment still matches the plan skill, so its checked date moved to today; local checks pass.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -1441,6 +1443,11 @@
   // ── long words fold after about two lines behind More; a note on hidden words unfolds them ──
   const folds = [];
   function measure(f) {
+    // The fold never cuts the bold first sentence: it keeps at least the lines that sentence takes.
+    f.text.classList.remove('folded');
+    const lead = f.clamp.querySelector(':scope > b:first-child'), line = parseFloat(getComputedStyle(f.clamp).lineHeight) || 24;
+    const leadLines = lead ? Math.ceil((lead.getBoundingClientRect().bottom - f.clamp.getBoundingClientRect().top - 1) / line) : 0;
+    f.clamp.style.webkitLineClamp = String(Math.max(2, leadLines));
     f.text.classList.add('folded');
     const long = f.clamp.scrollHeight > f.clamp.clientHeight + 2;
     f.text.classList.toggle('folded', long && !f.open);

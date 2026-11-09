@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Review pages show the real screen first, in tabs
+## 51.6.0 — Review pages show the real screen first, in tabs
 
 - **A card shows the picture first.** On a computer, the picture is big on the right and the short words sit on the left. On a phone, the picture comes first. Tabs above the picture switch between *Before*, *After*, and each state; *Before and after* puts two side by side. The *After* picture shows first. Long words fold behind *More* ([the card view](wiki/review-pages.md#the-card-view)).
 - **A whole page, such as an email, gets its own card.** A `page` fence shows each version in a tab, and *All* shows them side by side, at phone or computer width. The page runs none of its own script, and its links look real but go nowhere. A tap on the page places a note that names the version ([the page card](wiki/review-pages.md#the-page-card)).

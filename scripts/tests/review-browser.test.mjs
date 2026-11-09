@@ -1533,7 +1533,7 @@ function cardsFixture() {
   writeFileSync(join(dir, 'a.html'), mail('Rose'));
   writeFileSync(join(dir, 'b.html'), mail('Fern'));
   writeFileSync(join(dir, 'proposal.md'), `## Why\n\nShow the screens.\n\n## What Changes\n\n`
-    + `- **Inbox.** ${long.repeat(6)}\n  ${fence}picture\n  Before: before.png\n  After: after.png\n  ${fence}\n`
+    + `- **The Inbox lists every open chat with its step, its folder and the review that waits on top.** ${long.repeat(6)}\n  ${fence}picture\n  Before: before.png\n  After: after.png\n  ${fence}\n`
     + `- **Spring email.** Two versions.\n  ${fence}page\n  A: a.html\n  B: b.html\n  ${fence}\n  ${fence}form\n  pictures: Top picture | a.png, b.png\n  ${fence}\n`
     + `- **Ads.** A feed and a story.\n  ${fence}ad\n  placement: feed\n  account: Shop\n  picture: feed.png\n  ${fence}\n`
     + `  ${fence}ad\n  placement: story\n  account: Shop\n  picture: feed.png\n  ${fence}\n`);
@@ -1604,6 +1604,15 @@ browserTest('long words fold behind More, and a note on folded words unfolds the
   await page.locator('.add[data-open="item-1"]').click();
   assert.equal(await folded(), false, 'the noted words show in full');
   assert.equal(await more.innerText(), 'Less');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('at 1280 px the fold keeps the whole bold first sentence in view', async () => {
+  const { page, context, errors } = await open(cardsFixture().url, { width: 1280 });
+  const cut = await page.locator('#item-1 .clamp').evaluate(clamp => clamp.querySelector('b').getBoundingClientRect().bottom - clamp.getBoundingClientRect().bottom);
+  assert.ok(cut <= 1, `the first sentence ends ${cut}px below the fold`);
+  assert.equal(await page.locator('[data-note="item-1"]').evaluate(el => el.classList.contains('folded')), true);
   assert.deepEqual(errors, []);
   await context.close();
 });

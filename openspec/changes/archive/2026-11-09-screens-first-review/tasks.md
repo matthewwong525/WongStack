@@ -32,4 +32,4 @@
 
 - [x] 4.1 After all source and tests are written, run `node .github/scripts/checks.mjs --worktree` and fix what fails; record the results.
 - [x] 4.2 Rebuild this change's review page and the archived `inbox-shows-chats` page with the new kit; look at both at 390 and 1280 px, and compare them with `prototypes/card/`.
-- [ ] 4.3 `/save`, then check the review page through the preview's Inbox at phone and computer width.
+- [x] 4.3 `/save`, then check the review page through the preview's Inbox at phone and computer width.
