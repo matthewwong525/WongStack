@@ -1,6 +1,7 @@
 // Mermaid pictures, sketches, screens, and picture files beside text drawings on a built review page.
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -67,15 +68,15 @@ test('a second build of a Mermaid proposal changes no bytes', () => fixture(root
   assert.equal(page(root), first);
 }));
 
-test('a proposal with only text fences builds its drawings exactly as before pictures', () => fixture(root => {
+test('a proposal with only text fences builds each drawing as one Drawing tab beside its words', () => fixture(root => {
   buildReview(root, { requireCurrent: true });
   const html = page(root);
-  const fold = line => '<details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary>'
-    + `<div class="frame"><pre class="art">\n${line}</pre></div></details></li>\n`;
-  assert.ok(html.includes('<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>One gate.</b> Saving runs one check.</div></div>'
-    + fold('<span class="ln" data-note="item-1-line-1" tabindex="0">/apply ──▶ /save</span>')
-    + '<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Escapes markup.</b> A bullet may quote &lt;/script&gt; as text.</div></div>'
-    + fold('<span class="ln" data-note="item-2-line-1" tabindex="0">/apply ──▶ /save</span>')));
+  const item = (n, words) => `<li class="item card has-view" id="item-${n}"><div class="words"><span class="num">${n}</span><div class="body">`
+    + `<div class="text" data-note="item-${n}" tabindex="0">${words}</div></div></div>`
+    + '<div class="view"><div class="tabs" role="tablist"><button type="button" class="tab" role="tab" aria-selected="true" data-panel="0">Drawing<span class="count"></span></button></div>'
+    + `<div class="stage"><div class="drawing"><div class="frame"><pre class="art">\n<span class="ln" data-note="item-${n}-line-1" tabindex="0">/apply ──▶ /save</span></pre></div></div></div>`
+    + '<div class="view-tools"></div></div></li>\n';
+  assert.ok(html.includes(item(1, '<b>One gate.</b> Saving runs one check.') + item(2, '<b>Escapes markup.</b> A bullet may quote &lt;/script&gt; as text.')));
   assert.doesNotMatch(html, /<svg\b|class="art pic"/);
 }, textOnly));
 
@@ -179,8 +180,9 @@ const sketchSource = [
   '</svg>',
 ];
 // The sketch replaces item 1's flow; its first line is proposal line 11, so line k of the sketch is line 10 + k.
-const withSketch = (lines = sketchSource) => proposal.replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`,
-  `${fence}svg\n${lines.map(line => `  ${line}`).join('\n')}`);
+const withSketch = (lines = sketchSource, why = ' No real picture: the app has no page yet.') => proposal
+  .replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`, `${fence}svg\n${lines.map(line => `  ${line}`).join('\n')}`)
+  .replace('runs one check.', `runs one check.${why}`);
 
 test('an svg fence becomes a sketch picture with named colours as classes and its labels escaped', () => fixture(root => {
   assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
@@ -255,12 +257,12 @@ const screenSource = [
   '  <div class="row gap"><span class="grow"/><button class="btn-ghost">Cancel</button><button class=\'btn-primary\'>Save</button></div>',
   '</div>',
 ];
-const withScreen = (lines = screenSource) => withSketch(lines).replace(`${fence}svg`, `${fence}screen`);
+const withScreen = (lines = screenSource, why) => withSketch(lines, why).replace(`${fence}svg`, `${fence}screen`);
 
 test('a screen fence becomes a phone-wide sketch of the look\'s parts, written out again inside an inert box', () => fixture(root => {
   assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
   const html = page(root);
-  const pic = /<div class="art pic screen" data-note="item-1-picture-1" tabindex="0" style="width:([\d.]+)em"><div class="sk" inert>([\s\S]*?)<\/div><\/div><\/details>/.exec(html);
+  const pic = /<div class="art pic screen" data-note="item-1-picture-1" tabindex="0" style="width:([\d.]+)em"><div class="sk" inert>([\s\S]*?)<\/div><\/div><\/div><\/div><\/div>/.exec(html);
   assert.ok(pic, 'the screen sits in the picture wrapper with an inert box');
   assert.ok(Math.abs(Number(pic[1]) * 13 - 360) < 0.01, 'a phone screen is 360 px in em');
   assert.match(pic[2], /^<div class="card col gap phone">\s*<div class="row gap"><h3>Notes &amp; drafts<\/h3><span class="tag">3<\/span><\/div>/);
@@ -321,14 +323,17 @@ const pictured = (fn, lines, files) => fixture(root => {
   return fn(root);
 }, withPictures(lines));
 
-test('a labelled pair becomes two open figures with data URIs, in one picture frame with its note id', () => pictured(root => {
+test('labelled pictures become a tab each, After first, with data URIs in one frame with its note id', () => pictured(root => {
   assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
   const html = page(root);
-  const frame = /<details class="drawing" open><summary>[\s\S]*?<\/summary><div class="frame"><div class="art photo" data-note="item-1-picture-1" tabindex="0">([\s\S]*?)<\/div><\/div><\/details>/.exec(html);
-  assert.ok(frame, 'the pictures sit open in one frame');
-  assert.equal(frame[1], `<figure><img src="data:image/png;base64,${png().toString('base64')}" alt="Before"><figcaption>Before</figcaption></figure>`
-    + `<figure><img src="data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64')}" alt="After &amp; more"><figcaption>After &amp; more</figcaption></figure>`
-    + `<figure><img src="data:image/webp;base64,${Buffer.from('RIFF\0\0\0\0WEBPVP8 ').toString('base64')}" alt="plain"></figure>`);
+  const tab = (label, part, on) => `<button type="button" class="tab" role="tab" aria-selected="${on}" data-panel="0" data-parts="${part}">${label}<span class="count"></span></button>`;
+  assert.ok(html.includes('<div class="view" data-compare="0 1" data-compare-label="Before and after"><div class="tabs" role="tablist">'
+    + tab('Before', 0, false) + tab('After &amp; more', 1, true) + tab('plain', 2, false) + '</div>'), 'a tab per picture, the file name for one with no label');
+  const frame = /<div class="frame"><div class="art photo" data-note="item-1-picture-1" tabindex="0">([\s\S]*?)<\/div><\/div><\/div><\/div>/.exec(html);
+  assert.ok(frame, 'the pictures sit in one frame');
+  assert.equal(frame[1], `<figure data-part="0"><img src="data:image/png;base64,${png().toString('base64')}" alt="Before"><figcaption>Before</figcaption></figure>`
+    + `<figure data-part="1"><img src="data:image/jpeg;base64,${Buffer.from([0xff, 0xd8, 0xff, 0xe0]).toString('base64')}" alt="After &amp; more"><figcaption>After &amp; more</figcaption></figure>`
+    + `<figure data-part="2"><img src="data:image/webp;base64,${Buffer.from('RIFF\0\0\0\0WEBPVP8 ').toString('base64')}" alt="plain"></figure>`);
   assert.equal((html.match(/<script\b/gi) || []).length, 2, 'still the kit\'s one script, and the switch');
   assert.match(chatCopy('demo', readFileSync(join(root, 'proposal.md'), 'utf8')), /^1\. \*\*One gate\.\*\* Saving runs one check\.\n\n {3}_\(picture on the review page\)_$/m);
 }, ['Before: pictures/before.png', '', 'After & more: pictures/after.jpg', 'pictures/plain.webp'],
@@ -419,7 +424,7 @@ test('a note on a picture frame names its picture and its labels', needsDom, () 
   try {
     const photo = document.querySelector('[data-note="item-1-picture-1"]');
     assert.ok(photo.classList.contains('photo'));
-    assert.equal(photo.closest('details').open, true, 'pictures show at the start');
+    assert.equal(photo.closest('.view').querySelector('[aria-selected="true"]').textContent, 'Preview', 'the Preview tab shows first');
     assert.equal(photo.querySelector('.add'), null, 'a picture gets no inline + Note button');
     photo.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     document.getElementById('chip').click();
@@ -445,15 +450,16 @@ const advertised = (fn, ads, files = { 'feed.png': png(), 'story.png': png() }) 
   return fn(root);
 }, withAds(...ads));
 
-test('ad fences in one bullet draw a feed and a story card side by side in one frame, their words escaped and no link', () => advertised(root => {
+test('ad fences in one bullet draw a feed and a story card in one frame, a tab each and All, their words escaped and no link', () => advertised(root => {
   assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
   const html = page(root);
-  const frame = /<div class="art photo ads" data-note="item-1-picture-1" tabindex="0">([\s\S]*?)<\/div><\/div><\/details>/.exec(html);
+  assert.deepEqual([...html.matchAll(/data-parts="([\d ]+)"( data-all)?>(\w+)</g)].map(m => `${m[3]} ${m[1]}`), ['Feed 0', 'Story 1', 'All 0 1']);
+  const frame = /<div class="art photo ads" data-note="item-1-picture-1" tabindex="0">([\s\S]*?)<\/div><\/div><\/div><\/div><div class="view-tools">/.exec(html);
   assert.ok(frame, 'both ads sit in one frame, the item\'s first picture');
-  assert.equal(frame[1], '<div class="ad feed"><p class="ad-account"><b>Corner Shop</b> <span>Sponsored</span></p>'
+  assert.equal(frame[1], '<div class="ad feed" data-part="0"><p class="ad-account"><b>Corner Shop</b> <span>Sponsored</span></p>'
     + `<img src="data:image/png;base64,${png().toString('base64')}" alt="Spring sale">`
     + '<div class="ad-words"><p class="ad-text">Spring sale on &lt;b&gt;all&lt;/b&gt; plants.</p><b class="ad-headline">Spring sale</b><span class="ad-button">Shop now</span></div></div>'
-    + '<div class="ad story"><p class="ad-account"><b>Corner Shop</b> <span>Sponsored</span></p>'
+    + '<div class="ad story" data-part="1"><p class="ad-account"><b>Corner Shop</b> <span>Sponsored</span></p>'
     + `<img src="data:image/png;base64,${png().toString('base64')}" alt="Swipe up">`
     + '<div class="ad-words"><b class="ad-headline">Swipe up</b></div></div>');
   assert.doesNotMatch(frame[1], /<a\b/);
@@ -474,9 +480,9 @@ for (const [what, ads, line, why] of refusedAds) {
   }, ads));
 }
 
-test('a Try it line draws a link that opens in a new tab, after the pictures', () => pictured(root => {
+test('a Try it line draws a link that opens in a new tab, under the tabs\' pictures', () => pictured(root => {
   buildReview(root, { requireCurrent: true });
-  assert.match(page(root), /<div class="art photo" data-note="item-1-picture-1" tabindex="0"><figure>[\s\S]*?<\/figure><\/div><\/div><p class="try"><a href="https:\/\/demo\.example\.dev\/inbox\?state=empty" target="_blank" rel="noopener noreferrer">Try it<\/a><\/p><\/details>/);
+  assert.match(page(root), /<div class="art photo" data-note="item-1-picture-1" tabindex="0"><figure data-part="0">[\s\S]*?<\/figure><\/div><\/div><\/div><\/div><div class="view-tools"><a class="try" href="https:\/\/demo\.example\.dev\/inbox\?state=empty" target="_blank" rel="noopener noreferrer">Try it<\/a><\/div><\/div>/);
 }, ['After: after.png', 'Try it: https://demo.example.dev/inbox?state=empty'], { 'after.png': png() }));
 
 for (const [what, address] of [['an http address', 'http://demo.example.dev/'], ['a script', 'javascript:alert(1)'], ['a second link', 'https://a.example.dev/\n  Try it: https://b.example.dev/']]) {
@@ -548,3 +554,103 @@ test('a live card carries an SVG, a GIF, and a font, each checked by its own byt
   assert.ok(doc.includes('url("data:font/woff2;base64,d09GMg==")'));
 }, { 'site/index.html': '<style>@font-face { font-family: a; src: url(a.woff2); }</style><img src="a.svg"><img src="a.gif">',
   'site/a.svg': '<svg xmlns="http://www.w3.org/2000/svg"/>', 'site/a.gif': 'GIF89a', 'site/a.woff2': 'wOF2' }));
+
+// ── the card view: one tab per picture or fence, the After picture first ──
+const tabsOf = html => [...html.matchAll(/<button type="button" class="tab" role="tab" aria-selected="(\w+)" data-panel="(\d+)"[^>]*>([^<]*)</g)]
+  .map(m => `${m[3]} ${m[2]}${m[1] === 'true' ? ' shown' : ''}`);
+
+test('each fence in an item is a tab named by its info text or its kind, the After tab shows first, and a repeated name gets a number', () => fixture(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  const html = page(root);
+  assert.deepEqual(tabsOf(html.slice(html.indexOf('id="item-1"'), html.indexOf('id="item-2"'))), ['Flow 0', 'Drawing 1', 'After the change 2 shown', 'Drawing 2 3']);
+  assert.equal((html.match(/class="view"/g) || []).length, 2, 'one view a card');
+}, proposal.replace(`  ${fence}\n- **Escapes`, [
+  `  ${fence}`, `  ${fence}text`, '  first', `  ${fence}`, `  ${fence}text After the change`, '  second', `  ${fence}`,
+  `  ${fence}text`, '  third', `  ${fence}`, '- **Escapes'].join('\n'))));
+
+test('a phone and a computer picture of one screen pair into one tab with both sizes', () => pictured(root => {
+  buildReview(root, { requireCurrent: true });
+  const html = page(root);
+  assert.ok(html.includes('data-parts="0" data-wide="1">Inbox<span class="count"></span></button>'
+    + '<button type="button" class="tab" role="tab" aria-selected="true" data-panel="0" data-parts="2">After<span'));
+  assert.match(html, /<figure data-part="1" class="wide"><img [^>]*alt="Inbox, computer"><figcaption>Inbox, computer<\/figcaption><\/figure>/);
+}, ['Inbox, phone: p.png', 'Inbox, computer: c.png', 'After: a.png'], { 'p.png': png(), 'c.png': png(), 'a.png': png() }));
+
+test('a screen sketch with no real picture and no reason warns, and builds', () => fixture(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, ['proposal.md line 10: item 1: a screen sketch with no real picture: '
+    + 'run the prototype with sample data, or add a line "No real picture: <the step that failed>"']);
+}, withScreen(['<div class="card"><p>Wide</p></div>'], '')));
+
+test('a screen sketch beside a real picture gives no warning', () => fixture(root => {
+  writeFileSync(join(root, 'a.png'), png());
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+}, withScreen(['<div class="card"><p>Wide</p></div>'], '').replace(`  ${fence}\n- **Escapes`, `  ${fence}\n  ${fence}picture\n  After: a.png\n  ${fence}\n- **Escapes`)));
+
+// ── `page` fences: a whole page, such as an email, a tab a version; it runs nothing and its links go nowhere ──
+const email = '<!doctype html><html><head><style>body { background: url("top.png"); }</style></head>'
+  + '<body><img src="top.png" alt="Top"><a href="https://shop.example.com/sale">Shop the sale</a></body></html>';
+const withPage = (lines = ['A: a.html', 'B: b.html']) => proposal.replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`, `${fence}page\n${lines.map(line => `  ${line}`).join('\n')}`);
+const paged = (fn, files = { 'a.html': email, 'b.html': email.replace('Shop', 'See').replace('<body>', '<body background="top.png">'), 'top.png': png() }, lines) => fixture(root => {
+  for (const [name, bytes] of Object.entries(files)) writeFileSync(join(root, name), bytes);
+  return fn(root);
+}, withPage(lines));
+const docs = html => [...html.matchAll(/<iframe sandbox="allow-scripts" tabindex="-1" title="[^"]*" srcdoc="([^"]*)"><\/iframe>/g)]
+  .map(m => m[1].replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'));
+
+test('a page fence draws each version in a frame that runs nothing, a tab each and All, its links kept but inert', () => paged(root => {
+  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
+  const html = page(root), uri = `data:image/png;base64,${png().toString('base64')}`;
+  assert.deepEqual(tabsOf(html.slice(0, html.indexOf('id="item-2"'))), ['A 0 shown', 'B 0', 'All 0']);
+  assert.match(html, /<div class="art page" data-note="item-1-picture-1" tabindex="0"><div class="shot" data-part="0" data-label="A"><iframe /);
+  const [a, b] = docs(html);
+  const scripts = [...a.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].map(m => m[1]);
+  assert.equal(scripts.length, 1, 'a page holds only the kit\'s script');
+  assert.match(scripts[0], /type:"review:page",h:document\.documentElement\.scrollHeight/);
+  const hash = createHash('sha256').update(scripts[0]).digest('base64');
+  assert.ok(a.startsWith(`<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-${hash}'; `
+    + "style-src 'unsafe-inline'; img-src data:;"), 'only the kit\'s script may run, by its hash');
+  assert.ok(a.includes(`<img src="${uri}" alt="Top">`) && a.includes(`url("${uri}")`), 'its pictures are inside');
+  assert.ok(a.includes('<a data-href="https://shop.example.com/sale" title="https://shop.example.com/sale">Shop the sale</a>'), 'a link keeps its look, not its address');
+  assert.ok(b.includes('>See the sale</a>'));
+  assert.ok(b.includes(`<body background="${uri}">`), 'a background picture is carried too');
+  assert.equal((html.match(/<script\b/gi) || []).length, 2, 'a page adds no script');
+  assert.match(chatCopy('demo', readFileSync(join(root, 'proposal.md'), 'utf8')), /^ {3}_\(page on the review page\)_$/m);
+}));
+
+// Each refused page: its files, the proposal line, and the reason.
+const refusedPages = [
+  ['a script', { 'a.html': '<p>Hi</p><script>alert(1)</script>' }, 'a.html: it holds a <script>; a page runs nothing, so a page that needs a script is a live card'],
+  ['an on… attribute', { 'a.html': '<img src="x.png" onerror="alert(1)">' }, 'a.html: it holds an on… attribute; a page runs nothing'],
+  ['a javascript: link', { 'a.html': '<a href="javascript:alert(1)">Go</a>' }, 'a.html: it holds a javascript: address; a page runs nothing'],
+  ['a web picture', { 'a.html': '<img src="https://example.com/a.png">' }, 'a.html: https://example.com/a.png is a web address; a page card loads nothing from the web: copy it into the folder'],
+  ['a web background picture', { 'a.html': '<table><tr><td background="https://example.com/bg.png">Hi</td></tr></table>' },
+    'a.html: https://example.com/bg.png is a web address; a page card loads nothing from the web: copy it into the folder'],
+  ['a file out of the folder', {}, '../a.html is outside the change\'s folder', ['A: ../a.html']],
+  ['a file over 300 KB', { 'a.html': `<p>${'x'.repeat(300 * KB)}</p>` }, 'a.html: 301 KB; keep a page file under 300 KB'],
+  ['a line with no label', { 'a.html': '<p>Hi</p>' }, 'a page takes one "<label>: <file>.html" line a version', ['a.html']],
+];
+for (const [what, files, why, lines = ['A: a.html']] of refusedPages) {
+  test(`a page with ${what} stops the build on one line naming the item and picture`, () => paged(root => {
+    const result = build(root);
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, `review: proposal.md line 11: item 1, picture 1: ${why}\n`);
+  }, files, lines));
+}
+
+// ── a `pictures:` question: pick one of the change's own pictures ──
+const withPicks = files => proposal.replace(`  ${fence}\n- **Escapes`, `  ${fence}\n  ${fence}form\n  pictures: Top picture | ${files}\n  ${fence}\n- **Escapes`);
+test('a pictures question draws each picture as a choice, carried inside the page', () => fixture(root => {
+  for (const name of ['a.png', 'b.png']) writeFileSync(join(root, name), png());
+  buildReview(root, { requireCurrent: true });
+  const uri = `data:image/png;base64,${png().toString('base64')}`;
+  assert.ok(page(root).includes('<div class="form"><fieldset class="q" data-q="item-1-q-1" data-kind="pictures" data-label="Top picture"><legend class="q-label">Top picture</legend><div class="picks">'
+    + `<label class="pick"><input type="radio" name="q-item-1-q-1" value="a.png"><img src="${uri}" alt="a.png"></label>`
+    + `<label class="pick"><input type="radio" name="q-item-1-q-1" value="b.png"><img src="${uri}" alt="b.png"></label></div></fieldset></div>`));
+}, withPicks('a.png, b.png')));
+
+test('a pictures question with one picture stops the build', () => fixture(root => {
+  writeFileSync(join(root, 'a.png'), png());
+  const result = build(root);
+  assert.equal(result.status, 1);
+  assert.equal(result.stderr, 'review: proposal.md line 15: item 1: pictures takes "| a.png, b.png" with 2 to 12 files\n');
+}, withPicks('a.png')));

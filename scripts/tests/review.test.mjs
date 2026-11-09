@@ -105,10 +105,10 @@ test('the page renders the proposal as static content', needsDom, () => fixture(
     ['why-1', 'why-2', 'item-1', 'item-2', 'item-3', 'decision-1', 'decision-2', 'decision-3', 'decision-4'], 'every text target has a Note button');
   const art = items[1].querySelector('pre.art');
   assert.equal(art.textContent, 'a ─→ b\n\nc ─→ d');
-  const fold = art.closest('details.drawing');
-  assert.equal(fold.parentElement, items[1], 'the drawing spans the item, outside its text column');
-  assert.equal(fold.open, false, 'the drawing starts folded');
-  assert.equal(fold.querySelector('summary .show').textContent, 'Show drawing');
+  const view = art.closest('.view');
+  assert.equal(view.parentElement, items[1], 'the drawing sits in the item\'s view, beside its words');
+  assert.deepEqual([...view.querySelectorAll('.tab')].map(tab => tab.firstChild.textContent), ['Drawing'], 'the drawing shows at the start, in its own tab');
+  assert.equal(items[0].querySelector('.view'), null, 'an item with no drawing has no view');
   assert.equal(art.querySelector('.add'), null, 'drawing lines get no Note button');
   assert.deepEqual([...art.querySelectorAll('[data-note]')].map(n => n.dataset.note), ['item-2-line-1', 'item-2-line-3']);
   assert.equal(items[2].querySelector('a').getAttribute('href'), '../wiki/README.md');
@@ -898,7 +898,7 @@ test('a page with no needs list has no Needs section or jump link', () => fixtur
 
 // Each refused question or need: the swap in the source, the line, the place, and the reason.
 const refusedAsks = [
-  ['an unknown kind', ['text: Shop name', 'colour: Shop colour'], 9, 'item 1', 'a question is one of text, long, choice, choices, date, tick, file, then a colon and its words'],
+  ['an unknown kind', ['text: Shop name', 'colour: Shop colour'], 9, 'item 1', 'a question is one of text, long, choice, choices, pictures, date, tick, file, then a colon and its words'],
   ['an unknown file type', ['file: Logo | image, pdf | 2', 'file: Logo | movie'], 15, 'item 1', 'a file takes "| <types> | <count>", types from image, pdf, text, office, zip, not movie'],
   ['a file count over 5', ['file: Logo | image, pdf | 2', 'file: Logo | image | 6'], 15, 'item 1', 'a file question takes 1 to 5 files, not 6'],
   ['a choice with no options', ['choice: Sale ends | Sunday, Next Sunday', 'choice: Sale ends'], 11, 'item 1', 'choice takes "| a, b" with 1 to 12 options'],

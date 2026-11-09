@@ -8,9 +8,9 @@ import { buildReview, previewActions, previewNotesHeader } from '../../plan/scri
 
 const USAGE = `usage: preview-review.mjs <change-name> [--approved "<title>|<approved picture>|<built picture>"]...
          [--pair "<title>|<live picture>|<preview picture>"]... [--note <line>]... [--link]
-  Builds .scratch/<change-name>-preview/review.html: each changed screen live now beside its preview.
+  Builds .scratch/<change-name>-preview/review.html: each changed screen as a card with Live now and Preview tabs.
   A new screen has no live picture: --pair "<title>||<preview picture>".
-  --approved  the plan's After picture beside the built screen, labelled Approved and Built; at least one of it or --pair.
+  --approved  the plan's After picture and the built screen, as Approved and Built tabs; at least one of it or --pair.
   Take each picture at phone width, the visible part only (no --full-page): a page over 1.5 MB stops.
   --link  print the page's reply link, whose Publish button runs /ship; the file where none can open`;
 export const PREVIEW_ON_PAGE = 'Look at the preview, then tap Publish or Send notes on its page.';

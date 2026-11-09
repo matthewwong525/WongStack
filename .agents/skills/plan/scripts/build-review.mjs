@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Build a portable review page: parse proposal.md, or a review.md, into static, escaped HTML inside the shared kit.
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
@@ -56,7 +57,7 @@ const LIVE_SHIM = '<script>(function(){var port=null,last=null;addEventListener(
   + 'if(last!==null)port.postMessage({type:"review:answer",text:last});});'
   + 'window.review={answer:function(text){last=String(text);if(port)port.postMessage({type:"review:answer",text:last});}};}());</script>';
 // A `form` fence: one question a line, as `<kind>: <label>`, a choice's options, or a file's types and count.
-const QUESTION_KINDS = new Set(['text', 'long', 'choice', 'choices', 'date', 'tick', 'file']);
+const QUESTION_KINDS = new Set(['text', 'long', 'choice', 'choices', 'pictures', 'date', 'tick', 'file']);
 const FILE_KINDS = { image: ['png', 'jpg', 'jpeg', 'webp', 'gif'], pdf: ['pdf'], text: ['txt', 'csv', 'md', 'json'], office: ['docx', 'xlsx', 'pptx'], zip: ['zip'] };
 const FILE_WORDS = { image: 'pictures', pdf: 'PDFs', text: 'text files', office: 'Word, Excel, or PowerPoint files', zip: 'zip files' };
 const QUESTIONS_MAX = 12, FILES_MAX = 5;
@@ -140,10 +141,11 @@ function blocks(section, noun) {
       return;
     }
     settle();
-    const open = /^(\s*)`{3,}\s*([\w-]*)\s*$/.exec(line);
+    // The words after a fence's language name its tab: ```mermaid Today.
+    const open = /^(\s*)`{3,}\s*([\w-]*)(?:\s+(\S.*?))?\s*$/.exec(line);
     if (open) {
       if (!item) throw new Error(`${section.file} line ${at}: a fence outside any bullet in ## ${section.title} (a blank line ends a bullet)`);
-      fence = { at, lang: open[2].toLowerCase(), indent: new RegExp(`^ {0,${open[1].length}}`), lines: [], file: section.file };
+      fence = { at, lang: open[2].toLowerCase(), info: open[3] ?? '', indent: new RegExp(`^ {0,${open[1].length}}`), lines: [], file: section.file };
       item.drawings.push(fence);
       return;
     }
@@ -188,9 +190,11 @@ function drawing(item, fence, first, warnings) {
   }
   const lines = fence.lines.map((line, i) => (line.trim()
     ? `<span class="ln" data-note="item-${item.n}-line-${first + i}" tabindex="0">${esc(line)}</span>` : esc(line)));
-  return '<details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary>'
-    + `<div class="frame"><pre class="art">\n${lines.join('\n')}</pre></div></details>`;
+  return panel(`<div class="drawing"><div class="frame"><pre class="art">\n${lines.join('\n')}</pre></div></div>`, fence, 'Drawing');
 }
+
+// A panel of the card's view, with its one tab, named by the fence's own words or else by its kind.
+const panel = (html, fence, kind) => ({ html, tabs: [{ label: fence.info || kind }] });
 
 // A Mermaid fence becomes an inline SVG picture, drawn once here; the page runs no renderer.
 // The wrapper's width is in em so the kit's font-size fit and zoom resize it like a text drawing.
@@ -205,18 +209,17 @@ function picture(item, fence, k, warnings) {
     const message = String(error && error.message ? error.message : error).split('\n')[0].replace(/:\s*$/, '');
     throw new Error(`${fence.file} line ${line}: ${where}: ${message}`);
   }
-  return frame(fence, id, where, drawn.svg, drawn.width, 'pic', 'fewer boxes in a row, or shorter labels', warnings);
+  return panel(frame(fence, id, where, drawn.svg, drawn.width, 'pic', 'fewer boxes in a row, or shorter labels', warnings), fence, 'Flow');
 }
 
-// The folded frame every picture shares; a width in em lets the kit's fit and zoom resize it, and none fills the frame.
+// The frame every picture shares; a width in em lets the kit's fit and zoom resize it, and none fills the frame.
 function frame(fence, id, where, svg, width, kind, narrower, warnings) {
   const unsafe = unsafeSvg(svg);
   if (unsafe) throw new Error(`${fence.file} line ${fence.at}: ${where}: the drawn picture holds ${unsafe}; draw it without links, images, or styles`);
   if (width > PICTURE_WIDE && narrower) warnings.push(`${fence.file} line ${fence.at}: ${where} is ${Math.round(width)} px wide; keep pictures under ${PICTURE_WIDE}: ${narrower}`);
-  const style = width ? ` style="width:${Number((width / BASE_PX).toFixed(3))}em"` : '';
-  return '<details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary>'
-    + `<div class="frame"><div class="art ${kind}" data-note="${id}" tabindex="0"${style}>${svg}</div></div></details>`;
+  return framed(id, kind, svg, width ? ` style="width:${Number((width / BASE_PX).toFixed(3))}em"` : '');
 }
+const framed = (id, kind, inner, style = '') => `<div class="drawing"><div class="frame"><div class="art ${kind}" data-note="${id}" tabindex="0"${style}>${inner}</div></div></div>`;
 
 // Character references: the five XML names and numeric ones decode; any other name refuses the picture.
 function decode(raw, refuse) {
@@ -331,14 +334,14 @@ function sketch(item, fence, k, warnings) {
     const more = drawn.colors.length > 1 ? ` (and ${drawn.colors.length - 1} more)` : '';
     warnings.push(`${fence.file} line ${fence.at}: ${where} paints ${drawn.colors[0]}${more}, which will not follow dark mode; use ${[...SKETCH_COLORS].join(', ')}`);
   }
-  return frame(fence, id, where, drawn.svg, drawn.width, 'pic sketch', 'draw it narrower, or stack its parts', warnings);
+  return panel(frame(fence, id, where, drawn.svg, drawn.width, 'pic sketch', 'draw it narrower, or stack its parts', warnings), fence, 'Drawing');
 }
 
 // A screen fills the frame up to 640 px, or 360 px as a phone; its controls sit in an inert box, so a tap notes it.
 function screen(item, fence, k, warnings) {
   const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
   const drawn = sketchScreen(fence.lines.join('\n'), refuser(fence, where, 'a screen', "build it from the look's parts and layout classes only"));
-  return frame(fence, id, where, `<div class="sk" inert>${drawn.html}</div>`, drawn.phone ? PHONE_WIDE : null, 'pic screen', '', warnings);
+  return panel(frame(fence, id, where, `<div class="sk" inert>${drawn.html}</div>`, drawn.phone ? PHONE_WIDE : null, 'pic screen', '', warnings), fence, 'Screen');
 }
 
 // One line naming the item, the picture, the proposal line, and the refused part.
@@ -372,39 +375,52 @@ function photo(path, at, where, ctx, warnings) {
   return `data:${type};base64,${bytes.toString('base64')}`;
 }
 
-// The open frame picture files and ads share: built only from checked data and escaped words, so no SVG check.
-const photoFrame = (id, cls, inner, after = '') => '<details class="drawing" open><summary><span class="show">Show picture</span><span class="hide">Hide picture</span><span class="count"></span></summary>'
-  + `<div class="frame"><div class="art ${cls}" data-note="${id}" tabindex="0">${inner}</div></div>${after}</details>`;
-
 // A `picture` fence: one `[label:] path` a line, or one `Try it: <https address>` line, drawn as a link to a new tab.
+// Each label is a tab; `After, phone` and `After, computer` share one After tab with a Phone | Computer switch.
+const SIZE = /,\s*(phone|computer)$/i;
 function photos(item, fence, k, ctx, warnings) {
   const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
   let tryIt = '';
-  const figures = fence.lines.map((line, i) => [line.trim(), fence.at + 1 + i]).filter(([line]) => line).flatMap(([line, at]) => {
+  const shots = fence.lines.map((line, i) => [line.trim(), fence.at + 1 + i]).filter(([line]) => line).flatMap(([line, at]) => {
     const [, label = '', path] = /^(?:([^:]+?):\s+)?(.+)$/.exec(line);
     if (/^try it$/i.test(label.trim())) {
       let url = null;
       try { url = new URL(path); } catch { /* refused below */ }
       if (url?.protocol !== 'https:' || tryIt) throw new Error(`${ctx.file} line ${at}: ${where}: Try it takes one https:// address, not ${path}`);
-      tryIt = `<p class="try"><a href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">Try it</a></p>`;
+      tryIt = `<a class="try" href="${esc(url.href)}" target="_blank" rel="noopener noreferrer">Try it</a>`;
       return [];
     }
-    const alt = esc(label.trim() || basename(path).replace(/\.[^.]*$/, ''));
-    return `<figure><img src="${photo(path, at, where, ctx, warnings)}" alt="${alt}">${label ? `<figcaption>${alt}</figcaption>` : ''}</figure>`;
+    const name = label.trim() || basename(path).replace(/\.[^.]*$/, ''), size = SIZE.exec(name)?.[1].toLowerCase();
+    return [{ name, size, base: name.replace(SIZE, ''), src: photo(path, at, where, ctx, warnings), caption: !!label }];
   });
-  if (!figures.length) throw new Error(`${ctx.file} line ${fence.at}: ${where}: a picture fence names no file`);
-  return photoFrame(id, 'photo', figures.join(''), tryIt);
+  if (!shots.length) throw new Error(`${ctx.file} line ${fence.at}: ${where}: a picture fence names no file`);
+  const tabs = [];
+  shots.forEach((shot, i) => {
+    const mate = shot.size && tabs.find(tab => tab.label === shot.base && tab.sizes && tab.sizes[shot.size] === undefined);
+    if (mate) mate.sizes[shot.size] = i;
+    else tabs.push({ label: shot.size ? shot.base : shot.name, sizes: shot.size ? { [shot.size]: i } : null, parts: [i] });
+  });
+  const figures = shots.map((shot, i) => `<figure data-part="${i}"${shot.size === 'computer' ? ' class="wide"' : ''}><img src="${shot.src}" alt="${esc(shot.name)}">`
+    + `${shot.caption ? `<figcaption>${esc(shot.name)}</figcaption>` : ''}</figure>`);
+  return { html: framed(id, 'photo', figures.join('')), tryIt, tabs: tabs.map(({ label, sizes }, i) => {
+    if (!sizes) return { label, parts: tabs[i].parts };
+    const { phone, computer } = sizes;
+    return phone !== undefined && computer !== undefined ? { label, parts: [phone], wide: computer } : { label, parts: [phone ?? computer] };
+  }) };
 }
 
-// An `ad` fence: one ad in its placement's frame. Ads side by side in one bullet share one frame, which wraps them.
+// Two or more versions or ads get a last All tab that shows them side by side.
+const withAll = tabs => (tabs.length > 1 ? [...tabs, { label: 'All', parts: tabs.map((tab, i) => i), all: true }] : tabs);
+
+// An `ad` fence: one ad in its placement's frame. Ads side by side in one bullet share one frame, with a tab each.
 const AD_LINES = ['placement', 'account', 'picture', 'text', 'headline', 'button'];
 function ads(item, fences, k, ctx, warnings) {
   const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
-  const drawn = fences.map(fence => {
+  const drawn = fences.map((fence, i) => {
     const stop = (at, why) => { throw new Error(`${ctx.file} line ${at}: ${where}: ${why}`); };
     const ad = {};
-    fence.lines.forEach((line, i) => {
-      const at = fence.at + 1 + i, m = /^\s*([a-z]+):\s*(.*?)\s*$/.exec(line);
+    fence.lines.forEach((line, j) => {
+      const at = fence.at + 1 + j, m = /^\s*([a-z]+):\s*(.*?)\s*$/.exec(line);
       if (!line.trim()) return;
       if (!m || !AD_LINES.includes(m[1]) || ad[m[1]]) stop(at, `an ad takes one line each of ${AD_LINES.join(', ')}`);
       ad[m[1]] = { value: m[2], at };
@@ -414,11 +430,11 @@ function ads(item, fences, k, ctx, warnings) {
     if (!ad.picture?.value) stop(fence.at, 'an ad needs a picture: line');
     const words = name => esc(ad[name]?.value ?? '');
     const part = (name, tag) => (ad[name]?.value ? `<${tag} class="ad-${name}">${words(name)}</${tag}>` : '');
-    return `<div class="ad ${placement}"><p class="ad-account"><b>${words('account')}</b> <span>Sponsored</span></p>`
+    return { label: fence.info || (placement === 'feed' ? 'Feed' : 'Story'), html: `<div class="ad ${placement}" data-part="${i}"><p class="ad-account"><b>${words('account')}</b> <span>Sponsored</span></p>`
       + `<img src="${photo(ad.picture.value, ad.picture.at, where, ctx, warnings)}" alt="${words('headline') || words('text') || words('account') || 'ad'}">`
-      + `<div class="ad-words">${part('text', 'p')}${part('headline', 'b')}${part('button', 'span')}</div></div>`;
+      + `<div class="ad-words">${part('text', 'p')}${part('headline', 'b')}${part('button', 'span')}</div></div>` };
   });
-  return photoFrame(id, 'photo ads', drawn.join(''));
+  return { html: framed(id, 'photo ads', drawn.map(ad => ad.html).join('')), tabs: withAll(drawn.map((ad, i) => ({ label: ad.label, parts: [i] }))) };
 }
 
 // A Markdown table: a header, a separator, and body rows, each row a note target named by its number in the item.
@@ -438,16 +454,16 @@ const attrOf = (tag, name) => new RegExp(`\\s${name}\\s*=\\s*("[^"]*"|'[^']*'|[^
 const unquote = raw => decode(/^["']/.test(raw) ? raw.slice(1, -1) : raw, m => m);
 
 // One page and its files; `stop` names the card and the proposal line, and every address is checked once.
-function inliner(root, stop) {
+function inliner(root, stop, card = 'a live card') {
   const web = ref => {
-    if (WEB.test(ref.trim()) || /^https?:/i.test(ref.trim())) stop(`${ref} is a web address; a live card loads nothing from the web: copy it into the folder`);
+    if (WEB.test(ref.trim()) || /^https?:/i.test(ref.trim())) stop(`${ref} is a web address; ${card} loads nothing from the web: copy it into the folder`);
   };
   const read = (ref, base) => local(decodeURIComponent(ref.split(/[?#]/)[0]), base, root, stop, `no file at ${ref}`);
   const asset = (ref, base) => {
     web(ref);
     if (!LOCAL(ref.trim())) return ref;
     const path = ref.trim(), ext = /\.([a-z0-9]+)(?:[?#].*)?$/i.exec(path)?.[1].toLowerCase(), type = LIVE_TYPES[ext];
-    if (!type) stop(`${path} is not a picture or font a live card can carry: PNG, JPEG, WebP, GIF, SVG, WOFF, or WOFF2`);
+    if (!type) stop(`${path} is not a picture or font ${card} can carry: PNG, JPEG, WebP, GIF, SVG, WOFF, or WOFF2`);
     const { bytes } = read(path, base);
     const svg = type === 'image/svg+xml';
     const fits = svg ? /^\s*(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*(?:<!DOCTYPE[^>]*>\s*)?<svg[\s>]/i.test(bytes.toString('utf8'))
@@ -469,13 +485,14 @@ function inliner(root, stop) {
   const tag = (text, base) => {
     let out = text;
     const name = /^<([\w:-]+)/.exec(text)[1].toLowerCase();
-    for (const key of ['src', 'poster', 'data', 'href', 'xlink:href', 'srcset', 'action', 'formaction', 'style']) {
+    for (const key of ['src', 'poster', 'background', 'data', 'href', 'xlink:href', 'srcset', 'action', 'formaction', 'style']) {
       const found = attrOf(out, key);
       if (!found) continue;
       const value = unquote(found[1]);
       if (key === 'style') out = setAttr(out, key, css(value, base));
       else if (key === 'srcset') out = setAttr(out, key, srcset(value, base));
-      else if (['action', 'formaction'].includes(key) || (key === 'href' && ['a', 'area'].includes(name))) web(value);
+      else if (key === 'href' && ['a', 'area'].includes(name)) { if (card === 'a live card') web(value); }
+      else if (['action', 'formaction'].includes(key)) web(value);
       else out = setAttr(out, key, asset(value, base));
     }
     return out;
@@ -508,9 +525,8 @@ function inliner(root, stop) {
   return page;
 }
 
-// The page's head takes the sealing policy and the answer shim first, before any of the page's own parts.
-function sealed(html) {
-  const first = `<meta http-equiv="Content-Security-Policy" content="${LIVE_CSP}">${LIVE_SHIM}`;
+// The page's head takes the sealing policy, and a live card's answer shim, first, before any of the page's own parts.
+function sealed(html, first = `<meta http-equiv="Content-Security-Policy" content="${LIVE_CSP}">${LIVE_SHIM}`) {
   const head = /<head\b[^>]*>/i.exec(html) ?? /<html\b[^>]*>/i.exec(html);
   if (!head) return `${first}${html}`;
   const at = head.index + head[0].length;
@@ -535,12 +551,59 @@ function live(item, fence, k, ctx) {
   const doc = sealed(inliner(ctx.root, stop)(bytes.toString('utf8'), dirname(real)));
   const size = Buffer.byteLength(doc);
   if (size > LIVE_MAX) stop(`the live card is ${Math.ceil(size / KB)} KB; keep a live card under 800 KB: use smaller pictures`);
-  return `<div class="live" data-live="${id}" data-height="${height}"><div class="live-box">`
-    + `<iframe sandbox="allow-scripts" title="${esc(`Live card ${item.n}`)}" srcdoc="${esc(doc)}"></iframe></div></div>`;
+  return panel(`<div class="live" data-live="${id}" data-height="${height}"><div class="live-box">`
+    + `<iframe sandbox="allow-scripts" title="${esc(`Live card ${item.n}`)}" srcdoc="${esc(doc)}"></iframe></div></div>`, fence, 'Live');
+}
+
+// ── a `page` fence: a whole page, such as an email, one `<label>: <file>.html` line a version ──
+
+// The kit's one script in a page, run by its hash: it posts the page's height, and the link under a point.
+// It stays still when only the frame's height changed: the kit did that, and a page as tall as its frame follows it.
+const PAGE_SIZE = '(function(){var seen=-1;function size(){parent.postMessage({type:"review:page",h:document.documentElement.scrollHeight,'
+  + 'w:innerWidth,vh:innerHeight},"*");}function changed(){if(innerHeight<=1||innerHeight===seen)size();seen=innerHeight;}'
+  + 'addEventListener("load",size);addEventListener("resize",changed);new ResizeObserver(changed).observe(document.documentElement);'
+  + 'addEventListener("message",function(e){var m=e.data;'
+  + 'if(e.source!==parent||!m||m.type!=="review:point"||typeof m.x!=="number"||typeof m.y!=="number")return;'
+  + 'var at=document.elementFromPoint(m.x,m.y),a=at&&at.closest("[data-href]");'
+  + 'parent.postMessage({type:"review:link",href:a?a.getAttribute("data-href"):""},"*");});}());';
+const PAGE_CSP = `default-src 'none'; script-src 'sha256-${createHash('sha256').update(PAGE_SIZE).digest('base64')}'; style-src 'unsafe-inline'; `
+  + "img-src data:; font-src data:; form-action 'none'; base-uri 'none'";
+const PAGE_LINKS = '<style>:where(a[data-href]){color:LinkText;text-decoration:underline;cursor:pointer}</style>';
+const PAGE_STOPS = [[/<script\b/i, 'a <script>; a page runs nothing, so a page that needs a script is a live card'],
+  [/<[a-z][^>]*?\son[a-z]+\s*=/i, 'an on… attribute; a page runs nothing'], [/javascript\s*:/i, 'a javascript: address; a page runs nothing'],
+  [/<(?:iframe|frame|object|embed|base)\b/i, 'a frame, object, or base tag; a page shows only its own words and pictures'],
+  [/<meta\b[^>]*http-equiv\s*=\s*["']?refresh/i, 'a refresh tag; a page stays where it is']];
+// Each link keeps its look but goes nowhere: its address moves to data-href, and shows on hover.
+const inert = html => html.replace(/<(?:a|area)\b[^>]*>/gi, tag => {
+  const href = attrOf(tag, 'href');
+  if (!href) return tag;
+  const value = esc(unquote(href[1]));
+  return tag.replace(href[0], ` data-href="${value}"${attrOf(tag, 'title') ? '' : ` title="${value}"`}`);
+});
+function pages(item, fence, k, ctx) {
+  const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
+  let total = 0;
+  const versions = fence.lines.map((line, i) => [line.trim(), fence.at + 1 + i]).filter(([line]) => line).map(([line, at], i) => {
+    const m = /^([^:]+?):\s+(\S.*?\.html?)$/i.exec(line), stop = why => { throw new Error(`${ctx.file} line ${at}: ${where}: ${why}`); };
+    if (!m) stop('a page takes one "<label>: <file>.html" line a version');
+    const file = why => stop(`${m[2]}: ${why}`);
+    const { real, bytes } = local(m[2], ctx.root, ctx.root, stop, `no page at ${m[2]}`);
+    if (bytes.length > PHOTO_MAX) file(`${Math.ceil(bytes.length / KB)} KB; keep a page file under 300 KB`);
+    const source = bytes.toString('utf8'), bad = PAGE_STOPS.find(([test]) => test.test(source));
+    if (bad) file(`it holds ${bad[1]}`);
+    const doc = sealed(inert(inliner(ctx.root, file, 'a page card')(source, dirname(real))), `<meta http-equiv="Content-Security-Policy" content="${PAGE_CSP}">${PAGE_LINKS}<script>${PAGE_SIZE}</script>`);
+    total += Buffer.byteLength(doc);
+    if (total > LIVE_MAX) stop(`the page card is ${Math.ceil(total / KB)} KB; keep a page card under 800 KB: use smaller pictures`);
+    const label = esc(m[1].trim());
+    return { label: m[1].trim(), html: `<div class="shot" data-part="${i}" data-label="${label}"><iframe sandbox="allow-scripts" tabindex="-1" title="${label}" srcdoc="${esc(doc)}"></iframe></div>` };
+  });
+  if (!versions.length) throw new Error(`${ctx.file} line ${fence.at}: ${where}: a page fence names no file`);
+  return { html: `<div class="pages"><div class="art page" data-note="${id}" tabindex="0">${versions.map(v => v.html).join('')}</div></div>`,
+    tabs: withAll(versions.map((v, i) => ({ label: v.label, parts: [i] }))) };
 }
 
 // ── a `form` fence: questions drawn as real inputs, each with a stable id the kit keeps its answer under ──
-function question(prefix, k, line, at, stop) {
+function question(prefix, k, line, at, stop, ctx, where) {
   const m = /^\s*([a-z]+):\s*(.*?)\s*$/.exec(line);
   if (!m || !QUESTION_KINDS.has(m[1])) stop(`a question is one of ${[...QUESTION_KINDS].join(', ')}, then a colon and its words`, at);
   const [label, ...parts] = m[2].split('|').map(part => part.trim());
@@ -554,6 +617,12 @@ function question(prefix, k, line, at, stop) {
     const type = kind === 'choice' ? 'radio' : 'checkbox';
     return `<fieldset ${head}><legend class="q-label">${words}</legend>${options.map(option =>
       `<label class="opt"><input type="${type}" name="q-${id}" value="${esc(option)}"> ${esc(option)}</label>`).join('')}</fieldset>`;
+  }
+  if (kind === 'pictures') {
+    const files = (parts[0] ?? '').split(',').map(file => file.trim()).filter(Boolean);
+    if (parts.length !== 1 || files.length < 2 || files.length > QUESTIONS_MAX) stop(`pictures takes "| a.png, b.png" with 2 to ${QUESTIONS_MAX} files`, at);
+    return `<fieldset ${head}><legend class="q-label">${words}</legend><div class="picks">${files.map(file =>
+      `<label class="pick"><input type="radio" name="q-${id}" value="${esc(file)}"><img src="${photo(file, at, where, ctx, ctx.warnings)}" alt="${esc(basename(file))}"></label>`).join('')}</div></fieldset>`;
   }
   if (kind === 'file') {
     const types = (parts[0] ?? '').split(',').map(type => type.trim()).filter(Boolean), count = parts[1] === undefined ? 1 : Number(parts[1]);
@@ -578,7 +647,7 @@ function form(prefix, fence, first, ctx, where) {
   const stop = (why, at = fence.at) => { throw new Error(`${ctx.file} line ${at}: ${where}: ${why}`); };
   const lines = fence.lines.map((line, i) => [line, fence.at + 1 + i]).filter(([line]) => line.trim());
   if (!lines.length || lines.length > QUESTIONS_MAX) stop(`a form holds 1 to ${QUESTIONS_MAX} questions`);
-  return { count: lines.length, html: `<div class="form">${lines.map(([line, at], i) => question(prefix, first + i, line, at, stop)).join('')}</div>` };
+  return { count: lines.length, html: `<div class="form">${lines.map(([line, at], i) => question(prefix, first + i, line, at, stop, ctx, where)).join('')}</div>` };
 }
 
 // ── `## What the build needs`: each bullet Ready or Needs you; one that needs you holds its questions or its link ──
@@ -612,34 +681,66 @@ function needs(section, ctx) {
   }).join('\n')}\n</ol>`;
 }
 
+// A card's view: one tab a picture, state, or drawing, the After, Built, or Preview tab first;
+// tables and forms stay with the words.
+const FIRST = /^(?:after|built|preview)\b/i;
+const COMPARE = [[/^before\b/i, /^after\b/i, 'Before and after'], [/^approved\b/i, /^built\b/i, 'Approved and built'], [/^live now\b/i, /^preview\b/i, 'Live now and preview']];
+function view(panels) {
+  if (!panels.length) return '';
+  const seen = {}, tabs = panels.flatMap((drawn, panel) => drawn.tabs.map(tab => ({ ...tab, panel })));
+  for (const tab of tabs) {
+    seen[tab.label] = (seen[tab.label] ?? 0) + 1;
+    if (seen[tab.label] > 1) tab.label += ` ${seen[tab.label]}`;
+  }
+  const first = Math.max(0, tabs.findIndex(tab => FIRST.test(tab.label)));
+  const pair = COMPARE.map(([a, b, words]) => [tabs.findIndex(tab => a.test(tab.label)), tabs.findIndex(tab => b.test(tab.label)), words]).find(([a, b]) => a >= 0 && b >= 0);
+  const strip = tabs.map((tab, i) => `<button type="button" class="tab" role="tab" aria-selected="${i === first}" data-panel="${tab.panel}"`
+    + `${tab.parts ? ` data-parts="${tab.parts.join(' ')}"` : ''}${tab.wide === undefined ? '' : ` data-wide="${tab.wide}"`}${tab.all ? ' data-all' : ''}>`
+    + `${esc(tab.label)}<span class="count"></span></button>`).join('');
+  return `<div class="view"${pair ? ` data-compare="${pair[0]} ${pair[1]}" data-compare-label="${pair[2]}"` : ''}><div class="tabs" role="tablist">${strip}</div>`
+    + `<div class="stage">${panels.map(drawn => drawn.html).join('')}</div><div class="view-tools">${panels.map(drawn => drawn.tryIt ?? '').join('')}</div></div>`;
+}
+
+// A sketch stands in for a real picture only with a line that names the step that failed.
+function sketchOnly(block, ctx, warnings) {
+  const sketch = block.drawings.find(fence => fence.lang === 'screen' || fence.lang === 'svg');
+  if (!sketch || block.drawings.some(fence => fence.lang === 'picture') || /\bNo real picture:/i.test(block.text)) return;
+  warnings.push(`${ctx.file} line ${sketch.at}: item ${block.n}: a screen sketch with no real picture: run the prototype with sample data, `
+    + 'or add a line "No real picture: <the step that failed>"');
+}
+
 function changes(section, warnings, ctx) {
-  let html = '', open = false;
+  let html = '', open = false, wide = false;
   for (const block of blocks(section, 'item')) {
     if (!block.n) { html += `${open ? '</ol>\n' : ''}<p class="aside">${inline(block.text)}</p>\n`; open = false; continue; }
-    // Text drawings number lines across the item, tables their rows; the other pictures and ads share one count.
+    // Text drawings number lines across the item, tables their rows; other pictures, pages, and ads share one count.
     let first = 1, pictures = 0, rows = 1, lives = 0, questions = 1;
     const grouped = block.drawings.reduce((all, fence) => {
       if (fence.lang === 'ad' && all.at(-1)?.lang === 'ads') all.at(-1).fences.push(fence);
       else all.push(fence.lang === 'ad' ? { lang: 'ads', fences: [fence] } : fence);
       return all;
     }, []);
-    const art = grouped.map(fence => {
-      if (fence.lang === 'ads') return ads(block, fence.fences, ++pictures, ctx, warnings);
-      if (fence.lang === 'mermaid') return picture(block, fence, ++pictures, warnings);
-      if (fence.lang === 'svg') return sketch(block, fence, ++pictures, warnings);
-      if (fence.lang === 'screen') return screen(block, fence, ++pictures, warnings);
-      if (fence.lang === 'picture') return photos(block, fence, ++pictures, ctx, warnings);
-      if (fence.lang === 'live') return live(block, fence, ++lives, ctx);
-      if (fence.lang === 'form') { const drawn = form(`item-${block.n}`, fence, questions, ctx, `item ${block.n}`); questions += drawn.count; return drawn.html; }
-      if (fence.lang === 'table') { const out = table(block, fence, rows); rows += fence.lines.length - 2; return out; }
-      const out = drawing(block, fence, first, warnings); first += fence.lines.length; return out;
-    });
-    const text = block.text.replace(/\s*\(review\.html#\/[^)]*\)\s*$/, '');
-    html += `${open ? '' : '<ol class="items">\n'}<li class="item card" id="item-${block.n}"><span class="num">${block.n}</span><div class="body">`
-      + `<div class="text" data-note="item-${block.n}" tabindex="0">${inline(text)}</div></div>${art.join('')}</li>\n`;
+    const words = [], panels = [];
+    for (const fence of grouped) {
+      if (fence.lang === 'form') { const drawn = form(`item-${block.n}`, fence, questions, ctx, `item ${block.n}`); questions += drawn.count; words.push(drawn.html); }
+      else if (fence.lang === 'table') { words.push(table(block, fence, rows)); rows += fence.lines.length - 2; }
+      else if (fence.lang === 'ads') panels.push(ads(block, fence.fences, ++pictures, ctx, warnings));
+      else if (fence.lang === 'mermaid') panels.push(picture(block, fence, ++pictures, warnings));
+      else if (fence.lang === 'svg') panels.push(sketch(block, fence, ++pictures, warnings));
+      else if (fence.lang === 'screen') panels.push(screen(block, fence, ++pictures, warnings));
+      else if (fence.lang === 'picture') panels.push(photos(block, fence, ++pictures, ctx, warnings));
+      else if (fence.lang === 'page') panels.push(pages(block, fence, ++pictures, ctx));
+      else if (fence.lang === 'live') panels.push(live(block, fence, ++lives, ctx));
+      else { panels.push(drawing(block, fence, first, warnings)); first += fence.lines.length; }
+    }
+    sketchOnly(block, ctx, warnings);
+    const shown = view(panels), text = block.text.replace(/\s*\(review\.html#\/[^)]*\)\s*$/, '');
+    wide ||= !!shown;
+    html += `${open ? '' : '<ol class="items">\n'}<li class="item card${shown ? ' has-view' : ''}" id="item-${block.n}"><div class="words"><span class="num">${block.n}</span>`
+      + `<div class="body"><div class="text" data-note="item-${block.n}" tabindex="0">${inline(text)}</div></div>${words.join('')}</div>${shown}</li>\n`;
     open = true;
   }
-  return html + (open ? '</ol>' : '');
+  return { html: html + (open ? '</ol>' : ''), wide };
 }
 
 // The decisions as a list, or null when there are none: a page then shows no Decisions section.
@@ -681,9 +782,10 @@ function render(markdown, warnings, root, kind) {
     return `<p data-note="why-${i + 1}" tabindex="0">${inline(block.text)}</p>`;
   });
   const decided = log && decisions(found[log.toLowerCase()]);
-  const needed = found['what the build needs'] && needs(found['what the build needs'], { root, file });
+  const ctx = { root, file, warnings }, needed = found['what the build needs'] && needs(found['what the build needs'], ctx);
+  const cards = changes(found[list.toLowerCase()], warnings, ctx);
   return `<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>\n<div class="card">\n${why.join('\n')}\n</div></section>\n`
-    + `<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">${list}</h2>\n${changes(found[list.toLowerCase()], warnings, { root, file })}\n</section>`
+    + `<section id="changes"${cards.wide ? ' class="wide"' : ''} aria-labelledby="changes-h"><h2 id="changes-h">${list}</h2>\n${cards.html}\n</section>`
     + (needed ? `\n<section id="needs" aria-labelledby="needs-h"><h2 id="needs-h">What the build needs</h2>\n${needed}\n</section>` : '')
     + (decided ? `\n<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>\n${decided}\n</section>` : '');
 }
@@ -698,7 +800,7 @@ function askOf(markdown) {
 // The plan as chat Markdown, from the same parse as the page: Why, each change numbered, and the assumed decisions.
 // A chat shows no pictures, so Mermaid, SVG, screen, and picture fences point to the page; tables and text print.
 const PICTURE_LANGS = new Set(['mermaid', 'svg', 'screen', 'picture']);
-const PAGE_ONLY = { live: '   _(live page on the review page)_', form: '   _(questions on the review page)_' };
+const PAGE_ONLY = { live: '   _(live page on the review page)_', page: '   _(page on the review page)_', form: '   _(questions on the review page)_' };
 export function chatCopy(name, markdown) {
   const found = sections(markdown);
   if (!found.why || !found['what changes']) return '';

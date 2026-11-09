@@ -1,6 +1,6 @@
 // The plan's throwaway prototype: a copy of the checkout for real After pictures, kept as a diff for the build.
 import assert from 'node:assert/strict';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -10,8 +10,11 @@ const script = resolve(import.meta.dirname, '../../.claude/skills/plan/scripts/p
 const git = (cwd, ...args) => spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' });
 
 // A one-commit checkout with an app screen, its packages, and a stand-in preview script that records its arguments.
+// An async test keeps the checkout until it settles.
 function checkout(fn) {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'wong-prototype-')));
+  const clean = () => { git(dir, 'worktree', 'prune'); rmSync(dir, { recursive: true, force: true }); };
+  let result;
   try {
     git(dir, 'init', '-q');
     mkdirSync(join(dir, 'app', 'node_modules', 'pkg'), { recursive: true });
@@ -24,11 +27,11 @@ function checkout(fn) {
     chmodSync(join(dir, 'scripts', 'cf-preview.sh'), 0o755);
     git(dir, 'add', '-A');
     git(dir, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '-qm', 'start');
-    return fn(dir);
+    result = fn(dir);
   } finally {
-    git(dir, 'worktree', 'prune');
-    rmSync(dir, { recursive: true, force: true });
+    if (!(result instanceof Promise)) clean();
   }
+  return result instanceof Promise ? result.finally(clean) : result;
 }
 const run = (cwd, ...args) => spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8' });
 
@@ -94,4 +97,53 @@ test('upload refuses a copy with a new migration; upload and finish need a copy;
   assert.equal(run(dir, 'start', 'de mo').stderr, 'prototype: a change name is letters, digits, - and _, up to 92: de mo\n');
   assert.equal(run(dir, 'make', 'demo').status, 2);
   assert.equal(run(dir, 'start').status, 2);
+}));
+
+// A stand-in for the app's dev server: it answers on the port it is given, as vite does with --port.
+function devApp(copy, dev) {
+  writeFileSync(join(copy, 'app', 'package.json'), JSON.stringify({ scripts: { dev } }));
+  writeFileSync(join(copy, 'app', 'dev.mjs'), 'import { createServer } from "node:http";\n'
+    + 'createServer((q, s) => s.end("app")).listen(Number(process.argv[process.argv.indexOf("--port") + 1]), "127.0.0.1");\n');
+  writeFileSync(join(copy, 'app', 'idle.mjs'), 'import { writeFileSync } from "node:fs";\nwriteFileSync("idle.pid", String(process.pid));\nsetInterval(() => {}, 1000);\n');
+}
+
+test('serve runs the copy on a free port, prints its address once it answers, and stops it on exit', () => checkout(async dir => {
+  run(dir, 'start', 'demo');
+  devApp(join(dir, '.scratch', 'demo-prototype'), 'node dev.mjs');
+  const serving = spawn(process.execPath, [script, 'serve', 'demo'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  const url = await new Promise((done, fail) => {
+    let out = '';
+    serving.stdout.on('data', chunk => { out += chunk; const m = /^PROTOTYPE_URL=(http:\/\/localhost:\d+)$/m.exec(out); if (m) done(m[1]); });
+    serving.once('exit', code => fail(new Error(`serve stopped with ${code}`)));
+  });
+  const port = new URL(url).port;
+  assert.equal(await (await fetch(`http://127.0.0.1:${port}/`)).text(), 'app');
+  await new Promise(done => { serving.once('exit', done); serving.kill('SIGTERM'); });
+  await new Promise(done => setTimeout(done, 300));
+  assert.equal(await fetch(`http://127.0.0.1:${port}/`).then(() => 'up', () => 'down'), 'down', 'the copy stops with serve');
+}));
+
+test('serve needs a copy, and stops a copy that never answers', () => checkout(dir => {
+  assert.match(run(dir, 'serve', 'demo').stderr, /^prototype: no prototype at .*: run start first\n$/);
+  run(dir, 'start', 'demo');
+  devApp(join(dir, '.scratch', 'demo-prototype'), 'node idle.mjs');
+  const silent = run(dir, 'serve', 'demo', '--wait', '1');
+  assert.equal(silent.status, 1);
+  assert.match(silent.stderr, /prototype: the copy's app did not answer at http:\/\/localhost:\d+ within 1 seconds\n$/);
+  assert.equal(run(dir, 'serve', 'demo', '--wait', 'soon').status, 2);
+}));
+
+test('a Ctrl-C while serve waits for the copy stops the copy too', () => checkout(async dir => {
+  run(dir, 'start', 'demo');
+  const app = join(dir, '.scratch', 'demo-prototype', 'app');
+  devApp(join(dir, '.scratch', 'demo-prototype'), 'node idle.mjs');
+  const serving = spawn(process.execPath, [script, 'serve', 'demo', '--wait', '60'], { cwd: dir, stdio: 'ignore' });
+  for (const at = Date.now(); !existsSync(join(app, 'idle.pid')); await new Promise(done => setTimeout(done, 100))) {
+    assert.ok(Date.now() - at < 20000, 'the copy started');
+  }
+  const pid = Number(readFileSync(join(app, 'idle.pid'), 'utf8'));
+  await new Promise(done => { serving.once('exit', done); serving.kill('SIGINT'); });
+  const alive = () => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  for (const at = Date.now(); alive() && Date.now() - at < 5000;) await new Promise(done => setTimeout(done, 100));
+  assert.equal(alive(), false, 'the copy stops with serve');
 }));

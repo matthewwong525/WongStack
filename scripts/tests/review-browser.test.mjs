@@ -80,11 +80,9 @@ async function open(url, { width = 1200, height = 800, init, touch = false, sche
 
 const at = (page, id) => page.locator(`[data-note="${id}"]`);
 async function tap(page, id) { await at(page, id).click({ position: { x: 4, y: 4 } }); }
-// A drawing line is noted from the full-screen view: open the fold, go full screen, click the line, choose Add note.
+// A drawing line is noted from the full-screen view: go full screen, click the line, choose Add note.
 async function noteLine(page, id) {
-  const fold = page.locator(`#item-${/^item-(\d+)/.exec(id)[1]} details.drawing`).first();
-  if (!(await fold.evaluate(el => el.open))) await fold.locator('summary').click();
-  await fold.locator('.enlarge').click();
+  await page.locator(`#item-${/^item-(\d+)/.exec(id)[1]} .enlarge`).click();
   await page.locator(`#viewer [data-note="${id}"]`).click({ position: { x: 2, y: 2 } });
   await page.locator('#chip').click();
 }
@@ -122,7 +120,7 @@ browserTest('a mouse click offers a note, a drag offers a note on its words, and
   assert.equal(await chip.innerText(), 'Note', 'selected words offer a note on just those words');
   await page.keyboard.press('Escape');
   assert.equal(await chip.isVisible(), false);
-  await page.locator('#item-3 summary').click();
+  await page.locator('#item-3 .tab').click();
   assert.equal(await chip.isVisible(), false);
   await page.locator('#item-3 .enlarge').click();
   await page.locator('#viewer button[aria-label="Zoom in"]').click();
@@ -165,7 +163,8 @@ browserTest('saving adds a pin and a list entry, and Copy notes writes notes on 
   await note(page, 'item-1-line-3', 'Show the end state.');
   await note(page, 'decision-2', 'Check this one.');
   assert.equal(await at(page, 'item-2').locator('.pin').innerText(), '2');
-  assert.equal(await page.locator('#item-1 summary .count').innerText(), '· 1 note');
+  assert.equal(await page.locator('#item-1 .tab .count').textContent(), ' · 1');
+  assert.equal(await page.locator('#item-1 .tab').getAttribute('aria-label'), 'Drawing, 1 note');
   assert.equal(await page.locator('#note-list .entry').count(), 4);
   assert.equal(await page.locator('header .note-count').innerText(), '4 notes');
   assert.equal(await copied(page), [
@@ -257,18 +256,14 @@ browserTest('a refresh keeps notes attached, and a note whose text changed shows
   await context.close();
 });
 
-browserTest('a drawing folds, fits the item\'s full width, and zooms and scrolls full screen', async () => {
+browserTest('a drawing shows at the start, fits the item\'s full width, and zooms and scrolls full screen', async () => {
   const { page, context, errors } = await open(fixture().url, { width: 390 });
-  const fold = page.locator('#item-3 details.drawing');
-  assert.equal(await fold.evaluate(el => el.open), false);
-  assert.equal(await page.locator('#item-3 .frame').isVisible(), false);
-  await fold.locator('summary').click();
-  // Opening a fold fires its toggle event a moment later, and that event fits the drawing.
+  assert.equal(await page.locator('#item-3 .frame').isVisible(), true);
   await page.waitForFunction(() => parseFloat(getComputedStyle(document.querySelector('#item-3 .art')).fontSize) < 13);
   const inline = () => page.evaluate(() => {
-    const frame = document.querySelector('#item-3 .frame').getBoundingClientRect(), card = document.querySelector('#item-3').getBoundingClientRect();
-    const art = document.querySelector('#item-3 .art'), box = art.getBoundingClientRect();
-    return { font: parseFloat(getComputedStyle(art).fontSize), inside: box.left >= frame.left - 1 && box.right <= frame.right + 1, full: frame.width >= card.width - 2 };
+    const frame = document.querySelector('#item-3 .frame').getBoundingClientRect(), stage = document.querySelector('#item-3 .stage');
+    const art = document.querySelector('#item-3 .art'), box = art.getBoundingClientRect(), pad = parseFloat(getComputedStyle(stage).paddingLeft) * 2;
+    return { font: parseFloat(getComputedStyle(art).fontSize), inside: box.left >= frame.left - 1 && box.right <= frame.right + 1, full: frame.width >= stage.clientWidth - pad - 2 };
   });
   const start = await inline();
   assert.ok(start.font < 13 && start.inside && start.full, JSON.stringify(start));
@@ -309,7 +304,6 @@ browserTest('no width from 320px scrolls sideways, and the phone editor docks', 
   const f = fixture();
   for (const width of [320, 390, 1200]) {
     const { page, context } = await open(f.url, { width });
-    for (const n of [1, 3]) await page.locator(`#item-${n} summary`).click();
     const size = await page.evaluate(() => ({ view: innerWidth, page: document.documentElement.scrollWidth }));
     assert.ok(size.page <= size.view, `horizontal overflow at ${width}px`);
     await context.close();
@@ -983,7 +977,6 @@ browserTest('a picture fits a 320px screen, zooms full screen, and takes a note 
   const { url } = fixture(proposal.replace(`  ${fence}text\n  you ask\n     │\n  done\n  ${fence}`,
     `  ${fence}mermaid\n  flowchart LR\n    A[you ask] --> B[a plan] --> C[a review] --> D[the build] --> E[live]\n  ${fence}`));
   const { page, context, errors } = await open(url, { width: 320 });
-  await page.locator('#item-1 summary').click();
   await page.waitForFunction(() => parseFloat(getComputedStyle(document.querySelector('#item-1 .art.pic')).fontSize) < 13);
   const fits = await page.evaluate(() => {
     const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), svg = document.querySelector('#item-1 .art.pic svg').getBoundingClientRect();
@@ -1002,7 +995,7 @@ browserTest('a picture fits a 320px screen, zooms full screen, and takes a note 
   await page.locator('#editor textarea').fill('Add a check step.');
   await page.locator('#editor [data-act="save"]').click();
   await page.keyboard.press('Escape');
-  assert.equal(await page.locator('#item-1 summary .count').innerText(), '· 1 note');
+  assert.equal(await page.locator('#item-1 .tab .count').textContent(), ' · 1');
   assert.match(await copied(page), /^- Change #1, picture 1 \("you ask a plan a review the build live"\): Add a check step\.$/m);
   assert.deepEqual(errors, []);
   await context.close();
@@ -1021,12 +1014,11 @@ browserTest('the page starts light on a dark device, and the switch turns it dar
     const pair = (text, back) => contrast(rgb(css(text).color), rgb(css(back).backgroundColor));
     return {
       body: lum(rgb(css('body').backgroundColor)), card: lum(rgb(css('.card').backgroundColor)), bar: lum(rgb(css('.bar').backgroundColor)),
-      text: [pair('body', 'body'), pair('.card .text', '.card'), pair('.hint', 'body'), pair('#copy', '#copy'), pair('.frame .art', '.frame'), pair('.bar [data-ready="build"]', '.bar'), contrast(rgb(css('.theme-toggle').color), rgb(css('body').backgroundColor))],
+      text: [pair('body', 'body'), pair('.card .text', '.card'), pair('.hint', 'body'), pair('#copy', '#copy'), pair('.frame .art', '.stage'), pair('.bar [data-ready="build"]', '.bar'), contrast(rgb(css('.theme-toggle').color), rgb(css('body').backgroundColor))],
     };
   });
   const readable = (seen, when) => seen.text.forEach((ratio, i) => assert.ok(ratio >= 4.5, `${when}: text ${i} contrast ${ratio.toFixed(2)} is under 4.5`));
   const toggle = page.locator('.theme-toggle');
-  await page.locator('#item-1 summary').click();
   // A dark device with no saved choice: light, with a moon that offers dark.
   const light = await look();
   for (const surface of ['body', 'card', 'bar']) assert.ok(light[surface] > 0.8, `dark device: the ${surface} starts light`);
@@ -1054,7 +1046,6 @@ browserTest('the page starts light on a dark device, and the switch turns it dar
   assert.equal(await toggle.getAttribute('aria-pressed'), 'true');
   // Remembered: a reload opens dark.
   await page.reload();
-  await page.locator('#item-1 summary').click();
   const again = await look();
   for (const surface of ['body', 'card', 'bar']) assert.ok(again[surface] < 0.1, `after a reload: the ${surface} stays dark`);
   assert.equal(await page.locator('.theme-toggle').getAttribute('aria-label'), 'Switch to light');
@@ -1069,8 +1060,6 @@ browserTest('a sketch fits 320px, opens full screen, and repaints on the dark sw
     '  | way | login |', '  |-----|-------|', '  | local | none |', '  | sync | needed |',
   ].join('\n')));
   const { page, context, errors } = await open(url, { width: 320 });
-  await page.locator('#item-1 summary').click();
-  // The fold's toggle event fits the sketch a moment after the click.
   await page.waitForFunction(() => document.querySelector('#item-1 .art.sketch').style.fontSize !== '');
   const fits = await page.evaluate(() => {
     const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), svg = document.querySelector('#item-1 .art.sketch svg').getBoundingClientRect();
@@ -1112,8 +1101,6 @@ browserTest('a phone screen fits 320px, a tap on its button places a note instea
     '  </div>', `  ${fence}`,
   ].join('\n')));
   const { page, context, errors } = await open(url, { width: 320, touch: true });
-  await page.locator('#item-1 summary').click();
-  // The fold's toggle event fits the sketch a moment after the click.
   await page.waitForFunction(() => document.querySelector('#item-1 .art.screen').style.fontSize !== '');
   const fits = await page.evaluate(() => {
     const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), card = document.querySelector('#item-1 .art.screen .card').getBoundingClientRect();
@@ -1256,7 +1243,7 @@ function previewFixture() {
   return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
 }
 
-browserTest('a preview page on a phone shows both pictures side by side, Send notes and Publish in one row, and publishes after its question', async () => {
+browserTest('a preview page on a phone shows Preview first and both side by side on request, Send notes and Publish in one row, and publishes after its question', async () => {
   const { page, context, errors, acts } = await openLive({ make: previewFixture, actions: ['publish'], width: 320, height: 664 });
   await isLive(page);
   await ready(page, 'publish').waitFor();
@@ -1265,6 +1252,9 @@ browserTest('a preview page on a phone shows both pictures side by side, Send no
   assert.deepEqual(await primary(page), ['copy'], 'Send notes stays primary');
   const tops = await page.evaluate(() => [document.getElementById('copy'), document.querySelector('[data-ready="publish"]')].map(el => el.getBoundingClientRect().top));
   assert.equal(tops[0], tops[1], 'one row');
+  assert.deepEqual(await page.locator('#item-1 .tab[aria-selected="true"]').evaluateAll(tabs => tabs.map(t => t.dataset.label)), ['Preview']);
+  assert.equal(await page.locator('.art.photo figure:visible').count(), 1, 'one picture a tab');
+  await page.locator('#item-1 button[data-compare]', { hasText: 'Live now and preview' }).click();
   const look = await page.evaluate(() => {
     const [a, b] = [...document.querySelectorAll('.art.photo img')].map(img => img.getBoundingClientRect());
     return { view: innerWidth, page: document.documentElement.scrollWidth, a, b, loaded: [...document.images].every(img => img.complete && img.naturalWidth > 0) };
@@ -1526,6 +1516,214 @@ browserTest('a closed page with questions in the inbox frame opens read-only: no
   assert.equal(await frame.locator('.drop').filter({ visible: true }).count(), 0, 'no file box shows');
   assert.equal(await frame.locator('input[type=file]').evaluateAll(els => els.every(el => el.disabled)), true, 'no file can be picked');
   assert.deepEqual(await page.evaluate(() => window.heard), ['inbox:notes-get'], 'the page asks only for its notes');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+// ── card views: tabs of real pictures beside short words, a whole page, ads, and a picture question ──
+const mail = word => `<!doctype html><html><body style="margin:0;font:16px sans-serif"><h1 style="margin:0;padding:24px">${word} sale</h1>`
+  + `<p style="padding:0 24px;height:900px">Spring plants.</p><a id="go" href="https://shop.example.com/">Shop the ${word} sale</a></body></html>`;
+function cardsFixture() {
+  const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
+  const dir = join(temp, 'review-fixture');
+  mkdirSync(dir);
+  temps.push(temp);
+  for (const name of ['before.png', 'after.png', 'a.png', 'b.png']) writeFileSync(join(dir, name), solidPng(390, 600));
+  writeFileSync(join(dir, 'feed.png'), solidPng(80, 100));
+  writeFileSync(join(dir, 'a.html'), mail('Rose'));
+  writeFileSync(join(dir, 'b.html'), mail('Fern'));
+  writeFileSync(join(dir, 'proposal.md'), `## Why\n\nShow the screens.\n\n## What Changes\n\n`
+    + `- **The Inbox lists every open chat with its step, its folder and the review that waits on top.** ${long.repeat(6)}\n  ${fence}picture\n  Before: before.png\n  After: after.png\n  ${fence}\n`
+    + `- **Spring email.** Two versions.\n  ${fence}page\n  A: a.html\n  B: b.html\n  ${fence}\n  ${fence}form\n  pictures: Top picture | a.png, b.png\n  ${fence}\n`
+    + `- **Ads.** A feed and a story.\n  ${fence}ad\n  placement: feed\n  account: Shop\n  picture: feed.png\n  ${fence}\n`
+    + `  ${fence}ad\n  placement: story\n  account: Shop\n  picture: feed.png\n  ${fence}\n`);
+  buildReview(dir, { requireCurrent: true });
+  return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
+}
+const tabs = (page, n) => page.locator(`#item-${n} .tab`).evaluateAll(all => all.map(t => t.dataset.label + (t.getAttribute('aria-selected') === 'true' ? ' *' : '')));
+const shown = (page, n, part) => page.locator(`#item-${n} ${part}`).evaluateAll(all => all.map(el => !el.closest('[hidden]')));
+
+browserTest('at 1280 px a card\'s words sit left of its view; at 390 px the view comes first, and nothing scrolls sideways', async () => {
+  const { url } = cardsFixture();
+  for (const [width, beside] of [[1280, true], [390, false]]) {
+    const { page, context, errors } = await open(url, { width });
+    const box = await page.evaluate(() => {
+      const [words, view] = ['#item-1 .words', '#item-1 .view'].map(sel => document.querySelector(sel).getBoundingClientRect());
+      return { left: words.right <= view.left + 1 && words.top < view.bottom, first: view.bottom <= words.top + 1, wide: view.width > words.width,
+        page: document.documentElement.scrollWidth <= innerWidth };
+    });
+    assert.deepEqual(box, beside ? { left: true, first: false, wide: true, page: true } : { left: false, first: true, wide: false, page: true }, `at ${width}px`);
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+});
+
+browserTest('tabs switch pictures, Before and after shows both, and a spot note from the Before tab brings that tab back', async () => {
+  const { page, context, errors } = await open(cardsFixture().url, { width: 1280 });
+  assert.deepEqual(await tabs(page, 1), ['Before', 'After *']);
+  assert.deepEqual(await shown(page, 1, 'figure'), [false, true]);
+  await page.locator('#item-1 .tab', { hasText: 'Before' }).click();
+  assert.deepEqual(await shown(page, 1, 'figure'), [true, false]);
+  const compare = page.locator('#item-1 button[data-compare]');
+  await compare.click();
+  assert.deepEqual(await tabs(page, 1), ['Before *', 'After *']);
+  assert.equal(await compare.getAttribute('aria-pressed'), 'true');
+  const sides = await page.locator('#item-1 figure img').evaluateAll(all => all.map(img => img.getBoundingClientRect()).map(r => ({ top: Math.round(r.top), left: r.left })));
+  assert.ok(sides[0].top === sides[1].top && sides[0].left < sides[1].left, 'the two sit side by side');
+  await page.locator('#item-1 .tab', { hasText: 'Before' }).click();
+  await page.locator('#item-1 .frame').click();
+  const img = page.locator('#viewer .art.photo img:visible');
+  const box = await img.boundingBox();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 10);
+  await page.locator('#chip').click();
+  await page.locator('#editor textarea').fill('Keep the old list.');
+  await page.locator('#editor [data-act="save"]').click();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#item-1 .tab', { hasText: 'Before' }).locator('.count').textContent(), ' · 1');
+  await page.locator('#item-1 .tab', { hasText: 'After' }).click();
+  await page.locator('#note-list .entry', { hasText: 'Keep the old list.' }).click();
+  assert.deepEqual(await tabs(page, 1), ['Before *', 'After'], 'opening the note shows its picture');
+  await page.locator('#editor [data-act="close"]').click();
+  assert.match(await copied(page), /^- Change #1, picture 1, spot at 50% across and 10% down on "Before" \("Before · After"\): Keep the old list\.$/m);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('long words fold behind More, and a note on folded words unfolds them', async () => {
+  const { page, context, errors } = await open(cardsFixture().url, { width: 390 });
+  const more = page.locator('#item-1 .more');
+  const folded = () => page.locator('[data-note="item-1"]').evaluate(el => el.classList.contains('folded'));
+  assert.equal(await more.innerText(), 'More');
+  assert.equal(await folded(), true);
+  assert.equal(await page.locator('#item-2 .more').isVisible(), false, 'short words have no More');
+  await more.click();
+  assert.equal(await folded(), false);
+  assert.equal(await more.innerText(), 'Less');
+  await more.click();
+  assert.equal(await folded(), true);
+  await page.locator('.add[data-open="item-1"]').click();
+  assert.equal(await folded(), false, 'the noted words show in full');
+  assert.equal(await more.innerText(), 'Less');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('at 1280 px the fold keeps the whole bold first sentence in view', async () => {
+  const { page, context, errors } = await open(cardsFixture().url, { width: 1280 });
+  const cut = await page.locator('#item-1 .clamp').evaluate(clamp => clamp.querySelector('b').getBoundingClientRect().bottom - clamp.getBoundingClientRect().bottom);
+  assert.ok(cut <= 1, `the first sentence ends ${cut}px below the fold`);
+  assert.equal(await page.locator('[data-note="item-1"]').evaluate(el => el.classList.contains('folded')), true);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a page card shows a version a tab and All, its links go nowhere, and a spot note names the version', async () => {
+  const { page, context, errors } = await open(cardsFixture().url, { width: 1280 });
+  assert.deepEqual(await tabs(page, 2), ['A *', 'B', 'All']);
+  assert.deepEqual(await shown(page, 2, '.shot'), [true, false]);
+  await page.locator('#item-2 .tab', { hasText: 'All' }).click();
+  assert.deepEqual(await shown(page, 2, '.shot'), [true, true]);
+  await page.locator('#item-2 .tab', { hasText: 'B' }).click();
+  const shot = page.locator('#item-2 .shot[data-label="B"]');
+  await shot.locator('.cover').waitFor();
+  const inside = page.frameLocator('#item-2 .shot[data-label="B"] iframe');
+  assert.equal(await inside.locator('#go').getAttribute('href'), null, 'the link keeps no address');
+  assert.equal(await inside.locator('#go').getAttribute('data-href'), 'https://shop.example.com/');
+  const box = await shot.boundingBox();
+  assert.ok(box.height > box.width, 'the whole page shows, as tall as it is');
+  await page.mouse.click(box.x + box.width / 4, box.y + box.height / 10);
+  await page.locator('#chip').click();
+  await page.locator('#editor textarea').fill('A brighter top.');
+  await page.locator('#editor [data-act="save"]').click();
+  assert.equal(await shot.locator('.pin.spot').count(), 1, 'the pin sits on version B');
+  assert.match(await copied(page), /^- Change #2, picture 1, spot at 25% across and 10% down on "B" \("A · B"\): A brighter top\.$/m);
+  assert.equal(page.url().startsWith('file:'), true, 'nothing navigated');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('in the inbox frame a page card is still as tall as its page, and a spot note names the version', async () => {
+  const html = readFileSync(join(cardsFixture().dir, 'review.html'), 'utf8');
+  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  await context.route('https://inbox.test/**', route => route.fulfill({ contentType: 'text/html', body:
+    '<!doctype html><body style="margin:0"><iframe sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" style="border:0;width:100vw;height:100vh"></iframe></body>' }));
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('https://inbox.test/apps/inbox/?item=i1');
+  const holder = page.locator('iframe');
+  await holder.evaluate((el, body) => new Promise(done => { el.onload = done; el.srcdoc = body; }), html);
+  const frame = await (await holder.elementHandle()).contentFrame();
+  await holder.evaluate(el => {
+    const { port1, port2 } = new MessageChannel();
+    window.saved = null;
+    port1.onmessage = event => {
+      if (event.data.type === 'inbox:notes-get') port1.postMessage({ type: 'inbox:notes', value: null });
+      if (event.data.type === 'inbox:notes-set') window.saved = event.data.value;
+    };
+    el.contentWindow.postMessage({ type: 'inbox:hello', item: 'i1', version: 'v1', actions: ['build'], workspace: 'desk', files: [], theme: 'light' }, '*', [port2]);
+  });
+  await frame.locator('#item-2 .tab', { hasText: 'B' }).click();
+  const shot = frame.locator('#item-2 .shot[data-label="B"]');
+  await shot.locator('.cover').waitFor();
+  let box = await shot.boundingBox();
+  assert.ok(box.height > box.width, 'the whole page shows, as tall as it is');
+  // A pointer over the link asks the page what sits there, and the cover shows its address.
+  // The same page alone at 390 px finds where its link sits.
+  const probe = await context.newPage();
+  await probe.setViewportSize({ width: 390, height: 800 });
+  await probe.setContent(mail('Fern'));
+  const k = box.width / 390, go = await probe.locator('#go').evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.left + 4, y: r.top + r.height / 2 }; });
+  await shot.evaluate((el, y) => scrollBy(0, el.getBoundingClientRect().top + y - 300), go.y * k);
+  box = await shot.boundingBox();
+  await page.mouse.move(box.x + go.x * k, box.y + go.y * k);
+  await frame.waitForFunction(() => document.querySelector('#item-2 .shot[data-label="B"] .cover').title === 'https://shop.example.com/');
+  await shot.evaluate(el => el.scrollIntoView());
+  box = await shot.boundingBox();
+  await page.mouse.click(box.x + box.width / 4, box.y + box.height / 10);
+  await frame.locator('#chip').click();
+  await frame.locator('#editor textarea').fill('A brighter top.');
+  await frame.locator('#editor [data-act="save"]').click();
+  assert.equal(await shot.locator('.pin.spot').count(), 1, 'the pin sits on version B');
+  await page.waitForFunction(() => window.saved && window.saved.includes('A brighter top.'));
+  const [saved] = JSON.parse(await page.evaluate(() => window.saved)).notes;
+  assert.deepEqual([saved.x, saved.y, saved.on, saved.text], [25, 10, 'B', 'A brighter top.'], 'the spot note names version B');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a page as tall as its frame settles at its own height, and stays there', async () => {
+  const { dir } = cardsFixture();
+  writeFileSync(join(dir, 'b.html'), '<!doctype html><html><head><style>html,body{height:100%}</style></head>'
+    + '<body><p style="margin:0;height:900px">Spring plants.</p></body></html>');
+  buildReview(dir, { requireCurrent: true });
+  const { page, context, errors } = await open(pathToFileURL(join(dir, 'review.html')).href, { width: 1280 });
+  await page.locator('#item-2 .tab', { hasText: 'B' }).click();
+  await page.locator('#item-2 [data-size="computer"]').click();
+  const shot = page.locator('#item-2 .shot[data-label="B"]');
+  await shot.locator('.cover').waitFor();
+  const height = () => shot.locator('iframe').evaluate(f => parseFloat(f.style.height));
+  await page.waitForTimeout(500);
+  const settled = await height();
+  assert.ok(settled >= 900 && settled <= 940, `the frame is as tall as the page's words, not ${settled} px`);
+  await page.waitForTimeout(1500);
+  assert.equal(await height(), settled, 'the frame does not keep growing');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('each ad has a tab and All shows both; a picture question keeps its answer', async () => {
+  const { page, context, errors } = await open(cardsFixture().url, { width: 1280 });
+  assert.deepEqual(await tabs(page, 3), ['Feed *', 'Story', 'All']);
+  assert.deepEqual(await shown(page, 3, '.ad'), [true, false]);
+  await page.locator('#item-3 .tab', { hasText: 'Story' }).click();
+  assert.deepEqual(await shown(page, 3, '.ad'), [false, true]);
+  await page.locator('#item-3 .tab', { hasText: 'All' }).click();
+  assert.deepEqual(await shown(page, 3, '.ad'), [true, true]);
+  await page.locator('#item-2 .pick').nth(1).click();
+  assert.match(await copied(page), /^- Change #2, "Top picture": b\.png$/m);
+  await page.reload();
+  assert.equal(await page.locator('#item-2 .pick input').nth(1).isChecked(), true, 'the answer stays after a reload');
   assert.deepEqual(errors, []);
   await context.close();
 });

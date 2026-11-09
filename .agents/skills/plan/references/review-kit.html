@@ -35,23 +35,30 @@
   .card { padding:var(--pad); margin:0 0 10px; }
   .card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
   .items, .decisions, .note-list { list-style:none; margin:0; padding:0; }
-  .item { display:grid; grid-template-columns:26px minmax(0,1fr); gap:0 10px; overflow:hidden; }
+  /* A card: its view of pictures first on a phone, beside the words at 900px and wider. */
+  .item.card { display:flex; flex-direction:column-reverse; padding:0; overflow:hidden; }
+  .words { display:grid; grid-template-columns:26px minmax(0,1fr); align-content:start; gap:0 10px; min-width:0; padding:var(--pad); }
+  .words > .table, .words > .form, .words > .verdict { grid-column:1 / -1; margin-top:10px; }
+  .clamp { display:block; }
+  .text.folded .clamp { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+  .more { min-width:0; min-height:32px; padding:0; border:0; background:none; box-shadow:none; color:var(--muted-foreground); font-weight:400; text-decoration:underline; }
+  .view { display:flex; flex-direction:column; min-width:0; background:var(--muted); border-bottom:1px solid var(--border); }
+  .tabs { display:flex; gap:4px; padding:8px 8px 0; overflow-x:auto; scrollbar-width:none; }
+  .tabs .tab { flex:none; min-width:0; min-height:36px; padding:0 12px; border:0; border-radius:var(--radius) var(--radius) 0 0; background:transparent; box-shadow:none; color:var(--muted-foreground); font-weight:400; white-space:nowrap; }
+  .tabs .tab[aria-selected="true"] { background:var(--card); color:var(--foreground); font-weight:600; }
+  .stage { flex:1; display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px; margin:0 8px; padding:12px; background:var(--card); border-radius:0 0 var(--radius) var(--radius); }
+  .stage > * { flex:1 1 280px; min-width:0; }
+  .view-tools { display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px; }
+  .view-tools .grow { flex:1; }
+  .view-tools [aria-pressed="true"] { background:var(--secondary); color:var(--secondary-foreground); }
   .item, .decision { scroll-margin-top:8px; }
   .num { flex:0 0 26px; height:26px; border-radius:50%; background:var(--secondary); color:var(--secondary-foreground); font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; }
   .body { flex:1; min-width:0; }
   [data-note] { border-radius:4px; }
   [data-note]:hover, .noting { background:var(--accent); }
-  .item > .drawing { position:relative; grid-column:1 / -1; margin:10px calc(-1 * var(--pad)) 0; }
-  .item > .drawing:last-child { margin-bottom:calc(-1 * var(--pad)); }
-  .drawing summary { display:flex; align-items:center; gap:6px; min-height:44px; padding:0 var(--pad); border-top:1px solid var(--border); color:var(--muted-foreground); font-size:14px; cursor:pointer; list-style:none; }
-  .drawing summary::-webkit-details-marker { display:none; }
-  .drawing summary::before { content:'\25B8'; display:inline-block; width:1em; }
-  .drawing[open] summary::before { transform:rotate(90deg); }
-  .drawing[open] .show, .drawing:not([open]) .hide { display:none; }
-  .drawing .count { color:var(--foreground); font-weight:600; }
-  .frame { overflow:auto; border-top:1px solid var(--border); background:var(--muted); touch-action:pan-y; }
+  .frame { overflow:auto; touch-action:pan-y; }
   .js .frame { overflow:hidden; cursor:zoom-in; }
-  .art { display:block; width:max-content; margin:0; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art { display:block; width:max-content; margin:0 auto; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
   .art.pic { box-sizing:content-box; white-space:normal; --pele-bg:transparent; --pele-fg:var(--foreground); --pele-muted:var(--muted-foreground); --pele-line:var(--foreground); --pele-border:var(--ring); --pele-surface:var(--card); --pele-surface-alt:var(--muted); --pele-accent:var(--foreground); --pele-error:var(--destructive); --pele-critical:var(--destructive); }
   .art.pic svg { display:block; width:100%; height:auto; }
   /* A hand-drawn sketch: named colours become classes painted from the look; text inherits the page's ink and font at a fixed size. */
@@ -71,14 +78,14 @@
   .art.screen .gap { gap:.6em; } .art.screen .grow { flex:1 1 0; min-width:0; } .art.screen .muted { margin:0; color:var(--muted-foreground); font-size:inherit; } .art.screen .danger { color:var(--destructive); }
   .art.screen .sk-bar { display:block; height:.75em; border-radius:.375em; background:color-mix(in oklab, var(--muted-foreground) 25%, transparent); }
   .art.screen .tbl, .art.screen table { width:100%; border-collapse:collapse; } .art.screen :is(th, td) { padding:.35em .6em; text-align:left; border-bottom:1px solid var(--border); }
-  /* Picture files: a wrapping row of labelled figures in em, so the fit and zoom scale them like a drawing; two sit side by side when they fit. */
-  .art.photo { width:49.2em; display:flex; flex-wrap:wrap; align-items:flex-start; gap:.8em; white-space:normal; line-height:1.3; }
-  .art.photo figure { flex:1 1 18em; min-width:0; margin:0; text-align:center; }
+  /* Picture files: labelled figures in em, so the fit and zoom scale them like a drawing; the kit sets the width for the shown ones. */
+  .art.photo { width:25.6em; display:flex; flex-wrap:wrap; justify-content:center; align-items:flex-start; gap:.8em; white-space:normal; line-height:1.3; }
+  .art.photo figure { flex:0 1 24em; min-width:0; margin:0; text-align:center; }
+  .art.photo figure.wide { flex:1 1 100%; }
   .art.photo img { display:block; width:100%; height:auto; max-height:40em; object-fit:contain; border:1px solid var(--border); border-radius:.4em; background:var(--background); }
   .art.photo figcaption { margin-top:.3em; color:var(--muted-foreground); font-size:.95em; }
-  .shot { position:relative; display:block; } .art .pin.spot { position:absolute; margin:0; transform:translate(-50%, -50%); }
+  .shot { position:relative; display:block; } .art .pin.spot { position:absolute; z-index:2; margin:0; transform:translate(-50%, -50%); }
   /* An ad: the card a feed or a story shows, in em like a picture; several sit side by side when they fit. */
-  .art.ads { width:auto; max-width:49.2em; margin-right:1px; }
   .ad { flex:1 1 15em; max-width:20em; min-width:0; overflow:hidden; border:1px solid var(--border); border-radius:.6em; background:var(--card); color:var(--card-foreground); text-align:left; }
   .ad .ad-account { margin:0; padding:.5em .7em; } .ad .ad-account span { color:var(--muted-foreground); font-size:.85em; }
   .art.photo .ad img { max-height:none; aspect-ratio:4 / 5; object-fit:cover; border:0; border-radius:0; }
@@ -88,18 +95,28 @@
   .ad.story { position:relative; } .art.photo .ad.story img { aspect-ratio:9 / 16; }
   .ad.story .ad-account { position:absolute; top:0; left:0; right:0; z-index:1; background:color-mix(in oklab, var(--background) 70%, transparent); }
   .ad.story .ad-words { position:absolute; left:0; right:0; bottom:0; background:color-mix(in oklab, var(--background) 80%, transparent); }
-  .try { margin:8px 0 0; padding:0 var(--pad); }
-  .item > .verdict { grid-column:1 / -1; display:flex; align-items:center; gap:8px; margin-top:10px; }
+  /* A page card: a whole page at phone or computer width, scaled to the card; a cover over it takes a tap as a spot note. */
+  .art.page { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; width:auto; padding:0; white-space:normal; }
+  .art.page .shot { flex:none; overflow:hidden; border:1px solid var(--border); border-radius:12px; background:white; }
+  .art.page iframe { display:block; border:0; transform-origin:0 0; }
+  .cover { position:absolute; top:0; left:0; right:0; bottom:0; cursor:crosshair; }
+  .page-bar { display:none; }
+  .pages.full { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; overflow:auto; margin:0; padding:0 12px 12px; background:var(--background); }
+  .pages.full .page-bar { position:sticky; top:0; z-index:3; display:flex; justify-content:flex-end; padding:calc(6px + env(safe-area-inset-top)) 0 6px; background:var(--background); }
+  .picks { display:flex; flex-wrap:wrap; gap:6px; }
+  .pick { position:relative; padding:2px; border:2px solid transparent; border-radius:10px; cursor:pointer; }
+  .pick:has(input:checked) { border-color:var(--primary); } .pick:focus-within { outline:2px solid var(--ring); }
+  .pick input { position:absolute; opacity:0; }
+  .pick img { display:block; width:72px; height:54px; object-fit:cover; border-radius:6px; }
+  .verdict { display:flex; align-items:center; gap:8px; }
   .verdict button { min-width:64px; }
   .note-list .group { margin:12px 0 6px; color:var(--muted-foreground); font-size:14px; font-weight:500; }
-  .item > .table { grid-column:1 / -1; margin:10px calc(-1 * var(--pad)) 0; overflow-x:auto; border-top:1px solid var(--border); }
-  .item > .table:last-child { margin-bottom:calc(-1 * var(--pad)); }
+  .words > .table { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
   .tbl { width:100%; border-collapse:collapse; font-size:14px; }
   .tbl th, .tbl td { padding:6px var(--pad); text-align:left; vertical-align:top; border-bottom:1px solid var(--border); }
   .tbl th { color:var(--muted-foreground); font-weight:500; background:var(--muted); }
   .tbl tbody tr:last-child td { border-bottom:0; }
   .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
-  .enlarge { position:absolute; top:6px; right:var(--pad); min-height:32px; padding:2px 10px; font-size:13px; }
   .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-radius:17px; box-shadow:none; color:var(--muted-foreground); font-size:13px; vertical-align:middle; }
   .zoom { display:flex; align-items:center; gap:6px; }
   .zoom .level { margin-right:auto; color:var(--muted-foreground); font-size:13px; }
@@ -150,7 +167,6 @@
   #toast.show { opacity:1; }
   #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
   /* Live cards, forms, files, and the needs list: the look's parts, with inputs at 16px so a phone never zooms. */
-  .item > .live, .item > .form { grid-column:1 / -1; margin-top:10px; min-width:0; }
   .live-tools { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px; }
   .live-tools [aria-pressed="true"] { background:var(--secondary); color:var(--secondary-foreground); }
   .live-box { overflow:hidden; border:1px solid var(--border); border-radius:var(--radius); background:var(--muted); }
@@ -177,13 +193,23 @@
   @media (min-width:701px) {
     body { --pad:16px; font-size:20px; }
     h1 { font-size:30px; }
-    .eyebrow, h2, .hint, .muted, .num, .drawing summary, .add, .meta, .entry .where, #editor .where, #editor .moved, .session, #editor .copies, #ready-confirm p, #ready-says { font-size:16px; }
+    .eyebrow, h2, .hint, .muted, .num, .add, .meta, .entry .where, #editor .where, #editor .moved, .session, #editor .copies, #ready-confirm p, #ready-says { font-size:16px; }
     button { font-size:18px; }
     .entry { font-size:20px; }
     .bar { padding-left:max(12px, calc((100vw - 700px) / 2 + 12px)); padding-right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
     .bar > button, #ready > button { height:44px; }
     #ready-confirm, #ready-says { right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
     #ready-confirm { width:320px; }
+  }
+  /* Wide screen: Why, Needs, and Decisions keep a readable width; cards with a view grow, words left and view right. */
+  @media (min-width:900px) {
+    main { max-width:1160px; padding:0 24px; }
+    main > header, main > section { max-width:700px; margin-left:auto; margin-right:auto; }
+    main > #changes.wide { max-width:none; }
+    #changes.wide .item:not(.has-view), #changes.wide > .aside { max-width:700px; margin-left:auto; margin-right:auto; }
+    .item.has-view { display:grid; grid-template-columns:minmax(280px, 380px) minmax(0, 1fr); }
+    .item.has-view .words { padding:20px; border-right:1px solid var(--border); }
+    .view { border-bottom:0; }
   }
 </style>
 <!-- theme -->
@@ -195,7 +221,7 @@
   <h1>CHANGE-NAME</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
-  <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Open a drawing and tap it to see it full screen.</span></p>
+  <p class="hint"><span class="lead">Tap + Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a tab to see each screen, and a picture to see it full screen.</span></p>
   <p id="script-error" role="alert" hidden></p>
 </header>
 <!-- review:content -->
@@ -313,10 +339,12 @@
     // A picture's labels are separate SVG text elements: join them with spaces so they read as words.
     // A table row's cells read joined with a dot.
     // A screen's words sit in many small boxes: join every piece of text with a space.
-    // Picture files read as their labels, joined with a dot.
-    const row = el.tagName === 'TR', photo = el.classList.contains('photo'), cells = row ? c.querySelectorAll('td') : photo ? c.querySelectorAll('img')
+    // Picture files and page versions read as their labels, joined with a dot.
+    const row = el.tagName === 'TR', page = el.classList.contains('page'), photo = page || el.classList.contains('photo');
+    const cells = row ? c.querySelectorAll('td') : page ? c.querySelectorAll('.shot') : photo ? c.querySelectorAll('img')
       : el.classList.contains('screen') ? texts(c) : el.classList.contains('pic') ? c.querySelectorAll('text') : [c];
-    const text = Array.prototype.map.call(cells, function (n) { return (photo ? n.alt : n.textContent).replace(/\s+/g, ' ').trim(); }).join(row || photo ? ' · ' : ' ').replace(/\s+/g, ' ').trim();
+    const text = Array.prototype.map.call(cells, function (n) { return (page ? n.getAttribute('data-label') : photo ? n.alt : n.textContent).replace(/\s+/g, ' ').trim(); })
+      .join(row || photo ? ' · ' : ' ').replace(/\s+/g, ' ').trim();
     return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
   }
   function texts(c) {
@@ -420,11 +448,8 @@
     });
     if (ids.length || $('note-list').querySelector('.answers')) { const none = $('note-list').querySelector('li.muted'); if (none) none.remove(); }
     fill(); drawFiles();
-    drawings.forEach(function (d) {
-      const k = d.art.querySelectorAll('.pin').length;
-      d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
-      fit(d);
-    });
+    views.forEach(counts);
+    drawings.forEach(fit);
     bar();
   }
 
@@ -461,14 +486,17 @@
     if (!t || t.id !== e.pointerId || Date.now() - t.t > 500) return;
     if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
     const el = t.target.closest('[data-note]');
-    const offer = el && (el.closest('#viewer') || (e.pointerType === 'mouse' && !el.closest('.frame')));
+    const offer = el && (el.closest('#viewer') || t.target.classList.contains('cover') || (e.pointerType === 'mouse' && !el.closest('.frame')));
     if (offer) showChip(el, e.clientX, e.clientY, false, spotAt(el, t.target, e)); else hideChip();
   });
-  // A tap on a picture file in full screen notes that spot of it, kept in percent so it holds at any size.
+  // A tap on a picture file in full screen, or on a whole page, notes that spot of it, kept in percent so it holds at any size.
   function spotAt(el, target, e) {
-    if (!el.closest('#viewer') || !el.classList.contains('photo') || target.tagName !== 'IMG') return null;
-    const r = target.getBoundingClientRect(), pct = function (v, size) { return Math.max(0, Math.min(100, Math.round(v / Math.max(1, size) * 100))); };
-    return { k: Array.prototype.indexOf.call(el.querySelectorAll('img'), target), x: pct(e.clientX - r.left, r.width), y: pct(e.clientY - r.top, r.height), on: target.alt };
+    const cover = target.classList.contains('cover');
+    if (!cover && (!el.closest('#viewer') || !el.classList.contains('photo') || target.tagName !== 'IMG')) return null;
+    const box = cover ? target.parentNode : target, r = box.getBoundingClientRect();
+    const pct = function (v, size) { return Math.max(0, Math.min(100, Math.round(v / Math.max(1, size) * 100))); };
+    return { k: Array.prototype.indexOf.call(el.querySelectorAll(cover ? '.shot' : 'img'), box), x: pct(e.clientX - r.left, r.width), y: pct(e.clientY - r.top, r.height),
+      on: cover ? box.getAttribute('data-label') : target.alt };
   }
   // Selected words in one note target offer a note on just those words.
   let picking = 0;
@@ -494,7 +522,7 @@
     if (!t) return;
     const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id);
     const el = rec ? find(id, rec) : t.closest('[data-note]') || document.querySelector('[data-note="' + id + '"]');
-    if (el && t.classList.contains('entry')) { reveal(el); el.scrollIntoView({ block: 'center' }); }
+    if (el && t.classList.contains('entry')) { reveal(el, rec && rec.k); el.scrollIntoView({ block: 'center' }); }
     openEditor(id, el);
   });
   document.addEventListener('keydown', function (e) {
@@ -507,6 +535,7 @@
         el.focus();
       }
       else if (view) closeViewer(true);
+      else if (paged) pageFull(paged, false);
     } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
       e.preventDefault();
       const r = e.target.getBoundingClientRect();
@@ -519,8 +548,9 @@
   function openEditor(id, el, extra) {
     if (readOnly) return;
     closeViewer(false); closeEditor(false); hideChip();
-    if (el) reveal(el);
+    if (paged) pageFull(paged, false);
     const note = noteOf(id), draft = data.drafts[id];
+    if (el) reveal(el, extra ? extra.k : (draft || note || {}).k);
     const quote = extra && extra.quote, clip = quote && quote.length > 60 ? quote.slice(0, 59) + '…' : quote;
     const label = draft ? draft.label : note ? note.label : quote ? 'words "' + clip + '"' : labelOf(el);
     open = { id: id, label: label, el: el, extra: extra || extraOf(draft || note) };
@@ -621,14 +651,20 @@
     return f;
   }
   function fit(d) {
-    if (!d.fig.open || view === d) return;
+    if (!d.frame.clientWidth || view === d) return;
     d.art.style.fontSize = BASE + 'px';
     const w = d.art.offsetWidth, fw = d.frame.clientWidth - 1;
     if (w > 0 && fw > 0) size(d.art, BASE * Math.min(1.25, fw / w), fw);
   }
-  function reveal(el) {
-    const fig = el.closest('details');
-    if (fig && !fig.open) { fig.open = true; drawings.forEach(fit); }
+  // A note's target shows: its tab is picked, by its spot's picture when it has one, and folded words unfold.
+  function reveal(el, k) {
+    const shot = k === undefined ? null : el.querySelectorAll('.shot')[k], c = viewOf(el);
+    if (c && (shot || el).closest('[hidden]')) {
+      const part = (shot || el).closest('[data-part]'), i = c.panels.indexOf(el.closest('.stage > *'));
+      const tab = c.tabs.filter(function (t) { return +t.getAttribute('data-panel') === i && (!part || partsOf(c, t).indexOf(part.getAttribute('data-part')) >= 0); })[0];
+      if (tab) show(c, [tab]);
+    }
+    folds.forEach(function (f) { if (f.text === el && !f.open) { f.open = true; measure(f); } });
   }
   function scale(f, cx, cy) {
     f = Math.max(V.lo, Math.min(V.hi, f));
@@ -658,7 +694,7 @@
     d.frame.insertBefore(d.art, d.frame.firstChild);
     viewer.hidden = true; document.body.classList.remove('viewing');
     fit(d); bar();
-    if (restore) d.enlarge.focus({ preventScroll: true });
+    if (restore && d.enlarge) d.enlarge.focus({ preventScroll: true });
   }
   vbar.addEventListener('click', function (e) {
     const i = Array.prototype.indexOf.call(vb, e.target);
@@ -684,13 +720,165 @@
   vframe.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
   document.addEventListener('gesturestart', function (e) { if (view) e.preventDefault(); });
   all('.drawing', function (fig) {
-    const frame = fig.querySelector('.frame'), enlarge = document.createElement('button');
-    enlarge.type = 'button'; enlarge.className = 'enlarge'; enlarge.textContent = 'Full screen';
-    frame.appendChild(enlarge);
-    const d = { fig: fig, frame: frame, art: fig.querySelector('.art'), count: fig.querySelector('.count'), enlarge: enlarge };
+    const frame = fig.querySelector('.frame'), d = { fig: fig, frame: frame, art: fig.querySelector('.art'), enlarge: null };
     drawings.push(d);
-    fig.addEventListener('toggle', function () { fit(d); });
     frame.addEventListener('click', function (e) { if (!e.target.closest('[data-open]')) openViewer(d); });
+  });
+
+  // ── card views: a tab shows its panel, or some parts of it; Before and after shows two tabs side by side ──
+  const views = [];
+  // Each page card frame's height, as its page posted it at 1 px tall; and each overflow seen at full height, measured once.
+  const pageH = new WeakMap(), pageOver = new WeakMap(), PAGE_MAX = 40000;
+  const viewOf = function (el) { return views.filter(function (c) { return c.el.contains(el); })[0] || null; };
+  // A tab's parts: its computer picture when Computer is on, else its own list; none means the whole panel.
+  function partsOf(c, t) {
+    const wide = t.getAttribute('data-wide');
+    return (c.wide && wide !== null ? wide : t.getAttribute('data-parts') || '').split(' ').filter(Boolean);
+  }
+  function show(c, picked) {
+    c.picked = picked;
+    c.tabs.forEach(function (t) { t.setAttribute('aria-selected', String(picked.indexOf(t) >= 0)); });
+    c.panels.forEach(function (p, i) {
+      const mine = picked.filter(function (t) { return +t.getAttribute('data-panel') === i; }), parts = p.querySelectorAll('[data-part]');
+      let on = [];
+      p.hidden = !mine.length;
+      mine.forEach(function (t) { on = on.concat(partsOf(c, t)); });
+      Array.prototype.forEach.call(parts, function (el) { el.hidden = on.length > 0 && on.indexOf(el.getAttribute('data-part')) < 0; });
+      // Picture files sit side by side, shrunk to fit; a computer picture takes the frame's width.
+      const art = p.querySelector('.art.photo'), n = on.length || parts.length;
+      if (art && n) art.style.width = art.querySelector('.wide:not([hidden])') ? '49.2em' : n * (art.classList.contains('ads') ? 20 : 24) + (n - 1) * 0.8 + 1.6 + 'em';
+    });
+    const one = picked.length === 1 ? picked[0] : null, panel = one && c.panels[+one.getAttribute('data-panel')];
+    c.sizes.hidden = !one || !(one.hasAttribute('data-wide') || panel.classList.contains('pages'));
+    if (c.compare) c.compare.setAttribute('aria-pressed', String(picked.length > 1));
+    c.enlarge.hidden = c.panels.every(function (p) { return p.hidden || p.classList.contains('live'); });
+    drawings.forEach(fit);
+    pageFit(c);
+  }
+  function counts(c) {
+    c.tabs.forEach(function (t) {
+      const p = c.panels[+t.getAttribute('data-panel')], on = ((t.getAttribute('data-parts') || '') + ' ' + (t.getAttribute('data-wide') || '')).split(' ').filter(Boolean);
+      const pins = Array.prototype.slice.call(p.querySelectorAll('.pin')).concat(view && p.contains(view.frame) ? Array.prototype.slice.call(view.art.querySelectorAll('.pin')) : []);
+      const k = pins.filter(function (pin) { const part = pin.closest('[data-part]'); return !part || !on.length || on.indexOf(part.getAttribute('data-part')) >= 0; }).length;
+      t.querySelector('.count').textContent = k ? ' · ' + k : '';
+      t.setAttribute('aria-label', t.getAttribute('data-label') + (k ? ', ' + plural(k) : ''));
+    });
+  }
+  function enlarge(c) {
+    const p = c.panels.filter(function (x) { return !x.hidden; })[0], d = drawings.filter(function (x) { return x.fig === p; })[0];
+    if (d) openViewer(d); else if (p && p.classList.contains('pages')) pageFull({ c: c, p: p }, true);
+  }
+  all('.view', function (v) {
+    const tools = v.querySelector('.view-tools'), pair = (v.getAttribute('data-compare') || '').split(' ').filter(Boolean);
+    const c = { el: v, tabs: Array.prototype.slice.call(v.querySelectorAll('.tab')), panels: Array.prototype.slice.call(v.querySelector('.stage').children), wide: false, picked: [] };
+    tools.insertAdjacentHTML('afterbegin', (pair.length ? '<button type="button" class="btn-ghost" data-compare aria-pressed="false">' + esc(v.getAttribute('data-compare-label')) + '</button>' : '')
+      + '<span class="sizes"><button type="button" class="btn-ghost" data-size="phone" aria-pressed="true">Phone</button>'
+      + '<button type="button" class="btn-ghost" data-size="computer" aria-pressed="false">Computer</button></span><span class="grow"></span>');
+    tools.insertAdjacentHTML('beforeend', '<button type="button" class="enlarge">Full screen</button>');
+    c.compare = tools.querySelector('[data-compare]'); c.sizes = tools.querySelector('.sizes'); c.enlarge = tools.querySelector('.enlarge');
+    c.tabs.forEach(function (t) {
+      t.setAttribute('data-label', t.firstChild.textContent);
+      t.addEventListener('click', function () { show(c, [t]); });
+    });
+    tools.addEventListener('click', function (e) {
+      const b = e.target.closest('button');
+      if (b && b === c.compare) show(c, b.getAttribute('aria-pressed') === 'true' ? [c.tabs[+pair[1]]] : [c.tabs[+pair[0]], c.tabs[+pair[1]]]);
+      else if (b && b.hasAttribute('data-size')) {
+        c.wide = b.getAttribute('data-size') === 'computer';
+        Array.prototype.forEach.call(c.sizes.children, function (s) { s.setAttribute('aria-pressed', String(s === b)); });
+        show(c, c.picked);
+      } else if (b === c.enlarge) enlarge(c);
+    });
+    drawings.forEach(function (d) { if (v.contains(d.fig)) d.enlarge = c.enlarge; });
+    views.push(c);
+    show(c, c.tabs.filter(function (t) { return t.getAttribute('aria-selected') === 'true'; }));
+  });
+
+  // ── page cards: each version at its real width, as tall as its page, scaled to the card; a cover takes taps ──
+  // A page frame is sealed from this page, so the kit's one script in it posts its height, and the link under a point.
+  let paged = null;
+  function pageFit(c) {
+    c.panels.forEach(function (p) {
+      const art = p.querySelector('.art.page');
+      if (!art || p.hidden || !art.clientWidth) return;
+      const full = p.classList.contains('full'), W = c.wide ? 1280 : 390, shots = Array.prototype.filter.call(art.querySelectorAll('.shot'), function (s) { return !s.hidden; });
+      const cols = full || c.wide || root.clientWidth < 600 ? 1 : shots.length, k = full ? 1 : Math.min(1, (art.clientWidth - 12 * (cols - 1)) / cols / W);
+      shots.forEach(function (s) {
+        const f = s.querySelector('iframe');
+        // A new width measures again from 1 px tall, so a shorter page doesn't keep the old height.
+        if (f.style.width !== W + 'px') { f.style.width = W + 'px'; f.style.height = '1px'; pageH.delete(f); }
+        // Until its height comes, a shot keeps some height: a frame out of sight gets no resize to report.
+        const h = pageH.get(f) || 0;
+        f.style.transform = k < 1 ? 'scale(' + k + ')' : '';
+        s.style.width = W * k + 'px'; s.style.height = (h || 200) * k + 'px';
+        if (h && !s.querySelector('.cover')) s.insertAdjacentHTML('beforeend', '<span class="cover"></span>');
+      });
+    });
+  }
+  function pageFull(at, on) {
+    at.p.classList.toggle('full', on); document.body.classList.toggle('viewing', on);
+    paged = on ? at : null;
+    pageFit(at.c);
+    if (!on) { bar(); at.c.enlarge.focus({ preventScroll: true }); }
+  }
+  all('.pages', function (p) {
+    p.insertAdjacentHTML('afterbegin', '<div class="page-bar"><button type="button" class="primary">Close</button></div>');
+    p.querySelector('.page-bar button').addEventListener('click', function () { if (paged) pageFull(paged, false); });
+  });
+  // Only a message from one of this page's own page frames counts; a height for an old width is dropped.
+  window.addEventListener('message', function (e) {
+    const m = e.data;
+    if (!m || (m.type !== 'review:page' && m.type !== 'review:link')) return;
+    const f = Array.prototype.find.call(document.querySelectorAll('.art.page iframe'), function (x) { return x.contentWindow === e.source; });
+    if (!f) return;
+    if (m.type === 'review:link') {
+      const cover = f.parentNode.querySelector('.cover'), href = typeof m.href === 'string' ? m.href.slice(0, 2000) : '';
+      if (cover) { cover.title = href; cover.style.cursor = href ? 'pointer' : ''; }
+      return;
+    }
+    if (typeof m.h !== 'number' || !isFinite(m.h) || typeof m.vh !== 'number' || m.w + 'px' !== f.style.width) return;
+    const h = Math.max(1, Math.min(PAGE_MAX, Math.round(m.h)));
+    // A height counts only when measured 1 px tall; a page past its full-height frame grew late, so it measures again.
+    if (m.vh > 1) {
+      if (m.vh === pageH.get(f) && h > m.vh && pageOver.get(f) !== h) { pageOver.set(f, h); f.style.height = '1px'; }
+      return;
+    }
+    pageH.set(f, h); f.style.height = h + 'px';
+    views.forEach(pageFit);
+  });
+  // A link in a page goes nowhere: hovering over it shows its address.
+  document.addEventListener('mousemove', function (e) {
+    const cover = e.target.classList && e.target.classList.contains('cover') ? e.target : null, f = cover && cover.parentNode.querySelector('iframe');
+    if (!f || !f.contentWindow) return;
+    const r = cover.getBoundingClientRect(), k = r.width / f.offsetWidth;
+    f.contentWindow.postMessage({ type: 'review:point', x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k }, '*');
+  });
+
+  // ── long words fold after about two lines behind More; a note on hidden words unfolds them ──
+  const folds = [];
+  function measure(f) {
+    // The fold never cuts the bold first sentence: it keeps at least the lines that sentence takes.
+    f.text.classList.remove('folded');
+    const lead = f.clamp.querySelector(':scope > b:first-child'), line = parseFloat(getComputedStyle(f.clamp).lineHeight) || 24;
+    const leadLines = lead ? Math.ceil((lead.getBoundingClientRect().bottom - f.clamp.getBoundingClientRect().top - 1) / line) : 0;
+    f.clamp.style.webkitLineClamp = String(Math.max(2, leadLines));
+    f.text.classList.add('folded');
+    const long = f.clamp.scrollHeight > f.clamp.clientHeight + 2;
+    f.text.classList.toggle('folded', long && !f.open);
+    f.more.hidden = !long;
+    f.more.textContent = f.open ? 'Less' : 'More';
+    f.more.setAttribute('aria-expanded', String(f.open));
+  }
+  all('.items > .item .text', function (text) {
+    const clamp = document.createElement('span'), more = document.createElement('button'), f = { text: text, clamp: clamp, more: more, open: false };
+    clamp.className = 'clamp';
+    while (text.firstChild) clamp.appendChild(text.firstChild);
+    text.appendChild(clamp);
+    more.type = 'button'; more.className = 'more';
+    text.parentNode.insertBefore(more, text.nextSibling);
+    more.addEventListener('click', function () { f.open = !f.open; measure(f); });
+    folds.push(f);
+    measure(f);
   });
 
   // ── direct links: #/why, #/<n>, #/decisions/<n> ──
@@ -840,7 +1028,7 @@
     v.className = 'verdict';
     v.innerHTML = '<span class="tag" hidden>OK</span><button type="button" class="btn-ghost" data-ok="' + item.id + '">OK</button>'
       + '<button type="button" class="btn-ghost" data-open="' + item.id + '" aria-label="Change ' + NOUN.toLowerCase() + ' ' + item.id.slice(5) + '">Change</button>';
-    item.appendChild(v);
+    item.querySelector('.words').appendChild(v);
   });
   document.addEventListener('click', function (e) {
     const b = e.target.closest ? e.target.closest('[data-ok]') : null;
@@ -992,7 +1180,7 @@
   function inputValue(q) {
     const kind = q.getAttribute('data-kind'), boxes = q.querySelectorAll('input:checked');
     if (kind === 'tick') return !!boxes.length;
-    if (kind === 'choice') return boxes.length ? boxes[0].value : undefined;
+    if (kind === 'choice' || kind === 'pictures') return boxes.length ? boxes[0].value : undefined;
     if (kind === 'choices') return boxes.length ? Array.prototype.map.call(boxes, function (b) { return b.value; }) : undefined;
     const v = q.querySelector('input, textarea').value.slice(0, 2000);
     return v.trim() ? v : undefined;
@@ -1002,7 +1190,7 @@
       const v = data.answers[q.getAttribute('data-q')], kind = q.getAttribute('data-kind');
       if (kind === 'file') return;
       Array.prototype.forEach.call(q.querySelectorAll('input, textarea'), function (el) {
-        if (el.type === 'radio' || el.type === 'checkbox') el.checked = kind === 'tick' ? v === true : kind === 'choice' ? v === el.value : Array.isArray(v) && v.indexOf(el.value) >= 0;
+        if (el.type === 'radio' || el.type === 'checkbox') el.checked = kind === 'tick' ? v === true : el.type === 'radio' ? v === el.value : Array.isArray(v) && v.indexOf(el.value) >= 0;
         else if (el.value !== (v || '')) el.value = v || '';
       });
     });
@@ -1236,8 +1424,9 @@
     if (root.clientWidth !== width) {
       width = root.clientWidth; hideChip();
       if (view) { const d = view; closeViewer(false); openViewer(d); }
+      folds.forEach(measure);
     }
-    drawings.forEach(fit);
+    views.forEach(function (c) { show(c, c.picked); });
     cards.forEach(fitCard);
     if (open) place();
     bar();
