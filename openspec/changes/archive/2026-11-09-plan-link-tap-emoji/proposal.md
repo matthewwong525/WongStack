@@ -44,3 +44,4 @@ When a plan or a preview is ready, the chat prints *Click here to see the plan:*
 - **2026-11-09** — Assumed: the preview and review lines change the same way, because the person named *when showing the review*, and one shared helper keeps the three lines alike.
 - **2026-11-09** — Assumed: the link-check reads only the new line, because no tool prints the old one after this change.
 - **2026-11-09** — Archive checkpoint: built, reviewed once (no findings), archived, and saved from `plan-link-tap-emoji` for /ship as 51.7.2.
+- **2026-11-09** — Archive checkpoint: renumbered to 51.7.3 after 51.7.2 shipped first, and saved again from `plan-link-tap-emoji` for /ship.
