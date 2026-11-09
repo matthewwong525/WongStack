@@ -10,11 +10,11 @@ import { needs } from './fixtures/needs.mjs';
 
 // playwright-core carries no browser: CI launches the runner's Google Chrome,
 // and CHROME_PATH points a local run at any Chromium.
-async function launch() {
+async function launch(options = {}) {
   try {
     const { chromium } = await import('playwright-core');
     const where = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' };
-    return await chromium.launch({ headless: true, ...where });
+    return await chromium.launch({ headless: true, ...where, ...options });
   } catch (error) {
     return { missing: `no browser to drive (${error.message.split('\n')[0]}) — run \`npm ci\` in scripts/tests/ and set CHROME_PATH` };
   }
@@ -1586,6 +1586,63 @@ browserTest('at 1280 px a card\'s words sit left of its view; at 390 px the pict
     assert.deepEqual(box, beside ? { left: true, after: false, page: true } : { left: false, after: true, page: true }, `at ${width}px`);
     assert.deepEqual(errors, []);
     await context.close();
+  }
+});
+
+// A picture card, a words-only card, and another picture card, or three words-only cards, then needs and decisions.
+function widthFixture(pictures) {
+  const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
+  const dir = join(temp, 'review-fixture');
+  mkdirSync(dir);
+  temps.push(temp);
+  writeFileSync(join(dir, 'shot.png'), solidPng(390, 600));
+  const shot = pictures ? `\n  ${fence}picture\n  Screen: shot.png\n  ${fence}` : '';
+  writeFileSync(join(dir, 'proposal.md'), `## Why\n\nShow the screens.\n\n## What Changes\n\n`
+    + `- **One.** Words.${shot}\n- **Two.** Only words.\n- **Three.** Words.${shot}\n\n`
+    + `## What the build needs\n\n- **Nothing.**\n\n## Decision log\n\n- **2026-11-09** — Asked the width → chose wide.\n`);
+  buildReview(dir, { requireCurrent: true });
+  return pathToFileURL(join(dir, 'review.html')).href;
+}
+const edges = page => page.evaluate(() => {
+  const box = el => { const r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.right)]; };
+  const parts = Object.fromEntries(['main > header', '#why', '#item-1', '#item-2', '#item-3', '#needs', '#decisions', '#notes']
+    .map(sel => [sel, box(document.querySelector(sel))]));
+  const buttons = [...document.querySelectorAll('.bar button')].filter(b => b.offsetWidth).map(box);
+  parts.bar = [Math.min(...buttons.map(b => b[0])), Math.max(...buttons.map(b => b[1]))];
+  return parts;
+});
+
+browserTest('at 1280 px every part of a review page shares one left and right edge, with pictures or without', async () => {
+  const widths = [];
+  for (const pictures of [true, false]) {
+    const { page, context, errors } = await open(widthFixture(pictures), { width: 1280 });
+    const parts = await edges(page);
+    if (pictures) assert.deepEqual(await page.locator('.item').evaluateAll(all => all.map(el => el.classList.contains('has-view'))), [true, false, true]);
+    const [left, right] = parts['#item-1'];
+    for (const [sel, [l, r]] of Object.entries(parts)) assert.ok(Math.abs(l - left) <= 1 && Math.abs(r - right) <= 1, `${sel} spans ${l}–${r}, not ${left}–${right}`);
+    widths.push(right - left);
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+  assert.ok(widths[0] > 1000 && Math.abs(widths[0] - widths[1]) <= 1, `cards are as wide with no pictures: ${widths}`);
+});
+
+// Headless Chrome hides scrollbars by default; a real one takes width from the window, and the bar must not count it.
+browserTest('at 1280 px with a scrollbar showing, the bar\'s buttons still meet the cards\' edges', async () => {
+  const scrolling = await launch({ ignoreDefaultArgs: ['--hide-scrollbars'] });
+  try {
+    const page = await scrolling.newPage({ viewport: { width: 1280, height: 600 } });
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(widthFixture(true));
+    const bar = await page.evaluate(() => innerWidth - document.documentElement.clientWidth);
+    assert.ok(bar > 0, `the window shows a scrollbar: ${bar}px`);
+    const parts = await edges(page);
+    const [left, right] = parts['#item-1'];
+    assert.ok(Math.abs(parts.bar[0] - left) <= 1 && Math.abs(parts.bar[1] - right) <= 1, `the bar spans ${parts.bar.join('–')}, not ${left}–${right}`);
+    assert.deepEqual(errors, []);
+  } finally {
+    await scrolling.close();
   }
 });
 
