@@ -82,13 +82,14 @@ const at = (page, id) => page.locator(`[data-note="${id}"]`);
 async function tap(page, id) { await at(page, id).click({ position: { x: 4, y: 4 } }); }
 // A drawing line is noted from the full-screen view: go full screen, click the line, choose Add note.
 async function noteLine(page, id) {
-  await page.locator(`#item-${/^item-(\d+)/.exec(id)[1]} .enlarge`).click();
-  await page.locator(`#viewer [data-note="${id}"]`).click({ position: { x: 2, y: 2 } });
+  await at(page, id).evaluate(el => el.closest('.part').click());
+  await page.locator(`.clip.big [data-note="${id}"]`).click({ position: { x: 2, y: 2 } });
   await page.locator('#chip').click();
 }
+// An item's words take a note from its Note button, beside OK; any other text from its + Note.
 async function draft(page, id, text) {
   if (/-line-/.test(id)) await noteLine(page, id);
-  else await page.locator(`.add[data-open="${id}"]`).click();
+  else await page.locator(`.add[data-open="${id}"], .verdict [data-open="${id}"]`).click();
   await page.locator('#editor textarea').fill(text);
 }
 async function note(page, id, text) {
@@ -120,12 +121,10 @@ browserTest('a mouse click offers a note, a drag offers a note on its words, and
   assert.equal(await chip.innerText(), 'Note', 'selected words offer a note on just those words');
   await page.keyboard.press('Escape');
   assert.equal(await chip.isVisible(), false);
-  await page.locator('#item-3 .tab').click();
-  assert.equal(await chip.isVisible(), false);
-  await page.locator('#item-3 .enlarge').click();
+  await page.locator('#item-3 .part').click();
   await page.locator('#viewer button[aria-label="Zoom in"]').click();
   assert.equal(await chip.isVisible(), false);
-  await page.locator('#viewer button', { hasText: 'Close' }).click();
+  await page.locator('#viewer [data-close]').click();
   await page.locator('#item-2 a').click();
   assert.equal(await chip.isVisible(), false);
   assert.match(page.url(), /#why$/);
@@ -141,8 +140,9 @@ browserTest('on a touch screen, one tap on Note opens the editor and a tap on te
   await at(page, 'item-2').tap({ position: { x: 4, y: 4 } });
   assert.equal(await page.locator('#chip').isVisible(), false);
   assert.equal(await page.locator('#editor').isVisible(), false);
-  const add = page.locator('.add[data-open="item-2"]');
-  assert.equal(await add.innerText(), '+ Note');
+  const add = page.locator('#item-2 .verdict [data-open="item-2"]');
+  assert.equal(await add.innerText(), 'Note');
+  assert.equal(await page.locator('#item-2 .add').count(), 0, 'an item\'s words have no + Note');
   const size = await add.boundingBox();
   assert.ok(size.height >= 34, `Note button is ${size.height}px tall`);
   await add.tap();
@@ -151,7 +151,7 @@ browserTest('on a touch screen, one tap on Note opens the editor and a tap on te
   await page.locator('#editor textarea').fill('One tap');
   await page.locator('#editor [data-act="save"]').tap();
   assert.equal(await at(page, 'item-2').locator('.pin').innerText(), '1');
-  assert.equal(await page.locator('.add[data-open="item-2"]').count(), 0, 'the pin takes the Note button\'s place');
+  assert.equal(await add.isVisible(), true, 'Note stays beside OK');
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -163,8 +163,8 @@ browserTest('saving adds a pin and a list entry, and Copy notes writes notes on 
   await note(page, 'item-1-line-3', 'Show the end state.');
   await note(page, 'decision-2', 'Check this one.');
   assert.equal(await at(page, 'item-2').locator('.pin').innerText(), '2');
-  assert.equal(await page.locator('#item-1 .tab .count').textContent(), ' · 1');
-  assert.equal(await page.locator('#item-1 .tab').getAttribute('aria-label'), 'Drawing, 1 note');
+  assert.equal(await page.locator('#item-1 .part .count').textContent(), ' · 1');
+  assert.equal(await page.locator('#item-1 .part').getAttribute('aria-label'), 'Drawing, 1 note, open full screen');
   assert.equal(await page.locator('#note-list .entry').count(), 4);
   assert.equal(await page.locator('header .note-count').innerText(), '4 notes');
   assert.equal(await copied(page), [
@@ -256,35 +256,32 @@ browserTest('a refresh keeps notes attached, and a note whose text changed shows
   await context.close();
 });
 
-browserTest('a drawing shows at the start, fits the item\'s full width, and zooms and scrolls full screen', async () => {
+browserTest('a drawing shows whole as a small picture on a phone, and zooms and scrolls full screen', async () => {
   const { page, context, errors } = await open(fixture().url, { width: 390 });
-  assert.equal(await page.locator('#item-3 .frame').isVisible(), true);
+  const clip = page.locator('#item-3 .clip');
   await page.waitForFunction(() => parseFloat(getComputedStyle(document.querySelector('#item-3 .art')).fontSize) < 13);
-  const inline = () => page.evaluate(() => {
-    const frame = document.querySelector('#item-3 .frame').getBoundingClientRect(), stage = document.querySelector('#item-3 .stage');
-    const art = document.querySelector('#item-3 .art'), box = art.getBoundingClientRect(), pad = parseFloat(getComputedStyle(stage).paddingLeft) * 2;
-    return { font: parseFloat(getComputedStyle(art).fontSize), inside: box.left >= frame.left - 1 && box.right <= frame.right + 1, full: frame.width >= stage.clientWidth - pad - 2 };
+  const inline = () => clip.evaluate(el => {
+    const art = el.querySelector('.art'), box = art.getBoundingClientRect(), r = el.getBoundingClientRect();
+    return { font: parseFloat(getComputedStyle(art).fontSize), inside: box.left >= r.left - 1 && box.right <= r.right + 1 && box.bottom <= r.bottom + 1 };
   });
   const start = await inline();
-  assert.ok(start.font < 13 && start.inside && start.full, JSON.stringify(start));
-  assert.equal(await page.locator('#item-3 .frame').evaluate(el => getComputedStyle(el).touchAction), 'pan-y');
+  assert.ok(start.inside, JSON.stringify(start));
   assert.equal(await page.locator('#item-3 .zoom').count(), 0, 'no zoom controls on the page');
-  await page.locator('#item-3 .enlarge').click();
+  await page.locator('#item-3 .part').click();
   assert.equal(await page.locator('#viewer').isVisible(), true);
-  assert.equal(await page.locator('#item-3 .art').count(), 0, 'the view borrows the drawing, never a copy');
-  const vframe = page.locator('#viewer .vframe');
-  const view = () => vframe.evaluate(el => ({ font: parseFloat(getComputedStyle(el.querySelector('.art')).fontSize), wide: el.scrollWidth > el.clientWidth + 1, x: el.scrollLeft }));
+  assert.equal(await clip.evaluate(el => el.classList.contains('big')), true, 'full screen shows the drawing itself, never a copy');
+  const view = () => clip.evaluate(el => ({ font: parseFloat(getComputedStyle(el.querySelector('.art')).fontSize), wide: el.scrollWidth > el.clientWidth + 1, x: el.scrollLeft }));
   const fitted = await view();
   assert.ok(!fitted.wide && fitted.font >= start.font, JSON.stringify(fitted));
-  assert.equal(await vframe.evaluate(el => getComputedStyle(el).touchAction), 'pan-x pan-y');
+  assert.equal(await clip.evaluate(el => getComputedStyle(el).touchAction), 'pan-x pan-y');
   for (let i = 0; i < 3; i += 1) await page.locator('#viewer button[aria-label="Zoom in"]').click();
   const zoomed = await view();
   assert.ok(zoomed.font > fitted.font && zoomed.wide, JSON.stringify(zoomed));
   const scrollY = await page.evaluate(() => window.scrollY);
-  await vframe.evaluate(el => { el.scrollLeft = 80; });
+  await clip.evaluate(el => { el.scrollLeft = 80; });
   assert.ok((await view()).x > 0, 'the view scrolls natively');
   assert.equal(await page.evaluate(() => window.scrollY), scrollY);
-  await vframe.evaluate(el => {
+  await clip.evaluate(el => {
     const r = el.getBoundingClientRect();
     el.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, ctrlKey: true, clientX: r.left + 10, clientY: r.top + 10, bubbles: true, cancelable: true }));
   });
@@ -293,7 +290,7 @@ browserTest('a drawing shows at the start, fits the item\'s full width, and zoom
   assert.equal((await view()).font, fitted.font);
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('#viewer').isVisible(), false);
-  assert.equal(await page.evaluate(() => document.activeElement.className), 'enlarge');
+  assert.equal(await page.evaluate(() => document.activeElement.className), 'part');
   assert.deepEqual(await inline(), start);
   assert.equal(await page.locator('#chip').isVisible(), false);
   assert.deepEqual(errors, []);
@@ -973,30 +970,30 @@ browserTest('unconfirmed action responses preserve notes and allow retry with th
   }
 });
 
-browserTest('a picture fits a 320px screen, zooms full screen, and takes a note on the whole picture', async () => {
+browserTest('a picture fits a 320px screen, zooms full screen, and takes a spot note there', async () => {
   const { url } = fixture(proposal.replace(`  ${fence}text\n  you ask\n     │\n  done\n  ${fence}`,
     `  ${fence}mermaid\n  flowchart LR\n    A[you ask] --> B[a plan] --> C[a review] --> D[the build] --> E[live]\n  ${fence}`));
   const { page, context, errors } = await open(url, { width: 320 });
   await page.waitForFunction(() => parseFloat(getComputedStyle(document.querySelector('#item-1 .art.pic')).fontSize) < 13);
   const fits = await page.evaluate(() => {
-    const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), svg = document.querySelector('#item-1 .art.pic svg').getBoundingClientRect();
+    const frame = document.querySelector('#item-1 .clip').getBoundingClientRect(), svg = document.querySelector('#item-1 .art.pic svg').getBoundingClientRect();
     return { inside: svg.left >= frame.left - 1 && svg.right <= frame.right + 1, page: document.documentElement.scrollWidth <= innerWidth, drawn: svg.height > 0 };
   });
   assert.deepEqual(fits, { inside: true, page: true, drawn: true });
-  await page.locator('#item-1 .enlarge').click();
-  const vframe = page.locator('#viewer .vframe');
-  const width = () => vframe.evaluate(el => el.querySelector('svg').getBoundingClientRect().width);
+  await page.locator('#item-1 .part').click();
+  const width = () => page.locator('#item-1 .clip.big svg').evaluate(el => el.getBoundingClientRect().width);
   const fitted = await width();
   await page.locator('#viewer button[aria-label="Zoom in"]').click();
   assert.ok(await width() > fitted, 'zooming in grows the picture');
-  await page.locator('#viewer [data-note="item-1-picture-1"]').click({ position: { x: 4, y: 4 } });
+  await page.locator('.clip.big [data-note="item-1-picture-1"]').click({ position: { x: 4, y: 4 } });
   await page.locator('#chip').click();
   assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "you ask a plan a review the build live"');
   await page.locator('#editor textarea').fill('Add a check step.');
   await page.locator('#editor [data-act="save"]').click();
   await page.keyboard.press('Escape');
-  assert.equal(await page.locator('#item-1 .tab .count').textContent(), ' · 1');
-  assert.match(await copied(page), /^- Change #1, picture 1 \("you ask a plan a review the build live"\): Add a check step\.$/m);
+  assert.equal(await page.locator('#item-1 .part .count').textContent(), ' · 1');
+  assert.equal(await page.locator('#item-1 .clip .pin.spot').count(), 1, 'the spot pins on the card\'s picture');
+  assert.match(await copied(page), /^- Change #1, picture 1, spot at \d+% across and \d+% down on "Flow" \("you ask a plan a review the build live"\): Add a check step\.$/m);
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -1014,7 +1011,7 @@ browserTest('the page starts light on a dark device, and the switch turns it dar
     const pair = (text, back) => contrast(rgb(css(text).color), rgb(css(back).backgroundColor));
     return {
       body: lum(rgb(css('body').backgroundColor)), card: lum(rgb(css('.card').backgroundColor)), bar: lum(rgb(css('.bar').backgroundColor)),
-      text: [pair('body', 'body'), pair('.card .text', '.card'), pair('.hint', 'body'), pair('#copy', '#copy'), pair('.frame .art', '.stage'), pair('.bar [data-ready="build"]', '.bar'), contrast(rgb(css('.theme-toggle').color), rgb(css('body').backgroundColor))],
+      text: [pair('body', 'body'), pair('.card .text', '.card'), pair('.hint', 'body'), pair('#copy', '#copy'), pair('.clip .art', '.clip'), pair('.bar [data-ready="build"]', '.bar'), contrast(rgb(css('.theme-toggle').color), rgb(css('body').backgroundColor))],
     };
   });
   const readable = (seen, when) => seen.text.forEach((ratio, i) => assert.ok(ratio >= 4.5, `${when}: text ${i} contrast ${ratio.toFixed(2)} is under 4.5`));
@@ -1060,9 +1057,9 @@ browserTest('a sketch fits 320px, opens full screen, and repaints on the dark sw
     '  | way | login |', '  |-----|-------|', '  | local | none |', '  | sync | needed |',
   ].join('\n')));
   const { page, context, errors } = await open(url, { width: 320 });
-  await page.waitForFunction(() => document.querySelector('#item-1 .art.sketch').style.fontSize !== '');
+  await page.waitForFunction(() => document.querySelector('#item-1 .clip').style.getPropertyValue('--f') !== '');
   const fits = await page.evaluate(() => {
-    const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), svg = document.querySelector('#item-1 .art.sketch svg').getBoundingClientRect();
+    const frame = document.querySelector('#item-1 .clip').getBoundingClientRect(), svg = document.querySelector('#item-1 .art.sketch svg').getBoundingClientRect();
     return { inside: svg.left >= frame.left - 1 && svg.right <= frame.right + 1, page: document.documentElement.scrollWidth <= innerWidth, drawn: svg.height > 0 };
   });
   assert.deepEqual(fits, { inside: true, page: true, drawn: true });
@@ -1077,9 +1074,9 @@ browserTest('a sketch fits 320px, opens full screen, and repaints on the dark sw
   const dark = await paint();
   assert.notEqual(dark.box, light.box, 'the box repaints on the switch');
   assert.equal(dark.text, dark.ink, 'a label follows the dark ink');
-  await page.locator('#item-1 .enlarge').click();
-  assert.equal(await page.locator('#viewer .art.sketch svg').count(), 1, 'the sketch opens full screen');
-  await page.locator('#viewer [data-note="item-1-picture-1"]').click({ position: { x: 4, y: 4 } });
+  await page.locator('#item-1 .part').click();
+  assert.equal(await page.locator('.clip.big .art.sketch svg').count(), 1, 'the sketch opens full screen');
+  await page.locator('.clip.big [data-note="item-1-picture-1"]').click({ position: { x: 4, y: 4 } });
   await page.locator('#chip').click();
   assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Notes"');
   await page.locator('#editor [data-act="discard"]').click();
@@ -1101,9 +1098,9 @@ browserTest('a phone screen fits 320px, a tap on its button places a note instea
     '  </div>', `  ${fence}`,
   ].join('\n')));
   const { page, context, errors } = await open(url, { width: 320, touch: true });
-  await page.waitForFunction(() => document.querySelector('#item-1 .art.screen').style.fontSize !== '');
+  await page.waitForFunction(() => document.querySelector('#item-1 .clip').style.getPropertyValue('--f') !== '');
   const fits = await page.evaluate(() => {
-    const frame = document.querySelector('#item-1 .frame').getBoundingClientRect(), card = document.querySelector('#item-1 .art.screen .card').getBoundingClientRect();
+    const frame = document.querySelector('#item-1 .clip').getBoundingClientRect(), card = document.querySelector('#item-1 .art.screen .card').getBoundingClientRect();
     const save = document.querySelector('#item-1 .art.screen .btn-primary').getBoundingClientRect();
     return { inside: card.left >= frame.left - 1 && card.right <= frame.right + 1 && save.right <= card.right + 1, page: document.documentElement.scrollWidth <= innerWidth, drawn: card.height > 0 };
   });
@@ -1119,8 +1116,8 @@ browserTest('a phone screen fits 320px, a tap on its button places a note instea
   const dark = await paint();
   assert.notEqual(dark.card, light.card, 'the card repaints on the switch');
   assert.notEqual(dark.save, light.save, 'the button repaints on the switch');
-  await page.locator('#item-1 .enlarge').click();
-  const save = page.locator('#viewer .art.screen .btn-primary');
+  await page.locator('#item-1 .part').tap();
+  const save = page.locator('.clip.big .art.screen .btn-primary');
   const box = await save.boundingBox();
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
   assert.equal(await page.evaluate(() => document.activeElement.closest('.sk')), null, 'the button takes no focus');
@@ -1128,7 +1125,7 @@ browserTest('a phone screen fits 320px, a tap on its button places a note instea
   assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Notes 3 Cancel Save"');
   await page.locator('#editor textarea').fill('Save on Enter too.');
   await page.locator('#editor [data-act="save"]').click();
-  assert.match(await copied(page), /^- Change #1, picture 1 \("Notes 3 Cancel Save"\): Save on Enter too\.$/m);
+  assert.match(await copied(page), /^- Change #1, picture 1, spot at \d+% across and \d+% down on "Screen" \("Notes 3 Cancel Save"\): Save on Enter too\.$/m);
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -1202,8 +1199,10 @@ browserTest('a closed page in the inbox frame opens read-only: no note, button o
   for (const part of ['.bar', '.add', '.verdict', '.hint', '#chip']) {
     assert.equal(await frame.locator(part).filter({ visible: true }).count(), 0, `${part} is hidden`);
   }
+  await frame.locator('.part').first().click();
   assert.equal(await frame.locator('#viewer .vhint .note-it').evaluate(el => getComputedStyle(el).display), 'none',
     'the full-screen drawing does not offer to note a line');
+  await frame.locator('#viewer [data-close]').click();
   // A saved note still shows under Your notes, but opening it offers no Save or Delete note.
   const row = frame.locator('#note-list .entry', { hasText: 'Kept from before' });
   await row.waitFor();
@@ -1243,7 +1242,7 @@ function previewFixture() {
   return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
 }
 
-browserTest('a preview page on a phone shows Preview first and both side by side on request, Send notes and Publish in one row, and publishes after its question', async () => {
+browserTest('a preview page on a phone shows Live now and Preview side by side, Send notes and Publish in one row, and publishes after its question', async () => {
   const { page, context, errors, acts } = await openLive({ make: previewFixture, actions: ['publish'], width: 320, height: 664 });
   await isLive(page);
   await ready(page, 'publish').waitFor();
@@ -1252,9 +1251,7 @@ browserTest('a preview page on a phone shows Preview first and both side by side
   assert.deepEqual(await primary(page), ['copy'], 'Send notes stays primary');
   const tops = await page.evaluate(() => [document.getElementById('copy'), document.querySelector('[data-ready="publish"]')].map(el => el.getBoundingClientRect().top));
   assert.equal(tops[0], tops[1], 'one row');
-  assert.deepEqual(await page.locator('#item-1 .tab[aria-selected="true"]').evaluateAll(tabs => tabs.map(t => t.dataset.label)), ['Preview']);
-  assert.equal(await page.locator('.art.photo figure:visible').count(), 1, 'one picture a tab');
-  await page.locator('#item-1 button[data-compare]', { hasText: 'Live now and preview' }).click();
+  assert.deepEqual(await page.locator('#item-1 .part figcaption').allInnerTexts(), ['Live now', 'Preview']);
   const look = await page.evaluate(() => {
     const [a, b] = [...document.querySelectorAll('.art.photo img')].map(img => img.getBoundingClientRect());
     return { view: innerWidth, page: document.documentElement.scrollWidth, a, b, loaded: [...document.images].every(img => img.complete && img.naturalWidth > 0) };
@@ -1263,11 +1260,11 @@ browserTest('a preview page on a phone shows Preview first and both side by side
   assert.ok(look.page <= look.view, 'no sideways scroll on a phone');
   assert.equal(Math.round(look.a.top), Math.round(look.b.top), 'Live now and Preview sit side by side');
   assert.ok(look.a.width > 40 && look.b.right <= look.view, 'both fit the phone');
-  // A tap on the picture in the full-screen view notes it, naming the picture and its labels.
-  await page.locator('#item-1 .frame').click();
-  await page.locator('#viewer [data-note="item-1-picture-1"]').click({ position: { x: 20, y: 20 } });
+  // A tap on the picture in the full-screen view notes it, naming the picture.
+  await page.locator('#item-1 .part').first().click();
+  await page.locator('.clip.big [data-note="item-1-picture-1"]').click({ position: { x: 20, y: 20 } });
   await page.locator('#chip').click();
-  assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Live now · Preview"');
+  assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Live now"');
   await page.locator('#editor [data-act="close"]').click();
   await ready(page, 'publish').click();
   assert.equal(await page.locator('#ready-confirm').getAttribute('aria-label'), 'Publish? This goes live and can\'t be undone.');
@@ -1279,7 +1276,7 @@ browserTest('a preview page on a phone shows Preview first and both side by side
   await context.close();
 });
 
-// ── a review page of other work: two ads to approve, with OK, Change, word and spot notes, and its own buttons ──
+// ── a review page of other work: two ads to approve, with OK, Note, word and spot notes, and its own buttons ──
 function adsFixture() {
   const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
   const dir = join(temp, 'spring-ads');
@@ -1293,14 +1290,14 @@ function adsFixture() {
   return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
 }
 
-browserTest('on a phone a review page takes an OK, its undo, Change, a note on words, and a spot pin, then sends them with a confirmed Launch', async () => {
+browserTest('on a phone a review page takes an OK, its undo, Note, a note on words, and a spot pin, then sends them with a confirmed Launch', async () => {
   const { page, context, errors, acts } = await openLive({ make: adsFixture, actions: ['approve', 'launch'], width: 320, height: 664 });
   await isLive(page);
   await ready(page, 'approve').waitFor();
   assert.equal(await page.locator('h1').innerText(), 'Approve these 2 ads?');
   assert.deepEqual(await page.locator('.bar button:visible').allInnerTexts(), ['Send notes', 'Approve', 'Launch']);
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'no sideways scroll on a phone');
-  // OK, its undo, then OK again; Change opens the card's note.
+  // OK, its undo, then OK again; Note opens the card's note.
   const ok = page.locator('#item-1 [data-ok]');
   await ok.click();
   assert.equal(await page.locator('#item-1 .verdict .tag').innerText(), 'OK');
@@ -1326,15 +1323,14 @@ browserTest('on a phone a review page takes an OK, its undo, Change, a note on w
   await page.locator('#editor textarea').fill('Say Buy now.');
   await page.locator('#editor [data-act="save"]').click();
   // A tap on the ad's picture in full screen notes that spot, drawn as a pin on the picture.
-  await page.locator('#item-1 .frame').click();
-  const img = page.locator('#viewer .art.photo img');
-  const box = await img.boundingBox();
+  await page.locator('#item-1 .part').click();
+  const box = await page.locator('.clip.big .art.ad').boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 4);
   await page.locator('#chip').click();
-  assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Spring sale"');
+  assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Feed"');
   await page.locator('#editor textarea').fill('Brighter here.');
   await page.locator('#editor [data-act="save"]').click();
-  const pin = await page.locator('#item-1 .shot .pin.spot').evaluate(el => ({ left: el.style.left, top: el.style.top, text: el.textContent }));
+  const pin = await page.locator('#item-1 .art.ad .pin.spot').evaluate(el => ({ left: el.style.left, top: el.style.top, text: el.textContent }));
   assert.deepEqual(pin, { left: '50%', top: '25%', text: '2' });
   assert.deepEqual(await page.locator('#note-list .group').allInnerTexts(), ['Card 1', 'Card 2'], 'the notes list groups notes by card');
   // Launch asks first, then sends the OK and both notes.
@@ -1347,7 +1343,7 @@ browserTest('on a phone a review page takes an OK, its undo, Change, a note on w
   assert.deepEqual(acts().map(request => request.body), [{ action: 'launch', version: VERSION, text: [
     'Card #1: OK',
     '- Card #2 ("Shop now"): Say Buy now.',
-    '- Card #1, picture 1, spot at 50% across and 25% down on "Spring sale" ("Spring sale"): Brighter here.',
+    '- Card #1, picture 1, spot at 50% across and 25% down on "Feed" ("Feed"): Brighter here.',
   ].join('\n') }]);
   assert.equal(await page.locator('#item-1 .verdict .tag').innerText(), 'OK · Sent');
   assert.deepEqual(errors, []);
@@ -1422,43 +1418,63 @@ browserTest('at 320 px a live card sends its answer, reaches neither the web nor
   await context.close();
 });
 
-browserTest('at 320 px a live card draws at a phone or a computer width, scaled to the card, and opens full screen', async () => {
+browserTest('at 320 px a live card shows small and inert in the card, and opens full screen at a phone or a computer width', async () => {
   const { page, context, errors } = await openLive({ make: askingFixture, width: 320, height: 700 });
-  const card = page.frameLocator('.live iframe'), frame = page.locator('.live iframe');
+  const card = page.frameLocator('.live iframe'), frame = page.locator('.live iframe'), clip = page.locator('#item-1 .clip');
   await card.locator('#blue').waitFor();
   const width = () => card.locator('body').evaluate(() => innerWidth);
   assert.equal(await width(), 390);
-  assert.match(await frame.getAttribute('style'), /transform: scale\(0\.\d+\)/, 'the phone width shrinks to fit a 320 px screen');
-  await page.locator('.live-tools button', { hasText: 'Computer' }).click();
+  assert.match(await frame.getAttribute('style'), /transform: scale\(0\.\d+\)/, 'the card shows the phone width small');
+  assert.equal(await frame.evaluate(el => getComputedStyle(el).pointerEvents), 'none', 'the card takes no tap');
+  await page.locator('#item-1 .part').click();
+  const box = await clip.boundingBox();
+  assert.ok(box.x === 0 && box.width === 320 && box.height > 500, `full screen covers the screen: ${JSON.stringify(box)}`);
+  assert.equal(await frame.evaluate(el => getComputedStyle(el).pointerEvents), 'auto', 'full screen takes taps');
+  assert.equal(await page.locator('#viewer .sizes').isVisible(), true, 'Phone and Computer sit in the foot bar');
+  assert.equal(await page.locator('#viewer .zoom').isVisible(), false);
+  assert.equal(await page.locator('#viewer .try').isVisible(), false, 'no Try it without an address');
+  const big = await clip.boundingBox();
+  await page.mouse.click(big.x + 4, big.y + big.height - 4);
+  assert.equal(await page.locator('#chip').isVisible(), false, 'a live part takes no spot');
+  await page.locator('#viewer .sizes button', { hasText: 'Computer' }).click();
   await page.waitForFunction(() => document.querySelector('.live iframe').style.width === '1280px');
   assert.equal(await width(), 1280);
-  assert.ok((await frame.boundingBox()).width < 320, 'the computer width is scaled into the card');
-  await page.locator('.live-tools [data-full]').click();
-  const box = await page.locator('.live').boundingBox();
-  assert.deepEqual([box.x, box.y, box.width, box.height], [0, 0, 320, 700], 'full screen covers the screen');
-  assert.equal(await frame.evaluate(el => el.style.transform), '', 'full screen shows the page at true size');
+  assert.ok((await frame.boundingBox()).width <= 320, 'the computer width is scaled into the screen');
   assert.equal(await page.locator('.bar').isVisible(), false);
   await page.keyboard.press('Escape');
-  assert.equal(await page.locator('.live.full').count(), 0);
+  assert.equal(await page.locator('#viewer').isVisible(), false);
+  assert.equal(await clip.evaluate(el => el.classList.contains('big')), false);
+  await page.waitForFunction(() => document.querySelector('.live iframe').style.width === '390px');
   await card.locator('#blue').waitFor();
+  assert.equal(await page.locator('.live-said').isVisible(), false, 'the card never loads again');
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-browserTest('a live card laid out at no width fits once its card gets a width, with no resize of the window', async () => {
-  // The Inbox can lay the page out before its frame has a width: the card must not stay at no size.
+browserTest('a card laid out at no width fits again once its row gets a width, with no resize of the window', async () => {
+  // The Inbox can lay the page out before its frame has a width: the parts must not stay at the smallest size.
   const { dir } = askingFixture(), file = join(dir, 'review.html');
-  writeFileSync(file, readFileSync(file, 'utf8').replace('<div class="live-box">', '<div class="live-box" style="width:0">'));
-  const { page, context, errors } = await open(pathToFileURL(file).href, { width: 390, height: 700 });
-  const frame = page.locator('.live iframe'), stage = page.locator('.live-box');
-  await frame.waitFor({ state: 'attached' });
-  assert.equal(await stage.evaluate(el => el.clientHeight), 0, 'the card starts at no size');
-  await page.evaluate(() => { document.querySelector('.live-box').style.width = ''; });
-  await page.waitForFunction(() => document.querySelector('.live-box').clientHeight > 0);
-  const k = Number(/scale\(([\d.]+)\)/.exec(await frame.evaluate(el => el.style.transform))[1]);
-  const width = await stage.evaluate(el => el.clientWidth);
-  assert.ok(k > 0.5 && Math.abs(k - width / 390) < 0.01, `the phone width scales to the card (${k})`);
-  assert.equal(await stage.evaluate(el => el.style.height), `${Math.ceil(400 * k)}px`);
+  writeFileSync(file, readFileSync(file, 'utf8').replace('<div class="stage">', '<div class="stage" style="max-width:0">'));
+  const { page, context, errors } = await open(pathToFileURL(file).href, { width: 1280, height: 800 });
+  const fig = page.locator('#item-1 .part');
+  await page.waitForFunction(() => document.querySelector('#item-1 .part').style.width !== '');
+  assert.ok(await fig.evaluate(el => el.offsetWidth) <= 112, 'the part starts at the smallest size');
+  await page.evaluate(() => { document.querySelector('#item-1 .stage').style.maxWidth = ''; });
+  await page.waitForFunction(() => document.querySelector('#item-1 .part').offsetWidth > 200);
+  const k = Number(/scale\(([\d.]+)\)/.exec(await page.locator('.live iframe').evaluate(el => el.style.transform))[1]);
+  assert.ok(Math.abs(await fig.evaluate(el => el.offsetWidth) - 2 - 390 * k) < 2, `the phone width scales to the row (${k})`);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('at 1280 px a tall live part shows its top at a readable width, with a fade', async () => {
+  const { dir } = askingFixture(), file = join(dir, 'proposal.md');
+  writeFileSync(file, readFileSync(file, 'utf8').replace('height: 400', 'height: 1200'));
+  buildReview(dir, { requireCurrent: true });
+  const { page, context, errors } = await open(pathToFileURL(join(dir, 'review.html')).href, { width: 1280, height: 800 });
+  await page.waitForFunction(() => document.querySelector('#item-1 .clip').classList.contains('tall'));
+  const width = await page.locator('#item-1 .part').evaluate(el => el.offsetWidth);
+  assert.ok(width > 160, `the live part is ${width} px wide, not shrunk whole to about 117 px`);
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -1520,7 +1536,7 @@ browserTest('a closed page with questions in the inbox frame opens read-only: no
   await context.close();
 });
 
-// ── card views: tabs of real pictures beside short words, a whole page, ads, and a picture question ──
+// ── card views: parts side by side beside the words, full screen, a whole page, ads, and a picture question ──
 const mail = word => `<!doctype html><html><body style="margin:0;font:16px sans-serif"><h1 style="margin:0;padding:24px">${word} sale</h1>`
   + `<p style="padding:0 24px;height:900px">Spring plants.</p><a id="go" href="https://shop.example.com/">Shop the ${word} sale</a></body></html>`;
 function cardsFixture() {
@@ -1540,95 +1556,178 @@ function cardsFixture() {
   buildReview(dir, { requireCurrent: true });
   return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
 }
-const tabs = (page, n) => page.locator(`#item-${n} .tab`).evaluateAll(all => all.map(t => t.dataset.label + (t.getAttribute('aria-selected') === 'true' ? ' *' : '')));
-const shown = (page, n, part) => page.locator(`#item-${n} ${part}`).evaluateAll(all => all.map(el => !el.closest('[hidden]')));
+const parts = (page, n) => page.locator(`#item-${n} .part`).evaluateAll(all => all.map(fig => {
+  const r = fig.getBoundingClientRect();
+  return { label: fig.querySelector('figcaption').firstChild.textContent, top: Math.round(r.top), left: r.left, right: r.right, height: r.height };
+}));
+const named = page => page.locator('#viewer .name').evaluateAll(all => all.map(b => b.textContent + (b.getAttribute('aria-selected') === 'true' ? ' *' : '')));
+// One card with short or long words and two tall phone pictures.
+function tallFixture(words) {
+  const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
+  const dir = join(temp, 'review-fixture');
+  mkdirSync(dir);
+  temps.push(temp);
+  for (const name of ['before.png', 'after.png']) writeFileSync(join(dir, name), solidPng(390, 1600));
+  writeFileSync(join(dir, 'proposal.md'), `## Why\n\nShow the screens.\n\n## What Changes\n\n`
+    + `- **Two screens.** ${words}\n  ${fence}picture\n  Before: before.png\n  After: after.png\n  ${fence}\n`);
+  buildReview(dir, { requireCurrent: true });
+  return pathToFileURL(join(dir, 'review.html')).href;
+}
+const settled = page => page.waitForFunction(() => [...document.querySelectorAll('.art.photo img')].every(img => img.style.width));
 
-browserTest('at 1280 px a card\'s words sit left of its view; at 390 px the view comes first, and nothing scrolls sideways', async () => {
+browserTest('at 1280 px a card\'s words sit left of its view; at 390 px the pictures come after the words, and nothing scrolls sideways', async () => {
   const { url } = cardsFixture();
   for (const [width, beside] of [[1280, true], [390, false]]) {
     const { page, context, errors } = await open(url, { width });
     const box = await page.evaluate(() => {
       const [words, view] = ['#item-1 .words', '#item-1 .view'].map(sel => document.querySelector(sel).getBoundingClientRect());
-      return { left: words.right <= view.left + 1 && words.top < view.bottom, first: view.bottom <= words.top + 1, wide: view.width > words.width,
-        page: document.documentElement.scrollWidth <= innerWidth };
+      return { left: words.right <= view.left + 1 && words.top < view.bottom, after: view.top >= words.bottom - 1, page: document.documentElement.scrollWidth <= innerWidth };
     });
-    assert.deepEqual(box, beside ? { left: true, first: false, wide: true, page: true } : { left: false, first: true, wide: false, page: true }, `at ${width}px`);
+    assert.deepEqual(box, beside ? { left: true, after: false, page: true } : { left: false, after: true, page: true }, `at ${width}px`);
     assert.deepEqual(errors, []);
     await context.close();
   }
 });
 
-browserTest('tabs switch pictures, Before and after shows both, and a spot note from the Before tab brings that tab back', async () => {
+browserTest('at 1280 px short words show each picture whole, about 420 px tall, side by side with no tabs; full screen shows the labels', async () => {
+  const { page, context, errors } = await open(tallFixture('Two versions.'), { width: 1280 });
+  await settled(page);
+  const [before, after] = await parts(page, 1);
+  assert.deepEqual([before.label, after.label], ['Before', 'After']);
+  assert.ok(before.top === after.top && before.right <= after.left, 'the two sit side by side');
+  const view = await page.locator('#item-1 .view').boundingBox();
+  assert.ok(Math.abs(view.height - 420) <= 2, `the view is 420 px tall, not ${view.height}`);
+  const inside = await page.locator('#item-1 .clip').evaluateAll(all => all.map(clip => {
+    const c = clip.getBoundingClientRect(), r = clip.querySelector('img').getBoundingClientRect();
+    return r.top >= c.top && r.bottom <= c.bottom + 1 && r.left >= c.left && r.right <= c.right + 1;
+  }));
+  assert.deepEqual(inside, [true, true], 'each picture shows whole');
+  assert.equal(await page.locator('#item-1 .tab, [data-compare]').count(), 0);
+  assert.equal(await page.getByRole('button', { name: /^(All|Before and after|Full screen)$/ }).count(), 0);
+  assert.deepEqual(await page.locator('#item-1 .verdict button').allInnerTexts(), ['OK', 'Note']);
+  assert.equal(await page.locator('#item-1 .words .add').count(), 0, 'the words have no + Note');
+  await page.locator('#item-1 .part').nth(1).click();
+  assert.deepEqual(await named(page), ['Before', 'After *']);
+  const shown = () => page.locator('.clip.big').evaluate(clip => {
+    const c = clip.getBoundingClientRect(), r = clip.querySelector('img').getBoundingClientRect();
+    return { whole: r.top >= c.top && r.bottom <= c.bottom + 1 && r.left >= c.left && r.right <= c.right + 1, height: r.height };
+  });
+  const fit = await shown();
+  assert.equal(fit.whole, true, 'full screen shows the whole picture');
+  await page.getByRole('button', { name: 'Zoom in' }).click();
+  assert.ok((await shown()).height > fit.height * 1.2, '+ zooms the picture');
+  await page.getByRole('button', { name: 'Fit' }).click();
+  assert.deepEqual(await page.locator('#viewer .vtop > button').allInnerTexts(), ['✕ Close'], 'Close is the only button on top');
+  assert.equal(await page.locator('#viewer .sizes').isVisible(), false, 'a picture has no Phone or Computer');
+  assert.equal(await page.locator('#viewer .zoom').isVisible(), true);
+  await page.keyboard.press('ArrowLeft');
+  assert.deepEqual(await named(page), ['Before *', 'After']);
+  await page.keyboard.press('ArrowRight');
+  assert.deepEqual(await named(page), ['Before', 'After *']);
+  const clip = await page.locator('.clip.big').boundingBox();
+  await page.mouse.click(clip.x + 4, clip.y + clip.height / 2);
+  assert.equal(await page.locator('#viewer').isVisible(), true, 'a click beside the picture keeps full screen open');
+  await page.locator('#viewer [data-close]').click();
+  assert.equal(await page.locator('#viewer').isVisible(), false);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('at 1280 px long words make the pictures as tall as the window, and the words show whole', async () => {
+  const { page, context, errors } = await open(tallFixture(long.repeat(30)), { width: 1280, height: 800 });
+  await settled(page);
+  const view = await page.locator('#item-1 .view').boundingBox(), words = await page.locator('#item-1 .words').boundingBox();
+  assert.ok(words.height > 800, 'the words are taller than the window');
+  assert.ok(view.height > 600 && view.height <= 800, `the view is about the window's height, not ${view.height}`);
+  assert.equal(await page.locator('#item-1 .more').isVisible(), false, 'no More beside a view');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('at 390 px each part is a small named picture; a tap opens it full screen, and a swipe shows the next', async () => {
+  const { page, context, errors } = await open(tallFixture('Two versions.'), { width: 390, touch: true });
+  await settled(page);
+  const [before, after] = await parts(page, 1);
+  assert.deepEqual([before.label, after.label], ['Before', 'After']);
+  assert.ok(before.height < 160 && before.right <= after.left, 'two small pictures in a row');
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'nothing scrolls sideways');
+  await page.locator('#item-1 .part').first().tap();
+  assert.deepEqual(await named(page), ['Before *', 'After']);
+  const cdp = await context.newCDPSession(page);
+  const touch = (type, x) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y: 400 }] });
+  await touch('touchStart', 300); await touch('touchMove', 200); await touch('touchMove', 100); await touch('touchEnd');
+  assert.deepEqual(await named(page), ['Before', 'After *'], 'a swipe to the left shows the next part');
+  const row = await page.locator('#viewer .names').boundingBox();
+  const along = (type, x) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y: row.y + row.height / 2 }] });
+  await along('touchStart', 300); await along('touchMove', 200); await along('touchMove', 100); await along('touchEnd');
+  assert.deepEqual(await named(page), ['Before', 'After *'], 'a swipe along the label row keeps the part');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a spot noted full screen on Before pins on the card\'s Before picture and names it', async () => {
   const { page, context, errors } = await open(cardsFixture().url, { width: 1280 });
-  assert.deepEqual(await tabs(page, 1), ['Before', 'After *']);
-  assert.deepEqual(await shown(page, 1, 'figure'), [false, true]);
-  await page.locator('#item-1 .tab', { hasText: 'Before' }).click();
-  assert.deepEqual(await shown(page, 1, 'figure'), [true, false]);
-  const compare = page.locator('#item-1 button[data-compare]');
-  await compare.click();
-  assert.deepEqual(await tabs(page, 1), ['Before *', 'After *']);
-  assert.equal(await compare.getAttribute('aria-pressed'), 'true');
-  const sides = await page.locator('#item-1 figure img').evaluateAll(all => all.map(img => img.getBoundingClientRect()).map(r => ({ top: Math.round(r.top), left: r.left })));
-  assert.ok(sides[0].top === sides[1].top && sides[0].left < sides[1].left, 'the two sit side by side');
-  await page.locator('#item-1 .tab', { hasText: 'Before' }).click();
-  await page.locator('#item-1 .frame').click();
-  const img = page.locator('#viewer .art.photo img:visible');
+  await settled(page);
+  await page.locator('#item-1 .part').first().click();
+  const img = page.locator('.clip.big .art.photo');
   const box = await img.boundingBox();
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 10);
   await page.locator('#chip').click();
   await page.locator('#editor textarea').fill('Keep the old list.');
   await page.locator('#editor [data-act="save"]').click();
   await page.keyboard.press('Escape');
-  assert.equal(await page.locator('#item-1 .tab', { hasText: 'Before' }).locator('.count').textContent(), ' · 1');
-  await page.locator('#item-1 .tab', { hasText: 'After' }).click();
-  await page.locator('#note-list .entry', { hasText: 'Keep the old list.' }).click();
-  assert.deepEqual(await tabs(page, 1), ['Before *', 'After'], 'opening the note shows its picture');
-  await page.locator('#editor [data-act="close"]').click();
-  assert.match(await copied(page), /^- Change #1, picture 1, spot at 50% across and 10% down on "Before" \("Before · After"\): Keep the old list\.$/m);
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('#viewer').isVisible(), false);
+  assert.equal(await page.locator('#item-1 .part').first().locator('.pin.spot').count(), 1, 'the pin sits on the card\'s Before picture');
+  assert.equal(await page.locator('#item-1 .part').first().locator('.count').textContent(), ' · 1');
+  assert.match(await copied(page), /^- Change #1, picture 1, spot at 50% across and 10% down on "Before" \("Before"\): Keep the old list\.$/m);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-browserTest('long words fold behind More, and a note on folded words unfolds them', async () => {
+browserTest('at 390 px long words fold with More at the end of the words, and a note on folded words unfolds them', async () => {
   const { page, context, errors } = await open(cardsFixture().url, { width: 390 });
   const more = page.locator('#item-1 .more');
   const folded = () => page.locator('[data-note="item-1"]').evaluate(el => el.classList.contains('folded'));
   assert.equal(await more.innerText(), 'More');
   assert.equal(await folded(), true);
+  const end = await page.locator('[data-note="item-1"]').evaluate(text => {
+    const m = text.querySelector('.more').getBoundingClientRect(), t = text.getBoundingClientRect();
+    return m.right <= t.right + 1 && m.bottom >= t.bottom - 2;
+  });
+  assert.equal(end, true, 'More sits at the end of the last line');
   assert.equal(await page.locator('#item-2 .more').isVisible(), false, 'short words have no More');
   await more.click();
   assert.equal(await folded(), false);
   assert.equal(await more.innerText(), 'Less');
   await more.click();
   assert.equal(await folded(), true);
-  await page.locator('.add[data-open="item-1"]').click();
+  await page.locator('.verdict [data-open="item-1"]').click();
   assert.equal(await folded(), false, 'the noted words show in full');
-  assert.equal(await more.innerText(), 'Less');
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-browserTest('at 1280 px the fold keeps the whole bold first sentence in view', async () => {
+browserTest('at 1280 px a six-line item shows whole, with no More', async () => {
   const { page, context, errors } = await open(cardsFixture().url, { width: 1280 });
-  const cut = await page.locator('#item-1 .clamp').evaluate(clamp => clamp.querySelector('b').getBoundingClientRect().bottom - clamp.getBoundingClientRect().bottom);
-  assert.ok(cut <= 1, `the first sentence ends ${cut}px below the fold`);
-  assert.equal(await page.locator('[data-note="item-1"]').evaluate(el => el.classList.contains('folded')), true);
+  assert.equal(await page.locator('[data-note="item-1"]').evaluate(el => el.classList.contains('folded')), false);
+  assert.equal(await page.locator('#item-1 .more').isVisible(), false);
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-browserTest('a page card shows a version a tab and All, its links go nowhere, and a spot note names the version', async () => {
+browserTest('a page card shows each version with a fade, its links go nowhere, and a spot noted full screen names the version', async () => {
   const { page, context, errors } = await open(cardsFixture().url, { width: 1280 });
-  assert.deepEqual(await tabs(page, 2), ['A *', 'B', 'All']);
-  assert.deepEqual(await shown(page, 2, '.shot'), [true, false]);
-  await page.locator('#item-2 .tab', { hasText: 'All' }).click();
-  assert.deepEqual(await shown(page, 2, '.shot'), [true, true]);
-  await page.locator('#item-2 .tab', { hasText: 'B' }).click();
-  const shot = page.locator('#item-2 .shot[data-label="B"]');
+  assert.deepEqual((await parts(page, 2)).map(p => p.label), ['A', 'B']);
+  const shot = page.locator('#item-2 .page[data-label="B"]');
   await shot.locator('.cover').waitFor();
-  const inside = page.frameLocator('#item-2 .shot[data-label="B"] iframe');
+  await page.waitForFunction(() => document.querySelector('#item-2 .part:nth-child(2) .clip').classList.contains('tall'));
+  const inside = page.frameLocator('#item-2 .page[data-label="B"] iframe');
   assert.equal(await inside.locator('#go').getAttribute('href'), null, 'the link keeps no address');
   assert.equal(await inside.locator('#go').getAttribute('data-href'), 'https://shop.example.com/');
+  await page.locator('#item-2 .part').nth(1).click();
+  assert.equal(await page.locator('#viewer .sizes').isVisible(), true, 'a page has Phone and Computer');
+  assert.equal(await page.locator('#viewer .zoom').isVisible(), false);
   const box = await shot.boundingBox();
   assert.ok(box.height > box.width, 'the whole page shows, as tall as it is');
   await page.mouse.click(box.x + box.width / 4, box.y + box.height / 10);
@@ -1636,13 +1735,13 @@ browserTest('a page card shows a version a tab and All, its links go nowhere, an
   await page.locator('#editor textarea').fill('A brighter top.');
   await page.locator('#editor [data-act="save"]').click();
   assert.equal(await shot.locator('.pin.spot').count(), 1, 'the pin sits on version B');
-  assert.match(await copied(page), /^- Change #2, picture 1, spot at 25% across and 10% down on "B" \("A · B"\): A brighter top\.$/m);
+  assert.match(await copied(page), /^- Change #2, picture 2, spot at 25% across and 10% down on "B" \("B"\): A brighter top\.$/m);
   assert.equal(page.url().startsWith('file:'), true, 'nothing navigated');
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-browserTest('in the inbox frame a page card is still as tall as its page, and a spot note names the version', async () => {
+browserTest('in the inbox frame a page shows full screen at its own height, a pointer finds its link, and a spot note names the version', async () => {
   const html = readFileSync(join(cardsFixture().dir, 'review.html'), 'utf8');
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   await context.route('https://inbox.test/**', route => route.fulfill({ contentType: 'text/html', body:
@@ -1663,31 +1762,30 @@ browserTest('in the inbox frame a page card is still as tall as its page, and a 
     };
     el.contentWindow.postMessage({ type: 'inbox:hello', item: 'i1', version: 'v1', actions: ['build'], workspace: 'desk', files: [], theme: 'light' }, '*', [port2]);
   });
-  await frame.locator('#item-2 .tab', { hasText: 'B' }).click();
-  const shot = frame.locator('#item-2 .shot[data-label="B"]');
+  const shot = frame.locator('#item-2 .page[data-label="B"]');
   await shot.locator('.cover').waitFor();
-  let box = await shot.boundingBox();
-  assert.ok(box.height > box.width, 'the whole page shows, as tall as it is');
+  await frame.locator('#item-2 .part').nth(1).click();
+  await frame.waitForFunction(() => parseFloat(document.querySelector('#item-2 .page[data-label="B"] iframe').style.height) > 900);
   // A pointer over the link asks the page what sits there, and the cover shows its address.
   // The same page alone at 390 px finds where its link sits.
   const probe = await context.newPage();
   await probe.setViewportSize({ width: 390, height: 800 });
   await probe.setContent(mail('Fern'));
-  const k = box.width / 390, go = await probe.locator('#go').evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.left + 4, y: r.top + r.height / 2 }; });
-  await shot.evaluate((el, y) => scrollBy(0, el.getBoundingClientRect().top + y - 300), go.y * k);
+  const go = await probe.locator('#go').evaluate(el => { const r = el.getBoundingClientRect(); return { x: r.left + 4, y: r.top + r.height / 2 }; });
+  await frame.locator('.clip.big').evaluate((el, y) => { el.scrollTop = y - 300; }, go.y);
+  let box = await shot.boundingBox();
+  await page.mouse.move(box.x + go.x, box.y + go.y);
+  await frame.waitForFunction(() => document.querySelector('#item-2 .page[data-label="B"] .cover').title === 'https://shop.example.com/');
+  await frame.locator('.clip.big').evaluate(el => { el.scrollTop = 0; });
   box = await shot.boundingBox();
-  await page.mouse.move(box.x + go.x * k, box.y + go.y * k);
-  await frame.waitForFunction(() => document.querySelector('#item-2 .shot[data-label="B"] .cover').title === 'https://shop.example.com/');
-  await shot.evaluate(el => el.scrollIntoView());
-  box = await shot.boundingBox();
-  await page.mouse.click(box.x + box.width / 4, box.y + box.height / 10);
+  await page.mouse.click(box.x + box.width / 4, box.y + 100);
   await frame.locator('#chip').click();
   await frame.locator('#editor textarea').fill('A brighter top.');
   await frame.locator('#editor [data-act="save"]').click();
   assert.equal(await shot.locator('.pin.spot').count(), 1, 'the pin sits on version B');
   await page.waitForFunction(() => window.saved && window.saved.includes('A brighter top.'));
   const [saved] = JSON.parse(await page.evaluate(() => window.saved)).notes;
-  assert.deepEqual([saved.x, saved.y, saved.on, saved.text], [25, 10, 'B', 'A brighter top.'], 'the spot note names version B');
+  assert.deepEqual([saved.x, saved.on, saved.text], [25, 'B', 'A brighter top.'], 'the spot note names version B');
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -1698,32 +1796,42 @@ browserTest('a page as tall as its frame settles at its own height, and stays th
     + '<body><p style="margin:0;height:900px">Spring plants.</p></body></html>');
   buildReview(dir, { requireCurrent: true });
   const { page, context, errors } = await open(pathToFileURL(join(dir, 'review.html')).href, { width: 1280 });
-  await page.locator('#item-2 .tab', { hasText: 'B' }).click();
-  await page.locator('#item-2 [data-size="computer"]').click();
-  const shot = page.locator('#item-2 .shot[data-label="B"]');
+  const shot = page.locator('#item-2 .page[data-label="B"]');
   await shot.locator('.cover').waitFor();
+  await page.locator('#item-2 .part').nth(1).click();
+  await page.locator('#viewer .sizes button', { hasText: 'Computer' }).click();
   const height = () => shot.locator('iframe').evaluate(f => parseFloat(f.style.height));
   await page.waitForTimeout(500);
-  const settled = await height();
-  assert.ok(settled >= 900 && settled <= 940, `the frame is as tall as the page's words, not ${settled} px`);
+  const first = await height();
+  assert.ok(first >= 900 && first <= 940, `the frame is as tall as the page's words, not ${first} px`);
   await page.waitForTimeout(1500);
-  assert.equal(await height(), settled, 'the frame does not keep growing');
+  assert.equal(await height(), first, 'the frame does not keep growing');
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-browserTest('each ad has a tab and All shows both; a picture question keeps its answer', async () => {
+browserTest('the feed and story ads sit side by side; a picture question keeps its answer', async () => {
   const { page, context, errors } = await open(cardsFixture().url, { width: 1280 });
-  assert.deepEqual(await tabs(page, 3), ['Feed *', 'Story', 'All']);
-  assert.deepEqual(await shown(page, 3, '.ad'), [true, false]);
-  await page.locator('#item-3 .tab', { hasText: 'Story' }).click();
-  assert.deepEqual(await shown(page, 3, '.ad'), [false, true]);
-  await page.locator('#item-3 .tab', { hasText: 'All' }).click();
-  assert.deepEqual(await shown(page, 3, '.ad'), [true, true]);
+  const [feed, story] = await parts(page, 3);
+  assert.deepEqual([feed.label, story.label], ['Feed', 'Story']);
+  assert.ok(feed.top === story.top && feed.right <= story.left);
   await page.locator('#item-2 .pick').nth(1).click();
   assert.match(await copied(page), /^- Change #2, "Top picture": b\.png$/m);
   await page.reload();
   assert.equal(await page.locator('#item-2 .pick input').nth(1).isChecked(), true, 'the answer stays after a reload');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a page with a live card resized from 1280 to 900 to 390 px shows no script error', async () => {
+  const { page, context, errors } = await openLive({ make: askingFixture, width: 1280, height: 800 });
+  await page.frameLocator('.live iframe').locator('#blue').waitFor();
+  for (const width of [900, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.waitForTimeout(300);
+  }
+  assert.equal(await page.locator('#script-error').isVisible(), false);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   assert.deepEqual(errors, []);
   await context.close();
 });

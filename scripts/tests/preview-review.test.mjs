@@ -37,10 +37,9 @@ test('pairs and a new screen build a preview page in .scratch/, and print its fi
   const html = readFileSync(page, 'utf8');
   assert.match(html, /<body data-kind="preview" data-change="demo-preview" data-own-back>/);
   assert.equal((html.match(/<img src="data:image\/png;base64,/g) || []).length, 3);
-  // Each side is a tab, Preview first; one button shows the two side by side.
-  assert.match(html, /<div class="view" data-compare="0 1" data-compare-label="Live now and preview"><div class="tabs" role="tablist">/);
-  assert.match(html, /aria-selected="false" data-panel="0" data-parts="0">Live now<span class="count"><\/span><\/button><button [^>]*aria-selected="true" data-panel="0" data-parts="1">Preview</);
-  assert.match(html, /alt="Live now"><figcaption>Live now<\/figcaption><\/figure><figure data-part="1"><img [^>]*alt="Preview">/);
+  // Both sides show side by side, labelled, Live now first.
+  assert.match(html, /alt="Live now"><\/div><\/div><figcaption>Live now<\/figcaption><\/figure><figure class="part" data-kind="photo">[\s\S]*?alt="Preview"><\/div><\/div><figcaption>Preview</);
+  assert.doesNotMatch(html, /class="tabs"|data-compare/);
   assert.doesNotMatch(html, /id="decisions"/);
   // Git takes none of it, and a second run with fewer screens leaves no old picture behind.
   assert.equal(spawnSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: dir, encoding: 'utf8' }).stdout, '?? shots/inbox-live.png\n?? shots/inbox-preview.png\n?? shots/new.png\n');
@@ -80,8 +79,7 @@ test('--approved puts the plan\'s approved picture beside the built screen, firs
     '- **Inbox**', '  ```picture', '  Approved: pictures/1-approved.png', '  Built: pictures/1-built.png', '  ```',
     '- **New page**', '  ```picture', '  Preview: pictures/2-preview.png', '  ```', ''].join('\n'));
   const html = readFileSync(join(folder, 'review.html'), 'utf8');
-  assert.match(html, /data-compare="0 1" data-compare-label="Approved and built"><div class="tabs" role="tablist"><button [^>]*aria-selected="false"[^>]*>Approved<span class="count"><\/span><\/button><button [^>]*aria-selected="true"[^>]*>Built</);
-  assert.match(html, /alt="Approved"><figcaption>Approved<\/figcaption><\/figure><figure data-part="1"><img [^>]*alt="Built">/);
+  assert.match(html, /alt="Approved"><\/div><\/div><figcaption>Approved<\/figcaption><\/figure><figure class="part" data-kind="photo">[\s\S]*?alt="Built"><\/div><\/div><figcaption>Built</);
   assert.equal(run(dir, ['demo', '--approved', 'Inbox|shots/inbox-preview.png|shots/inbox-live.png']).status, 0, 'no --pair is fine');
   const bad = run(dir, ['demo', '--approved', 'Inbox|shots/new.png']);
   assert.equal(bad.status, 1);

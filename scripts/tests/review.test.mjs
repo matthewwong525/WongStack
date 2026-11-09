@@ -63,10 +63,10 @@ function actionsOf(html) {
   const [, attr] = /<div id="ready" data-actions="([^"]*)" hidden>/.exec(html);
   return JSON.parse(attr.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'));
 }
-// An element's text without the Note button the script adds to it.
+// An element's text without the Note or More button the script adds to it.
 function text(el) {
   const copy = el.cloneNode(true);
-  copy.querySelectorAll('.add').forEach(add => add.remove());
+  copy.querySelectorAll('.add, .more').forEach(add => add.remove());
   return copy.textContent;
 }
 
@@ -102,12 +102,15 @@ test('the page renders the proposal as static content', needsDom, () => fixture(
   assert.deepEqual(items.map(li => li.id), ['item-1', 'item-2', 'item-3']);
   assert.equal(text(items[0].querySelector('[data-note="item-1"]')), 'First item wraps onto an indented line and an unindented one.');
   assert.deepEqual([...document.querySelectorAll('[data-note] > .add')].map(add => add.dataset.open),
-    ['why-1', 'why-2', 'item-1', 'item-2', 'item-3', 'decision-1', 'decision-2', 'decision-3', 'decision-4'], 'every text target has a Note button');
+    ['why-1', 'why-2', 'decision-1', 'decision-2', 'decision-3', 'decision-4'], 'every text target but an item\'s words has a Note button');
+  assert.deepEqual(items.map(li => [...li.querySelectorAll(':scope > .verdict button')].map(b => b.textContent)), [['OK', 'Note'], ['OK', 'Note'], ['OK', 'Note']],
+    'each card ends with OK and Note');
   const art = items[1].querySelector('pre.art');
   assert.equal(art.textContent, 'a ─→ b\n\nc ─→ d');
   const view = art.closest('.view');
   assert.equal(view.parentElement, items[1], 'the drawing sits in the item\'s view, beside its words');
-  assert.deepEqual([...view.querySelectorAll('.tab')].map(tab => tab.firstChild.textContent), ['Drawing'], 'the drawing shows at the start, in its own tab');
+  assert.deepEqual([...view.querySelectorAll('.part figcaption')].map(cap => cap.firstChild.textContent), ['Drawing'], 'the drawing is one labelled part');
+  assert.equal(view.querySelector('.tab, .view-tools'), null, 'a view has no tabs and no tools row');
   assert.equal(items[0].querySelector('.view'), null, 'an item with no drawing has no view');
   assert.equal(art.querySelector('.add'), null, 'drawing lines get no Note button');
   assert.deepEqual([...art.querySelectorAll('[data-note]')].map(n => n.dataset.note), ['item-2-line-1', 'item-2-line-3']);
@@ -798,7 +801,7 @@ test('in the inbox a review page offers its own buttons, an OK per card, and sen
   assert.deepEqual(shown(document), ['Approve', 'Launch']);
   document.querySelector('#item-1 [data-ok]').click();
   assert.equal(document.querySelector('#item-1 .verdict .tag').hidden, false);
-  assert.equal(document.querySelector('#item-1 .verdict [data-open]').hidden, true, 'an OK card hides Change');
+  assert.equal(document.querySelector('#item-1 .verdict [data-open]').hidden, true, 'an OK card hides Note');
   assert.equal(document.querySelector('#item-1 [data-ok]').textContent, 'Undo');
   document.querySelector('#item-2 [data-ok]').click();
   document.querySelector('#item-2 [data-ok]').click();

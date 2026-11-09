@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Simpler review cards: the words set the picture's height
+
+- **A card shows all its pictures side by side, with no tabs.** On a computer, the pictures are as tall as the card's words: at least 420 px and at most the window. Each one shrinks whole to fit. A page or a live card shows its top, with a fade when there is more. All the words show, with no *More* ([the card view](wiki/review-pages.md#the-card-view)).
+- **A click opens a picture full screen.** The labels sit on top, and *Close* sits alone at the right. Tap a label, swipe, or use the arrow keys to see the next. *Phone* / *Computer*, for a page or a live card only, and *Try it* move to a bar at the bottom. A tap on the background no longer closes it.
+- **On a phone, a card shows its words, then a row of small pictures.** A tap opens one full screen. Long words fold, with *More* at the end of the words.
+- **A card has *OK* and *Note*.** *Change* and the *+ Note* in the card's words go, because both opened the same note ([OK and Note](wiki/review-pages.md#ok-and-note)).
+- **A spot note works on every picture, drawing, ad, and page**, placed full screen. Its pin shows on the card's picture too. An older spot note can show as possibly moved.
+- **A live card is one of the pictures**, such as ```` ```live After ````, and opens full screen to use. The *Before and after*, *All*, and *Full screen* buttons go.
+- **The red line *Review script error: ResizeObserver loop…* goes away.** It was a harmless browser notice.
+
+**Updating.** Nothing to do. Rebuild an open plan's page to see it.
+
 ## 51.6.0 — Review pages show the real screen first, in tabs
 
 - **A card shows the picture first.** On a computer, the picture is big on the right and the short words sit on the left. On a phone, the picture comes first. Tabs above the picture switch between *Before*, *After*, and each state; *Before and after* puts two side by side. The *After* picture shows first. Long words fold behind *More* ([the card view](wiki/review-pages.md#the-card-view)).
