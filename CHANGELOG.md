@@ -3,6 +3,11 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 51.7.1 — The UX guide matches the new review cards
+
+- **The UX guide no longer names tabs on a build's preview page.** *Live now* and *Preview* sit side by side, and a spot note is placed full screen ([UX principles](wiki/ux-principles.md#principles)).
+- **New principle: *Close* stands alone.** In a full-screen view or a pop-up, the other controls sit away from *Close*.
+
 ## 51.7.0 — Simpler review cards: the words set the picture's height
 
 - **A card shows all its pictures side by side, with no tabs.** On a computer, the pictures are as tall as the card's words: at least 420 px and at most the window. Each one shrinks whole to fit. A page or a live card shows its top, with a fade when there is more. All the words show, with no *More* ([the card view](wiki/review-pages.md#the-card-view)).
