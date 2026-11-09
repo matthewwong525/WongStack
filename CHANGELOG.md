@@ -15,6 +15,10 @@
 
 **Updating.** Nothing to do. Rebuild an open plan's page to see it.
 
+## 51.6.1 — A browser check uses its own profile
+
+- **A check run with `agent-browser` uses a profile of its own.** The shared one stops Chrome when another chat holds it ([browsing](wiki/development/browsing.md#saved-browser-logins)).
+
 ## 51.6.0 — Review pages show the real screen first, in tabs
 
 - **A card shows the picture first.** On a computer, the picture is big on the right and the short words sit on the left. On a phone, the picture comes first. Tabs above the picture switch between *Before*, *After*, and each state; *Before and after* puts two side by side. The *After* picture shows first. Long words fold behind *More* ([the card view](wiki/review-pages.md#the-card-view)).
