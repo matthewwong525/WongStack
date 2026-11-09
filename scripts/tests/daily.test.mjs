@@ -6,12 +6,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readOutput, runAddons, runNode } from '../../.agents/skills/daily/scripts/addons.mjs';
-import { ChatListError, chatCalls, chatClient } from '../../.agents/skills/daily/scripts/chats.mjs';
+import { ChatListError, chatCalls, chatClient, checkSignIn } from '../../.agents/skills/daily/scripts/chats.mjs';
 import { SettingsError, defaultSettings, loadSettings, morningOf, placePath, settingsFor, validateConfig, validateTeam }
   from '../../.agents/skills/daily/scripts/config.mjs';
 import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
-import { REMIND, checkinsOff, commandSettings, commands, defaultsDone, defaultsFailed, defaultsFile, defaultsStamp, ensure, firstMessage, holds, ignoreTasks, launcherArgs, markHook, offFile, personSettings, readArgs,
-  start, startDefaults, startMoveIn, startReport, startServe, startedRecord, stateDirectory, stateOf, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
+import { COMPANY_LOGIN, REMIND, checkinsOff, commandSettings, commands, defaultsDone, defaultsFailed, defaultsFile, defaultsStamp, ensure, firstMessage, holds, ignoreTasks, launcherArgs, markHook, offFile, personSettings, readArgs,
+  start, startDefaults, startMoveIn, startReport, startServe, startedRecord, stateDirectory, stateOf, who, withApp, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { codeStamp } from '../../.agents/skills/daily/scripts/worker.mjs';
 
@@ -100,6 +100,39 @@ test('who names the settings, the team file and the guide; with no app it uses t
   assert.equal(who({ repo: root, ctx: { author: 'x@example.com' }, origin: null }).file, null);
   writeFileSync(join(root, '.agents/daily/sam.json'), '{"version":1}');
   assert.match(who({ repo: root, ctx: {}, origin: null, config: join(root, '.agents/daily/sam.json') }).error, /Invalid daily settings/);
+});
+
+test('the sign-in check reads the chat list once: ok, refused (a redirect, 401, 403 or another person), missing or unreachable', async () => {
+  const seen = [];
+  const answering = answer => ({ http: async (path, init) => { seen.push([path, init.method]); if (answer instanceof Error) throw answer; return { value: {}, status: answer }; },
+    target: () => 'https://app.example.com' });
+  const checked = answer => checkSignIn(Promise.resolve(answering(answer)));
+  assert.equal(await chatCalls(Promise.resolve(answering(200))).check(), 'ok');
+  assert.deepEqual(seen[0], ['/apps/inbox/api/chats', 'GET']);
+  for (const status of [302, 401, 403]) assert.equal(await checked(status), 'refused', status);
+  assert.equal(await checked(500), 'unreachable');
+  assert.equal(await checked(new Error('Company redirect refused; use company login.')), 'refused');
+  assert.equal(await checked(new Error('Company session expired or access was denied; use the employee’s own login.')), 'refused');
+  assert.equal(await checked(new Error('The signed-in person changed; use a separate private company connection')), 'refused');
+  assert.equal(await checked(new Error('Employee session is absent or expired; use company login.')), 'missing');
+  assert.equal(await checked(new Error('Company sign-in did not complete (failed to acquire lock). Approve it…')), 'missing');
+  assert.equal(await checkSignIn(Promise.resolve(null)), 'missing');
+  assert.equal(await checked(new Error('Company discovery is unreachable; no business action was called.')), 'unreachable');
+});
+
+test('who asks the app: a valid date the app refuses gives the company login; an accepted one gives none', async () => {
+  const root = repo({ config: settings() });
+  const me = who({ repo: root, ctx: { author: 'alex@example.com' }, origin: 'https://app.example.com', signedIn: () => ({ state: 'valid', email: 'alex@example.com', days: 25 }) });
+  assert.equal(me.login, null);
+  const refused = await withApp(me, { check: async () => 'refused' });
+  assert.deepEqual([refused.state, refused.app, refused.login], ['valid', 'refused', COMPANY_LOGIN]);
+  assert.deepEqual([(await withApp(me, { check: async () => 'missing' })).login], [COMPANY_LOGIN]);
+  const ok = await withApp(me, { check: async () => 'ok' });
+  assert.deepEqual([ok.app, ok.login], ['ok', null]);
+  const unreachable = await withApp(me, { check: async () => 'unreachable' });
+  assert.deepEqual([unreachable.app, unreachable.login], ['unreachable', null]);
+  const git = who({ repo: root, ctx: { author: 'alex@example.com' }, origin: null });
+  assert.equal(await withApp(git, { check: async () => assert.fail('no app, no read') }), git);
 });
 
 test('a job list beside the one settings file is no settings file: who still finds the person by email', () => {

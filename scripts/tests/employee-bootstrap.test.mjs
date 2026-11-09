@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync, statSync, 
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
-import { companyClient, cleanEnvironment, connectionState, git, installState, signInNotice } from '../employee-bootstrap.mjs';
+import { cloudflared, companyClient, cleanEnvironment, connectionState, git, installState, signInNotice } from '../employee-bootstrap.mjs';
 const origin = 'https://business.example.com';
 const identity = { email: 'employee@example.com', subject: 'employee-subject' };
 const jwt = (extra = {}) => `eyJhbGciOiJSUzI1NiJ9.${Buffer.from(JSON.stringify({ email: identity.email, sub: identity.subject, exp: Date.now() / 1000 + 1000, ...extra })).toString('base64url')}.c2ln`;
@@ -300,4 +300,39 @@ test('a socket opens only to the app\'s own paths, over wss, signed as the perso
   const socket = await client.socket('/apps/inbox/api/line?computer=0123456789abcdef0123456789abcdef', open);
   assert.equal(socket.url, 'wss://business.example.com/apps/inbox/api/line?computer=0123456789abcdef0123456789abcdef');
   assert.equal(opened[0].init.headers['cf-access-token'], token);
+});
+
+/** A fake `cloudflared` first on PATH that runs `script`; cleanEnvironment keeps PATH, so the child finds it. */
+function fakeTool(t, script) {
+  const bin = mkdtempSync(join(tmpdir(), 'fake-cloudflared-')), path = process.env.PATH;
+  t.after(() => { process.env.PATH = path; rmSync(bin, { recursive: true, force: true }); });
+  writeFileSync(join(bin, 'cloudflared'), `#!/bin/sh\n${script}\n`); chmodSync(join(bin, 'cloudflared'), 0o755);
+  process.env.PATH = `${bin}:${path}`;
+}
+const deadPid = () => spawnSync('true').pid;
+test('a login drops locks whose process ended, and keeps a live lock and one that is not JSON; a token read keeps all', async t => {
+  fakeTool(t, 'exit 0');
+  const { cacheDir } = directories(t); mkdirSync(cacheDir);
+  const lock = name => join(cacheDir, `${name}.lock`), present = name => { try { statSync(lock(name)); return true; } catch { return false; } };
+  writeFileSync(lock('dead'), JSON.stringify({ pid: deadPid(), start_time: 1, id: 'a' }));
+  writeFileSync(lock('live'), JSON.stringify({ pid: process.pid, start_time: 1, id: 'b' }));
+  writeFileSync(lock('odd'), 'not json');
+  await cloudflared(['token', `-app=${origin}`], { cacheDir });
+  assert.equal(present('dead'), true);
+  await cloudflared(['login', origin], { cacheDir });
+  assert.deepEqual(['dead', 'live', 'odd'].map(present), [false, true, true]);
+});
+test("a failed sign-in names the tool's own reason, and never a token", async t => {
+  fakeTool(t, `echo "Please open ${origin}/cdn-cgi/access/cli" >&2; echo "failed to acquire lock" >&2; exit 1`);
+  await assert.rejects(cloudflared(['login', origin]), error => error.message.startsWith('Company sign-in did not complete (failed to acquire lock). Approve it'));
+  fakeTool(t, `echo "bad token ${jwt()}" >&2; exit 1`);
+  await assert.rejects(cloudflared(['token', `-app=${origin}`]), error => !error.message.includes(jwt().split('.')[0] + '.') && /\(bad token \[token\]\)/.test(error.message));
+});
+
+test('a company login passes its cache folder to the sign-in step', async t => {
+  const f = directories(t), calls = [];
+  const run = async (args, options) => { calls.push({ args, options }); return jwt(); };
+  const client = companyClient({ ...f, run, request: async () => Response.json(setup()) });
+  await client.login(origin);
+  assert.equal(calls.find(call => call.args[0] === 'login').options.cacheDir, f.cacheDir);
 });

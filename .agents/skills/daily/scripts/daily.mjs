@@ -61,6 +61,15 @@ export function who({ repo = REPO, ctx = repoContext(repo), origin = appOrigin(c
     ...(error ? { error } : {}) };
 }
 
+export const COMPANY_LOGIN = 'node scripts/company-api.mjs login';
+/** `who` plus `app`, what the app says of the chat list's sign-in; on `refused` or `missing`, `login` is the company
+ *  sign-in. Only the `who` command waits on this read: every other command calls `who()`. */
+export async function withApp(me, chats) {
+  if (!me.origin) return me;
+  const app = await chats.check();
+  return { ...me, app, login: ['refused', 'missing'].includes(app) ? COMPANY_LOGIN : me.login };
+}
+
 /** `{me, config}`: the person's settings file, else the defaults from the sign-in email while it is good, else the git
  * email; `config` is null with neither. */
 export function personSettings({ repo = REPO, ctx = repoContext(repo), ...rest } = {}) {
@@ -544,7 +553,9 @@ async function main(args = process.argv.slice(2)) {
     console.log(JSON.stringify(result)); return;
   }
   const found = personSettings({ config: values.config });
-  if (command === 'who') { console.log(JSON.stringify(found.me, null, 2)); return; }
+  if (command === 'who') {
+    console.log(JSON.stringify(await withApp(found.me, chatCalls(chatClient(primaryRoot(REPO).primary))), null, 2)); return;
+  }
   const config = commandSettings(command, found);
   const project = primaryRoot(REPO).primary;
   const stateDir = stateDirectory(project, config.person);

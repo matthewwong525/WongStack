@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The chat list's sign-in check asks the app
+
+- **The check asks the app, not only the date.** The first step of a *Needs you: the chat list* chat, `daily.mjs who`, now reads the chat list once with the same sign-in the worker uses. It adds `app`: `ok`, `refused`, `missing` or `unreachable`. On `refused` or `missing`, its `login` is `node scripts/company-api.mjs login`. Before, it read only the date in the sign-in, so a sign-in the app refused, with days left, looked good ([your chat list](wiki/development/daily.md#your-chat-list)).
+- **A missed sign-in link no longer blocks the next one.** A sign-in link that timed out left a lock behind, and the next `login` then failed at once. Now `login` first removes each lock whose process has ended. A lock of a sign-in that still waits for a person stays.
+- **A failed sign-in says why.** *Company sign-in did not complete* now adds the sign-in tool's own last line, such as *failed to acquire lock*, never a token.
+
+**Updating.** Nothing to do. The background worker uses the new steps after its next restart.
+
 ## 51.6.1 — A browser check uses its own profile
 
 - **A check run with `agent-browser` uses a profile of its own.** The shared one stops Chrome when another chat holds it ([browsing](wiki/development/browsing.md#saved-browser-logins)).
