@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 51.7.2 — The plan's link is one tap, with a pointing hand
+
+- **The whole link line opens the page.** A plan, preview, or review link now prints as *👉 Tap here to see the plan*, one link, not *Click here to see the plan:* followed by a small *review.html* link ([print the plan's link](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)).
+- **A question that leaves out the link is still sent back.** The check reads the new line.
+
+**Updating.** Nothing to do.
+
 ## 51.7.1 — The UX guide matches the new review cards
 
 - **The UX guide no longer names tabs on a build's preview page.** *Live now* and *Preview* sit side by side, and a spot note is placed full screen ([UX principles](wiki/ux-principles.md#principles)).

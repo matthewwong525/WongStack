@@ -9,7 +9,7 @@ import { endsWithChoices, LINKS_REASON, linksDecision, readTurn, REASON, REMINDE
 const cli = new URL('../../.agents/skills/explore/scripts/ask-check.mjs', import.meta.url).pathname;
 
 // Invented replies in the shapes the backtest found: typed choices, and endings that are not choices.
-const REPORT = 'The preview is up and the sign-up page works.\n\nClick here to see the preview: https://example.invalid/apps/demo/';
+const REPORT = 'The preview is up and the sign-up page works.\n\n[👉 Tap here to see the preview](https://example.invalid/apps/demo/)';
 const SLIPS = {
   'a list after What next?': `${REPORT}\n\n**What next?**\n\n1. Publish it (Recommended)\n2. Change it more\n3. Save for later`,
   'a list after Next step:': `${REPORT}\n\n## Next step\n\n- Publish it *(Recommended)*: it goes live\n- Close this workspace`,
@@ -135,14 +135,14 @@ const ask = (...questions) => ({ type: 'tool_use', id: 'toolu_2', name: 'AskUser
 const printed = (content, id = 'toolu_1') => ({ type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: id, content }] } });
 const asking = (file, ...questions) => ({ tool_name: 'AskUserQuestion', transcript_path: file, tool_input: { questions: questions.map(question => ({ question, options: [] })) } });
 
-test('turnLinks reads chat addresses and Click here lines from the turn, not before it', () => {
+test('turnLinks reads chat addresses and Tap here lines from the turn, not before it', () => {
   const rows = [
     human('first'), said(text('Old: https://old.example.invalid/x')),
     human('plan it'),
-    said(text(`Click here to see the plan: [review.html](${PLAN}).`), tool('Bash')),
-    printed(`Built.\nClick here to see the plan: [review.html](<${FILE.replace('demo', 'my demo')}>)\n\nReview the plan.`),
-    printed([{ type: 'text', text: 'Click here to see the preview: https://preview.example.invalid/settings' }]),
-    printed('Line 63: print *Click here to see the plan:* and the link as [one chat line](#end-every-reply-with-the-next-step)'),
+    said(text(`[👉 Tap here to see the plan](${PLAN}).`), tool('Bash')),
+    printed(`Built.\n[👉 Tap here to see the plan](<${FILE.replace('demo', 'my demo')}>)\n\nReview the plan.`),
+    printed([{ type: 'text', text: '[👉 Tap here to see the preview](https://preview.example.invalid/settings)' }]),
+    printed('Line 63: print *👉 Tap here to see the plan* and the link as [one chat line](#end-every-reply-with-the-next-step)'),
     said(text('See **https://pr.example.invalid/pull/9**, and (https://docs.example.invalid/a_b).')),
   ];
   assert.deepEqual(turnLinks(rows), {
@@ -152,7 +152,7 @@ test('turnLinks reads chat addresses and Click here lines from the turn, not bef
 });
 
 test('turnLinks skips an indented example line and reads a Markdown link whose text is its address', () => {
-  const rows = [human('plan it'), printed('1. The link shows.\n\n   Click here to see the plan: https://sample.example.invalid/r/x'), said(text(`Opened [${PLAN}](${PLAN}).`))];
+  const rows = [human('plan it'), printed('1. The link shows.\n\n   [👉 Tap here to see the plan](https://sample.example.invalid/r/x)'), said(text(`Opened [${PLAN}](${PLAN}).`))];
   assert.deepEqual(turnLinks(rows), { links: [PLAN], sentBack: false });
 });
 
@@ -170,21 +170,21 @@ function links(input, env = {}) {
 }
 
 test('links sends back a question that leaves out a turn link, naming it', t => {
-  const file = transcript(t, [human('plan it'), said(text(`The plan is ready.\n\nClick here to see the plan: ${PLAN}`), ask('Build it now?'))]);
+  const file = transcript(t, [human('plan it'), said(text(`The plan is ready.\n\n[👉 Tap here to see the plan](${PLAN})`), ask('Build it now?'))]);
   assert.deepEqual(JSON.parse(links(asking(file, 'Build it now?'))), {
     hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: `${LINKS_REASON}\n${PLAN}` },
   });
 });
 
-test('links counts a Click here line a tool printed', t => {
-  const file = transcript(t, [human('plan it'), said(tool('Bash')), printed(`Click here to see the plan: [review.html](${FILE})\n\nReview the plan.`), said(ask('Build it?'))]);
+test('links counts a Tap here line a tool printed', t => {
+  const file = transcript(t, [human('plan it'), said(tool('Bash')), printed(`[👉 Tap here to see the plan](${FILE})\n\nReview the plan.`), said(ask('Build it?'))]);
   const decision = linksDecision(asking(file, 'Build it?'), {});
   assert.equal(decision.hookSpecificOutput.permissionDecisionReason, `${LINKS_REASON}\n${FILE}`);
   assert.equal(linksDecision(asking(file, `Look over the plan, then choose:\n${FILE}`), {}), null);
 });
 
 test('links lets the question go out', async t => {
-  const shown = [human('plan it'), said(text(`Click here to see the plan: ${PLAN}\nAnd https://pr.example.invalid/pull/9`))];
+  const shown = [human('plan it'), said(text(`[👉 Tap here to see the plan](${PLAN})\nAnd https://pr.example.invalid/pull/9`))];
   const cases = {
     'a question holding every link': [asking(transcript(t, shown), `Look over the plan: ${PLAN}`, 'Publish https://pr.example.invalid/pull/9?')],
     'a turn with no link': [asking(transcript(t, [human('go'), said(text('Done.'))]), 'Publish it?')],

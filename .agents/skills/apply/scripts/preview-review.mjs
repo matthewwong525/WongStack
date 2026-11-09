@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
-import { buildReview, previewActions, previewNotesHeader } from '../../plan/scripts/build-review.mjs';
+import { buildReview, planLink, previewActions, previewNotesHeader } from '../../plan/scripts/build-review.mjs';
 
 const USAGE = `usage: preview-review.mjs <change-name> [--approved "<title>|<approved picture>|<built picture>"]...
          [--pair "<title>|<live picture>|<preview picture>"]... [--note <line>]... [--link]
@@ -72,7 +72,6 @@ if (isMain(import.meta.url)) {
       const { openReplyLink } = await import('../../hand-over/scripts/reply-link.mjs');
       link = (await openReplyLink({ file: page, header: previewNotesHeader(change), actions: previewActions(change) })) ?? page;
     }
-    // A path with a space or parenthesis goes in <…> so the Markdown link still parses.
-    console.log(`Click here to see the preview: [review.html](${/[\s()]/.test(link) ? `<${link}>` : link})\n\n${link === page ? PREVIEW_IN_CHAT : PREVIEW_ON_PAGE}`);
+    console.log(`${planLink(link, 'the preview')}\n\n${link === page ? PREVIEW_IN_CHAT : PREVIEW_ON_PAGE}`);
   } catch (error) { console.error(`preview: ${error.message}`); process.exitCode = 1; }
 }
