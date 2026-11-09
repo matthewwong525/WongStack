@@ -1,6 +1,7 @@
 # Simpler review cards: the words set the picture's height
 
-**Status:** planned
+**Status:** ready-to-ship
+**Branch:** lean-rat
 **Open questions:** none
 
 ## Why
@@ -102,3 +103,4 @@ Non-goals: no zoom inside the card (full screen does that), and no app screen ru
 - **2026-11-09** — Assumed: when one card has two `Try it:` lines, in two picture fences, the card keeps the first and the build warns about the second, because a stop would break a plan that builds today.
 - **2026-11-09** — Assumed: the `pictures: Top | a.png, b.png` example stays out of the drawings guide, because the guide is at its word limit, and the wiki page its `form` line links to still shows it.
 - **2026-11-09** — Assumed: a click on a picture shows the whole picture full screen, where + zooms it, not the picture at full size, because full screen fits it first.
+- **2026-11-09** — Archive checkpoint: built, reviewed twice (4 findings fixed or logged), archived, and saved from `lean-rat` for /ship as 51.7.0.
