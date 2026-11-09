@@ -5,19 +5,8 @@ Keeps WongStack from filling the machine's memory: it closes finished workspaces
 
 ## Requirements
 
-### Requirement: Session start tidies up in the background
-Each session start SHALL begin a background tidy-up, at most once every 6 hours per repo, and SHALL never wait for it. The tidy-up SHALL archive this repo's Paseo workspaces whose chats have all been idle 3 or more days and whose work is saved (clean tree, and every commit on the remote or its pull request merged at that commit), stop this user's processes whose working folder is a deleted worktree of this repo, delete `wong-` temp folders untouched for more than a day, and delete files in the primary checkout's scratch folder untouched for more than a day. It SHALL skip the current session's workspace, the primary checkout, and anything with unsaved work.
-
-#### Scenario: An idle, saved workspace is closed
-- **WHEN** a session starts and another workspace of this repo has been idle 4 days with its branch pushed and a clean tree
-- **THEN** the tidy-up archives that workspace and its chat
-
-#### Scenario: Unsaved work is left alone
-- **WHEN** an idle 5-day workspace has a commit that is on no remote
-- **THEN** the tidy-up leaves it open and records it as skipped for unsaved work
-
 ### Requirement: The tidy-up touches only WongStack's own leftovers
-The tidy-up SHALL NOT delete a temp entry whose name does not start with `wong-`, SHALL NOT archive a workspace of another repo, and SHALL NOT signal a process whose working folder still exists.
+The tidy-up SHALL NOT delete a temp entry whose name does not start with `wong-`, SHALL NOT archive any workspace, and SHALL NOT signal a process whose working folder still exists.
 
 #### Scenario: Another project's temp files
 - **WHEN** the temp folder holds a week-old `tsx-0` folder and a week-old `wong-memory-repo-x1` folder
@@ -28,10 +17,10 @@ The tidy-up SHALL NOT delete a temp entry whose name does not start with `wong-`
 - **THEN** only the first is stopped
 
 ### Requirement: The next session reports what the tidy-up did
-The next session start SHALL print one line naming what the last tidy-up closed, stopped, freed, and left open with the reason, then SHALL NOT print it again. A tidy-up that did nothing SHALL print nothing.
+The next session start SHALL print one line naming what the last tidy-up and the last `/close` in this repo closed, stopped, freed, and left open with the reason, then SHALL NOT print it again. When nothing was done, it SHALL print nothing.
 
 #### Scenario: One report, once
-- **WHEN** the last tidy-up closed 2 workspaces and skipped one with unsaved work
+- **WHEN** a `/close` closed 1 workspace and the last tidy-up stopped 1 leftover server
 - **THEN** the next session start prints one line naming both, and the session after prints no such line
 
 ### Requirement: Scratch files live in a git-ignored folder in the checkout
@@ -53,8 +42,8 @@ Agents SHALL put throwaway files in a `.scratch/` folder at the checkout's root,
 - **THEN** the chat's facts are recorded, the reply ends, and the chat and workspace are archived
 
 #### Scenario: Close after a publish
-- **WHEN** `/ship` merged from a Paseo worktree and no asked-for work waits
-- **THEN** `/ship` runs `/close`, the reply ends, the chat and workspace are archived, their leftover processes stop, and the merged branch is deleted locally
+- **WHEN** `/ship` merged from a Paseo worktree, no asked-for work waits, and the person says yes to *Close this chat?*
+- **THEN** `/close` runs, the reply ends, the chat and workspace are archived, their leftover processes stop, and the merged branch is deleted locally
 
 - **WHEN** the person declined to publish a wiki note, then runs `/close`
 - **THEN** the note is saved to its branch with an open pull request, not published, and `/close` writes no wiki edit of its own
@@ -110,21 +99,6 @@ In the primary checkout, or in a chat that is not a Paseo agent, `/close` SHALL 
 - **WHEN** the person runs `/close` in the primary checkout after an errand
 - **THEN** facts are recorded and any wiki edit is published, and the reply says the main checkout does not close
 
-### Requirement: A finished task closes its workspace
-In a Paseo worktree, when the chat's task is done, the agent SHALL run `/close` without a closing question. Done means the change went live, or the non-code work is done and reported, with no asked-for work, question, blocker or plan review left. When a routine or app offer applies, the agent SHALL ask it first and run `/close` after the answer, whatever it is. The agent SHALL NOT close at a plan's review, during a build, on a blocker, a failed check, a declined publish, or a question to the person.
-
-#### Scenario: Research ends
-- **WHEN** an agent in a Paseo worktree finishes a research answer and offers nothing
-- **THEN** it runs `/close` with no question
-
-#### Scenario: A plan waits
-- **WHEN** `/plan` finishes and waits at the review link
-- **THEN** the agent does not close the workspace
-
-#### Scenario: An offer comes first
-- **WHEN** a finished task will clearly come back and a routine offer applies
-- **THEN** the offer is the closing question, and `/close` runs after the person answers
-
 ### Requirement: A new task opens a new workspace
 When the person asks a chat in a Paseo worktree for a task that is not that chat's task, and not a quick question about it, the agent SHALL open a new workspace with a brief for it, say `Opened: <title>`, and do nothing of it in this chat. The agent SHALL keep the task here when the person says to do it here, when Paseo is missing, or when nobody can answer. Daily, its helper chats and routine chats SHALL keep their own rules.
 
@@ -139,3 +113,29 @@ When the person asks a chat in a Paseo worktree for a task that is not that chat
 #### Scenario: Do it here
 - **WHEN** the person says to do the new task here
 - **THEN** the agent does it in this chat
+
+### Requirement: Session start cleans up leftovers in the background
+Each session start SHALL begin a background tidy-up, at most once every 6 hours per repo, and SHALL never wait for it. The tidy-up SHALL stop this user's processes whose working folder is a deleted worktree of this repo, delete `wong-` temp folders untouched for more than a day, and delete files in the primary checkout's scratch folder untouched for more than a day. It SHALL NOT close or archive any workspace or chat, however long it has been idle.
+
+#### Scenario: An idle, saved workspace stays open
+- **WHEN** a session starts and another workspace of this repo has been idle 4 days with its branch pushed and a clean tree
+- **THEN** the tidy-up leaves that workspace and its chat open
+
+#### Scenario: Old temp files still go
+- **WHEN** a session starts and the temp folder holds a week-old `wong-memory-repo-x1` folder
+- **THEN** the tidy-up deletes it
+
+### Requirement: A finished task asks before it closes its workspace
+In a Paseo worktree, when the chat's task is done, the agent SHALL ask *Close this chat?* and SHALL run `/close` only when the person says yes. Done means the change went live, or the non-code work is done and reported, with no asked-for work, question, blocker or plan review left. When a routine or app offer applies, it SHALL be one more answer in the same question. The agent SHALL NOT ask to close at a plan's review, during a build, on a blocker, a failed check, a declined publish, or another question to the person. An unattended run SHALL keep its own rule for closing itself.
+
+#### Scenario: Research ends
+- **WHEN** an agent in a Paseo worktree finishes a research answer
+- **THEN** it asks *Close this chat?*, runs `/close` on a yes, and leaves the chat open on a no
+
+#### Scenario: A plan waits
+- **WHEN** `/plan` finishes and waits at the review link
+- **THEN** the agent does not ask to close and does not close the workspace
+
+#### Scenario: An offer comes first
+- **WHEN** a finished task will clearly come back and a routine offer applies
+- **THEN** the closing question holds both the offer and closing, and the chat closes only when the person picks closing

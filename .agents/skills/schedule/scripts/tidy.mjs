@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Puts away what WongStack leaves behind, touching nothing it did not make: every destructive step checks ownership
-// first. USAGE below lists the commands; the sweep never fails for Paseo, it skips that part and tidies the rest.
+// first. USAGE below lists the commands; the sweep closes no chat, it only cleans leftovers.
 
 import { execFileSync, spawn } from 'node:child_process';
 import {
@@ -22,7 +22,6 @@ const COMMANDS = ['scratch', 'close', 'sweep', 'close-child'];
 
 const HOUR = 3600 * 1000;
 const DAY = 24 * HOUR;
-export const IDLE_MS = 3 * DAY;
 export const OLD_MS = DAY;
 export const SWEEP_EVERY_MS = 6 * HOUR;
 const LOCK_STALE_MS = HOUR;
@@ -58,15 +57,6 @@ export function savedState({ porcelain, unpushed, merged = false }) {
 /** `gh pr view`'s answer shows the pull request merged at exactly this commit. */
 export function mergedAtTip(pr, tip) {
   return pr?.state === 'MERGED' && Boolean(tip) && pr.headRefOid === tip;
-}
-
-// Idle: no agent is running, and the newest activity is IDLE_MS old. Agents are { status, updatedAt }; a workspace
-// with no agents uses `fallbackMs`. An unreadable time is never idle.
-export function isIdle(agents, now, { fallbackMs } = {}) {
-  if (agents.some(agent => BUSY.has(agent.status))) return false;
-  const times = agents.length ? agents.map(agent => Date.parse(agent.updatedAt)) : [fallbackMs];
-  if (times.some(time => !Number.isFinite(time))) return false;
-  return now - Math.max(...times) >= IDLE_MS;
 }
 
 // The pids to stop: this user's processes, not this one, whose working folder was deleted, lies under one of
@@ -282,12 +272,6 @@ async function listWorkspaces(bin) {
   return checkList(await paseo(bin, ['workspace', 'ls']), 'workspace ls', ['workspaceId', 'cwd']);
 }
 
-async function listAgents(bin) {
-  const home = homedir();
-  return checkList(await paseo(bin, ['ls', '-g']), 'ls', ['id', 'status', 'cwd'])
-    .map(agent => ({ id: agent.id, status: agent.status, cwd: realpath(agent.cwd.replace(/^~(?=\/|$)/, home)) }));
-}
-
 function scratch({ dryRun }) {
   const root = tryGit(process.cwd(), 'rev-parse', '--show-toplevel');
   if (!root) throw new PaseoError(EXIT.input, 'Not inside a git checkout.');
@@ -399,53 +383,6 @@ async function closeChild(env) {
   return { ok: true, ...report };
 }
 
-/** Archives this repo's idle, saved workspaces; returns the archived worktree paths. */
-async function sweepWorkspaces(repo, env, { now, dryRun, report, notes }) {
-  const archived = [];
-  let bin;
-  try { bin = findPaseo(env, 'TIDY_PASEO_BIN'); } catch { notes.push('Paseo is not installed: no workspaces checked.'); return archived; }
-  let workspaces, agents;
-  try {
-    [workspaces, agents] = [await listWorkspaces(bin), await listAgents(bin)];
-  } catch (error) {
-    notes.push(`Skipped the workspaces: ${error.message}`);
-    if (error.code === EXIT.client) report.notes.push("skipped closing idle workspaces: Paseo's output has changed");
-    return archived;
-  }
-  const current = agents.find(agent => agent.id === env.PASEO_AGENT_ID)?.cwd;
-  const skip = [realpath(repo.root), current].filter(Boolean);
-  for (const ws of workspaces) {
-    const dir = realpath(ws.cwd);
-    if (ws.isolation !== 'worktree' || !existsSync(dir) || skip.some(file => inside(dir, file))) continue;
-    const [gitDir, wsCommonDir] = (tryGit(dir, 'rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir') ?? '').split('\n');
-    if (!ownWorkspace({ ...ws, cwd: dir }, { commonDir: repo.commonDir, wsCommonDir, primary: realpath(repo.primary) })) continue;
-    const mine = [];
-    for (const agent of agents.filter(item => inside(dir, item.cwd))) {
-      let updatedAt = null;
-      if (!BUSY.has(agent.status)) {
-        try { updatedAt = (await paseo(bin, ['inspect', agent.id]))?.UpdatedAt ?? null; } catch { /* not idle */ }
-      }
-      mine.push({ status: agent.status, updatedAt });
-    }
-    let fallbackMs;
-    try { fallbackMs = statSync(path.join(gitDir, 'HEAD')).mtimeMs; } catch { /* never idle */ }
-    if (!isIdle(mine, now, { fallbackMs })) continue;
-    const name = ws.name || path.basename(dir);
-    const state = worktreeState(dir);
-    const merged = state.porcelain === '' && Boolean(state.unpushed) && mergedAtTip(pullRequest(dir, state.branch), state.tip);
-    const saved = savedState({ ...state, merged });
-    if (!saved.saved) { report.left.push({ name, reason: 'it has unsaved work' }); continue; }
-    try {
-      if (!dryRun) await paseo(bin, ['workspace', 'archive', ws.workspaceId]);
-      report.closed.push(name);
-      archived.push(dir);
-    } catch (error) {
-      report.left.push({ name, reason: `it could not be closed (${error.message})` });
-    }
-  }
-  return archived;
-}
-
 /** Deletes old `wong-*` entries in the temp folder. */
 function sweepTemp(dir, { now, dryRun, report }) {
   let names;
@@ -499,9 +436,8 @@ async function sweep({ dryRun, report: printReport }, env) {
     if (!dryRun) writeFileSync(stamp, `${new Date(now).toISOString()}\n`);
     const report = emptyReport();
     const notes = [];
-    const archived = await sweepWorkspaces(repo, env, { now, dryRun, report, notes });
     const trees = worktrees(repo, env);
-    const stopped = stopOrphans({ roots: [...trees.parents, ...archived], live: trees.live.filter(tree => !archived.includes(tree)), dryRun });
+    const stopped = stopOrphans({ roots: trees.parents, live: trees.live, dryRun });
     if (stopped === null) notes.push('No /proc here, so leftover processes were not checked.');
     else report.stopped += stopped;
     sweepTemp(tmpdir(), { now, dryRun, report });

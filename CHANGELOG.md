@@ -14,6 +14,14 @@
 
 **Updating.** Nothing to do. Rebuild an open plan's page to see the new layout.
 
+## 51.5.0 — Chats close only when you say yes
+
+- **A finished chat asks before it closes.** In Paseo, when a chat's work is done, it asks *Close this chat?*, with *Close it*, *Keep it open*, and an offer to make it a routine or an app when the task will come back. It closes only when you pick *Close it*. It never asks at a plan's review, during a build, or on a problem ([one task, one workspace](wiki/development/the-change-loop.md#one-task-one-workspace)).
+- **The tidy-up stops closing chats.** The background tidy-up at a chat's start no longer closes chats left alone for 3 days. It still deletes old temporary and scratch files, and stops servers left running from a closed chat's folder. Close a chat with *Close chat* in the Inbox, or ask *what's going on?* ([close finished chats](wiki/development/daily.md#close-finished-chats)).
+- **A schedule's chat shows in the Inbox only when it needs you.** While a schedule's chat works, the Inbox does not show it. When it stops and stays open, such as a run that failed, it shows under *Working*, marked *From a schedule*, about 2 minutes later. A run that closes itself never shows ([your chat list](wiki/development/daily.md#your-chat-list)).
+
+**Updating.** Nothing to do.
+
 ## 51.4.0 — A question that needs you to open a link shows the link
 
 - **The link is also inside the question.** When a chat asks you to open, read, or do something at a link, such as *review the plan* or *sign in on this page*, the question itself now shows the full link. The link also stays on its own line above the question, so you can click it there. The answer buttons still only name the link, such as *Review the plan* ([end every reply with the next step](.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step)).

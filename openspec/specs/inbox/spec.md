@@ -4,6 +4,7 @@
 One inbox in the live app that opens on the person's open chats, with the review pages that wait on them on top and past ones in an Archive, and where a plan's link still opens its page.
 
 ## Requirements
+
 ### Requirement: A plan opens inside the inbox without reaching the app
 
 A plan item SHALL show the same review page the plan's file holds, with its notes and its actions. The page SHALL run sealed from the app: it SHALL be unable to read the person's sign-in, call the app, or change anything but its own notes, the files the person sends with a tap, and the actions its item offers.
@@ -171,7 +172,7 @@ An archived review page SHALL open in the same view as a waiting one, showing th
 
 ### Requirement: The inbox opens on the person's chats
 
-The inbox SHALL open on a list of the signed-in person's open chats, one row each, with the chat's name, its current step and its folder, and only that person's chats. A chat with a review page waiting on the person SHALL sit on top under *Needs you*, and a tap SHALL open that page. A waiting review page whose chat the app does not know SHALL also show under *Needs you*, as its own row. A row SHALL leave the list when its chat closes, and SHALL show the step the chat is on now, not the step it had when it opened. The inbox SHALL show no days, dates, tasks or backlog. A plan item SHALL still open from its own link.
+The inbox SHALL open on a list of the signed-in person's open chats, one row each, with the chat's name, its current step and its folder, and only that person's chats. A chat with a review page waiting on the person SHALL sit on top under *Needs you*, and a tap SHALL open that page. A waiting review page whose chat the app does not know SHALL also show under *Needs you*, as its own row. A row SHALL leave the list when its chat closes, and SHALL show the step the chat is on now, not the step it had when it opened. A chat a schedule opened SHALL stay off the list while it runs, and SHALL show only once it has stopped and stayed open; a run that closes itself when it stops SHALL never show. Once the person writes in a schedule's chat, it SHALL show like any chat. The inbox SHALL show no days, dates, tasks or backlog. A plan item SHALL still open from its own link.
 
 #### Scenario: Opening the inbox
 
@@ -182,6 +183,21 @@ The inbox SHALL open on a list of the signed-in person's open chats, one row eac
 
 - **WHEN** a chat Jo sees under *Plan* moves to *Apply*
 - **THEN** its row shows *Apply* the next time the inbox reads the list, and no second row appears
+
+#### Scenario: A schedule's run needs Jo
+
+- **WHEN** Jo's News schedule opens a chat, works for 5 minutes, then fails and stays open
+- **THEN** the chat is not in Jo's list while it works, and shows under *Working*, marked as from a schedule, a few minutes after it stops
+
+#### Scenario: A schedule's run closes itself
+
+- **WHEN** Jo's News schedule opens a chat that finishes and closes itself
+- **THEN** that chat never shows in Jo's list
+
+#### Scenario: Jo writes in a schedule's chat
+
+- **WHEN** Jo's News schedule chat stops and stays open, and Jo replies in it and it starts to work again
+- **THEN** the chat stays in Jo's list while it works, marked as from a schedule
 
 ### Requirement: The person closes a chat from its row
 

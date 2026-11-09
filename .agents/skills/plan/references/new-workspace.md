@@ -104,4 +104,4 @@ Its title is the proposal's `#` heading, minus `'` and backticks, else the chang
 
 When `/ship` finishes, look for more asked-for work in this conversation, then with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread <the change's key terms>`. Name a part already open elsewhere; never open it twice.
 
-In a Paseo worktree, ask nothing: [open](#open-each-workspace) and [report](#report) each part with no workspace, then run [`/close`](../../close/SKILL.md). Elsewhere ask: the next part *(Recommended)*, a [`/verify`](../../verify/SKILL.md) walk, or stop.
+In a Paseo worktree, [open](#open-each-workspace) and [report](#report) each part with no workspace, then [ask *Close this chat?*](../../explore/references/asking-the-user.md#end-every-reply-with-the-next-step). Elsewhere ask: the next part *(Recommended)*, a [`/verify`](../../verify/SKILL.md) walk, or stop.

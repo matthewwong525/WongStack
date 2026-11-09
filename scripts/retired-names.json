@@ -193,5 +193,6 @@
   {"name": "start-task", "replacement": "a chat you open for the work, or a schedule", "why": "the week board left with inbox-shows-chats; the Inbox lists your chats"},
   {"name": "todo link", "replacement": "nothing: a plan's link reaches the Inbox through its review page", "why": "the week board left with inbox-shows-chats; the Inbox lists your chats"},
   {"name": "sources.tasks", "replacement": "`sources.chats`; the daily ignores an older `tasks` entry", "allow": [".agents/skills/daily/scripts/config.mjs", ".agents/skills/daily/scripts/daily.mjs"], "why": "the daily reads an older settings file's entry to say once, in the journal, that it is ignored"},
-  {"name": "Needs you: the week board", "replacement": "*Needs you: the chat list*", "why": "the week board left with inbox-shows-chats; the Inbox lists your chats"}
+  {"name": "Needs you: the week board", "replacement": "*Needs you: the chat list*", "why": "the week board left with inbox-shows-chats; the Inbox lists your chats"},
+  {"name": "sweepWorkspaces", "replacement": "nothing closes an idle chat; the tidy-up only cleans leftovers"}
 ]

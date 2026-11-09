@@ -35,7 +35,7 @@ Use the first callable tool:
 1. Codex **`request_user_input`**
 2. Claude **`AskUserQuestion`**; Claude Code's stop hook returns typed choices
 3. Another host's equivalent structured question tool
-4. **Numbered chat** with the same questions, options, recommendation, and custom-answer path; wait for the answer.
+4. **Numbered chat** with the same questions, options, recommendation, and custom-answer path, then wait.
 
 **Only where nobody can answer**, as in an unattended run, or [inside `/ship`](../../../../wiki/development/the-change-loop.md#inside-ship) for a pick it marks safe, take the recommended options, label each **assumed**, and continue. Otherwise **a question stays pending until answered**, however long it waits and whatever is preselected; meanwhile do only independent work.
 
@@ -51,14 +51,14 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 
 ## End every reply with the next step
 
-**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never only in your reasoning. **A question about a link repeats it whole in its question text**, as some hosts hide text above the card; an option may name a link, never hold it. Only a finished plan, ending on [its link and review line](#print-the-plans-link), the replies to *Review the plan* and *See the preview*, and finished work that closes end without a question.
+**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never only in your reasoning. **A question about a link repeats it whole in its question text**, as some hosts hide text above the card; an option may name a link, never hold it. Only a finished plan, ending on [its link and review line](#print-the-plans-link), and replies to *Review the plan* and *See the preview* end without a question.
 
 - Finished standalone `/explore`: *Plan it (Recommended)* / *Keep thinking* / *Stop*.
-- Blocked task: the supported ways to clear it, below the intact blocker report.
+- Blocked task: the ways to clear it, below the intact blocker report.
 - Report or audit: the one fix worth taking next.
 - Finished task that will clearly come back: one [routine or app offer](../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
 - Asked-for work left after a publish, outside Paseo: the next part *(Recommended)* ([next work](../../plan/references/new-workspace.md#next-work)).
-- Finished work in a Paseo worktree: no question but that offer; then run [`/close`](../../close/SKILL.md).
+- Finished work in a Paseo worktree: *Close this chat?*: *Close it (Recommended)*, any offer, *Keep it open*; only *Close it* runs [`/close`](../../close/SKILL.md).
 
 ## Print the plan's link
 

@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFil
 import { dirname, join } from 'node:path';
 import { helperFiles } from '../../../hand-over/scripts/lib/computer.mjs';
 import { agentEvents } from '../../../daily/scripts/chief.mjs';
+import { SCHEDULE_LABEL } from '../../../daily/scripts/chats.mjs';
 import { approvedVersion, signedInAs } from './approvals.mjs';
 import { appCall, appTiming, heldDefinition, readSchedule, runnableFolder } from './app.mjs';
 import { listRecords } from './records.mjs';
@@ -50,7 +51,8 @@ export async function openSession({ schedule, run, title, env = process.env }) {
   const bin = findPaseo(env, 'WONG_PASEO_BIN');
   // Paseo refuses a run with no provider; a schedule that names none runs on Claude.
   const named = settings.provider || 'claude';
-  const args = ['run', '-d', '--cwd', settings.cwd, '--title', title, '--provider', named];
+  // The label lets the Inbox keep a schedule's chat off the list while it runs.
+  const args = ['run', '-d', '--cwd', settings.cwd, '--title', title, '--provider', named, '--label', `${SCHEDULE_LABEL}=${schedule.key}`];
   const [provider, model = null] = named.split('/');
   const thinking = await flooredThinking(more => paseo(bin, more, { env: childEnv(env) }), { provider, model, thinking: settings.thinking ?? null });
   if (thinking) args.push('--thinking', thinking);
