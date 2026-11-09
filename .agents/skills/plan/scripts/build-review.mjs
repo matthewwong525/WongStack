@@ -876,7 +876,7 @@ export const WORK_IN_CHAT = 'Look it over, then tell me your choice or paste you
 
 // The chat line an agent copies as printed: a path with a space or parenthesis goes in <…> so the link still parses.
 export function planLink(page, what = 'the plan') {
-  return `Click here to see ${what}: [review.html](${/[\s()]/.test(page) ? `<${page}>` : page})`;
+  return `[👉 Tap here to see ${what}](${/[\s()]/.test(page) ? `<${page}>` : page})`;
 }
 
 // The fixed first line of sent and copied notes; the kit writes the same words.
