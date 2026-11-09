@@ -328,3 +328,11 @@ test("a failed sign-in names the tool's own reason, and never a token", async t 
   fakeTool(t, `echo "bad token ${jwt()}" >&2; exit 1`);
   await assert.rejects(cloudflared(['token', `-app=${origin}`]), error => !error.message.includes(jwt().split('.')[0] + '.') && /\(bad token \[token\]\)/.test(error.message));
 });
+
+test('a company login passes its cache folder to the sign-in step', async t => {
+  const f = directories(t), calls = [];
+  const run = async (args, options) => { calls.push({ args, options }); return jwt(); };
+  const client = companyClient({ ...f, run, request: async () => Response.json(setup()) });
+  await client.login(origin);
+  assert.equal(calls.find(call => call.args[0] === 'login').options.cacheDir, f.cacheDir);
+});
