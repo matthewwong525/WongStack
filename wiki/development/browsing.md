@@ -34,7 +34,7 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 **Tasks share the browser: one window, a tab each.** Two chats, or a chat and a scheduled run, each get their own tab and the same logins; neither waits, and neither shows its tab during your turn in another ([a tab for each chat](browser-window.md#a-tab-for-each-chat)). A page is named for its task's folder, so a second task in one folder passes `--session <name>` on every command. `close` closes only the task's own page; `stop` ends the browser for every task, so the agent runs it only when you ask. [`/verify`](staging-walkthrough.md) uses a temporary browser of its own, without your logins.
 
-**A check never clears a shared browser's cookies.** A test that needs a clean or signed-in browser uses a throwaway profile in a temporary folder, deleted afterwards. Never run `cookies clear` on a profile that holds sign-ins, such as `~/.wong-stack/browser-profile`: it deletes every sign-in there for good.
+**A check never clears a shared browser's cookies.** A test that needs a clean or signed-in browser uses a throwaway profile in a temporary folder, deleted afterwards. Never run `cookies clear` on a profile that holds sign-ins, such as `~/.wong-stack/browser-profile`: it deletes every sign-in there for good. A check run with `agent-browser` passes `--profile <temp folder>` too: its default profile is shared, and when another chat holds it, Chrome stops with `SingletonLock: File exists`.
 
 **A test never copies a Facebook or Messenger login** to another browser or network: Meta can lock the account.
 
