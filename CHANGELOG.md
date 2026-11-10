@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — A scheduled chat shows its name and starts with your instructions
+
+- **A scheduled chat's workspace gets the schedule's name**, such as *Plan the week*, not *main*. If the chat app refuses the name, the chat still starts and the helper's log says why ([where it runs](wiki/stack/host-schedules.md#where-it-runs)).
+- **The chat's first message is the instructions you approved, word for word**, then a short footer: what it may do, when it ends, the progress so far, and the one command to run when it stops. Instructions that start with a skill, such as `/news`, run that skill. Your computer still opens the chat only when the text is the version you approved there ([how a run works](wiki/stack/host-schedules.md#how-a-run-works)).
+- **A schedule that is already running opens no second chat.** The run shows *didn't start, it's already running*.
+- **A run ends with one command, `schedule.mjs finish`.** It saves progress, ends a met goal, and gives the claim back. `schedule.mjs start`, `progress` and `release` are gone.
+
+**Updating.** A scheduled chat that is already open keeps the name *main*. To rename one, use `paseo workspace rename <workspace-id> <title>` (Paseo is the chat app that runs it), or close it.
+
 ## 51.7.1 — The UX guide matches the new review cards
 
 - **The UX guide no longer names tabs on a build's preview page.** *Live now* and *Preview* sit side by side, and a spot note is placed full screen ([UX principles](wiki/ux-principles.md#principles)).

@@ -212,7 +212,7 @@ function checkLanded(cwd, commit, opened) {
 }
 
 /** Names the opened workspace after its part; any refusal keeps Paseo's name, with a warning. */
-async function nameWorkspace(bin, created, title, env) {
+export async function nameWorkspace(bin, created, title, env) {
   if (!created) {
     return { name: null, warning: "Paseo did not print the workspace line, so the workspace kept Paseo's name; find it by its agent's title." };
   }

@@ -1,5 +1,6 @@
-// Host receipts and the Paseo adapter, kept to read, pause and remove the schedules Paseo still runs; and the fixed
-// startup prompt a scheduled chat opens with. Paseo uses only the public installed CLI.
+// Host receipts and the Paseo adapter, kept to read, pause and remove the schedules Paseo still runs; and the first
+// message a scheduled chat opens with. Paseo uses only the public installed CLI.
+import { mayDo } from './app.mjs';
 import { findPaseo, paseo } from './paseo.mjs';
 import { credentialFree, requireValue, ScheduleError } from './records.mjs';
 
@@ -19,11 +20,27 @@ export function validateReceipt(receipt, { host, nativeId, action } = {}) {
 export function normalizedReceipt(host, action, observation, id) {
   return validateReceipt({ version: 1, host, action, nativeId: id ?? observation?.id ?? null, outcome: 'verified', observedAt: new Date().toISOString(), observation }, { host, nativeId: id, action });
 }
-const KEY = /^[a-z0-9][a-z0-9-]{0,63}$/, RUN = /^[0-9a-f]{32}$/, VERSION = /^[a-f0-9]{64}$/;
-/** A scheduled chat's first message: fixed local text naming the run, never words from the app. */
-export function startupPrompt({ key, run, version }) {
-  requireValue(KEY.test(key ?? '') && RUN.test(run ?? '') && VERSION.test(version ?? ''), 'A startup names a schedule key, a run id and a version.');
-  return `Scheduled work startup. Read .agents/skills/schedule/references/run.md, then run node .agents/skills/schedule/scripts/schedule.mjs start --key ${key} --run ${run} --version ${version}. Follow only the instructions it prints. This starts a run, never a new schedule.`;
+const KEY = /^[a-z0-9][a-z0-9-]{0,63}$/, RUN = /^[0-9a-f]{32}$/;
+// Whole, never cut: the chat saves progress over the stored copy, and the end is approved text.
+const oneLine = text => String(text).replace(/\s+/g, ' ').trim();
+
+/** A scheduled chat's first message: the approved instructions word for word, so a leading `/skill` runs, then a
+ *  footer naming the run. The caller passes only a schedule whose version it checked against the OK here. */
+export function firstMessage({ schedule, run, progress = null }) {
+  requireValue(KEY.test(schedule?.key ?? '') && RUN.test(run?.id ?? ''), 'A first message names a schedule key and a run id.');
+  const finish = `node .agents/skills/schedule/scripts/schedule.mjs finish --key ${schedule.key} --run ${run.id}`;
+  return [
+    schedule.instructions,
+    '',
+    '---',
+    // Not the name: the version leaves it out, so it is app text no OK covers.
+    `Scheduled run ${run.id} of ${schedule.key}`,
+    `May do: ${mayDo(schedule.authority)}; ask before any other step.`,
+    ...(schedule.until ? [`Ends when: ${oneLine(schedule.until)}`] : []),
+    `Progress: ${progress == null ? 'none yet' : JSON.stringify(progress)}`,
+    'How a run works: .agents/skills/schedule/references/run.md',
+    `When you stop: ${finish} [--progress <json file>] [--done <proof the end is met>]`,
+  ].join('\n');
 }
 export function paseoAdapter({ env = process.env, call } = {}) {
   const invoke = call ?? ((args) => paseo(findPaseo(env, 'WONG_PASEO_BIN'), args, { env }));
