@@ -384,7 +384,7 @@ test('--link prints the reply link in the same line, with the plan\'s header and
     rmSync(join(root, 'review.html'));
     const out = spawnSync(process.execPath, [builder, root, '--require-current', '--link'], { encoding: 'utf8', env, timeout: 30_000 });
     assert.equal(out.status, 0, out.stderr);
-    const [, link] = /^Click here to see the plan: \[review\.html\]\((\S+)\)$/m.exec(out.stdout) ?? [];
+    const [, link] = /^\[👉 Tap here to see the plan\]\((\S+)\)$/m.exec(out.stdout) ?? [];
     assert.match(link ?? out.stdout, new RegExp(`^${ORIGIN}/p/[0-9a-f]{32}/#key=[0-9a-f]{64}$`));
     assert.equal(out.stdout, `review: current, updated\n${planLink(link)}\n\n${copy}${REVIEW_ON_PAGE}\n`);
     const [page] = readdirSync(join(state, 'pages')).map(name => JSON.parse(readFileSync(join(state, 'pages', name), 'utf8')));
@@ -438,9 +438,9 @@ test('the review line sends a live page to its buttons and a file to the chat', 
 });
 
 test('the link line wraps a path the Markdown link could not parse', () => {
-  assert.equal(planLink('/w/a/review.html'), 'Click here to see the plan: [review.html](/w/a/review.html)');
-  assert.equal(planLink('/w/my plans/review.html'), 'Click here to see the plan: [review.html](</w/my plans/review.html>)');
-  assert.equal(planLink('/w/a(1)/review.html'), 'Click here to see the plan: [review.html](</w/a(1)/review.html>)');
+  assert.equal(planLink('/w/a/review.html'), '[👉 Tap here to see the plan](/w/a/review.html)');
+  assert.equal(planLink('/w/my plans/review.html'), '[👉 Tap here to see the plan](</w/my plans/review.html>)');
+  assert.equal(planLink('/w/a(1)/review.html'), '[👉 Tap here to see the plan](</w/a(1)/review.html>)');
 });
 
 test('a missing test dependency skips locally and fails in CI', () => {
@@ -768,7 +768,7 @@ test('the review kind runs from the CLI; --action and --confirm belong to it alo
   const out = spawnSync(process.execPath, [builder, root, '--kind', 'review', '--action', 'approve=Approve|Approved.', '--action', 'launch=Launch|Launch now.', '--confirm', 'launch'], { encoding: 'utf8' });
   assert.equal(out.status, 0, out.stderr);
   assert.equal(out.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'), 'the review')}\n\n${WORK_IN_CHAT}\n`);
-  assert.match(out.stdout, /^Click here to see the review: \[review\.html\]/m);
+  assert.match(out.stdout, /^\[👉 Tap here to see the review\]\(/m);
   for (const args of [['--kind', 'plan', '--action', 'a=A|Do.'], ['--kind', 'mail'], ['--confirm', 'a']]) {
     assert.equal(spawnSync(process.execPath, [builder, root, ...args], { encoding: 'utf8' }).status, 2, args.join(' '));
   }

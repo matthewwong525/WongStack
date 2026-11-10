@@ -13,6 +13,8 @@ Every review page shows the same parts, in this order:
 5. **Decisions**, only when there are some. A page with none shows no Decisions section and no link to one.
 6. **The bar** at the bottom: *Send notes*, and only the buttons the page's link offers. Opened from a file, *Send notes* is *Copy notes*.
 
+On a screen 900 px or wider, every part and the bar's buttons share one width, with or without pictures: two widths make the edge jump as you scroll.
+
 [`build-review.mjs`](../.agents/skills/plan/scripts/build-review.mjs) builds each page into [the fixed kit](../.agents/skills/plan/references/review-kit.html). One builder and one kit make all three kinds, so a fix to one page fixes them all:
 
 | Kind | Source | Made by |
@@ -41,9 +43,9 @@ A card shows what the go makes, as close to the real thing as you can make it. A
 
 ## The card view
 
-A card shows each picture, drawing, ad, page, and live card as one labelled picture, side by side, in the order you write them. There are no tabs.
+A card shows each picture, drawing, ad, page, and live card as one labelled picture, side by side, in the order you write them.
 
-- **On a screen 900 px or wider**, the words sit on the left and the pictures on the right. The pictures are as tall as the words: at least 420 px, so a phone picture stays readable, and at most the window. Each picture shrinks whole to fit, and is never cut. A page or a live card shows its top, with a fade when there is more. All the words show.
+- **On a screen 900 px or wider**, the words sit on the left and the pictures on the right. The pictures are as tall as the words: at least 420 px, so a phone picture stays readable, and at most the window. Each shrinks whole to fit. A page or a live card shows its top, with a fade when there is more. All the words show.
 - **On a phone**, the words come first, then a row of small pictures, then *OK* and *Note*. Words past about two lines fold, with *More* at the end of the words.
 - **A click or a tap opens a picture full screen.** The labels sit on top, and *Close* sits alone at the right. Tap a label, swipe, or use the arrow keys to see the next. The bar at the bottom holds *Phone* and *Computer*, only for a page or a live card, and *Try it*. A tap on the background does not close it; *Close* and Escape do.
 - **A picture's name** is its label, such as `Before:`, or the text after a fence's kind, such as ```` ```mermaid Today ````; else the kind, such as *Flow* or *Drawing*. A picture with no label takes its file name. A phone and a computer picture of one screen, labelled `Inbox, phone:` and `Inbox, computer:`, are two pictures.
@@ -55,7 +57,7 @@ A plan that adds or changes a screen makes a throwaway copy of the app, changes 
 
 1. `prototype.mjs start <change>` makes the copy at `.scratch/<change>-prototype` and prints its path. When an earlier `finish` left a diff, the new copy starts with those edits. Edit the screen in the copy. Write sample data into the screen for each state and for data the copy can't reach, such as another service's: the copy changes no database.
 2. `prototype.mjs upload <change>` puts the copy on the change's preview address. A new file in `schema/migrations` stops it, because the preview shares the practice database. When `upload` can't run, `prototype.mjs serve <change>` runs the copy on this computer and prints `PROTOTYPE_URL=`: take the pictures there, and stop it when you are done.
-3. Take one picture per state the plan names, with [the browser](development/browsing.md) (`browse.mjs screenshot`), at phone width and the visible part only. Copy them to `<change>/pictures/`, and write them in the bullet's `picture` fence after the *Before* picture, with a `Try it: <https address>` line. The builder draws *Try it* as a link that opens in a new tab, and stops on any address that is not `https://`.
+3. Take one picture per state the plan names, with [the browser](development/browsing.md) (`browse.mjs screenshot`), at phone width and the visible part only. Copy them to `<change>/pictures/`, and write them in the bullet's `picture` fence after the *Before* picture, with a `Try it: <https address>` line. *Try it* opens a new tab; an address that is not `https://` stops the builder.
 4. Notes on the plan change the copy too: upload again, take new pictures, and rebuild the page.
 5. `prototype.mjs finish <change>` keeps the copy's changes as `.scratch/<change>-prototype.diff` and removes the copy. [`/apply`](../.agents/skills/apply/SKILL.md#build-in-a-helper) runs it when the copy is still there, and [its build](../.agents/skills/apply/references/build-helper.md) reads that diff first and builds the same screens properly, with real data and tests.
 
@@ -198,7 +200,7 @@ B: email/b.html
 ````
 
 - **One picture a version**, side by side. The card shows each page's top, with a fade; full screen shows the whole page, and *Phone* / *Computer* shows it 390 or 1280 px wide.
-- **It runs none of its own script.** A `<script>`, an `on…` attribute, a `javascript:` address, or a frame stops the build: a page that needs a script is a [live card](#the-live-card). The review page adds one small script of its own, the only one the page lets run, to tell the card how tall the page is, so the card shows the whole page in the Inbox too.
+- **It runs none of its own script.** A `<script>`, an `on…` attribute, a `javascript:` address, or a frame stops the build: a page that needs a script is a [live card](#the-live-card). The review page adds the only script it runs, which tells the card the page's height, so the Inbox shows the whole page too.
 - **Links look real but go nowhere.** Hover over one to see its address.
 - **Pictures and fonts go inside**, by the live card's rules: a web address stops the build. A file is under 300 KB, and a card's versions together under 800 KB.
 - **A tap full screen places a spot note** that names its version, such as `on "B"`.

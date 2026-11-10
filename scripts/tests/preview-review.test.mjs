@@ -26,7 +26,7 @@ test('pairs and a new screen build a preview page in .scratch/, and print its fi
   const result = run(dir, ['demo', '--pair', 'Inbox|shots/inbox-live.png|shots/inbox-preview.png', '--pair', 'New page||shots/new.png', '--note', 'Phone width only.']);
   assert.equal(result.status, 0, result.stderr);
   const folder = join(dir, '.scratch', 'demo-preview'), page = join(folder, 'review.html');
-  assert.equal(result.stdout, `Click here to see the preview: [review.html](${page})\n\n${PREVIEW_IN_CHAT}\n`);
+  assert.equal(result.stdout, `[👉 Tap here to see the preview](${page})\n\n${PREVIEW_IN_CHAT}\n`);
   assert.deepEqual(readdirSync(join(folder, 'pictures')).sort(), ['1-live.png', '1-preview.png', '2-preview.png']);
   assert.equal(readFileSync(join(folder, 'proposal.md'), 'utf8'), [
     '# Preview of demo', '', '## Why', '',

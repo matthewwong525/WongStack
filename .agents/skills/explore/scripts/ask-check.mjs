@@ -57,11 +57,11 @@ export function readTurn(rows) {
 // A web address, and the trailing marks that end a sentence or a Markdown link rather than the address.
 const WEB = /https?:\/\/[^\s<>"'`[\]()]+/g;
 const TRAILING = /[.,;:)\]*_>]+$/;
-// A builder's printed line, such as build-review.mjs's `Click here to see the plan: [review.html](<target>)`.
-const CLICK = /^Click here to see [^:\n]{1,60}:[ \t]*(\S.*)$/gm;
+// A builder's printed line, such as build-review.mjs's `[👉 Tap here to see the plan](<target>)`.
+const CLICK = /^\[👉 Tap here to see [^\]\n]{1,60}(\].*)$/gm;
 const PATH = /^(?:\/|~\/|\.{1,2}\/|[A-Za-z]:[\\/])|review\.html$/;
 
-// The target of a Click here line: its web address, else its file path, else null.
+// The target of a Tap here line: its web address, else its file path, else null.
 function clickTarget(rest) {
   const web = rest.match(WEB)?.[0];
   if (web) return web.replace(TRAILING, '');

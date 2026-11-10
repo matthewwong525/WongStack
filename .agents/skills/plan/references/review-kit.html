@@ -196,18 +196,17 @@
     .eyebrow, h2, .hint, .muted, .num, .add, .meta, .entry .where, #editor .where, #editor .moved, .session, #editor .copies, #ready-confirm p, #ready-says { font-size:16px; }
     button { font-size:18px; }
     .entry { font-size:20px; }
-    .bar { padding-left:max(12px, calc((100vw - 700px) / 2 + 12px)); padding-right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
+    .bar { padding-left:max(12px, calc((100% - 700px) / 2 + 12px)); padding-right:max(12px, calc((100% - 700px) / 2 + 12px)); }
     .bar > button, #ready > button { height:44px; }
-    #ready-confirm, #ready-says { right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
+    #ready-confirm, #ready-says { right:max(12px, calc((100% - 700px) / 2 + 12px)); }
     #ready-confirm { width:320px; }
   }
-  /* Wide screen: Why, Needs, and Decisions keep a readable width; a card's words and buttons sit left, and its
+  /* Wide screen: every part and the bar share one 1160px column; a card's words and buttons sit left, and its
      pictures sit right, side by side, as tall as the words (the kit sets the height). */
   @media (min-width:900px) {
     main { max-width:1160px; padding:0 24px; }
-    main > header, main > section { max-width:700px; margin-left:auto; margin-right:auto; }
-    main > #changes.wide { max-width:none; }
-    #changes.wide .item:not(.has-view), #changes.wide > .aside { max-width:700px; margin-left:auto; margin-right:auto; }
+    .bar { padding-left:max(24px, calc((100% - 1160px) / 2 + 24px)); padding-right:max(24px, calc((100% - 1160px) / 2 + 24px)); }
+    #ready-confirm, #ready-says { right:max(24px, calc((100% - 1160px) / 2 + 24px)); }
     .item.has-view { display:grid; grid-template-columns:minmax(280px, 380px) minmax(0, 1fr); grid-template-rows:auto 1fr; align-items:start; }
     .item.has-view > .words { grid-column:1; grid-row:1; padding:20px 20px 12px; }
     .item.has-view > .verdict { grid-column:1; grid-row:2; padding:0 20px 20px; }

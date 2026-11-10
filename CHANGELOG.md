@@ -13,6 +13,22 @@
 
 **Updating.** A page with a question in a card stops on its next build: ask the question in the chat, take it out of the plan, and build again.
 
+## 51.7.3 — The plan's link is one tap, with a pointing hand
+
+- **The whole link line opens the page.** A plan, preview, or review link now prints as *👉 Tap here to see the plan*, one link, not *Click here to see the plan:* followed by a small *review.html* link ([print the plan's link](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)).
+- **A question that leaves out the link is still sent back.** The check reads the new line.
+
+**Updating.** Nothing to do.
+
+## 51.7.2 — Every review card has the same width
+
+- **On a computer, every part of a review page has the same width.** The title, *Why*, every card, *What the build needs*, *Decisions*, and your notes use the wide width of a card with pictures. They start at one left edge and stop at one right edge, so the edge no longer jumps as you scroll ([the frame](wiki/review-pages.md#the-frame)).
+- **A card with only words is as wide as a card with pictures**, and a page with no pictures is wide too.
+- **The bar at the bottom lines up with the same edges.**
+- **On a phone, and on a screen narrower than 900 px, nothing changes.**
+
+**Updating.** Nothing to do. Rebuild an open plan's page to see it.
+
 ## 51.7.1 — The UX guide matches the new review cards
 
 - **The UX guide no longer names tabs on a build's preview page.** *Live now* and *Preview* sit side by side, and a spot note is placed full screen ([UX principles](wiki/ux-principles.md#principles)).
