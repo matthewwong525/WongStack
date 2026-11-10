@@ -4,7 +4,7 @@ This wiki is what WongStack has learned: how you work and how the project runs. 
 
 New here? Start with [getting started](stack/getting-started.md): from any folder to a working assistant and a live site, with three things you do by hand.
 
-The rest is for people who shape how WongStack works. [AI knowledge centers](agent-knowledge-center.md) gives the six principles behind it. [Wiki style](wiki-style.md) says how a page is shaped, [voice](voice.md) how its sentences read, and [contributing](contributing.md) how to send an improvement upstream. Building UI? [UX principles](ux-principles.md) says what a screen should *be* before any component is picked. [Review pages](review-pages.md) says how every page that asks a person to review and choose looks and works.
+The rest is for people who shape how WongStack works. [AI knowledge centers](agent-knowledge-center.md) gives the six principles behind it. [Wiki style](wiki-style.md) says how a page is shaped, [voice](voice.md) how its sentences read, and [contributing](contributing.md) how to send an improvement upstream. Building UI? [UX principles](ux-principles.md) says what a screen should *be* before any component is picked. [Review pages](review-pages.md) says how every page that asks a person to review and approve looks and works.
 
 ## Where to find things
 

@@ -1,6 +1,6 @@
 # Review pages
 
-A review page is one HTML page that shows a person what an agent plans or made, and takes their OK, their notes, and their go. A plan, a finished build, and work that changes no repo file, such as ads to approve, all use the same page. This page owns the standard; [UX principles](ux-principles.md#the-review-file) adds what only a plan's page needs. Part of [the WongStack wiki](README.md).
+A review page is one HTML page that shows a person what an agent plans or made, and takes their OK, their notes, and their go. It asks no questions: the chat asks every choice and typed answer first, as a question card ([choices go in the chat](../.agents/skills/explore/references/asking-the-user.md#choices-go-in-the-chat)). A plan, a finished build, and work that changes no repo file, such as ads to approve, all use the same page. This page owns the standard; [UX principles](ux-principles.md#the-review-file) adds what only a plan's page needs. Part of [the WongStack wiki](README.md).
 
 ## The frame
 
@@ -9,7 +9,7 @@ Every review page shows the same parts, in this order:
 1. **The ask**, in one line: the title of the page, such as *Approve these 3 ads?*
 2. **Why**: a few short paragraphs.
 3. **The cards**: the things to review, numbered, each with its picture or words.
-4. **What the build needs**, on a plan: [each key, login, file, or answer](#what-the-build-needs), *Ready* or *Needs you*.
+4. **What the build needs**, on a plan: [each key, login, file, or answer](#what-the-build-needs), *Ready* or *Needs you*. An answer is asked in the chat first, so it is *Ready*.
 5. **Decisions**, only when there are some. A page with none shows no Decisions section and no link to one.
 6. **The bar** at the bottom: *Send notes*, and only the buttons the page's link offers. Opened from a file, *Send notes* is *Copy notes*.
 
@@ -29,8 +29,6 @@ A card shows what the go makes, as close to the real thing as you can make it. A
 |---|---|
 | A plan that adds or changes a screen | *Before*, a screenshot of today's screen; *After*, one picture per state from [the prototype](#the-prototype); and a *Try it* link |
 | A website this app doesn't run, such as a shop's pages | a [live card](#the-live-card) of [its prototype](#a-website-prototype) as its *After* picture, with no second picture of the same sample |
-| A choice that needs its own control, such as *put these in order* | a [live card](#the-live-card) that sends the pick |
-| Answers or files the build needs from you | [questions](#questions-and-files) in the card, or in [What the build needs](#what-the-build-needs) |
 | A screen when no prototype can run | a `screen` sketch, and a line `No real picture: <the step that failed>` |
 | A flow, states, or a back-and-forth | a `mermaid` picture |
 | A finished build | *Approved* and *Built*, or *Live now* and *Preview*, side by side |
@@ -90,30 +88,23 @@ height: 900
 
 - **Every file goes inside the page.** The builder copies the page's styles, scripts, pictures, and fonts into it: PNG, JPEG, WebP, GIF, SVG, WOFF, and WOFF2, each checked by its first bytes. A file over 300 KB, a card over 800 KB, a CSS `@import`, a file outside the folder, and any web address stop the build, a link or a form's address too. A page over 800 KB warns, because it opens slowly on a phone; a page over 1.5 MB stops, because the Inbox keeps 1.6 MB a page.
 - **The card runs sealed.** It runs its own script, with no network, no sign-in, and no way to reach the review page or the app. A card that tries to leave says *This card tried to leave the page.* and starts again; after three tries it stops until you reload.
-- **It sends one answer.** The card's script calls `review.answer(text)`, such as `review.answer('Order: Fern, Palm, Ivy')`. The page keeps the newest answer, up to 2,000 characters, and sends it with the notes as `- Card #2 answer: Order: Fern, Palm, Ivy` (`Change #2 answer` on a plan).
+- **It sends nothing.** It is a sample to try, not a question: what you do in it stays in it, and you note it with the card's *Note*. A pick, such as an order, is asked in the chat. A sample made for an older page can still call `review.answer(text)`; the call does nothing.
 - **It is one of the card's pictures**, named by the text after `live`, such as ```` ```live After ````. The card shows its top at phone width, and a tap there does nothing. Open it full screen to use it: *Phone* draws it 390 px wide and *Computer* 1280 px, shrunk to fit the screen. A live card takes no spot note; *Note* covers it.
 
-## Questions and files
+## Files
 
-A `form` fence puts questions in a card, one a line, as `<kind>: <question>`:
+A `form` fence in a [What the build needs](#what-the-build-needs) item asks for files, one `file:` line a file question:
 
 ````markdown
 ```form
-text: Shop name
-long: About the shop
-choice: Sale ends | Sunday, Next Sunday
-choices: Colours | Red, Blue, Green
-date: Launch day
-tick: Free shipping over $50
-pictures: Top picture | pictures/a.png, pictures/b.png
 file: Logo | image, pdf | 2
 ```
 ````
 
-`choice` takes one option and `choices` several. `pictures` shows 2 to 12 pictures from the change's folder, each under 300 KB, and takes one. `file` takes its types, from `image`, `pdf`, `text` (TXT, CSV, MD, JSON), `office` (DOCX, XLSX, PPTX), and `zip`, and how many files, 1 to 5. A form holds 12 questions at most. An unknown kind or type stops the build.
+`file` takes its types, from `image`, `pdf`, `text` (TXT, CSV, MD, JSON), `office` (DOCX, XLSX, PPTX), and `zip`, and how many files, 1 to 5. A form holds 12 questions at most. An unknown type stops the build. A `form` fence in a card, or a line that is not `file:`, stops the build too, and says to ask it in the chat as a question card.
 
-- **Answers go with the notes**, and with any button in the bar, one line each, such as `- Card #1, "Shop name": Corner Shop`. The page keeps them like notes and sends each answer once.
 - **A file goes at once** to the computer the chat runs on: drop it on the question, or tap to pick one on a phone. Each shows *Sending…*, *Sent*, or *Refused* with the reason, and a refused one can go again. A file is 25 MB at most, and one page's files 100 MB. The chat gets a `Files:` line per file, with the question, name, size, and the path where it is saved. [Reply links](development/reply-links.md#files-from-a-page) say where files wait and when they go.
+- **The files go with the notes**, and with any button in the bar, one line a question, such as `- Need #2, "Logo": logo.png`. The page sends each file once.
 - **Never a secret.** A question named like a password, key, token, or card number stops the build: a page's answers go into the chat. A key goes through [its private link](development/secrets.md#receive-a-key-through-a-private-link).
 
 ## What the build needs
@@ -132,8 +123,8 @@ Every plan lists what its build needs from you, so a build never stops halfway t
 ````
 
 - **Check each thing before you mark it.** A business service's key: `node scripts/company-api.mjs services`, then the computer's own `.env` ([secrets](development/secrets.md)). A website sign-in: open the site with `browse.mjs` and read whether it is signed in ([saved browser logins](development/browsing.md#saved-browser-logins)). A thing that is there is *Ready*.
-- **A *Needs you* item holds its question or its link**: a `form` fence, or one `https` link, such as a key's [private link](development/secrets.md#receive-a-key-through-a-private-link), which the page shows as *Open the link*. A plan that needs nothing has one bullet, `- **Nothing.**`
-- **The bar waits for it.** An item counts as open until you answer its questions on the page. While any item is open, each button but *Send notes* reads *2 things need you*, and a tap shows the first open item. A key saved on its private link turns *Ready* when the chat builds the page again.
+- **A *Needs you* item holds its file question or its link**: a [`form` fence](#files), or one `https` link, such as a key's [private link](development/secrets.md#receive-a-key-through-a-private-link), which the page shows as *Open the link*. A plan that needs nothing has one bullet, `- **Nothing.**`
+- **The bar waits for it.** An item counts as open until you send its files on the page. While any item is open, each button but *Send notes* reads *2 things need you*, and a tap shows the first open item. A key saved on its private link turns *Ready* when the chat builds the page again.
 - **A need still open stops the build**, which says what is missing.
 
 ## OK and Note
@@ -151,7 +142,7 @@ The notes list groups notes under *Why*, each card, and *Decisions*. Notes stay 
 
 ## A page for other work
 
-Use one for work that changes no repo file and needs a person's choice, such as ads to approve. Write `review.md` in a folder outside tracked files, such as `.scratch/<name>/`:
+Use one for work that changes no repo file and needs a person's OK, such as ads to approve. Write `review.md` in a folder outside tracked files, such as `.scratch/<name>/`:
 
 ```markdown
 # Approve these 3 ads?
