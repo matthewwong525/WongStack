@@ -1,6 +1,7 @@
 # Questions in the chat, the review page for the final OK
 
-**Status:** planned
+**Status:** ready-to-ship
+**Branch:** review-cards-final-approval
 **Open questions:** none
 
 ## Why
@@ -57,3 +58,4 @@ Non-goals: no change to how a card looks, to *OK* and *Note*, or to the buttons 
 - **2026-11-09** — Assumed: a secret asked in a card stops the build with the private-link message, not the chat pointer, because a key never goes in the chat either.
 - **2026-11-09** — Assumed: a live card's full-screen hint reads *Try it here: it sends nothing*, because the old hint said what you do goes with your notes.
 - **2026-11-10** — Assumed: the chat-title test retries its cleanup, because a helper it starts can still write while the test deletes its folder; that race failed main's checks and this change's local run.
+- **2026-11-10** — Archive checkpoint: built, reviewed twice, and archived for 51.8.0 on branch review-cards-final-approval.

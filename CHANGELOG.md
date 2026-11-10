@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Questions in the chat, the review page for the final OK
+## 51.8.0 — Questions in the chat, the review page for the final OK
 
 - **Every question comes to you in the chat, as a question card**: picks, typed answers, dates, and a choice between pictures. The chat asks them all before it makes the review page, and asks a new one that your notes open the same way ([choices go in the chat](.agents/skills/explore/references/asking-the-user.md#choices-go-in-the-chat)).
 - **A review page only shows the result for you to approve.** You read it, tap *OK*, and add notes if you want. A `form` fence in a card now stops the page's build and says to ask it in the chat ([review pages](wiki/review-pages.md)).
