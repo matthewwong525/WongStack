@@ -9,7 +9,7 @@ When a schedule opens a chat, two things are odd. Its workspace shows only "main
 
 ## What Changes
 
-- **A scheduled chat's workspace gets the schedule's name.** The workspace in your list shows the schedule's name, such as *Plan the week* or *Post the league polls*. If the name can not be set, the chat still starts, keeps "main", and the run's log says why.
+- **A scheduled chat's workspace gets the schedule's name.** This part was published first, in 51.9.0, from another chat, which also gives each run its own fresh copy of the project. The workspace in your list shows the schedule's name, such as *Plan the week* or *Post the league polls*. If the name can not be set, the chat still starts, keeps "main", and the run's log says why.
   ```text
   Before                 After
   ─────────────────      ───────────────────────
@@ -79,3 +79,4 @@ None.
 - **2026-11-10** — Assumed: an app that does not answer the claim blocks the run as `no_app`, the reason `checkRun` already uses, and opens no chat.
 - **2026-11-10** — Assumed: `.agents/skills/schedule/SKILL.md` stays as it is, because nothing in it names `start`, `progress` or `release`; `run.md` carries the new steps.
 - **2026-11-10** — Assumed: the live check opens a real chat through `openSession` in a scratch repo, not a real schedule through the app, because a real run would touch the person's own schedules; the claim and `finish` against the app stay covered by tests until the first real run after the update.
+- **2026-11-10** — Assumed: the workspace name comes from 51.9.0 (scheduled-chats-own-workspace), which shipped from another chat while this one built; at the merge this change kept that version (a fresh copy per run, named for the schedule) and dropped its own rename and its spec lines for it.

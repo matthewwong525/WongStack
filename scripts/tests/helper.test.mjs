@@ -211,3 +211,14 @@ test('the log keeps only its allowed fields, never words, and starts over at 1 M
   assert.equal(statSync(log.replace('.jsonl', '.1.jsonl')).size, LOG_LIMIT);
   assert.equal(readFileSync(log, 'utf8').trim().split('\n').length, 1);
 });
+
+test("a run's warning keeps up to 1000 characters, so a joined fetch and rename warning both stay; other fields keep 200", t => {
+  const env = { HOME: temp(t, 'wong-test-helper-log-') };
+  const log = join(env.HOME, '.wong-stack', 'helper', 'log.jsonl');
+  logAction({ event: 'run', reason: 'r'.repeat(300), warning: `${'f'.repeat(300)}\nThe workspace kept Paseo's name` }, { env });
+  const line = JSON.parse(readFileSync(log, 'utf8'));
+  assert.equal(line.reason.length, 200);
+  assert.match(line.warning, /\nThe workspace kept Paseo's name$/);
+  logAction({ event: 'run', warning: 'w'.repeat(1500) }, { env });
+  assert.equal(JSON.parse(readFileSync(log, 'utf8').trim().split('\n')[1]).warning.length, 1000);
+});

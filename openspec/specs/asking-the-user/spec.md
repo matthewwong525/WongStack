@@ -349,7 +349,7 @@ A request for a change to the repo's code or process, made with no verb, SHALL g
 
 ### Requirement: A question missing its link is sent back once
 
-In Claude Code, before a structured question goes out, an installed repo SHALL compare it with the current turn: each link written in the turn's chat text, and each *Click here to see …* link a tool printed in the turn, SHALL appear in the question's text. When one is missing, the question SHALL be sent back once, naming the missing links. A second try in the same turn SHALL go out as it is, and an unreadable turn SHALL let the question go out.
+In Claude Code, before a structured question goes out, an installed repo SHALL compare it with the current turn: each link written in the turn's chat text, and each plan, review, or preview link a tool printed in the turn, SHALL appear in the question's text. When one is missing, the question SHALL be sent back once, naming the missing links. A second try in the same turn SHALL go out as it is, and an unreadable turn SHALL let the question go out.
 
 #### Scenario: The plan's link is left out
 
@@ -360,3 +360,17 @@ In Claude Code, before a structured question goes out, an installed repo SHALL c
 
 - **WHEN** the question's text holds every link of the turn, or the turn has no link
 - **THEN** the question goes out untouched
+
+### Requirement: Choices are asked in the chat, never on a review page
+
+Every choice and typed answer the work needs SHALL be asked as a question card in the chat, by the same rules as every other question, before the review page is made. A question that comes up while a page waits, such as from the person's notes, SHALL be asked in the chat too, and the page SHALL then be rebuilt. The review page SHALL be kept for the final look, *OK*, notes, and the bar's buttons.
+
+#### Scenario: A plan needs the button's words
+
+- **WHEN** a plan needs to know whether the button says *Shop now* or *See the sale*
+- **THEN** the chat asks it as a question card, records the answer, and the review page shows the chosen words with nothing to fill in
+
+#### Scenario: A note opens a new choice
+
+- **WHEN** the person's notes on a waiting plan open a choice between two layouts
+- **THEN** the chat asks it as a question card, then updates the plan and shows its new link

@@ -28,7 +28,7 @@ Why and What Changes use [plain words](../explore/references/asking-the-user.md#
 
 ## Draw in the proposal, then build the page
 
-Draw as you write, with no second agent: one drawing per What Changes bullet by default, as a fence in its bullet by [the drawing guide](references/drawings.md). A card shows [the closest real result](../../../wiki/review-pages.md#a-card-shows-the-closest-real-result): a screen change gets [a prototype](../../../wiki/review-pages.md#the-prototype) with sample data, a site this app doesn't run [a live one](../../../wiki/review-pages.md#a-website-prototype); notes update it too. Every plan lists [what the build needs](../../../wiki/review-pages.md#what-the-build-needs).
+Draw as you write, with no second agent: one drawing per What Changes bullet by default, as a fence in its bullet by [the drawing guide](references/drawings.md). A card shows [the closest real result](../../../wiki/review-pages.md#a-card-shows-the-closest-real-result): a screen change gets [a prototype](../../../wiki/review-pages.md#the-prototype) with sample data, a site this app doesn't run [a live one](../../../wiki/review-pages.md#a-website-prototype); notes update it too. Every plan lists [what the build needs](../../../wiki/review-pages.md#what-the-build-needs), its answers [asked in the chat](../explore/references/asking-the-user.md#choices-go-in-the-chat).
 
 Build the page after drafting and each edit:
 
@@ -36,7 +36,7 @@ Build the page after drafting and each edit:
 node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.mjs" "<change-root>" --require-current --link
 ```
 
-Copy its status, plan copy, link, and review lines as printed; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the last goes. Fix warned drawings. Keep no other copy of the proposal's text: a second copy goes stale.
+Copy its status, plan copy, link, and review lines as printed; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the last goes. Fix warned drawings. Keep no other copy of the proposal's text.
 
 A change that adds or restructures a screen gets [a `## UX` design section](../../../wiki/ux-principles.md#the--ux-section-in-designmd).
 

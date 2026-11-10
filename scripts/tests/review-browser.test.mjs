@@ -10,11 +10,11 @@ import { needs } from './fixtures/needs.mjs';
 
 // playwright-core carries no browser: CI launches the runner's Google Chrome,
 // and CHROME_PATH points a local run at any Chromium.
-async function launch() {
+async function launch(options = {}) {
   try {
     const { chromium } = await import('playwright-core');
     const where = process.env.CHROME_PATH ? { executablePath: process.env.CHROME_PATH } : { channel: 'chrome' };
-    return await chromium.launch({ headless: true, ...where });
+    return await chromium.launch({ headless: true, ...where, ...options });
   } catch (error) {
     return { missing: `no browser to drive (${error.message.split('\n')[0]}) — run \`npm ci\` in scripts/tests/ and set CHROME_PATH` };
   }
@@ -1350,7 +1350,7 @@ browserTest('on a phone a review page takes an OK, its undo, Note, a note on wor
   await context.close();
 });
 
-// ── live cards, questions, files, and the needs list on a phone ──
+// ── live cards, files, and the needs list on a phone ──
 const site = `<!doctype html><html><head><style>body { margin: 0; font: 16px sans-serif; }</style></head><body>
 <button id="blue" onclick="review.answer('Blue')">Blue</button>
 <button id="net" onclick="var t = []; try { parent.document.title; t.push('read'); } catch (e) { t.push('refused'); }
@@ -1367,12 +1367,7 @@ Know the shop.
   folder: site
   height: 400
   ${fence}
-- **Shop details.** Tell us about the shop.
-  ${fence}form
-  text: Shop name
-  choice: Sale ends | Sunday, Next Sunday
-  file: Banner | image | 1
-  ${fence}
+- **Shop details.** The shop's name on the home page.
 
 ## What the build needs
 
@@ -1394,7 +1389,7 @@ function askingFixture() {
 }
 const pngBytes = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(56, 1)]);
 
-browserTest('at 320 px a live card sends its answer, reaches neither the web nor the page, and starts again when it leaves', async () => {
+browserTest('at 320 px a live card sends nothing, reaches neither the web nor the page, and starts again when it leaves', async () => {
   const { page, context, errors, sends } = await openLive({ make: askingFixture, width: 320, height: 700 });
   await context.route('https://example.com/**', route => route.fulfill({ contentType: 'text/html', body: '<p id="away">Away</p>' }));
   await isLive(page);
@@ -1405,11 +1400,15 @@ browserTest('at 320 px a live card sends its answer, reaches neither the web nor
   const inside = await (await page.locator('.live iframe').elementHandle()).contentFrame();
   await inside.waitForFunction(() => document.title);
   assert.equal(await inside.evaluate(() => document.title), 'refused blocked', 'the card can not read the page or fetch the web');
+  // A sample made for an older page still calls review.answer: the call runs, and sends nothing.
   await press('#blue');
-  await page.waitForFunction(() => /Change #1 answer\s*Blue/.test(document.getElementById('note-list').textContent));
+  assert.equal(await inside.evaluate(() => { review.answer('x'); return typeof review.answer; }), 'function');
+  await page.waitForTimeout(200);
+  assert.doesNotMatch(await page.locator('#note-list').textContent(), /answer|Blue|\bx\b/i, 'no answer line in the notes');
+  await note(page, 'why-1', 'Bigger button.');
   await page.locator('#copy').click();
-  await toastIs(page, 'Sent 1 answer to the chat.');
-  assert.equal(sends()[0].body.text, '- Change #1 answer: Blue');
+  await toastIs(page, 'Sent 1 note to the chat.');
+  assert.equal(sends()[0].body.text, '- Why, paragraph 1 ("Know the shop."): Bigger button.', 'the chat gets only the note');
   await press('#leave');
   await page.locator('.live-said', { hasText: 'This card tried to leave the page.' }).waitFor();
   await card.locator('#blue').waitFor();
@@ -1479,7 +1478,7 @@ browserTest('at 1280 px a tall live part shows its top at a readable width, with
   await context.close();
 });
 
-browserTest('at 320 px answers and a file go with Build it, a file too big is refused, and the needs list holds Build until answered', async () => {
+browserTest('at 320 px a need with a file question holds Build it until a file is sent, and a file too big is refused', async () => {
   const { page, context, errors, acts, files } = await openLive({ make: askingFixture, width: 320, height: 700, actions: ['build'] });
   await openActions(page);
   const build = ready(page, 'build');
@@ -1487,24 +1486,27 @@ browserTest('at 320 px answers and a file go with Build it, a file too big is re
   await build.click();
   assert.equal(acts().length, 0, 'a gated tap sends nothing');
   await page.waitForFunction(() => document.getElementById('need-1').classList.contains('hit'));
-  await page.locator('[data-q="item-2-q-1"] input').fill('Corner Shop');
-  await page.locator('[data-q="item-2-q-2"] label', { hasText: 'Next Sunday' }).click();
-  await page.locator('[data-q="item-2-q-3"] input[type=file]').setInputFiles({ name: 'banner.png', mimeType: 'image/png', buffer: Buffer.alloc(26 * 1024 * 1024, 1) });
-  await page.locator('[data-q="item-2-q-3"] .files', { hasText: 'Refused: too big: 25 MB at most' }).waitFor();
+  await page.locator('[data-q="need-1-q-1"] input[type=file]').setInputFiles({ name: 'huge.png', mimeType: 'image/png', buffer: Buffer.alloc(26 * 1024 * 1024, 1) });
+  await page.locator('[data-q="need-1-q-1"] .files', { hasText: 'Refused: too big: 25 MB at most' }).waitFor();
+  assert.equal((await build.innerText()).trim(), '1 thing needs you', 'a refused file answers nothing');
   await page.locator('[data-q="need-1-q-1"] input[type=file]').setInputFiles({ name: 'logo.png', mimeType: 'image/png', buffer: pngBytes });
   await page.locator('[data-q="need-1-q-1"] .files', { hasText: 'Sent' }).waitFor();
   assert.deepEqual(files().map(({ key, name, question, size }) => ({ key, name, question, size })),
     [{ key: LINK_KEY, name: 'logo.png', question: encodeURIComponent('Need #1, "Logo"'), size: pngBytes.length }], 'only the logo was sent');
   await page.waitForFunction(() => document.querySelector('[data-ready="build"]').textContent.trim() === 'Build it');
+  const listed = page.locator('#note-list .entry', { hasText: 'Need #1, "Logo"' });
+  assert.equal(await page.locator('#note-list .group.answers').count(), 1, 'the notes list has an Answers group');
+  assert.match(await listed.innerText(), /logo\.png/);
+  assert.equal(await listed.locator('.tag').count(), 0, 'not yet sent to the chat');
   await build.click();
   await saysIs(page, 'Asked the chat to build.');
-  assert.deepEqual(acts()[0].body, { action: 'build', version: VERSION, files: ['f'.repeat(32)],
-    text: ['- Change #2, "Shop name": Corner Shop', '- Change #2, "Sale ends": Next Sunday', '- Need #1, "Logo": logo.png'].join('\n') });
+  assert.deepEqual(acts()[0].body, { action: 'build', version: VERSION, files: ['f'.repeat(32)], text: '- Need #1, "Logo": logo.png' });
+  await listed.locator('.tag', { hasText: 'Sent' }).waitFor();
   assert.deepEqual(errors, []);
   await context.close();
 });
 
-browserTest('a closed page with questions in the inbox frame opens read-only: no answer to type and no file to send', async () => {
+browserTest('a closed page with a file question in the inbox frame opens read-only: no file to send', async () => {
   const { dir } = askingFixture();
   const html = readFileSync(join(dir, 'review.html'), 'utf8');
   const context = await browser.newContext({ viewport: { width: 390, height: 700 } });
@@ -1528,7 +1530,6 @@ browserTest('a closed page with questions in the inbox frame opens read-only: no
       files: [], theme: 'light' }, '*', [port2]);
   });
   await frame.waitForFunction(() => document.body.classList.contains('read-only'));
-  assert.equal(await frame.locator('[data-q="item-2-q-1"] input').isDisabled(), true, 'a text question takes no answer');
   assert.equal(await frame.locator('.drop').filter({ visible: true }).count(), 0, 'no file box shows');
   assert.equal(await frame.locator('input[type=file]').evaluateAll(els => els.every(el => el.disabled)), true, 'no file can be picked');
   assert.deepEqual(await page.evaluate(() => window.heard), ['inbox:notes-get'], 'the page asks only for its notes');
@@ -1536,7 +1537,7 @@ browserTest('a closed page with questions in the inbox frame opens read-only: no
   await context.close();
 });
 
-// ── card views: parts side by side beside the words, full screen, a whole page, ads, and a picture question ──
+// ── card views: parts side by side beside the words, full screen, a whole page, and ads ──
 const mail = word => `<!doctype html><html><body style="margin:0;font:16px sans-serif"><h1 style="margin:0;padding:24px">${word} sale</h1>`
   + `<p style="padding:0 24px;height:900px">Spring plants.</p><a id="go" href="https://shop.example.com/">Shop the ${word} sale</a></body></html>`;
 function cardsFixture() {
@@ -1544,13 +1545,13 @@ function cardsFixture() {
   const dir = join(temp, 'review-fixture');
   mkdirSync(dir);
   temps.push(temp);
-  for (const name of ['before.png', 'after.png', 'a.png', 'b.png']) writeFileSync(join(dir, name), solidPng(390, 600));
+  for (const name of ['before.png', 'after.png']) writeFileSync(join(dir, name), solidPng(390, 600));
   writeFileSync(join(dir, 'feed.png'), solidPng(80, 100));
   writeFileSync(join(dir, 'a.html'), mail('Rose'));
   writeFileSync(join(dir, 'b.html'), mail('Fern'));
   writeFileSync(join(dir, 'proposal.md'), `## Why\n\nShow the screens.\n\n## What Changes\n\n`
     + `- **The Inbox lists every open chat with its step, its folder and the review that waits on top.** ${long.repeat(6)}\n  ${fence}picture\n  Before: before.png\n  After: after.png\n  ${fence}\n`
-    + `- **Spring email.** Two versions.\n  ${fence}page\n  A: a.html\n  B: b.html\n  ${fence}\n  ${fence}form\n  pictures: Top picture | a.png, b.png\n  ${fence}\n`
+    + `- **Spring email.** Two versions.\n  ${fence}page\n  A: a.html\n  B: b.html\n  ${fence}\n`
     + `- **Ads.** A feed and a story.\n  ${fence}ad\n  placement: feed\n  account: Shop\n  picture: feed.png\n  ${fence}\n`
     + `  ${fence}ad\n  placement: story\n  account: Shop\n  picture: feed.png\n  ${fence}\n`);
   buildReview(dir, { requireCurrent: true });
@@ -1586,6 +1587,63 @@ browserTest('at 1280 px a card\'s words sit left of its view; at 390 px the pict
     assert.deepEqual(box, beside ? { left: true, after: false, page: true } : { left: false, after: true, page: true }, `at ${width}px`);
     assert.deepEqual(errors, []);
     await context.close();
+  }
+});
+
+// A picture card, a words-only card, and another picture card, or three words-only cards, then needs and decisions.
+function widthFixture(pictures) {
+  const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
+  const dir = join(temp, 'review-fixture');
+  mkdirSync(dir);
+  temps.push(temp);
+  writeFileSync(join(dir, 'shot.png'), solidPng(390, 600));
+  const shot = pictures ? `\n  ${fence}picture\n  Screen: shot.png\n  ${fence}` : '';
+  writeFileSync(join(dir, 'proposal.md'), `## Why\n\nShow the screens.\n\n## What Changes\n\n`
+    + `- **One.** Words.${shot}\n- **Two.** Only words.\n- **Three.** Words.${shot}\n\n`
+    + `## What the build needs\n\n- **Nothing.**\n\n## Decision log\n\n- **2026-11-09** — Asked the width → chose wide.\n`);
+  buildReview(dir, { requireCurrent: true });
+  return pathToFileURL(join(dir, 'review.html')).href;
+}
+const edges = page => page.evaluate(() => {
+  const box = el => { const r = el.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.right)]; };
+  const parts = Object.fromEntries(['main > header', '#why', '#item-1', '#item-2', '#item-3', '#needs', '#decisions', '#notes']
+    .map(sel => [sel, box(document.querySelector(sel))]));
+  const buttons = [...document.querySelectorAll('.bar button')].filter(b => b.offsetWidth).map(box);
+  parts.bar = [Math.min(...buttons.map(b => b[0])), Math.max(...buttons.map(b => b[1]))];
+  return parts;
+});
+
+browserTest('at 1280 px every part of a review page shares one left and right edge, with pictures or without', async () => {
+  const widths = [];
+  for (const pictures of [true, false]) {
+    const { page, context, errors } = await open(widthFixture(pictures), { width: 1280 });
+    const parts = await edges(page);
+    if (pictures) assert.deepEqual(await page.locator('.item').evaluateAll(all => all.map(el => el.classList.contains('has-view'))), [true, false, true]);
+    const [left, right] = parts['#item-1'];
+    for (const [sel, [l, r]] of Object.entries(parts)) assert.ok(Math.abs(l - left) <= 1 && Math.abs(r - right) <= 1, `${sel} spans ${l}–${r}, not ${left}–${right}`);
+    widths.push(right - left);
+    assert.deepEqual(errors, []);
+    await context.close();
+  }
+  assert.ok(widths[0] > 1000 && Math.abs(widths[0] - widths[1]) <= 1, `cards are as wide with no pictures: ${widths}`);
+});
+
+// Headless Chrome hides scrollbars by default; a real one takes width from the window, and the bar must not count it.
+browserTest('at 1280 px with a scrollbar showing, the bar\'s buttons still meet the cards\' edges', async () => {
+  const scrolling = await launch({ ignoreDefaultArgs: ['--hide-scrollbars'] });
+  try {
+    const page = await scrolling.newPage({ viewport: { width: 1280, height: 600 } });
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(widthFixture(true));
+    const bar = await page.evaluate(() => innerWidth - document.documentElement.clientWidth);
+    assert.ok(bar > 0, `the window shows a scrollbar: ${bar}px`);
+    const parts = await edges(page);
+    const [left, right] = parts['#item-1'];
+    assert.ok(Math.abs(parts.bar[0] - left) <= 1 && Math.abs(parts.bar[1] - right) <= 1, `the bar spans ${parts.bar.join('–')}, not ${left}–${right}`);
+    assert.deepEqual(errors, []);
+  } finally {
+    await scrolling.close();
   }
 });
 
@@ -1810,15 +1868,11 @@ browserTest('a page as tall as its frame settles at its own height, and stays th
   await context.close();
 });
 
-browserTest('the feed and story ads sit side by side; a picture question keeps its answer', async () => {
+browserTest('the feed and story ads sit side by side', async () => {
   const { page, context, errors } = await open(cardsFixture().url, { width: 1280 });
   const [feed, story] = await parts(page, 3);
   assert.deepEqual([feed.label, story.label], ['Feed', 'Story']);
   assert.ok(feed.top === story.top && feed.right <= story.left);
-  await page.locator('#item-2 .pick').nth(1).click();
-  assert.match(await copied(page), /^- Change #2, "Top picture": b\.png$/m);
-  await page.reload();
-  assert.equal(await page.locator('#item-2 .pick input').nth(1).isChecked(), true, 'the answer stays after a reload');
   assert.deepEqual(errors, []);
   await context.close();
 });

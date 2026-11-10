@@ -26,7 +26,11 @@ Write every plan, question, and report in plain words, for everyone. Give more d
 - **Fix before you ask.** Never offer a choice that needs judgment the reader lacks. Where the skill allows, try the fix, then ask about the outcome: *the sign-up button does not work on the preview: fix it first, or publish anyway?*
 - **Lead a report with the outcome**: what is done, what they can open, what does not work, failed or unverified checks included.
   - **The person ran the verb:** at most one link besides [the plan's link](#print-the-plans-link): the preview, else the pull request, called *the change on GitHub*. Leave out branch names, commit ids, the gate line (`SAVE_GATE_RESULT=…`), `merge.sh`'s `key=value` lines, and fact counts unless asked.
-  - **Inside another verb:** still print every line the caller reads, such as `/save`'s gate line inside `/ship`, `/apply`, or `/verify`.
+  - **Inside another verb:** still print every line the caller reads, such as `/save`'s gate line.
+
+## Choices go in the chat
+
+**Ask every choice in the chat, never on [the review page](../../../../wiki/review-pages.md)**, which takes *OK*, notes, and files.
 
 ## Which tool carries it
 
@@ -41,7 +45,7 @@ Use the first callable tool:
 
 ## Confirmations, offers, and menus are asks
 
-- **A confirmation** names what happens on each side, never a bare yes/no: `Delete both databases (Recommended once the data is saved) / Keep them and stop`.
+- **A confirmation** names what happens on each side, never a bare yes/no: `Delete both databases (Recommended) / Keep them and stop`.
 - **An offer** names the outcome, not the product, and always includes stopping.
 - **A menu** shows the detail the choice needs, such as a change's status; never resolve several candidates by guessing.
 
@@ -62,10 +66,10 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 
 ## Print the plan's link
 
-When a reply makes or changes a plan or its checklist, print *Click here to see the plan:* and the link as [one chat line](#end-every-reply-with-the-next-step) near the top, even when the build goes on: it adds no stop. Copy the line whole from the page builder, never shortened: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file; on *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are record-keeping, not a change.
+When a reply makes or changes a plan or its checklist, print the link as [one chat line](#end-every-reply-with-the-next-step) near the top, even when the build goes on: it adds no stop. Copy the builder's `[👉 Tap here to see the plan](…)` line whole: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file; on *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are not a change.
 
-**A finished plan's reply asks nothing:** it prints the builder's output as is: link, copy, then the review line, which sends a live page to its build buttons and a file to the chat. **Any other closing question in a reply that made or changed a plan offers *Review the plan***, the link in its question. Picking it starts nothing and ends the same way. Leave the copy and the review line out of every other reply.
+**A finished plan's reply asks nothing:** it prints the builder's output as is: link, copy, then the review line. **Any other closing question in a reply that made or changed a plan offers *Review the plan***, the link in its question. Picking it starts nothing and ends the same way. Leave the copy and the review line out of every other reply.
 
 ## Print the preview's link
 
-Print a preview, or any link to open, the same way: a folded reply hides its end. *Click here to see the preview:* takes the full URL of the page showing the change (`/apps/<name>/`, `/settings`), the home page only when none does. Its closing question holds the link and offers *See the preview*, whose reply ends with that line and no question, and starts nothing.
+Print a preview, or any link to open, the same way: a folded reply hides its end. `[👉 Tap here to see the preview](…)` takes the full URL of the page showing the change (`/apps/<name>/`, `/settings`), the home page only when none does. Its closing question holds the link and offers *See the preview*, whose reply ends with that line and no question, and starts nothing.

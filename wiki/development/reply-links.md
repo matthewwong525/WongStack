@@ -6,7 +6,7 @@ It is not a [private link](browsing.md#how-private-links-work). A private link t
 
 ## A plan's link
 
-Each new or changed plan prints *Click here to see the plan:* with a reply link, when one can open ([print the plan's link](../../.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)). A finished plan's reply puts the link first, so a chat that folds a long reply never hides it, then the plan itself to read in the chat, and ends with *Review the plan, then tap Build it or Build and publish on its page.* and no question.
+Each new or changed plan prints *👉 Tap here to see the plan* as one reply link, when one can open ([print the plan's link](../../.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)). A finished plan's reply puts the link first, so a chat that folds a long reply never hides it, then the plan itself to read in the chat, and ends with *Review the plan, then tap Build it or Build and publish on its page.* and no question.
 
 - **Send notes.** On the page, save your notes, then tap *Send notes*. Saving copies nothing there. One tap sends every note not yet sent, and each is marked *Sent*, so a second tap sends nothing twice. Change a sent note and it goes again.
 - **The chat takes them as pasted notes.** They arrive under the line *Notes on the plan … Don't build yet.* The chat [updates the plan](../../.agents/skills/plan/SKILL.md#review-notes) and builds nothing.
@@ -42,7 +42,7 @@ A link stays open for 24 hours from when the chat printed it, in the inbox and a
 
 ## Files from a page
 
-A page's [file question](../review-pages.md#questions-and-files) sends each file to the computer the chat runs on, as soon as you pick it. The send or button then names the files, and the chat gets a `Files:` line for each, with its question, name, size, and the path where it is saved.
+A page's [file question](../review-pages.md#files) sends each file to the computer the chat runs on, as soon as you pick it. The send or button then names the files, and the chat gets a `Files:` line for each, with its question, name, size, and the path where it is saved.
 
 - **Through a tunnel, the file goes straight to this computer.** It needs the link's key, as a send does. The computer saves it in `.scratch/<page folder>-uploads/`, readable only by you; `reply-link.mjs open --uploads <dir>` picks another folder.
 - **From your Inbox, the file waits in your company app.** The app keeps it until the computer takes your tap. The computer reads it, checks it, and saves it as a tunnel's file; an item with no page file uses `.scratch/inbox-uploads/`. Then the app deletes it. It deletes it too when you cancel the tap or the chat can't be woken. No one can open a file 24 hours after it came, whether or not the computer comes back; the app deletes it the next time the Inbox is used. The database's restore history can keep deleted data for up to 30 days. A file the app deleted before your page sent it shows again under its question, marked to pick again, and its need opens again. The app keeps 300 MB of waiting files at most, for all its people together, and refuses more until the computer takes some.

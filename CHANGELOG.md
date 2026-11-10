@@ -3,14 +3,47 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A scheduled chat shows its name and starts with your instructions
+## Next (minor) — A scheduled chat starts with your instructions
 
-- **A scheduled chat's workspace gets the schedule's name**, such as *Plan the week*, not *main*. If the chat app refuses the name, the chat still starts and the helper's log says why ([where it runs](wiki/stack/host-schedules.md#where-it-runs)).
 - **The chat's first message is the instructions you approved, word for word**, then a short footer: what it may do, when it ends, the progress so far, and the one command to run when it stops. Instructions that start with a skill, such as `/news`, run that skill. Your computer still opens the chat only when the text is the version you approved there ([how a run works](wiki/stack/host-schedules.md#how-a-run-works)).
 - **A schedule that is already running opens no second chat.** The run shows *didn't start, it's already running*.
 - **A run ends with one command, `schedule.mjs finish`.** It saves progress, ends a met goal, and gives the claim back. `schedule.mjs start`, `progress` and `release` are gone.
 
-**Updating.** A scheduled chat that is already open keeps the name *main*. To rename one, use `paseo workspace rename <workspace-id> <title>` (Paseo is the chat app that runs it), or close it.
+**Updating.** Nothing to do. A scheduled chat that is already open keeps its old first message and still runs the old `schedule.mjs start`, which is gone: close it, and the next run starts the new way.
+
+## 51.9.0 — Scheduled chats open in their own named workspace
+
+- **A chat that a schedule starts opens in its own workspace, named after the schedule.** The Paseo sidebar shows *Standup*, not *main*. In a git project the workspace is its own copy of the project from the latest default branch, so the chat never works on the main copy ([host schedules](wiki/stack/host-schedules.md)).
+- **A folder that is not a git project opens in place, still named.**
+- **A fetch or rename problem never stops the run.** It starts from the last fetched copy, or keeps Paseo's name, and [the helper's log](wiki/stack/live-line.md#the-log) says why. A fetch that hangs stops after 60 seconds.
+
+**Updating.** Nothing to do. Workspaces that earlier scheduled chats left as *main* keep that name: rename one in Paseo if you want.
+
+## 51.8.0 — Questions in the chat, the review page for the final OK
+
+- **Every question comes to you in the chat, as a question card**: picks, typed answers, dates, and a choice between pictures. The chat asks them all before it makes the review page, and asks a new one that your notes open the same way ([choices go in the chat](.agents/skills/explore/references/asking-the-user.md#choices-go-in-the-chat)).
+- **A review page only shows the result for you to approve.** You read it, tap *OK*, and add notes if you want. A `form` fence in a card now stops the page's build and says to ask it in the chat ([review pages](wiki/review-pages.md)).
+- **Files stay on the page, in *What the build needs*.** A need's `form` fence takes only `file:` lines, and *Build it* still waits until each file is sent ([files](wiki/review-pages.md#files)).
+- **A live card is a sample to try, and sends nothing.** A sample that calls `review.answer` still runs; the call does nothing ([the live card](wiki/review-pages.md#the-live-card)).
+- **A page of other work, opened as a file, ends on** *Look it over, then say OK or paste your notes here.*
+
+**Updating.** A page with a question in a card stops on its next build: ask the question in the chat, take it out of the plan, and build again.
+
+## 51.7.3 — The plan's link is one tap, with a pointing hand
+
+- **The whole link line opens the page.** A plan, preview, or review link now prints as *👉 Tap here to see the plan*, one link, not *Click here to see the plan:* followed by a small *review.html* link ([print the plan's link](.agents/skills/explore/references/asking-the-user.md#print-the-plans-link)).
+- **A question that leaves out the link is still sent back.** The check reads the new line.
+
+**Updating.** Nothing to do.
+
+## 51.7.2 — Every review card has the same width
+
+- **On a computer, every part of a review page has the same width.** The title, *Why*, every card, *What the build needs*, *Decisions*, and your notes use the wide width of a card with pictures. They start at one left edge and stop at one right edge, so the edge no longer jumps as you scroll ([the frame](wiki/review-pages.md#the-frame)).
+- **A card with only words is as wide as a card with pictures**, and a page with no pictures is wide too.
+- **The bar at the bottom lines up with the same edges.**
+- **On a phone, and on a screen narrower than 900 px, nothing changes.**
+
+**Updating.** Nothing to do. Rebuild an open plan's page to see it.
 
 ## 51.7.1 — The UX guide matches the new review cards
 
@@ -38,7 +71,7 @@
 - **A card shows the picture first.** On a computer, the picture is big on the right and the short words sit on the left. On a phone, the picture comes first. Tabs above the picture switch between *Before*, *After*, and each state; *Before and after* puts two side by side. The *After* picture shows first. Long words fold behind *More* ([the card view](wiki/review-pages.md#the-card-view)).
 - **A whole page, such as an email, gets its own card.** A `page` fence shows each version in a tab, and *All* shows them side by side, at phone or computer width. The page runs none of its own script, and its links look real but go nowhere. A tap on the page places a note that names the version ([the page card](wiki/review-pages.md#the-page-card)).
 - **Each ad gets a tab**, and *All* shows them side by side.
-- **A question can ask you to pick a picture**: `pictures: Top picture | a.png, b.png` in a `form` fence ([questions and files](wiki/review-pages.md#questions-and-files)).
+- **A question can ask you to pick a picture**: `pictures: Top picture | a.png, b.png` in a `form` fence ([questions and files](wiki/review-pages.md#files)).
 - **More plans show real screens.** A plan's prototype uses sample data for what the copy can't reach. When the copy can't go to the preview address, `prototype.mjs serve` runs it on this computer for the pictures. A gray sketch with no real picture now warns, unless the plan says why ([the prototype](wiki/review-pages.md#the-prototype)).
 - **A finished build's page uses the same tabs**: *Approved* and *Built*, or *Live now* and *Preview*.
 
@@ -467,7 +500,7 @@ Memory's list of areas gains one entry, for the address of the app the WongStack
 
 - **A live card runs the real page inside the review page.** The chat makes a page, such as a shop page or a small tool, and it runs sealed in its card, with no internet. Switch it between *Phone* and *Computer* width, or open it full screen. A card can have the chat's own control, such as *put these in order*, and your pick goes to the chat with your notes ([the live card](wiki/review-pages.md#the-live-card)).
 - **A website is planned as a live prototype, and built from it.** For a site this app doesn't run, the chat writes the real files in the plan's `prototypes/` folder. Your notes change them, the build starts from the files you approved, and the check after it shows *Approved* beside *Built* ([a website prototype](wiki/review-pages.md#a-website-prototype)).
-- **A page can ask you questions.** Words, a choice, a date, a tick, or a file. Your answers go with your notes or with *Build it*, so the chat doesn't ask again in the chat. A question that asks for a password, key, or card stops the page's build ([questions and files](wiki/review-pages.md#questions-and-files)).
+- **A page can ask you questions.** Words, a choice, a date, a tick, or a file. Your answers go with your notes or with *Build it*, so the chat doesn't ask again in the chat. A question that asks for a password, key, or card stops the page's build ([questions and files](wiki/review-pages.md#files)).
 - **Send files from the page.** Drop a file, or tap to pick one on a phone: 25 MB a file and 100 MB a page. It goes to the computer the chat runs on. From your Inbox it waits in your company app until the computer takes it. No one can open it after 24 hours, and the app deletes it the next time the Inbox is used ([files from a page](wiki/development/reply-links.md#files-from-a-page)).
 - **Every plan says what the build needs.** Each key, login, file, or answer says *Ready* or *Needs you*. While one needs you, the build buttons say how many and show the first, so a build never stops halfway to ask ([what the build needs](wiki/review-pages.md#what-the-build-needs)).
 - **An answered page looks answered at once.** After you tap a button in the Inbox and the chat gets it, the page shows your answer and its time above it, as the Archive does. It has no *Send notes* bar and no *Remove* on a sent file.

@@ -7,8 +7,8 @@ How plans draw: pick by what the bullet explains.
 - **A screenshot is a `picture` fence** of `[label:] path` lines, one [picture](../../../../wiki/review-pages.md#the-card-view) each: `Before: pictures/a.png`, `Inbox, phone:`.
 - **A whole page, such as an email, is a [`page` fence](../../../../wiki/review-pages.md#the-page-card)**: `A: email/a.html`.
 - **An ad is an `ad` fence**: `placement: feed|story`, `account:`, `picture:`, `text:`, `headline:`, `button:`.
-- **A site or job control is a [`live` fence](../../../../wiki/review-pages.md#the-live-card)**, ```` ```live After ````: `folder: prototypes/<site>`, `height:` (640).
-- **Questions are a [`form` fence](../../../../wiki/review-pages.md#questions-and-files)**: `text: Shop name`.
+- **A site or tool is a [`live` fence](../../../../wiki/review-pages.md#the-live-card)**, ```` ```live After ````: `folder: prototypes/<site>`, `height:` (640).
+- **A needed file is a [`form` fence](../../../../wiki/review-pages.md#files)**: `file: Logo | image | 1`.
 - **Arrows or layers are an `svg` fence**, in named colors.
 - **A table is a Markdown table**; each row takes a note.
 - **Chat and file lists stay a `text` fence**: chat shows no pictures.

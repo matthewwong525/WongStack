@@ -522,7 +522,7 @@ test('a live fence carries its page, styles, script, and pictures inside one sea
   assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
   const html = page(root), doc = srcdoc(html), uri = `data:image/png;base64,${png().toString('base64')}`;
   assert.match(html, /<figure class="part" data-kind="live"><div class="clip"><div class="live" data-live="item-1-live-1" data-height="640"><iframe sandbox="allow-scripts" /);
-  assert.match(doc, /^<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline';[^"]*connect-src 'none'[^"]*"><script>\(function\(\)\{var port=null/);
+  assert.match(doc, /^<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline';[^"]*connect-src 'none'[^"]*"><script>window\.review=\{answer:function\(\)\{\}\};<\/script>/, 'a sample that calls review.answer gets a stub that sends nothing');
   assert.ok(doc.includes(`<style>body { background: url("${uri}"); }</style>`), 'the stylesheet and its picture are inside');
   assert.ok(doc.includes(`<img src="${uri}" alt="Logo">`));
   assert.ok(doc.includes('<script>review.answer("Blue"); const end = "<\\/script>";</script>'), 'the script is inside, its end tag escaped');
@@ -652,20 +652,11 @@ for (const [what, files, why, lines = ['A: a.html']] of refusedPages) {
   }, files, lines));
 }
 
-// ── a `pictures:` question: pick one of the change's own pictures ──
+// ── a `pictures:` question: a pick between pictures is asked in the chat, never on the page ──
 const withPicks = files => proposal.replace(`  ${fence}\n- **Escapes`, `  ${fence}\n  ${fence}form\n  pictures: Top picture | ${files}\n  ${fence}\n- **Escapes`);
-test('a pictures question draws each picture as a choice, carried inside the page', () => fixture(root => {
+test('a pictures question in a card stops the build and says to ask it in the chat', () => fixture(root => {
   for (const name of ['a.png', 'b.png']) writeFileSync(join(root, name), png());
-  buildReview(root, { requireCurrent: true });
-  const uri = `data:image/png;base64,${png().toString('base64')}`;
-  assert.ok(page(root).includes('<div class="form"><fieldset class="q" data-q="item-1-q-1" data-kind="pictures" data-label="Top picture"><legend class="q-label">Top picture</legend><div class="picks">'
-    + `<label class="pick"><input type="radio" name="q-item-1-q-1" value="a.png"><img src="${uri}" alt="a.png"></label>`
-    + `<label class="pick"><input type="radio" name="q-item-1-q-1" value="b.png"><img src="${uri}" alt="b.png"></label></div></fieldset></div>`));
-}, withPicks('a.png, b.png')));
-
-test('a pictures question with one picture stops the build', () => fixture(root => {
-  writeFileSync(join(root, 'a.png'), png());
   const result = build(root);
   assert.equal(result.status, 1);
-  assert.equal(result.stderr, 'review: proposal.md line 15: item 1: pictures takes "| a.png, b.png" with 2 to 12 files\n');
-}, withPicks('a.png')));
+  assert.equal(result.stderr, 'review: proposal.md line 14: item 1: a review page asks no questions; ask "Top picture" in the chat as a question card\n');
+}, withPicks('a.png, b.png')));

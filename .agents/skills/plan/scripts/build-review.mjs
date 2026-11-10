@@ -51,13 +51,9 @@ const MAGIC = { 'image/gif': [0x47, 0x49, 0x46, 0x38], 'font/woff': [0x77, 0x4f,
   ...Object.fromEntries(PHOTO_TYPES) };
 const LIVE_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; "
   + "media-src data: blob:; connect-src 'none'; form-action 'none'; frame-src 'none'; base-uri 'none'";
-// The card's one way out: review.answer(text) posts to the port the kit hands it on each greeting.
-const LIVE_SHIM = '<script>(function(){var port=null,last=null;addEventListener("message",function(e){var m=e.data;'
-  + 'if(e.source!==parent||!m||m.type!=="review:hello"||!e.ports||!e.ports[0])return;port=e.ports[0];'
-  + 'if(last!==null)port.postMessage({type:"review:answer",text:last});});'
-  + 'window.review={answer:function(text){last=String(text);if(port)port.postMessage({type:"review:answer",text:last});}};}());</script>';
-// A `form` fence: one question a line, as `<kind>: <label>`, a choice's options, or a file's types and count.
-const QUESTION_KINDS = new Set(['text', 'long', 'choice', 'choices', 'pictures', 'date', 'tick', 'file']);
+// A sample made for older pages calls review.answer; the stub keeps it quiet and sends nothing.
+const LIVE_SHIM = '<script>window.review={answer:function(){}};</script>';
+// A `form` fence in What the build needs: one `file: <label> | <types> | <count>` line a file the build needs.
 const FILE_KINDS = { image: ['png', 'jpg', 'jpeg', 'webp', 'gif'], pdf: ['pdf'], text: ['txt', 'csv', 'md', 'json'], office: ['docx', 'xlsx', 'pptx'], zip: ['zip'] };
 const FILE_WORDS = { image: 'pictures', pdf: 'PDFs', text: 'text files', office: 'Word, Excel, or PowerPoint files', zip: 'zip files' };
 const QUESTIONS_MAX = 12, FILES_MAX = 5;
@@ -512,7 +508,7 @@ function inliner(root, stop, card = 'a live card') {
   return page;
 }
 
-// The page's head takes the sealing policy, and a live card's answer shim, first, before any of the page's own parts.
+// The page's head takes the sealing policy, and a live card's stub, first, before any of the page's own parts.
 function sealed(html, first = `<meta http-equiv="Content-Security-Policy" content="${LIVE_CSP}">${LIVE_SHIM}`) {
   const head = /<head\b[^>]*>/i.exec(html) ?? /<html\b[^>]*>/i.exec(html);
   if (!head) return `${first}${html}`;
@@ -589,52 +585,41 @@ function pages(item, fence, k, ctx) {
   return { parts: versions };
 }
 
-// ── a `form` fence: questions drawn as real inputs, each with a stable id the kit keeps its answer under ──
-function question(prefix, k, line, at, stop, ctx, where) {
-  const m = /^\s*([a-z]+):\s*(.*?)\s*$/.exec(line);
-  if (!m || !QUESTION_KINDS.has(m[1])) stop(`a question is one of ${[...QUESTION_KINDS].join(', ')}, then a colon and its words`, at);
-  const [label, ...parts] = m[2].split('|').map(part => part.trim());
-  const kind = m[1], id = `${prefix}-q-${k}`, words = esc(label);
-  if (!label || label.length > 200) stop('a question needs its words, 200 characters at most', at);
-  if (SECRET.test(label)) stop(`the question "${label}" asks for a secret; a page never takes a password, key, or card: send its private link (${PRIVATE_LINK})`, at);
-  const head = `class="q" data-q="${id}" data-kind="${kind}" data-label="${words}"`;
-  if (kind === 'choice' || kind === 'choices') {
-    const options = (parts[0] ?? '').split(',').map(option => option.trim()).filter(Boolean);
-    if (parts.length !== 1 || !options.length || options.length > QUESTIONS_MAX) stop(`${kind} takes "| a, b" with 1 to ${QUESTIONS_MAX} options`, at);
-    const type = kind === 'choice' ? 'radio' : 'checkbox';
-    return `<fieldset ${head}><legend class="q-label">${words}</legend>${options.map(option =>
-      `<label class="opt"><input type="${type}" name="q-${id}" value="${esc(option)}"> ${esc(option)}</label>`).join('')}</fieldset>`;
-  }
-  if (kind === 'pictures') {
-    const files = (parts[0] ?? '').split(',').map(file => file.trim()).filter(Boolean);
-    if (parts.length !== 1 || files.length < 2 || files.length > QUESTIONS_MAX) stop(`pictures takes "| a.png, b.png" with 2 to ${QUESTIONS_MAX} files`, at);
-    return `<fieldset ${head}><legend class="q-label">${words}</legend><div class="picks">${files.map(file =>
-      `<label class="pick"><input type="radio" name="q-${id}" value="${esc(file)}"><img src="${photo(file, at, where, ctx, ctx.warnings)}" alt="${esc(basename(file))}"></label>`).join('')}</div></fieldset>`;
-  }
-  if (kind === 'file') {
-    const types = (parts[0] ?? '').split(',').map(type => type.trim()).filter(Boolean), count = parts[1] === undefined ? 1 : Number(parts[1]);
-    const unknown = types.find(type => !FILE_KINDS[type]);
-    if (!types.length || unknown || parts.length > 2) stop(`a file takes "| <types> | <count>", types from ${Object.keys(FILE_KINDS).join(', ')}${unknown ? `, not ${unknown}` : ''}`, at);
-    if (!Number.isInteger(count) || count < 1 || count > FILES_MAX) stop(`a file question takes 1 to ${FILES_MAX} files, not ${parts[1]}`, at);
-    const exts = types.flatMap(type => FILE_KINDS[type]);
-    return `<div ${head} data-types="${exts.join(',')}" data-count="${count}"><p class="q-label">${words}</p>`
-      + `<label class="drop"><input type="file" accept="${exts.map(ext => `.${ext}`).join(',')}"${count > 1 ? ' multiple' : ''}>`
-      + `<span>Drop ${count > 1 ? 'files' : 'a file'} here, or tap to pick</span></label>`
-      + `<p class="muted">${types.map(type => FILE_WORDS[type]).join(', ')}; ${count === 1 ? '1 file' : `up to ${count} files`}, 25 MB each. `
-      + 'Never send a password, key, or card here.</p><ul class="files"></ul></div>';
-  }
-  if (parts.length) stop(`${kind} takes only its words`, at);
-  const input = { text: `<input id="q-${id}" type="text" maxlength="2000">`, long: `<textarea id="q-${id}" rows="3" maxlength="2000"></textarea>`,
-    date: `<input id="q-${id}" type="date">` }[kind];
-  if (kind === 'tick') return `<div ${head}><label class="opt"><input id="q-${id}" type="checkbox"> ${words}</label></div>`;
-  return `<div ${head}><label class="q-label" for="q-${id}">${words}</label>${input}</div>`;
+// ── a `form` fence: file questions only, each with a stable id the kit keeps its files under ──
+// A choice or typed answer is asked in the chat, as a question card, before the page is built.
+const asked = line => (/^\s*[a-z]+:\s*(.*?)\s*$/.exec(line)?.[1] ?? line.trim()).split('|')[0].trim();
+const secret = words => `the question "${words}" asks for a secret; a page never takes a password, key, or card: send its private link (${PRIVATE_LINK})`;
+const inChat = words => `a review page asks no questions; ask "${words}" in the chat as a question card`;
+function question(prefix, k, line, at, stop) {
+  const m = /^\s*([a-z]+):\s*(.*?)\s*$/.exec(line), words = asked(line);
+  if (SECRET.test(words)) stop(secret(words), at);
+  if (m?.[1] !== 'file') stop(inChat(words), at);
+  const parts = m[2].split('|').map(part => part.trim()).slice(1), id = `${prefix}-q-${k}`, shown = esc(words);
+  if (!words || words.length > 200) stop('a question needs its words, 200 characters at most', at);
+  const types = (parts[0] ?? '').split(',').map(type => type.trim()).filter(Boolean), count = parts[1] === undefined ? 1 : Number(parts[1]);
+  const unknown = types.find(type => !FILE_KINDS[type]);
+  if (!types.length || unknown || parts.length > 2) stop(`a file takes "| <types> | <count>", types from ${Object.keys(FILE_KINDS).join(', ')}${unknown ? `, not ${unknown}` : ''}`, at);
+  if (!Number.isInteger(count) || count < 1 || count > FILES_MAX) stop(`a file question takes 1 to ${FILES_MAX} files, not ${parts[1]}`, at);
+  const exts = types.flatMap(type => FILE_KINDS[type]);
+  return `<div class="q" data-q="${id}" data-kind="file" data-label="${shown}" data-types="${exts.join(',')}" data-count="${count}"><p class="q-label">${shown}</p>`
+    + `<label class="drop"><input type="file" accept="${exts.map(ext => `.${ext}`).join(',')}"${count > 1 ? ' multiple' : ''}>`
+    + `<span>Drop ${count > 1 ? 'files' : 'a file'} here, or tap to pick</span></label>`
+    + `<p class="muted">${types.map(type => FILE_WORDS[type]).join(', ')}; ${count === 1 ? '1 file' : `up to ${count} files`}, 25 MB each. `
+    + 'Never send a password, key, or card here.</p><ul class="files"></ul></div>';
 }
 
 function form(prefix, fence, first, ctx, where) {
   const stop = (why, at = fence.at) => { throw new Error(`${ctx.file} line ${at}: ${where}: ${why}`); };
   const lines = fence.lines.map((line, i) => [line, fence.at + 1 + i]).filter(([line]) => line.trim());
   if (!lines.length || lines.length > QUESTIONS_MAX) stop(`a form holds 1 to ${QUESTIONS_MAX} questions`);
-  return { count: lines.length, html: `<div class="form">${lines.map(([line, at], i) => question(prefix, first + i, line, at, stop, ctx, where)).join('')}</div>` };
+  return { count: lines.length, html: `<div class="form">${lines.map(([line, at], i) => question(prefix, first + i, line, at, stop)).join('')}</div>` };
+}
+
+// A card holds no question: the build stops on its first one, or on a secret, which never goes in the chat either.
+function noQuestions(block, fence, ctx) {
+  const asks = fence.lines.filter(line => line.trim()).map(asked);
+  const hidden = asks.find(words => SECRET.test(words));
+  throw new Error(`${ctx.file} line ${fence.at}: item ${block.n}: ${hidden ? secret(hidden) : inChat(asks[0] ?? 'it')}`);
 }
 
 // ── `## What the build needs`: each bullet Ready or Needs you; one that needs you holds its questions or its link ──
@@ -669,7 +654,7 @@ function needs(section, ctx) {
 }
 
 // A card's view: each picture, drawing, page, and live card side by side, labelled; a click opens one full screen.
-// Tables and forms stay with the words.
+// Tables stay with the words.
 function view(drawn) {
   const parts = drawn.flatMap(fence => fence.parts), seen = {};
   if (!parts.length) return '';
@@ -692,12 +677,12 @@ function sketchOnly(block, ctx, warnings) {
 
 const PICTURE_KINDS = new Set(['ads', 'mermaid', 'svg', 'screen', 'picture', 'page']);
 function changes(section, warnings, ctx) {
-  let html = '', open = false, wide = false;
+  let html = '', open = false;
   for (const block of blocks(section, 'item')) {
     if (!block.n) { html += `${open ? '</ol>\n' : ''}<p class="aside">${inline(block.text)}</p>\n`; open = false; continue; }
     // Text drawings number lines across the item, tables their rows;
     // each picture, page version, and ad takes the next picture number.
-    let first = 1, pictures = 0, rows = 1, lives = 0, questions = 1;
+    let first = 1, pictures = 0, rows = 1, lives = 0;
     const grouped = block.drawings.reduce((all, fence) => {
       if (fence.lang === 'ad' && all.at(-1)?.lang === 'ads') all.at(-1).fences.push(fence);
       else all.push(fence.lang === 'ad' ? { lang: 'ads', fences: [fence] } : fence);
@@ -705,7 +690,7 @@ function changes(section, warnings, ctx) {
     }, []);
     const words = [], panels = [];
     for (const fence of grouped) {
-      if (fence.lang === 'form') { const drawn = form(`item-${block.n}`, fence, questions, ctx, `item ${block.n}`); questions += drawn.count; words.push(drawn.html); }
+      if (fence.lang === 'form') noQuestions(block, fence, ctx);
       else if (fence.lang === 'table') { words.push(table(block, fence, rows)); rows += fence.lines.length - 2; }
       else if (fence.lang === 'ads') panels.push(ads(block, fence.fences, pictures + 1, ctx, warnings));
       else if (fence.lang === 'mermaid') panels.push(picture(block, fence, pictures + 1, warnings));
@@ -721,12 +706,11 @@ function changes(section, warnings, ctx) {
     // A card has one Try it link; a later one is dropped, with a warning so an older plan still builds.
     for (const extra of panels.filter(panel => panel.tryIt).slice(1)) warnings.push(`${extra.tryAt}: a card takes one Try it; dropped ${extra.tryIt}`);
     const shown = view(panels), text = block.text.replace(/\s*\(review\.html#\/[^)]*\)\s*$/, '');
-    wide ||= !!shown;
     html += `${open ? '' : '<ol class="items">\n'}<li class="item card${shown ? ' has-view' : ''}" id="item-${block.n}"><div class="words"><span class="num">${block.n}</span>`
       + `<div class="body"><div class="text" data-note="item-${block.n}" tabindex="0">${inline(text)}</div></div>${words.join('')}</div>${shown}</li>\n`;
     open = true;
   }
-  return { html: html + (open ? '</ol>' : ''), wide };
+  return html + (open ? '</ol>' : '');
 }
 
 // The decisions as a list, or null when there are none: a page then shows no Decisions section.
@@ -771,7 +755,7 @@ function render(markdown, warnings, root, kind) {
   const ctx = { root, file, warnings }, needed = found['what the build needs'] && needs(found['what the build needs'], ctx);
   const cards = changes(found[list.toLowerCase()], warnings, ctx);
   return `<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>\n<div class="card">\n${why.join('\n')}\n</div></section>\n`
-    + `<section id="changes"${cards.wide ? ' class="wide"' : ''} aria-labelledby="changes-h"><h2 id="changes-h">${list}</h2>\n${cards.html}\n</section>`
+    + `<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">${list}</h2>\n${cards}\n</section>`
     + (needed ? `\n<section id="needs" aria-labelledby="needs-h"><h2 id="needs-h">What the build needs</h2>\n${needed}\n</section>` : '')
     + (decided ? `\n<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>\n${decided}\n</section>` : '');
 }
@@ -786,7 +770,7 @@ function askOf(markdown) {
 // The plan as chat Markdown, from the same parse as the page: Why, each change numbered, and the assumed decisions.
 // A chat shows no pictures, so Mermaid, SVG, screen, and picture fences point to the page; tables and text print.
 const PICTURE_LANGS = new Set(['mermaid', 'svg', 'screen', 'picture']);
-const PAGE_ONLY = { live: '   _(live page on the review page)_', page: '   _(page on the review page)_', form: '   _(questions on the review page)_' };
+const PAGE_ONLY = { live: '   _(live page on the review page)_', page: '   _(page on the review page)_' };
 export function chatCopy(name, markdown) {
   const found = sections(markdown);
   if (!found.why || !found['what changes']) return '';
@@ -873,11 +857,11 @@ export const REVIEW_ON_PAGE = 'Review the plan, then tap Build it or Build and p
 export const REVIEW_IN_CHAT = 'Review the plan. When you\'re ready, say "build it" or "build and publish".';
 // A review page of other work: its buttons are its own.
 export const WORK_ON_PAGE = 'Look it over, then tap a button or Send notes on its page.';
-export const WORK_IN_CHAT = 'Look it over, then tell me your choice or paste your notes here.';
+export const WORK_IN_CHAT = 'Look it over, then say OK or paste your notes here.';
 
 // The chat line an agent copies as printed: a path with a space or parenthesis goes in <…> so the link still parses.
 export function planLink(page, what = 'the plan') {
-  return `Click here to see ${what}: [review.html](${/[\s()]/.test(page) ? `<${page}>` : page})`;
+  return `[👉 Tap here to see ${what}](${/[\s()]/.test(page) ? `<${page}>` : page})`;
 }
 
 // The fixed first line of sent and copied notes; the kit writes the same words.

@@ -3,13 +3,15 @@
 import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs';
 import { helperFiles } from './computer.mjs';
 
-const FIELDS = ['event', 'app', 'item', 'tap', 'action', 'outcome', 'key', 'run', 'reason', 'chat', 'message'];
+const FIELDS = ['event', 'app', 'item', 'tap', 'action', 'outcome', 'key', 'run', 'reason', 'chat', 'message', 'warning'];
+// A run's warning can join two of them, a fetch's and a rename's, so it keeps more than the 200 of any other field.
+const LONG = { warning: 1000 };
 export const LOG_LIMIT = 1024 * 1024;
 
 /** Appends `entry`'s allowed fields to ~/.wong-stack/helper/log.jsonl, rolled to log.1.jsonl at 1 MB. Never throws. */
 export function logAction(entry, { env = process.env, now = Date.now } = {}) {
   const line = { at: new Date(now()).toISOString() };
-  for (const field of FIELDS) if (entry?.[field] != null) line[field] = String(entry[field]).slice(0, 200);
+  for (const field of FIELDS) if (entry?.[field] != null) line[field] = String(entry[field]).slice(0, LONG[field] ?? 200);
   try {
     const { dir, log } = helperFiles(env);
     mkdirSync(dir, { recursive: true, mode: 0o700 });
