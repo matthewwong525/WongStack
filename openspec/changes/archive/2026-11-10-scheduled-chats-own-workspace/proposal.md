@@ -50,3 +50,4 @@ Every chat that an app schedule starts shows as **main** in the Paseo sidebar, s
 - **2026-11-10** — Assumed: the warning stays in the computer's log and never reaches the app's run result, so the app's record keeps its fixed shape.
 - **2026-11-10** — Assumed (from the downstream ship review): the fetch gets a 60-second limit and runs asynchronously, because the helper is long-running and a hung fetch would stop every later run. `workspace.mjs open` keeps no limit.
 - **2026-11-10** — Assumed (from the downstream ship review): the log keeps 1,000 characters of `warning`, because a joined fetch and rename warning passed 200 and lost the rename half.
+- **2026-11-10** — Archived for /ship as 51.9.0; `node scripts/payload-checks.mjs` passed locally (shellcheck skipped: not installed here).

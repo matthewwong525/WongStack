@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Scheduled chats open in their own named workspace
+## 51.9.0 — Scheduled chats open in their own named workspace
 
 - **A chat that a schedule starts opens in its own workspace, named after the schedule.** The Paseo sidebar shows *Standup*, not *main*. In a git project the workspace is its own copy of the project from the latest default branch, so the chat never works on the main copy ([host schedules](wiki/stack/host-schedules.md)).
 - **A folder that is not a git project opens in place, still named.**
