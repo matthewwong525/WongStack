@@ -1,5 +1,5 @@
 // The helper's schedule rounds: start the runs the app hands this computer, and mirror Paseo's schedules to the page.
-// A run starts only on a version approved here; the app's text never reaches the prompt. wiki/stack/live-line.md
+// A run starts only on a version approved here; only that approved text reaches the prompt. wiki/stack/live-line.md
 import { spawn as spawnChild } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -9,7 +9,8 @@ import { SCHEDULE_LABEL } from '../../../daily/scripts/chats.mjs';
 import { approvedVersion, signedInAs } from './approvals.mjs';
 import { appCall, appTiming, heldDefinition, readSchedule, runnableFolder } from './app.mjs';
 import { listRecords } from './records.mjs';
-import { paseoAdapter, startupPrompt } from './hosts.mjs';
+import { firstMessage, paseoAdapter } from './hosts.mjs';
+import { appProgress } from './progress.mjs';
 import { scheduleVersion } from './version.mjs';
 import { EXIT, PaseoError, findPaseo, git, paseo, runPaseo } from './paseo.mjs';
 import { MODES, childEnv, defaultBranch, flooredThinking, freshBase, nameWorkspace, parseCreated, workspaceTitle } from '../workspace.mjs';
@@ -62,9 +63,9 @@ async function workspacePlace(cwd) {
   }
 }
 
-/** Opens a chat run's own workspace through Paseo, with the fixed startup prompt, then names the workspace after
+/** Opens a chat run's own workspace through Paseo, with the approved instructions, then names the workspace after
  *  the schedule; a fetch or rename problem comes back as `warning`, and the run still starts. */
-export async function openSession({ schedule, run, title, env = process.env }) {
+export async function openSession({ schedule, run, title, progress = null, env = process.env }) {
   const settings = schedule.run;
   const bin = findPaseo(env, 'WONG_PASEO_BIN');
   // Paseo refuses a run with no provider; a schedule that names none runs on Claude.
@@ -78,8 +79,7 @@ export async function openSession({ schedule, run, title, env = process.env }) {
   // No one is there to allow a step, so an unattended run takes the provider's full mode unless the schedule sets one.
   const mode = settings.mode || MODES[provider];
   if (mode) args.push('--mode', mode);
-  const prompt = startupPrompt({ key: schedule.key, run: run.id, version: schedule.version });
-  const { data, stderr } = await runPaseo(bin, [...args, '--', prompt], { env: childEnv(env) });
+  const { data, stderr } = await runPaseo(bin, [...args, '--', firstMessage({ schedule, run, progress })], { env: childEnv(env) });
   // Without a rename, Paseo names the workspace after its git branch, so every run shows as `main`.
   const renamed = await nameWorkspace(bin, parseCreated(stderr), title, env);
   const warning = [place.warning, renamed.warning].filter(Boolean).join('\n');
@@ -142,10 +142,20 @@ async function startRun(run, { client, open, hand, env, ledger, now, email }) {
   const refused = admit(run, found.schedule, { ledger, now: now() });
   if (refused) return { state: 'blocked', reason: refused };
   if (found.schedule.kind === 'background') return hand({ ...found, run }, { env });
+  const held = appProgress(client, run.key);
+  let progress, claimed = false;
   try {
-    const { agentId, chatTitle, warning } = await open({ schedule: found.schedule, run, title: titleOf(found.schedule), env });
+    if (!(claimed = await held.claim(run.id))) return { state: 'blocked', reason: 'already_running' };
+    ({ progress } = await held.read());
+  } catch {
+    if (claimed) await held.release(run.id).catch(() => {});
+    return { state: 'blocked', reason: 'no_app' };
+  }
+  try {
+    const { agentId, chatTitle, warning } = await open({ schedule: found.schedule, run, title: titleOf(found.schedule), progress, env });
     return { state: 'started', agentId: agentId ?? undefined, chatTitle: chatTitle ?? undefined, warning: warning || undefined };
   } catch (error) {
+    await held.release(run.id).catch(() => {});
     return { state: 'failed', reason: error instanceof PaseoError && error.code === EXIT.noPaseo ? 'no_opener' : 'open_failed' };
   }
 }

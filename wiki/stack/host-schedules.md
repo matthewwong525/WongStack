@@ -32,7 +32,7 @@ The chat shows the app's text as a quote. It never acts on that text; only your 
 
 The host is the clock that starts each run, independently of which model you use. New schedules add no cloud runner or model key.
 
-- **Your company app's clock comes first** when this computer has [the helper](live-line.md#the-helper) running. At the due time the app says *look now* down [the live line](live-line.md). Your computer reads the schedule from the app and starts it only if its version matches the run and your approval. The app sends no prompt; your computer builds it.
+- **Your company app's clock comes first** when this computer has [the helper](live-line.md#the-helper) running. At the due time the app says *look now* down [the live line](live-line.md). Your computer reads the schedule from the app and starts it only if its version matches the run and your approval. The app sends no prompt; your computer builds it from the instructions you approved.
 - **Otherwise an existing host clock**: a Codex session inside Paseo can use Paseo's clock.
 
 A schedule runs in one of two ways:
@@ -52,7 +52,7 @@ Work with a finish line is a schedule with an end. Its plan names the completion
 
 ## How a run works
 
-Each fresh session reads the schedule's instructions and progress from the app, checks the version against your approval again, takes the progress claim, and then acts within your agreed scope. A changed version, an ended schedule, a missing folder, or revoked access blocks the run, and the Inbox shows why. A pending goal stays scheduled after the session ends. A successful ongoing routine keeps its next run.
+Before a chat opens, your computer reads the schedule's instructions and progress from the app, checks the version against your approval, and takes the progress claim. The chat's first message is your approved instructions, word for word, so instructions that start with a skill, such as `/news`, run that skill. A short footer follows: what the run may do, when it ends, the progress so far, and the one `finish` command that saves progress, ends a met goal, and gives the claim back ([a run's steps](../../.agents/skills/schedule/references/run.md)). A changed version, an ended schedule, a missing folder, revoked access, or a run still holding the progress blocks the run before any chat opens, and the Inbox shows why, such as *already running*. A pending goal stays scheduled after the session ends. A successful ongoing routine keeps its next run.
 
 Automatic contacting requires an agreed recipient, channel, message purpose, frequency, and end condition. It also requires saved progress that prevents overlapping sends. After an uncertain send, the next run checks the service's receipt; it waits for help if the result cannot be resolved. A schedule never grants itself permission to call, pay, refund, or publish code.
 

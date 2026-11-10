@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 51.10.0 — A scheduled chat starts with your instructions
+
+- **The chat's first message is the instructions you approved, word for word**, then a short footer: what it may do, when it ends, the progress so far, and the one command to run when it stops. Instructions that start with a skill, such as `/news`, run that skill. Your computer still opens the chat only when the text is the version you approved there ([how a run works](wiki/stack/host-schedules.md#how-a-run-works)).
+- **A schedule that is already running opens no second chat.** The run shows *didn't start, it's already running*.
+- **A run ends with one command, `schedule.mjs finish`.** It saves progress, ends a met goal, and gives the claim back. `schedule.mjs start`, `progress` and `release` are gone.
+
+**Updating.** Nothing to do. A scheduled chat that is already open keeps its old first message and still runs the old `schedule.mjs start`, which is gone: close it, and the next run starts the new way.
+
 ## 51.9.0 — Scheduled chats open in their own named workspace
 
 - **A chat that a schedule starts opens in its own workspace, named after the schedule.** The Paseo sidebar shows *Standup*, not *main*. In a git project the workspace is its own copy of the project from the latest default branch, so the chat never works on the main copy ([host schedules](wiki/stack/host-schedules.md)).

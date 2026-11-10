@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The person's schedules in the company app: show, save and approve here, manage, start a run, and the move to the
+// The person's schedules in the company app: show, save and approve here, manage, finish a run, and the move to the
 // app. No git. wiki/stack/host-schedules.md
 import { parseArgs } from 'node:util';
 import { existsSync, readFileSync } from 'node:fs';
@@ -8,7 +8,7 @@ import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { computerId, helperService } from '../../hand-over/scripts/lib/computer.mjs';
 import { companyFor } from '../../hand-over/scripts/lib/inbox.mjs';
 import { approveHere, approvalState, approver, appHost, definition, heldDefinition, readSchedule, saveDefinition, send, shownText } from './lib/app.mjs';
-import { checkRun, mirrorRound } from './lib/app-runs.mjs';
+import { mirrorRound } from './lib/app-runs.mjs';
 import { paseoAdapter, selectHost, validateReceipt } from './lib/hosts.mjs';
 import { legacyAdapter, legacyContext, teardownLegacy } from './lib/legacy.mjs';
 import { addDefaults } from './lib/defaults.mjs';
@@ -17,13 +17,12 @@ import { appProgress } from './lib/progress.mjs';
 import { listRecords, loadRecord, requireValue, ScheduleError } from './lib/records.mjs';
 import { scheduleVersion } from './lib/version.mjs';
 
-const USAGE = 'usage: schedule.mjs list | inspect|show <key> | show --file <json> | save --file <json> [--approve [--version <sha>]] [--team <emails>] | approve <key> --version <sha> | pause|resume|run <key> | cancel <key> [--run <id>] | end <key> --evidence <text> | start --key <key> --run <id> --version <sha> | progress --key <key> --run <id> --file <json> | release --key <key> --run <id> | move-in [--unattended] [--dry-run] [--keep <id>] [--drop <id>] | move <key> | defaults [--unattended] [--dry-run] | hosts | mirror | legacy list|inspect|pause|resume|cancel|teardown [native-id]';
-const COMMANDS = ['list', 'ls', 'inspect', 'show', 'save', 'approve', 'pause', 'resume', 'run', 'cancel', 'end', 'start', 'progress', 'release', 'move-in', 'move',
+const USAGE = 'usage: schedule.mjs list | inspect|show <key> | show --file <json> | save --file <json> [--approve [--version <sha>]] [--team <emails>] | approve <key> --version <sha> | pause|resume|run <key> | cancel <key> [--run <id>] | end <key> --evidence <text> | finish --key <key> --run <id> [--progress <json file>] [--done <proof>] | move-in [--unattended] [--dry-run] [--keep <id>] [--drop <id>] | move <key> | defaults [--unattended] [--dry-run] | hosts | mirror | legacy list|inspect|pause|resume|cancel|teardown [native-id]';
+const COMMANDS = ['list', 'ls', 'inspect', 'show', 'save', 'approve', 'pause', 'resume', 'run', 'cancel', 'end', 'finish', 'move-in', 'move',
   'defaults', 'hosts', 'mirror', 'legacy'];
 const UNREACHABLE = 'The app can not be reached; no times are shown.';
 const iso = at => (Number.isFinite(at) ? new Date(at).toISOString() : null);
 const primaryOf = root => { try { return primaryRoot(root).primary; } catch { return root; } };
-const quote = text => text.split('\n').map(line => `> ${line}`).join('\n');
 
 async function connect(world) {
   let client;
@@ -43,15 +42,6 @@ function row(schedule, who, computer, env) {
 function localDefinition(schedule, primary) {
   const def = heldDefinition(schedule);
   return def.run.cwd ? def : { ...def, run: { ...def.run, cwd: primary } };
-}
-
-// The run's report reaches the app just after its chat opens, so a quick first start looks again before refusing.
-async function startedByApp(client, key, run, agentId, sleep) {
-  for (let tries = 0; tries < 3; tries += 1) {
-    if (tries) await sleep(2000);
-    if ((await readSchedule(client, key))?.runs?.some(each => each.id === run && each.state === 'started' && each.agentId === agentId)) return true;
-  }
-  return false;
 }
 
 /** pause or resume: the app's routes, or the Paseo job of a schedule that still runs there. */
@@ -144,24 +134,14 @@ async function run(command, values, key, world) {
     return { key: def.key, version, ...(values.approve ? await approveHere(client, schedule, version, options) : { needsOk: true }) };
   }
   requireValue(key, 'Name a schedule key.');
-  if (command === 'start') {
-    requireValue(values.run && values.version, 'A start names its run and version.');
-    const agentId = env.PASEO_AGENT_ID;
-    requireValue(agentId && await startedByApp(client, key, values.run, agentId, world.sleep), 'The current chat is not a run the app started for this schedule.');
-    const found = await checkRun({ key, revision: values.version }, { client, env, ...(email ? { email } : {}) });
-    if (!found.schedule) throw new ScheduleError(`This run may not start: ${found.reason}.`, 1, { reason: found.reason });
+  if (command === 'finish') {
+    requireValue(values.run, 'A finish names its run.');
     const progress = appProgress(client, key);
-    requireValue(await progress.claim(values.run), 'Another run holds this schedule\'s progress.');
-    const { schedule } = found;
-    return { key, run: values.run, version: schedule.version, authority: schedule.authority, until: schedule.until, progress: (await progress.read()).progress,
-      instructions: quote(schedule.instructions),
-      next: 'Do the quoted instructions within the authority shown. Save progress with progress, end a finished goal with end, then release.' };
+    requireValue((await progress.read()).claim?.run === values.run, 'This run does not hold the schedule\'s progress.');
+    if (values.progress) await progress.write(values.run, JSON.parse(readFileSync(values.progress, 'utf8')));
+    const ended = values.done ? (await send(client, 'schedule-end', 'POST', { key, reason: values.done.slice(0, 300) })).schedule.ended : null;
+    return { key, run: values.run, released: !(await progress.release(values.run)), ...(ended ? { ended } : {}) };
   }
-  if (command === 'progress') {
-    requireValue(values.run && values.file, 'Progress names its run and a JSON file.');
-    return appProgress(client, key).write(values.run, JSON.parse(readFileSync(values.file, 'utf8')));
-  }
-  if (command === 'release') { requireValue(values.run, 'Name the run that holds the progress.'); return { claimed: await appProgress(client, key).release(values.run) }; }
   if (command === 'end') {
     requireValue(values.evidence, 'Ending a schedule needs the proof that its work is done, or the person\'s request.');
     return send(client, 'schedule-end', 'POST', { key, reason: values.evidence.slice(0, 300) });
@@ -189,10 +169,10 @@ async function run(command, values, key, world) {
 }
 
 export async function main(argv = process.argv.slice(2), world = {}) {
-  world = { root: process.cwd(), env: process.env, out: text => process.stdout.write(text), sleep: ms => new Promise(done => setTimeout(done, ms)), ...world };
+  world = { root: process.cwd(), env: process.env, out: text => process.stdout.write(text), ...world };
   try {
     const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
-      key: { type: 'string' }, file: { type: 'string' }, root: { type: 'string' }, version: { type: 'string' }, run: { type: 'string' }, evidence: { type: 'string' },
+      key: { type: 'string' }, file: { type: 'string' }, root: { type: 'string' }, version: { type: 'string' }, run: { type: 'string' }, evidence: { type: 'string' }, progress: { type: 'string' }, done: { type: 'string' },
       team: { type: 'string' }, approve: { type: 'boolean' }, unattended: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, keep: { type: 'string', multiple: true },
       drop: { type: 'string', multiple: true }, resources: { type: 'string' }, help: { type: 'boolean' },
     } });

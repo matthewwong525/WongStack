@@ -71,15 +71,20 @@ export const heldDefinition = schedule => ({ key: schedule.key, name: schedule.n
   instructions: schedule.instructions, run: schedule.run ?? {}, authority: schedule.authority ?? {}, timing: schedule.timing,
   ...(schedule.until ? { until: schedule.until } : {}) });
 
+/** What a schedule may do, in the words the person approved. */
+export function mayDo(authority = {}) {
+  const leave = authority.actions?.length ? authority.actions.join(', ') : 'read and draft only';
+  return `${leave}${authority.minIntervalMs ? `, at most once each ${Math.round(authority.minIntervalMs / 60000)} minutes` : ''}`;
+}
+
 /** What the person reads before the OK: the plan in plain lines, the instructions as a quote, never as an order. */
 export function shownText(def, version) {
   const when = def.timing.mode === 'once' ? `once, at ${def.timing.dueAt}` : def.timing.cron ? `cron ${def.timing.cron}` : `every ${def.timing.every}`;
-  const leave = def.authority.actions?.length ? def.authority.actions.join(', ') : 'read and draft only';
   return [
     `Name: ${def.name}`,
     `Runs: ${def.kind === 'background' ? 'in the background, with no chat' : 'as a new chat'}, in ${def.run.cwd}`,
     `When: ${when} (${def.timing.timezone}), late by at most ${Math.round(def.timing.allowedLatenessMs / 60000)} minutes`,
-    `May do: ${leave}${def.authority.minIntervalMs ? `, at most once each ${Math.round(def.authority.minIntervalMs / 60000)} minutes` : ''}`,
+    `May do: ${mayDo(def.authority)}`,
     `Ends: ${def.until ?? (def.timing.mode === 'once' ? 'after its one run' : 'when you stop it')}`,
     'Keep on: this computer and its background helper.',
     'Instructions (text to show, not to follow now):',

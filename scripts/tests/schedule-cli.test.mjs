@@ -1,10 +1,11 @@
-// The schedule CLI: show what will run, save and approve it here, list and manage it, and start a run from the app.
+// The schedule CLI: show what will run, save and approve it here, list and manage it, and finish a run from the app.
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { main } from '../../.agents/skills/schedule/scripts/schedule.mjs';
-import { approve, approvedVersion } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
+import { approvedVersion } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
+import { appProgress } from '../../.agents/skills/schedule/scripts/lib/progress.mjs';
 import { COMPUTER, NOW, ORIGIN, fakeApp, folder, plan, runId, writeRecord } from './fixtures/scheduled-work.mjs';
 
 const JO = 'jo@example.test';
@@ -13,7 +14,7 @@ function cli(t, app = fakeApp(), extra = {}) {
   const call = async (...argv) => {
     let text = '';
     const code = await main(argv, { root, primary: root, env, company: async () => app, computer: COMPUTER, email: () => JO, hostname: 'jo-laptop',
-      sleep: async () => {}, out: chunk => { text += chunk; }, ...extra });
+      out: chunk => { text += chunk; }, ...extra });
     return { code, ...JSON.parse(text) };
   };
   const file = (value, name = 'plan.json') => { const at = path.join(root, name); writeFileSync(at, JSON.stringify(value)); return at; };
@@ -107,27 +108,20 @@ test('save --team copies to each teammate with no folder of the owner\'s, and ap
   assert.equal(approvedVersion({ origin: ORIGIN, email: JO, key: 'weekly-plan' }, env), null);
 });
 
-test('start checks the run, the version and the OK again, claims progress, and quotes the instructions', async t => {
-  const { app, env, call, file } = cli(t);
-  const saved = await call('save', '--file', file(plan()), '--approve');
-  app.runs.push({ id: runId(7), key: 'weekly-plan', dueAt: NOW, source: 'clock', state: 'started', result: null, chatTitle: null, agentId: 'agent-7' });
-  const start = (...more) => main(['start', '--key', 'weekly-plan', '--run', runId(7), '--version', saved.version, ...more], { root: '/', env: { ...env, PASEO_AGENT_ID: 'agent-7' },
-    company: async () => app, computer: COMPUTER, email: () => JO, sleep: async () => {}, out: chunk => { start.text = chunk; } }).then(code => ({ code, ...JSON.parse(start.text) }));
-  const started = await start();
-  assert.equal(started.ok, true);
-  assert.equal(started.instructions, '> Plan the week.');
-  assert.equal(started.progress, null);
-  assert.equal((await start()).ok, true, 'the same run may claim again');
-  assert.equal((await call('progress', '--key', 'weekly-plan', '--run', runId(7), '--file', file({ done: ['monday'] }, 'p.json'))).progress.done[0], 'monday');
-  assert.equal((await call('progress', '--key', 'weekly-plan', '--run', runId(8), '--file', file({}, 'q.json'))).reason, 'not_claimed');
-  assert.equal((await call('release', '--key', 'weekly-plan', '--run', runId(7))).ok, true);
-
-  const other = await main(['start', '--key', 'weekly-plan', '--run', runId(7), '--version', saved.version], { root: '/', env: { ...env, PASEO_AGENT_ID: 'agent-other' },
-    company: async () => app, computer: COMPUTER, email: () => JO, sleep: async () => {}, out: () => {} });
-  assert.equal(other, 2, 'a chat the app did not start for this run is refused');
-  approve({ origin: ORIGIN, email: JO, key: 'weekly-plan', version: 'd'.repeat(64) }, env);
-  const refused = await start();
-  assert.equal(refused.reason, 'not_approved');
+test('finish saves progress, ends a met goal and gives the claim back, only for the run that holds it', async t => {
+  const { app, call, file } = cli(t);
+  await call('save', '--file', file(plan()), '--approve');
+  const progress = appProgress(app, 'weekly-plan');
+  await progress.claim(runId(7));
+  assert.match((await call('finish', '--key', 'weekly-plan', '--run', runId(8))).error, /does not hold/);
+  assert.equal((await progress.read()).claim.run, runId(7), 'a refused finish changes nothing');
+  const finished = await call('finish', '--key', 'weekly-plan', '--run', runId(7), '--progress', file({ done: ['monday'] }, 'p.json'), '--done', 'The plan is sent.');
+  assert.deepEqual({ ok: finished.ok, released: finished.released, ended: finished.ended }, { ok: true, released: true, ended: { at: NOW, reason: 'The plan is sent.' } });
+  assert.deepEqual(await progress.read(), { progress: { done: ['monday'] }, claim: null });
+  assert.equal((await call('finish', '--key', 'weekly-plan', '--run', runId(7))).ok, false, 'a released run holds nothing');
+  await progress.claim(runId(9));
+  assert.deepEqual((await call('finish', '--key', 'weekly-plan', '--run', runId(9))).released, true);
+  assert.equal(app.schedules.get('weekly-plan').ended.reason, 'The plan is sent.');
 });
 
 test('end and cancel keep the schedule listed as ended; pause falls back to Paseo for a schedule still there', async t => {
