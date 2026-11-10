@@ -80,20 +80,6 @@ An ad card SHALL show each ad in its placement's frame, a feed post or a story, 
 - **WHEN** an ad names a picture by web address
 - **THEN** the page is not built, and the message names the card and line
 
-### Requirement: A live card runs the chat's own page, sealed
-
-A card SHALL be able to hold a page the chat made, with its own layout, words, pictures, and script. The card SHALL show the page's top beside the card's other pictures; a click SHALL open it full screen, where the person SHALL be able to use it and switch it between a phone width and a computer width. A live card SHALL reach nothing outside itself: no internet, no other card, the page around it, or the app. It SHALL be able to send the person's choices to the page's notes, under its card, and they SHALL go to the chat as notes do.
-
-#### Scenario: A live card sends a choice
-
-- **WHEN** the person opens a live card full screen, picks a colour, and taps *Send notes*
-- **THEN** the chat gets the choice under that card's number with the other notes
-
-#### Scenario: A live card tries the internet
-
-- **WHEN** a live card's script tries to load a file from a web address or read the page around it
-- **THEN** the request fails, and the page and its notes are unchanged
-
 ### Requirement: A website plan is built from its approved prototype
 
 A plan that adds or changes a website this app does not run SHALL show it as a live card made while planning, at a phone and a computer width. Notes on the plan SHALL change that prototype. The build SHALL start from the prototype the person approved, and the check after it SHALL show the approved prototype beside the built page.
@@ -102,20 +88,6 @@ A plan that adds or changes a website this app does not run SHALL show it as a l
 
 - **WHEN** a plan changes a shop's home page and the person taps *Build it*
 - **THEN** the build uses the approved prototype's files, and the preview shows *Approved* beside *Built*
-
-### Requirement: A review page can ask questions
-
-A review page SHALL be able to ask the person questions in a card or a needs item, as words, a choice, a date, a tick, or a file. Answers SHALL be kept like notes, and SHALL go to the chat with the notes or with any button in the bar, each named by its question. A page SHALL NOT be built with a question that asks for a password, a key, a token, or a card number.
-
-#### Scenario: Answers go with Build it
-
-- **WHEN** the person answers *Shop name* and taps *Build it*
-- **THEN** the chat gets the answer, named by its question, with the build request
-
-#### Scenario: A question asks for a key
-
-- **WHEN** a page's source has a question named *API key*
-- **THEN** the page is not built, and the message names the question and points to the private key link
 
 ### Requirement: A person can send files from a review page
 
@@ -133,7 +105,7 @@ A file question SHALL take files by drop or by pick, within the page's limits on
 
 ### Requirement: A plan says what its build needs
 
-A plan's page SHALL list each key, login, file, or answer its build needs, each marked *Ready* or *Needs you*, or say that it needs nothing. A *Needs you* item SHALL hold its question, or a way to give it, such as a private key link. The page's build buttons SHALL stay off until each item is ready or answered on the page, and SHALL say how many items still need the person.
+A plan's page SHALL list each key, login, file, or answer its build needs, each marked *Ready* or *Needs you*, or say that it needs nothing. An answer SHALL be asked in the chat before the page is built, so it is *Ready* on the page. A *Needs you* item SHALL hold a place to send its file, or a way to give it, such as a private key link. The page's build buttons SHALL stay off until each item is ready or given on the page, and SHALL say how many items still need the person.
 
 #### Scenario: One answer missing
 
@@ -188,15 +160,6 @@ A card SHALL be able to show a whole HTML page the chat made, such as an email, 
 - **WHEN** a page in the card holds a `<script>`
 - **THEN** the build stops with the card and file, and the last good page stays
 
-### Requirement: A question can ask to pick a picture
-
-A card's questions SHALL be able to ask the person to pick one picture from several in the review's folder, shown as small pictures, and SHALL send the chosen file's name with the notes. On a screen 900 pixels or wider, a card's questions SHALL sit with its words, beside its view.
-
-#### Scenario: Pick the top picture
-
-- **WHEN** the person taps the second of three pictures under *Top picture* and sends notes
-- **THEN** the chat gets the card's answer with the second picture's file name
-
 ### Requirement: Each card takes OK or a note
 
 Each card SHALL offer *OK* and *Note*, and no other note button in its words. *OK* SHALL mark the card accepted and be undoable; *Note* SHALL open a note on that card, for a change or a question. Selected words and a spot on a picture SHALL still take their own notes. Every OK SHALL go to the chat with the notes, naming its card. An OK alone SHALL NOT start a build, a publish, or any other action.
@@ -210,6 +173,34 @@ Each card SHALL offer *OK* and *Note*, and no other note button in its words. *O
 
 - **WHEN** the person taps OK on every card and sends nothing else
 - **THEN** nothing starts until the person taps a button in the bar
+
+### Requirement: A review page asks no questions
+
+A review page SHALL be only for the final look: the person reads it, marks cards *OK*, adds notes if they want, and uses the bar's buttons. It SHALL hold no choice, typed answer, date, tick, or pick of a picture, on a plan, a built preview, or other work alike. A page source with a question in a card SHALL NOT be built, and the message SHALL say to ask it in the chat. Files and key links that a build needs SHALL stay, in *What the build needs*.
+
+#### Scenario: A question in a card
+
+- **WHEN** a page's source puts *Button words: Shop now or See the sale* in a card
+- **THEN** the page is not built, and the message names the card and says to ask it in the chat
+
+#### Scenario: A logo the build needs
+
+- **WHEN** a plan's build needs the person's logo
+- **THEN** the page shows *Your logo* in *What the build needs*, with a place to drop the file
+
+### Requirement: A live card runs the chat's own page, sealed, to try
+
+A card SHALL be able to hold a page the chat made, with its own layout, words, pictures, and script. The card SHALL show the page's top beside the card's other pictures; a click SHALL open it full screen, where the person SHALL be able to use it and switch it between a phone width and a computer width. A live card SHALL reach nothing outside itself: no internet, no other card, the page around it, or the app. It SHALL send nothing to the page's notes; the person notes it with the card's *Note*.
+
+#### Scenario: A sample to try
+
+- **WHEN** the person opens a live card full screen, taps *Add to cart*, and taps *Send notes*
+- **THEN** the sample shows its own answer to the tap, and the chat gets only the notes the person wrote
+
+#### Scenario: A live card tries the internet
+
+- **WHEN** a live card's script tries to load a file from a web address or read the page around it
+- **THEN** the request fails, and the page and its notes are unchanged
 
 ### Requirement: Every part of a review page has one width
 

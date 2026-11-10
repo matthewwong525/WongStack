@@ -14,7 +14,7 @@ const unix = { skip: process.platform === 'win32' && 'the fake paseo is a shell 
 // A main checkout and one linked worktree, a fake `paseo` that logs its arguments, and an empty Codex home.
 function world(t, { workspaces, fail = false, title = null, labels = {}, record = {} } = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), 'wong-test-step-title-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  t.after(() => rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }));
   const main = path.join(dir, 'main');
   const tree = path.join(dir, 'tree');
   const git = (...args) => execFileSync('git', ['-C', main, ...args], { stdio: 'ignore' });
