@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A scheduled chat starts with your instructions
+## 51.10.0 — A scheduled chat starts with your instructions
 
 - **The chat's first message is the instructions you approved, word for word**, then a short footer: what it may do, when it ends, the progress so far, and the one command to run when it stops. Instructions that start with a skill, such as `/news`, run that skill. Your computer still opens the chat only when the text is the version you approved there ([how a run works](wiki/stack/host-schedules.md#how-a-run-works)).
 - **A schedule that is already running opens no second chat.** The run shows *didn't start, it's already running*.

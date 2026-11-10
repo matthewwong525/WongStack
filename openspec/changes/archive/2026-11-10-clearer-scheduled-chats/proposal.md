@@ -1,6 +1,7 @@
 # A scheduled chat shows its name and starts with your instructions
 
-**Status:** planned
+**Status:** ready-to-ship
+**Branch:** schedule-names-not-main
 **Open questions:** none
 
 ## Why
@@ -80,3 +81,4 @@ None.
 - **2026-11-10** — Assumed: `.agents/skills/schedule/SKILL.md` stays as it is, because nothing in it names `start`, `progress` or `release`; `run.md` carries the new steps.
 - **2026-11-10** — Assumed: the live check opens a real chat through `openSession` in a scratch repo, not a real schedule through the app, because a real run would touch the person's own schedules; the claim and `finish` against the app stay covered by tests until the first real run after the update.
 - **2026-11-10** — Assumed: the workspace name comes from 51.9.0 (scheduled-chats-own-workspace), which shipped from another chat while this one built; at the merge this change kept that version (a fresh copy per run, named for the schedule) and dropped its own rename and its spec lines for it.
+- **2026-11-10** — Assumed: archive checkpoint on branch schedule-names-not-main as release 51.10.0, merged with main after 51.9.0.
