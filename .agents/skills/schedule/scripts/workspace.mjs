@@ -152,7 +152,7 @@ async function hasRef(cwd, ref) {
 }
 
 /** `main`, unless it exists neither locally nor on origin; then the forge's default branch. */
-async function defaultBranch(cwd) {
+export async function defaultBranch(cwd) {
   if (await hasRef(cwd, 'refs/heads/main') || await hasRef(cwd, 'refs/remotes/origin/main')) return 'main';
   try {
     const { stdout } = await promisify(execFile)('gh',
@@ -172,14 +172,16 @@ function signInStep(cwd) {
   }
 }
 
-/** Fetches the default branch (unless a dry run) and returns the ref to branch from, preferring origin's copy. */
-async function freshBase(cwd, branch, { fetch }) {
+/** Fetches the default branch (unless a dry run) and returns the ref to branch from, preferring origin's copy. A
+ *  `timeout` in ms stops a fetch that hangs, so a long-running caller such as the helper never waits on it. */
+export async function freshBase(cwd, branch, { fetch, timeout = 0 }) {
   let warning = null;
   if (fetch) {
     try {
-      git(cwd, 'fetch', '--quiet', 'origin', branch);
+      await promisify(execFile)('git', ['-C', cwd, 'fetch', '--quiet', 'origin', branch], { encoding: 'utf8', timeout });
     } catch (error) {
-      warning = `Could not fetch origin/${branch}, so the workspace starts from the last fetched copy: ${String(error.stderr ?? error.message).trim()}${signInStep(cwd)}`;
+      const why = error.killed ? `no answer in ${timeout / 1000} s` : String(error.stderr || error.message).trim();
+      warning = `Could not fetch origin/${branch}, so the workspace starts from the last fetched copy: ${why}${signInStep(cwd)}`;
     }
   }
   if (await hasRef(cwd, `refs/remotes/origin/${branch}`)) return { base: `origin/${branch}`, warning };
@@ -212,7 +214,7 @@ function checkLanded(cwd, commit, opened) {
 }
 
 /** Names the opened workspace after its part; any refusal keeps Paseo's name, with a warning. */
-async function nameWorkspace(bin, created, title, env) {
+export async function nameWorkspace(bin, created, title, env) {
   if (!created) {
     return { name: null, warning: "Paseo did not print the workspace line, so the workspace kept Paseo's name; find it by its agent's title." };
   }

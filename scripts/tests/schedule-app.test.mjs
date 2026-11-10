@@ -1,14 +1,17 @@
 // The helper starts a claimed run only on a version the signed-in person approved on this computer.
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { approve, approvedVersion, approvalsFile } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
 import { definition, saveDefinition } from '../../.agents/skills/schedule/scripts/lib/app.mjs';
-import { RUN_FLOOR_MS, checkRun, handOver, mirrorRound, openSession, runRound } from '../../.agents/skills/schedule/scripts/lib/app-runs.mjs';
+import { FETCH_TIMEOUT_MS, RUN_FLOOR_MS, checkRun, handOver, mirrorRound, openSession, runRound } from '../../.agents/skills/schedule/scripts/lib/app-runs.mjs';
 import { startupPrompt } from '../../.agents/skills/schedule/scripts/lib/hosts.mjs';
 import { scheduleVersion } from '../../.agents/skills/schedule/scripts/lib/version.mjs';
 import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
+import { freshBase } from '../../.agents/skills/schedule/scripts/workspace.mjs';
+import { logAction } from '../../.agents/skills/hand-over/scripts/lib/helper-log.mjs';
 import { COMPUTER, NOW, ORIGIN, fakeApp, folder, plan, runId } from './fixtures/scheduled-work.mjs';
 
 const JO = 'jo@example.test', KIM = 'kim@example.test';
@@ -137,17 +140,40 @@ test('the mirror sends one row per live Paseo record, from every folder, or noth
   assert.equal(broken.calls.length, 0);
 });
 
-test("a run's chat opens at medium thinking or more: a low-default model gets medium, a high-default one keeps its own", async t => {
-  const root = folder(t), bin = path.join(root, 'paseo'), log = path.join(root, 'log.jsonl');
+/** A fake `paseo` that logs its arguments to `log`: `run` prints Paseo's *Created workspace* line on stderr, and
+ *  `workspace rename` fails when FAKE_RENAME_FAIL is set. */
+function fakePaseo(root) {
+  const bin = path.join(root, 'paseo'), log = path.join(root, 'log.jsonl');
   writeFileSync(bin, `#!${process.execPath}
 const fs = require('node:fs');
 const args = process.argv.slice(2);
 fs.appendFileSync(${JSON.stringify(log)}, JSON.stringify(args) + '\\n');
 if (args[0] === 'provider') { console.log(process.env.FAKE_MODELS); process.exit(0); }
+if (args[0] === 'workspace') {
+  if (process.env.FAKE_RENAME_FAIL) { console.error('rename refused'); process.exit(1); }
+  console.log(JSON.stringify({ title: args[3] })); process.exit(0);
+}
+console.error('Created workspace ws-run - main (main)');
 console.log(JSON.stringify({ agentId: 'agent-run', title: 'Weekly plan' }));
 `);
   chmodSync(bin, 0o755);
-  const runs = () => readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line)).filter(args => args[0] === 'run');
+  const calls = kind => readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line)).filter(args => args[0] === kind);
+  return { bin, calls };
+}
+
+/** A git project with a `main` branch, cloned from an origin, as a schedule's folder. */
+function gitProject(t) {
+  const origin = folder(t), work = path.join(folder(t), 'app');
+  const run = (cwd, ...args) => execFileSync('git', ['-C', cwd, '-c', 'user.name=Jo', '-c', 'user.email=jo@example.test', ...args], { stdio: 'ignore' });
+  run(origin, 'init', '-q', '-b', 'main');
+  run(origin, 'commit', '-q', '--allow-empty', '-m', 'first');
+  execFileSync('git', ['clone', '-q', origin, work], { stdio: 'ignore' });
+  return work;
+}
+
+test("a run's chat opens at medium thinking or more: a low-default model gets medium, a high-default one keeps its own", async t => {
+  const root = folder(t), { bin, calls } = fakePaseo(root);
+  const runs = () => calls('run');
   const version = 'a'.repeat(64);
   const open = (models, provider) => openSession({ schedule: { key: 'weekly-plan', name: 'Weekly plan', version, run: { cwd: root, provider } }, run: { id: runId(1) },
     title: 'Weekly plan', env: { ...process.env, WONG_PASEO_BIN: bin, FAKE_MODELS: JSON.stringify(models) } });
@@ -161,4 +187,77 @@ console.log(JSON.stringify({ agentId: 'agent-run', title: 'Weekly plan' }));
   assert.equal(runs()[2][runs()[2].indexOf('--mode') + 1], 'bypassPermissions', 'no one is there to allow a step');
   assert.equal(runs()[0][runs()[0].indexOf('--mode') + 1], 'full-access');
   assert.equal(runs()[0][runs()[0].indexOf('--label') + 1], 'wong-schedule=weekly-plan', 'the Inbox keeps a running schedule chat off the list');
+});
+
+test('a chat run opens in its own workspace named after the schedule: a fresh copy in a git project, else its folder', async t => {
+  const root = folder(t), { bin, calls } = fakePaseo(root), version = 'a'.repeat(64);
+  const open = (cwd, extra = {}) => openSession({ schedule: { key: 'standup', name: 'Standup', version, run: { cwd } }, run: { id: runId(1) },
+    title: 'Standup', env: { ...process.env, WONG_PASEO_BIN: bin, FAKE_MODELS: '[]', ...extra } });
+
+  assert.deepEqual(await open(gitProject(t)), { agentId: 'agent-run', chatTitle: 'Weekly plan' });
+  const [inGit] = calls('run');
+  assert.equal(inGit[inGit.indexOf('--new-workspace') + 1], 'worktree', 'the run never works on the main copy');
+  assert.equal(inGit[inGit.indexOf('--worktree-mode') + 1], 'branch-off');
+  assert.equal(inGit[inGit.indexOf('--base') + 1], 'origin/main');
+  assert.deepEqual(calls('workspace')[0].slice(0, 4), ['workspace', 'rename', 'ws-run', 'Standup'], 'the sidebar shows the schedule, not main');
+
+  await open(root);
+  const plain = calls('run')[1];
+  assert.equal(plain[plain.indexOf('--new-workspace') + 1], 'local', 'a worktree needs git');
+  assert.ok(!plain.includes('--base'));
+  assert.deepEqual(calls('workspace')[1].slice(0, 4), ['workspace', 'rename', 'ws-run', 'Standup']);
+
+  const refused = await open(root, { FAKE_RENAME_FAIL: '1' });
+  assert.equal(refused.agentId, 'agent-run', 'a refused rename still starts the run');
+  assert.match(refused.warning, /kept Paseo's name, "main"/);
+  for (const args of calls('run')) assert.equal(args[args.indexOf('--label') + 1], 'wong-schedule=standup');
+});
+
+test("a run's workspace warning goes to this computer's log, never to the app", async t => {
+  const { app, env, version, ledger } = await saved(t);
+  const claimable = await claim(app, version), logged = [];
+  app.http = (inner => async (address, init) => (address.endsWith('/claim') ? { value: { runs: claimable }, status: 200 } : inner(address, init)))(app.http);
+  const open = async () => ({ agentId: 'agent-1', chatTitle: 'Weekly plan', warning: 'The workspace kept Paseo\'s name, "main": refused' });
+  await runRound(app, { computer: COMPUTER, open, env, ledger, email: () => JO, log: entry => logged.push(entry) });
+  assert.deepEqual(app.results, [{ id: runId(1), state: 'started', agentId: 'agent-1', chatTitle: 'Weekly plan' }]);
+  assert.match(logged[0].warning, /kept Paseo's name/);
+});
+
+test("the helper's real log keeps a run's workspace warning on its run line", async t => {
+  const { app, env, version } = await saved(t);
+  const claimable = await claim(app, version);
+  app.http = (inner => async (address, init) => (address.endsWith('/claim') ? { value: { runs: claimable }, status: 200 } : inner(address, init)))(app.http);
+  const open = async () => ({ agentId: 'agent-1', chatTitle: 'Weekly plan', warning: 'The workspace kept Paseo\'s name, "main": refused' });
+  await runRound(app, { computer: COMPUTER, open, env, ledger: path.join(env.HOME, 'runs.json'), email: () => JO, log: entry => logAction(entry, { env }) });
+  const [line] = readFileSync(path.join(env.HOME, '.wong-stack', 'helper', 'log.jsonl'), 'utf8').trim().split('\n').map(row => JSON.parse(row));
+  assert.equal(line.event, 'run');
+  assert.equal(line.outcome, 'started');
+  assert.match(line.warning, /kept Paseo's name/, 'the log drops a field it does not allow, so the warning must be one');
+});
+
+test('a git project with no default branch to copy still starts its run, named, in its folder', async t => {
+  const root = folder(t), { bin, calls } = fakePaseo(root), work = folder(t);
+  execFileSync('git', ['-C', work, '-c', 'user.name=Jo', '-c', 'user.email=jo@example.test', 'init', '-q', '-b', 'trunk'], { stdio: 'ignore' });
+  execFileSync('git', ['-C', work, '-c', 'user.name=Jo', '-c', 'user.email=jo@example.test', 'commit', '-q', '--allow-empty', '-m', 'first'], { stdio: 'ignore' });
+  const opened = await openSession({ schedule: { key: 'standup', name: 'Standup', version: 'a'.repeat(64), run: { cwd: work } }, run: { id: runId(1) },
+    title: 'Standup', env: { ...process.env, WONG_PASEO_BIN: bin, FAKE_MODELS: '[]', FAKE_RENAME_FAIL: '1' } });
+  const [args] = calls('run');
+  assert.equal(args[args.indexOf('--new-workspace') + 1], 'local');
+  assert.ok(!args.includes('--base'));
+  assert.deepEqual(calls('workspace')[0].slice(0, 4), ['workspace', 'rename', 'ws-run', 'Standup']);
+  assert.equal(opened.agentId, 'agent-run');
+  assert.match(opened.warning, /not a fresh copy[\s\S]*\nThe workspace kept Paseo's name/, 'both warnings reach the log, one per line');
+});
+
+test('a fetch that hangs stops at its timeout, and the workspace starts from the last fetched copy', async t => {
+  const work = gitProject(t);
+  // The remote's transport never answers.
+  execFileSync('git', ['-C', work, 'remote', 'set-url', 'origin', 'ssh://hang.invalid/app']);
+  execFileSync('git', ['-C', work, 'config', 'core.sshCommand', 'sh -c "sleep 5"']);
+  const started = Date.now();
+  const { base, warning } = await freshBase(work, 'main', { fetch: true, timeout: 300 });
+  assert.ok(Date.now() - started < 3000, 'the helper does not wait on a hung fetch');
+  assert.equal(base, 'origin/main');
+  assert.match(warning, /Could not fetch origin\/main, so the workspace starts from the last fetched copy: no answer in 0.3 s/);
+  assert.equal(FETCH_TIMEOUT_MS, 60_000);
 });

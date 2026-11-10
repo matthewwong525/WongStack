@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 51.9.0 — Scheduled chats open in their own named workspace
+
+- **A chat that a schedule starts opens in its own workspace, named after the schedule.** The Paseo sidebar shows *Standup*, not *main*. In a git project the workspace is its own copy of the project from the latest default branch, so the chat never works on the main copy ([host schedules](wiki/stack/host-schedules.md)).
+- **A folder that is not a git project opens in place, still named.**
+- **A fetch or rename problem never stops the run.** It starts from the last fetched copy, or keeps Paseo's name, and [the helper's log](wiki/stack/live-line.md#the-log) says why. A fetch that hangs stops after 60 seconds.
+
+**Updating.** Nothing to do. Workspaces that earlier scheduled chats left as *main* keep that name: rename one in Paseo if you want.
+
 ## 51.8.0 — Questions in the chat, the review page for the final OK
 
 - **Every question comes to you in the chat, as a question card**: picks, typed answers, dates, and a choice between pictures. The chat asks them all before it makes the review page, and asks a new one that your notes open the same way ([choices go in the chat](.agents/skills/explore/references/asking-the-user.md#choices-go-in-the-chat)).
