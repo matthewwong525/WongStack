@@ -53,7 +53,7 @@ It no longer starts with the computer. Taps then arrive by checking while a chat
 
 ## The log
 
-The helper writes one line per delivered tap, started or refused run, and ignored message to `~/.wong-stack/helper/log.jsonl`, so you can see everything the app caused. It never holds a message's text. It starts over once it reaches 1 MB, keeping the one before.
+The helper writes one line per delivered tap, started or refused run, and ignored message to `~/.wong-stack/helper/log.jsonl`, so you can see everything the app caused. A started run's line also holds any workspace warning, such as a workspace that kept Paseo's name. It never holds a message's text. It starts over once it reaches 1 MB, keeping the one before.
 
 ## Its own Worker
 
