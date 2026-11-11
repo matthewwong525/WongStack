@@ -1,6 +1,6 @@
 # Set up memory
 
-Follow this guide to add memory, or to [update](#update) it. Ask the person before each step that costs money or makes something public: a new database, a deploy, a public route.
+This guide adds memory, or [updates](#update) it. Ask the person before each step that costs money or makes something public: a new database, a deploy, a public route.
 
 Memory needs Node 20 or newer, this folder, a profile, and a store that passes the check. Write no install list: look at the repo and fill each gap.
 
@@ -24,7 +24,7 @@ curl -fsSL https://codeload.github.com/matthewwong525/WongStack/tar.gz/main \
 Ask the person for a memory server, and look in the repo for an app with a server and a database. Take the first path that fits:
 
 1. **A memory server:** the profile's `connect` gets its address and sign-in.
-2. **The repo's own app:** add one route that imports `serve` from [`store/interface.mjs`](../store/interface.mjs) and calls `serve(request, { prefix, caller, store })`: `prefix` is the profile's `url` path plus `/v2/`, and `store` is the caller's view. Copy that file in only when the app's build can not reach it. The store answers the twelve `OPERATIONS` from the app's database, and none edits or deletes a fact. Start from [the stand-in store](https://github.com/matthewwong525/WongStack/blob/main/scripts/tests/fixtures/memory/stand-in-store.mjs), which applies [who sees what](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/memory.md#who-sees-what). The route verifies the sign-in and gives `serve` the caller; never take an owner or a role from the request body.
+2. **The repo's own app:** add one route that imports `serve` from [`store/interface.mjs`](../store/interface.mjs) and calls `serve(request, { prefix, caller, store })`: `prefix` is the profile's `url` path plus `/v2/`, and `store` is the caller's view. Copy that file in only when the build can not reach it. The store answers the twelve `OPERATIONS` from the app's database, and none edits or deletes a fact. Start from [the stand-in store](https://github.com/matthewwong525/WongStack/blob/main/scripts/tests/fixtures/memory/stand-in-store.mjs), which applies [who sees what](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/memory.md#who-sees-what). The route verifies the sign-in and gives `serve` the caller; never take an owner or a role from the request body.
 3. **No app:** delete the copied folder. In an empty repo with no commits, offer WongStack's [Cloudflare setup](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/SKILL.md): it brings memory and makes the database. Else, or on a no, stop.
 
 ## 4. Write the profile

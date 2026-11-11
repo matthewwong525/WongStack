@@ -1,7 +1,7 @@
 # memory-plugin Specification
 
 ## Purpose
-TBD - created by archiving change modular-memory-plugin. Update Purpose after archive.
+Memory as one plugin any repo can install: the core, a store interface of named operations that a server enforces, and a profile that holds each repo's own extras. WongStack uses the same plugin it ships.
 
 ## Requirements
 

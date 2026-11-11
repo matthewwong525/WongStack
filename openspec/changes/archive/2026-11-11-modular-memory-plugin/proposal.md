@@ -1,6 +1,6 @@
 # Memory becomes a plugin with one small store interface, WongStack runs on it, and it learns your topics
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** modular-memory-plugin
 **Open questions:** none
 
@@ -242,3 +242,4 @@ WongStack's memory works, but its brain is welded to one database: the computer 
 - **2026-11-11** — Assumed (build): in an empty repo with no store, the simplest local answer to the Cloudflare offer is no; the guide now deletes the copied folder and stops, so the repo is unchanged and each chat still asks once.
 - **2026-11-11** — Assumed (build): task 9.14's redo found two gaps in the guide. `/wong-setup` installs only into an empty folder with no commits, so the copied memory folder made it refuse; the guide now deletes the copy before the Cloudflare offer, and stops when the repo is not empty. A memory server reached by `connect` has no fresh store for `checkStore`, so there the check is a chat start that shows the digest. The guide asks the person for a server's address, because an empty repo holds none.
 - **2026-11-11** — Assumed (build): the task 9.14 app's store is a SQLite port of the stand-in store, signed in by a hashed member key from the ignored `.env`; the guide now links the stand-in as the place to start and says what `serve`'s `prefix` and `store` are, and an update reruns Codex's two commands when Codex is present.
+- **2026-11-11** — Archive checkpoint: archived for `/ship`; after `main` came in, the new spec got its Purpose and the setup guide lost four words to stay inside the instruction budget.

@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Memory becomes a plugin, and learns your topics
+## 52.0.0 — Memory becomes a plugin, and learns your topics
 
 - **Memory is now one plugin, the same for any repo.** It lives in [`.agents/plugins/memory/`](.agents/plugins/memory/README.md) and brings its own hooks, so your settings name no memory hook. Your project gets it as a real folder at `.agents/skills/memory/`, where memory already is, and Claude Code loads it from there with no install step. A project without WongStack adds memory alone, and later updates it, by one message pasted into a chat; [its setup guide](.agents/plugins/memory/references/setup.md) builds or connects a store ([two installs](wiki/development/memory.md#two-installs)).
 - **The plugin asks the store only by name.** It sends twelve named requests, never a database query. The app's memory route is now `/_memory/v2/`, and the server decides what each person may see, by the same rules as before ([who sees what](wiki/development/memory.md#who-sees-what)).

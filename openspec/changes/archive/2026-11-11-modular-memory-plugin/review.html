@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · modular-memory-plugin</title>
+<title>Review · 2026-11-11-modular-memory-plugin</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="modular-memory-plugin" data-own-back>
+<body data-change="2026-11-11-modular-memory-plugin" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>modular-memory-plugin</h1>
+  <h1>2026-11-11-modular-memory-plugin</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -607,6 +607,17 @@
 <li class="decision card" id="decision-64" data-note="decision-64" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: an app's server part imports <code>store/interface.mjs</code> from the memory folder, now in the repo, and copies it only when the app's build can not reach outside its own folder, because an update then brings the server part's <code>serve</code> with the folder; this replaces the copy step of the 2026-11-11 setup-run entry.</li>
 <li class="decision card" id="decision-65" data-note="decision-65" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the &quot;<code>memory@wongstack</code> is enabled&quot; warning goes, because with no Claude Code shop install nothing can run memory's hooks twice.</li>
 <li class="decision card" id="decision-66" data-note="decision-66" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the module guide is docs and adds no capability, because each promise it states for memory sits in <code>memory-plugin</code>; that spec gains &quot;An install updates only the modules it has&quot;, which a repo with memory alone relies on to keep its edits.</li>
+<li class="decision card" id="decision-67" data-note="decision-67" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): Codex option A works (task 9.1): a root <code>.claude-plugin/marketplace.json</code> entry at <code>./.agents/skills/memory</code> installs from a real folder and through the source's link, and its hooks run after trust and load the repo's profile. Option B (hooks in the repo's own Codex hooks file) is not built.</li>
+<li class="decision card" id="decision-68" data-note="decision-68" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the stack's Codex start hook (<code>codex-plugin.mjs --check</code>) reads only <code>$CODEX_HOME/config.toml</code> for a <code>[plugins.&quot;memory@&lt;list name&gt;&quot;]</code> table, because that is what <code>codex plugin add</code> wrote in task 9.1, and a hook must not run Codex.</li>
+<li class="decision card" id="decision-69" data-note="decision-69" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the module version check passes a module that <code>main</code> does not have yet, because it has no earlier version to rise from; memory still goes to 1.1.0.</li>
+<li class="decision card" id="decision-70" data-note="decision-70" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the setup guide was cut to fit the skill-text budget: its profile example names only <code>connect</code> and <code>topics</code> and links the wiki's profile section for the rest, because the guide tells the AI to add the other parts only when the repo needs them.</li>
+<li class="decision card" id="decision-71" data-note="decision-71" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the §7 count leaves out <code>.agents/memory/topics.mjs</code> with the other topic files, as the 4,219 count did. After group 9 the split counts 4,226 lines (4,254 with that file) after the review fixes, below 4,236.</li>
+<li class="decision card" id="decision-72" data-note="decision-72" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (ship): the live check (old task 8.5) runs after the merge, not as a task, because the archive needs every task ticked first. <code>/ship</code> opens a new Claude Code chat and a Codex chat after the deploy, checks the digest, a before-edit warning, a topic match, a <code>put-facts</code>, and that <code>memory.mjs stats</code> matches the 8.3 counts, and reports the result.</li>
+<li class="decision card" id="decision-73" data-note="decision-73" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): setup in a repo with memory alone copies the folder to <code>.claude/skills/memory/</code>, not <code>.agents/skills/memory/</code>, because in task 9.14 Claude Code 2.1.322 loaded <code>memory@skills-dir</code> from <code>.claude/skills/</code> and not from a real <code>.agents/skills/memory/</code> in a repo with no <code>.claude → .agents</code> link. A WongStack install keeps <code>.agents/skills/memory/</code>, which its <code>.claude</code> link makes the same folder; Codex's list entry names the folder setup used.</li>
+<li class="decision card" id="decision-74" data-note="decision-74" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): in an empty repo with no store, the simplest local answer to the Cloudflare offer is no; the guide now deletes the copied folder and stops, so the repo is unchanged and each chat still asks once.</li>
+<li class="decision card" id="decision-75" data-note="decision-75" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): task 9.14's redo found two gaps in the guide. <code>/wong-setup</code> installs only into an empty folder with no commits, so the copied memory folder made it refuse; the guide now deletes the copy before the Cloudflare offer, and stops when the repo is not empty. A memory server reached by <code>connect</code> has no fresh store for <code>checkStore</code>, so there the check is a chat start that shows the digest. The guide asks the person for a server's address, because an empty repo holds none.</li>
+<li class="decision card" id="decision-76" data-note="decision-76" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the task 9.14 app's store is a SQLite port of the stand-in store, signed in by a hashed member key from the ignored <code>.env</code>; the guide now links the stand-in as the place to start and says what <code>serve</code>'s <code>prefix</code> and <code>store</code> are, and an update reruns Codex's two commands when Codex is present.</li>
+<li class="decision card" id="decision-77" data-note="decision-77" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-11</p>Archive checkpoint: archived for <code>/ship</code>; after <code>main</code> came in, the new spec got its Purpose and the setup guide lost four words to stay inside the instruction budget.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
