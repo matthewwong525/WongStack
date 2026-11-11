@@ -63,5 +63,6 @@ rules:
   tasks:
     - Group tasks by the surface they touch (skill, script, docs, AGENTS.md).
     - A payload change is not done until CHANGELOG.md has its "## Next (level)" entry; /ship numbers VERSION, so no task raises it.
+    - A check that can run only after the deploy is not a task - /ship archives only when every task is ticked. Put it in the design, and /ship runs it after the merge.
   specs:
     - Write each requirement as a promise, not a procedure, by the spec bar in .agents/rules/openspec.md - one or two scenarios each, and the steps left to the skill.
