@@ -16,6 +16,11 @@
 
 **Updating.** Nothing to do by hand for most projects. The first chat after the update ends the *Wiki tidy* schedule by itself, and the first chat of the next day starts the first daily tidy. To turn the daily tidy off on a computer, ask a chat there to *stop the daily memory tidy*. The app's memory store gets one database change: an admin runs `memory.mjs migrate` after the app deploys; until then, memory works as before and starts no daily tidy. If one of your project's own skills runs `memory.mjs extract`, `extract-task` or `due`, change it to `memory.mjs pull <name>`, or to the memory helper's steps in `.claude/skills/memory/references/recall-helper.md`.
 
+## 52.0.1 — Two notes from the memory plugin release
+
+- **A plan keeps checks that run after the deploy out of its task list**, because `/ship` archives a plan only when every task is ticked. The design names the check, and `/ship` runs it after the merge.
+- **The memory page says Codex asks once to trust the plugin's hooks.** Until you say yes in an open Codex chat, a headless `codex exec` test shows no memory digest.
+
 ## 52.0.0 — Memory becomes a plugin, and learns your topics
 
 - **Memory is now one plugin, the same for any repo.** It lives in [`.agents/plugins/memory/`](.agents/plugins/memory/README.md) and brings its own hooks, so your settings name no memory hook. Your project gets it as a real folder at `.agents/skills/memory/`, where memory already is, and Claude Code loads it from there with no install step. A project without WongStack adds memory alone, and later updates it, by one message pasted into a chat; [its setup guide](.agents/plugins/memory/references/setup.md) builds or connects a store ([two installs](wiki/development/memory.md#two-installs)).

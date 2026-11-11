@@ -30,12 +30,12 @@ With no profile, a new chat asks once, *Memory isn't set up yet. Set it up now?*
 
 ## Two installs
 
-Each is a real `.claude/skills/memory/` folder in the repo, so Claude Code loads it from the checkout with no install step, and a branch runs its own memory code.
+Each is a real `.claude/skills/memory/` folder, so Claude Code loads it from the checkout and a branch runs its own memory code.
 
 - **With WongStack.** Each [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) brings the folder.
-- **Alone**, in any other repo: one pasted message, in [the plugin's README](../../.agents/plugins/memory/README.md), has the AI follow [the setup guide](../../.agents/plugins/memory/references/setup.md). It copies the folder in, connects or builds a store, writes the profile, and runs the store check, asking before each step that costs money or makes something public. A second message updates it and keeps the repo's own edits. In a WongStack install, both stop.
+- **Alone**, in any other repo: a message pasted from [the plugin's README](../../.agents/plugins/memory/README.md) has the AI follow [the setup guide](../../.agents/plugins/memory/references/setup.md). It copies the folder in, connects or builds a store, writes the profile, and runs the store check, asking before a step that costs money or goes public. A second message updates it and keeps the repo's own edits. In a WongStack install, both stop.
 
-Codex copies the plugin once per computer from the root `.claude-plugin/marketplace.json`: the update or setup runs it on its own computer, and each other computer's next Codex chat names the command.
+Codex copies the plugin once per computer from the root `.claude-plugin/marketplace.json`: setup or an update installs it here; elsewhere, the next Codex chat names the command. An open Codex chat asks once to trust its hooks; `codex exec` skips them before that.
 
 ## What is stored
 
