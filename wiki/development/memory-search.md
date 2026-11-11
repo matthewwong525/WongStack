@@ -17,6 +17,25 @@ A brief takes eight live facts, or up to twenty with `--limit`, whole and in ran
 
 A source grants no access: `source <id>` still checks the caller's permissions, and whether the transcript is kept ([without R2](memory.md#without-r2)). Fetch a source only to check a fact, never every citation: one can return 200,000 characters.
 
+## Pull a thread
+
+`memory.mjs pull <name>` reads one point in memory and names each point it connects to. The name is a topic, a repo path, a change, or a fact `#id`. Each group shows three items and counts the rest, and every item is a name you can pull next:
+
+- **A topic**: its page and the page's parts, the pages one link away, [related topics](#related-topics), its changes, open threads, preferences, and decisions.
+- **A path**: its areas, docs, the files that link to it, then the topic groups of its areas.
+- **A change**: its state, its topics, open threads, newest facts, and its chats.
+- **A fact**: its whole text, topics, change, the fact that replaced it and those it replaced, and the other facts from its chat.
+
+An answer stays within 60 lines and 6 KB. `--more <group>` shows one group whole. A name that is no point names the nearest topics and shows no facts. When the store does not answer, the parts from the repo still show. `areas` and `show` are old names for the pull.
+
+### Related topics
+
+`memory.mjs related <topic>` lists the topics that share live facts with a topic, or have facts on the same changes, eight at most, most shared first. Each shows both counts, one sample fact, and whether either page already links the other. Plain code counts them fresh on each read, and nothing is stored, so a list never goes stale. Only a tag with a page counts. A fact that touches two topics carries both, so [write facts](../../.agents/plugins/memory/references/writing-facts.md) with every topic they touch. The [daily tidy](wiki-dream.md#the-daily-tidy) reads this list to link topic pages.
+
+### The memory helper
+
+For a task that spans topics, give the task to a helper of your AI tool with [the helper's steps](../../.agents/plugins/memory/references/recall-helper.md). It pulls up to three topics, follows only what bears on the task, within 12 pulls, and answers in at most 300 words: what applies with its source, open threads, your preferences, and what it did not follow. Its reads stay out of your chat. With no helper tool, the chat follows the same steps itself. One pull needs no helper.
+
 ## When to add embeddings
 
 Search is keyword search (FTS5) with tags. It matches a word's other forms through the porter stemmer, so *previews* finds *preview*, and filler words like *how* and *should* never match on their own. It matches forms, not meanings: *Concise language please* misses a fact that says *The owner wants short replies in plain words*, so search with the words the fact would use. A shipped set of real-shaped questions, `scripts/tests/fixtures/memory-search-questions.json`, runs in CI, each with the fact it must rank in the top three; a question that should have matched and didn't belongs there first. That is enough at a few thousand facts: the write gate asks a model about paraphrases, and consolidation merges what it missed. Add embeddings when `memory.mjs stats` reports the trigger as met: more than 2,000 live facts, or merged duplicates growing across three consolidations. Search stays behind the one script, so nothing else changes.

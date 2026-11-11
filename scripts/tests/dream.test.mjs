@@ -5,7 +5,7 @@ import { chmodSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { dreamChecks, isDreamFact, lastDream, pageList, pagesNamed, planDrift, saysGone, stalePaths } from '../../.agents/plugins/memory/skills/dream-memory/scripts/dream.mjs';
+import { dailyPages, dreamChecks, isDreamFact, lastDream, pageList, pagesNamed, planDrift, saysGone, stalePaths } from '../../.agents/plugins/memory/skills/dream-memory/scripts/dream.mjs';
 import { isShipped, kindOf, shippedPaths } from '../../.agents/memory/tidy-pages.mjs';
 import { memory, node, PROFILE, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
 
@@ -173,6 +173,10 @@ test('since and pages read the store and the checkout, and write neither', async
   ]);
   assert.equal(execFileSync('git', ['-C', root, 'status', '--porcelain', '--', 'wiki'], { encoding: 'utf8' }).trim(), '?? wiki/people/b.md', 'the script edits no page');
 
+  const small = (await dream(env, 'pages', '--daily')).stdout.trim().split('\n').map(line => line.split('\t')[3]);
+  assert.deepEqual(small, ['wiki/README.md', 'wiki/people/a.md', 'wiki/people/b.md'], 'the daily check: three own pages, no shipped one');
+  assert.deepEqual(JSON.parse((await dream(env, 'pages', '--daily', '--json')).stdout).pages.map(each => each.path), small);
+
   // With no tidy pages, the topic pages alone are checked, all the repo's own.
   const topics = profile(env, `import base from '${pathToFileURL(PROFILE).href}';\nexport default { connect: base.connect, topics: () => [{ tag: 'a', page: 'wiki/people/a.md' }, { tag: 'x', page: null }] };\n`);
   const own = (await node(env.repo, env.fake, DREAM, ['pages'], topics)).stdout.trim();
@@ -253,6 +257,25 @@ test("a small wiki tidy's record counts as the last dream; a forged future one d
   assert.deepEqual(facts.filter(isDreamFact).map(fact => fact.id), [1300, 1320]);
   assert.deepEqual(lastDream(facts), { since: '2026-10-05', afterFact: 1318, pages: ['wiki/customers.md'], dream: 1320 });
   assert.equal(isDreamFact({ created_at: '2026-10-06T08:00:00Z', body: 'The wiki tidy 2026-10-06: ran.' }), false);
+});
+
+test("a daily tidy's record counts as the last dream, after an older one of any kind", () => {
+  const facts = [
+    { id: 1300, created_at: '2026-10-01T08:00:00Z', body: 'Wiki tidy 2026-10-01: read facts up to #1206. Checked: wiki/people/a.md.' },
+    { id: 1400, created_at: '2026-11-02T08:00:00Z', body: 'Daily tidy 2026-11-02: read facts up to #1390. Checked: wiki/people/b.md, openspec/specs/memory/spec.md.' },
+  ];
+  assert.deepEqual(facts.filter(isDreamFact).map(fact => fact.id), [1300, 1400]);
+  assert.deepEqual(lastDream(facts), { since: '2026-11-02', afterFact: 1390, pages: ['openspec/specs/memory/spec.md', 'wiki/people/b.md'], dream: 1400 });
+  assert.equal(isDreamFact({ created_at: '2026-11-02T08:00:00Z', body: 'The daily tidy 2026-11-02: ran.' }), false);
+});
+
+test("the daily tidy's small check takes the three own pages and the one spec longest unchecked", () => {
+  const page = (path, kind, lastChecked) => ({ path, kind, words: 1, lastChecked });
+  const list = [page('wiki/a.md', 'own', null), page('openspec/specs/x/spec.md', 'spec', null), page('wiki/b.md', 'shipped', null),
+    page('wiki/c.md', 'own', '2026-01-01'), page('openspec/specs/y/spec.md', 'spec', '2026-01-02'), page('wiki/d.md', 'own', '2026-02-01'),
+    page('wiki/e.md', 'own', '2026-03-01')];
+  assert.deepEqual(dailyPages(list).map(each => each.path), ['wiki/a.md', 'openspec/specs/x/spec.md', 'wiki/c.md', 'wiki/d.md']);
+  assert.deepEqual(dailyPages([page('wiki/a.md', 'own', null)]).map(each => each.path), ['wiki/a.md'], 'fewer pages, fewer rows');
 });
 
 test('a dream fact split in two gives the pages of both parts', () => {

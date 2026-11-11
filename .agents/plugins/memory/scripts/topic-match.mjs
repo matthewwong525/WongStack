@@ -22,7 +22,7 @@ export async function topicMatch(input) {
   if (!hits.length) return '';
   writeJson(shownFile, [...shown, ...hits.map(({ topic }) => topic.tag)]);
   const lines = hits.map(({ topic, clear }) => (clear ? `Topic ${topic.tag}: ${topic.summary}` : `Topic ${topic.tag}`));
-  const additionalContext = [...lines, `Pull a topic: \`${SCRIPT} areas <topic>\``].join('\n');
+  const additionalContext = [...lines, `Pull a topic: \`${SCRIPT} pull <topic>\``].join('\n');
   return `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext } })}\n`;
 }
 

@@ -13,7 +13,7 @@ import { pathWords } from '../../../scripts/lib/upkeep.mjs';
 const USAGE = `usage: dream.mjs <command> [--json]
   since   the last dream: its date, the highest fact id it read, the pages it checked
   pages   each topic page and each page the profile adds, as own|shipped|spec, its words, and when it was last checked,
-          longest unchecked first
+          longest unchecked first; --daily: only the three own pages and the one spec longest unchecked
   drift   live facts naming a repo path that is gone, and plans that are finished or 30 days idle`;
 const MEMORY = fileURLToPath(new URL('../../../scripts/memory.mjs', import.meta.url));
 const SLUG = 'wiki-dream';
@@ -25,8 +25,9 @@ const CHANGES = 'openspec/changes';
 const PLAIN_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 
 const day = stamp => String(stamp).slice(0, 10);
-// A dream's record, or a small wiki tidy's: `/dream-memory --small` writes `Wiki tidy <date>: …`.
-const RECORD = /^(?:Dream|Wiki tidy) \d{4}-\d{2}-\d{2}:/;
+// A dream's record, a daily tidy's (`Daily tidy <date>: …`), or an older small wiki tidy's.
+const RECORD = /^(?:Dream|Daily tidy|Wiki tidy) \d{4}-\d{2}-\d{2}:/;
+const DAILY_PAGES = { own: 3, spec: 1 };
 const newestFirst = (a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.id - a.id;
 
 // A dream's record: upkeep tags `dream` any fact naming this folder, so the tag alone is not enough. A date ahead or
@@ -110,6 +111,12 @@ export function planDrift(changes, committed, now = new Date()) {
   });
 }
 
+/** The daily tidy's small check: the first own pages and spec of a sorted page list. */
+export function dailyPages(list, limits = DAILY_PAGES) {
+  const left = { ...limits };
+  return list.filter(page => left[page.kind] > 0 && left[page.kind]-- > 0);
+}
+
 function repoRoot() {
   try {
     return execFileSync('git', ['rev-parse', '--show-toplevel'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
@@ -190,7 +197,7 @@ async function tidyPages(root) {
   return { kinds: [...kinds], publish: profile?.tidy?.publish ?? null };
 }
 
-async function pages({ json }) {
+async function pages({ json, daily }) {
   const root = repoRoot();
   let checks = new Map();
   try {
@@ -201,7 +208,7 @@ async function pages({ json }) {
   const { kinds, publish } = await tidyPages(root);
   const found = kinds.filter(([path]) => existsSync(join(root, path)))
     .map(([path, kind]) => ({ path, kind, text: readFileSync(join(root, path), 'utf8'), committed: committed(root, path) }));
-  const list = pageList(found, checks);
+  const list = daily ? dailyPages(pageList(found, checks)) : pageList(found, checks);
   if (json) return console.log(JSON.stringify({ pages: list, ...(publish ? { publish } : {}) }));
   console.log([...list.map(page => [page.kind, page.words, page.lastChecked ?? 'never', page.path].join('\t')), ...(publish ? [`publish: ${publish}`] : [])].join('\n'));
 }
@@ -234,7 +241,7 @@ function drift({ json }) {
 }
 
 if (isMain(import.meta.url)) {
-  const { values, positionals } = parseCli({ usage: USAGE, options: { json: { type: 'boolean' } }, allowPositionals: true });
+  const { values, positionals } = parseCli({ usage: USAGE, options: { json: { type: 'boolean' }, daily: { type: 'boolean' } }, allowPositionals: true });
   const commands = { since, pages, drift };
   const command = Object.hasOwn(commands, positionals[0] ?? '') ? commands[positionals[0]] : null;
   if (!command || positionals.length !== 1) usageError(USAGE, positionals[0] ? `unknown command: ${positionals.join(' ')}` : 'name a command');

@@ -41,7 +41,7 @@ test('an ended or missing sign-in loads the cached digest and holds writes in th
   for (const [claims, why] of [[person(-1), /your company sign-in has ended/], [null, /this computer is not signed in to the company app/]]) {
     signInAs(env.repo, claims);
     const result = await hook(env);
-    assert.equal(result.code, 0); assert.match(result.stdout, /Cached team decision/); assert.match(result.stdout, /not up to date until you sign in/);
+    assert.equal(result.code, 0); assert.match(result.stdout, /^1 live facts\./m); assert.match(result.stdout, /not up to date until you sign in/);
     assert.match(result.stdout, why); assert.match(result.stdout, /cloudflared access login/);
   }
   const before = env.fake.db.prepare('SELECT count(*) AS n FROM facts').get().n;

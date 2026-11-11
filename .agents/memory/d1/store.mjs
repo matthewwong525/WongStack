@@ -9,7 +9,7 @@ const SOURCES = ['save', 'backfill', 'migration', 'consolidation'];
 const COLUMNS = 'f.id, f.slug, f.type, f.body, f.author, f.created_at, f.session_id, f.superseded_by, f.owner_subject, f.shared';
 const NEWEST = 'f.created_at DESC, f.id DESC';
 const TYPE_ORDER = "CASE f.type WHEN 'feedback' THEN 1 WHEN 'project' THEN 2 WHEN 'reference' THEN 3 WHEN 'user' THEN 4 ELSE 5 END";
-const FILTERS = { slug: 'f.slug = ?', notSlug: 'f.slug != ?', type: 'f.type = ?', notType: 'f.type != ?', since: 'f.created_at >= ?', until: 'f.created_at <= ?', author: 'f.author LIKE ?' };
+const FILTERS = { slug: 'f.slug = ?', session: 'f.session_id = ?', notSlug: 'f.slug != ?', type: 'f.type = ?', notType: 'f.type != ?', since: 'f.created_at >= ?', until: 'f.created_at <= ?', author: 'f.author LIKE ?' };
 // Each unary `+` stops SQLite driving facts_fts by rowid, which re-ran the MATCH once per stored fact.
 const FTS_HITS = '(SELECT +rowid AS rowid, rank FROM facts_fts WHERE facts_fts MATCH ? AND +rowid IN (SELECT id FROM facts))';
 const SESSION_UPSERT = `INSERT INTO sessions (id, agent, author, machine, branch, cwd, started_at, ended_at, status, reason, read_through, raw_bytes, updated_at, owner_subject, owner_email)
@@ -18,10 +18,20 @@ const SESSION_UPSERT = `INSERT INTO sessions (id, agent, author, machine, branch
     reason = excluded.reason, read_through = coalesce(excluded.read_through, sessions.read_through), ended_at = coalesce(excluded.ended_at, sessions.ended_at),
     raw_bytes = coalesce(excluded.raw_bytes, sessions.raw_bytes), updated_at = excluded.updated_at, owner_email = coalesce(excluded.owner_email, sessions.owner_email)`;
 const FACT_INSERT = 'INSERT INTO facts (slug, type, body, session_id, source, created_at, author, owner_subject, shared) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id';
-const LAST_CONSOLIDATION = "(SELECT max(finished_at) FROM runs WHERE kind = 'consolidation' AND status = 'ok' AND owner_subject IS ?)";
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const RUN_STATUS = { capture: ['ok', 'failed'], consolidation: ['ok', 'failed'], daily: ['started', 'ok', 'failed'] };
+const DAILY_ROW = "kind = 'daily' AND owner_subject IS ? AND day = ?";
+const NEWEST_DAILY = "SELECT day, host, started_at, finished_at, status, reason, counts FROM runs WHERE kind = 'daily' AND owner_subject IS ? ORDER BY day DESC, id DESC LIMIT 1";
+// A store not yet migrated to 0010 has no `runs.day`: it answers as before and claims no daily tidy.
+const UNMIGRATED = /no such column:?\s*day\b|has no column named day\b/i;
+const LATELY_DAYS = 7, LATELY_LIMIT = 8, FRESH_LIMIT = 5;
 const PLAIN_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/;
 
 const marks = list => list.map(() => '?').join(', ') || 'NULL';
+const ago = ms => new Date(Date.now() - ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+const parsed = text => { try { const value = JSON.parse(text || '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; } catch { return {}; } };
+// The caller's newest daily run, as the digest answers it.
+const dailyOf = row => row ? { day: row.day, last: row.finished_at || row.started_at, status: row.status, host: row.host, reason: row.reason, counts: parsed(row.counts) } : null;
 const forbidden = reason => new StoreError(reason, { kind: 'forbidden' });
 // A fact's time: the one sent if it is plain UTC and not after now, so a backfill keeps its date; else now.
 const factTime = (sent, time) => PLAIN_UTC.test(String(sent)) && Date.parse(sent) <= Date.parse(time) ? sent : time;
@@ -140,22 +150,34 @@ export function d1Store(db, bucket, caller) {
     async digest({ slug = null, stepTags = [], limit = 60 }) {
       const [seen, values] = visible(caller, false);
       const live = `f.superseded_by IS NULL AND ${seen}`;
-      const [own, ownValues] = ownSessions(caller);
-      const [all, allValues] = visible(caller, true);
-      const [steps, facts, [count], threads, [run], [consolidation]] = await rows([
+      // A preference is new until a finished tidy started after it; with none, for a day.
+      const lastOk = "(SELECT started_at FROM runs WHERE kind = 'daily' AND status = 'ok' AND owner_subject IS ? ORDER BY day DESC, id DESC LIMIT 1)";
+      const shared = [
         // Other changes' open threads by step tag: one with two tags counts under each; untagged ones have a null tag.
         [`SELECT ft.tag, count(*) AS n FROM facts f LEFT JOIN fact_tags ft ON ft.fact_id = f.id AND ft.tag IN (${marks(stepTags)})
           WHERE ${live} AND f.type = 'thread' AND f.slug != ? GROUP BY ft.tag`, [...stepTags, ...values, slug || '']],
-        [`SELECT ${COLUMNS} FROM facts f WHERE ${live} AND f.type != 'thread' ORDER BY ${TYPE_ORDER}, ${NEWEST} LIMIT ?`, [...values, Number(limit) || 60]],
         [`SELECT count(*) AS live FROM facts f WHERE ${live}`, values],
         [`SELECT ${COLUMNS} FROM facts f WHERE ${live} AND f.type = 'thread' AND f.slug = ? ORDER BY f.created_at DESC`, [...values, slug || '']],
         // Only this sign-in's own runs: another person's record never reaches this digest.
-        ['SELECT kind, host, started_at, finished_at, status, reason, counts FROM runs WHERE owner_subject IS ? ORDER BY id DESC LIMIT 1', [subject]],
-        [`SELECT ${LAST_CONSOLIDATION} AS last_consolidation,
-          (SELECT count(*) FROM sessions s WHERE s.status = 'captured' AND s.updated_at > coalesce(${LAST_CONSOLIDATION}, '') AND ${own}) AS captured_since,
-          (SELECT min(f.created_at) FROM facts f WHERE ${all}) AS first_fact`, [subject, subject, ...ownValues, ...allValues]],
-      ]);
-      return { facts: facts.map(asFact), live: count.live, threads: threads.map(asFact), steps, run: run ?? null, consolidation };
+        ["SELECT kind, host, started_at, finished_at, status, reason, counts FROM runs WHERE owner_subject IS ? AND kind != 'daily' ORDER BY id DESC LIMIT 1", [subject]],
+      ];
+      const older = async () => {
+        const [steps, [count], threads, [run], facts] = await rows([...shared,
+          [`SELECT ${COLUMNS} FROM facts f WHERE ${live} AND f.type != 'thread' ORDER BY ${TYPE_ORDER}, ${NEWEST} LIMIT ?`, [...values, Number(limit) || 60]]]);
+        return { facts: facts.map(asFact), live: count.live, threads: threads.map(asFact), steps, run: run ?? null };
+      };
+      const answer = await rows([...shared,
+        [NEWEST_DAILY, [subject]],
+        [`SELECT ft.tag, count(*) AS n FROM facts f JOIN fact_tags ft ON ft.fact_id = f.id WHERE ${live} AND f.created_at >= ?
+          GROUP BY ft.tag ORDER BY n DESC, ft.tag LIMIT ${LATELY_LIMIT}`, [...values, ago(LATELY_DAYS * 86400000)]],
+        // A schedule owns no fact, so it has no preferences of its own.
+        [`SELECT ${COLUMNS} FROM facts f WHERE ${live} AND ${caller.role === 'team' ? '0' : 'f.owner_subject IS ?'} AND f.type IN ('feedback', 'user')
+          AND f.created_at > coalesce(${lastOk}, ?) ORDER BY ${NEWEST} LIMIT ${FRESH_LIMIT}`,
+        [...values, ...(caller.role === 'team' ? [] : [subject]), subject, ago(86400000)]],
+      ]).catch(error => { if (UNMIGRATED.test(error.message)) return null; throw error; });
+      if (!answer) return older();
+      const [steps, [count], threads, [run], [daily], lately, fresh] = answer;
+      return { live: count.live, threads: threads.map(asFact), steps, run: run ?? null, daily: dailyOf(daily), lately, fresh: fresh.map(asFact) };
     },
 
     // One atomic batch: the session row, new tags, then each fact with its tags and supersedes.
@@ -234,10 +256,33 @@ export function d1Store(db, bucket, caller) {
       return { key };
     },
 
-    // Every run is stored under the sign-in that sent it; the request names no owner.
-    async putRun({ kind, host, startedAt, status, reason, counts }) {
-      return change([['INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts, owner_subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [kind, host ?? null, startedAt || now(), now(), status, reason ? String(reason).slice(0, 300) : null, typeof counts === 'string' ? counts : JSON.stringify(counts ?? {}), subject]]]);
+    // Every run is stored under the sign-in that sent it; the request names no owner. A daily run is one row per
+    // person and day: `started` claims it in one statement, unless `force`, and `ok` or `failed` finishes it.
+    async putRun({ kind, host, startedAt, status, reason, counts, day, force = false }) {
+      if (!RUN_STATUS[kind]?.includes(status)) throw new StoreError(`a ${kind} run's status is one of ${(RUN_STATUS[kind] || ['ok', 'failed']).join(', ')}`);
+      const text = typeof counts === 'string' ? counts : JSON.stringify(counts ?? {});
+      const why = reason ? String(reason).slice(0, 300) : null;
+      if (kind !== 'daily') {
+        return change([['INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts, owner_subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [kind, host ?? null, startedAt || now(), now(), status, why, text, subject]]]);
+      }
+      if (caller.role === 'team') throw forbidden('a schedule sign-in runs no daily tidy');
+      if (!DAY.test(String(day))) throw new StoreError('a daily run names its day as YYYY-MM-DD');
+      const started = status === 'started';
+      const insert = [`INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts, owner_subject, day)
+        SELECT 'daily', ?, ?, ?, ?, ?, ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM runs WHERE ${DAILY_ROW}) RETURNING id`,
+      [host ?? null, startedAt || now(), started ? null : now(), status, why, text, subject, day, subject, day]];
+      const update = started
+        ? [`UPDATE runs SET host = ?, started_at = ?, finished_at = NULL, status = 'started', reason = NULL, counts = '{}' WHERE ${DAILY_ROW} RETURNING id`, [host ?? null, startedAt || now(), subject, day]]
+        : [`UPDATE runs SET finished_at = ?, status = ?, reason = ?, counts = ? WHERE ${DAILY_ROW} RETURNING id`, [now(), status, why, text, subject, day]];
+      try {
+        if (started && !force) return { claimed: (await rows([insert]))[0].length > 0 };
+        await rows([update, insert]);
+        return { claimed: started };
+      } catch (error) {
+        if (UNMIGRATED.test(error.message)) return { claimed: false };
+        throw error;
+      }
     },
 
     async stats() {

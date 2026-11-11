@@ -1,23 +1,22 @@
 #!/usr/bin/env node
 // The one door to the memory store. Every skill, the hooks, and the background run call this script; it reaches the
 // store only through the profile's operations. wiki/development/memory.md
-import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { MAX_TRANSCRIPT_BYTES, megabytes, now } from '../store/interface.mjs';
+import { fileURLToPath } from 'node:url';
+import { MAX_TRANSCRIPT_BYTES, megabytes } from '../store/interface.mjs';
 import { parseCli, usageError } from './lib/cli.mjs';
+import { readDaily, setDaily, today } from './lib/daily.mjs';
 import { DOCUMENT_COMMANDS } from './lib/documents/commands.mjs';
-import { extractMemory } from './lib/extract.mjs';
-import { issueTask, scopeOf, taskIdentity } from './lib/extract-ledger.mjs';
-import { consolidationDue, DIFFERED, formatFact, loadDigest } from './lib/digest.mjs';
-import { areaDocs, loadAreas, pathAreas, withAreaTags } from './lib/areas.mjs';
+import { DIFFERED, formatFact, loadDigest } from './lib/digest.mjs';
+import { loadAreas, withAreaTags } from './lib/areas.mjs';
 import { hasTerms, readFacts } from './lib/read-facts.mjs';
 import { READ_OPTIONS } from './lib/read-options.mjs';
 import { BRIEF_DEFAULT_LIMIT, BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './lib/brief.mjs';
-import { pageLinks } from './lib/topics.mjs';
+import { areasCommand, pull, relatedCommand, showCommand } from './lib/pull.mjs';
 import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
-import { isMain, loadEnv, loadProfile, openStore, readJson, CONSOLIDATED, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
+import { detached, isMain, loadEnv, loadProfile, openStore, readJson, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
 import { FormatError, inside, parseTranscriptText, pending, pruneRegistry, readRegistry, recentTranscripts, sessionFile, strip } from './lib/transcripts.mjs';
 
 const TYPES = ['user', 'feedback', 'project', 'reference', 'thread'];
@@ -284,19 +283,6 @@ async function brief(ctx, { values, positionals }) {
   process.stdout.write(renderBrief(result));
 }
 
-async function show(ctx, { values, positionals: [slug] }) {
-  if (!slug) throw new StoreError('usage: memory.mjs show <slug> [--all] [--everyone]');
-  const store = await openStore(ctx);
-  const [facts] = await store.facts([{ slug, all: values.all, everyone: values.everyone }]);
-  const live = facts.filter(fact => !fact.superseded_by);
-  const state = (await store.profile.slugState?.(ctx))?.(slug);
-  console.log(`# ${slug}${state ? ` (${state})` : ''}: ${live.length} live facts`);
-  const threads = live.filter(fact => fact.type === 'thread');
-  const rest = facts.filter(fact => !threads.includes(fact));
-  if (threads.length) console.log(['## Open threads', ...threads.map(fact => formatFact(fact))].join('\n'));
-  if (rest.length) console.log(['## Facts, newest first', ...rest.map(fact => formatFact(fact))].join('\n'));
-}
-
 // The reduced transcript behind a fact, through its session source; the store says when it can not give it.
 async function source(ctx, { positionals: [raw] }) {
   const id = Number(raw);
@@ -342,44 +328,6 @@ async function tagCommand(ctx, { values, positionals: [name] }) {
   const next = { name, definition: values.definition?.trim() || tag.definition, aliasOf: values['no-alias'] ? null : alias || tag.alias_of };
   await store.defineTag(next);
   console.log(`tag ${name}${next.aliasOf ? ` (alias of ${next.aliasOf})` : ''}: ${next.definition}`);
-}
-
-// A company topic's page, its summary, and the topic pages one link away.
-function companyLines(ctx, tag, list) {
-  const pages = Object.values(list).filter(topic => topic.kind === 'company').map(topic => topic.page);
-  const { out, in: back } = pageLinks(ctx.root, list[tag].page, pages);
-  return [`${tag}: ${list[tag].definition} (${list[tag].page})`, ...(out.length ? [`Links to: ${out.join(', ')}`] : []), ...(back.length ? [`Linked from: ${back.join(', ')}`] : [])];
-}
-
-// Everything linked to these paths, topics, or a change's named paths: topics, pages, docs and code folders, the
-// profile's lookups, then live facts; an unreachable store prints one line and exits 0.
-async function areas(ctx, { values, positionals }) {
-  const profile = await loadProfile(ctx);
-  const list = await loadAreas(ctx, profile);
-  const isTopic = word => Object.hasOwn(list, word) && !existsSync(join(ctx.root, word));
-  const paths = positionals.filter(word => !isTopic(word));
-  const named = values.change ? (await profile?.lookup?.named?.(ctx, values.change)) ?? [] : [];
-  const found = new Map(positionals.filter(isTopic).map(tag => [tag, 'topic']));
-  for (const [tag, path] of pathAreas([...paths, ...named], list, ctx.root)) if (!found.has(tag)) found.set(tag, path);
-  const tags = [...found.keys()];
-  const docs = areaDocs(tags, list, ctx.root);
-  const folders = [...new Set(tags.flatMap(tag => (list[tag]?.paths || []).filter(prefix => prefix.endsWith('/'))))];
-  console.log([
-    ...((await profile?.lookup?.before?.(ctx, paths)) ?? []),
-    found.size ? `Areas: ${[...found].map(([tag, path]) => `${tag} (${path})`).join(', ')}` : 'No mapped area for these paths.',
-    ...tags.filter(tag => list[tag].kind === 'company').flatMap(tag => companyLines(ctx, tag, list)),
-    ...(docs.length ? [`Docs: ${docs.join(', ')}`] : []),
-    ...(folders.length ? [`Code: ${folders.join(', ')}`] : []),
-    ...((await profile?.lookup?.after?.(ctx, { paths, named, tags, change: values.change, areas: list })) ?? []),
-  ].join('\n'));
-  if (!found.size) return;
-  try {
-    const [facts] = await (await openStore(ctx)).facts([{ tags, everyone: values.everyone, order: 'threads-first', limit: Number(values.limit) || 20 }]);
-    console.log(facts.length ? facts.map(fact => formatFact(fact)).join('\n') : 'No live facts in these areas.');
-  } catch (error) {
-    if (!(error instanceof StoreError)) throw error;
-    console.log(`Memory was not loaded (${error.reason}); go on without it.`);
-  }
 }
 
 // Print each candidate's neighbours, in one read, so the writer can choose add, supersede, or drop. The store
@@ -623,8 +571,9 @@ async function stats(ctx) {
 // Inside a run, the recorded counts are the tally's; the model's --counts only shows up as a note when it differs.
 // With no tally (a hand run, or a run an older run.mjs started), --counts is recorded as given.
 async function finishRun(ctx, { values, tally: tallyFile }) {
-  if (!['capture', 'consolidation'].includes(values.kind)) throw new StoreError('usage: memory.mjs finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]');
+  if (!['capture', 'consolidation', 'daily'].includes(values.kind)) throw new StoreError('usage: memory.mjs finish-run --kind capture|consolidation|daily --status ok|failed [--counts JSON] [--reason text]');
   const status = values.status === 'failed' ? 'failed' : 'ok';
+  if (values.kind === 'daily') return finishDaily(ctx, values, status, tallyFile ? readJson(tallyFile, {}) : {});
   const reported = values.counts ? JSON.parse(values.counts) : null;
   const tally = tallyFile ? readJson(tallyFile, null) : null;
   let counts = reported || {};
@@ -639,17 +588,49 @@ async function finishRun(ctx, { values, tally: tallyFile }) {
   await store.putRun({ kind: values.kind, host: ctx.machine, startedAt: process.env.WONG_MEMORY_RUN_STARTED, status, reason, counts });
   await loadDigest(ctx, store);
   pruneRegistry(ctx);
-  // The wiki tidy's start signal; its `claimed` stays. A failed write only delays the tidy; the run stays recorded.
-  const signal = file => writeJson(file, { ...readJson(file, {}), at: now() });
-  if (values.kind === 'consolidation' && status === 'ok') {
-    try { signal(statePath(ctx, CONSOLIDATED)); } catch { /* the next consolidation signals again */ }
-  }
   console.log(`recorded ${values.kind} run: ${status}`);
 }
 
-async function due(ctx) {
-  const { consolidation } = await (await openStore(ctx)).digest({});
-  console.log(consolidationDue(consolidation) ? 'consolidation due' : 'consolidation not due');
+// The day's tidy record: the tally's writes and run.mjs's counts from the copy's diff; never a model's --counts.
+export function dailyCounts(tally, { pages, links } = {}) {
+  const counts = { captured: tally.captured, added: tally.added, merged: tally.merged,
+    superseded: (Number(tally.superseded) || 0) + (Number(tally.consolidationSuperseded) || 0), pages: Number(pages), links: Number(links) };
+  return Object.fromEntries(Object.entries(counts).map(([key, value]) => [key, Number(value) || 0]).filter(([, value]) => value));
+}
+
+// Finishes the day's claimed row: the same day's `daily` run, so the claim and its record are one.
+async function finishDaily(ctx, values, status, tally) {
+  const store = await openStore(ctx);
+  await store.putRun({ kind: 'daily', day: values.day || today(), host: ctx.machine, startedAt: process.env.WONG_MEMORY_RUN_STARTED, status,
+    reason: values.reason || null, counts: dailyCounts(tally, values) });
+  await loadDigest(ctx, store);
+  console.log(`recorded daily run: ${status}`);
+}
+
+const countLine = counts => Object.entries(counts || {}).filter(([, n]) => Number(n)).map(([key, n]) => `${key} ${n}`).join(', ') || 'nothing changed';
+
+// `daily`: the last tidy, read with no model; `off` and `on` switch it for this computer; `now` starts one at once.
+async function dailyCommand(ctx, { values, positionals: [action] }) {
+  if (action === 'off' || action === 'on') {
+    setDaily(ctx, { off: action === 'off' });
+    console.log(action === 'off' ? 'The daily memory tidy is off on this computer. `daily on` starts it again.' : 'The daily memory tidy is on: the first chat each day starts it.');
+    return;
+  }
+  if (action === 'now') {
+    const started = detached(fileURLToPath(new URL('./run.mjs', import.meta.url)), ['--daily', '--force', '--agent', values.agent === 'codex' ? 'codex' : 'claude'],
+      { cwd: ctx.root, env: { ...process.env, WONG_MEMORY_RUN_STARTED: new Date().toISOString() } });
+    console.log(started ? 'Started a daily memory tidy in the background.' : 'The daily memory tidy could not start.');
+    return;
+  }
+  if (action) throw new StoreError('usage: memory.mjs daily [off|on|now]');
+  const answer = await (await openStore(ctx)).digest({ slug: null, stepTags: [] });
+  const off = readDaily(ctx).off ? ' It is off on this computer.' : '';
+  if (!('daily' in (answer || {}))) { console.log(`The memory store is older and runs no daily tidy yet.${off}`); return; }
+  const last = answer.daily;
+  if (!last) { console.log(`No daily memory tidy has run yet.${off}`); return; }
+  let counts = last.counts;
+  try { if (typeof counts === 'string') counts = JSON.parse(counts); } catch { counts = {}; }
+  console.log(`Last daily tidy: ${last.day} on ${last.host || 'an unknown computer'}, ${last.status}: ${countLine(counts)}.${off}`);
 }
 
 async function spool(ctx) {
@@ -664,33 +645,24 @@ async function spool(ctx) {
   }
 }
 
-// A task handle is this computer's and this sign-in's: a new credential refuses a handle the old one issued.
-async function extractIdentity(ctx, scope) {
-  const who = (await openStore(ctx).catch(() => null))?.identity || ctx.author || '';
-  return taskIdentity(ctx, scope, createHash('sha256').update(who).digest('hex'));
-}
-async function extractCommand(ctx, { values, positionals }) {
-  const scope = scopeOf(values), question = positionals.join(' ').trim();
-  if (!values.task || !question) throw new StoreError('extract requires a question and --task from extract-task');
-  const loaded = values.loaded ? values.loaded.split(',').map(Number) : [];
-  if (loaded.length > 20 || loaded.some(id => !Number.isSafeInteger(id) || id <= 0)) throw new StoreError('--loaded requires at most twenty positive fact IDs');
-  const result = await extractMemory(ctx, { task: values.task, identity: await extractIdentity(ctx, scope), scope, question, loaded, agent: values.agent, model: values.model, usageReport: values['usage-report'] });
-  process.stdout.write(result.text);
-  process.exitCode = result.code;
-}
+// The extraction helper is gone: a chat follows the memory helper's steps instead.
+const RECALL_HELPER = '.claude/skills/memory/references/recall-helper.md';
+const removed = name => () => { throw new StoreError(`${name} was removed: for a task that spans topics, follow the memory helper's steps in ${RECALL_HELPER}; for one topic, path, change or fact, run \`pull <name>\``); };
+
 export const COMMANDS = {
   ...DOCUMENT_COMMANDS,
-  search, brief, show, source, tags, areas, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool, due,
+  search, brief, show: showCommand, source, tags, areas: areasCommand, pull, related: relatedCommand, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool,
   'keep-transcript': keepTranscript,
   'recent-chats': recentChats,
-  extract: extractCommand,
-  'extract-task': async (ctx, { values }) => { const scope = scopeOf(values); console.log(issueTask(ctx, await extractIdentity(ctx, scope))); },
+  extract: removed('extract'),
+  'extract-task': removed('extract-task'),
   gate: (ctx, { values }) => gateFacts(ctx, readInput(values.file)),
   'put-facts': putFactsCommand,
   retag: retagCommand,
   tag: tagCommand,
   upkeep: async ctx => console.log(await upkeepLine(ctx)),
   'finish-run': finishRun,
+  daily: dailyCommand,
 };
 
 // A command the core lacks may be the profile's own, such as WongStack's admin jobs.
@@ -699,8 +671,8 @@ async function profileCommand(command) {
 }
 
 const OPTIONS = { ...READ_OPTIONS, ...Object.fromEntries([
-  ...['scope', 'mode', 'file', 'spooled', 'days', 'part', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label', 'task', 'loaded', 'agent', 'model'].map(name => [name, { type: 'string' }]),
-  ...['deep', 'cpu', 'all', 'json', 'help', 'everyone', 'background', 'no-alias', 'usage-report', 'parts'].map(name => [name, { type: 'boolean' }]),
+  ...['scope', 'mode', 'file', 'spooled', 'days', 'part', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label', 'day', 'pages', 'links', 'agent', 'more'].map(name => [name, { type: 'string' }]),
+  ...['deep', 'cpu', 'all', 'json', 'help', 'everyone', 'background', 'no-alias', 'parts'].map(name => [name, { type: 'boolean' }]),
 ]) };
 
 const USAGE = `usage: memory.mjs <command>
@@ -712,25 +684,25 @@ const USAGE = `usage: memory.mjs <command>
   search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--change slug] [--state active|shipped|conversation] [--all] [--everyone] [--limit n] [--json]
                                (--change: facts from sessions that wrote a fact on the change; with --branch, either)
                                (in a team, user and feedback facts are only yours; the admin's --everyone shows everyone's)
-  show <slug> [--all] [--everyone]   a topic's open threads, then its live facts newest first
+  show <slug> [--all] [--everyone]   a change's answer: its topics, open threads, newest facts, chats
+  pull <topic|path|change|#fact> [--more group] [--json]   one node: what it is and each name it connects to, 3 per group; --more shows one group whole
+  related <topic> [--json]     the topics that share live facts and changes with it, and whether a page links them
   brief [terms] [search filters except --all]   dates and sources; default 8 facts, --limit up to 20 / 6144 bytes; requires scope
-  extract-task [scope filters]  issue an experimental task handle; reuse with exactly these filters
-  extract <question> --task <handle> [scope filters] --agent claude|codex [--model name] [--loaded ids] [--usage-report]
-                               experimental; 12 KiB model input / 3 KiB returned per task; 3 searches / 2 calls / 20 seconds per request
   source <fact-id>             the reduced transcript behind a fact
   tags                         every tag with its definition and use count
   tag <name> [--definition text] [--alias-of tag | --no-alias]   correct a tag, or merge a look-alike into another (admin)
-  areas [paths|topics…] [--change name] [--limit n]   everything linked to them: areas, docs, past changes, backlinks, code users, live facts
+  areas [paths|topics…] [--change name] [--limit n]   everything linked to them: areas, docs, past changes, backlinks, code users, then live facts by group (--limit n a group)
   gate --file -                neighbours for each candidate fact; JSON on stdin (or --file path)
   put-facts --file - [--spooled path]   the decided facts; JSON on stdin (or --file path)
   retag --file -               restate live facts with added tags, keeping date, session, and author: {"retag":[{"id":n,"tags":[...]}]}
   upkeep                       close threads unchecked for 30 days, add the tags facts' words name, sync area tags (put-facts runs it)
-  pending [--limit n] [--exclude ids]   strip <session-id>   live [--everyone]   digest   stats   spool   due
+  pending [--limit n] [--exclude ids]   strip <session-id>   live [--everyone]   digest   stats   spool
   keep-transcript <session-id|current>   upload the session's redacted transcript now; leaves its capture alone
   recent-chats [--days n | --all] [--limit chars] [--parts | --part k]   what you typed in this computer's Claude Code and Codex chats (default 30 days), redacted; needs no store
                                (--all: every chat; --parts: how many parts of --limit characters, and their dates; --part k: that part)
                                (in a team, search, show, and live hide other people's personal and reader facts; only the admin's --everyone shows them)
-  finish-run --kind capture|consolidation --status ok|failed [--counts JSON] [--reason text]
+  finish-run --kind capture|consolidation|daily --status ok|failed [--counts JSON] [--reason text]
+  daily [off|on|now]           the last daily tidy and what it changed; turn it off or on here; start one now
   migrate                      (with a memory Worker recorded, runs with the admin's CLOUDFLARE_API_TOKEN)
   migrate-people               move each signed-in computer's private notes to its person, then turn old keys off (admin)
   assign <machine-id> <email>  give an unlinked computer's private notes to a person who has used memory (admin)

@@ -68,7 +68,7 @@ Pages the payload ships stay in the code repo. A page that your code reads as it
 
 ### Old paths
 
-The moves list, `.agents/knowledge-moves.json`, maps each old path to its new place, and it never gets shorter. Past plans, finished changes and memory keep their old paths; `memory.mjs areas <old path>` prints the new place. The wiki check fails on a file at an old path and names the new place, so a chat that started before the move can't put a page back in the code repo.
+The moves list, `.agents/knowledge-moves.json`, maps each old path to its new place, and it never gets shorter. Past plans, finished changes and memory keep their old paths; `memory.mjs pull <old path>` prints the new place. The wiki check fails on a file at an old path and names the new place, so a chat that started before the move can't put a page back in the code repo.
 
 ## When the sign-in runs out
 

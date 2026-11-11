@@ -34,7 +34,7 @@ export function topicLines(topics, script) {
   if (!topics.length) return [];
   const company = topics.filter(topic => topic.kind === 'company' && topic.hub != null).sort((a, b) => a.hub - b.hub);
   const names = topics.filter(topic => topic.kind === 'code').map(topic => topic.tag);
-  const pull = `Pull a topic: \`${script} areas <topic>\``;
+  const pull = `Pull a topic: \`${script} pull <topic>\``;
   const lines = ['## Topics'];
   for (const topic of company.slice(0, COMPANY_LINES)) {
     const line = `${topic.tag}  ${topic.summary}`;

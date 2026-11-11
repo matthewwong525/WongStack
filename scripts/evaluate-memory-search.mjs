@@ -18,13 +18,13 @@ export function fixtureOwner(fact, own) {
   }
 }
 
-export function seed(env, fixture, { includeContext = false } = {}) {
+export function seed(env, fixture) {
   mkdirSync(env.repo.stateDir, { recursive: true });
   writeJsonFile(env.repo.stateDir, 'team.json', { team: true });
   signInAs(env.repo, { sub: SELF, email: 'dev@example.com', role: 'admin' });
   const insert = env.fake.db.prepare('INSERT INTO facts (slug, type, body, source, created_at, author, shared, owner_subject) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id');
   const ids = new Map();
-  for (const fact of [...fixture.facts, ...(fixture.diagnosticFacts || []), ...(includeContext ? fixture.contextFacts || [] : [])]) {
+  for (const fact of [...fixture.facts, ...(fixture.diagnosticFacts || [])]) {
     const { id } = insert.get(fact.slug, fact.type, fact.body, 'migration', fact.createdAt || '2026-10-01T00:00:00Z', fact.author || 'dev@example.com', fact.shared ?? 1, fixtureOwner(fact, SELF));
     ids.set(fact.key, id);
   }
@@ -101,10 +101,10 @@ export function formatEvaluation(report) {
 }
 
 if (isMain(import.meta.url)) {
-  const { values } = parseCli({ usage: 'usage: evaluate-memory-search.mjs [--json] [--context [--live --agent claude] [--repeats n]]', options: { json: { type: 'boolean' }, context: { type: 'boolean' }, live: { type: 'boolean' }, agent: { type: 'string' }, model: { type: 'string' }, repeats: { type: 'string' } } });
+  const { values } = parseCli({ usage: 'usage: evaluate-memory-search.mjs [--json]', options: { json: { type: 'boolean' } } });
   try {
-    const report = values.context ? await (await import('./evaluate-memory-context.mjs')).evaluateMemoryContext({ live: values.live, agent: values.agent, model: values.model, repeats: Number(values.repeats || (values.live ? 2 : 1)) }) : await evaluateMemorySearch();
-    console.log(values.json ? JSON.stringify(report) : values.context ? JSON.stringify(report, null, 2) : formatEvaluation(report));
+    const report = await evaluateMemorySearch();
+    console.log(values.json ? JSON.stringify(report) : formatEvaluation(report));
     process.exitCode = Number(report.failed);
   } catch (error) {
     console.error(values.json ? JSON.stringify({ version: 1, synthetic: true, failed: true, error: error.message }) : `Evaluation failed: ${error.message}`);

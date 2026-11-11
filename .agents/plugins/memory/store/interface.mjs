@@ -5,7 +5,7 @@
 export const OPERATIONS = {
   caller: 'who is calling → { role: admin|member|reader|team, subject, email }',
   facts: 'FactQuery[] → Fact[][], one round trip for many reads',
-  digest: '{ slug, stepTags, limit } → { facts, live, threads, steps, run, consolidation }',
+  digest: '{ slug, stepTags } → { live, threads, steps, run, daily, lately, fresh }',
   write: '{ session?, source, slug?, newTags?, facts: FactWrite[], createdAt? } → { ids, superseded: [{ asked, marked }], left: [{ id, author }] }',
   tags: '→ [{ name, definition, alias_of, uses }]',
   defineTag: '{ name, definition, aliasOf } → {}, admin only',
@@ -13,7 +13,7 @@ export const OPERATIONS = {
   putSession: '{ id, agent, host, branch, cwd, startedAt, endedAt, status, reason, readThrough, rawBytes } → {}',
   transcript: '{ factId } → bytes, or { missing: why, session }, or { fact: null }',
   putTranscript: '{ sessionId, agent } + bytes → { key } or { missing: why }',
-  putRun: '{ kind, host, startedAt, status, reason, counts } → {}',
+  putRun: '{ kind, host, startedAt, status, reason, counts, day?, force? } → {}, or { claimed } for a daily run',
   stats: '→ { types, totals, consolidations }',
 };
 

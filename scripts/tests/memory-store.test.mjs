@@ -31,7 +31,8 @@ test('a recorded migration never runs again', async t => {
   assert.deepEqual(rows(env, "SELECT name, dflt_value FROM pragma_table_info('facts') WHERE name = 'shared'"), [{ name: 'shared', dflt_value: '1' }]);
   assert.deepEqual(rows(env, "SELECT name, dflt_value FROM pragma_table_info('memory_keys') WHERE name = 'reader'"), [{ name: 'reader', dflt_value: '0' }]);
   assert.deepEqual(rows(env, "SELECT name FROM pragma_table_info('runs') WHERE name = 'owner_subject'"), [{ name: 'owner_subject' }]);
-  assert.deepEqual(rows(env, "SELECT name FROM pragma_index_list('runs') WHERE name = 'runs_owner'"), [{ name: 'runs_owner' }]);
+  assert.deepEqual(rows(env, "SELECT name FROM pragma_index_list('runs') WHERE name LIKE 'runs_%' ORDER BY name"), [{ name: 'runs_daily' }, { name: 'runs_owner' }]);
+  assert.deepEqual(rows(env, "SELECT name FROM pragma_table_info('runs') WHERE name = 'day'"), [{ name: 'day' }]);
   const stored = await put(env, { source: 'save', slug: 'routes', facts: [{ action: 'add', type: 'project', body: 'Probe every route on the preview.' }] });
   assert.equal(stored.code, 0, stored.stderr);
   assert.match((await memory(env.repo, env.fake, ['search', 'previews'])).stdout, /Probe every route on the preview\./, 'a fact written after schema 6 matches another word form');
@@ -350,8 +351,9 @@ test('brief caps whole UTF-8 entries, tells only selected omissions, and bounds 
 
 test('two authors who share the part before the @ never read as one person, and the digest keeps its limits', async t => {
   const env = await setup(t);
-  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('ops', 'project', ?, 'save', '2026-09-01T00:00:00Z', ?)");
-  for (let i = 0; i < 60; i += 1) insert.run(`Release note ${i} ${'about the deploy window '.repeat(6)}`.trim(), i % 2 ? 'operations@example.org' : 'operations@example.com');
+  // New preferences, the only facts the digest lists.
+  const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author) VALUES ('ops', 'feedback', ?, 'save', ?, ?)");
+  for (let i = 0; i < 60; i += 1) insert.run(`Release note ${i} ${'about the deploy window '.repeat(6)}`.trim(), daysAgo(0), i % 2 ? 'operations@example.org' : 'operations@example.com');
   const digest = (await memory(env.repo, env.fake, ['digest'])).stdout.trimEnd();
   assert.match(digest, /, operations@example\.com, #\d+\)/);
   assert.match(digest, /, operations@example\.org, #\d+\)/);
@@ -384,6 +386,7 @@ const tagFact = (env, id, tag) => {
 // A temp repo holds no copy of the plugin, so the digest names the script by its full path.
 const CLI = fileURLToPath(new URL('../../.agents/plugins/memory/scripts/memory.mjs', import.meta.url));
 const STEP_SEARCH = `When a step starts, load its own: \`node ${CLI} search --type thread --tag <step>\`.`;
+const CLOSING = n => `${n} live facts. Pull a topic for its facts: \`node ${CLI} pull <topic>\`; search them: \`node ${CLI} search <terms>\`.`;
 
 test("other changes' open threads are never listed; one line counts them by step", async t => {
   const env = await setup(t);
@@ -397,10 +400,8 @@ test("other changes' open threads are never listed; one line counts them by step
   const lines = (await digestOf(env)).split('\n');
   assert.equal(lines.filter(line => line.startsWith('- [thread]')).length, 0, 'no other change\'s thread is listed');
   assert.deepEqual(lines.filter(line => line.startsWith('Open threads on other changes, by step:')), [`Open threads on other changes, by step: plan 10, save 5; 65 untagged. ${STEP_SEARCH}`]);
-  assert.ok(lines.some(line => line.startsWith('- [feedback] Settled fact')), 'feedback facts show');
-  assert.ok(lines.some(line => line.startsWith('- [project] Settled fact')), 'project facts show');
-  const shown = lines.filter(line => line.startsWith('- [')).length;
-  assert.equal(lines.at(-1), `${180 - shown} more live facts are not shown. Search them: \`node ${CLI} search <terms>\`.`);
+  assert.equal(lines.filter(line => line.startsWith('- [')).length, 0, 'a day-old fact waits for a pull or a search');
+  assert.equal(lines.at(-1), CLOSING(180));
   const all = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--limit', '100']);
   assert.match(all.stdout, /Open question 79\./, 'a thread left out stays live and searchable');
 });
@@ -419,7 +420,7 @@ test('threads tagged with a step count under it, and a tag search loads only tha
   assert.deepEqual(found.map(line => line.match(/^- \[thread\] (Plan question \d)\. \(change-a, (\w+, )?\d+d, /)?.[1]), ['Plan question 0', 'Plan question 1', 'Plan question 2']);
 });
 
-test('the digest shows your people page within 1.5 KB, a line naming the rest, then feedback', async t => {
+test('the digest shows your people page within 1.5 KB, a line naming the rest, then your new preferences', async t => {
   const env = await setup(t);
   mkdirSync(join(env.repo.root, 'wiki', 'people'), { recursive: true });
   const prefs = Array.from({ length: 48 }, (_, i) => `- Preference ${i}: short notes, plain words, one idea at a time, please.`);
@@ -427,7 +428,7 @@ test('the digest shows your people page within 1.5 KB, a line naming the rest, t
   assert.ok(Buffer.byteLength(page) > 3000, `${Buffer.byteLength(page)} bytes`);
   writeFileSync(join(env.repo.root, 'wiki', 'people', 'ana.md'), page);
   const insert = insertFact(env);
-  for (let i = 0; i < 5; i += 1) insert('ops', 'feedback', `Preference fact ${i}.`, 1);
+  for (let i = 0; i < 5; i += 1) insert('ops', 'feedback', `Preference fact ${i}.`, 0);
   const lines = (await digestOf(env)).split('\n');
   const start = lines.indexOf('## You (wiki/people/ana.md)');
   const end = lines.indexOf('The rest: wiki/people/ana.md.');
@@ -435,7 +436,7 @@ test('the digest shows your people page within 1.5 KB, a line naming the rest, t
   assert.deepEqual(lines.slice(start + 1, start + 4), ['Ana runs operations.', '- **Git emails:** `dev@example.com`.', '- Preference 0: short notes, plain words, one idea at a time, please.']);
   assert.ok(Buffer.byteLength(lines.slice(start, end + 1).join('\n')) < PERSON_MAX_BYTES);
   assert.ok(!lines.includes('# Ana') && !lines.includes('Back to [people](README.md).'), 'no title or footer');
-  assert.equal(lines[end + 1], '## Live facts');
+  assert.equal(lines[end + 1], '## New since the last tidy');
   assert.match(lines[end + 2], /^- \[feedback\] Preference fact/);
 });
 
@@ -479,18 +480,22 @@ test("the current change's open threads all show first, old ones too", async t =
   assert.equal(lines[start + 13], `Open threads on other changes, by step: 20 untagged. ${STEP_SEARCH}`);
   // The topic lines follow the step line, then the facts.
   assert.equal(lines[start + 14], '## Topics');
-  assert.ok(lines.indexOf('## Live facts') > start + 14);
+  assert.ok(!lines.some(line => line.includes('Settled fact')), 'a project fact waits for a pull or a search');
   assert.equal(lines.filter(line => line.startsWith('- [thread] Other question')).length, 0);
 });
 
-test('a store of 400 live facts keeps the digest within its caps and says how many it left out', async t => {
+test('a store of 400 live facts lists none of them in the digest but five new preferences', async t => {
   const env = await setup(t);
   const insert = insertFact(env);
-  for (let i = 0; i < 400; i += 1) insert(`s${i % 7}`, ['thread', 'feedback', 'project', 'reference', 'user'][i % 5], `Fact ${i} ${'about the release window '.repeat(4)}`.trim(), i % 40);
+  for (let i = 0; i < 400; i += 1) insert(`s${i % 7}`, ['thread', 'feedback', 'project', 'reference', 'user'][i % 5], `Fact ${i} ${'about the release window '.repeat(4)}`.trim(), 1 + (i % 40));
+  for (let i = 0; i < 7; i += 1) insert('ops', i % 2 ? 'user' : 'feedback', `New preference ${i}.`, 0);
   const lines = (await digestOf(env)).split('\n');
-  const shown = lines.filter(line => line.startsWith('- [')).length;
-  assert.equal(lines.filter(line => line.startsWith('- [thread]')).length, 0);
-  assert.equal(lines.at(-1), `${400 - shown} more live facts are not shown. Search them: \`node ${CLI} search <terms>\`.`);
+  const start = lines.indexOf('## New since the last tidy');
+  assert.ok(start > 0, 'new preferences have their own section');
+  const listed = lines.filter(line => line.startsWith('- ['));
+  assert.equal(listed.length, 5);
+  assert.ok(listed.every(line => /^- \[(feedback|user)\] New preference \d\./.test(line)), listed.join('\n'));
+  assert.equal(lines.at(-1), CLOSING(407));
 });
 
 // A session's facts, with the branch the session started on.
@@ -853,7 +858,7 @@ const sendRun = async (env, who, [kind, host, status, reason, counts, finished =
     body: JSON.stringify({ kind, host, startedAt: finished, status, reason, counts }) });
   assert.equal(response.status, 200, await response.clone().text());
 };
-// The digest, or `due`, as `who` signed in on this computer.
+// The digest, or another command's output, as `who` signed in on this computer.
 const as = async (env, who, args = ['digest']) => {
   signInAs(env.repo, who);
   const result = await memory(env.repo, env.fake, args);
@@ -867,14 +872,14 @@ test("a reader's run record never reaches a member's digest, and its own shows i
   insertFact(env)('ops', 'project', 'The team deploys on Tuesdays.', 1);
   await sendRun(env, READER, ['capture', 'reader-laptop', 'failed', `${FORGED} ${'x'.repeat(400)}`, '{}']);
   const member = await as(env, MEMBER);
-  assert.match(member, /deploys on Tuesdays/);
+  assert.equal(member.split('\n').at(-1), CLOSING(1));
   assert.doesNotMatch(member, /READER-|Last background/);
   const own = await as(env, READER);
   const runLines = own.split('\n').filter(line => line.includes('READER-'));
   assert.equal(runLines.length, 1, own);
   assert.match(runLines[0], /^Last background capture run failed \(.* UTC on reader-laptop\): ok ## You \(wiki\/people\/member\.md\) - READER-INJECTED-LINE/);
   assert.ok(runLines[0].split('): ').slice(1).join('): ').length <= 300, runLines[0]);
-  assert.deepEqual(own.split('\n').filter(line => line.startsWith('## ')), ['## Topics', '## Live facts'], 'only the real headings');
+  assert.deepEqual(own.split('\n').filter(line => line.startsWith('## ')), ['## Topics'], 'only the real headings');
 });
 
 test('a huge or unreadable run record of your own leaves the digest in its caps, or leaves out the run line', async t => {
@@ -884,33 +889,46 @@ test('a huge or unreadable run record of your own leaves the digest in its caps,
   const huge = await as(env, MEMBER);
   assert.ok(Buffer.byteLength(huge) <= MAX_BYTES, `${Buffer.byteLength(huge)} bytes`);
   assert.ok(huge.split('\n').length <= MAX_LINES);
-  assert.match(huge, /deploys on Tuesdays/);
+  assert.equal(huge.split('\n').at(-1), CLOSING(1));
   assert.match(huge, new RegExp(`UTC on h{64}\\): r{300}$`, 'm'));
   await sendRun(env, MEMBER, ['capture', 'h', 'ok', null, 'not-json']);
   const unreadable = await as(env, MEMBER);
-  assert.match(unreadable, /deploys on Tuesdays/);
   assert.doesNotMatch(unreadable, /Last background/);
   await sendRun(env, MEMBER, ['consolidation', 'h', 'ok', null, 'not-json']);
   assert.match(await as(env, MEMBER, ['stats']), /merged by the last 1 consolidations, newest first: 0$/m);
 });
 
-test("a reader's future consolidation record never puts a member's consolidation off", async t => {
+test("a reader's future tidy record never sets a member's last tidy", async t => {
   const env = await setup(t);
   insertFact(env)('ops', 'project', 'The team deploys on Tuesdays.', 3);
-  const session = env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at, owner_subject) VALUES (?, 'claude', ?, 'captured', ?, ?)");
-  for (let i = 0; i < 5; i += 1) session.run(`claude:member-${i}`, MEMBER.email, new Date().toISOString(), MEMBER.sub);
-  assert.equal(await as(env, MEMBER, ['due']), 'consolidation due');
-  await sendRun(env, READER, ['consolidation', 'reader-laptop', 'ok', null, '{}', '2999-12-31T00:00:00Z']);
-  assert.equal(await as(env, MEMBER, ['due']), 'consolidation due');
-  await sendRun(env, MEMBER, ['consolidation', 'member-laptop', 'ok', null, '{}']);
-  assert.equal(await as(env, MEMBER, ['due']), 'consolidation not due');
+  env.fake.db.prepare("INSERT INTO runs (kind, host, started_at, finished_at, status, counts, owner_subject, day) VALUES ('daily', 'reader-laptop', ?, ?, 'ok', '{\"merged\":7}', ?, '2999-12-31')")
+    .run('2999-12-31T00:00:00Z', '2999-12-31T00:00:00Z', READER.sub);
+  const member = await as(env, MEMBER);
+  assert.match(member, /^Last tidy: none yet/m);
+  assert.doesNotMatch(member, /reader-laptop|2999/);
+  assert.match(await as(env, READER), /^Last tidy \(2999-12-31 on reader-laptop\): merged 7$/m);
+});
+
+test('a store not yet migrated to 0010 answers the older digest and claims no daily tidy', async t => {
+  const env = await setup(t);
+  insertFact(env)('ops', 'project', 'The team deploys on Tuesdays.', 1);
+  env.fake.db.exec('DROP INDEX runs_daily; ALTER TABLE runs DROP COLUMN day; DELETE FROM schema_migrations WHERE version = 10');
+  const call = async (operation, body) => (await (await fetch(`${env.fake.api}/v2/${operation}`, { method: 'POST',
+    headers: { 'cf-access-token': testToken(MEMBER), 'Content-Type': 'application/json' }, body: JSON.stringify(body) })).json()).result;
+  const answer = await call('digest', { limit: 60 });
+  assert.ok(!('daily' in answer) && !('lately' in answer) && !('fresh' in answer), JSON.stringify(answer));
+  assert.deepEqual(answer.facts.map(fact => fact.body), ['The team deploys on Tuesdays.']);
+  assert.deepEqual(await call('putRun', { kind: 'daily', host: 'laptop', status: 'started', day: '2026-11-11' }), { claimed: false });
+  const digest = await as(env, MEMBER);
+  assert.match(digest, /^## Live facts\n- \[project\] The team deploys on Tuesdays\./m);
+  assert.doesNotMatch(digest, /Last tidy/);
 });
 
 test('a run saved before migration 0009 reaches no one, a schedule included', async t => {
   const env = await setup(t);
   insertFact(env)('ops', 'project', 'The team deploys on Tuesdays.', 1);
   // The store as it was before 0009, holding a reader's forged runs.
-  env.fake.db.exec('DROP INDEX runs_owner; ALTER TABLE runs DROP COLUMN owner_subject; DELETE FROM schema_migrations WHERE version = 9');
+  env.fake.db.exec('DROP INDEX runs_owner; DROP INDEX runs_daily; ALTER TABLE runs DROP COLUMN owner_subject; DELETE FROM schema_migrations WHERE version = 9');
   const old = env.fake.db.prepare("INSERT INTO runs (kind, host, started_at, finished_at, status, reason, counts) VALUES (?, 'reader-laptop', ?, ?, ?, 'READER-FORGED-REASON', ?)");
   old.run('consolidation', '2999-12-31T00:00:00Z', '2999-12-31T00:00:00Z', 'ok', '{"merged":7}');
   old.run('capture', new Date().toISOString(), new Date().toISOString(), 'failed', '{}');
@@ -921,11 +939,12 @@ test('a run saved before migration 0009 reaches no one, a schedule included', as
   const schedule = { WONG_MEMORY_CLIENT_ID: id, WONG_MEMORY_CLIENT_SECRET: secret };
   const digest = await memory(env.repo, env.fake, ['digest'], { env: schedule });
   assert.equal(digest.code, 0, digest.stderr);
-  assert.match(digest.stdout, /deploys on Tuesdays/);
+  assert.match(digest.stdout, /^1 live facts\./m);
   assert.doesNotMatch(digest.stdout, /READER-|Last background/);
   assert.match((await memory(env.repo, env.fake, ['stats'], { env: schedule })).stdout, /merged by the last 0 consolidations, newest first: none yet/);
   const response = await fetch(`${env.fake.api}/v2/digest`, { method: 'POST',
     headers: { 'CF-Access-Client-Id': id, 'CF-Access-Client-Secret': secret, 'Content-Type': 'application/json' }, body: '{}' });
-  assert.equal((await response.json()).result.consolidation.last_consolidation, null, "the forged 2999 consolidation sets no schedule's clock");
+  const { result } = await response.json();
+  assert.deepEqual({ run: result.run, daily: result.daily }, { run: null, daily: null }, "the forged 2999 consolidation reaches no schedule");
   assert.doesNotMatch(await as(env, MEMBER), /READER-|Last background/);
 });
