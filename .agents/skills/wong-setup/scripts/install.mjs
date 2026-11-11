@@ -7,12 +7,13 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
+import { installPath, installText, mappedDirs } from '../../wong-sync/scripts/install-path.mjs';
 
 const USAGE = `usage: install.mjs --source <source checkout> --target <empty folder> [--repo <upstream url>]
 
-Copies every payload category into the target, makes .agents/ with the .claude and .codex links, AGENTS.md and its
-CLAUDE.md link, the wiki hubs, .gitignore, paseo.json's setup list, the install record and openspec/. The target may
-hold only a .git with no commits and setup's .env. --repo defaults to the source's origin. Prints one JSON report; exit 1 on a stop,
+Copies every payload category into the target, each module folder at its install path, makes .agents/ with the
+.claude and .codex links, AGENTS.md and its CLAUDE.md link, the wiki hubs, .gitignore, paseo.json's setup list, the
+install record and openspec/. The target may hold only a .git with no commits and setup's .env. --repo defaults to the source's origin. Prints one JSON report; exit 1 on a stop,
 with everything it wrote removed.`;
 
 export const INVENTORY = '.agents/skills/wong-sync/references/payload-files.json';
@@ -29,16 +30,18 @@ const HEADER = '# AGENTS.md\n\nThe assistant reads this file first in every chat
 
 /** A repo path in the inventory's logical form: `.agents/` reads as `.claude/`. */
 const logical = path => path.replace(/^\.agents(?=\/)/, '.claude');
+const physical = path => path.replace(/^\.claude(?=\/)/, '.agents');
 const under = (path, dir) => path === dir || path.startsWith(`${dir}/`);
 
 export class InstallError extends Error {}
 
-// The repo paths an install receives: every category's files, skill folders and whole folders,
+// The source paths an install receives: every category's files, skill folders, whole and mapped folders,
 // without anything `exclude` names, by file or by folder.
 export function targetFiles(paths, manifest) {
   const categories = CATEGORIES.map(name => manifest[name] ?? {});
   const files = new Set(categories.flatMap(category => category.files ?? []));
-  const dirs = categories.flatMap(category => [...(category.dirs ?? []), ...(category.skillDirs ?? []).map(skill => `.claude/skills/${skill}`)]);
+  const dirs = categories.flatMap(category => [...(category.dirs ?? []), ...Object.keys(category.mapped ?? {}),
+    ...(category.skillDirs ?? []).map(skill => `.claude/skills/${skill}`)]);
   const excluded = categories.flatMap(category => category.exclude ?? []);
   return paths.filter(path => {
     const name = logical(path);
@@ -63,6 +66,9 @@ function checkEmpty(target) {
     throw new InstallError(`${target} already has saved history; setup installs only into an empty folder`);
   }
 }
+
+/** Where an install keeps a source file: a mapped folder's file lands at its install path. */
+export const installedAt = (path, manifest) => physical(installPath(logical(path), mappedDirs(manifest)));
 
 /** Writes a new file, never over one. */
 function put(target, path, text) {
@@ -100,6 +106,7 @@ function writeAll({ source, target, repo, today, openspec }) {
   const commit = git(source, ['rev-parse', 'HEAD']).trim();
   const block = readSource(source, 'AGENTS.md').match(BLOCK)?.[0];
   if (!block) throw new InstallError('the source AGENTS.md has no WONG-STACK block');
+  const mapped = mappedDirs(manifest);
 
   // The links come first: a computer that refuses them stops before any file is copied.
   mkdirSync(join(target, '.agents'));
@@ -107,8 +114,12 @@ function writeAll({ source, target, repo, today, openspec }) {
   link(target, '.agents', '.codex', 'dir');
   for (const path of [...files, '.env.example']) {
     if (!existsSync(join(source, path))) throw new InstallError(`the source has no ${path}`);
-    mkdirSync(dirname(join(target, path)), { recursive: true });
-    copyFileSync(join(source, path), join(target, path), constants.COPYFILE_EXCL);
+    const to = installedAt(path, manifest);
+    if (path.endsWith('.md')) put(target, to, installText(logical(path), readFileSync(join(source, path), 'utf8'), mapped));
+    else {
+      mkdirSync(dirname(join(target, to)), { recursive: true });
+      copyFileSync(join(source, path), join(target, to), constants.COPYFILE_EXCL);
+    }
   }
   put(target, 'AGENTS.md', `${HEADER}${block}\n`);
   link(target, 'AGENTS.md', 'CLAUDE.md', 'file');
@@ -124,7 +135,7 @@ function writeAll({ source, target, repo, today, openspec }) {
   openspec(target);
   mkdirSync(join(target, 'openspec'), { recursive: true });
   writeFileSync(join(target, 'openspec', 'config.yaml'), readFileSync(join(SEED, 'openspec-config.yaml'), 'utf8'));
-  return { version, commit, repo, files: files.length + 1 };
+  return { version, commit, repo, files: files.length + 1, links: ['.claude', '.codex', 'CLAUDE.md'] };
 }
 
 /** Installs and returns the report; on a stop, removes everything it wrote and throws `InstallError`. */
@@ -136,7 +147,7 @@ export function install({ source, target, repo, today = new Date().toISOString()
   try {
     const upstream = repo ?? git(source, ['remote', 'get-url', 'origin']).trim().replace(/\.git$/, '');
     const done = writeAll({ source, target, repo: upstream, today, openspec });
-    return { status: 'installed', target, ...done, links: ['.claude', '.codex', 'CLAUDE.md'], seeded: Object.keys(SEEDS), record: '.claude/.wong-stack.json' };
+    return { status: 'installed', target, ...done, seeded: Object.keys(SEEDS), record: '.claude/.wong-stack.json' };
   } catch (error) {
     for (const entry of readdirSync(target)) if (!KEPT.has(entry)) rmSync(join(target, entry), { recursive: true, force: true });
     if (error instanceof InstallError) throw error;

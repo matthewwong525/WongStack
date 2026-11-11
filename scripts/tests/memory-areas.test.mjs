@@ -2,17 +2,20 @@
 // backlinks, `retag`, and area tags that define themselves.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { areasOf, loadAreas } from '../../.agents/skills/memory/scripts/lib/areas.mjs';
-import { codeUsers } from '../../.agents/skills/memory/scripts/lib/callers.mjs';
-import { editedPaths } from '../../.agents/skills/memory/scripts/before-edit.mjs';
+import { areaMap, areasOf } from '../../.agents/plugins/memory/scripts/lib/areas.mjs';
+import { topics } from '../../.agents/memory/topics.mjs';
+import { codeUsers } from '../../.agents/memory/lib/callers.mjs';
+import { editedPaths } from '../../.agents/plugins/memory/scripts/before-edit.mjs';
 import { memory, node, rows, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
-const AREAS = loadAreas();
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+// The code areas only: the company pages in this checkout's knowledge/ copy differ by computer.
+const AREAS = areaMap(topics({ root: REPO }).filter(topic => topic.kind === 'code'));
+const LIST = JSON.parse(readFileSync(join(REPO, '.agents/memory/areas.json'), 'utf8'));
 const files = (root, map) => Object.entries(map).forEach(([path, body]) => {
   mkdirSync(dirname(join(root, path)), { recursive: true });
   writeFileSync(join(root, path), body);
@@ -28,8 +31,8 @@ const retag = (env, value) => memory(env.repo, env.fake, ['retag', '--file', inp
 const factLines = result => result.stdout.trim().split('\n').filter(line => line.startsWith('- ['));
 
 test('the list maps .claude/ like .agents/, and the most specific folder wins', () => {
-  assert.deepEqual(areasOf('.claude/skills/memory/scripts/memory.mjs', AREAS), ['memory']);
-  assert.deepEqual(areasOf('.agents/skills/memory/scripts/memory.mjs', AREAS), ['memory']);
+  assert.deepEqual(areasOf('.claude/plugins/memory/scripts/memory.mjs', AREAS), ['memory']);
+  assert.deepEqual(areasOf('.agents/memory/d1/store.mjs', AREAS), ['memory']);
   assert.deepEqual(areasOf('.codex/skills/plan/SKILL.md', AREAS), ['plan']);
   assert.deepEqual(areasOf('app/worker/apps/x.ts', AREAS).sort(), ['mini-apps', 'worker']);
   assert.deepEqual(areasOf('app/worker/index.ts', AREAS), ['worker']);
@@ -42,13 +45,13 @@ test('the list maps .claude/ like .agents/, and the most specific folder wins', 
 });
 
 test('every area in the list has a definition and a folder', () => {
-  assert.ok(Object.keys(AREAS).length > 10);
-  for (const [tag, area] of Object.entries(AREAS)) {
+  assert.ok(Object.keys(LIST).length > 10);
+  for (const [tag, area] of Object.entries(LIST)) {
     assert.ok(area.definition?.trim(), `${tag} has a definition`);
     assert.ok(area.paths?.length && area.paths.every(path => typeof path === 'string' && path), `${tag} has folders`);
     for (const alias of area.aliases || []) {
       assert.ok(typeof alias === 'string' && alias, `${tag}'s aliases are names`);
-      assert.ok(!Object.hasOwn(AREAS, alias), `${tag}'s alias ${alias} is not itself an area tag`);
+      assert.ok(!Object.hasOwn(LIST, alias), `${tag}'s alias ${alias} is not itself an area tag`);
     }
   }
   assert.deepEqual(AREAS.memory.aliases, ['memory-architecture', 'memory-worker']);
@@ -60,7 +63,9 @@ test('every capability spec is named by an area, and every named doc exists', ()
   const specs = readdirSync(join(REPO, 'openspec/specs')).map(cap => `openspec/specs/${cap}/spec.md`).filter(spec => existsSync(join(REPO, spec)));
   assert.ok(specs.length > 20);
   assert.deepEqual(specs.filter(spec => !named.has(spec)), [], 'each of these specs needs an area in areas.json');
-  assert.deepEqual([...named].filter(doc => !existsSync(join(REPO, doc))), [], 'each of these docs is gone');
+  // A spec an open change adds is named before /ship archives it into openspec/specs/.
+  const planned = doc => readdirSync(join(REPO, 'openspec/changes')).some(change => existsSync(join(REPO, 'openspec/changes', change, doc.replace(/^openspec\//, ''))));
+  assert.deepEqual([...named].filter(doc => !existsSync(join(REPO, doc)) && !planned(doc)), [], 'each of these docs is gone');
 });
 
 test("areas loads a change's facts by the folders it names: threads first, capped, nothing else", async t => {
@@ -86,8 +91,6 @@ test("areas loads a change's facts by the folders it names: threads first, cappe
 
 test("areas keeps machine ownership when only the author label changes", async t => {
   const env = await setup(t);
-  mkdirSync(env.repo.stateDir, { recursive: true });
-  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
   execFileSync('git', ['config', 'user.email', 'bo@example.com'], { cwd: env.repo.root });
   await put(env, { source: 'save', slug: 'prefs', facts: [
     { action: 'add', type: 'feedback', body: 'Bo wants Worker changes split by route.', tags: ['worker'] },
@@ -396,7 +399,7 @@ test("a page named among an area's docs matches that area, and the lookup prints
   const loaded = await memory(env.repo, env.fake, ['areas', 'openspec/specs/memory/spec.md']);
   assert.equal(loaded.code, 0, loaded.stderr);
   assert.match(loaded.stdout, /^Areas: openspec \(openspec\/specs\/memory\/spec\.md\), memory \(openspec\/specs\/memory\/spec\.md\)\n/);
-  assert.match(loaded.stdout, /^Code: openspec\/, \.agents\/skills\/memory\/$/m);
+  assert.match(loaded.stdout, /^Code: openspec\/, \.agents\/plugins\/memory\/, \.agents\/skills\/memory\/, \.agents\/memory\/$/m);
 });
 
 const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');

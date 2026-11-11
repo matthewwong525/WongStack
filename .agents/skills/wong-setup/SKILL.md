@@ -12,9 +12,9 @@ Select before writing; preserve existing projects:
 
 1. The open folder has `.claude/.wong-stack.json` → `/wong-sync`.
 2. It is empty, or holds only a `.git` with no commits → install here.
-3. Otherwise try `~/wongstack`, then numbered siblings. Use a missing/empty folder; an install record routes to sync; preserve other contents.
+3. Otherwise try `~/wongstack`, then numbered siblings. Use a missing/empty folder; an install record routes to sync.
 
-Name the target; use its absolute path. Create it after tools/token.
+Name the target by its absolute path. Create it after tools/token.
 
 ## Get the computer ready
 
@@ -42,12 +42,12 @@ Run Step 1 of the source's [provisioning runbook](references/cloudflare.md). Com
 
 Invoke `/explore` with this description, filled in, plus the user's intent:
 
-> Set up WongStack in <target> from <selected repository> at <source path>, version <version>, commit <commit>. Use a reachable owner login email separately from git authorship. Private pages and previews are automatic when the account allows them; ask no enable-or-public question. An account needing a card finishes open and recommends the card as optional. Put the files in place as one task: node <source path>/.claude/skills/wong-setup/scripts/install.mjs --source <source path> --target <target> --repo <selected repository>; write no copy step of your own. If `paseo` is installed, run `node .claude/skills/schedule/scripts/presets.mjs add` in <target>; if they took the helper, `node .claude/skills/hand-over/scripts/helper.mjs install`; neither failure stops setup. Run Steps 2–5 of <source path>/.agents/skills/wong-setup/references/cloudflare.md. Continue through the requested stage.
+> Set up WongStack in <target> from <selected repository> at <source path>, version <version>, commit <commit>. Use a reachable owner login email separately from git authorship. Private pages and previews are automatic when the account allows them; ask no enable-or-public question. An account needing a card finishes open and recommends the card as optional. Put the files in place as one task: node <source path>/.claude/skills/wong-setup/scripts/install.mjs --source <source path> --target <target> --repo <selected repository>; write no copy step of your own. If `paseo` is installed, run `node .claude/skills/schedule/scripts/presets.mjs add` in <target>; if they took the helper, `node .claude/skills/hand-over/scripts/helper.mjs install`; always `node .claude/skills/wong-sync/scripts/codex-plugin.mjs`; no failure stops setup. Run Steps 2–5 of <source path>/.agents/skills/wong-setup/references/cloudflare.md. Continue through the requested stage.
 
-Explore/plan/apply/save own questions/planning/installation/first deploy. Install all components without a component question; use [shared asks](../explore/references/asking-the-user.md).
+Explore/plan/apply/save own questions/planning/installation/first deploy. Install every component without asking; use [shared asks](../explore/references/asking-the-user.md).
 
 <a id="step-7--bootstrap-seed-hand-off"></a>
 
-[`install.mjs`](scripts/install.mjs) copies every [payload](../wong-sync/references/payload-manifest.md) category, makes [the agent folder](../wong-sync/references/payload-manifest.md#the-agent-folder) and its links, the wiki hubs, the ignore rules, the install record and `openspec/`, and prints one JSON report. A stop exits 1 with its `cause` and leaves the folder as it found it; fix it by [the failure map](references/failure-map.md), then run it again.
+[`install.mjs`](scripts/install.mjs) copies every [payload](../wong-sync/references/payload-manifest.md) category, makes [the agent folder](../wong-sync/references/payload-manifest.md#the-agent-folder) and its links, the wiki hubs, ignore rules, install record and `openspec/`, and prints one JSON report. A stop exits 1 with its `cause` and leaves the folder as it found it; fix it by [the failure map](references/failure-map.md), then run it again.
 
-Evaluation stops in exploration. Installation continues through plan/apply/save without another interview or approval sequence. After first deploy, give [Step 5's report](references/cloudflare.md#step-5--the-closing-report), naming [preset](../schedule/scripts/presets.mjs) additions/keeps/skips or unavailable Paseo.
+Evaluation stops in exploration. Installation continues through plan/apply/save without another interview or approval. After first deploy, give [Step 5's report](references/cloudflare.md#step-5--the-closing-report), naming [preset](../schedule/scripts/presets.mjs) additions/keeps/skips or unavailable Paseo.

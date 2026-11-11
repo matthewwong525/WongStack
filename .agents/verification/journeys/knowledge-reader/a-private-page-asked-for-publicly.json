@@ -10,7 +10,7 @@
   "probe": "request",
   "writes": false,
   "sourcePaths": [
-    ".agents/skills/memory/references/areas.json",
+    ".agents/memory/areas.json",
     ".agents/skills/wong-setup/scripts/private-access.mjs",
     ".agents/skills/wong-sync/references/payload-manifest.md",
     "app/package.json",

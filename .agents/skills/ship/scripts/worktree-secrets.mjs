@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, copyFileSync, existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { linkCopy, place } from "../../memory/scripts/knowledge.mjs";
+import { linkCopy, place } from "../../../memory/knowledge.mjs";
 import { isMain } from "../../memory/scripts/lib/cli.mjs";
 import { primaryRoot } from "../../memory/scripts/lib/primary-root.mjs";
 

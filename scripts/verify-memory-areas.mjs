@@ -20,9 +20,12 @@ const CASES = [
 ];
 const sha256 = body => createHash('sha256').update(body).digest('hex');
 
-function childEnv(sandbox) {
-  // Do not inherit credentials, service settings, git routing or Node startup hooks.
+function childEnv(sandbox, sourceRoot) {
+  // Do not inherit credentials, service settings, git routing or Node startup hooks. The fixture has no profile of
+  // its own, so it reads the source's: its areas map, and a store it can not reach.
+  const profile = join(sourceRoot, '.agents/memory/profile.mjs');
   return {
+    ...(existsSync(profile) ? { WONG_MEMORY_PROFILE: profile } : {}),
     PATH: process.env.PATH,
     LANG: 'C.UTF-8',
     GIT_CONFIG_NOSYSTEM: '1',
@@ -81,7 +84,7 @@ export function captureMemoryAreas({ out, sourceRoot = ROOT, identity, subjectSh
     if (manifest.capture.subjectSha !== subjectSha) throw new Error('Source checkout revision does not match the selected source');
     sandbox = mkdtempSync(join(tmpdir(), 'wong-verify-memory-'));
     const root = join(sandbox, 'repo');
-    const env = childEnv(sandbox);
+    const env = childEnv(sandbox, sourceRoot);
     prepareFixture(root, env);
     for (const scenario of CASES) {
       const before = fixtureState(root);

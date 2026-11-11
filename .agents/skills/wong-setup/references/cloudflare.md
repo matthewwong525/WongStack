@@ -33,7 +33,7 @@ git remote get-url origin || gh repo create "$(basename "$PWD")" --private --sou
 
 ### 1b. Make the file, not the user
 
-Resolve the durable credential file before accepting a value, by [the secrets convention](../../../../wiki/development/secrets.md#the-two-files), through the source checkout's [shared lookup](../../memory/scripts/lib/primary-root.mjs) (the target has no skills yet), never from a hosting tool's folder names.
+Resolve the durable credential file before accepting a value, by [the secrets convention](../../../../wiki/development/secrets.md#the-two-files), through the source checkout's [shared lookup](../../../plugins/memory/scripts/lib/primary-root.mjs) (the target has no skills yet), never from a hosting tool's folder names.
 
 ```bash
 ACTIVE_ROOT=$(git rev-parse --show-toplevel)
@@ -186,7 +186,7 @@ The check runs itself; never ask the person to sign in by email code on each sit
 
 Retry propagation; name a real failure. Human login stays unverified until Step 5's human check. The [browser runbook](../../../../wiki/stack/cloudflare-access.md#verify-it-works--in-a-browser) is for `/verify` and later changes, not setup.
 
-Once production has deployed, sign the owner in once on a private site: run `node scripts/company-api.mjs login --origin <production URL>` in the background, show the link it prints in the chat, and wait. Then check memory with `$M digest`, and make the `knowledge/` copy with `node .claude/skills/memory/scripts/knowledge.mjs update`. Before the deploy, both say the app does not answer. Without `cloudflared`, skip these; say memory and knowledge wait.
+Once production has deployed, sign the owner in once on a private site: run `node scripts/company-api.mjs login --origin <production URL>` in the background, show the link it prints in the chat, and wait. Then check memory with `$M digest`, and make the `knowledge/` copy with `node .claude/memory/knowledge.mjs update`. Before the deploy, both say the app does not answer. Without `cloudflared`, skip these; say memory and knowledge wait.
 
 ## Step 5 — the closing report
 

@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { companyClient, companyOrigin, combinedList, cloudflared, loginUrl, listLines, saveAnswer, serviceLines, shortAnswer, withKeyNotes, withNotes } from '../company-api.mjs';
-import { memoryOperations } from '../../.agents/skills/memory/scripts/operations.mjs';
-import { refuseExternalReferences, selectOperations } from '../../.agents/skills/memory/scripts/lib/operations.mjs';
+import { memoryOperations } from '../../.agents/memory/operations.mjs';
+import { refuseExternalReferences, selectOperations } from '../../.agents/memory/lib/operations.mjs';
 
 const origin = 'https://company.ada.workers.dev';
 const jwt = (extra = {}) => `${Buffer.from('{"alg":"RS256"}').toString('base64url')}.${Buffer.from(JSON.stringify({ email: 'employee@example.com', exp: Date.now() / 1000 + 1000, ...extra })).toString('base64url')}.c2lnbmF0dXJl`;

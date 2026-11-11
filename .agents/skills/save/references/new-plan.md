@@ -1,6 +1,6 @@
 # Create a missing plan at save
 
-Load only when code or a code plan exists and no change was selected; an archived handoff never enters. Any other file edit with no change keeps save's normal route, without a plan; conversation-only work takes [the facts-only save](facts-save.md).
+Load only when code or a code plan exists and no change was selected; an archived handoff never enters. Any other file edit with no change keeps save's normal route, without a plan; conversation-only work stops at [the save's first step](../SKILL.md#1-protect-credentials-and-select-the-route).
 
 Derive a concise plan from the session and relevant diff: the intent, constraints, rationale, and facts a cold reader needs, even ones only in terminal or scratch state, with repo-relative paths. Ask only if the intent is unclear.
 

@@ -10,7 +10,7 @@
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
-    ".agents/skills/memory/references/areas.json",
+    ".agents/memory/areas.json",
     ".agents/skills/wong-sync/references/payload-files.json",
     "AGENTS.md",
     "app/src/apps/access/Owner.tsx",

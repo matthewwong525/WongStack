@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Fixed source-load accounting, not a runtime token estimator.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli } from './lib-cli.mjs';
@@ -22,9 +22,12 @@ function walk(path) {
   return readdirSync(path, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(path, entry.name)) : [join(path, entry.name)]);
 }
 
+// A linked skill folder, such as memory's link to its plugin, counts as the skill it serves; a plugin's own
+// `skills/<name>/` counts as a skill too.
 const skillDirs = root => {
   const skills = join(root, '.agents/skills');
-  return existsSync(skills) ? readdirSync(skills, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort() : [];
+  const own = name => existsSync(join(skills, name, 'skills')) ? readdirSync(join(skills, name, 'skills')).map(sub => `${name}/skills/${sub}`) : [];
+  return existsSync(skills) ? readdirSync(skills).filter(name => statSync(join(skills, name)).isDirectory()).flatMap(name => [name, ...own(name)]).sort() : [];
 };
 
 /** The `description:` value of a SKILL.md frontmatter, folded continuation lines included. */

@@ -29,7 +29,7 @@ test('the goal schema and the record-only save route are gone, so no schedule ne
 });
 
 test('memory keeps the old routine topic as an alias and maps the skill and old repo records', () => {
-  const areas = JSON.parse(read('.agents/skills/memory/references/areas.json'));
+  const areas = JSON.parse(read('.agents/memory/areas.json'));
   assert.ok(areas.schedule.aliases.includes('routine'), 'existing facts remain discoverable');
   for (const path of ['.agents/skills/schedule/', 'schedules/']) assert.ok(areas.schedule.paths.includes(path));
   assert.ok(!areas.schedule.paths.some(path => path.includes('scheduled-work')));

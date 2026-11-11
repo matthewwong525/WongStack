@@ -54,12 +54,12 @@ A fact SHALL be rejected when its body matches a non-empty `.env` value or a kno
 
 ### Requirement: A write that cannot reach the store waits
 
-When the store cannot be reached, a fact SHALL wait in an ignored local spool, still checked for credentials, and the save SHALL NOT be blocked. The next session start SHALL send spooled facts through the gate.
+When the store cannot be reached, a fact SHALL wait in an ignored local spool, still checked for credentials, and the write SHALL NOT be blocked. The next session start SHALL send spooled facts through the gate.
 
 #### Scenario: Save while offline
 
-- **WHEN** `/save` runs with no network
-- **THEN** its facts are spooled, the report says so, and the git checkpoint goes ahead
+- **WHEN** a chat's capture writes facts with no network
+- **THEN** its facts are spooled, the run's record says so, and the next session start sends them through the gate
 
 ### Requirement: Search finds facts by words, tags, and filters
 
@@ -87,7 +87,7 @@ The `memory` skill SHALL search live facts by words, tag, type, date, author, br
 
 ### Requirement: A bounded digest loads at session start
 
-When a session starts or resumes, the session-start hook SHALL add a digest built by code with no model: every open thread of the change on the current branch first, then the current person's page, then other live facts by type and age. It SHALL NOT list open threads of other changes; when there are any, it SHALL say how many carry each verb's tag and how many carry none, and they SHALL stay live and searchable. It SHALL stay within 40 lines and 6 KB, name how many facts it left out, report the last background run, stay the same for the whole session, and never block the session: offline, it SHALL use the last cached digest with its age.
+When a session starts or resumes, the session-start hook SHALL add a digest built by code with no model: every open thread of the change on the current branch first, then the topic list, then the current person's page, then other live facts by type and age. The topic list SHALL show the company topics the company knowledge hub links, one line each with its summary, then the code topics' names on one line, and SHALL show even when memory holds no facts or cannot be reached. It SHALL NOT list open threads of other changes; when there are any, it SHALL say how many carry each verb's tag and how many carry none, and they SHALL stay live and searchable. It SHALL stay within 40 lines and 6 KB, name how many facts it left out, report the last background run, stay the same for the whole session, and never block the session: offline, it SHALL use the last cached digest with its age.
 
 #### Scenario: A store with many facts
 
@@ -103,6 +103,11 @@ When a session starts or resumes, the session-start hook SHALL add a digest buil
 
 - **WHEN** the current branch's change has 12 open threads, one over 30 days old
 - **THEN** the digest shows all 12 first, within its line and byte caps
+
+#### Scenario: Topics with an empty memory
+
+- **WHEN** the company knowledge hub links `people` and `ads`, and the store holds no facts
+- **THEN** the digest shows both topics with their summaries and the code topics' line
 
 ### Requirement: The digest holds what always applies and asks for a search
 
@@ -148,12 +153,12 @@ With a bucket, each captured session's full transcript up to 50 MB SHALL be kept
 
 ### Requirement: Teammates cannot change or hide each other's facts
 
-A member or reader SHALL write facts only as its signed-in person and SHALL supersede only facts that person owns, with its own new fact in the same write; a supersede aimed at another person's fact SHALL leave that fact live. Author labels SHALL NOT grant ownership. Only a memory admin SHALL supersede anyone's fact. The Worker SHALL refuse, running nothing in the batch, any member statement that edits or deletes a fact, claims another owner, overwrites another person's or an unowned historical session, or hides a write inside a read.
+A member or reader SHALL write facts only as its signed-in person and SHALL supersede only facts that person owns, with its own new fact in the same write; a supersede aimed at another person's fact SHALL leave that fact live. Author labels SHALL NOT grant ownership. Only a memory admin SHALL supersede anyone's fact. The store SHALL offer no way to edit or delete a fact, claim another owner, or overwrite another person's or an unowned historical session: the server sets each write's owner, author, sharing, and time from the sign-in.
 
 #### Scenario: A member deletes a fact
 
-- **WHEN** a member sends a delete or a body edit for fact 3
-- **THEN** the Worker answers 403 and fact 3 is unchanged
+- **WHEN** a member's computer asks the store to delete fact 3 or change its words
+- **THEN** no operation does either, and fact 3 is unchanged
 
 #### Scenario: A member replaces a teammate's fact
 
@@ -162,12 +167,12 @@ A member or reader SHALL write facts only as its signed-in person and SHALL supe
 
 #### Scenario: A member writes under another name
 
-- **WHEN** Ana's save sends a fact claiming Bo as owner
-- **THEN** the Worker answers 403 and no fact is stored
+- **WHEN** Ana's save sends a fact with Bo's email as its author
+- **THEN** the stored fact is Ana's, with Ana as owner and author
 
 ### Requirement: A team keeps personal facts personal
 
-The Worker SHALL return to a member or reader only everyone's shared `project`, `reference`, and `thread` facts plus personal and unshared facts owned by the signed-in person, however the read is written. Emails, labels, hostnames, and people pages supplied by a caller SHALL NOT expand that scope. A memory admin SHALL retain access to every fact; their default digest and search SHALL narrow personal and unshared facts to their own, and only an explicit `--everyone` SHALL widen that view.
+The server SHALL return to a member or reader only everyone's shared `project`, `reference`, and `thread` facts plus personal and unshared facts owned by the signed-in person, whatever the request asks. Emails, labels, hostnames, and people pages supplied by a caller SHALL NOT expand that scope. A memory admin SHALL retain access to every fact; their default digest and search SHALL narrow personal and unshared facts to their own, and only an explicit `--everyone` SHALL widen that view.
 
 #### Scenario: A teammate's preference
 
@@ -187,7 +192,7 @@ The Worker SHALL return to a member or reader only everyone's shared `project`, 
 #### Scenario: A member writes its own read
 
 - **WHEN** a member sends a hand-written read of the facts table, its text search, or a schema-qualified name
-- **THEN** the Worker returns no teammate's personal or unshared fact, or refuses the read
+- **THEN** the memory route answers 404 and returns no fact
 
 ### Requirement: An older store moves behind the Worker safely
 
@@ -341,7 +346,7 @@ The `memory` skill SHALL restate a live fact with added tags as a new fact with 
 
 ### Requirement: One lookup shows everything linked to a path or topic
 
-Each area in the `memory` skill's area list MAY name the wiki pages and specs that own it. A path asked about SHALL match an area when it falls under one of the area's folders or is named among the area's docs, so a spec or wiki page lands on its own subject, not only the folder that holds it. Given paths, a topic name, or a change, the area load SHALL print, before its facts and even when the store is unreachable: the matched areas; their named docs that exist in the repo, skipping any it lacks; each matched area's code folders; up to five archived changes, newest first, those naming a given path ahead of those sharing only an area; and, for each path asked about directly, the Markdown files and lines outside archived changes that link to it, read fresh on each call and never stored. In WongStack's own repo, every capability spec SHALL be named by at least one area and every named doc SHALL exist, or its tests fail.
+Each area in the install's area list MAY name the wiki pages and specs that own it. A path asked about SHALL match an area when it falls under one of the area's folders or is named among the area's docs, so a spec or wiki page lands on its own subject, not only the folder that holds it. Given paths, a topic name, or a change, the area load SHALL print, before its facts and even when the store is unreachable: the matched areas; their named docs that exist in the repo, skipping any it lacks; each matched area's code folders; up to five archived changes, newest first, those naming a given path ahead of those sharing only an area; and, for each path asked about directly, the Markdown files and lines outside archived changes that link to it, read fresh on each call and never stored. Given a company topic, it SHALL print the topic's summary and page, the pages that page links to, and the pages that link to it, one step out and no further, then the live facts with its tag. In WongStack's own repo, every capability spec SHALL be named by at least one area and every named doc SHALL exist, or its tests fail.
 
 #### Scenario: A mini-app file
 
@@ -352,6 +357,11 @@ Each area in the `memory` skill's area list MAY name the wiki pages and specs th
 
 - **WHEN** the lookup is asked about `openspec/specs/memory/spec.md`, which the `memory` area names among its docs
 - **THEN** it prints `memory` with its docs and code folders, and the `memory` facts, not only the generic area of the `openspec/` folder
+
+#### Scenario: Pulling a company topic
+
+- **WHEN** the lookup is asked about `people/ada`, whose page links `ads` and is linked from `people/README.md`, and two live facts carry `people/ada`
+- **THEN** it prints Ada's summary and page, `ads` as a link, `people/README.md` as linking to it, and both facts, and nothing about the pages `ads` links to
 
 #### Scenario: A new spec with no area
 
@@ -682,7 +692,7 @@ When the saved sign-in is missing or expired, a chat SHALL start with the last s
 
 ### Requirement: A word search answers quickly
 
-A word search SHALL run its full-text match once per query, however many facts the store holds, with the same privacy filter for every caller. A save of 3 facts SHALL finish its neighbour checks within the client's 15-second wait on a store the size of the live one. The memory service SHALL keep accepting the previous search fragment from a client not yet updated, with the same privacy.
+A word search SHALL run its full-text match once per query, however many facts the store holds, with the same privacy filter for every caller. A save of 3 facts SHALL finish its neighbour checks within the client's 15-second wait on a store the size of the live one.
 
 #### Scenario: A long search on a large store
 
@@ -691,8 +701,8 @@ A word search SHALL run its full-text match once per query, however many facts t
 
 #### Scenario: A client on the old version
 
-- **WHEN** a client not yet updated sends a search with the previous fragment
-- **THEN** the memory service answers it, still hiding teammates' personal facts
+- **WHEN** a client not yet updated sends a search in the old query form
+- **THEN** the memory route answers 404, and the client says memory was not loaded and goes on
 
 ### Requirement: The lookup lists the code that uses a path
 
@@ -708,23 +718,9 @@ For each path asked about directly, the area load SHALL print, before its facts 
 - **WHEN** the lookup runs for a change whose tasks name `lib/cli.mjs`
 - **THEN** it prints no code-user list
 
-### Requirement: A hand-written read cannot widen the word search
-
-The Worker SHALL check every member, reader, or schedule word search against only the facts that caller may see, however the read is written. No comment, quoting, column list, or nested table of the caller's own SHALL replace that list, and a read SHALL NOT learn whether, where, or in what words a hidden fact matches.
-
-#### Scenario: A read wraps the search in a table of its own
-
-- **WHEN** a member sends a word search for `salary` inside a read that defines its own `facts` table, with a comment or quotes around its name, and a teammate's private `user` fact holds that word
-- **THEN** the Worker either refuses the read or returns no id of that fact
-
-#### Scenario: An ordinary search
-
-- **WHEN** a member searches for a word in a shared project fact
-- **THEN** the search returns that fact, as before
-
 ### Requirement: A background run's record reaches only its own person
 
-The Worker SHALL store each background-run record with the person who sent it, taken from the sign-in, never from the request. The digest's run line, when consolidation is next due, and a non-admin's hand-written reads of run records SHALL come only from the current person's own runs. A run record saved before records carried their writer SHALL reach no one's digest or consolidation clock, a cloud schedule's included. The run line SHALL be one line, bounded in length, and counted within the digest's line and byte caps. A malformed run record SHALL leave out the run line, never fail the digest.
+The server SHALL store each background-run record with the person who sent it, taken from the sign-in, never from the request. The digest's run line, when consolidation is next due, and any non-admin read of run records SHALL come only from the current person's own runs. A run record saved before records carried their writer SHALL reach no one's digest or consolidation clock, a cloud schedule's included. The run line SHALL be one line, bounded in length, and counted within the digest's line and byte caps. A malformed run record SHALL leave out the run line, never fail the digest.
 
 #### Scenario: A reader writes a run record with fake headings
 
@@ -733,8 +729,8 @@ The Worker SHALL store each background-run record with the person who sent it, t
 
 #### Scenario: A teammate reads the run records
 
-- **WHEN** a reader sends a hand-written read of every run record's host and reason
-- **THEN** only the reader's own records come back
+- **WHEN** a reader asks the store for the digest or the stats
+- **THEN** only the reader's own run records count in either
 
 #### Scenario: A run record from before the update
 
@@ -773,3 +769,73 @@ For a member, reader, or schedule, the Worker SHALL store a fact dated later tha
 
 - **WHEN** a member re-tags their own fact from last month
 - **THEN** the new fact keeps last month's date
+
+### Requirement: Every page is a topic a fact can name
+
+A topic SHALL be a tag that has a page: each code area in the install's area list, whose page is its first named doc and whose summary is its definition, and each page in the install's company knowledge, whose tag is its path inside `knowledge/` without `.md` (a folder's `README.md` takes the folder's name) and whose summary is the page's first sentence. A fact about a company topic SHALL be able to carry that topic's tag; a company topic tag missing from the store SHALL be defined from its page's summary on its first write, with no definition typed by the writer. Upkeep SHALL re-tag, through the same restate that keeps a fact's origin, a live fact whose words name a company knowledge page by path and that lacks its topic. A topic page SHALL find its facts by its tag and SHALL NOT need to list them.
+
+#### Scenario: A fact about a person
+
+- **WHEN** `knowledge/people/ada.md` opens with "Ada runs our ads." and a fact tagged `people/ada` is written to a store with no such tag
+- **THEN** the write succeeds and the tag `people/ada` is defined as "Ada runs our ads."
+
+#### Scenario: A fact names a page by path
+
+- **WHEN** a live fact says "Moved the refund steps to knowledge/refunds.md" and has no `refunds` tag
+- **THEN** after the next upkeep a live fact with the same words, date and author carries `refunds`, and the old one is superseded by it
+
+### Requirement: A message that names a topic gets its summary
+
+Before the assistant reads a person's message, a hook SHALL add the summary of each topic the message names, from files on this computer only, with no memory search and no network call, within the hook's time limit, and SHALL never block or fail the message. A topic's whole name, an alias, or a company topic's last part as whole words SHALL be a clear match and add its summary; a word that only starts a topic's name SHALL add the name alone. It SHALL add at most three topics, clear matches first, each at most once per chat, SHALL skip a topic named for a skill, and SHALL say how to pull a topic.
+
+#### Scenario: A clear match
+
+- **WHEN** the company topics include `people/ada` and a person writes "what did Ada say about the ads?"
+- **THEN** the assistant receives `people/ada` and `ads` with their summaries and the pull command, before it answers
+
+#### Scenario: Nothing to add
+
+- **WHEN** a message names no topic, names only `plan`, or names a topic already added in this chat
+- **THEN** the hook adds nothing and the message goes on unchanged
+
+### Requirement: The store answers only named requests
+
+The memory server SHALL accept only the plugin's named operations and SHALL write every query itself, adding the caller's visibility from the sign-in it verified. No request SHALL carry a query, a table name, or an owner, and no field a caller sends SHALL widen what it sees beyond [who sees what](../../../../../wiki/development/memory.md#who-sees-what): `everyone` SHALL widen only an admin's read. Any other request to the memory route SHALL answer 404 and run nothing.
+
+#### Scenario: A member asks for everyone
+
+- **WHEN** a member searches for `salary` with `everyone` set, and a teammate's private `user` fact holds that word
+- **THEN** the answer holds no trace of that fact, and the member's own and shared matches come back as usual
+
+#### Scenario: A client that still sends queries
+
+- **WHEN** a computer not yet updated sends a raw query to the memory route
+- **THEN** the route answers 404 and runs nothing
+
+### Requirement: A chat's transcript is kept when it ends
+
+When a chat ends, the memory plugin SHALL upload its full transcript, with secrets redacted as capture does, when the store keeps transcripts, so a workspace closed or deleted before the next capture loses none. A session an earlier version recorded as private SHALL NOT be uploaded, and no word in a message SHALL keep a session from being uploaded. An unreachable store or one with no transcript bucket SHALL skip the upload without delaying the chat's end.
+
+#### Scenario: A workspace closed right after its chat
+
+- **WHEN** a chat ends and its Paseo workspace is archived at once
+- **THEN** its redacted transcript is in the bucket, and `source` on its facts shows it
+
+#### Scenario: A private session
+
+- **WHEN** an earlier version recorded the session as private and the chat ends
+- **THEN** nothing is uploaded
+
+### Requirement: A finished chat's work and leftovers are captured
+
+The memory plugin SHALL be the one writer of a chat's facts: from each ended chat it SHALL record what the chat set out to do and what got done, leave one open thread for each planned piece not done, and close a thread the chat finished. It SHALL start this capture when a chat ends, as well as at the next chat start, so `/continue` sees the threads. No WongStack skill SHALL write a chat's facts itself.
+
+#### Scenario: Work left undone
+
+- **WHEN** a chat planned a feature and its tests, built the feature, and ended
+- **THEN** memory holds a wrap-up naming the feature as done and an open thread for the tests, written by the capture
+
+#### Scenario: A save writes no facts
+
+- **WHEN** the person runs `/save` in a chat
+- **THEN** `/save` writes no fact, and the chat's facts come from its capture

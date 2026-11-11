@@ -355,7 +355,8 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
   /** One call to memory with the same sign-in: whether it answers this person. */
   async function memory(origin) {
     try {
-      const response = await request(new URL('/_memory/caller', origin), { redirect: 'manual', headers: { 'cf-access-token': await session(origin) }, signal: AbortSignal.timeout(20000) });
+      const response = await request(new URL('/_memory/v2/caller', origin), { method: 'POST', body: '{}', redirect: 'manual',
+        headers: { 'cf-access-token': await session(origin), 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(20000) });
       await response.body?.cancel();
       return response.ok ? 'works' : 'not reachable yet';
     } catch { return 'not reachable yet'; }

@@ -134,7 +134,7 @@ node scripts/company-api.mjs call memory.show --file - <<'JSON'
 JSON
 ```
 
-The [memory-owned adapter](../../.agents/skills/memory/scripts/operations.mjs) validates its supported inputs and invokes the existing read commands. Its result is bounded text with a `truncated` flag. It exposes no raw SQL, credential selection, admin-wide option or arbitrary command. It also works independently through [the memory skill](../../.agents/skills/memory/SKILL.md).
+The [memory-owned adapter](../../.agents/memory/operations.mjs) validates its supported inputs and invokes the existing read commands. Its result is bounded text with a `truncated` flag. It exposes no raw SQL, credential selection, admin-wide option or arbitrary command. It also works independently through [the memory skill](../../.agents/plugins/memory/SKILL.md).
 
 Company target choices never select memory’s destination: the client keeps the primary checkout’s production record. Memory and company actions share one sign-in, so `company-api.mjs login` renews both, and [the app's Access page](employee-access.md) sets memory's role. A memory call with no live sign-in fails and says to run `login` again ([sign-in and expiry](../development/memory.md#sign-in-and-expiry)). A company action whose session ended prints the same step. Automatic capture, read hooks and the memory write gate stay as they are. Preview memory remains unavailable with 404.
 

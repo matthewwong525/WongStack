@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 52.0.0 — Memory becomes a plugin, and learns your topics
+
+- **Memory is now one plugin, the same for any repo.** It lives in [`.agents/plugins/memory/`](.agents/plugins/memory/README.md) and brings its own hooks, so your settings name no memory hook. Your project gets it as a real folder at `.agents/skills/memory/`, where memory already is, and Claude Code loads it from there with no install step. A project without WongStack adds memory alone, and later updates it, by one message pasted into a chat; [its setup guide](.agents/plugins/memory/references/setup.md) builds or connects a store ([two installs](wiki/development/memory.md#two-installs)).
+- **The plugin asks the store only by name.** It sends twelve named requests, never a database query. The app's memory route is now `/_memory/v2/`, and the server decides what each person may see, by the same rules as before ([who sees what](wiki/development/memory.md#who-sees-what)).
+- **WongStack's own parts moved to `.agents/memory/`**: [the profile](wiki/development/memory.md#the-profile), the database code, the sign-in, and the code areas. `knowledge.mjs` is now `node .claude/memory/knowledge.mjs`, and `operations.mjs` is now `node .claude/memory/operations.mjs`.
+- **Your company pages are topics.** The start-of-chat digest lists them with a one-line summary each. A message that names one gets its summary, and `memory.mjs areas <topic>` pulls its page and facts ([topics](wiki/development/memory.md#topics)). The tidy puts each topic's lasting facts on its page, so open each page with one true sentence about it.
+- **Memory saves each chat by itself.** When a chat ends, memory keeps its transcript and records what it set out to do, what got done, and what is left. `/save` and `/close` no longer save facts; `/close` reads the chat itself for the wiki.
+- **The tidy is now `/memory:dream-memory`.**
+
+**Updating.** Nothing to do by hand. The update moves memory into a plugin and keeps every fact, with no database change. It also installs the plugin into Codex on this computer. On each other computer you use Codex on, the next chat names one command to run. Until production has the update, a chat shows its last saved digest and keeps new facts on the computer; they are sent after the update. A link in your own pages to an old memory path, such as `.agents/skills/memory/references/areas.json` or `.agents/skills/dream-memory/`, now goes to its new place: the update's link check names each one.
+
 ## 51.11.0 — A plan for a phone app shows the real app
 
 - **A plan for a phone or desktop app shows real pictures, not a gray sketch.** The plan draws the app with the app's own screen test, in the throwaway copy, with sample data: *Before* from the copy as it is today, *After* from the same copy with the plan's edits ([prototypes](wiki/prototypes.md#an-app-the-preview-cant-serve)).

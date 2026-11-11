@@ -876,22 +876,6 @@
         "wiki/development/secrets.md"
       ]
     },
-    "facts-save": {
-      "before": [
-        ".agents/skills/save/SKILL.md",
-        ".agents/skills/save/references/checkpoint-evidence.md",
-        ".agents/skills/save/references/facts-save.md",
-        ".agents/skills/memory/references/writing-facts.md",
-        "wiki/development/the-change-loop.md"
-      ],
-      "after": [
-        ".agents/skills/save/SKILL.md",
-        ".agents/skills/save/references/checkpoint-evidence.md",
-        ".agents/skills/save/references/facts-save.md",
-        ".agents/skills/memory/references/writing-facts.md",
-        "wiki/development/the-change-loop.md"
-      ]
-    },
     "new-plan-save": {
       "before": [
         ".agents/skills/save/SKILL.md",

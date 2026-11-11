@@ -10,7 +10,7 @@
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
-    ".agents/skills/memory/references/areas.json",
+    ".agents/memory/areas.json",
     ".agents/skills/ship/SKILL.md",
     ".agents/skills/verify/SKILL.md",
     ".agents/skills/verify/references/walkthrough.md",

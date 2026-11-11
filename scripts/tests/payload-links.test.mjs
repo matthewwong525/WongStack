@@ -93,6 +93,21 @@ test('an .agents/ link from a shipped page to a file no target receives is dead'
   assert.match(result.stderr, /dead link.*\n\s+wiki\/shipped\.md -> \.\.\/\.agents\/skills\/other\/SKILL\.md/);
 });
 
+test('a link into a mapped module folder resolves at its install path, and fails when the page is missing there', t => {
+  const mapped = { ...manifest, core: { ...manifest.core, mapped: { '.claude/plugins/memory': '.claude/skills/memory' } } };
+  const pages = good => ({
+    '.agents/skills/wong-sync/references/payload-files.json': JSON.stringify(mapped),
+    '.agents/plugins/memory/SKILL.md': '# Memory\n\n## Write\n\n[guide](references/setup.md)\n',
+    '.agents/plugins/memory/references/setup.md': '# Setup\n',
+    'wiki/shipped.md': `# Shipped\n\n[memory](../.agents/plugins/memory/${good ? 'SKILL.md#write' : 'gone.md'})\n`,
+  });
+  const ok = check(fixture(t, pages(true)));
+  assert.equal(ok.status, 0, ok.stderr);
+  const dead = check(fixture(t, pages(false)));
+  assert.equal(dead.status, 1, dead.stdout);
+  assert.match(dead.stderr, /wiki\/shipped\.md -> \.\.\/\.agents\/plugins\/memory\/gone\.md/);
+});
+
 test('CLAUDE.md: shipped and repo pages alike must link AGENTS.md', t => {
   const root = fixture(t, {
     'wiki/shipped.md': '# Shipped\n\n[rules](../CLAUDE.md#rules)\n',

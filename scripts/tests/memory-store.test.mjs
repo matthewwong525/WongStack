@@ -2,17 +2,18 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { ftsQuery, nearTag, normalizeTag } from '../../.agents/skills/memory/scripts/memory.mjs';
-import { findCredential, redact, secretValues } from '../../.agents/skills/memory/scripts/lib/scan.mjs';
-import { parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
-import { writeEnvKey } from '../../.agents/skills/memory/scripts/lib/members.mjs';
-import { consolidationState, MAX_BYTES, MAX_LINES, PERSON_MAX_BYTES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
-import { BRIEF_MAX_BYTES, renderBrief } from '../../.agents/skills/memory/scripts/lib/brief.mjs';
-import { wordTags } from '../../.agents/skills/memory/scripts/lib/upkeep.mjs';
+import { nearTag, normalizeTag } from '../../.agents/plugins/memory/scripts/memory.mjs';
+import { findCredential, redact, secretValues } from '../../.agents/plugins/memory/scripts/lib/scan.mjs';
+import { parseEnv } from '../../.agents/plugins/memory/scripts/lib/store.mjs';
+import { writeEnvKey } from '../../.agents/memory/d1/admin.mjs';
+import { MAX_BYTES, MAX_LINES, PERSON_MAX_BYTES } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
+import { BRIEF_MAX_BYTES, renderBrief } from '../../.agents/plugins/memory/scripts/lib/brief.mjs';
+import { wordTags } from '../../.agents/plugins/memory/scripts/lib/upkeep.mjs';
+import profile from '../../.agents/memory/profile.mjs';
 import { memory, rows, SECRET, setup, signInAs, tempDir, testToken, writeJsonFile } from './fixtures/memory/harness.mjs';
-import { WRITES } from '../../.agents/skills/memory/worker/statements.mjs';
-import { hashKey } from '../../.agents/skills/memory/worker/memory-worker.mjs';
+import { ftsQuery, hashKey } from '../../.agents/memory/d1/store.mjs';
 
 const put = (env, input) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Date.now()}-${Math.random()}.json`, input)]);
 
@@ -25,7 +26,7 @@ test('a recorded migration never runs again', async t => {
   assert.match(again.stdout, /up to date/);
   assert.equal(env.fake.calls.length - calls, 2, 'a second run only reads what is recorded');
   assert.equal(rows(env, 'SELECT count(*) AS n FROM sqlite_master')[0].n, before);
-  const files = readdirSync(new URL('../../.agents/skills/memory/migrations/', import.meta.url)).filter(name => name.endsWith('.sql'));
+  const files = readdirSync(new URL('../../.agents/memory/d1/migrations/', import.meta.url)).filter(name => name.endsWith('.sql'));
   assert.equal(rows(env, 'SELECT count(*) AS n FROM schema_migrations')[0].n, files.length);
   assert.deepEqual(rows(env, "SELECT name, dflt_value FROM pragma_table_info('facts') WHERE name = 'shared'"), [{ name: 'shared', dflt_value: '1' }]);
   assert.deepEqual(rows(env, "SELECT name, dflt_value FROM pragma_table_info('memory_keys') WHERE name = 'reader'"), [{ name: 'reader', dflt_value: '0' }]);
@@ -115,8 +116,6 @@ test('the gate lists an open thread on another slug that the fact may answer, an
 
 test("the gate never lists a teammate's thread that only its author sees", async t => {
   const env = await setup(t);
-  mkdirSync(env.repo.stateDir, { recursive: true });
-  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
   const insert = env.fake.db.prepare("INSERT INTO facts (slug, type, body, source, created_at, author, owner_subject, shared) VALUES ('setup-flow', 'thread', ?, 'save', '2026-09-01T00:00:00Z', 'ana@example.com', 'ana', ?)");
   insert.run('Ana asks: does a real setup from one token work?', 0);
   insert.run('Ana also asks: does a real setup from one token finish quickly?', 1);
@@ -233,12 +232,12 @@ test('brief requires scope and uses current facts, evidence and search filters w
   assert.doesNotMatch(result.stdout, /earlier evidence rule/);
   const headings = [...result.stdout.matchAll(/^## (.+)$/gm)].map(([, heading]) => heading);
   assert.deepEqual(headings, ['Open threads', 'Feedback', 'Project decisions', 'User facts', 'References']);
-  assert.match(result.stdout, /session: \(not recorded\)/);
+  assert.match(result.stdout, /sources: \(not recorded\)/);
   assert.equal(result.stdout.match(/Source: source <fact-id>/g).length, 1);
   assert.ok(Buffer.byteLength(result.stdout) <= BRIEF_MAX_BYTES);
   assert.deepEqual(rows(env, 'SELECT * FROM facts'), before);
   assert.deepEqual(rows(env, 'SELECT * FROM sessions'), sessionsBefore);
-  assert.ok(env.fake.calls.slice(calls).every(call => call.includes('/d1/database/')), 'brief fetches no objects');
+  assert.ok(env.fake.calls.slice(calls).every(call => call.endsWith('/v2/facts')), 'brief fetches no transcripts');
   const session = await memory(env.repo, env.fake, ['brief', '--branch', 'brief-branch']);
   assert.match(session.stdout, /No matching live facts/);
   // A superseded session fact is excluded; an unrelated live fact still provides a source pointer.
@@ -247,7 +246,7 @@ test('brief requires scope and uses current facts, evidence and search filters w
   assert.equal(sourced.code, 0, sourced.stderr);
   assert.match(sourced.stdout, /Session evidence stays traceable/);
   const sourcedId = rows(env, "SELECT id FROM facts WHERE session_id = 'claude:brief-live'")[0].id;
-  assert.match(sourced.stdout, new RegExp(`Fact #${sourcedId} · .+ · author: dev@example.com · session: claude:brief-live`));
+  assert.match(sourced.stdout, new RegExp(`Fact #${sourcedId} · .+ · author: dev@example.com · sources: session:claude:brief-live`));
   assert.match(sourced.stdout, /Source: source <fact-id>/);
   assert.match(sourced.stdout, /1 selected, 0 selected entries omitted/);
   t.diagnostic(`BEGIN SYNTHETIC MEMORY BRIEF\n${sourced.stdout}END SYNTHETIC MEMORY BRIEF`);
@@ -279,7 +278,7 @@ test('brief selects eight by default and up to twenty explicitly without extra s
     const result = await memory(env.repo, env.fake, [...args, '--slug', 'context']);
     assert.equal(result.code, 0, result.stderr);
     const calls = env.fake.calls.slice(start);
-    assert.ok(calls.every(call => call.includes('/d1/database/')), 'no transcript or per-source fetch');
+    assert.ok(calls.every(call => call.endsWith('/v2/facts')), 'no transcript or per-source fetch');
     return { output: result.stdout, bytes: Buffer.byteLength(result.stdout), requests: calls.length };
   };
   const search = await read(['search', '--limit', '8']);
@@ -297,29 +296,18 @@ test('brief selects eight by default and up to twenty explicitly without extra s
   assert.match(brief.output, /Scope: {"slug":"context","personal":true}\n/);
   assert.doesNotMatch(brief.output, /"all"|"everyone"|"terms"|follow up:/);
   assert.equal(brief.output.match(/Source: source <fact-id>/g).length, 1);
-  assert.equal(brief.output.match(/author: dev@example.com · session: claude:context/g).length, 8);
+  assert.equal(brief.output.match(/author: dev@example.com · sources: session:claude:context/g).length, 8);
   for (const result of [json, brief, twenty, one]) assert.equal(result.requests, search.requests, 'request count stays constant across formats and fact limits');
-  assert.equal(search.requests, 1, 'ordinary machine-scoped reads use one D1 query');
+  assert.equal(search.requests, 1, 'a read is one store request');
   assert.ok(brief.bytes < twenty.bytes);
   assert.ok(twenty.bytes <= BRIEF_MAX_BYTES);
   t.diagnostic(`SYNTHETIC MEMORY CONTEXT ${JSON.stringify(Object.fromEntries(Object.entries({ search8: search, json8: json, brief8: brief, brief20: twenty, brief1: one }).map(([name, { bytes, requests }]) => [name, { bytes, requests }])))}`);
-  mkdirSync(env.repo.stateDir, { recursive: true });
-  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
-  const teamSearch = await read(['search', '--limit', '8']);
-  const teamBrief = await read(['brief']);
-  const teamTwenty = await read(['brief', '--limit', '20']);
-  assert.equal(teamSearch.requests, 1, 'current machine privacy needs no schema probe');
-  assert.equal(teamBrief.requests, teamSearch.requests);
-  assert.equal(teamTwenty.requests, teamSearch.requests, 'team reads add no per-fact queries');
-  assert.match(teamBrief.output, /"personal":true/);
-  assert.deepEqual(ids(teamBrief.output), ids(brief.output));
-  t.diagnostic(`SYNTHETIC TEAM REQUESTS ${JSON.stringify({ search8: teamSearch.requests, brief8: teamBrief.requests, brief20: teamTwenty.requests })}`);
 });
 
 test('brief spends the byte budget on relevance before grouping facts', () => {
   const facts = Array.from({ length: 6 }, (_, index) => ({
     id: index + 1, type: index ? 'thread' : 'reference', body: `Fact ${index + 1}: ${'漢'.repeat(390)}`,
-    created_at: '2026-10-01T00:00:00Z', author: 'dev@example.com', session_id: 'claude:ranked',
+    created_at: '2026-10-01T00:00:00Z', author: 'dev@example.com', sources: ['session:claude:ranked'],
   }));
   const brief = renderBrief({ facts, filters: { terms: 'ranked', limit: 8, all: false, everyone: false, personal: true } }, '2026-10-03T00:00:00Z');
   const ids = [...brief.matchAll(/^Fact #(\d+)/gm)].map(([, id]) => Number(id));
@@ -349,7 +337,7 @@ test('brief caps whole UTF-8 entries, tells only selected omissions, and bounds 
   const hugeScope = renderBrief({ facts: [], filters: { terms: '🐬'.repeat(4000), limit: 20 } }, '2026-10-03T00:00:00Z');
   assert.ok(Buffer.byteLength(hugeScope) <= BRIEF_MAX_BYTES);
   assert.match(hugeScope, /scope display shortened/);
-  const unnamed = renderBrief({ facts: [{ id: 1, type: 'reference', body: 'An original pointer.', created_at: '2026-10-01', author: null, session_id: null }], filters: { slug: 'source', limit: 20 } });
+  const unnamed = renderBrief({ facts: [{ id: 1, type: 'reference', body: 'An original pointer.', created_at: '2026-10-01', author: null, sources: [] }], filters: { slug: 'source', limit: 20 } });
   assert.match(unnamed, /author: \(not recorded\)/);
   const grouped = renderBrief({ facts: [
     { id: 3, type: 'project', body: 'First ranked project.', created_at: '2026-10-01' },
@@ -393,7 +381,9 @@ const tagFact = (env, id, tag) => {
   env.fake.db.prepare('INSERT OR IGNORE INTO tags (name, definition, created_at) VALUES (?, ?, ?)').run(tag, `Work on ${tag}.`, daysAgo(0));
   env.fake.db.prepare('INSERT INTO fact_tags (fact_id, tag) VALUES (?, ?)').run(id, tag);
 };
-const STEP_SEARCH = 'When a step starts, load its own: `node .claude/skills/memory/scripts/memory.mjs search --type thread --tag <step>`.';
+// A temp repo holds no copy of the plugin, so the digest names the script by its full path.
+const CLI = fileURLToPath(new URL('../../.agents/plugins/memory/scripts/memory.mjs', import.meta.url));
+const STEP_SEARCH = `When a step starts, load its own: \`node ${CLI} search --type thread --tag <step>\`.`;
 
 test("other changes' open threads are never listed; one line counts them by step", async t => {
   const env = await setup(t);
@@ -410,7 +400,7 @@ test("other changes' open threads are never listed; one line counts them by step
   assert.ok(lines.some(line => line.startsWith('- [feedback] Settled fact')), 'feedback facts show');
   assert.ok(lines.some(line => line.startsWith('- [project] Settled fact')), 'project facts show');
   const shown = lines.filter(line => line.startsWith('- [')).length;
-  assert.equal(lines.at(-1), `${180 - shown} more live facts are not shown. Search them: \`node .claude/skills/memory/scripts/memory.mjs search <terms>\`.`);
+  assert.equal(lines.at(-1), `${180 - shown} more live facts are not shown. Search them: \`node ${CLI} search <terms>\`.`);
   const all = await memory(env.repo, env.fake, ['search', '--type', 'thread', '--limit', '100']);
   assert.match(all.stdout, /Open question 79\./, 'a thread left out stays live and searchable');
 });
@@ -469,7 +459,7 @@ test('with no people page listing you, the digest has no person section and stil
   insertFact(env)('ops', 'feedback', 'Keep replies short.', 1);
   const lines = (await digestOf(env)).split('\n');
   assert.equal(lines.filter(line => line.startsWith('## You')).length, 0);
-  assert.match(lines[1], /Before substantial work, recall the task in your own words: `node \.claude\/skills\/memory\/scripts\/memory\.mjs recall <question>`\. Read cited originals; use explicit history scope/);
+  assert.ok(lines[1].includes(`Before substantial work, recall the task in your own words: \`node ${CLI} recall <question>\`. Read cited originals; use explicit history scope`), lines[1]);
 });
 
 test("the current change's open threads all show first, old ones too", async t => {
@@ -487,7 +477,9 @@ test("the current change's open threads all show first, old ones too", async t =
   assert.ok(start > 0, 'the current change has its own section');
   assert.deepEqual(lines.slice(start + 1, start + 13).map(line => line.match(/^- \[thread\] Current question (\d+)\./)?.[1]), Array.from({ length: 12 }, (_, i) => String(i)));
   assert.equal(lines[start + 13], `Open threads on other changes, by step: 20 untagged. ${STEP_SEARCH}`);
-  assert.equal(lines[start + 14], '## Live facts');
+  // The topic lines follow the step line, then the facts.
+  assert.equal(lines[start + 14], '## Topics');
+  assert.ok(lines.indexOf('## Live facts') > start + 14);
   assert.equal(lines.filter(line => line.startsWith('- [thread] Other question')).length, 0);
 });
 
@@ -498,7 +490,7 @@ test('a store of 400 live facts keeps the digest within its caps and says how ma
   const lines = (await digestOf(env)).split('\n');
   const shown = lines.filter(line => line.startsWith('- [')).length;
   assert.equal(lines.filter(line => line.startsWith('- [thread]')).length, 0);
-  assert.equal(lines.at(-1), `${400 - shown} more live facts are not shown. Search them: \`node .claude/skills/memory/scripts/memory.mjs search <terms>\`.`);
+  assert.equal(lines.at(-1), `${400 - shown} more live facts are not shown. Search them: \`node ${CLI} search <terms>\`.`);
 });
 
 // A session's facts, with the branch the session started on.
@@ -530,8 +522,6 @@ test('search by change finds a session whose branch was renamed, alone or with t
 
 test("search by change keeps the team filter on a teammate's personal facts", async t => {
   const env = await setup(t);
-  mkdirSync(env.repo.stateDir, { recursive: true });
-  writeFileSync(join(env.repo.stateDir, 'team.json'), JSON.stringify({ team: true }));
   // Bo signs in as a member on this computer, then the admin's old key reads.
   signInAs(env.repo, { sub: 'bo', email: 'bo@example.com', role: 'member' });
   execFileSync('git', ['config', 'user.email', 'bo@example.com'], { cwd: env.repo.root });
@@ -718,10 +708,10 @@ test('a thread must name who checks it: a verb or area tag, read through aliases
     { action: 'add', type: 'thread', body: 'Does the preview need a second check?' },
   ] });
   assert.equal(untagged.code, 1);
-  assert.match(untagged.stderr, /fact 2: a thread needs the tag of the verb whose next run should check it \(explore, plan, apply, save, ship, continue, verify, routine, sync, setup, close, improve\), or the area tag/);
+  assert.match(untagged.stderr, /fact 2: a thread needs the tag of the step whose next run should check it \(explore, plan, apply, save, ship, continue, verify, routine, sync, setup, close, improve, dream\), or the area tag/);
   assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 0, 'nothing in the batch is stored');
   const gated = await memory(env.repo, env.fake, ['gate', '--file', writeJsonFile(env.repo.home, 'gate.json', { slug: 'q', facts: [{ type: 'thread', body: 'Does the preview need a second check?' }] })]);
-  assert.match(gated.stdout, /Tags: fact 1: a thread needs the tag of the verb/);
+  assert.match(gated.stdout, /Tags: fact 1: a thread needs the tag of the step/);
   for (const tag of ['verify', 'worker']) {
     const tagged = await put(env, { source: 'save', slug: 'q', facts: [{ action: 'add', type: 'thread', body: `Checked by ${tag}?`, tags: [tag] }] });
     assert.equal(tagged.code, 0, tagged.stderr);
@@ -766,13 +756,13 @@ test('a look-alike tag merges as an alias: a search by the main tag finds it, an
 });
 
 test('a thread naming a slash command gets that verb\'s tag, a renamed skill under either name', () => {
-  const tags = body => wordTags({ type: 'thread', body }, {}, '/repo').sort();
+  const tags = body => wordTags({ type: 'thread', body }, {}, '/repo', profile.steps).sort();
   assert.deepEqual(tags('Check on the next /improve-code run.'), ['improve']);
   assert.deepEqual(tags('Check on the next /improve run.'), ['improve']);
   assert.deepEqual(tags('The next /dream-memory should re-check this, after /wong-sync.'), ['dream', 'sync']);
   assert.deepEqual(tags('The next /dream should re-check this.'), ['dream']);
   assert.deepEqual(tags('A path is no command: wiki/dream and /improve-codes.'), []);
-  assert.deepEqual(wordTags({ type: 'project', body: 'A settled fact about /improve-code.' }, {}, '/repo'), [], 'only a thread takes a verb tag');
+  assert.deepEqual(wordTags({ type: 'project', body: 'A settled fact about /improve-code.' }, {}, '/repo', profile.steps), [], 'only a thread takes a verb tag');
 });
 
 test('a put-facts whose upkeep fails still stores its fact and exits 0, and the next write retries upkeep', async t => {
@@ -781,7 +771,7 @@ test('a put-facts whose upkeep fails still stores its fact and exits 0, and the 
   env.fake.db.exec("CREATE TRIGGER no_restate BEFORE INSERT ON facts WHEN new.source = 'consolidation' BEGIN SELECT RAISE(ABORT, 'restates refused'); END");
   const result = await put(env, { source: 'save', slug: 'new', facts: [{ action: 'add', type: 'project', body: 'A fact saved before upkeep.' }] });
   assert.equal(result.code, 0, result.stderr);
-  assert.match(result.stdout, /^stored: added 1, superseded 0, dropped 0\nupkeep skipped: memory query failed: restates refused\n$/);
+  assert.match(result.stdout, /^stored: added 1, superseded 0, dropped 0\nupkeep skipped: memory store error \(HTTP 500: restates refused\)\n$/);
   assert.equal(rows(env, "SELECT count(*) AS n FROM facts WHERE body = 'A fact saved before upkeep.'")[0].n, 1);
   env.fake.db.exec('DROP TRIGGER no_restate');
   const next = await put(env, { source: 'save', slug: 'new', facts: [{ action: 'add', type: 'project', body: 'The next save.' }] });
@@ -790,10 +780,10 @@ test('a put-facts whose upkeep fails still stores its fact and exits 0, and the 
 
 test('concurrent first starts publish one complete private machine ID and a corrupt ID never rotates', async t => {
   const { execFile } = await import('node:child_process');
-  const { machineId } = await import('../../.agents/skills/memory/scripts/lib/machine-id.mjs');
+  const { machineId } = await import('../../.agents/plugins/memory/scripts/lib/machine-id.mjs');
   const { statSync } = await import('node:fs');
   const dir = tempDir(t, 'identity-'); const file = join(dir, 'machine-id');
-  const module = new URL('../../.agents/skills/memory/scripts/lib/machine-id.mjs', import.meta.url).href;
+  const module = new URL('../../.agents/plugins/memory/scripts/lib/machine-id.mjs', import.meta.url).href;
   const start = () => new Promise((resolve, reject) => execFile(process.execPath, ['--input-type=module', '-e', `import { machineId } from ${JSON.stringify(module)}; process.stdout.write(machineId(process.argv[1]));`, file], (error, stdout) => error ? reject(error) : resolve(stdout)));
   const ids = await Promise.all(Array.from({ length: 8 }, start));
   assert.equal(new Set(ids).size, 1); assert.equal(machineId(file), ids[0]);
@@ -807,7 +797,7 @@ test('a sandbox that refuses the permission change still reads the stored machin
   const { execFileSync } = await import('node:child_process');
   const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   const file = join(tempDir(t, 'identity-sandbox-'), 'machine-id'); writeFileSync(file, `${id}\n`, { mode: 0o600 });
-  const module = new URL('../../.agents/skills/memory/scripts/lib/machine-id.mjs', import.meta.url).href;
+  const module = new URL('../../.agents/plugins/memory/scripts/lib/machine-id.mjs', import.meta.url).href;
   // chmodSync fails EPERM, as under Codex's sandbox; patched before the module binds it.
   const script = `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
 fs.chmodSync = () => { throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' }); };
@@ -818,7 +808,7 @@ const { machineId } = await import(process.argv[1]); process.stdout.write(machin
 
 test('the ownership migration preserves historical bodies, authors, sources and raw references without claiming them', async t => {
   const { DatabaseSync } = await import('node:sqlite'); const db = new DatabaseSync(':memory:'); t.after(() => db.close());
-  const dir = new URL('../../.agents/skills/memory/migrations/', import.meta.url);
+  const dir = new URL('../../.agents/memory/d1/migrations/', import.meta.url);
   const files = readdirSync(dir).filter(name => name.endsWith('.sql')).sort();
   for (const file of files.filter(name => !name.startsWith('0007'))) db.exec(readFileSync(new URL(file, dir), 'utf8'));
   db.exec("INSERT INTO sessions (id, agent, author, machine, status, raw_key, updated_at) VALUES ('migration:old', 'migration', 'original@example.com', 'same-host', 'captured', 'sessions/original@example.com/old.jsonl', '2026-01-01')");
@@ -833,7 +823,7 @@ test('the ownership migration preserves historical bodies, authors, sources and 
 
 test('the person-ownership migration lets a row gain an owner once, never change it', async t => {
   const { DatabaseSync } = await import('node:sqlite'); const db = new DatabaseSync(':memory:'); t.after(() => db.close());
-  const dir = new URL('../../.agents/skills/memory/migrations/', import.meta.url);
+  const dir = new URL('../../.agents/memory/d1/migrations/', import.meta.url);
   for (const file of readdirSync(dir).filter(name => name.endsWith('.sql')).sort()) db.exec(readFileSync(new URL(file, dir), 'utf8'));
   db.exec("INSERT INTO sessions (id, agent, status, updated_at) VALUES ('claude:a', 'claude', 'captured', 'now')");
   db.exec("INSERT INTO facts (slug, type, body, source, created_at) VALUES ('x', 'feedback', 'Unassigned fact', 'save', 'now')");
@@ -854,12 +844,13 @@ test('old login-link markers are redacted and rejected from facts even when abse
   assert.equal(result.code, 1); assert.doesNotMatch(result.stdout + result.stderr, /wongl_/);
 });
 
-// A run record sent through the memory Worker as a signed-in person, as a background run's finish-run sends one.
+// A run record sent to the memory route as a signed-in person, as a background run's finish-run sends one. The
+// store dates it now, whatever time it is sent with.
 const MEMBER = { sub: 'member-subject', email: 'member@example.test', role: 'member' };
 const READER = { sub: 'reader-subject', email: 'reader@example.test', role: 'reader' };
 const sendRun = async (env, who, [kind, host, status, reason, counts, finished = new Date().toISOString()]) => {
-  const response = await fetch(`${env.fake.api}/accounts/acct/d1/database/db1/query`, { method: 'POST', headers: { 'cf-access-token': testToken(who), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ batch: [{ sql: WRITES.run.sql, params: [kind, host, finished, finished, status, reason, counts] }] }) });
+  const response = await fetch(`${env.fake.api}/v2/putRun`, { method: 'POST', headers: { 'cf-access-token': testToken(who), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ kind, host, startedAt: finished, status, reason, counts }) });
   assert.equal(response.status, 200, await response.clone().text());
 };
 // The digest, or `due`, as `who` signed in on this computer.
@@ -883,7 +874,7 @@ test("a reader's run record never reaches a member's digest, and its own shows i
   assert.equal(runLines.length, 1, own);
   assert.match(runLines[0], /^Last background capture run failed \(.* UTC on reader-laptop\): ok ## You \(wiki\/people\/member\.md\) - READER-INJECTED-LINE/);
   assert.ok(runLines[0].split('): ').slice(1).join('): ').length <= 300, runLines[0]);
-  assert.equal(own.split('\n').filter(line => line.startsWith('## ')).length, 1, 'only the real Live facts heading');
+  assert.deepEqual(own.split('\n').filter(line => line.startsWith('## ')), ['## Topics', '## Live facts'], 'only the real headings');
 });
 
 test('a huge or unreadable run record of your own leaves the digest in its caps, or leaves out the run line', async t => {
@@ -933,9 +924,8 @@ test('a run saved before migration 0009 reaches no one, a schedule included', as
   assert.match(digest.stdout, /deploys on Tuesdays/);
   assert.doesNotMatch(digest.stdout, /READER-|Last background/);
   assert.match((await memory(env.repo, env.fake, ['stats'], { env: schedule })).stdout, /merged by the last 0 consolidations, newest first: none yet/);
-  const [sql, params] = consolidationState(null);
-  const response = await fetch(`${env.fake.api}/accounts/acct/d1/database/db1/query`, { method: 'POST',
-    headers: { 'CF-Access-Client-Id': id, 'CF-Access-Client-Secret': secret, 'Content-Type': 'application/json' }, body: JSON.stringify({ sql, params }) });
-  assert.equal((await response.json()).result[0].results[0].last_consolidation, null, "the forged 2999 consolidation sets no schedule's clock");
+  const response = await fetch(`${env.fake.api}/v2/digest`, { method: 'POST',
+    headers: { 'CF-Access-Client-Id': id, 'CF-Access-Client-Secret': secret, 'Content-Type': 'application/json' }, body: '{}' });
+  assert.equal((await response.json()).result.consolidation.last_consolidation, null, "the forged 2999 consolidation sets no schedule's clock");
   assert.doesNotMatch(await as(env, MEMBER), /READER-|Last background/);
 });

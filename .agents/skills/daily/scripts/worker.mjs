@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { linkCopy, place } from '../../memory/scripts/knowledge.mjs';
+import { linkCopy, place } from '../../../memory/knowledge.mjs';
 import { headlessCommand } from '../../memory/scripts/lib/headless.mjs';
 import { runNode } from './addons.mjs';
 import { HOLD_MS, beat, readJson, sameRepo, serviceAlive, userAt, watch, watchStops, writeJson } from './chief.mjs';

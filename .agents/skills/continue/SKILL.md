@@ -55,7 +55,7 @@ Recap the loaded state:
 
 - **The change**: 2–4 lines on the work and task progress, its `Status:` line, and any open questions.
 - **The journey**: the last 1–3 `## Decision log` entries: the *why*.
-- **The session context**: open threads first, then live facts the change lacks, with ages. No facts → skip the line; say so when [the store is unreachable](../memory/SKILL.md#read).
+- **The session context**: open threads first, then live facts the change lacks, with ages. No facts → skip the line; say so when [the store is unreachable](../../plugins/memory/SKILL.md#read).
 - **State**: the checked-out branch, and the PR as *the change on GitHub* ([plain words](../explore/references/asking-the-user.md#write-in-plain-words)).
 - **Drift check**: **counts only**; never reload the PR diff or review threads unless asked:
   ```bash

@@ -4,7 +4,7 @@ on:
   push:
     branches: ['**']
     paths:
-      - '.agents/skills/memory/**'
+      - '.agents/plugins/memory/**'
       - '.agents/skills/explore/SKILL.md'
       - 'scripts/evaluate-document-retrieval.mjs'
       - 'scripts/tests/document-*.test.mjs'
@@ -14,7 +14,7 @@ on:
       - 'wiki/development/document-retrieval.md'
   pull_request:
     paths:
-      - '.agents/skills/memory/**'
+      - '.agents/plugins/memory/**'
       - 'scripts/evaluate-document-retrieval.mjs'
       - 'scripts/tests/fixtures/document-retrieval/**'
       - '.github/workflows/qmd-retrieval.yml'

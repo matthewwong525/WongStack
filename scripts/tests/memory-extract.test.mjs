@@ -10,7 +10,7 @@ import { memory, setup, tempDir } from './fixtures/memory/harness.mjs';
 const fact = (id, body = `Original evidence ${id}.`) => ({ id, body, slug: 'topic', type: 'project', author: 'dev@example.com', created_at: '2026-10-01T00:00:00Z', session_id: null, superseded_by: null, state: 'conversation' });
 function context(t) { const root = tempDir(t, 'extract-'); return { root, commonDir: root, stateDir: root, author: 'dev@example.com' }; }
 const reply = (select = [1], queries = [], gaps = []) => JSON.stringify({ version: 1, select, queries, gaps });
-function storeFor(facts, before = () => {}) { const calls = []; return { calls, config: { team: false }, async query(sql, params) { calls.push({ sql, params }); before(sql, calls.length); return facts.filter(row => !row.superseded_by && (!/f.id IN/.test(sql) || params.includes(row.id))).slice(0, 20); } }; }
+function storeFor(facts, before = () => {}) { const calls = []; return { calls, async facts([q]) { calls.push(q); before(q, calls.length); return [facts.filter(row => !row.superseded_by && (!q.ids || q.ids.includes(row.id))).slice(0, q.limit)]; } }; }
 function hostFor(responses, run = () => {}) { let index = 0; return { supported: true, inputBytes: text => bytes(EXTRACT_SYSTEM) + bytes(text), async call(prompt, signal) { run(prompt, signal, index); const response = responses[index++]; if (response instanceof Error) throw response; return { text: response, model: 'recorded-fixture', usage: null }; }, close() {} }; }
 const invoke = (ctx, task, dependencies, options = {}) => extractMemory(ctx, { task, identity: 'identity', question: 'topic', ...options }, dependencies);
 
@@ -46,8 +46,8 @@ test('broker executes bounded alternative queries under fixed scope and verifies
   const ctx = context(t), task = issueTask(ctx, 'identity'), store = storeFor([fact(1), fact(2)]);
   const result = await invoke(ctx, task, { store, host: hostFor([reply([1], ['alternative wording', 'another wording']), reply([2, 1])]) }, { scope: { slug: 'topic', author: 'dev@example.com' }, usageReport: true });
   assert.deepEqual(result.ids, [2, 1]); assert.equal(result.report.modelCalls, 2); assert.equal(store.calls.length, 4);
-  assert.ok(store.calls.every(call => /LIMIT 20/.test(call.sql) && call.params.includes('topic') && call.params.includes('%dev@example.com%')));
-  assert.match(store.calls.at(-1).sql, /f.id IN \(\?, \?\)/);
+  assert.ok(store.calls.every(call => call.limit === 20 && call.slug === 'topic' && call.author === 'dev@example.com'));
+  assert.deepEqual([...store.calls.at(-1).ids].sort(), [1, 2]);
   assert.equal(result.report.tokenUsage, 'unknown'); assert.equal(result.report.evidence, 'recorded protocol');
   const reportFile = join(ctx.stateDir, 'extract-reports', readdirSync(join(ctx.stateDir, 'extract-reports'))[0]);
   assert.doesNotMatch(readFileSync(reportFile, 'utf8'), /Original evidence|CLOUDFLARE|session_id/);
@@ -67,7 +67,7 @@ test('invalid or unavailable model falls back without another call; already load
 test('unsupported hosts use verified fallback and failed final verification returns no stale evidence', async t => {
   for (const kind of ['auth', 'network']) {
     const ctx = context(t), task = issueTask(ctx, 'identity');
-    const store = storeFor([fact(1)], (_sql, number) => { if (number === 2) throw Object.assign(new Error('refused'), { kind }); });
+    const store = storeFor([fact(1)], (_query, number) => { if (number === 2) throw Object.assign(new Error('refused'), { kind }); });
     const result = await invoke(ctx, task, { store, host: { supported: false, reason: 'unsupported_host' } });
     assert.deepEqual(result.ids, []); assert.equal(result.status, kind === 'auth' ? 'denied' : 'unavailable'); assert.doesNotMatch(result.text, /Original evidence/);
   }
@@ -78,7 +78,7 @@ test('unsupported hosts use verified fallback and failed final verification retu
 test('new supersession and revoked visibility never return cached candidates', async t => {
   for (const change of ['superseded', 'revoked']) {
     const ctx = context(t), records = [fact(1), fact(2)];
-    const store = storeFor(records, (_sql, number) => { if (number === 2) { if (change === 'superseded') records[0].superseded_by = 2; else records.splice(0, 1); } });
+    const store = storeFor(records, (_query, number) => { if (number === 2) { if (change === 'superseded') records[0].superseded_by = 2; else records.splice(0, 1); } });
     const result = await invoke(ctx, issueTask(ctx, 'identity'), { store, host: hostFor([reply([1, 2])]) });
     assert.deepEqual(result.ids, [2]); assert.equal(result.status, 'partial'); assert.match(result.text, /changed_evidence/); assert.doesNotMatch(result.text, /Original evidence 1/);
   }
@@ -126,7 +126,7 @@ test('experimental CLI binds handles to filters, retains ordinary state search, 
   const issued = await memory(env.repo, env.fake, ['extract-task', '--slug', 'topic']); assert.equal(issued.code, 0, issued.stderr);
   const result = await memory(env.repo, env.fake, ['extract', 'topic', '--task', issued.stdout.trim(), '--slug', 'topic', '--agent', 'codex']);
   assert.equal(result.code, 0, result.stderr); assert.match(result.stdout, /fallback/); assert.match(result.stdout, /Original topic evidence/);
-  assert.ok(env.fake.calls.every(call => !call.includes('/r2/')));
+  assert.ok(env.fake.calls.every(call => !call.includes('/v2/transcript')));
   const mismatch = await memory(env.repo, env.fake, ['extract', 'topic', '--task', issued.stdout.trim(), '--slug', 'other', '--agent', 'codex']);
   assert.notEqual(mismatch.code, 0); assert.equal(mismatch.stdout, '');
   const unsupported = await memory(env.repo, env.fake, ['extract', 'topic', '--task', issued.stdout.trim(), '--state', 'active']); assert.notEqual(unsupported.code, 0); assert.match(unsupported.stderr, /ordinary search/);

@@ -1,0 +1,1876 @@
+<!-- wong-review:3 -->
+<!doctype html>
+<!--
+  WongStack review kit. build-review.mjs writes the proposal as static HTML at the
+  review:content marker, puts the app's look (look.mjs) at the look marker, the light and dark switch (theme.js) at the
+  theme marker, and the change name in place of its token. The one script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
+  opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its footer
+  asks the chat to build, or to build and publish, with saved unsent notes: each button shows when the link offers it.
+  A preview page (data-kind="preview", from apply's preview-review.mjs) names the finished build and offers Publish.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · 2026-11-11-modular-memory-plugin</title>
+<style>
+  /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
+   look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
+   shadcn's neutral light and dark colours stays only for a colour it can't find. Every page starts light, even on a
+   dark device; theme.js adds `.dark` to the root element when the person switches, and draws the switch (.theme-toggle).
+   The parts below draw app/src/components/ui/ (button, input, card, badge, skeleton) in plain CSS. Each sits in
+   :where(), so a page's own rule always wins.
+   Nothing here loads a file: these pages fetch nothing from the network. */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+}
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+/* Tailwind's shadow-xs, shadow-sm and shadow-lg; Radix's popover shadow, and its upward twin for a box docked at the
+   bottom, so a layer reads as above the page; and the 3px focus ring at half strength. */
+:root {
+  color-scheme: light;
+  --look-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --look-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --look-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --look-shadow-overlay: 0 10px 38px -10px rgb(0 0 0 / 0.35), 0 10px 20px -15px rgb(0 0 0 / 0.2);
+  --look-shadow-up: 0 -8px 24px rgb(0 0 0 / 0.12);
+  --look-ring: color-mix(in oklab, var(--ring) 50%, transparent);
+}
+.dark { color-scheme: dark; }
+
+:where(body) {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+:where(h1, h2, h3) { font-weight: 600; letter-spacing: -0.025em; }
+:where(a) { color: inherit; text-underline-offset: 0.25rem; }
+::selection { background: var(--primary); color: var(--primary-foreground); }
+:where(:focus-visible) { outline: 3px solid var(--ring); outline-offset: 2px; }
+
+/* Button (button.tsx): outline by default; .btn-primary, and the pages' button.primary and button.main, filled. */
+:where(button, .btn) {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: var(--look-shadow-xs);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+:where(button, .btn):where(:hover:not(:disabled)) { background: var(--accent); color: var(--accent-foreground); }
+:where(button.primary, button.main, .btn-primary) { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); box-shadow: none; }
+:where(button.primary, button.main, .btn-primary):where(:hover:not(:disabled)) { background: color-mix(in oklab, var(--primary) 90%, transparent); color: var(--primary-foreground); }
+:where(.btn-ghost) { border-color: transparent; background: transparent; box-shadow: none; }
+:where(button, .btn):where(:disabled) { opacity: 0.5; cursor: default; }
+
+/* Field (input.tsx): a thin border, a soft shadow, and the ring on focus. */
+:where(input:not([type=checkbox], [type=radio], [type=file], [type=range], [type=button], [type=submit]), select, textarea, .field) {
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--foreground);
+  box-shadow: var(--look-shadow-xs);
+  font: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+:where(input, textarea)::placeholder { color: var(--muted-foreground); }
+:where(input, select, textarea, .field):where(:focus-visible) { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px var(--look-ring); }
+:where(input, select, textarea, .field):where([aria-invalid=true]) { border-color: var(--destructive); }
+:where(input[type=checkbox], input[type=radio]) { accent-color: var(--primary); }
+
+/* Card (card.tsx) and tag (badge.tsx, secondary). */
+:where(.card) {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--look-shadow-sm);
+}
+:where(.tag) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  white-space: nowrap;
+}
+:where(.tag-outline) { border-color: var(--border); background: transparent; color: var(--foreground); }
+
+/* Skeleton (skeleton.tsx): a grey block that pulses while what it stands for loads, and holds still when motion is
+   off. .sr-only keeps the words of a loading state for a screen reader alone. */
+:where(.skeleton) { display: block; border-radius: calc(var(--radius) - 2px); background: var(--accent); animation: look-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes look-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { :where(.skeleton) { animation: none; } }
+:where(.sr-only) { position: absolute; max-width: 1px; max-height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* The light and dark switch (theme.js): a ghost icon button, 44px, in the page's top right corner, above the page and
+   below a note box or full-screen view. It scrolls away with the page's top, so it never sits over text read later.
+   In a page's [data-theme-toggle] slot it sits in line. The icon shows the look it switches to: moon on light. */
+.theme-toggle {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--foreground);
+}
+@media (hover: hover) { .theme-toggle:hover { background: var(--accent); color: var(--accent-foreground); } }
+[data-theme-toggle] .theme-toggle { position: static; flex: none; }
+.theme-toggle svg { width: 1.25rem; height: 1.25rem; pointer-events: none; }
+
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { --pad:12px; margin:0; padding-bottom:var(--bar, 76px); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
+  main { max-width:700px; margin:0 auto; padding:0 12px; }
+  code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
+  code { background:var(--muted); border-radius:4px; padding:.1em .3em; font-size:.88em; }
+  [hidden] { display:none !important; }
+  header { padding:20px 48px 4px 0; }
+  .back { display:flex; align-items:center; gap:8px; min-width:0; margin:0 0 8px; }
+  .back .muted { margin:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .eyebrow { margin:0; color:var(--muted-foreground); font-size:14px; font-weight:500; }
+  h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
+  .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
+  .jump a { display:inline-block; padding:8px 0; }
+  .hint, .muted { color:var(--muted-foreground); font-size:14px; margin:4px 0 0; }
+  #script-error { color:var(--destructive); font-weight:600; }
+  section { margin:24px 0; scroll-margin-top:8px; }
+  h2 { margin:0 0 8px; color:var(--muted-foreground); font-size:14px; font-weight:500; letter-spacing:0; }
+  .card { padding:var(--pad); margin:0 0 10px; }
+  .card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
+  .items, .decisions, .note-list { list-style:none; margin:0; padding:0; }
+  /* A card on a phone: its words, a row of small pictures, then OK and Note. At 900px and wider the pictures sit right. */
+  .item.card { padding:0; overflow:hidden; }
+  .words { display:grid; grid-template-columns:26px minmax(0,1fr); align-content:start; gap:0 10px; min-width:0; padding:var(--pad); }
+  .words > .table, .words > .live-said { grid-column:1 / -1; margin-top:10px; }
+  .item > .verdict { padding:0 var(--pad) var(--pad); }
+  .text { position:relative; }
+  .clamp { display:block; }
+  .text:not(.folded) .clamp { display:inline; }
+  .text.folded .clamp { display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden; }
+  .more { min-width:0; min-height:0; padding:0; border:0; background:none; box-shadow:none; color:var(--muted-foreground); font:inherit; font-weight:400; text-decoration:underline; }
+  .text:not(.folded) .more { margin-left:.4em; }
+  .text.folded .more { position:absolute; right:0; padding-left:1.6em; background:linear-gradient(to right, transparent, var(--card) 1.2em); }
+  .view { min-width:0; padding:0 var(--pad) 10px calc(var(--pad) + 36px); }
+  .stage { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; }
+  /* A part: one labelled picture, drawing, page, or live card; a click opens it full screen. */
+  .part { flex:none; width:84px; margin:0; text-align:center; cursor:zoom-in; }
+  .part .clip { position:relative; width:84px; height:112px; overflow:hidden; border:1px solid var(--border); border-radius:8px; background:var(--card); }
+  .part .clip:not(.big) * { pointer-events:none; }
+  .part .clip:not(.big) .pin { pointer-events:auto; }
+  .part figcaption { margin-top:3px; color:var(--muted-foreground); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .part:hover figcaption, .part:focus-visible figcaption { color:var(--foreground); }
+  .part:hover .clip:not(.big) { outline:2px solid var(--ring); outline-offset:2px; }
+  .part .art { margin:0; font-size:var(--f, 13px); }
+  .part .art.screen:not([style]) { width:49.2em; }
+  /* A page or live card taller than its space shows its top; a fade says there is more. */
+  .clip.tall::after { content:""; position:absolute; left:0; right:0; bottom:0; height:48px; background:linear-gradient(to bottom, transparent, var(--card)); pointer-events:none; }
+  .item, .decision { scroll-margin-top:8px; }
+  .num { flex:0 0 26px; height:26px; border-radius:50%; background:var(--secondary); color:var(--secondary-foreground); font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; min-width:0; }
+  [data-note] { border-radius:4px; }
+  [data-note]:hover, .noting { background:var(--accent); }
+  .art { position:relative; display:block; width:max-content; margin:0 auto; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art.pic { box-sizing:content-box; white-space:normal; --pele-bg:transparent; --pele-fg:var(--foreground); --pele-muted:var(--muted-foreground); --pele-line:var(--foreground); --pele-border:var(--ring); --pele-surface:var(--card); --pele-surface-alt:var(--muted); --pele-accent:var(--foreground); --pele-error:var(--destructive); --pele-critical:var(--destructive); }
+  .art.pic svg { display:block; width:100%; height:auto; }
+  /* A hand-drawn sketch: named colours become classes painted from the look; text inherits the page's ink and font at a fixed size. */
+  .art.sketch svg { fill:var(--foreground); font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size:13px; }
+  .art.sketch .f-bg { fill:var(--background); } .art.sketch .f-fg { fill:var(--foreground); } .art.sketch .f-muted { fill:var(--muted); } .art.sketch .f-subtle { fill:var(--muted-foreground); }
+  .art.sketch .f-line { fill:var(--border); } .art.sketch .f-card { fill:var(--card); } .art.sketch .f-danger { fill:var(--destructive); }
+  .art.sketch .s-bg { stroke:var(--background); } .art.sketch .s-fg { stroke:var(--foreground); } .art.sketch .s-muted { stroke:var(--muted); } .art.sketch .s-subtle { stroke:var(--muted-foreground); }
+  .art.sketch .s-line { stroke:var(--border); } .art.sketch .s-card { stroke:var(--card); } .art.sketch .s-danger { stroke:var(--destructive); }
+  /* A screen: the look's parts in em, so the kit's fit and zoom scale it; its controls sit in an inert box and never take a tap. */
+  .art.screen { line-height:1.4; } .art.screen:not([style]) { width:auto; max-width:49.2em; margin-right:1px; }
+  .art.screen .sk { pointer-events:none; user-select:none; } .art.screen .sk > * + * { margin-top:.6em; }
+  .art.screen :is(h3, h4, p, ul, ol) { margin:0; } .art.screen h3 { font-size:1.15em; } .art.screen h4, .art.screen small { font-size:.9em; }
+  .art.screen .card { margin:0; padding:1em; } .art.screen :is(button, .btn) { min-width:0; min-height:0; padding:.45em 1em; font-size:1em; } .art.screen .tag { margin:0; font-size:.85em; }
+  .art.screen :is(input:not([type=checkbox], [type=radio]), textarea, select, .field) { display:block; box-sizing:border-box; width:100%; padding:.45em .7em; }
+  .art.screen .skeleton { animation:none; min-height:1em; } .art.screen hr, .art.screen .sep { border:0; border-top:1px solid var(--border); margin:.6em 0; }
+  .art.screen .row { display:flex; align-items:center; flex-wrap:wrap; } .art.screen .col { display:flex; flex-direction:column; }
+  .art.screen .gap { gap:.6em; } .art.screen .grow { flex:1 1 0; min-width:0; } .art.screen .muted { margin:0; color:var(--muted-foreground); font-size:inherit; } .art.screen .danger { color:var(--destructive); }
+  .art.screen .sk-bar { display:block; height:.75em; border-radius:.375em; background:color-mix(in oklab, var(--muted-foreground) 25%, transparent); }
+  .art.screen .tbl, .art.screen table { width:100%; border-collapse:collapse; } .art.screen :is(th, td) { padding:.35em .6em; text-align:left; border-bottom:1px solid var(--border); }
+  /* A picture file: as wide in em as its file is in px, so the fit and zoom scale it like a drawing. */
+  .art.photo { padding:0; line-height:0; }
+  .art.photo img { display:block; width:20em; height:auto; border:1px solid var(--border); border-radius:.4em; background:var(--background); }
+  .art .pin.spot, .page .pin.spot { position:absolute; z-index:2; margin:0; transform:translate(-50%, -50%); }
+  /* An ad: the card a feed or a story shows, in em like a picture. */
+  .art.ad { width:20em; padding:0; overflow:hidden; border:1px solid var(--border); border-radius:.6em; background:var(--card); color:var(--card-foreground); text-align:left; white-space:normal; line-height:1.3; }
+  .ad .ad-account { margin:0; padding:.5em .7em; } .ad .ad-account span { color:var(--muted-foreground); font-size:.85em; }
+  .ad img { display:block; width:100%; aspect-ratio:4 / 5; object-fit:cover; }
+  .ad-words { display:flex; flex-wrap:wrap; align-items:center; gap:.3em .6em; padding:.6em .7em; }
+  .ad-words .ad-text { flex:1 1 100%; margin:0; } .ad-words .ad-headline { flex:1 1 0; min-width:0; }
+  .ad-button { padding:.3em .8em; border-radius:.4em; background:var(--primary); color:var(--primary-foreground); font-size:.9em; }
+  .ad.story { position:relative; } .ad.story img { aspect-ratio:9 / 16; }
+  .ad.story .ad-account { position:absolute; top:0; left:0; right:0; z-index:1; background:color-mix(in oklab, var(--background) 70%, transparent); }
+  .ad.story .ad-words { position:absolute; left:0; right:0; bottom:0; background:color-mix(in oklab, var(--background) 80%, transparent); }
+  /* A page or a live card: drawn at a phone or computer width, scaled; a cover over a page takes a tap as a spot note. */
+  .page, .live { position:relative; overflow:hidden; margin:0 auto; background:white; }
+  .page iframe, .live iframe { display:block; border:0; transform-origin:0 0; }
+  .live iframe { background:var(--background); }
+  .cover { position:absolute; top:0; left:0; right:0; bottom:0; cursor:crosshair; }
+  .verdict { display:flex; align-items:center; gap:8px; }
+  .verdict button { min-width:64px; }
+  .note-list .group { margin:12px 0 6px; color:var(--muted-foreground); font-size:14px; font-weight:500; }
+  .words > .table { overflow-x:auto; border:1px solid var(--border); border-radius:var(--radius); }
+  .tbl { width:100%; border-collapse:collapse; font-size:14px; }
+  .tbl th, .tbl td { padding:6px var(--pad); text-align:left; vertical-align:top; border-bottom:1px solid var(--border); }
+  .tbl th { color:var(--muted-foreground); font-weight:500; background:var(--muted); }
+  .tbl tbody tr:last-child td { border-bottom:0; }
+  .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
+  .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-radius:17px; box-shadow:none; color:var(--muted-foreground); font-size:13px; vertical-align:middle; }
+  /* Full screen: the labels and Close on top; the part's own frame fills the middle; what changes it sits at the foot. */
+  #viewer { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; background:var(--muted); }
+  #viewer .vtop { flex:none; display:flex; align-items:center; gap:8px; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; border-bottom:1px solid var(--border); background:var(--background); }
+  #viewer .names { flex:1 1 0; min-width:0; display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; }
+  #viewer .name { flex:none; min-width:0; padding:0 12px; border:0; background:transparent; box-shadow:none; color:var(--muted-foreground); font-weight:400; white-space:nowrap; }
+  #viewer .name[aria-selected="true"] { background:var(--muted); color:var(--foreground); font-weight:600; }
+  #viewer .vspace { flex:1; min-height:0; }
+  #viewer .vfoot { flex:none; display:flex; flex-wrap:wrap; align-items:center; gap:6px 12px; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--border); background:var(--background); }
+  #viewer .vhint { flex:1 1 220px; margin:0; color:var(--muted-foreground); font-size:13px; }
+  .zoom, .sizes { display:flex; align-items:center; gap:6px; }
+  .zoom .level { color:var(--muted-foreground); font-size:13px; }
+  .sizes { gap:0; padding:2px; border-radius:var(--radius); background:var(--muted); }
+  .sizes button { min-height:36px; border:0; background:none; box-shadow:none; color:var(--muted-foreground); font-weight:400; }
+  .sizes button[aria-pressed="true"] { background:var(--card); color:var(--foreground); font-weight:600; box-shadow:var(--look-shadow-xs); }
+  .clip.big { position:fixed; left:0; right:0; top:var(--vtop, 52px); bottom:var(--vfoot, 52px); z-index:9; width:auto !important; height:auto !important; max-height:none !important;
+    padding:12px; overflow:auto; border:0; border-radius:0; background:var(--muted); cursor:auto; touch-action:pan-x pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  .clip.big::after { display:none; }
+  .clip.big > .art, .clip.big > .page, .clip.big > .live { margin:0 auto; }
+  .clip.big > :is(.art.photo, .art.ad, .art.pic, .page) { cursor:crosshair; }
+  body.viewing { overflow:hidden; }
+  .meta { margin:0 0 4px !important; color:var(--muted-foreground); font-size:13px; }
+  .tag { margin-right:8px; vertical-align:1px; }
+  .tag.assumed { border-color:var(--border); border-style:dashed; background:transparent; color:var(--foreground); }
+  .tag.check { border-color:var(--foreground); border-style:dotted; background:transparent; color:var(--foreground); }
+  .hit { outline:3px solid var(--ring); outline-offset:3px; }
+  button { font-size:14px; min-width:40px; min-height:40px; padding:4px 12px; }
+  .pin { min-width:24px; min-height:24px; margin-left:6px; padding:0 7px; border-radius:12px; border-color:var(--primary); background:var(--primary); box-shadow:none; color:var(--primary-foreground); font:600 12px/22px system-ui, sans-serif; vertical-align:middle; }
+  .pin.draft { border-color:var(--foreground); border-style:dashed; background:var(--background); color:var(--foreground); }
+  .entry { display:block; width:100%; margin:0 0 8px; padding:8px 10px; text-align:left; font-weight:400; }
+  .entry .where { display:block; color:var(--muted-foreground); font-size:13px; }
+  .entry .tag { margin:0 0 0 6px; }
+  #chip { position:absolute; z-index:9; border-color:var(--input); box-shadow:var(--look-shadow-overlay); }
+  #editor { position:absolute; z-index:6; width:260px; padding:10px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--input); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-overlay); }
+  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; display:flex; flex-direction:column; overflow:auto; border-width:1px 0 0; border-radius:0; box-shadow:var(--look-shadow-up); padding:8px 12px max(8px, env(safe-area-inset-bottom)); }
+  #editor.docked .where { flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #editor.docked textarea { flex:1 1 auto; min-height:44px; }
+  #editor.docked .row { flex:none; }
+  #editor .where { margin:0 0 6px; color:var(--muted-foreground); font-size:13px; }
+  #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
+  #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
+  #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:grid; grid-template-columns:repeat(var(--cols, 1), minmax(0, 1fr)); align-items:stretch; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--background); border-top:1px solid var(--border); }
+  .bar > button, #ready > button { min-width:0; height:64px; padding:6px; white-space:normal; line-height:1.3; }
+  body.docked .bar, body.viewing .bar { display:none; }
+  body.read-only .bar, body.read-only .add, body.read-only .verdict, body.read-only .hint, body.read-only .vhint .note-it, body.read-only #chip, body.read-only .drop, body.read-only .files button { display:none; }
+  #ready { display:contents; }
+  #ready-confirm { position:absolute; right:12px; bottom:calc(100% + 8px); width:272px; max-width:calc(100vw - 24px); max-height:calc(100dvh - var(--bar, 76px) - 24px); overflow:auto; padding:12px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--border); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-lg); }
+  #ready-confirm .row { display:flex; gap:8px; margin-top:10px; }
+  #ready-confirm button { flex:1; min-height:44px; }
+  #ready-confirm p { margin:0; font-size:14px; }
+  #ready-says { position:absolute; right:12px; bottom:calc(100% + 8px); max-width:calc(100vw - 24px); margin:0; padding:8px 12px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--look-shadow-lg); font-size:14px; font-weight:500; pointer-events:none; }
+  .bar:has(#ready-confirm:not([hidden])) #ready-says { bottom:calc(100% + 16px + var(--choices, 0px)); }
+  .spinner { display:inline-block; width:14px; height:14px; margin-right:6px; vertical-align:-2px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion:reduce) { .spinner { animation:none; } }
+  .session, #editor .copies { color:var(--muted-foreground); font-size:13px; }
+  #editor .copies { flex:none; margin:6px 0 0; }
+  .pin.sent { background:var(--background); color:var(--foreground); }
+  #toast { position:fixed; left:50%; bottom:calc(var(--bar, 76px) - 4px); z-index:7; max-width:90vw; transform:translateX(-50%); padding:8px 14px; border-radius:var(--radius); background:var(--primary); color:var(--primary-foreground); box-shadow:var(--look-shadow-lg); font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #toast.show { opacity:1; }
+  #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
+  /* Files and the needs list: the look's parts. */
+  .live-said { margin:6px 0 0; }
+  .form { display:grid; gap:14px; }
+  .need .form { margin-top:10px; }
+  .q { min-width:0; margin:0; padding:0; border:0; }
+  .q-label { display:block; margin:0 0 4px !important; font-weight:500; }
+  .drop { position:relative; display:flex; align-items:center; justify-content:center; min-height:64px; padding:12px; border:1px dashed var(--input); border-radius:var(--radius); text-align:center; cursor:pointer; }
+  .drop.over, .drop:focus-within { border-color:var(--ring); background:var(--accent); }
+  .drop input { position:absolute; width:1px; height:1px; opacity:0; }
+  .files { list-style:none; margin:6px 0 0; padding:0; }
+  .files li { display:flex; flex-wrap:wrap; align-items:center; gap:6px; font-size:14px; }
+  .files .why { color:var(--destructive); }
+  .needs { list-style:none; margin:0; padding:0; }
+  .need { scroll-margin-top:8px; }
+  @media (min-width:701px) {
+    body { --pad:16px; font-size:20px; }
+    h1 { font-size:30px; }
+    .eyebrow, h2, .hint, .muted, .num, .add, .meta, .entry .where, #editor .where, #editor .moved, .session, #editor .copies, #ready-confirm p, #ready-says { font-size:16px; }
+    button { font-size:18px; }
+    .entry { font-size:20px; }
+    .bar { padding-left:max(12px, calc((100% - 700px) / 2 + 12px)); padding-right:max(12px, calc((100% - 700px) / 2 + 12px)); }
+    .bar > button, #ready > button { height:44px; }
+    #ready-confirm, #ready-says { right:max(12px, calc((100% - 700px) / 2 + 12px)); }
+    #ready-confirm { width:320px; }
+  }
+  /* Wide screen: every part and the bar share one 1160px column; a card's words and buttons sit left, and its
+     pictures sit right, side by side, as tall as the words (the kit sets the height). */
+  @media (min-width:900px) {
+    main { max-width:1160px; padding:0 24px; }
+    .bar { padding-left:max(24px, calc((100% - 1160px) / 2 + 24px)); padding-right:max(24px, calc((100% - 1160px) / 2 + 24px)); }
+    #ready-confirm, #ready-says { right:max(24px, calc((100% - 1160px) / 2 + 24px)); }
+    .item.has-view { display:grid; grid-template-columns:minmax(280px, 380px) minmax(0, 1fr); grid-template-rows:auto 1fr; align-items:start; }
+    .item.has-view > .words { grid-column:1; grid-row:1; padding:20px 20px 12px; }
+    .item.has-view > .verdict { grid-column:1; grid-row:2; padding:0 20px 20px; }
+    .item.has-view > .view { grid-column:2; grid-row:1 / span 2; display:flex; padding:0; border-left:1px solid var(--border); background:var(--muted); }
+    .stage { flex:1; min-width:0; gap:16px; padding:16px; align-items:center; }
+    .stage > .part:first-child { margin-left:auto; } .stage > .part:last-child { margin-right:auto; }
+    .part { width:auto; }
+    .part .clip { width:auto; height:auto; border:0; border-radius:0; background:none; }
+    .part[data-kind="draw"] .clip:not(.big) { border:1px solid var(--border); border-radius:var(--radius); background:var(--card); }
+    .part:is([data-kind="page"], [data-kind="live"]) .clip:not(.big) { border:1px solid var(--border); border-radius:12px; background:var(--card); }
+    .part figcaption { margin-top:6px; font-size:14px; }
+  }
+</style>
+<script>
+// The light and dark switch outside the app: inlined in the review page's <head>, served to private pages as /theme.js.
+// It applies the saved choice before paint, then adds the button; storage that is off still switches, unremembered.
+(function () {
+  var KEY = 'wongstack-theme';
+  var SVG = 'http://www.w3.org/2000/svg';
+  // lucide's moon and sun. The icon shows the look a tap switches to.
+  var ICONS = {
+    moon: [['path', { d: 'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z' }]],
+    sun: [['circle', { cx: '12', cy: '12', r: '4' }]].concat(['M12 2v2', 'M12 20v2', 'm4.93 4.93 1.41 1.41', 'm17.66 17.66 1.41 1.41', 'M2 12h2', 'M20 12h2', 'm6.34 17.66-1.41 1.41', 'm19.07 4.93-1.41 1.41'].map(function (d) { return ['path', { d: d }]; })),
+  };
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { saved = null; }
+  root.classList.toggle('dark', saved === 'dark');
+
+  function icon(name) {
+    var svg = document.createElementNS(SVG, 'svg');
+    var attrs = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' };
+    Object.keys(attrs).forEach(function (k) { svg.setAttribute(k, attrs[k]); });
+    ICONS[name].forEach(function (part) {
+      var el = document.createElementNS(SVG, part[0]);
+      Object.keys(part[1]).forEach(function (k) { el.setAttribute(k, part[1][k]); });
+      svg.appendChild(el);
+    });
+    return svg;
+  }
+
+  function draw(button) {
+    var dark = root.classList.contains('dark');
+    button.setAttribute('aria-label', dark ? 'Switch to light' : 'Switch to dark');
+    button.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    button.textContent = '';
+    button.appendChild(icon(dark ? 'sun' : 'moon'));
+  }
+
+  function mount() {
+    if (!document.body || document.querySelector('.theme-toggle')) return;
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'theme-toggle';
+    draw(button);
+    button.addEventListener('click', function () {
+      var dark = !root.classList.contains('dark');
+      root.classList.toggle('dark', dark);
+      try { localStorage.setItem(KEY, dark ? 'dark' : 'light'); } catch (e) { /* switched, not remembered */ }
+      draw(button);
+    });
+    var slot = document.querySelector('[data-theme-toggle]');
+    if (slot) slot.appendChild(button);
+    else document.body.insertBefore(button, document.body.firstChild);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
+  else mount();
+})();
+</script>
+</head>
+<body data-change="2026-11-11-modular-memory-plugin" data-own-back>
+<main>
+<header>
+  <p class="eyebrow">Review</p>
+  <h1>2026-11-11-modular-memory-plugin</h1>
+  <p class="muted"><span class="note-count">0 notes</span></p>
+  <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
+  <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
+  <p id="script-error" role="alert" hidden></p>
+</header>
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">WongStack's memory works, but its brain is welded to one database: the computer writes the database queries itself, and the server reads each query to guess what it may show. That is hard to keep safe, and it means Relay Everything's &quot;replaceable memory&quot; would need a second memory system. Splitting it into a plugin, a small store interface, and WongStack's own extras gives one memory brain any repo or agent can install, with the database swappable later. Relay Everything also just worked out <b>topics</b>, a better way for a chat to know what you work on; this change brings them in, built on the new plugin.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card has-view" id="item-1"><div class="words"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Memory is one plugin, in three layers.</b> The memory brain (facts, the save check, the start-of-chat summary, search, capture, the before-edit warnings) becomes a plugin that installs into Claude Code and Codex with its own hooks. It never knows which database is under it. It talks to a store through a short list of named requests. WongStack's own parts (roles from the Access page, its code areas, people pages, <code>/improve-code</code>) plug in on top and stay in WongStack. No real picture: this is a map of the parts, not a screen.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><div class="art pic sketch" data-note="item-1-picture-1" tabindex="0" style="width:46.154em"><svg viewBox="0 0 600 250" font-size="14">
+  <rect class="f-card s-line" x="10" y="10" width="580" height="60" rx="8"/>
+  <text x="300" y="36" text-anchor="middle">WongStack's extras</text>
+  <text class="f-muted" x="300" y="56" text-anchor="middle">roles · code areas · people pages · /improve-code</text>
+  <rect class="f-card s-fg" x="10" y="90" width="580" height="60" rx="8"/>
+  <text x="300" y="116" text-anchor="middle">Memory plugin (Claude Code, Codex)</text>
+  <text class="f-muted" x="300" y="136" text-anchor="middle">facts · capture · summary · search · topics · tidy</text>
+  <rect class="f-card s-line" x="10" y="170" width="280" height="70" rx="8"/>
+  <text x="150" y="198" text-anchor="middle">WongStack's store</text>
+  <text class="f-muted" x="150" y="220" text-anchor="middle">today's database, same data</text>
+  <rect class="s-subtle" x="310" y="170" width="280" height="70" rx="8" fill="none" stroke-dasharray="6 4"/>
+  <text class="f-subtle" x="450" y="198" text-anchor="middle">Later, not built now:</text>
+  <text class="f-subtle" x="450" y="220" text-anchor="middle">Relay space · a local file</text>
+</svg></div></div><figcaption>Drawing</figcaption></figure></div></div></li>
+<li class="item card has-view" id="item-2"><div class="words"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>The server decides who sees what, by its own rules.</b> Today your computer sends the server a database query and the server checks it. Now your computer asks by name (&quot;search for <i>deploy</i>&quot;, &quot;save these facts&quot;) and the server writes the query itself, with your role's limits built in. Nothing a computer sends can widen what it sees. Who sees what stays exactly as it is today.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><div class="art pic" data-note="item-2-picture-1" tabindex="0" style="width:45.308em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-sequence" viewBox="0 0 589 240" width="589" height="240" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="sequence"><g transform="translate(76.46,8)"><g class="pele-lifelines" fill="none" stroke="var(--_b)"><path class="pele-lifeline" data-id="C" d="M0,44V180"/><path class="pele-lifeline" data-id="S" d="M202.08,44V180"/></g><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge pele-message" data-id="i0"><path d="M0,87H195.08"/><path class="pele-marker" d="M202.08,87L194.08,90.36L194.08,83.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-message" data-id="i1"><path d="M202.08,101H224.08A6,6 0 0 1 230.08,107V117A6,6 0 0 1 224.08,123H209.08"/><path class="pele-marker" d="M202.08,123L210.08,119.64L210.08,126.36Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-message" data-id="i2"><path d="M202.08,160H7" stroke-dasharray="4 4"/><path class="pele-marker" d="M0,160L8,156.64L8,163.36Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="i0"><text x="101.04" y="77.4" text-anchor="middle">search &quot;deploy&quot; (as Ana)</text></g><g class="pele-edge-label" data-id="i1"><text x="365.89" y="116.9" text-anchor="middle">Ana is a member: shared facts + her own</text></g><g class="pele-edge-label" data-id="i2"><text x="101.04" y="150.4" text-anchor="middle">only the facts Ana may see</text></g></g><g class="pele-nodes"><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="C"><rect x="-68.46" y="180" width="136.93" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="207.6" text-anchor="middle">Your computer</text></g><g class="pele-node pele-actor pele-actor-participant pele-actor-footer" data-id="S"><rect x="132.75" y="180" width="138.67" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="202.08" y="207.6" text-anchor="middle">Memory server</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="C"><rect x="-68.46" y="0" width="136.93" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="27.6" text-anchor="middle">Your computer</text></g><g class="pele-node pele-actor pele-actor-participant" data-id="S"><rect x="132.75" y="0" width="138.67" height="44" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="202.08" y="27.6" text-anchor="middle">Memory server</text></g></g></g></svg></div></div><figcaption>Flow</figcaption></figure></div></div></li>
+<li class="item card" id="item-3"><div class="words"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Your memory stays as it is.</b> Same database, same facts, same history: nothing is copied, rewritten, or lost. The start-of-chat summary keeps its limits, the before-edit warning keeps its timing, a fact saved offline still waits on your computer, chats are still cleaned of keys before upload, and a fact is still never edited, only replaced.</div></div></div></li>
+<li class="item card has-view" id="item-4"><div class="words"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Updating is one sync.</b> ClaymooApp, WongOS, and Relay Everything get it with their next WongStack update. Claude Code loads the plugin from the repo with nothing to install. For Codex, the update installs the plugin on each computer once. A branch that has not taken the update yet shows its last saved summary and keeps new facts waiting on the computer until it does.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><pre class="art">
+<span class="ln" data-note="item-4-line-1" tabindex="0">/wong-sync ─▶ server takes named requests</span>
+<span class="ln" data-note="item-4-line-2" tabindex="0">           ─▶ Claude Code: plugin loads from repo</span>
+<span class="ln" data-note="item-4-line-3" tabindex="0">           ─▶ Codex: plugin installed once</span>
+<span class="ln" data-note="item-4-line-4" tabindex="0">old branch ─▶ last summary; facts wait, none lost</span></pre></div><figcaption>Drawing</figcaption></figure></div></div></li>
+<li class="item card has-view" id="item-5"><div class="words"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>Any repo adds memory by pasting one message.</b> You paste a short message into any AI tool: it names memory's setup guide on GitHub. The AI copies the memory folder into your repo. It then finds what memory needs and fills each gap: it connects to a memory server that already exists, or adds the server part to your own app, or, with no app, offers WongStack's Cloudflare setup. It asks before each step that costs money or makes something public. A check that comes with memory proves the server answers and keeps each role to what it may see. Then the AI saves the work in your repo and asks before it sends it anywhere. Until memory is set up, a new chat asks you once if you want to set it up now. It never starts setup without your yes. In a WongStack install, setup stops: memory already comes with each update.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><pre class="art">
+<span class="ln" data-note="item-5-line-1" tabindex="0">You paste:</span>
+<span class="ln" data-note="item-5-line-2" tabindex="0">  &quot;Add WongStack's memory to this project.</span>
+<span class="ln" data-note="item-5-line-3" tabindex="0">   Follow the setup guide at &lt;link&gt;&quot;</span>
+<span class="ln" data-note="item-5-line-4" tabindex="0">AI ─▶ copies the memory folder in</span>
+<span class="ln" data-note="item-5-line-5" tabindex="0">   ─▶ uses or builds a server (asks first)</span>
+<span class="ln" data-note="item-5-line-6" tabindex="0">   ─▶ runs memory's check</span>
+<span class="ln" data-note="item-5-line-7" tabindex="0">   ─▶ saves it; asks before sending it</span>
+<span class="ln" data-note="item-5-line-8" tabindex="0">Not set up yet? A new chat asks you once.</span></pre></div><figcaption>Drawing</figcaption></figure></div></div></li>
+<li class="item card has-view" id="item-6"><div class="words"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>Every repo holds memory as a plain folder, and updates touch only what it has.</b> WongStack keeps each module, such as memory, in its own folder, side by side. Each repo that gets memory, a full WongStack install or memory alone, gets a plain copy of that folder, so a branch runs its own copy. There is no plugin shop and nothing to install in Claude Code. Codex still needs one command on each computer, and a chat tells you the command when it is missing or old. Your repo's own parts, such as the file that connects memory to your server, stay outside the folder, so an update can replace the folder safely. A WongStack install updates memory with WongStack's update. A repo with memory alone updates by pasting another message: your own edits in the folder stay, and the update stops and tells you when an edit and the new version change the same line.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><pre class="art">
+<span class="ln" data-note="item-6-line-1" tabindex="0">WongStack (the source)</span>
+<span class="ln" data-note="item-6-line-2" tabindex="0">  memory folder, access folder (next)</span>
+<span class="ln" data-note="item-6-line-3" tabindex="0">Each repo</span>
+<span class="ln" data-note="item-6-line-4" tabindex="0">  memory folder      a plain copy</span>
+<span class="ln" data-note="item-6-line-5" tabindex="0">  its own parts      kept outside it</span>
+<span class="ln" data-note="item-6-line-6" tabindex="0">Update ─▶ only the module folders it has</span>
+<span class="ln" data-note="item-6-line-7" tabindex="0">       ─▶ keeps your own edits</span></pre></div><figcaption>Drawing</figcaption></figure></div></div></li>
+<li class="item card has-view" id="item-7"><div class="words"><span class="num">7</span><div class="body"><div class="text" data-note="item-7" tabindex="0"><b>A guide page shows how to build a module.</b> One wiki page holds the rules every module follows: one folder, its hooks inside it, a paste-in setup message, a chat start that asks first, setup that asks before it costs money, no list of what to install, and one test that installs the module alone into an empty repo. Memory is its worked example. The access module, next, follows the same page.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><pre class="art">
+<span class="ln" data-note="item-7-line-1" tabindex="0">How to build a module</span>
+<span class="ln" data-note="item-7-line-2" tabindex="0">  one folder, hooks inside</span>
+<span class="ln" data-note="item-7-line-3" tabindex="0">  paste-in setup, asks first</span>
+<span class="ln" data-note="item-7-line-4" tabindex="0">  reaches out only through one slot</span>
+<span class="ln" data-note="item-7-line-5" tabindex="0">  example: memory</span></pre></div><figcaption>Drawing</figcaption></figure></div></div></li>
+<li class="item card has-view" id="item-8"><div class="words"><span class="num">8</span><div class="body"><div class="text" data-note="item-8" tabindex="0"><b>Memory runs itself; <code>/save</code> and <code>/close</code> no longer touch it.</b> Memory already saves each chat's facts and open to-dos by itself. Now it starts that when a chat ends, not only at the next chat's start, and it keeps the chat's record (cleaned of keys) at that moment too. So <code>/save</code> and <code>/close</code> drop their memory steps: <code>/save</code> saves your work, and <code>/close</code> updates the wiki from the chat itself and closes. The wiki tidy moves into the plugin, so any repo with memory can tidy its pages from its facts.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><pre class="art">
+<span class="ln" data-note="item-8-line-1" tabindex="0">/save      ─▶ saves your work only</span>
+<span class="ln" data-note="item-8-line-2" tabindex="0">/close     ─▶ wiki from the chat, closes</span>
+<span class="ln" data-note="item-8-line-3" tabindex="0">chat ends  ─▶ memory keeps the record,</span>
+<span class="ln" data-note="item-8-line-4" tabindex="0">              writes facts and to-dos</span>
+<span class="ln" data-note="item-8-line-5" tabindex="0">tidy       ─▶ inside the memory plugin</span></pre></div><figcaption>Drawing</figcaption></figure></div></div></li>
+<li class="item card has-view" id="item-9"><div class="words"><span class="num">9</span><div class="body"><div class="text" data-note="item-9" tabindex="0"><b>A fact links back to where it came from.</b> Each fact carries links to its sources. In WongStack that is the chat it came from, as today. Later, Relay Everything's facts can link to a note, a chat message, or a day, with no change to how the plugin asks. Health, places, and notes stay in Relay Everything's own plugin; when you pull a topic there, that plugin adds the notes and chats with its tag beside memory's facts.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><pre class="art">
+<span class="ln" data-note="item-9-line-1" tabindex="0">Fact     Battery stays 40 mAh.  #battery</span>
+<span class="ln" data-note="item-9-line-2" tabindex="0">Sources  WongStack: session:claude:7f3a</span>
+<span class="ln" data-note="item-9-line-3" tabindex="0">         Relay:     relay:note/91c2</span>
+<span class="ln" data-note="item-9-line-4" tabindex="0">Topic pull in Relay:</span>
+<span class="ln" data-note="item-9-line-5" tabindex="0">  page · facts (memory) · notes, chats (Relay plugin)</span></pre></div><figcaption>Drawing</figcaption></figure></div></div></li>
+<li class="item card has-view" id="item-10"><div class="words"><span class="num">10</span><div class="body"><div class="text" data-note="item-10" tabindex="0"><b>Every page is a topic, not only code.</b> Each company knowledge page is a topic, named by its place: <code>people/ada</code>, <code>ads</code>, <code>customers/acme</code>. A fact about Ada carries <code>people/ada</code>, as a fact about the Worker carries <code>worker</code>. A topic's one-line summary is its page's first sentence, so no second copy goes stale.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><pre class="art">
+<span class="ln" data-note="item-10-line-1" tabindex="0">Topic          Its page</span>
+<span class="ln" data-note="item-10-line-2" tabindex="0">people/ada     knowledge/people/ada.md</span>
+<span class="ln" data-note="item-10-line-3" tabindex="0">ads            knowledge/ads.md</span>
+<span class="ln" data-note="item-10-line-4" tabindex="0">worker         wiki/stack/core-stack.md</span></pre></div><figcaption>Drawing</figcaption></figure></div></div></li>
+<li class="item card has-view" id="item-11"><div class="words"><span class="num">11</span><div class="body"><div class="text" data-note="item-11" tabindex="0"><b>A chat starts with your topics.</b> The summary at chat start opens with your company topics, one line each, and one line of code topics, so the AI knows what it can look into before you ask.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><pre class="art">
+<span class="ln" data-note="item-11-line-1" tabindex="0">## Topics</span>
+<span class="ln" data-note="item-11-line-2" tabindex="0">people   Who is who, with their emails</span>
+<span class="ln" data-note="item-11-line-3" tabindex="0">ads      How we run ads, and what works</span>
+<span class="ln" data-note="item-11-line-4" tabindex="0">Code: worker, memory, plan, wiki, …</span></pre></div><figcaption>Drawing</figcaption></figure></div></div></li>
+<li class="item card has-view" id="item-12"><div class="words"><span class="num">12</span><div class="body"><div class="text" data-note="item-12" tabindex="0"><b>Your words bring in the topic they name.</b> Before the AI reads your message, your computer looks for topic names in it: a fast word match, no search, no network. A clear match adds that topic's summary; a near match only its name; at most three, each once per chat.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><pre class="art">
+<span class="ln" data-note="item-12-line-1" tabindex="0">You: what did Ada say about the ads?</span>
+<span class="ln" data-note="item-12-line-2" tabindex="0">(added) Topic people/ada: Ada runs our</span>
+<span class="ln" data-note="item-12-line-3" tabindex="0">        ads and wants weekly numbers.</span>
+<span class="ln" data-note="item-12-line-4" tabindex="0">        Topic ads: How we run ads.</span></pre></div><figcaption>Drawing</figcaption></figure></div></div></li>
+<li class="item card has-view" id="item-13"><div class="words"><span class="num">13</span><div class="body"><div class="text" data-note="item-13" tabindex="0"><b>One step pulls a topic, and pages grow from their facts.</b> The lookup you already have for code folders now takes any topic: its page, the pages around it, and its newest facts. The daily wiki tidy files facts onto their topic's page, makes a page for a new subject, and keeps each page's first sentence a true summary.</div></div></div><div class="view"><div class="stage"><figure class="part" data-kind="draw"><div class="clip"><div class="art pic" data-note="item-13-picture-1" tabindex="0" style="width:45.308em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 589 64" width="589" height="64" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_C_F_0"><path d="M77.79,32L118.79,32"/><path class="pele-marker" d="M125.79,32L117.79,35.36L117.79,28.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_F_T_0"><path d="M192.91,32L233.91,32"/><path class="pele-marker" d="M240.91,32L232.91,35.36L232.91,28.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_T_P_0"><path d="M307.14,32L348.14,32"/><path class="pele-marker" d="M355.14,32L347.14,35.36L347.14,28.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_P_S_0"><path d="M428.5,32L469.5,32"/><path class="pele-marker" d="M476.5,32L468.5,35.36L468.5,28.64Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect" data-id="C" transform="translate(42.9,32)"><rect x="-34.9" y="-24" width="69.79" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Chat</text></g><g class="pele-node pele-shape-rect" data-id="F" transform="translate(159.35,32)"><rect x="-33.56" y="-24" width="67.12" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Fact</text></g><g class="pele-node pele-shape-rect" data-id="T" transform="translate(274.02,32)"><rect x="-33.11" y="-24" width="66.22" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Tidy</text></g><g class="pele-node pele-shape-rect" data-id="P" transform="translate(391.82,32)"><rect x="-36.68" y="-24" width="73.36" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Page</text></g><g class="pele-node pele-shape-rect" data-id="S" transform="translate(528.29,32)"><rect x="-51.79" y="-24" width="103.58" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Next chat</text></g></g></svg></div></div><figcaption>Flow</figcaption></figure></div></div></li>
+</ol>
+<p class="aside"><b>Not in this change:</b> the access plugin (sign-in, roles, the sign-in warning), which is the next plan, and which WongStack's memory sign-in then uses; health, places, notes, and <i>around a moment</i>, which stay in Relay Everything's own plugin; the Relay Everything store and the one-person local file (the interface fits them; nobody builds them yet), a memory search on each message, meaning-based search, a topic screen in the app, and Relay's shapeable columns and per-person web. <b>Breaking:</b> an installed repo's memory server and its computers must update together; a branch that has not updated reads only its last saved summary until it does.</p>
+
+</section>
+<section id="needs" aria-labelledby="needs-h"><h2 id="needs-h">What the build needs</h2>
+<ol class="needs">
+<li class="need card" id="need-1" data-need="none"><p><b>Nothing.</b></p></li>
+</ol>
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked how the switch from raw queries to named requests should happen → chose a clean switch: the server takes only named requests once the update is live; a branch not yet updated reads its cached summary and spools writes until it updates.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked how Codex gets the plugin → chose that <code>/wong-sync</code> and setup install it on each computer, and the memory hooks leave the repo's Codex settings.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked (in the topics chat) which parts of Relay Everything's memory WongStack should take → chose topics for everything, the topic list at chat start, the topic match on each message, and filling topic pages from facts; folded into this plan at Matthew's request.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked (in the topics chat) where topic pages live → chose both, by kind: company topics in company knowledge, code and process topics in the wiki.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked whether Relay Everything's health, notes, and places belong in the memory plugin or apart, and how the plan should prepare → chose two plugins: they stay in Relay Everything's own plugin; facts get source links now, filled in WongStack from the chat each fact already records, and Relay's plugin adds its notes and chats to a topic pull through the profile.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked how ClaymooApp, WongOS, and Relay Everything get the memory plugin → chose to install from WongStack's plugin shop; refined by the next entry.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked, after finding that 63 WongStack skill files run the memory tool from its repo folder, how WongStack installs get memory → chose with the stack: each WongStack update brings it, so the skills and memory never differ in version; the shop serves any repo that wants memory alone.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked whether plugins get their own repos → chose that Matthew's own plugins live in WongStack, one shop; a plugin can move later with a one-line shop change (<code>git-subdir</code> source), and its install name stays.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked where the access plugin is planned → chose its own plan, next; this plan leaves its slot in the profile's <code>connect</code>.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked what setup does in a repo with no memory server → chose to build it into the repo's own app, offer WongStack's Cloudflare setup when there is no app, and ask before each step that costs money or makes something public.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked whether setup can install the plugin itself → yes: setup runs <code>claude plugin marketplace add</code> and <code>claude plugin install</code> with <code>--scope project</code> by default, local on request, never user scope, because each repo needs its own profile.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-10</p>Matthew asked that <code>/dream-memory</code> become part of the memory plugin, and that <code>/save</code> and <code>/close</code> stop using memory, as old steps → the plugin's capture is the one writer of a chat's facts; it now also starts when a chat ends and keeps the transcript then, which is the one job <code>/close</code> did that capture did not.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: WongStack scripts keep importing the plugin's small generic helpers (<code>lib/cli.mjs</code>, <code>primary-root.mjs</code>, <code>machine-id.mjs</code>, <code>parseEnv</code>, 106 lines), because the helpers ship with the stack and a second copy would go stale; <code>/save</code> and <code>/close</code> still call no memory command.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: the tidy reaches WongStack's own pages to check (specs, plans) and its publish step through one optional profile part, <code>tidy</code>, because the plugin must work in a repo with no OpenSpec or company knowledge.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: the plugin asks for no install settings (<code>userConfig</code>), because the profile the setup writes already holds the store's address and sign-in, and one place is smaller than two.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: the backend check ships in the plugin (<code>store/contract.mjs</code>) and WongStack's own tests run it, because a new backend needs the same proof WongStack's does, and one suite cannot drift from another.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked whether the plugin should sit inside its skill folder or in a plugins folder → Matthew wanted all plugins in one place, not spread over the repo: each plugin lives in <code>.agents/plugins/&lt;name&gt;/</code>, beside the shop list, and access joins it there.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-10</p>Asked, after the build found that <code>/wong-sync</code> and <code>/wong-setup</code> skip a link to a folder, whether to keep the plugins in one folder or leave memory in its skill folder → chose one folder: the update and setup tools learn to make this one named link.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-11</p>Asked, after Relay Everything's plan chose to copy memory into its own plugin rather than install it from the shop, which shape this change ships → first chose modular with no plugin, then, after seeing what an install brings and what setup does, chose to ship as built: the plugin, the shop, and the setup guide. Relay copies the plugin folder.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-11</p>Asked whether setup can build the server and recommend Cloudflare → it does, but with no app it offers the whole WongStack install; a memory-only Cloudflare server that setup creates is its own next plan.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: the memory skill folder becomes a link to <code>.agents/plugins/memory/</code>, because Claude Code loads a <code>.claude/skills/&lt;name&gt;/</code> folder holding <code>.claude-plugin/</code> as <code>&lt;name&gt;@skills-dir</code> straight from the checkout (checked with Claude Code 2.1.310), so a branch runs its own memory code and the 63 files that run <code>memory.mjs</code> keep their path; the build confirms the link is followed.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: WongStack's extras live in a new <code>.agents/memory/</code> folder outside the plugin, because a repo that installs the plugin must not get WongStack's database code, and generic helpers the core itself uses (<code>lib/cli.mjs</code>, <code>primary-root.mjs</code>, <code>machine-id.mjs</code>) stay in the plugin, where 58 WongStack scripts already import them.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: the interface is one JavaScript object of named operations with one wire format (<code>POST &lt;url&gt;/v2/&lt;operation&gt;</code>, JSON), and the core ships both its HTTP client and the <code>serve</code> dispatcher, because today's store is remote and a later Durable Object backend can reuse the same wire, while a local-file backend implements the object directly.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: the repo plugs in through one profile module the core loads from <code>.agents/memory/profile.mjs</code>, because one seam is smaller than separate config files, and <code>.agents/</code> is the cross-agent folder, not a WongStack name.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: admin store jobs (migrations, moving notes to people, keys, schedule sign-ins) stay outside the interface in WongStack's D1 admin script, because they act on one backend's tables and another backend would do them differently.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: no database migration, because the operations read and write today's tables as they are.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: one change and one major release, topics built last on the new seam, because topics need the profile seam and splitting would build the seam twice.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: &quot;fewer lines&quot; is measured on the split alone: plugin plus extras plus server, without topics, below today's 4,236 lines of memory scripts and Worker, because topics are new behaviour.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed: the topics decisions logged in the <code>topics-in-memory</code> draft carry over unchanged (summary from a page's first sentence, at most 8 company lines and one code line, clear and near match rules, skill names never match, once per chat, upkeep tags by path, the small tidy files pages, threads still need a verb or area tag), because Matthew approved them there; the design restates each where it applies.</li>
+<li class="decision card" id="decision-30" data-note="decision-30" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): the server's sign-in code sits in <code>.agents/memory/d1/store.mjs</code> beside the statements, because the Worker bundles no Node code and <code>connect.mjs</code> reads files.</li>
+<li class="decision card" id="decision-31" data-note="decision-31" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): the profile also has <code>commands</code> (WongStack's admin jobs, so <code>memory.mjs migrate</code> and <code>member</code> keep working), <code>lookup</code> is <code>{ named, before, after }</code>, and topics carry <code>hub</code>; a write may carry its <code>session</code>, and <code>dream</code> is a step tag.</li>
+<li class="decision card" id="decision-32" data-note="decision-32" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): <code>team.json</code> is gone, because the caller's role comes back on every answer's header; <code>putSession</code> takes <code>host</code>; the admin's <code>stats</code> counts every fact; only a non-owner gets the &quot;only its owner&quot; transcript answer.</li>
+<li class="decision card" id="decision-33" data-note="decision-33" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): search words with no word to match filter nothing, so the gate sends such a read with limit 0; the digest cache refresh after a write is its own request.</li>
+<li class="decision card" id="decision-34" data-note="decision-34" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): an extract task binds to the store's <code>identity</code> (the person's sign-in subject, else the credential), set by WongStack's <code>connect</code>, else the git email, so a new key refuses an old task as before.</li>
+<li class="decision card" id="decision-35" data-note="decision-35" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): the tag sync covers every topic, code and company; the session end marks the chat ended, so the next capture takes it at once.</li>
+<li class="decision card" id="decision-36" data-note="decision-36" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): <code>profile.sessionStart</code> returns lines; the <code>memory@wongstack</code> warning reads <code>enabledPlugins</code> in the repo's and the person's Claude Code settings; the Codex line compares <code>.codex-plugin/plugin.json</code> versions, starting at <code>1.0.0</code>.</li>
+<li class="decision card" id="decision-37" data-note="decision-37" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): every memory path outside <code>/_memory/v2/</code> answers 404; a future fact date becomes the store's time for every caller, the admin too.</li>
+<li class="decision card" id="decision-38" data-note="decision-38" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): the payload names the link in a <code>core.links</code> map; the preflight reports a real folder at the link's place as missing; <code>/wong-sync</code> runs the Codex install from the source checkout and <code>/wong-setup</code> from the target's own copy.</li>
+<li class="decision card" id="decision-39" data-note="decision-39" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): the contract's <code>makeStore()</code> returns <code>{ as(caller) }</code> over one set of data, as <code>references/setup.md</code> shows, and does not test WongStack's rule that a source names only its own session.</li>
+<li class="decision card" id="decision-40" data-note="decision-40" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): topic lines run heading, company lines, <code>Code:</code> line, pull line, in 1 KB; skill names are <code>.claude/skills/</code> entries and the profile's step keys; <code>/dream</code> and <code>/dream-memory</code> both mean <code>/memory:dream-memory</code>.</li>
+<li class="decision card" id="decision-41" data-note="decision-41" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): <code>measure-context.mjs</code> counts a linked skill folder as the skill it serves, so the memory skill stays in the instruction total.</li>
+<li class="decision card" id="decision-42" data-note="decision-42" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-10</p>Check: <code>scripts/fixtures/context-baseline.json</code> drops the <code>facts-save</code> route, because <code>/save</code> no longer has that route and its file is deleted.</li>
+<li class="decision card" id="decision-43" data-note="decision-43" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-10</p>Check: test cases deleted with the SQL route they tested, each replaced by an operation case: the SQL bypass loops (<code>readRefusal</code>, shadow names, <code>facts_fts</code> reads, <code>__mem_</code>), the raw batch rollback (now: a write refused part-way leaves no row), <code>LEGACY_FTS_HITS</code>, <code>mayTouch</code> and object paths (a caller names a fact, never a key), the advertised Content-Length 413 (the store checks the real size), the Cloudflare batch shape (now: a body that is not JSON answers 400), <code>personalFilter</code> (now the role cases), &quot;the admin reads every run&quot; (now: each digest shows only its own run), <code>consolidationState</code> and <code>WRITES</code> (now through <code>digest</code> and <code>putRun</code>), and the team half of the brief count, since no client-side team mode is left.</li>
+<li class="decision card" id="decision-44" data-note="decision-44" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-10</p>Check: <code>.github/scripts/wiki-links.mjs</code> imports the wiki check from its new place, <code>.agents/memory/lib/links.mjs</code>, because the file moved; the check is unchanged.</li>
+<li class="decision card" id="decision-45" data-note="decision-45" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-10</p>Check: <code>.github/workflows/qmd-retrieval.yml</code> watches <code>.agents/plugins/memory/**</code> in place of <code>.agents/skills/memory/**</code>, because that path is now a link and Git sees no change under it.</li>
+<li class="decision card" id="decision-46" data-note="decision-46" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-10</p>Check: <code>.github/workflows/payload.yml</code>, <code>scripts/payload-checks.mjs</code>, and <code>scripts/tests/.c8rc.json</code> lint and cover <code>.agents/memory/</code> and the plugin's <code>store/</code> in place of the deleted <code>worker/</code> folder, because the store and the WongStack extras moved there; nothing leaves the lint or coverage.</li>
+<li class="decision card" id="decision-47" data-note="decision-47" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-10</p>Check: <code>scripts/tests/memory-areas.test.mjs</code> accepts a spec doc an open change adds under <code>openspec/changes/*/specs/</code>, because an area must name the change's new spec before <code>/ship</code> archives it to <code>openspec/specs/</code>.</li>
+<li class="decision card" id="decision-48" data-note="decision-48" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-10</p>Check: <code>scripts/tests/pickup.test.mjs</code> expects 19 node hooks in <code>.agents/settings.json</code> and <code>.agents/hooks.json</code>, not 23, because the four memory hooks moved into the plugin's own hook files; the copy now keeps links as links, so the test no longer writes through a link into this checkout.</li>
+<li class="decision card" id="decision-49" data-note="decision-49" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): the plugin's Claude Code hooks start with the same <code>PATH=&quot;$HOME/.local/bin:$PATH&quot;</code> as the repo's hooks, so a Node in the user folder runs them; <code>tools-on-path.test.mjs</code> now counts them, and the Codex file still sets no PATH.</li>
+<li class="decision card" id="decision-50" data-note="decision-50" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-10</p>Assumed (build): <code>verify-memory-areas.mjs</code> gives its fixture repo the source's profile through <code>WONG_MEMORY_PROFILE</code>, because the areas map now lives in the profile, not the plugin.</li>
+<li class="decision card" id="decision-51" data-note="decision-51" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the §7 line count leaves out <code>store/contract.mjs</code>, because it is a <code>node:test</code> suite, as the tests are. The split counts 4,219 lines (4,468 with the contract, before the cuts), below 4,236.</li>
+<li class="decision card" id="decision-52" data-note="decision-52" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the setup run in a scratch app (task 8.4) showed that a shop install's profile and app can not import from the plugin's folder, which sits outside the repo and moves with each update. <code>openStore</code> now makes the <code>httpStore</code> when <code>connect</code> gives only <code>{ url, headers }</code>, and <code>references/setup.md</code> copies <code>store/interface.mjs</code> into the app and <code>store/contract.mjs</code> beside the check; a test in <code>memory-interface.test.mjs</code> covers the new profile shape.</li>
+<li class="decision card" id="decision-53" data-note="decision-53" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-11</p>Asked whether modules need one guide page, and what it owns → chose a new page, <code>wiki/maintaining/adding-a-module.md</code>, linked from <code>wiki/maintaining/README.md</code> and <code>adding-a-skill.md</code>, with memory as its linked example, not copied. It owns the module rules: one folder per module in the source; the repo's own parts outside it; hooks inside it; a README that leads with a paste-in install message; a start-of-chat check that asks first, once per chat; setup that asks before each step that costs money or makes something public and ends with the check; no dependency list and no installed-modules file; reaching outside only through a named slot; installed = the module folders in the skills folder; one test that installs each module alone into an empty repo.</li>
+<li class="decision card" id="decision-54" data-note="decision-54" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-11</p>Asked how an install holds a module → chose a real folder in every install, a full WongStack install or memory alone: only the WongStack source keeps <code>.agents/plugins/&lt;name&gt;/</code> and the <code>.agents/skills/memory → ../plugins/memory</code> link. The payload maps the source path to the install path, which replaces task 1.6's managed link; every other folder link is still refused.</li>
+<li class="decision card" id="decision-55" data-note="decision-55" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-11</p>Asked how a repo with no WongStack gets memory → chose a paste-in message that names <code>references/setup.md</code> by its GitHub address: setup copies the module folder into the repo as a real folder, writes the repo's own parts, fills each gap as before (an existing server, else the server part in the repo's app, else an offer of Cloudflare), runs the check, commits, and asks before any push. In a full WongStack install it still stops.</li>
+<li class="decision card" id="decision-56" data-note="decision-56" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the plugin shop stops being an install path: no Claude Code shop install, no <code>memory@wongstack</code> Claude Code name, and no &quot;never user scope, <code>--scope project</code>&quot; steps; only the list Codex needs stays, because a copy in the repo already reaches each teammate through git and gives each branch its own copy, which was all the shop's project scope gave.</li>
+<li class="decision card" id="decision-57" data-note="decision-57" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-11</p>Asked how Codex gets memory in an install repo, which needs a plugin install once per computer → chose to test option A first: a root <code>.claude-plugin/marketplace.json</code> entry that points at the skill folder, then <code>codex plugin marketplace add &lt;checkout&gt;</code> and <code>codex plugin add</code>, with no plugins folder; option B (hooks in the repo's own Codex hooks file) only if A fails, because B puts memory's hooks in the repo's shared settings. Chat start names the one command when the plugin is missing or older. The build records the result in design §5 and §8.</li>
+<li class="decision card" id="decision-58" data-note="decision-58" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: an update touches only the module folders a repo has. A full WongStack install updates through <code>/wong-sync</code> with the path mapping. A repo with memory alone updates through an Update section in <code>references/setup.md</code>, reached by a paste-in message: it takes the folder's <code>plugin.json</code> version as the merge base, three-way merges each file against the newest version from GitHub (<code>git merge-file</code>), keeps the repo's local edits, and on a conflict stops and writes nothing; because the update must keep a repo's own edits, the version already sits in the folder, and one pasted message is the same path as the install.</li>
+<li class="decision card" id="decision-59" data-note="decision-59" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-11</p>Asked how memory's missing-store line should read → chose one short line that has the AI ask the person first (&quot;Memory isn't set up yet. Set it up now?&quot;), once per chat, and never start setup on its own.</li>
+<li class="decision card" id="decision-60" data-note="decision-60" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: each change to a module folder raises the version in both of its <code>plugin.json</code> files, and a payload check fails when it does not, because the update finds its merge base by that version, and two different copies under one version would make the merge read new lines as local edits.</li>
+<li class="decision card" id="decision-61" data-note="decision-61" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: Codex's list is the root <code>.claude-plugin/marketplace.json</code> alone, its <code>memory</code> entry at <code>./.agents/skills/memory</code>, the same text in the source and every install; <code>.agents/plugins/marketplace.json</code> goes, because Codex reads either file and an install must have no plugins folder. In a repo with memory alone, setup adds the entry to the repo's own list when it has one, and the chat-start line reads the list's name.</li>
+<li class="decision card" id="decision-62" data-note="decision-62" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: when the Codex plugin is missing, no plugin hook runs to say so; in a WongStack install the stack's own Codex start hook names the command, and in a repo with memory alone setup adds one line to the repo's <code>AGENTS.md</code>, because <code>AGENTS.md</code> is the repo's own part and option B is the only other place that runs.</li>
+<li class="decision card" id="decision-63" data-note="decision-63" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the sync writes each shipped Markdown link into <code>.agents/plugins/&lt;name&gt;/</code> at its install path, <code>.agents/skills/&lt;name&gt;/</code>, on the old and new copies alike, and <code>check-payload-links.mjs</code> resolves it there, because a link that names <code>.agents/plugins/</code> breaks in every install, and a link through the source's skill link breaks on GitHub.</li>
+<li class="decision card" id="decision-64" data-note="decision-64" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: an app's server part imports <code>store/interface.mjs</code> from the memory folder, now in the repo, and copies it only when the app's build can not reach outside its own folder, because an update then brings the server part's <code>serve</code> with the folder; this replaces the copy step of the 2026-11-11 setup-run entry.</li>
+<li class="decision card" id="decision-65" data-note="decision-65" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the &quot;<code>memory@wongstack</code> is enabled&quot; warning goes, because with no Claude Code shop install nothing can run memory's hooks twice.</li>
+<li class="decision card" id="decision-66" data-note="decision-66" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the module guide is docs and adds no capability, because each promise it states for memory sits in <code>memory-plugin</code>; that spec gains &quot;An install updates only the modules it has&quot;, which a repo with memory alone relies on to keep its edits.</li>
+<li class="decision card" id="decision-67" data-note="decision-67" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): Codex option A works (task 9.1): a root <code>.claude-plugin/marketplace.json</code> entry at <code>./.agents/skills/memory</code> installs from a real folder and through the source's link, and its hooks run after trust and load the repo's profile. Option B (hooks in the repo's own Codex hooks file) is not built.</li>
+<li class="decision card" id="decision-68" data-note="decision-68" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the stack's Codex start hook (<code>codex-plugin.mjs --check</code>) reads only <code>$CODEX_HOME/config.toml</code> for a <code>[plugins.&quot;memory@&lt;list name&gt;&quot;]</code> table, because that is what <code>codex plugin add</code> wrote in task 9.1, and a hook must not run Codex.</li>
+<li class="decision card" id="decision-69" data-note="decision-69" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the module version check passes a module that <code>main</code> does not have yet, because it has no earlier version to rise from; memory still goes to 1.1.0.</li>
+<li class="decision card" id="decision-70" data-note="decision-70" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the setup guide was cut to fit the skill-text budget: its profile example names only <code>connect</code> and <code>topics</code> and links the wiki's profile section for the rest, because the guide tells the AI to add the other parts only when the repo needs them.</li>
+<li class="decision card" id="decision-71" data-note="decision-71" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the §7 count leaves out <code>.agents/memory/topics.mjs</code> with the other topic files, as the 4,219 count did. After group 9 the split counts 4,226 lines (4,254 with that file) after the review fixes, below 4,236.</li>
+<li class="decision card" id="decision-72" data-note="decision-72" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (ship): the live check (old task 8.5) runs after the merge, not as a task, because the archive needs every task ticked first. <code>/ship</code> opens a new Claude Code chat and a Codex chat after the deploy, checks the digest, a before-edit warning, a topic match, a <code>put-facts</code>, and that <code>memory.mjs stats</code> matches the 8.3 counts, and reports the result.</li>
+<li class="decision card" id="decision-73" data-note="decision-73" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): setup in a repo with memory alone copies the folder to <code>.claude/skills/memory/</code>, not <code>.agents/skills/memory/</code>, because in task 9.14 Claude Code 2.1.322 loaded <code>memory@skills-dir</code> from <code>.claude/skills/</code> and not from a real <code>.agents/skills/memory/</code> in a repo with no <code>.claude → .agents</code> link. A WongStack install keeps <code>.agents/skills/memory/</code>, which its <code>.claude</code> link makes the same folder; Codex's list entry names the folder setup used.</li>
+<li class="decision card" id="decision-74" data-note="decision-74" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): in an empty repo with no store, the simplest local answer to the Cloudflare offer is no; the guide now deletes the copied folder and stops, so the repo is unchanged and each chat still asks once.</li>
+<li class="decision card" id="decision-75" data-note="decision-75" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): task 9.14's redo found two gaps in the guide. <code>/wong-setup</code> installs only into an empty folder with no commits, so the copied memory folder made it refuse; the guide now deletes the copy before the Cloudflare offer, and stops when the repo is not empty. A memory server reached by <code>connect</code> has no fresh store for <code>checkStore</code>, so there the check is a chat start that shows the digest. The guide asks the person for a server's address, because an empty repo holds none.</li>
+<li class="decision card" id="decision-76" data-note="decision-76" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the task 9.14 app's store is a SQLite port of the stand-in store, signed in by a hashed member key from the ignored <code>.env</code>; the guide now links the stand-in as the place to start and says what <code>serve</code>'s <code>prefix</code> and <code>store</code> are, and an update reruns Codex's two commands when Codex is present.</li>
+<li class="decision card" id="decision-77" data-note="decision-77" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-11</p>Archive checkpoint: archived for <code>/ship</code>; after <code>main</code> came in, the new spec got its Purpose and the setup guide lost four words to stay inside the instruction budget.</li>
+<li class="decision card" id="decision-78" data-note="decision-78" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-11</p>Check: <code>.agents/verification/journeys/mini-apps/reading-down-a-long-page.json</code> drops its Inbox half and keeps the Access half, because the Inbox no longer has an <i>Add task</i> list since the week board was deleted, so it is shorter than a phone screen and the old step never finds its text; the Access page still proves the top bar stays at the top while the page scrolls.</li>
+<li class="decision card" id="decision-79" data-note="decision-79" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-11</p>Archive checkpoint: the preview check kept two catalogue-search checks and re-recorded the long-page check; the result is on the pull request.</li>
+</ol>
+</section>
+<section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
+<p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
+<ul class="note-list" id="note-list"></ul>
+</section>
+</main>
+<button type="button" id="chip" hidden>Add note</button>
+<div id="editor" role="dialog" aria-labelledby="editor-where" hidden>
+  <p class="where" id="editor-where"></p>
+  <p class="moved">Possibly moved: its text changed, so this note is not attached.</p>
+  <textarea aria-label="Note text" rows="3" placeholder="A question or a change"></textarea>
+  <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
+  <p class="copies">Saving a note copies all your notes.</p>
+  <p class="session" hidden>Notes last for this session only.</p>
+</div>
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Full screen" hidden>
+  <div class="vtop"><div class="names" role="tablist" aria-label="Pictures"></div><button type="button" class="primary" data-close>✕ Close</button></div>
+  <div class="vspace"></div>
+  <div class="vfoot"><p class="vhint"></p>
+    <span class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button></span>
+    <span class="sizes" role="group" aria-label="Width"><button type="button" data-size="0" aria-pressed="true">Phone</button><button type="button" data-size="1" aria-pressed="false">Computer</button></span>
+    <a class="try" target="_blank" rel="noopener noreferrer" hidden>Try it ↗</a></div>
+</div>
+<div class="bar" data-busy="false"><button type="button" class="primary" id="copy"><span class="spinner" hidden aria-hidden="true"></span><span id="copy-label">Copy notes</span></button>
+  <div id="ready" data-actions="[{&quot;name&quot;:&quot;build&quot;,&quot;label&quot;:&quot;Build it&quot;,&quot;done&quot;:&quot;Asked the chat to build.&quot;},{&quot;name&quot;:&quot;publish&quot;,&quot;label&quot;:&quot;Build and publish&quot;,&quot;done&quot;:&quot;Asked the chat to build and publish.&quot;,&quot;confirm&quot;:{&quot;say&quot;:&quot;Goes live, can't be undone.&quot;,&quot;yes&quot;:&quot;Yes, publish&quot;,&quot;ask&quot;:&quot;Build and publish? This goes live and can't be undone.&quot;}}]" hidden>
+    <div id="ready-confirm" role="group" hidden><p></p><div class="row"><button type="button" class="primary" data-ready="yes"><span class="spinner" hidden aria-hidden="true"></span><span></span></button><button type="button" data-ready="cancel">Cancel</button></div></div>
+  </div>
+  <p id="ready-says" role="status" aria-live="polite" hidden><span class="spinner" hidden aria-hidden="true"></span><span id="ready-message"></span></p>
+</div>
+<div id="toast" role="status"></div>
+<textarea id="copybuf" aria-hidden="true" tabindex="-1" readonly></textarea>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  window.addEventListener('error', function (e) {
+    // A browser notice that a resize watcher waited a frame is no script error.
+    if (/ResizeObserver loop/.test(e.message)) return;
+    $('script-error').hidden = false;
+    $('script-error').textContent = 'Review script error: ' + e.message + ' (line ' + e.lineno + ')';
+  });
+  const root = document.documentElement;
+  root.classList.add('js');
+  const CHANGE = document.body.getAttribute('data-change');
+  const KEY = 'wong-review3:' + CHANGE;
+  // A preview page shows a finished build: its words name the preview. A review page of other work names its cards.
+  const PREVIEW = document.body.getAttribute('data-kind') === 'preview', NAME = PREVIEW ? CHANGE.replace(/-preview$/, '') : CHANGE;
+  const REVIEW = document.body.getAttribute('data-kind') === 'review', NOUN = REVIEW ? 'Card' : 'Change', PAGE = REVIEW ? 'page' : 'plan';
+  if (PREVIEW) {
+    document.title = 'Preview · ' + NAME;
+    document.querySelector('.eyebrow').textContent = NAME;
+    document.querySelector('h1').textContent = 'Built: look, then publish?';
+    document.querySelector('.hint .lead').textContent = 'Tap a picture to see it full screen, then tap it to note it.';
+    document.querySelector('.hint .tail').textContent = '';
+  }
+  if (REVIEW) document.querySelector('.hint .lead').textContent = 'Tap OK or Note on each card, or select words to note them.';
+  const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
+  const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
+  const viewer = $('viewer');
+  const all = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
+  const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+
+  // ── storage: a refused store keeps notes for this session ──
+  let store = null, data = { notes: [], drafts: {}, ok: {}, files: {} };
+  // A note on words keeps its quote; a note on a picture spot keeps the picture, the spot in percent, and its name.
+  const EXTRA = { quote: 'string', k: 'number', x: 'number', y: 'number', on: 'string' };
+  const ok = function (r, id) {
+    return r && typeof r.label === 'string' && typeof r.text === 'string' && /^[\w-]+$/.test(id)
+      && Object.keys(EXTRA).every(function (f) { return r[f] === undefined || typeof r[f] === EXTRA[f]; });
+  };
+  function extraOf(rec) {
+    const x = {};
+    Object.keys(EXTRA).forEach(function (f) { if (rec && rec[f] !== undefined) x[f] = rec[f]; });
+    return x;
+  }
+  const QID = /^need-\d+-q-\d+$/;
+  try { store = window.localStorage; store.getItem(KEY); } catch (e) { store = null; }
+  function load(text) {
+    try {
+      const saved = JSON.parse(text || 'null');
+      if (saved && Array.isArray(saved.notes)) data.notes = saved.notes.filter(function (n) { return ok(n, n && n.id); });
+      if (saved && saved.drafts) Object.keys(saved.drafts).forEach(function (id) { if (ok(saved.drafts[id], id)) data.drafts[id] = saved.drafts[id]; });
+      if (saved && saved.ok && typeof saved.ok === 'object') {
+        data.ok = {};
+        Object.keys(saved.ok).forEach(function (id) { if (/^item-\d+$/.test(id) && (saved.ok[id] === true || saved.ok[id] === 'sent')) data.ok[id] = saved.ok[id]; });
+      }
+      const kept = function (name, fits) {
+        if (!saved || !saved[name] || typeof saved[name] !== 'object') return;
+        data[name] = {};
+        Object.keys(saved[name]).forEach(function (id) { if (QID.test(id) && fits(saved[name][id])) data[name][id] = saved[name][id]; });
+      };
+      kept('files', function (v) {
+        return Array.isArray(v) && v.every(function (f) { return f && /^[0-9a-f]{32}$/.test(f.id) && typeof f.name === 'string' && typeof f.size === 'number' && typeof f.sent === 'boolean'; });
+      });
+    } catch (e) { /* unreadable notes start empty */ }
+  }
+  load(store ? store.getItem(KEY) : null);
+  function persist() {
+    if (store) { try { store.setItem(KEY, JSON.stringify(data)); } catch (e) { store = null; } }
+    render();
+  }
+
+  // ── targets: a data-note id names its location; the label pins a note to its text ──
+  function where(id) {
+    const m = /^(why|item|decision)-(\d+)(?:-(line|picture|row)-(\d+))?(?:-(words|spot)-\d+)?$/.exec(id) || [];
+    if (m[5]) return Object.assign(where(id.replace(/-(words|spot)-\d+$/, '')), m[5] === 'words' ? { kind: 'words' } : {});
+    if (m[1] === 'why') return { at: '#/why', kind: 'paragraph ' + m[2], spot: 'Why, paragraph ' + m[2] };
+    const part = m[3] === 'line' ? 'drawing line ' + m[4] : m[3] ? m[3] + ' ' + m[4] : '';
+    if (m[1] === 'item') return { at: '#/' + m[2], kind: part || 'item', spot: NOUN + ' #' + m[2] + (part ? ', ' + part : '') };
+    return { at: '#/decisions/' + m[2], kind: 'decision', spot: 'Decision #' + m[2] };
+  }
+  function labelOf(el) {
+    const c = el.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add, .more, title, desc'), function (n) { n.parentNode.removeChild(n); });
+    // A picture's labels are separate SVG text elements: join them with spaces so they read as words.
+    // A table row's cells read joined with a dot. A screen's words sit in many small boxes: join every piece with a space.
+    // A picture file, an ad, and a page read as their label.
+    const row = el.tagName === 'TR', named = el.getAttribute('data-label');
+    const cells = row ? c.querySelectorAll('td') : el.classList.contains('screen') ? texts(c) : el.classList.contains('pic') ? c.querySelectorAll('text') : [c];
+    const text = named !== null ? named : Array.prototype.map.call(cells, function (n) { return n.textContent.replace(/\s+/g, ' ').trim(); })
+      .join(row ? ' · ' : ' ').replace(/\s+/g, ' ').trim();
+    return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
+  }
+  function texts(c) {
+    const found = [], walk = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
+    while (walk.nextNode()) found.push(walk.currentNode);
+    return found;
+  }
+  // A note on words or a spot sits on its base target: words are found again by their quote, a spot by the base's label.
+  function find(id, rec) {
+    const m = /^(.*)-(words|spot)-\d+$/.exec(id), el = document.querySelector('[data-note="' + (m ? m[1] : id) + '"]');
+    if (!el) return null;
+    if (m && m[2] === 'words') return textOf(el).indexOf(rec.quote) >= 0 ? el : null;
+    return labelOf(el) === rec.label ? el : null;
+  }
+  function textOf(el) {
+    const c = el.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .add, .more'), function (n) { n.parentNode.removeChild(n); });
+    return c.textContent.replace(/\s+/g, ' ');
+  }
+  // A new note on words or a spot takes the next free number on its target.
+  function nextId(base, kind) {
+    const pre = base + '-' + kind + '-';
+    let k = 1;
+    data.notes.map(function (n) { return n.id; }).concat(Object.keys(data.drafts)).forEach(function (id) {
+      if (id.indexOf(pre) === 0) k = Math.max(k, +id.slice(pre.length) + 1);
+    });
+    return pre + k;
+  }
+  // The notes list groups notes by Why, each card, and Decisions.
+  function groupOf(id) {
+    const m = /^(why|item|decision)-(\d+)/.exec(id) || [];
+    return m[1] === 'why' ? [0, 'Why'] : m[1] === 'item' ? [+m[2], NOUN + ' ' + m[2]] : [1e6, 'Decisions'];
+  }
+  // A row's pin and Note button go in its last cell: a table row holds only cells.
+  function slot(el) { return el.tagName === 'TR' ? el.lastElementChild : el; }
+  function noteOf(id) { return data.notes.filter(function (n) { return n.id === id; })[0] || null; }
+
+  // ── render pins, Note buttons, counts, and the notes list ──
+  function render() {
+    all('.pin, .add', function (p) { p.parentNode.removeChild(p); });
+    const n = data.notes.length, d = Object.keys(data.drafts).length;
+    const count = plural(n) + (d ? ' · ' + d + (d === 1 ? ' draft' : ' drafts') : '');
+    all('.note-count', function (el) { el.textContent = count; });
+    all('.session', function (el) { el.hidden = !!store; });
+    const ids = data.notes.map(function (x) { return x.id; }).concat(Object.keys(data.drafts).filter(function (id) { return !noteOf(id); }))
+      .map(function (id, i) { return [groupOf(id)[0], i, id]; }).sort(function (a, b) { return a[0] - b[0] || a[1] - b[1]; })
+      .map(function (x) { return x[2]; });
+    $('note-list').innerHTML = ids.length ? '' : '<li class="muted">No notes yet.</li>';
+    let group = null;
+    ids.forEach(function (id) {
+      const note = noteOf(id), draft = data.drafts[id], rec = note || draft, num = note ? data.notes.indexOf(note) + 1 : 0, sent = !!(note && note.sent);
+      const el = find(id, rec);
+      if (groupOf(id)[1] !== group) {
+        group = groupOf(id)[1];
+        const head = document.createElement('li');
+        head.className = 'group'; head.textContent = group;
+        $('note-list').appendChild(head);
+      }
+      if (el) {
+        const pin = document.createElement('button');
+        pin.type = 'button'; pin.className = draft ? 'pin draft' : sent ? 'pin sent' : 'pin'; pin.setAttribute('data-open', id);
+        pin.textContent = (num || '') + (num && (draft || sent) ? ' · ' : '') + (draft ? 'Draft' : sent ? 'Sent' : '');
+        pin.setAttribute('aria-label', (num ? 'Open note ' + num : 'Open draft') + (num && draft ? ' and its draft' : ''));
+        if (rec.x !== undefined) {
+          pin.className += ' spot'; pin.style.left = rec.x + '%'; pin.style.top = rec.y + '%';
+          el.appendChild(pin);
+        } else slot(el).appendChild(pin);
+      }
+      const li = document.createElement('li');
+      li.innerHTML = '<button type="button" class="entry" data-open="' + id + '"><span class="where">' + (num ? num + '. ' : '')
+        + esc(where(id).at + ' · ' + rec.label) + (draft ? '<span class="tag">Draft</span>' : '') + (sent ? '<span class="tag">Sent</span>' : '') + (el ? '' : '<span class="tag">possibly moved</span>')
+        + '</span>' + esc(draft ? draft.text : note.text) + '</button>';
+      $('note-list').appendChild(li);
+    });
+    all('[data-note]', function (el) {
+      const id = el.getAttribute('data-note');
+      // An item's words take their note through the Note button beside OK; a part takes its notes full screen.
+      if (el.closest('.art, .stage') || el.matches('.items > .item .text') || el.querySelector('.pin[data-open="' + id + '"]')) return;
+      const add = document.createElement('button');
+      add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
+      add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
+      slot(el).appendChild(add);
+    });
+    all('.verdict', function (v) {
+      const id = v.querySelector('[data-ok]').getAttribute('data-ok'), state = data.ok[id], n = id.slice(5);
+      v.querySelector('.tag').hidden = !state;
+      v.querySelector('.tag').textContent = state === 'sent' ? 'OK · Sent' : 'OK';
+      v.querySelector('[data-ok]').textContent = state ? 'Undo' : 'OK';
+      v.querySelector('[data-ok]').setAttribute('aria-label', (state ? 'Undo OK on ' : 'OK ') + NOUN.toLowerCase() + ' ' + n);
+      v.querySelector('[data-open]').hidden = !!state;
+    });
+    const answers = replies();
+    all('.form [data-q]', function (q) {
+      const id = q.getAttribute('data-q'), held = data.files[id] || [];
+      if (!held.length) return;
+      if (!$('note-list').querySelector('.group.answers')) $('note-list').insertAdjacentHTML('beforeend', '<li class="group answers">Answers</li>');
+      const line = asker(id) + ', "' + q.getAttribute('data-label') + '"', done = !answers.some(function (a) { return a.id === id; });
+      $('note-list').insertAdjacentHTML('beforeend', '<li class="entry"><span class="where">' + esc(line) + (done ? '<span class="tag">Sent</span>' : '') + '</span>'
+        + esc(held.map(function (f) { return f.name; }).join(', ')) + '</li>');
+    });
+    if (ids.length || $('note-list').querySelector('.answers')) { const none = $('note-list').querySelector('li.muted'); if (none) none.remove(); }
+    drawFiles();
+    views.forEach(counts);
+    bar();
+  }
+
+  // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
+  let chipFor = null, chipExtra = null, tap = null;
+  // True once the inbox opens this page closed, or a tap on it reaches the chat: it takes no note.
+  let readOnly = false;
+  const pointers = {};
+  // `extra` makes the chip start a new note on selected words or a picture spot.
+  function showChip(el, x, y, keyboard, extra) {
+    if (readOnly) return;
+    const id = el.getAttribute('data-note');
+    chipFor = el; chipExtra = extra || null;
+    chip.textContent = extra && extra.quote ? 'Note' : !extra && (noteOf(id) || data.drafts[id]) ? 'Edit note' : 'Add note';
+    chip.hidden = false;
+    const w = chip.offsetWidth, vw = root.clientWidth;
+    chip.style.left = Math.max(8, Math.min(x - w / 2, vw - w - 8)) + window.pageXOffset + 'px';
+    chip.style.top = y + 12 + window.pageYOffset + 'px';
+    if (keyboard) chip.focus({ preventScroll: true });
+  }
+  function hideChip() { chip.hidden = true; chipFor = null; chipExtra = null; }
+  document.addEventListener('pointerdown', function (e) {
+    if (e.isPrimary) Object.keys(pointers).forEach(function (k) { delete pointers[k]; });
+    pointers[e.pointerId] = true;
+    tap = Object.keys(pointers).length === 1 && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now(), target: e.target } : null;
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (tap && e.pointerId === tap.id && Math.abs(e.clientX - tap.x) + Math.abs(e.clientY - tap.y) > 8) tap = null;
+  });
+  document.addEventListener('pointercancel', function (e) { delete pointers[e.pointerId]; tap = null; });
+  document.addEventListener('pointerup', function (e) {
+    const t = tap;
+    delete pointers[e.pointerId]; tap = null;
+    if (!t || t.id !== e.pointerId || Date.now() - t.t > 500) return;
+    if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
+    const el = t.target.closest('[data-note]');
+    const offer = el && (el.closest('.clip.big') || (e.pointerType === 'mouse' && !el.closest('.stage')));
+    if (offer) showChip(el, e.clientX, e.clientY, false, spotAt(el, t.target, e)); else hideChip();
+  });
+  // A tap on a whole part full screen notes that spot of it, kept in percent so it holds at any size; a drawing's line is a line.
+  function spotAt(el, target, e) {
+    if (!el.parentNode.classList.contains('big')) return null;
+    const r = el.getBoundingClientRect(), fig = el.closest('.part');
+    const pct = function (v, size) { return Math.max(0, Math.min(100, Math.round(v / Math.max(1, size) * 100))); };
+    return { k: 0, x: pct(e.clientX - r.left, r.width), y: pct(e.clientY - r.top, r.height), on: fig.querySelector('figcaption').firstChild.textContent };
+  }
+  // Selected words in one note target offer a note on just those words.
+  let picking = 0;
+  document.addEventListener('selectionchange', function () {
+    clearTimeout(picking);
+    picking = setTimeout(function () {
+      const s = window.getSelection ? window.getSelection() : null;
+      if (!s || s.isCollapsed || !s.rangeCount || open) return;
+      const range = s.getRangeAt(0), at = range.commonAncestorContainer, host = (at.nodeType === 1 ? at : at.parentNode).closest('[data-note]');
+      const quote = s.toString().replace(/\s+/g, ' ').trim().slice(0, 200);
+      if (!host || !quote || host.closest('.art, #editor, #viewer') || textOf(host).indexOf(quote) < 0) return;
+      const r = range.getBoundingClientRect();
+      showChip(host, r.left + r.width / 2, r.bottom, false, { quote: quote });
+    }, 150);
+  });
+  chip.addEventListener('click', function () {
+    if (!chipFor) return;
+    const id = chipFor.getAttribute('data-note'), extra = chipExtra;
+    openEditor(extra ? nextId(id, extra.quote ? 'words' : 'spot') : id, chipFor, extra);
+  });
+  document.addEventListener('click', function (e) {
+    const t = e.target.closest ? e.target.closest('[data-open]') : null;
+    if (!t) return;
+    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id);
+    const el = rec ? find(id, rec) : t.closest('[data-note]') || document.querySelector('[data-note="' + id + '"]');
+    if (el && t.classList.contains('entry')) { reveal(el, rec && rec.k); el.scrollIntoView({ block: 'center' }); }
+    openEditor(id, el);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (open) closeEditor(true);
+      else if (chipFor) {
+        const el = chipFor, words = chipExtra && chipExtra.quote;
+        hideChip();
+        if (words && window.getSelection) window.getSelection().removeAllRanges();
+        el.focus();
+      }
+      else if (view) closeViewer(true);
+    } else if (view && !open && (e.key === 'ArrowRight' || e.key === 'ArrowLeft') && V.f <= V.lo * 1.001) {
+      openViewer(view.c, view.i + (e.key === 'ArrowRight' ? 1 : -1));
+    } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
+      e.preventDefault();
+      const r = e.target.getBoundingClientRect();
+      showChip(e.target, r.left + 48, r.top + Math.min(r.height, 24), true);
+    }
+  });
+
+  // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
+  let open = null;
+  function openEditor(id, el, extra) {
+    if (readOnly) return;
+    closeViewer(false); closeEditor(false); hideChip();
+    const note = noteOf(id), draft = data.drafts[id];
+    if (el) reveal(el, extra ? extra.k : (draft || note || {}).k);
+    const quote = extra && extra.quote, clip = quote && quote.length > 60 ? quote.slice(0, 59) + '…' : quote;
+    const label = draft ? draft.label : note ? note.label : quote ? 'words "' + clip + '"' : labelOf(el);
+    open = { id: id, label: label, el: el, extra: extra || extraOf(draft || note) };
+    $('editor-where').textContent = where(id).at + ' · ' + label;
+    editor.querySelector('.moved').hidden = !!el;
+    editor.querySelector('[data-act="delete"]').hidden = !note;
+    ta.value = draft ? draft.text : note ? note.text : '';
+    editor.hidden = false;
+    if (el) el.classList.add('noting');
+    place();
+    ta.focus({ preventScroll: editor.classList.contains('docked') });
+  }
+  function closeEditor(restore) {
+    if (!open) return;
+    const el = open.el;
+    open = null; editor.hidden = true;
+    document.body.classList.remove('docked'); document.body.style.paddingBottom = '';
+    bar();
+    if (el) { el.classList.remove('noting'); if (restore) el.focus({ preventScroll: true }); }
+  }
+  function place() {
+    const docked = phone.matches || !open.el;
+    editor.classList.toggle('docked', docked);
+    document.body.classList.toggle('docked', docked);
+    editor.style.left = editor.style.top = editor.style.bottom = editor.style.maxHeight = '';
+    if (docked) {
+      dock();
+      document.body.style.paddingBottom = editor.offsetHeight + 24 + 'px';
+      keepVisible();
+      return;
+    }
+    const r = open.el.getBoundingClientRect(), w = editor.offsetWidth, vw = root.clientWidth;
+    let left = r.right + 12, top = r.top;
+    if (left + w > vw - 8) { left = Math.max(8, Math.min(r.left, vw - w - 8)); top = r.bottom + 8; }
+    editor.style.left = left + window.pageXOffset + 'px';
+    editor.style.top = top + window.pageYOffset + 'px';
+  }
+  // The visible screen: a phone keyboard shrinks it, and a host app may shrink the page too, so place from its top.
+  function screen() {
+    const vv = window.visualViewport;
+    return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: window.innerHeight };
+  }
+  function dock() {
+    if (!open || !editor.classList.contains('docked')) return;
+    const s = screen();
+    editor.style.maxHeight = s.h + 'px';
+    editor.style.bottom = 'auto';
+    editor.style.top = s.top + Math.max(0, s.h - editor.offsetHeight) + 'px';
+  }
+  function keepVisible() {
+    if (!open || !open.el) return;
+    const r = open.el.getBoundingClientRect(), s = screen(), limit = s.top + s.h - editor.offsetHeight - 8;
+    if (r.bottom > limit) window.scrollBy(0, Math.min(r.top - s.top - 8, r.bottom - limit));
+  }
+  let seen = screen().h;
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () {
+      const h = screen().h, keyboard = Math.abs(h - seen) > 100;
+      seen = h; dock();
+      if (keyboard) keepVisible();
+    });
+    window.visualViewport.addEventListener('scroll', dock);
+  }
+  ta.addEventListener('input', function () {
+    if (!open) return;
+    const note = noteOf(open.id), text = ta.value;
+    if (!text.trim() || (note && text === note.text)) delete data.drafts[open.id];
+    else data.drafts[open.id] = Object.assign({ label: open.label, text: text }, open.extra);
+    persist();
+  });
+  editor.addEventListener('click', function (e) {
+    const act = e.target.getAttribute('data-act');
+    if (!act || !open) return;
+    const id = open.id, note = noteOf(id), text = ta.value.trim();
+    if (act === 'save') {
+      if (!text) { ta.focus(); return; }
+      if (!note) data.notes.push(Object.assign({ id: id, label: open.label, text: text }, open.extra));
+      else if (note.text !== text) { note.text = text; delete note.sent; }
+    }
+    if (act === 'delete') data.notes = data.notes.filter(function (n) { return n.id !== id; });
+    if (act !== 'close') delete data.drafts[id];
+    closeEditor(true); persist();
+    if (act === 'save' && live) toast('Saved. Tap Send notes to send it to the chat.');
+    else if (act === 'save') {
+      const n = unsent().length, k = oks().length, a = replies().length;
+      copyNotes(function () { toast('Saved and copied ' + plural2(n, k, a) + '. Paste them into chat.'); },
+        function () { toast('Saved. Tap Copy notes to copy them.'); });
+    }
+  });
+
+  // ── OK and Note on each card: an OK is kept with the notes until undone, and goes to the chat with them ──
+  all('.items > .item', function (item) {
+    const v = document.createElement('div');
+    v.className = 'verdict';
+    v.innerHTML = '<span class="tag" hidden>OK</span><button type="button" class="btn-ghost" data-ok="' + item.id + '">OK</button>'
+      + '<button type="button" class="btn-ghost" data-open="' + item.id + '" aria-label="Note on ' + NOUN.toLowerCase() + ' ' + item.id.slice(5) + '">Note</button>';
+    item.appendChild(v);
+  });
+
+  // ── the card view: each part sits in a labelled frame, sized by the card's words; a click opens it full screen ──
+  const BASE = 13, PAGE_W = [390, 1280], FIRST_SCREEN = 760;
+  const WIDE = window.matchMedia ? window.matchMedia('(min-width: 900px)') : { matches: false };
+  const later = window.requestAnimationFrame ? window.requestAnimationFrame.bind(window) : function (fn) { return setTimeout(fn, 16); };
+  const views = [];
+  // Each page frame's height, as its page posted it at 1 px tall; and each overflow seen at full height, measured once.
+  const pageH = new WeakMap(), pageOver = new WeakMap(), PAGE_MAX = 40000;
+  let view = null, queued = false;
+  // A resize watcher's work waits for the next frame, so a size it sets never loops back into the same frame.
+  function queue() {
+    if (queued) return;
+    queued = true;
+    later(function () { queued = false; views.forEach(layout); if (view && big().paged) fitBig(); });
+  }
+  // A new width measures a page again from 1 px tall, so a shorter page doesn't keep the old height.
+  function pageWidth(f, w) {
+    if (f.style.width === w + 'px') return;
+    f.style.width = w + 'px'; f.style.height = '1px'; pageH.delete(f);
+  }
+  // A page or live card drawn w px wide and h px tall, scaled by k; a page keeps the height its page posted.
+  function frameAt(p, w, h, k) {
+    const f = p.el.querySelector('iframe');
+    if (!f) return;
+    if (p.kind === 'page') pageWidth(f, w); else { f.style.width = w + 'px'; f.style.height = h + 'px'; }
+    f.style.transform = k < 1 ? 'scale(' + k + ')' : '';
+    p.el.style.width = w * k + 'px'; p.el.style.height = h * k + 'px';
+  }
+  // A part's own size: a drawing or picture at the base size, a page or live card at a phone's width.
+  function natural(p) {
+    if (p.kind === 'page') return { w: PAGE_W[0], h: pageH.get(p.el.querySelector('iframe')) || 200 };
+    if (p.kind === 'live') return { w: PAGE_W[0], h: +p.el.getAttribute('data-height') || 640 };
+    p.clip.style.setProperty('--f', BASE + 'px');
+    return { w: p.el.offsetWidth, h: p.el.offsetHeight };
+  }
+  // On a computer the parts are as tall as the words, at least 420 px and at most the window, each shrunk whole
+  // to fit the row down to about 110 px wide, past which the row scrolls. On a phone each is a small picture.
+  function layout(c) {
+    const wide = WIDE.matches, bar = document.querySelector('.bar'), verdict = c.item.querySelector('.verdict');
+    const H = Math.min(Math.max(420, c.words.offsetHeight + (verdict ? verdict.offsetHeight : 0)), Math.max(240, window.innerHeight - (bar ? bar.offsetHeight : 0) - 32));
+    c.el.style.height = wide ? H + 'px' : '';
+    const room = wide ? H - 32 - 30 : 112;
+    const sized = c.parts.map(function (p) {
+      if (p.clip.classList.contains('big')) return null;
+      const s = natural(p);
+      if (!s.w || !s.h) return null;
+      s.p = p;
+      s.k = !wide ? (p.paged ? 84 / s.w : Math.min(84 / s.w, 112 / s.h))
+        : p.paged ? Math.min(1, room / Math.min(s.h, FIRST_SCREEN)) : Math.min(p.kind === 'draw' ? 1.25 : 1, room / s.h);
+      return s;
+    }).filter(Boolean);
+    if (wide) shrink(sized, c.stage.clientWidth - 32 - 16 * (c.parts.length - 1));
+    sized.forEach(function (s) {
+      const p = s.p;
+      if (p.paged) frameAt(p, s.w, s.h, s.k); else p.clip.style.setProperty('--f', BASE * s.k + 'px');
+      const h = s.h * s.k, shown = wide ? Math.min(room, Math.ceil(h)) : 112;
+      p.clip.style.height = wide ? shown + 'px' : '';
+      p.fig.style.width = wide ? Math.ceil(s.w * s.k) + 2 + 'px' : '';
+      p.clip.classList.toggle('tall', h > shown + 2);
+    });
+  }
+  // Parts too wide for the row shrink by one factor; one that would fall under 110 px keeps 110, and the rest share what is left.
+  function shrink(sized, row) {
+    let small = [], f = 1;
+    for (let i = 0; i < sized.length; i += 1) {
+      const rest = sized.filter(function (s) { return small.indexOf(s) < 0; });
+      f = Math.min(1, (row - 110 * small.length) / Math.max(1, rest.reduce(function (t, s) { return t + s.w * s.k; }, 0)));
+      const more = rest.filter(function (s) { return s.w * s.k * f < 110; });
+      if (!more.length) break;
+      small = small.concat(more);
+    }
+    sized.forEach(function (s) { s.k *= small.indexOf(s) >= 0 ? Math.min(1, 110 / (s.w * s.k)) : Math.max(f, 0); });
+  }
+  function counts(c) {
+    c.parts.forEach(function (p) {
+      const k = p.clip.querySelectorAll('.pin').length;
+      p.count.textContent = k ? ' · ' + k : '';
+      p.fig.setAttribute('aria-label', p.label + (k ? ', ' + plural(k) : '') + ', open full screen');
+    });
+  }
+  all('.view', function (v) {
+    const item = v.closest('.item'), c = { el: v, item: item, stage: v.querySelector('.stage'), words: item.querySelector('.words'),
+      try: v.getAttribute('data-try') || '', at: 0, parts: [] };
+    Array.prototype.forEach.call(c.stage.children, function (fig) {
+      const cap = fig.querySelector('figcaption'), kind = fig.getAttribute('data-kind');
+      const p = { fig: fig, clip: fig.querySelector('.clip'), el: fig.querySelector('.clip').firstElementChild, kind: kind, paged: kind === 'page' || kind === 'live', label: cap.textContent };
+      p.count = document.createElement('span'); p.count.className = 'count'; cap.appendChild(p.count);
+      fig.tabIndex = 0; fig.setAttribute('role', 'button');
+      c.parts.push(p);
+    });
+    c.stage.addEventListener('click', function (e) {
+      const fig = e.target.closest('.part');
+      if (fig && !e.target.closest('.clip.big, [data-open]')) openViewer(c, partIndex(c, fig));
+    });
+    c.stage.addEventListener('keydown', function (e) {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.classList.contains('part')) { e.preventDefault(); openViewer(c, partIndex(c, e.target)); }
+    });
+    if (window.ResizeObserver) { const watch = new ResizeObserver(queue); watch.observe(c.words); watch.observe(c.stage); }
+    views.push(c);
+  });
+  const partIndex = function (c, fig) { return c.parts.map(function (p) { return p.fig; }).indexOf(fig); };
+  // A picture file is as wide in em as its file is in px, so it scales like a drawing.
+  all('.art.photo img', function (img) {
+    const size = function () { if (img.naturalWidth) { img.style.width = img.naturalWidth / BASE + 'em'; queue(); } };
+    if (img.complete) size(); else img.addEventListener('load', size);
+  });
+  // A note's target shows: folded words unfold.
+  function reveal(el) {
+    folds.forEach(function (f) { if (f.text === el && !f.open) { f.open = true; measure(f); } });
+  }
+
+  // ── full screen: one part over everything, the card's labels on top, its changes at the foot; it zooms and scrolls natively ──
+  const vtop = viewer.querySelector('.vtop'), vfoot = viewer.querySelector('.vfoot'), names = viewer.querySelector('.names');
+  const vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button'), sizes = viewer.querySelector('.sizes'), tryIt = viewer.querySelector('.try');
+  const V = { f: BASE, lo: BASE, hi: BASE };
+  const HINTS = { draw: ['Drag to move · pinch or + to zoom', 'tap a line or picture to note it'], photo: ['Pinch or + to zoom', 'tap a spot to note it'],
+    page: ['Scroll to read', 'tap a spot to note it'], live: ['Try it here: it sends nothing', ''] };
+  function big() { return view && view.c.parts[view.i]; }
+  function scale(f, cx, cy) {
+    const box = big().clip;
+    f = Math.max(V.lo, Math.min(V.hi, f));
+    const k = f / V.f, x = (box.scrollLeft + cx) * k - cx, y = (box.scrollTop + cy) * k - cy;
+    V.f = f; box.style.setProperty('--f', f + 'px');
+    box.scrollLeft = x; box.scrollTop = y;
+    const atFit = f <= V.lo * 1.001;
+    vbar.firstChild.textContent = (atFit ? 'Fit · ' : '') + Math.round(f / BASE * 100) + '%';
+    vb[0].disabled = atFit; vb[2].disabled = f >= V.hi * 0.999;
+  }
+  // A drawing fits the screen's width; a picture fits whole; a page or live card shows at the picked width, shrunk to fit.
+  function fitBig() {
+    const p = big();
+    root.style.setProperty('--vtop', vtop.offsetHeight + 'px'); root.style.setProperty('--vfoot', vfoot.offsetHeight + 'px');
+    const aw = p.clip.clientWidth - 24, ah = p.clip.clientHeight - 24;
+    V.f = V.lo = V.hi = BASE;
+    if (p.paged) {
+      const w = PAGE_W[view.c.at], k = Math.min(1, aw / w), f = p.el.querySelector('iframe');
+      frameAt(p, w, p.kind === 'live' ? ah / k : pageH.get(f) || ah / k, k);
+      return;
+    }
+    p.clip.style.setProperty('--f', BASE + 'px');
+    const w = p.el.offsetWidth, h = p.el.offsetHeight;
+    if (!w || !h || aw <= 0) return;
+    V.lo = BASE * (p.kind === 'draw' ? aw / w : Math.min(aw / w, ah / h)); V.hi = Math.max(V.lo * 4, 40); V.f = V.lo;
+    p.clip.scrollLeft = p.clip.scrollTop = 0;
+    scale(V.lo, 0, 0);
+  }
+  function openViewer(c, i) {
+    hideChip();
+    if (view) big().clip.classList.remove('big');
+    view = { c: c, i: (i + c.parts.length) % c.parts.length };
+    const p = big(), hint = HINTS[p.kind];
+    viewer.hidden = false; document.body.classList.add('viewing');
+    names.innerHTML = c.parts.map(function (q, k) {
+      return '<button type="button" class="name" role="tab" data-i="' + k + '" aria-selected="' + (k === view.i) + '">' + esc(q.label) + '</button>';
+    }).join('');
+    viewer.querySelector('.vhint').innerHTML = esc(hint[0]) + (hint[1] ? '<span class="note-it"> · ' + esc(hint[1]) + '</span>' : '');
+    vbar.hidden = p.paged; sizes.hidden = !p.paged; tryIt.hidden = !c.try;
+    if (c.try) tryIt.href = c.try;
+    Array.prototype.forEach.call(sizes.children, function (b) { b.setAttribute('aria-pressed', String(+b.getAttribute('data-size') === c.at)); });
+    p.clip.classList.add('big');
+    layout(c); fitBig();
+    viewer.querySelector('[data-close]').focus({ preventScroll: true });
+  }
+  function closeViewer(restore) {
+    if (!view) return;
+    const c = view.c, p = big();
+    p.clip.classList.remove('big'); p.clip.scrollLeft = p.clip.scrollTop = 0;
+    view = null; c.at = 0;
+    viewer.hidden = true; document.body.classList.remove('viewing');
+    layout(c); bar();
+    if (restore) p.fig.focus({ preventScroll: true });
+  }
+  viewer.querySelector('[data-close]').addEventListener('click', function () { closeViewer(true); });
+  names.addEventListener('click', function (e) { const b = e.target.closest('[data-i]'); if (b) openViewer(view.c, +b.getAttribute('data-i')); });
+  sizes.addEventListener('click', function (e) {
+    const b = e.target.closest('[data-size]');
+    if (!b) return;
+    view.c.at = +b.getAttribute('data-size');
+    Array.prototype.forEach.call(sizes.children, function (s) { s.setAttribute('aria-pressed', String(s === b)); });
+    fitBig();
+  });
+  vbar.addEventListener('click', function (e) {
+    const i = Array.prototype.indexOf.call(vb, e.target), box = big().clip;
+    if (i >= 0) scale([V.f / 1.25, V.lo, V.f * 1.25][i], box.clientWidth / 2, box.clientHeight / 2);
+  });
+  const zoomable = function (e) { return view && !big().paged && e.target.closest && e.target.closest('.clip.big'); };
+  document.addEventListener('wheel', function (e) {
+    if (!zoomable(e) || (!e.ctrlKey && !e.metaKey)) return;
+    e.preventDefault();
+    const r = big().clip.getBoundingClientRect();
+    scale(V.f * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  // One finger scrolls natively, or swipes to the next part at fit; two fingers pinch around their midpoint.
+  // A swipe starts only on the shown part, so a swipe along the scrolling label row keeps the part.
+  let pinch = null, swipe = null;
+  const span = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1; };
+  document.addEventListener('touchstart', function (e) {
+    const t = e.touches, on = e.target.closest && e.target.closest('.clip.big');
+    swipe = view && on && t.length === 1 ? { x: t[0].clientX, y: t[0].clientY } : null;
+    if (zoomable(e) && t.length === 2) pinch = { f: V.f, dist: span(t) };
+  }, { passive: true });
+  document.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    if (e.cancelable) e.preventDefault();
+    const r = big().clip.getBoundingClientRect(), t = e.touches;
+    scale(pinch.f * span(t) / pinch.dist, (t[0].clientX + t[1].clientX) / 2 - r.left, (t[0].clientY + t[1].clientY) / 2 - r.top);
+  }, { passive: false });
+  document.addEventListener('touchend', function (e) {
+    const s = swipe, t = e.changedTouches[0];
+    if (e.touches.length < 2) pinch = null;
+    swipe = null;
+    if (!s || !view || !t || V.f > V.lo * 1.001) return;
+    const dx = t.clientX - s.x;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(t.clientY - s.y)) openViewer(view.c, view.i + (dx < 0 ? 1 : -1));
+  });
+  document.addEventListener('gesturestart', function (e) { if (view) e.preventDefault(); });
+
+  // ── page parts: a page posts its height at 1 px tall; a cover over it takes taps ──
+  // A page frame is sealed from this page, so the kit's one script in it posts its height, and the link under a point.
+  // Only a message from one of this page's own page frames counts; a height for an old width is dropped.
+  window.addEventListener('message', function (e) {
+    const m = e.data;
+    if (!m || (m.type !== 'review:page' && m.type !== 'review:link')) return;
+    const f = Array.prototype.find.call(document.querySelectorAll('.page iframe'), function (x) { return x.contentWindow === e.source; });
+    if (!f) return;
+    if (m.type === 'review:link') {
+      const cover = f.parentNode.querySelector('.cover'), href = typeof m.href === 'string' ? m.href.slice(0, 2000) : '';
+      if (cover) { cover.title = href; cover.style.cursor = href ? 'pointer' : ''; }
+      return;
+    }
+    if (typeof m.h !== 'number' || !isFinite(m.h) || typeof m.vh !== 'number' || m.w + 'px' !== f.style.width) return;
+    const h = Math.max(1, Math.min(PAGE_MAX, Math.round(m.h)));
+    // A height counts only when measured 1 px tall; a page past its full-height frame grew late, so it measures again.
+    if (m.vh > 1) {
+      if (m.vh === pageH.get(f) && h > m.vh && pageOver.get(f) !== h) { pageOver.set(f, h); f.style.height = '1px'; }
+      return;
+    }
+    pageH.set(f, h); f.style.height = h + 'px';
+    if (!f.parentNode.querySelector('.cover')) f.parentNode.insertAdjacentHTML('beforeend', '<span class="cover"></span>');
+    queue();
+  });
+  // A link in a page goes nowhere: hovering over it shows its address.
+  document.addEventListener('mousemove', function (e) {
+    const cover = e.target.classList && e.target.classList.contains('cover') ? e.target : null, f = cover && cover.parentNode.querySelector('iframe');
+    if (!f || !f.contentWindow) return;
+    const r = cover.getBoundingClientRect(), k = r.width / f.offsetWidth;
+    f.contentWindow.postMessage({ type: 'review:point', x: (e.clientX - r.left) / k, y: (e.clientY - r.top) / k }, '*');
+  });
+
+  // ── long words fold after about two lines behind More, on a phone only; a note on hidden words unfolds them ──
+  const folds = [];
+  function measure(f) {
+    // The fold never cuts the bold first sentence: it keeps at least the lines that sentence takes.
+    f.text.classList.remove('folded');
+    f.more.style.top = '';
+    if (WIDE.matches) { f.more.hidden = true; return; }
+    const lead = f.clamp.querySelector(':scope > b:first-child'), line = parseFloat(getComputedStyle(f.clamp).lineHeight) || 24;
+    const leadLines = lead ? Math.ceil((lead.getBoundingClientRect().bottom - f.clamp.getBoundingClientRect().top - 1) / line) : 0;
+    f.clamp.style.webkitLineClamp = String(Math.max(2, leadLines));
+    f.text.classList.add('folded');
+    const long = f.clamp.scrollHeight > f.clamp.clientHeight + 2;
+    f.text.classList.toggle('folded', long && !f.open);
+    f.more.hidden = !long;
+    f.more.textContent = f.open ? 'Less' : 'More';
+    f.more.setAttribute('aria-expanded', String(f.open));
+    // Folded, More sits on the last shown line, at its end.
+    if (long && !f.open) f.more.style.top = f.clamp.offsetTop + f.clamp.clientHeight - line + 'px';
+  }
+  all('.items > .item .text', function (text) {
+    const clamp = document.createElement('span'), more = document.createElement('button'), f = { text: text, clamp: clamp, more: more, open: false };
+    clamp.className = 'clamp';
+    while (text.firstChild) clamp.appendChild(text.firstChild);
+    text.appendChild(clamp);
+    more.type = 'button'; more.className = 'more';
+    text.appendChild(more);
+    more.addEventListener('click', function () { f.open = !f.open; measure(f); });
+    folds.push(f);
+    measure(f);
+  });
+
+  // ── direct links: #/why, #/<n>, #/decisions/<n> ──
+  function jump(hash) {
+    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(typeof hash === 'string' ? hash : location.hash);
+    const el = m ? $(m[1] ? 'decision-' + m[1] : m[2] ? 'item-' + m[2] : m[3]) : null;
+    if (!el) return;
+    all('.hit', function (n) { n.classList.remove('hit'); });
+    el.classList.add('hit');
+    el.scrollIntoView({ block: 'start' });
+  }
+
+  // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
+  // A note sent through a reply link is in the chat already, so it is never copied or sent again.
+  function unsent() { return data.notes.filter(function (n) { return !n.sent; }); }
+  function snapshot() { return unsent().map(function (n) { return Object.assign({ id: n.id, label: n.label, text: n.text }, extraOf(n)); }); }
+  // An OK not yet in the chat, as its card's id, in card order.
+  function oks() {
+    return Object.keys(data.ok).filter(function (id) { return data.ok[id] === true; }).sort(function (a, b) { return a.slice(5) - b.slice(5); });
+  }
+  function acknowledge(notes, okd, ans) {
+    ans.forEach(function (a) {
+      (data.files[a.id] || []).forEach(function (f) { if (a.files.indexOf(f.id) >= 0) f.sent = true; });
+    });
+    notes.forEach(function (submitted) {
+      data.notes.forEach(function (current) {
+        if (current.id === submitted.id && current.label === submitted.label && current.text === submitted.text) current.sent = true;
+      });
+    });
+    okd.forEach(function (id) { if (data.ok[id] === true) data.ok[id] = 'sent'; });
+    persist();
+  }
+  function bullets(notes) {
+    return notes.map(function (n) {
+      const w = where(n.id), spot = n.x === undefined ? '' : ', spot at ' + n.x + '% across and ' + n.y + '% down on "' + n.on + '"';
+      return '- ' + w.spot + spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' ');
+    });
+  }
+  // What goes to the chat: each OK on its own line, then the notes.
+  function lines(notes, okd, ans) {
+    return okd.map(function (id) { return NOUN + ' #' + id.slice(5) + ': OK'; }).concat(ans.map(function (a) { return a.line; }), bullets(notes)).join('\n');
+  }
+  function notesText() {
+    const header = REVIEW ? document.body.getAttribute('data-header')
+      : PREVIEW ? 'Notes on the preview of ' + NAME + ' from its review page. Don\'t publish yet.'
+      : 'Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.';
+    return header + '\n' + lines(unsent(), oks(), replies());
+  }
+  function toast(text) {
+    $('toast').textContent = text; $('toast').classList.add('show');
+    setTimeout(function () { $('toast').classList.remove('show'); }, 2000);
+  }
+  function plural(n) { return n + (n === 1 ? ' note' : ' notes'); }
+  function plural2(n, k, a) {
+    const parts = n || !(k || a) ? [plural(n)] : [];
+    if (k) parts.push(k + (k === 1 ? ' OK' : ' OKs'));
+    if (a) parts.push(a + (a === 1 ? ' answer' : ' answers'));
+    return parts.join(' and ');
+  }
+  // One routine for Copy notes and Save: the Clipboard API, else select #copybuf and execCommand, then hand focus back.
+  function copyNotes(done, failed) {
+    const buf = $('copybuf');
+    buf.value = notesText();
+    const fallback = function () {
+      const back = document.activeElement;
+      buf.select();
+      const ok = document.execCommand('copy');
+      if (back && back !== buf && back.focus) back.focus({ preventScroll: true });
+      if (ok) done(); else failed();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(buf.value).then(done, fallback); else fallback();
+  }
+  // Nothing to copy or send: say why. True when it spoke.
+  function nothing(verb) {
+    if (unsent().length || oks().length || replies().length) return false;
+    toast(data.notes.length ? 'Every note is already sent.' : 'No saved notes yet. Drafts are not ' + verb + '.');
+    return true;
+  }
+
+  // ── reply link: at a web address with #key=, the bar's button sends unsent notes to the chat that made the plan ──
+  // `live` is the link's key while the link is open. The key stays in memory and this tab's session, never in a link.
+  let live = null, connecting = false, pending = null;
+  function setLive(key) {
+    live = key;
+    if (!key) hideActions();
+    all('.copies', function (el) { el.textContent = key ? 'Send notes sends your saved notes to the chat.' : 'Saving a note copies all your notes.'; });
+    bar();
+  }
+  // One request owns every reply control until the response body has been read.
+  function busy(kind) {
+    pending = kind;
+    bar();
+  }
+  function linkKey() {
+    if (!/^https?:$/.test(location.protocol) || !window.fetch) return null;
+    const m = /(?:^#|&)key=([0-9a-f]{64})(?:&|$)/.exec(location.hash), at = 'wong-reply-key:' + location.pathname;
+    try {
+      if (m) window.sessionStorage.setItem(at, m[1]);
+      return m ? m[1] : window.sessionStorage.getItem(at);
+    } catch (e) { return m ? m[1] : null; }
+  }
+  function ask(path, key, body) {
+    if (hosted) return hostedAsk(path, body);
+    const headers = { 'x-reply-key': key };
+    if (body) headers['content-type'] = 'application/json';
+    return fetch(path, { method: body ? 'POST' : 'GET', cache: 'no-store', headers: headers, body: body ? JSON.stringify(body) : undefined });
+  }
+  async function sendNotes() {
+    const notes = snapshot(), okd = oks(), ans = replies(), n = notes.length, k = okd.length, a = ans.length;
+    if (pending || connecting || nothing('sent')) return;
+    busy('send'); says('Sending your notes…');
+    // A closed link or an unreachable chat: the same tap copies, and the page goes back to Copy notes.
+    const closed = function () {
+      setLive(null); says('This link has closed. Copy your notes into chat.');
+      copyNotes(function () { toast('This link has closed. Copied ' + plural2(n, k, a) + ': paste them into chat.'); },
+        function () { toast('This link has closed. Tap Copy notes to copy them.'); });
+    };
+    try {
+      const body = { text: lines(notes, okd, ans) };
+      if (fileIds(ans).length) body.files = fileIds(ans);
+      const r = await ask('send', live, body);
+      const changed = 'The ' + PAGE + ' changed. Reload to read it first.';
+      if (r.status === 429) { says('Wait a few seconds, then tap Send notes again.'); toast('Wait a few seconds, then tap Send notes again.'); return; }
+      if (r.status === 409) { const why = ((await r.json()) || {}).gone ? GONE : changed; says(why); toast(why); return; }
+      if (!r.ok) { closed(); return; }
+      const answer = await r.json();
+      if (!answer || answer.sent !== true) { closed(); return; }
+      acknowledge(notes, okd, ans);
+      says('Sent ' + plural2(n, k, a) + ' to the chat.');
+      toast('Sent ' + plural2(n, k, a) + ' to the chat.');
+    } catch (e) { closed(); }
+    finally { busy(null); }
+  }
+  $('copy').addEventListener('click', function () {
+    if (pending || connecting) return;
+    if (live) { sendNotes(); return; }
+    const n = unsent().length, k = oks().length, a = replies().length;
+    if (nothing('copied')) return;
+    copyNotes(function () { toast('Copied ' + plural2(n, k, a) + '. Paste them into chat.'); },
+      function () { toast('Copy failed. Copy the notes list by hand.'); });
+  });
+
+  document.addEventListener('click', function (e) {
+    const b = e.target.closest ? e.target.closest('[data-ok]') : null;
+    if (!b) return;
+    const id = b.getAttribute('data-ok');
+    if (data.ok[id]) delete data.ok[id]; else data.ok[id] = true;
+    persist();
+  });
+
+  // ── the page's own buttons, from the builder; one that can't be undone asks once more above the footer ──
+  let version = null, confirming = null;
+  const ACTIONS = JSON.parse($('ready').getAttribute('data-actions') || '[]');
+  const actionOf = function (name) { return ACTIONS.filter(function (a) { return a.name === name; })[0] || null; };
+  const choice = function (name) { return $('ready').querySelector('[data-ready="' + name + '"]'); };
+  ACTIONS.forEach(function (a) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.setAttribute('data-ready', a.name); b.setAttribute('data-label', a.label);
+    if (a.confirm) { b.textContent = a.label; b.setAttribute('aria-expanded', 'false'); b.setAttribute('aria-controls', 'ready-confirm'); }
+    else b.innerHTML = '<span class="spinner" hidden aria-hidden="true"></span><span></span>';
+    $('ready').insertBefore(b, $('ready-confirm'));
+  });
+  function fillConfirm(a) {
+    confirming = a;
+    $('ready-confirm').querySelector('p').textContent = a.confirm.say;
+    $('ready-confirm').setAttribute('aria-label', a.confirm.ask);
+    choice('yes').setAttribute('data-label', a.confirm.yes);
+  }
+  if (ACTIONS.filter(function (a) { return a.confirm; }).length) fillConfirm(ACTIONS.filter(function (a) { return a.confirm; })[0]);
+  function says(text) { $('ready-message').textContent = text; $('ready-says').hidden = !text; }
+  function closeActions(focus) {
+    const wasOpen = !$('ready-confirm').hidden;
+    $('ready-confirm').hidden = true;
+    all('#ready > [aria-controls]', function (b) { b.setAttribute('aria-expanded', 'false'); });
+    if (focus && wasOpen && !$('ready').hidden && confirming) choice(confirming.name).focus({ preventScroll: true });
+    bar();
+  }
+  function hideActions() {
+    const focused = $('ready').contains(document.activeElement);
+    closeActions(false);
+    $('ready').hidden = true;
+    if (focused) $('copy').focus({ preventScroll: true });
+    bar();
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('ready-confirm').hidden) { e.preventDefault(); closeActions(true); }
+  });
+  document.addEventListener('pointerdown', function (e) {
+    if (!$('ready').contains(e.target)) closeActions(false);
+  });
+  $('ready').addEventListener('focusout', function (e) {
+    if (e.relatedTarget && !$('ready').contains(e.relatedTarget)) closeActions(false);
+  });
+  // Only the row contributes to page padding; popovers and status never increase its height.
+  function bar() {
+    const el = $('copy').parentNode, waiting = connecting || !!pending;
+    $('copy-label').textContent = connecting ? 'Connecting…' : pending === 'send' ? 'Sending…' : live ? 'Send notes' : 'Copy notes';
+    $('copy').disabled = waiting;
+    $('copy').querySelector('.spinner').hidden = !(connecting || pending === 'send');
+    el.setAttribute('data-busy', String(waiting));
+    $('copy').setAttribute('aria-busy', String(connecting || pending === 'send'));
+    root.style.setProperty('--choices', $('ready-confirm').offsetHeight + 'px');
+    $('ready-says').querySelector('.spinner').hidden = !waiting;
+    const gate = drawNeeds();
+    all('#ready > [data-ready]', function (b) {
+      if (!b.querySelector('.spinner')) b.textContent = gate || b.getAttribute('data-label');
+    });
+    all('[data-ready]', function (b) {
+      const step = b.getAttribute('data-ready'), spinner = b.querySelector('.spinner');
+      const active = !!spinner && pending === (step === 'yes' ? confirming && confirming.name : step);
+      b.disabled = waiting;
+      b.setAttribute('aria-busy', String(active));
+      if (spinner) {
+        spinner.hidden = !active;
+        b.querySelector('span:last-child').textContent = active ? 'Sending…' : (b.parentNode === $('ready') && gate) || b.getAttribute('data-label');
+      }
+    });
+    const shown = $('ready').hidden ? 0 : $('ready').querySelectorAll('#ready > button:not([hidden])').length;
+    el.style.setProperty('--cols', String(Math.min(3, 1 + shown)));
+    if (el.offsetHeight) root.style.setProperty('--bar', el.offsetHeight + 19 + 'px');
+  }
+  // Each button shows when the link offers it; the choices stay hidden when it offers none.
+  function offer(answer) {
+    const names = answer && answer.actions;
+    if (!Array.isArray(names) || typeof answer.version !== 'string') return;
+    const shown = ACTIONS.filter(function (a) {
+      choice(a.name).hidden = names.indexOf(a.name) < 0;
+      return names.indexOf(a.name) >= 0;
+    });
+    if (!shown.length) return;
+    version = answer.version;
+    $('ready').hidden = false;
+    bar();
+  }
+  async function act(name) {
+    if (pending || connecting || !live) return;
+    const notes = snapshot(), okd = oks(), ans = replies();
+    busy(name); says('Sending your request…');
+    const closed = function () { setLive(null); says('This link has closed. Copy your notes and choose in the chat.'); toast('This link has closed. Copy your notes and choose in the chat.'); };
+    try {
+      const body = { action: name, version: version };
+      if (notes.length || okd.length || ans.length) body.text = lines(notes, okd, ans);
+      if (fileIds(ans).length) body.files = fileIds(ans);
+      const r = await ask('act', live, body);
+      if (r.status === 429) { says('Wait a few seconds, then tap again.'); return; }
+      const a = await r.json() || {};
+      const line = r.status === 200 && a.sent === true ? actionOf(name).done
+        : r.status === 409 && a.changed === true ? 'The ' + PAGE + ' changed. Reload to read it first.'
+        : r.status === 409 && a.done === true ? 'The chat was already asked.' : r.status === 409 && a.gone === true ? GONE : '';
+      if (r.status === 410 || r.status === 403) { closed(); return; }
+      if (!line) { says('The request was not confirmed. Your notes are saved. Try again.'); return; }
+      if (r.status === 200 && a.sent === true) acknowledge(notes, okd, ans);
+      // A gone file keeps the buttons, as a 429 does: the person picks it again and taps once more.
+      if (line !== GONE) hideActions();
+      says(line);
+    } catch (e) { says('The request was not confirmed. Your notes are saved. Try again.'); }
+    finally { busy(null); }
+  }
+  $('ready').addEventListener('click', function (e) {
+    const button = e.target.closest('[data-ready]');
+    if (!button || pending || connecting) return;
+    const step = button.getAttribute('data-ready'), a = actionOf(step), gaps = needsOpen();
+    // While the build needs the person, a go button leads to the first thing it needs instead.
+    if (a && gaps.length) {
+      all('.hit', function (n) { n.classList.remove('hit'); });
+      gaps[0].classList.add('hit'); gaps[0].scrollIntoView({ block: 'center' });
+      return;
+    }
+    if (step === 'yes') act(confirming.name);
+    else if (step === 'cancel' || a.confirm) {
+      says('');
+      if (a) fillConfirm(a);
+      $('ready-confirm').hidden = step === 'cancel';
+      all('#ready > [aria-controls]', function (b) { b.setAttribute('aria-expanded', String(b === button)); });
+      bar();
+      choice(step === 'cancel' ? confirming.name : 'cancel').focus({ preventScroll: true });
+    } else act(step);
+  });
+
+  // ── answers: the files a need asks for, sent with the notes under their question; a sent file never goes again ──
+  const asker = function (id) { return 'Need #' + /^need-(\d+)/.exec(id)[1]; };
+  function answered(q) { const id = q.getAttribute('data-q'); return !!(data.files[id] && data.files[id].length); }
+  // Each question with files the chat has not got yet, in page order: its id, its line, and the files it names.
+  function replies() {
+    const out = [];
+    all('.form [data-q]', function (q) {
+      const id = q.getAttribute('data-q'), fresh = (data.files[id] || []).filter(function (f) { return !f.sent; });
+      if (fresh.length) out.push({ id: id, files: fresh.map(function (f) { return f.id; }),
+        line: '- ' + asker(id) + ', "' + q.getAttribute('data-label') + '": ' + fresh.map(function (f) { return f.name; }).join(', ') });
+    });
+    return out;
+  }
+  const fileIds = function (ans) { return ans.reduce(function (ids, a) { return ids.concat(a.files); }, []); };
+
+  // ── files: checked here first, then sent at once through the link or the inbox; a send later names them by id ──
+  const MB = 1024 * 1024, uploads = {}, waiting = {};
+  let refs = 0;
+  function upload(file, question) {
+    if (hosted) {
+      return file.arrayBuffer().then(function (buf) {
+        return new Promise(function (resolve) {
+          const ref = 'f' + (refs += 1);
+          waiting[ref] = resolve;
+          port.postMessage({ type: 'inbox:file', ref: ref, name: file.name, question: question, data: buf }, [buf]);
+        });
+      });
+    }
+    return fetch('file', { method: 'POST', cache: 'no-store', body: file,
+      headers: { 'x-reply-key': live, 'x-file-name': encodeURIComponent(file.name), 'x-file-question': encodeURIComponent(question) } })
+      .then(function (r) { return r.json().then(function (a) { return r.ok && a && /^[0-9a-f]{32}$/.test(a.id) ? { id: a.id } : { error: (a && a.error) || 'it was not sent; try again' }; }); })
+      .catch(function () { return { error: 'it was not sent; try again' }; });
+  }
+  // The app deletes a file a day after it came, or with a tap that failed or was cancelled: one this page holds unsent
+  // and the app no longer does goes back to its question, to be picked again.
+  const GONE = 'A file is no longer held. Pick it again, then send.';
+  function keepHeld(held) {
+    let gone = 0;
+    Object.keys(data.files).forEach(function (id) {
+      data.files[id] = data.files[id].filter(function (f) {
+        if (f.sent || held.indexOf(f.id) >= 0) return true;
+        gone += 1;
+        (uploads[id] = uploads[id] || []).push({ name: f.name, size: f.size, state: 'refused', why: 'the app no longer holds it; pick it again' });
+        return false;
+      });
+    });
+    if (gone) persist();
+  }
+  function bytesHeld() {
+    return Object.keys(data.files).concat(Object.keys(uploads)).reduce(function (sum, id) {
+      return sum + (data.files[id] || []).concat(uploads[id] || []).reduce(function (s, f) { return s + (f.state === 'refused' ? 0 : f.size); }, 0);
+    }, 0);
+  }
+  function refusal(q, file) {
+    const id = q.getAttribute('data-q'), ext = (/\.([a-z0-9]+)$/i.exec(file.name) || [])[1];
+    const kept = (data.files[id] || []).length + (uploads[id] || []).filter(function (f) { return f.state === 'sending'; }).length;
+    if (!live) return 'open this page from the chat\'s link to send files';
+    if (!ext || q.getAttribute('data-types').split(',').indexOf(ext.toLowerCase()) < 0) return 'this question does not take this type of file';
+    if (file.size > 25 * MB) return 'too big: 25 MB at most';
+    if (kept >= +q.getAttribute('data-count')) return 'this question takes ' + q.getAttribute('data-count') + ' at most';
+    if (bytesHeld() + file.size > 100 * MB) return 'the files for this page pass 100 MB';
+    return '';
+  }
+  function send(q, entry) {
+    const id = q.getAttribute('data-q');
+    entry.state = 'sending'; entry.why = ''; render();
+    upload(entry.file, asker(id) + ', "' + q.getAttribute('data-label') + '"').then(function (a) {
+      if (a.id) {
+        uploads[id] = uploads[id].filter(function (f) { return f !== entry; });
+        (data.files[id] = data.files[id] || []).push({ id: a.id, name: entry.file.name, size: entry.file.size, sent: false });
+        persist();
+      } else { entry.state = 'refused'; entry.why = String(a.error); entry.retry = true; render(); }
+    });
+  }
+  function pick(q, list) {
+    const id = q.getAttribute('data-q');
+    Array.prototype.forEach.call(list, function (file) {
+      const why = refusal(q, file), entry = { file: file, name: file.name, size: file.size, state: why ? 'refused' : 'sending', why: why };
+      (uploads[id] = uploads[id] || []).push(entry);
+      if (!why) send(q, entry);
+    });
+    render();
+  }
+  const sizeText = function (n) { return n < MB ? Math.max(1, Math.ceil(n / 1024)) + ' KB' : (n / MB).toFixed(1) + ' MB'; };
+  function drawFiles() {
+    all('.form [data-kind="file"]', function (q) {
+      const id = q.getAttribute('data-q'), list = q.querySelector('.files');
+      list.innerHTML = (data.files[id] || []).map(function (f, i) {
+        return '<li>' + esc(f.name) + ' · ' + sizeText(f.size) + ' <span class="tag">Sent</span><button type="button" class="btn-ghost" data-file="' + i + '">Remove</button></li>';
+      }).concat((uploads[id] || []).map(function (f, i) {
+        return '<li>' + esc(f.name) + ' · ' + sizeText(f.size) + (f.state === 'sending' ? ' <span class="muted">Sending…</span>'
+          : ' <span class="why">Refused: ' + esc(f.why) + '</span>' + (f.retry ? '<button type="button" class="btn-ghost" data-retry="' + i + '">Retry</button>' : '')
+            + '<button type="button" class="btn-ghost" data-drop="' + i + '">Remove</button>') + '</li>';
+      })).join('');
+    });
+  }
+  all('.form [data-kind="file"]', function (q) {
+    const drop = q.querySelector('.drop'), input = drop.querySelector('input');
+    input.addEventListener('change', function () { pick(q, input.files); input.value = ''; });
+    drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('over'); });
+    drop.addEventListener('dragleave', function () { drop.classList.remove('over'); });
+    drop.addEventListener('drop', function (e) { e.preventDefault(); drop.classList.remove('over'); pick(q, e.dataTransfer.files); });
+    q.querySelector('.files').addEventListener('click', function (e) {
+      const b = e.target.closest('button'), id = q.getAttribute('data-q');
+      if (!b) return;
+      if (b.hasAttribute('data-file')) { data.files[id].splice(+b.getAttribute('data-file'), 1); persist(); return; }
+      const entry = uploads[id][+(b.getAttribute('data-retry') || b.getAttribute('data-drop'))];
+      if (b.hasAttribute('data-retry')) send(q, entry);
+      else { uploads[id] = uploads[id].filter(function (f) { return f !== entry; }); render(); }
+    });
+  });
+
+  // ── what the build needs: an item that needs you counts until each of its questions has an answer ──
+  function needsOpen() {
+    return Array.prototype.filter.call(document.querySelectorAll('.need[data-need="needs"]'), function (n) {
+      const qs = n.querySelectorAll('[data-q]');
+      return !qs.length || Array.prototype.some.call(qs, function (q) { return !answered(q); });
+    });
+  }
+  function drawNeeds() {
+    const gaps = needsOpen();
+    all('.need[data-need="needs"]', function (n) {
+      const done = gaps.indexOf(n) < 0, tag = n.querySelector('.tag-outline, .tag');
+      tag.className = done ? 'tag' : 'tag-outline';
+      tag.textContent = done ? 'Answered' : 'Needs you';
+    });
+    return gaps.length ? gaps.length + (gaps.length === 1 ? ' thing needs you' : ' things need you') : '';
+  }
+
+  // ── live cards: the chat's own page in a sealed frame, to try; it sends this page nothing ──
+  // A frame loads once; a second load means its page went somewhere else, so it starts again from its own copy.
+  const cards = [];
+  function mount(c) {
+    const f = document.createElement('iframe');
+    let loads = 0;
+    f.setAttribute('sandbox', 'allow-scripts'); f.title = c.title; f.setAttribute('srcdoc', c.doc);
+    f.addEventListener('load', function () {
+      loads += 1;
+      if (loads === 1) return;
+      c.resets += 1;
+      c.said.hidden = false;
+      c.said.textContent = 'This card tried to leave the page.' + (c.resets > 2 ? ' Reload the page to try it again.' : '');
+      if (c.resets > 2) f.remove(); else mount(c);
+    });
+    c.box.replaceChildren(f);
+    queue();
+  }
+  // The card's view sizes the frame; a live card never moves, since a moved frame loads again.
+  all('.live[data-live]', function (box) {
+    const old = box.querySelector('iframe'), said = document.createElement('p');
+    said.className = 'muted live-said'; said.setAttribute('role', 'status'); said.hidden = true;
+    const c = { box: box, doc: old.getAttribute('srcdoc'), title: old.title, said: said, resets: 0 };
+    box.closest('.item').querySelector('.words').appendChild(said);
+    cards.push(c);
+    mount(c);
+  });
+
+  let width = root.clientWidth;
+  window.addEventListener('resize', function () {
+    if (root.clientWidth !== width) {
+      width = root.clientWidth; hideChip();
+      folds.forEach(measure);
+    }
+    queue();
+    if (view) fitBig();
+    if (open) place();
+    bar();
+  });
+  window.addEventListener('load', queue);
+  // ── hosted: in the live app's inbox, a sealed frame that reaches the inbox only through the port its first greeting carries ──
+  let hosted = null, port = null;
+  const CODES = { sent: 200, changed: 409, done: 409, gone: 409, soon: 429, closed: 410, expired: 410 };
+  function post(message) { port.postMessage(message); }
+  // The inbox answers a tap only once the chat has it, or once it is refused, cancelled or failed.
+  function hostedAsk(path, body) {
+    return new Promise(function (resolve) {
+      hosted.reply = function (state) {
+        const status = Object.prototype.hasOwnProperty.call(CODES, state) ? CODES[state] : 502;
+        const answer = status === 200 ? { sent: true } : state === 'changed' || state === 'done' || state === 'gone' ? { [state]: true } : { sent: false };
+        resolve({ ok: status === 200, status: status, json: function () { return Promise.resolve(answer); } });
+      };
+      const tap = { type: 'inbox:tap', action: path === 'send' ? 'send' : body.action, text: body.text || '' };
+      if (body.files) tap.files = body.files;
+      post(tap);
+    });
+  }
+  // The inbox's switch owns the look: this frame can't remember a choice, so its own switch goes. Unknown looks change nothing.
+  function look(theme) { if (theme === 'light' || theme === 'dark') document.documentElement.classList.toggle('dark', theme === 'dark'); }
+  function heard(m) {
+    if (!m || typeof m !== 'object') return;
+    if (m.type === 'inbox:theme') look(m.theme);
+    else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) {
+      load(m.value);
+      if (hosted.held) keepHeld(hosted.held);
+      hosted.held = null; render();
+    } else if (hosted.reply && m.type === 'inbox:result') {
+      if (Array.isArray(m.files)) keepHeld(m.files);
+      const reply = hosted.reply; hosted.reply = null; reply(m.state);
+      // A tap that reached the chat closes the page in the inbox, so it reads as answered now, as its Archive shows it.
+      if (m.state === 'sent') closePage();
+    } else if (m.type === 'inbox:file-result' && waiting[m.ref]) {
+      const done = waiting[m.ref];
+      delete waiting[m.ref];
+      done(typeof m.id === 'string' && /^[0-9a-f]{32}$/.test(m.id) ? { id: m.id } : { error: typeof m.error === 'string' ? m.error : 'it was not sent; try again' });
+    }
+  }
+  // Back and the workspace sit first in the page, so they scroll away with its words; the inbox's own bar stays put.
+  function backRow(workspace) {
+    const row = document.createElement('div'), back = document.createElement('button');
+    row.className = 'back'; back.type = 'button'; back.className = 'btn-ghost'; back.textContent = 'Back';
+    back.addEventListener('click', function () { post({ type: 'inbox:back' }); });
+    row.appendChild(back);
+    if (typeof workspace === 'string' && workspace) {
+      const where = document.createElement('span');
+      where.className = 'muted'; where.textContent = workspace; row.appendChild(where);
+    }
+    document.querySelector('main > header').prepend(row);
+  }
+  // A closed or answered page in the inbox is read-only: no button, no note, no answer or file.
+  function closePage() {
+    readOnly = true; document.body.classList.add('read-only');
+    all('.form input', function (el) { el.disabled = true; });
+    render();
+  }
+  window.addEventListener('message', function (e) {
+    const m = e.data;
+    if (hosted || window.parent === window || e.source !== window.parent || !e.ports || !e.ports[0] || !m || m.type !== 'inbox:hello'
+      || typeof m.version !== 'string' || !Array.isArray(m.actions)) return;
+    // The files the app still holds for this page, checked once its notes arrive.
+    hosted = { reply: null, held: Array.isArray(m.files) ? m.files : null };
+    port = e.ports[0];
+    port.onmessage = function (ev) { heard(ev.data); };
+    document.querySelectorAll('.theme-toggle').forEach(function (button) { button.remove(); });
+    look(m.theme);
+    // Notes live with the inbox page: this frame has no storage of its own.
+    store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
+    post({ type: 'inbox:notes-get', key: KEY });
+    backRow(m.workspace);
+    if (m.readOnly === true) { closePage(); return; }
+    setLive('inbox'); offer(m); render();
+  });
+  // In a frame, a link opens its own tab and a # link scrolls in place: the frame never leaves this page.
+  // A srcdoc page resolves #why against the inbox's address, so following it would load the inbox here.
+  document.addEventListener('click', function (e) {
+    const a = window.parent !== window && e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    const href = a.getAttribute('href');
+    if (href.charAt(0) !== '#') { a.target = '_blank'; a.rel = 'noopener noreferrer'; return; }
+    e.preventDefault();
+    if (href.charAt(1) === '/') { jump(href); return; }
+    let el = null;
+    try { el = document.getElementById(decodeURIComponent(href.slice(1))); } catch (err) { /* a bad escape names nothing */ }
+    if (el) el.scrollIntoView({ block: 'start' });
+  }, true);
+  window.addEventListener('hashchange', jump);
+  render();
+  jump();
+  const key = linkKey();
+  if (key) {
+    connecting = true; says('Connecting to the chat…'); bar();
+    (async function () {
+      try {
+        const r = await ask('alive', key);
+        if (!r.ok) return;
+        const answer = await r.json();
+        if (!answer || typeof answer !== 'object') return;
+        setLive(key); offer(answer);
+      } catch (e) { /* not live: the page copies */ }
+      finally { connecting = false; says(''); bar(); }
+    }());
+  }
+}());
+</script>
+</body>
+</html>

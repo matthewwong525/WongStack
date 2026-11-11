@@ -6,18 +6,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/session-start.mjs\" --agent codex",
-            "timeout": 5,
-            "statusMessage": "Loading memory"
-          },
-          {
-            "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/hand-over/scripts/helper.mjs\" start",
             "timeout": 5
           },
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/wong-sync/scripts/codex-plugin.mjs\" --check",
             "timeout": 3
           }
         ]
@@ -34,18 +33,6 @@
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
-            "timeout": 3
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "apply_patch",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/before-edit.mjs\"",
             "timeout": 3
           }
         ]

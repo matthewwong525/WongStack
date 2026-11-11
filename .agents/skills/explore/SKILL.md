@@ -33,7 +33,7 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs"
 node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" areas <paths>
 ```
 
-Treat dated facts as assumptions. [Memory unavailable](../memory/SKILL.md#read)? Say so; continue with available sources.
+Treat dated facts as assumptions. [Memory unavailable](../../plugins/memory/SKILL.md#read)? Say so; continue with available sources.
 
 ## Check for other work
 

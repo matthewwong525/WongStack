@@ -6,14 +6,14 @@
 
 Every install starts empty and takes **every** category.
 
-- **Core** ships every listed skill's scripts/references, including browser discovery, private/reply links, Camoufox, shopping through Shop, improvement, scheduling and memory. It also ships Claude/Codex memory hooks, Claude ask hooks, project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test and guard workflows/change-scope action, and the `WONG-STACK` block.
+- **Core** ships every listed skill's scripts/references, including browser discovery, private/reply links, Camoufox, shopping through Shop, improvement, scheduling and memory. It also ships Claude ask hooks, project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test and guard workflows/change-scope action, and the `WONG-STACK` block.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds scripts, [comment rule](../../../../scripts/lint-comment-length.mjs), workflow, schema, `wiki/stack/`, [check runner](../../../../scripts/check-runner/worker.mjs) and [company calls](../../../../scripts/company-api.mjs). Employee migrations are additive; memory imports need no app packages.
 - **Scaffold** adds `app/`, except `app/wrangler*.jsonc`, which hold source-repo database IDs.
 
 ## The agent folder
 
-Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`; [setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
+Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. `mapped` installs `.claude/plugins/memory` as a real `.claude/skills/memory/`. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
 
 Real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex and Claude read their respective names; the inventory block remains `CLAUDE.md`. Sync preserves every target-owned line:
 
@@ -35,7 +35,7 @@ Setup also copies the source's values-blank `.env.example`. It is not in `payloa
 
 Skill mappings use logical `.claude/` paths: string arrays map names to themselves; objects or source/local pairs preserve renames. New skills keep upstream names until implementation records another.
 
-Read source symlinks one Git hop. Folder, chained or broken links are no unit; real files win at the same path.
+Read source symlinks one Git hop. Folder, chained or broken links are no unit; real files win at the same path. Copy a mapped unit by `node <source path>/.claude/skills/wong-sync/scripts/install-path.mjs --source <source path> <sourcePath> > <targetPath>`: its links point at install paths.
 
 Compare Git blobs, limiting `CLAUDE.md` to the marked block. Upstream units are `added|modified|removed`; target classes are `missing`, `installed-equivalent` (recorded source), `latest-equivalent` (refreshed source), or protected `locally-adapted` (neither).
 
@@ -68,7 +68,7 @@ Every sync reads this source page. Add these report instructions to its explore/
 
 ## The memory store and its hooks
 
-**memory** ships scripts/migrations/Worker route/[writing bar](../../memory/references/writing-facts.md). [Retrieval](../../../../wiki/development/document-retrieval.md) ships fallback and pinned setup metadata, never caches. Merge hooks into target settings/hooks, never replace; Codex asks once to trust them. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require an admin `memory.mjs migrate` after merge/deploy. Machine ownership needs trusted replacement credentials; old private history stays unassigned. [Memory](../../../../wiki/development/memory.md) owns other details.
+**memory** is [a plugin](../../../plugins/memory/SKILL.md) with its [writing bar](../../../plugins/memory/references/writing-facts.md); [`.claude/memory/`](../../../memory/profile.mjs) holds WongStack's profile, D1 store, and migrations. [Retrieval](../../../../wiki/development/document-retrieval.md) ships fallback and pinned setup metadata, never caches. Merge hooks into target settings/hooks, never replace; Codex asks once to trust them. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require an admin `memory.mjs migrate` after merge/deploy. Machine ownership needs trusted replacement credentials; old private history stays unassigned. [Memory](../../../../wiki/development/memory.md) owns other details.
 
 ## The Paseo project file
 

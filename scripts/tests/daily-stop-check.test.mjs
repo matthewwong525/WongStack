@@ -12,7 +12,7 @@ import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { askText, chatTitle, judgeLine, runJudge, stopCard, stopCheck, tailOf } from '../../.agents/skills/daily/scripts/stop-check.mjs';
 import { appendNote, takeNotes } from '../../.agents/skills/daily/scripts/waiting-notes.mjs';
 import { needsYouFile } from '../../.agents/skills/daily/scripts/worker.mjs';
-import { ensureDaily } from '../../.agents/skills/memory/scripts/session-start.mjs';
+import { ensureDaily } from '../../.agents/memory/session-start.mjs';
 
 const SCRIPT = fileURLToPath(new URL('../../.agents/skills/daily/scripts/stop-check.mjs', import.meta.url));
 const TZ = 'America/Toronto';

@@ -48,7 +48,7 @@ When a task done by hand — a plain request, or non-code work under a verb — 
 - **Search memory once**: `memory.mjs search` on the task's key terms finds a past request or decline.
 - **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/schedule`](../../.agents/skills/schedule/SKILL.md). Fixed steps first use a script on an existing clock; build needed code through this loop, or a [mini app](../stack/mini-apps.md) when useful: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
 - **Name the outcome, not the tool**: *do this every Monday at 9*, *a page that splits the bill for you*.
-- **A no is final**: record a `feedback` fact through [the write gate](../../.agents/skills/memory/SKILL.md#write), naming the task in the person's words, and never offer for it again.
+- **A no is final**: record a `feedback` fact through [the write gate](../../.agents/plugins/memory/SKILL.md#write), naming the task in the person's words, and never offer for it again.
 - **A yes starts the usual route**: `/schedule`'s own confirmation, or the change loop stopping at the plan's review.
 
 No offer after a code change you built, or in an unattended run.
@@ -76,10 +76,10 @@ Each skill owns its procedure; this list says what each stage is for.
 - **[`/explore`](../../.agents/skills/explore/SKILL.md)** thinks a problem through, owns the [questions before a plan](#asking-before-drafting), and changes no repo file.
 - **[`/plan`](../../.agents/skills/plan/SKILL.md)** drafts the change folder and its `review.html` page. **A behavior change plans test authoring beside source**, and its checks at the end ([why](#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). `/save` never authors tests; coverage grows where the context is richest.
 - **[`/apply`](../../.agents/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/skills/apply/SKILL.md#build-in-a-helper), free of the planning talk, has [a second agent review it](../../.agents/skills/apply/SKILL.md#a-second-look), and ends with [the local pre-check](#the-gate) and a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload.
-- **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, and returns a preview URL; it also records the session's facts in the [memory store](memory.md). With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so git, PR, and CI logic exists once.
+- **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, and returns a preview URL. The chat's facts go to the [memory store](memory.md) through memory capture, not `/save`. With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so git, PR, and CI logic exists once.
 - **[`/continue`](../../.agents/skills/continue/SKILL.md)** resumes a change or an open non-code thread, cold, on any machine, and hands off to `/apply`. Work new to this computer is shown and asked about first.
 - **[`/ship`](../../.agents/skills/ship/SKILL.md)** archives the change, runs `/save` and [`/verify`](#verifying-the-app) once each, plus once more after a failed walk's one fix, squash-merges on [the gate](#the-gate), then [looks at the live app](staging-walkthrough.md#what-it-is-not). An unfinished change goes through `/apply` first. The walk replays [kept checks](kept-checks.md#when-it-replays) and saves new ones. A check only possible after publishing is a Decision-log line: it refuses unticked tasks.
-- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up a chat you chose to close, with no question. It records the chat's aim and what is left, keeps unfinished work saved, moves repeatable facts to the wiki in their own pull request, and closes the workspace. A workspace closed another way leaves its facts to [the small wiki tidy](wiki-dream.md#the-small-wiki-tidy) where the daily helper runs, else [a dream](wiki-dream.md).
+- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up a chat you chose to close, with no question. It keeps unfinished work saved, reads the chat for repeatable facts and moves them to the wiki in their own pull request, and closes the workspace. Memory capture keeps the rest. A workspace closed another way leaves its facts to [the small wiki tidy](wiki-dream.md#the-small-wiki-tidy) where the daily helper runs, else [a dream](wiki-dream.md).
 
 Loop back any time: re-`/plan` if the spec needs to change.
 
@@ -125,7 +125,7 @@ A verb you invoke for work that changes no repo file, such as research, a messag
 
 - **`/plan`** writes a short numbered to-do in the chat, marking each step that acts outside it.
 - **`/apply`** works the to-do. Only an outward action, such as a sent message or a payment, asks first, showing exactly what it will do.
-- **`/save`** keeps the progress as a memory `thread` fact, and **`/continue`** resumes it.
+- **`/save`** says the chat's memory capture keeps the progress, and **`/continue`** resumes it.
 - **`/ship`** is for repo changes only; the work finishes in `/apply`.
 
 ### Mini apps

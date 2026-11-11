@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { backlinks, checkWiki, WIKI_PAGE_WORDS } from '../../.agents/skills/memory/scripts/lib/links.mjs';
+import { backlinks, checkWiki, WIKI_PAGE_WORDS } from '../../.agents/memory/lib/links.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SCRIPT = join(REPO, '.github/scripts/wiki-links.mjs');
@@ -173,7 +173,7 @@ test('a page may open with one frontmatter block, read as the knowledge reader r
 
 test('the check and the knowledge reader use the same frontmatter pattern', () => {
   const front = file => readFileSync(join(REPO, file), 'utf8').match(/^const FRONT = (.+);$/m)?.[1];
-  const ours = front('.agents/skills/memory/scripts/lib/links.mjs');
+  const ours = front('.agents/memory/lib/links.mjs');
   assert.ok(ours, 'links.mjs has a const FRONT line');
   assert.equal(front('app/worker/apps/knowledge/render.ts'), ours);
 });

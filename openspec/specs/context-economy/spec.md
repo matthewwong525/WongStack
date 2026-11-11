@@ -44,7 +44,7 @@ A vendored skill that only a WongStack verb calls SHALL NOT be offered for autom
 
 ### Requirement: Save loads conditional procedures only when they apply
 
-`/save` SHALL complete an ordinary checkpoint without loading its conditional procedures (named secrets, facts-only, new-plan fallback), and SHALL load each one that applies before acting on it.
+`/save` SHALL complete an ordinary checkpoint without loading its conditional procedures (named secrets, new-plan fallback), and SHALL load each one that applies before acting on it.
 
 #### Scenario: An ordinary checkpoint
 
