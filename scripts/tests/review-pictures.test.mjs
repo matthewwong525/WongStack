@@ -592,7 +592,7 @@ test('a live After card beside a Before picture gives two labelled parts', () =>
 
 test('a screen sketch with no real picture and no reason warns, and builds', () => fixture(root => {
   assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, ['proposal.md line 10: item 1: a screen sketch with no real picture: '
-    + 'run the prototype with sample data, or add a line "No real picture: <the step that failed>"']);
+    + 'draw it from the prototype or the app\'s screen test, with sample data, or add a line "No real picture: <the step that failed>"']);
 }, withScreen(['<div class="card"><p>Wide</p></div>'], '')));
 
 test('a screen sketch beside a real picture gives no warning', () => fixture(root => {

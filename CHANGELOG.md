@@ -14,6 +14,15 @@
 
 **Updating.** Nothing to do by hand. The update moves memory into a plugin and keeps every fact, with no database change. It also installs the plugin into Codex on this computer. On each other computer you use Codex on, the next chat names one command to run. Until production has the update, a chat shows its last saved digest and keeps new facts on the computer; they are sent after the update. A link in your own pages to an old memory path, such as `.agents/skills/memory/references/areas.json` or `.agents/skills/dream-memory/`, now goes to its new place: the update's link check names each one.
 
+## 51.11.0 — A plan for a phone app shows the real app
+
+- **A plan for a phone or desktop app shows real pictures, not a gray sketch.** The plan draws the app with the app's own screen test, in the throwaway copy, with sample data: *Before* from the copy as it is today, *After* from the same copy with the plan's edits ([prototypes](wiki/prototypes.md#an-app-the-preview-cant-serve)).
+- **Each repo writes down its own way once.** The first plan that needs such pictures works out the steps and writes them on the repo's own page for that app, so the next plan only follows them.
+- **A sketch stays only for what no test can draw**, such as the phone's own menus, keyboard, share sheet, or permission questions. The plan still shows the real *Before*, and one line names the part only the phone draws.
+- **How a plan makes its pictures moved to its own page**, [prototypes](wiki/prototypes.md). [Review pages](wiki/review-pages.md#the-prototype) keeps a short summary under the same heading, so your links to it still work.
+
+**Updating.** Nothing to do now. If your repo has a phone or desktop app, the next plan that changes one of its screens writes a page with the steps to draw it, and later plans use that page.
+
 ## 51.10.0 — A scheduled chat starts with your instructions
 
 - **The chat's first message is the instructions you approved, word for word**, then a short footer: what it may do, when it ends, the progress so far, and the one command to run when it stops. Instructions that start with a skill, such as `/news`, run that skill. Your computer still opens the chat only when the text is the version you approved there ([how a run works](wiki/stack/host-schedules.md#how-a-run-works)).

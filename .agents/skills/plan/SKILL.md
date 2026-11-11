@@ -28,7 +28,7 @@ Why and What Changes use [plain words](../explore/references/asking-the-user.md#
 
 ## Draw in the proposal, then build the page
 
-Draw as you write, with no second agent: one drawing per What Changes bullet by default, as a fence in its bullet by [the drawing guide](references/drawings.md). A card shows [the closest real result](../../../wiki/review-pages.md#a-card-shows-the-closest-real-result): a screen change gets [a prototype](../../../wiki/review-pages.md#the-prototype) with sample data, a site this app doesn't run [a live one](../../../wiki/review-pages.md#a-website-prototype); notes update it too. Every plan lists [what the build needs](../../../wiki/review-pages.md#what-the-build-needs), its answers [asked in the chat](../explore/references/asking-the-user.md#choices-go-in-the-chat).
+Draw as you write, with no second agent: by default one fence in each What Changes bullet, by [the drawing guide](references/drawings.md). A card shows [the closest real result](../../../wiki/review-pages.md#a-card-shows-the-closest-real-result): a screen change gets [a prototype](../../../wiki/prototypes.md) with sample data, by browser or [screen test](../../../wiki/prototypes.md#an-app-the-preview-cant-serve), a site this app doesn't run [a live one](../../../wiki/review-pages.md#a-website-prototype); notes update it too. Every plan lists [what the build needs](../../../wiki/review-pages.md#what-the-build-needs), its answers [asked in the chat](../explore/references/asking-the-user.md#choices-go-in-the-chat).
 
 Build the page after drafting and each edit:
 

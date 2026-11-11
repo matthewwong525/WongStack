@@ -120,7 +120,8 @@
   "ui": {
     "files": [
       "wiki/ux-principles.md",
-      "wiki/review-pages.md"
+      "wiki/review-pages.md",
+      "wiki/prototypes.md"
     ]
   },
   "pack": {
