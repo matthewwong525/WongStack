@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · memory-topic-web</title>
+<title>Review · 2026-11-11-memory-topic-web</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="memory-topic-web" data-own-back>
+<body data-change="2026-11-11-memory-topic-web" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>memory-topic-web</h1>
+  <h1>2026-11-11-memory-topic-web</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -513,6 +513,20 @@
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the chat start drops the newest-facts list and keeps only preferences stated since the last tidy, because the tidy puts a lasting preference on the person's page each day, and the page is in the chat start.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the message topic match stays as it is, because it reads only files on this computer and the related topics need the store.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: Relay Everything's reader helpers, which read old chats in groups, are left out, because WongStack already reads each chat when it ends, so there is no past to fill in.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-11</p>Check: <code>scripts/tests/memory-extract.test.mjs</code>, <code>scripts/tests/memory-extract-ownership.test.mjs</code> and <code>scripts/tests/memory-context-evaluation.test.mjs</code> are removed, because the extraction helper and the evaluation mode they test are removed; a new test checks that the two old commands exit 1 and name the helper page.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-11</p>Check: <code>scripts/tests/memory-capture.test.mjs</code> loses the test that a consolidation leaves a marker the wiki tidy claims once, because the marker and <code>wiki-tidy-check.mjs</code> are removed; <code>scripts/tests/memory-daily.test.mjs</code> tests the daily claim in their place.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: consolidation runs only in the daily tidy's first part and in a full dream, not after every capture, because the daily tidy is now the one place it is due.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the daily run waits up to 30 minutes for the capture lock before it claims the day, so a capture that holds the lock does not lose the day; a failed first part is logged and the tidy goes on.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the tidy's agent writes its record to a file and the run sends it only after the edits publish, so a stopped tidy sends no record; with no <code>tidy.publish</code> line in the profile, the run commits the edits to <code>daily-tidy-&lt;date&gt;</code> itself. A new profile key, <code>tidy.deny</code>, holds the deny list.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the digest's <code>daily</code> answer also carries <code>reason</code>, so a failed tidy can say why; a capture that ended well shows no line in the digest.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: a pull cuts a fact to 160 characters, and a fact node or <code>--more</code> shows it whole; <code>areas --limit</code> now caps each group, not all facts.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the pull, related topics and the helper are written up in <code>wiki/development/memory-search.md</code>, because <code>memory.md</code> is close to its 3,000-word cap; <i>Link</i> and <i>Look back</i> are parts of the dream's step 5, so the steps keep their numbers.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the retired <i>Wiki tidy</i> default keeps its reason in the <code>retired</code> list, and that reason is the journal line.</li>
+<li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the helper's stop rule counts only names that found a node, and a <code>--more</code> read counts as a pull, because the first real run stopped early on two guessed names that matched nothing.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-11</p>Asked how to do the real run, because memory works only on the live app and previews have no memory → chose a real tidy on a test copy of memory first, with its edits kept on a local branch, then publish and run the first live tidy right after.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the run sets the tidy record's source itself, as it already drops its session, because a real test tidy wrote a source the store refuses and its record was lost.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the tidy record ends with what it linked, or none and why, because the first real test tidy linked no topics and its record did not say so.</li>
+<li class="decision card" id="decision-29" data-note="decision-29" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-11</p>Archive checkpoint: built, reviewed twice, one real test tidy run, and archived for release.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

@@ -1,7 +1,7 @@
 # Memory becomes a web of linked topics that tidies itself each day
 
-**Status:** draft
-**Branch:** terrible-crab
+**Status:** ready-to-ship
+**Branch:** redesign-memory-linked-threads
 **Open questions:** none
 
 ## Why
@@ -125,6 +125,7 @@ Memory holds 1,470 live facts, but a chat sees them as a flat list: the nine new
 - **2026-11-11** — Asked how to do the real run, because memory works only on the live app and previews have no memory → chose a real tidy on a test copy of memory first, with its edits kept on a local branch, then publish and run the first live tidy right after.
 - **2026-11-11** — Assumed: the run sets the tidy record's source itself, as it already drops its session, because a real test tidy wrote a source the store refuses and its record was lost.
 - **2026-11-11** — Assumed: the tidy record ends with what it linked, or none and why, because the first real test tidy linked no topics and its record did not say so.
+- **2026-11-11** — Archive checkpoint: built, reviewed twice, one real test tidy run, and archived for release.
 
 ## Capabilities
 

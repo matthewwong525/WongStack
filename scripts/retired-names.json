@@ -210,7 +210,7 @@
   {"name": "skills/memory/migrations/", "replacement": "`.agents/memory/d1/migrations/`"},
   {"name": "memory/worker/", "replacement": "`serve()` in `.agents/plugins/memory/store/interface.mjs`, with `.agents/memory/d1/store.mjs`"},
   {"name": "plugins/marketplace.json", "replacement": "the root `.claude-plugin/marketplace.json`, Codex's one list, its `memory` entry at `./.agents/skills/memory`"},
-  {"name": "extract-task", "replacement": "`memory.mjs pull <name>`, or the memory helper `.claude/skills/memory/references/recall-helper.md`", "allow": [".agents/plugins/memory/scripts/memory.mjs"], "why": "the removed command exits 1 and names the helper page"},
+  {"name": "extract-task", "replacement": "`memory.mjs pull <name>`, or the memory helper `.claude/skills/memory/references/recall-helper.md`", "allow": [".agents/plugins/memory/scripts/memory.mjs", "scripts/tests/memory-pull.test.mjs"], "why": "the removed command exits 1 and names the helper page; its test calls it"},
   {"name": "memory.mjs extract", "replacement": "`memory.mjs pull <name>`, or the memory helper `.claude/skills/memory/references/recall-helper.md`"},
   {"name": "memory-extraction.md", "replacement": "`wiki/development/memory-search.md#the-memory-helper`", "allow": ["scripts/tests/fixtures/document-retrieval/corpus/wiki/development/memory.md"], "why": "this frozen retrieval fixture keeps its reviewed source text"},
   {"name": "#experimental-extraction", "replacement": "`wiki/development/memory-search.md#the-memory-helper`"},

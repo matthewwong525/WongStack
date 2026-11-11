@@ -169,7 +169,8 @@ async function tidyParts(ctx, { agent, copy, record, deadline, day }) {
 // run's own `source`, never the agent's. True when the record still reads.
 function cleanRecord(record) {
   try {
-    const { session, ...input } = JSON.parse(readFileSync(record, 'utf8'));
+    const input = JSON.parse(readFileSync(record, 'utf8'));
+    delete input.session;
     writeFileSync(record, `${JSON.stringify({ ...input, source: 'save' })}\n`);
     return true;
   } catch { return false; }

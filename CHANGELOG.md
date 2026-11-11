@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Memory links its topics and tidies itself each day
+## 53.0.0 — Memory links its topics and tidies itself each day
 
 - **One daily tidy, started by your first chat of the day.** It runs in the background, and the chat never waits. It saves what your chats learned, merges facts that say the same thing, puts lasting facts on their topic's page, links topics that connect, and checks three old pages and one spec. It uses your own AI plan. Its own work stops after 30 minutes, and the wait for the project's checks can add up to an hour. With two computers, only one tidies each day ([the daily tidy](wiki/development/wiki-dream.md#the-daily-tidy)).
 - **You control it from any chat**: *when did memory last tidy*, *stop the daily memory tidy* (on that computer), *start it again*, and *tidy memory now*.
