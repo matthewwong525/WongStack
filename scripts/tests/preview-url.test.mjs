@@ -6,6 +6,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
+process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
+
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/save/scripts/preview-url.sh');
 

@@ -80,7 +80,7 @@ The Inbox opens on your open chats, by [the Inbox](reply-links.md#in-your-inbox-
 - **`/close` removes its row** as its last step. A row not heard from in 3 days goes, for a computer whose worker is off.
 - **A review links to its chat.** A review page carries its chat's id, so it shows on that chat's row. An older page with no id joins the chat in its folder.
 
-Tap *Close chat* in a row's menu, and the watch sends that chat [`/close`](../../.agents/skills/close/SKILL.md) once you have been quiet there for 15 minutes. Only the chats you pick close.
+Tap *Close chat* in a row's menu, and the watch sends that chat [`/close`](../../.agents/plugins/loop/skills/close/SKILL.md) once you have been quiet there for 15 minutes. Only the chats you pick close.
 
 ## A background run's handoff
 
@@ -93,7 +93,7 @@ Ask *what's going on?* in any chat, and it marks each chat it watches that is fi
 - The chat's work is merged at its last commit, and its folder has no new work.
 - The chat is stopped and has no open question.
 
-It also marks a stopped chat as covered when [the line-up](#your-chats-in-line) told it another chat covers its work. It asks which ones to close. Each chat you pick gets [`/close`](../../.agents/skills/close/SKILL.md): it saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat you do not pick stays open. Nothing closes a chat by itself because its work went live: a live chat that is still open is usually one you kept open. It never marks a sub-agent or the main checkout. This needs Paseo, which lets a chat see other chats.
+It also marks a stopped chat as covered when [the line-up](#your-chats-in-line) told it another chat covers its work. It asks which ones to close. Each chat you pick gets [`/close`](../../.agents/plugins/loop/skills/close/SKILL.md): it saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat you do not pick stays open. Nothing closes a chat by itself because its work went live: a live chat that is still open is usually one you kept open. It never marks a sub-agent or the main checkout. This needs Paseo, which lets a chat see other chats.
 
 ## Add-ons
 

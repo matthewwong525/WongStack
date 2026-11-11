@@ -1,7 +1,7 @@
 {
   "all": true,
-  "src": ["scripts", ".agents/skills", ".agents/memory", ".github/scripts"],
-  "include": ["scripts/*.mjs", ".agents/skills/*/scripts/**/*.mjs", ".agents/skills/*/store/*.mjs", ".agents/memory/**/*.mjs", ".github/scripts/*.mjs"],
+  "src": ["scripts", ".agents/skills", ".agents/plugins/loop", ".agents/loop", ".agents/memory", ".github/scripts"],
+  "include": ["scripts/*.mjs", ".agents/skills/*/scripts/**/*.mjs", ".agents/plugins/loop/skills/*/scripts/**/*.mjs", ".agents/plugins/loop/scripts/**/*.mjs", ".agents/loop/**/*.mjs", ".agents/skills/*/store/*.mjs", ".agents/memory/**/*.mjs", ".github/scripts/*.mjs"],
   "exclude": ["scripts/tests/**"],
   "reporter": ["text-summary"],
   "reports-dir": "scripts/tests/coverage",

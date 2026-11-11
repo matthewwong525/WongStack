@@ -5,7 +5,7 @@ on:
     branches: ['**']
     paths:
       - '.agents/plugins/memory/**'
-      - '.agents/skills/explore/SKILL.md'
+      - '.agents/plugins/loop/skills/explore/SKILL.md'
       - 'scripts/evaluate-document-retrieval.mjs'
       - 'scripts/tests/document-*.test.mjs'
       - 'scripts/tests/document-recall.test.mjs'

@@ -4,9 +4,9 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { endsWithChoices, LINKS_REASON, linksDecision, readTurn, REASON, REMINDER, stopDecision, turnLinks, waitForCall } from '../../.agents/skills/explore/scripts/ask-check.mjs';
+import { endsWithChoices, LINKS_REASON, linksDecision, readTurn, REASON, REMINDER, stopDecision, turnLinks, waitForCall } from '../../.agents/loop/ask-check.mjs';
 
-const cli = new URL('../../.agents/skills/explore/scripts/ask-check.mjs', import.meta.url).pathname;
+const cli = new URL('../../.agents/loop/ask-check.mjs', import.meta.url).pathname;
 
 // Invented replies in the shapes the backtest found: typed choices, and endings that are not choices.
 const REPORT = 'The preview is up and the sign-up page works.\n\n[👉 Tap here to see the preview](https://example.invalid/apps/demo/)';
@@ -120,11 +120,11 @@ test('Claude Code runs the check at each stop, the link check before each questi
   const read = file => JSON.parse(readFileSync(new URL(`../../.agents/${file}`, import.meta.url), 'utf8')).hooks;
   const commands = entries => entries.flatMap(entry => entry.hooks.map(hook => hook.command));
   const claude = read('settings.json');
-  assert.ok(commands(claude.Stop).some(command => command.endsWith('/explore/scripts/ask-check.mjs" stop')));
+  assert.ok(commands(claude.Stop).some(command => command.endsWith('/.claude/loop/ask-check.mjs" stop')));
   const compact = claude.SessionStart.filter(entry => entry.matcher === 'compact');
-  assert.ok(commands(compact).some(command => command.endsWith('/explore/scripts/ask-check.mjs" reminder')));
+  assert.ok(commands(compact).some(command => command.endsWith('/.claude/loop/ask-check.mjs" reminder')));
   const asks = claude.PreToolUse.filter(entry => entry.matcher === 'AskUserQuestion');
-  assert.ok(commands(asks).some(command => command.endsWith('/explore/scripts/ask-check.mjs" links')));
+  assert.ok(commands(asks).some(command => command.endsWith('/.claude/loop/ask-check.mjs" links')));
   assert.doesNotMatch(JSON.stringify(read('hooks.json')), /ask-check/);
 });
 

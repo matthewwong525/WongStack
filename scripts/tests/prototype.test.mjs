@@ -6,6 +6,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
 
+// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
+process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
+
 const script = resolve(import.meta.dirname, '../../.claude/skills/plan/scripts/prototype.mjs');
 const git = (cwd, ...args) => spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8' });
 

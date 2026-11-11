@@ -4,7 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { CHECK_FILES, NEVER_PUBLISHES, NOT_SET_UP } from '../../.agents/skills/save/scripts/app-change.mjs';
+import { CHECK_FILES, NEVER_PUBLISHES, NOT_SET_UP } from '../../.agents/loop/routes/app-change.mjs';
 import { failingChecks } from '../../.agents/skills/save/scripts/checkpoint.mjs';
 
 const script = new URL('../../.agents/skills/save/scripts/checkpoint.mjs', import.meta.url).pathname;
@@ -19,6 +19,8 @@ const PREVIEW = 'https://work.example.workers.dev';
 // A copy installed through Connect your assistant: origin is the app's own Git address.
 const APP_REMOTE = 'https://app.example.com/api/access/code/git/';
 const NO_CHANGE = { state: null, url: null, number: null };
+// WongStack's own profile names the route; without it the fake gh fails `gh --version`, and the route is local.
+const PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
 
 // The real git, against a bare origin in the fixture. Every call is logged, and the origin
 // address reads as a GitHub one so the receipt helper can name the repository.
@@ -110,7 +112,7 @@ esac
 exec "$REAL_NODE" "$@"
 `;
 
-function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PASS }, artifacts = false, app = false } = {}) {
+function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PASS }, artifacts = false, app = false, profile = PROFILE } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-checkpoint-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const work = join(dir, 'work');
@@ -125,7 +127,7 @@ function fixture(t, { pushed = true, workflows = true, gh = { pr: PR, checks: PA
     ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}`, HOME: dir, FAKE_DIR: dir, REAL_GIT,
     GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_AUTHOR_NAME: 'Fixture', GIT_AUTHOR_EMAIL: 'fixture@example.test', GIT_COMMITTER_NAME: 'Fixture', GIT_COMMITTER_EMAIL: 'fixture@example.test',
-    WONG_SAVE_STATE_DIR: join(dir, 'state'), WAIT_FOR_CHECKS_GRACE: '1', WAIT_FOR_CHECKS_INTERVAL: '0.2',
+    WONG_SAVE_STATE_DIR: join(dir, 'state'), WAIT_FOR_CHECKS_GRACE: '1', WAIT_FOR_CHECKS_INTERVAL: '0.2', WONG_LOOP_PROFILE: profile,
     ...(artifacts || app ? { FAKE_REMOTE: app ? APP_REMOTE : ARTIFACTS_REMOTE, REAL_NODE: process.execPath } : {}),
   };
   const git = (...args) => execFileSync(REAL_GIT, args, { cwd: work, env, encoding: 'utf8' }).trim();
@@ -710,3 +712,52 @@ test('a route that can not be told stops before any commit, and never falls back
   assert.doesNotMatch(unrecorded.calls(), /git commit|git push|^gh /m);
 });
 
+// The loop alone, with no gh: a profile whose pre-check passes while ok.txt says ok.
+function localFixture(t, part = "precheck: 'grep -qx ok ok.txt'") {
+  const profile = join(mkdtempSync(join(tmpdir(), 'wong-test-checkpoint-profile-')), 'profile.mjs');
+  t.after(() => rmSync(dirname(profile), { recursive: true, force: true }));
+  writeFileSync(profile, `export default { ${part} };\n`);
+  return fixture(t, { pushed: false, profile });
+}
+
+test('a local route commits, runs the pre-check, and pushes nothing', t => {
+  const f = localFixture(t);
+  f.stage('ok.txt', 'ok\n');
+  const r = f.save();
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(r.value('SAVE_HEAD'), f.git('rev-parse', 'HEAD'));
+  assert.equal(f.git('log', '-1', '--format=%s'), 'feat: a thing');
+  assert.equal(r.value('PRECHECK'), 'pass');
+  assert.equal(r.value('SAVE_GATE_RESULT'), 'LOCAL');
+  assert.match(r.stdout, /^NEXT: the commit is saved on this computer only; nothing was pushed/m);
+  assert.doesNotMatch(f.calls(), /git push|gh (?!--version)/);
+  assert.equal(f.git('ls-remote', '--heads', 'origin', 'work'), '', 'the branch is not on origin');
+});
+
+test('a local pre-check that fails counts a fix attempt, and the next save that passes clears it', t => {
+  const f = localFixture(t);
+  f.stage('ok.txt', 'not yet\n');
+  const failed = f.save();
+  assert.equal(failed.status, 0, failed.stderr);
+  assert.equal(failed.value('PRECHECK'), 'fail (exit 1)');
+  assert.equal(failed.value('SAVE_GATE_RESULT'), 'FAILURE');
+  assert.match(failed.stdout, /^SUMMARY_FILE=.* \(kept for the rerun\)$/m);
+  assert.match(failed.stdout, /fix attempt 1 of /);
+  f.stage('ok.txt', 'ok\n');
+  const fixed = f.save();
+  assert.equal(fixed.value('ATTEMPT'), '1');
+  assert.equal(fixed.value('SAVE_GATE_RESULT'), 'LOCAL');
+  assert.equal(f.save().status, 4, 'nothing is staged, and a local route has nothing to push');
+});
+
+test('a local route with no pre-check part still commits; --wait is refused', t => {
+  const f = localFixture(t, 'schedule: false');
+  f.stage('app.txt', 'two\n');
+  const r = f.save();
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.value('PRECHECK'), /^none /);
+  assert.equal(r.value('SAVE_GATE_RESULT'), 'LOCAL');
+  const wait = f.call(['--wait']);
+  assert.equal(wait.status, 4);
+  assert.match(wait.stdout, /^REFUSED=a local route has no checks to wait for$/m);
+});

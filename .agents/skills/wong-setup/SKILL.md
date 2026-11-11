@@ -36,7 +36,7 @@ Before writing, ask whether they have the Cloudflare user token, explaining its 
 
 <a id="step-2--deep-research-the-target-repo"></a>
 
-Work in the target using source-checkout skills/references, starting with [`explore`](../explore/SKILL.md). Setup stays source-only.
+Work in the target using source-checkout skills/references, starting with [`explore`](../../plugins/loop/skills/explore/SKILL.md). Setup stays source-only.
 
 Run Step 1 of the source's [provisioning runbook](references/cloudflare.md). Commit and push only after installation.
 
@@ -44,7 +44,7 @@ Invoke `/explore` with this description, filled in, plus the user's intent:
 
 > Set up WongStack in <target> from <selected repository> at <source path>, version <version>, commit <commit>. Use a reachable owner login email separately from git authorship. Private pages and previews are automatic when the account allows them; ask no enable-or-public question. An account needing a card finishes open and recommends the card as optional. Put the files in place as one task: node <source path>/.claude/skills/wong-setup/scripts/install.mjs --source <source path> --target <target> --repo <selected repository>; write no copy step of your own. If `paseo` is installed, run `node .claude/skills/schedule/scripts/presets.mjs add` in <target>; if they took the helper, `node .claude/skills/hand-over/scripts/helper.mjs install`; always `node .claude/skills/wong-sync/scripts/codex-plugin.mjs`; no failure stops setup. Run Steps 2–5 of <source path>/.agents/skills/wong-setup/references/cloudflare.md. Continue through the requested stage.
 
-Explore/plan/apply/save own questions/planning/installation/first deploy. Install every component without asking; use [shared asks](../explore/references/asking-the-user.md).
+Explore/plan/apply/save own questions/planning/installation/first deploy. Install every component without asking; use [shared asks](../../plugins/loop/skills/explore/references/asking-the-user.md).
 
 <a id="step-7--bootstrap-seed-hand-off"></a>
 

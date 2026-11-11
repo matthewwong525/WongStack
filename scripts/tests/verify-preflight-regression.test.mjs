@@ -14,13 +14,14 @@ function setup(t) {
   const folder = mkdtempSync(join(tmpdir(), 'wong-test-preflight-regression-'));
   t.after(() => rmSync(folder, { recursive: true, force: true }));
   const sourceRoot = join(folder, 'source');
-  const sourceScript = join(sourceRoot, '.agents/skills/verify/scripts/verify-staging.sh');
+  const sourceScript = join(sourceRoot, '.agents/loop/staging/verify-staging.sh');
   const testPath = 'scripts/tests/verify-scripts.test.mjs';
   mkdirSync(dirname(sourceScript), { recursive: true });
   mkdirSync(dirname(join(sourceRoot, testPath)), { recursive: true });
   writeFileSync(join(sourceRoot, testPath), readFileSync(join(ROOT, testPath)));
+  mkdirSync(join(sourceRoot, '.agents/skills'));
   symlinkSync(join(ROOT, '.agents/skills/memory'), join(sourceRoot, '.agents/skills/memory'));
-  symlinkSync(join(ROOT, '.agents/skills/verify/worker'), join(sourceRoot, '.agents/skills/verify/worker'));
+  for (const file of ['walk-pictures.mjs', 'walk-pictures.d.mts']) symlinkSync(join(ROOT, '.agents/loop/staging', file), join(dirname(sourceScript), file));
   const git = args => execFileSync('git', args, { cwd: sourceRoot, encoding: 'utf8' }).trim();
   git(['init', '-q', '-b', 'practice']);
   const commit = () => {
@@ -34,7 +35,7 @@ function setup(t) {
   assert.equal(createHash('sha256').update(historical).digest('hex'), 'd2bf1de277f93358017b484ec3610a5252f8e9108c280867ed2516eb3d81e573');
   writeFileSync(sourceScript, historical);
   const earlierSha = commit();
-  writeFileSync(sourceScript, readFileSync(join(ROOT, '.agents/skills/verify/scripts/verify-staging.sh')));
+  writeFileSync(sourceScript, readFileSync(join(ROOT, '.agents/loop/staging/verify-staging.sh')));
   const repairedSha = commit();
   writeFileSync(join(sourceRoot, 'capture-marker.txt'), 'Distinct capture head\n');
   const headSha = commit();
@@ -104,7 +105,7 @@ test('an already repaired earlier source cannot masquerade as failing-before pro
 
 test('missing earlier source cannot hide a failing head check', t => {
   const options = setup(t);
-  const sourceScript = join(options.sourceRoot, '.agents/skills/verify/scripts/verify-staging.sh');
+  const sourceScript = join(options.sourceRoot, '.agents/loop/staging/verify-staging.sh');
   writeFileSync(sourceScript, readFileSync(join(ROOT, 'scripts/fixtures/verify-receipts/preflight-before.sh')));
   const git = args => execFileSync('git', args, { cwd: options.sourceRoot, encoding: 'utf8' }).trim();
   git(['add', '.']);

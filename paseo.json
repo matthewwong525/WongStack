@@ -1,6 +1,6 @@
 {
   "worktree": {
-    "setup": "node .claude/skills/ship/scripts/worktree-secrets.mjs seed"
+    "setup": "node .claude/loop/worktree-secrets.mjs seed"
   },
   "metadataGeneration": {
     "title": {

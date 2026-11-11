@@ -38,7 +38,7 @@ export function failureDigest(output) {
 // when: 'code' skips on a docs-only change, 'docs' runs only on one, 'always' runs on both.
 // deps: needs scripts/tests/node_modules. tool: skipped here when that command is not installed.
 export const STEPS = [
-  { name: 'lint', when: 'code', deps: true, command: 'scripts/tests/node_modules/.bin/oxlint -c scripts/tests/.oxlintrc.json --deny-warnings scripts .agents/skills/*/scripts .agents/skills/*/store .agents/memory .github/scripts' },
+  { name: 'lint', when: 'code', deps: true, command: 'scripts/tests/node_modules/.bin/oxlint -c scripts/tests/.oxlintrc.json --deny-warnings scripts .agents/skills/*/scripts .agents/skills/*/store .agents/memory .agents/loop .agents/plugins/loop/scripts .github/scripts' },
   { name: 'shellcheck', when: 'code', tool: 'shellcheck', command: 'shellcheck --severity=warning scripts/*.sh .github/scripts/*.sh .agents/skills/*/scripts/*.sh' },
   { name: 'script-tests', when: 'code', deps: true, command: 'scripts/tests/node_modules/.bin/c8 --config scripts/tests/.c8rc.json node --test scripts/tests/*.test.mjs' },
   { name: 'private-names', when: 'docs', command: 'node --test scripts/tests/private-names.test.mjs' },

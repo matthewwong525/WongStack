@@ -5,10 +5,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { ownSite } from '../../.agents/skills/verify/scripts/own-site.mjs';
+import { ownSite } from '../../.agents/loop/staging/own-site.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const script = join(repo, '.agents/skills/verify/scripts/own-site.mjs');
+const script = join(repo, '.agents/loop/staging/own-site.mjs');
 const WORKER = 'https://app.acct.workers.dev';
 
 test('a workers.dev live address owns its account\'s https hosts, and nothing else', () => {

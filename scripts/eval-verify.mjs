@@ -13,7 +13,7 @@ import { parseCli, usageError } from './lib-cli.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const FIXTURE = join(REPO, 'scripts/fixtures/verify-eval');
-const RUNNER = join(REPO, '.agents/skills/verify/scripts/verify-staging.sh');
+const RUNNER = join(REPO, '.agents/loop/staging/verify-staging.sh');
 const LIVE_REFERENCE = join(REPO, '.agents/skills/verify/references/walkthrough.md');
 const CHANGE = 'openspec/changes/practice-notes';
 // The prompt arrives on stdin. Root may not skip permission checks, so the tools are named.

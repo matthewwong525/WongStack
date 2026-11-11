@@ -20,7 +20,7 @@ The default Time Travel window is 30 days on the standard plan — confirm your 
 
 **The build script is the only thing that should run DDL against production.** It replays `schema/migrations/` through `wrangler d1 migrations apply`, which records each file it ran in the `d1_migrations` ledger. Run an `ALTER TABLE` / `CREATE TABLE` against production by hand and you change the schema **without** recording anything in that ledger. The next deploy re-runs the migration file that "owns" that change and fails — `duplicate column name`, `table already exists` — turning the default branch red and blocking *every* deploy until it's reconciled. (This is not hypothetical: a hand-applied column once kept a production branch red for 8 commits.)
 
-So ship every schema change as a migration through the normal flow: [`/save`](../../.agents/skills/save/SKILL.md) exercises it on staging, the merge applies it to production. If a genuine emergency forces a hand-apply, record it in the ledger **in the same session** so history matches reality:
+So ship every schema change as a migration through the normal flow: [`/save`](../../.agents/plugins/loop/skills/save/SKILL.md) exercises it on staging, the merge applies it to production. If a genuine emergency forces a hand-apply, record it in the ledger **in the same session** so history matches reality:
 
 ```bash
 npx wrangler d1 execute <db-name> --remote \

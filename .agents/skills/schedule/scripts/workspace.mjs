@@ -8,7 +8,7 @@ import { promisify } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../memory/scripts/lib/primary-root.mjs';
 import { PickupError, pinBranch, reviewBranch } from '../../continue/scripts/pickup.mjs';
-import { delivery } from '../../save/scripts/delivery-route.mjs';
+import { wongDelivery as delivery } from '../../../loop/routes/route.mjs';
 import { EXIT, PaseoError, findPaseo, git, paseo, parseCommand, runPaseo, withJson } from './lib/paseo.mjs';
 
 const USAGE = `usage: workspace.mjs open --title <part> --brief <file>

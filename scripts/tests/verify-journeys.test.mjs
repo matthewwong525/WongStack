@@ -9,11 +9,11 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { classify, replay as replayHere } from '../../.agents/skills/verify/scripts/verify-journeys.mjs';
+import { classify, replay as replayHere } from '../../.agents/loop/staging/verify-journeys.mjs';
 import { startSite } from '../fixtures/verify-eval/site.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const script = join(repo, '.agents/skills/verify/scripts/verify-journeys.mjs');
+const script = join(repo, '.agents/loop/staging/verify-journeys.mjs');
 const FAKE_BROWSER = join(repo, 'scripts/fixtures/verify-journeys/fake-browser.mjs');
 // The practice site's twelve promises, used here as the project's own specs.
 const SPEC = readFileSync(join(repo, 'scripts/fixtures/verify-eval/change/specs/notes/spec.md'), 'utf8');
