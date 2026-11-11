@@ -17,6 +17,7 @@ paths:
   - "wiki/stack/**"
   - "wiki/ux-principles.md"
   - "wiki/review-pages.md"
+  - "wiki/prototypes.md"
   - "schema/**"
   - "openspec/schemas/**"
   - "paseo.json"
