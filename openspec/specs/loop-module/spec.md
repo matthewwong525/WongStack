@@ -1,13 +1,13 @@
 # loop-module Specification
 
 ## Purpose
-TBD - created by archiving change loop-module. Update Purpose after archive.
+WongStack's build loop, from idea to a published change, as one module any project can add alone: what a project gets, what works with nothing else there, and what an update keeps.
 
 ## Requirements
 
 ### Requirement: A project adds the build loop from one pasted message
 
-A project with no WongStack SHALL be able to add `/explore`, `/plan`, `/apply`, `/save`, `/ship`, `/verify`, `/continue`, and `/close` by pasting one message into any AI tool. The message names the module's setup guide by its GitHub address. Setup copies the module's skill folders in as real folders, fills each missing part, asks before each step that costs money or makes something public, ends with the module's check, and asks before any push. In a WongStack project, setup SHALL stop and change nothing.
+A project with no WongStack SHALL be able to add `/explore`, `/plan`, `/apply`, `/save`, `/ship`, `/verify`, `/continue`, and `/close` by pasting one message into any AI tool. Setup copies the module in as real folders, fills each missing part, asks before each step that costs money or makes something public, and asks before any push. In a WongStack project, setup SHALL stop and change nothing.
 
 #### Scenario: A project with no OpenSpec adds the loop
 
