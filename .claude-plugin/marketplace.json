@@ -1,0 +1,7 @@
+{
+  "name": "wongstack",
+  "owner": { "name": "WongStack" },
+  "plugins": [
+    { "name": "memory", "source": "./.agents/skills/memory", "description": "Session memory for a repo: past decisions, open threads, and your topics." }
+  ]
+}

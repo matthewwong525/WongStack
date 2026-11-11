@@ -9,7 +9,8 @@ import { fileURLToPath } from 'node:url';
 import { isDeepStrictEqual, parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { machineId, machineIdFile } from '../../memory/scripts/lib/machine-id.mjs';
-import { keyMachine, parseEnv } from '../../memory/scripts/lib/store.mjs';
+import { keyMachine } from '../../../memory/d1/connect.mjs';
+import { parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { AccessSetupError, CLOUDFLARE_READ_SECRET, accessOrganization, cloudflareReadKey, loginManagementKey, notePreviewKeys, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
 import { helperConfig } from '../../save/scripts/artifacts-credential.mjs';
 import {

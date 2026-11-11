@@ -29,7 +29,7 @@ const baseRules = 'head\n<!-- WONG-STACK:BEGIN -->\n- rule one\n<!-- WONG-STACK:
 const latestRules = 'head\nupstream prose outside the block\n<!-- WONG-STACK:BEGIN -->\n- rule one\n- rule two\n<!-- WONG-STACK:END -->\nfoot\n';
 
 // A source with a base and a latest commit, and a target whose two units are locally adapted.
-function fixture(t, { page, rules, inventoryAtBase = true }) {
+function fixture(t, { page, rules, inventoryAtBase = true, latest = latestPage, inventory = manifest }) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-merge-check-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const source = join(root, 'source');
@@ -39,14 +39,14 @@ function fixture(t, { page, rules, inventoryAtBase = true }) {
   git(source, 'init', '-b', 'main');
   git(source, 'config', 'user.email', 'fixture@example.test');
   git(source, 'config', 'user.name', 'Fixture');
-  if (inventoryAtBase) write(source, '.agents/skills/wong-sync/references/payload-files.json', JSON.stringify(manifest));
+  if (inventoryAtBase) write(source, '.agents/skills/wong-sync/references/payload-files.json', JSON.stringify(inventory));
   write(source, 'wiki/page.md', basePage);
   write(source, 'CLAUDE.md', baseRules);
   git(source, 'add', '.');
   git(source, 'commit', '-m', 'base');
   const base = git(source, 'rev-parse', 'HEAD');
-  write(source, '.agents/skills/wong-sync/references/payload-files.json', JSON.stringify(manifest));
-  write(source, 'wiki/page.md', latestPage);
+  write(source, '.agents/skills/wong-sync/references/payload-files.json', JSON.stringify(inventory));
+  write(source, 'wiki/page.md', latest);
   write(source, 'CLAUDE.md', latestRules);
   git(source, 'add', '.');
   git(source, 'commit', '-m', 'latest');
@@ -94,4 +94,13 @@ test('an install from before the inventory is skipped', t => {
   assert.equal(status, 0);
   assert.equal(report.skipped, 'no-baseline');
   assert.deepEqual(report.files, []);
+});
+
+test('an added link into a module folder is compared in its install form', t => {
+  const inventory = { core: { ...manifest.core, mapped: { '.claude/plugins/memory': '.claude/skills/memory' } } };
+  const latest = `${basePage}\nSee [memory](../.agents/plugins/memory/SKILL.md#write).\n`;
+  const page = `${basePage}\nSee [memory](../.agents/skills/memory/SKILL.md#write).\n`;
+  const { status, report } = fixture(t, { page, rules: mergedRules, latest, inventory }).run();
+  assert.equal(status, 0, JSON.stringify(report));
+  assert.equal(report.status, 'clean');
 });

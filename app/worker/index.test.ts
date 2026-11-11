@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { hashKey } from "../../.agents/skills/memory/worker/memory-worker.mjs";
+import { hashKey } from "../../.agents/memory/d1/store.mjs";
 import type { AppHandler } from "./apps/index";
 import worker from "./index";
 import { body } from "../tests/body";
@@ -90,7 +90,7 @@ describe("private Worker routing", () => {
     const open = { ASSETS: assets, WORKSPACE_LOGIN: "off" };
     for (const path of ASSET_PATHS) expect((await call(path, {}, open)).status, path).toBe(200);
     expect(await (await call("/api/health", {}, open)).json()).toEqual({ ok: true });
-    expect((await call("/_memory/unknown", {}, { ...open, MEMORY_DB: {} })).status).toBe(401);
+    expect((await call("/_memory/v2/unknown", {}, { ...open, MEMORY_DB: {} })).status).toBe(401);
     for (const path of ["/api/actions", "/api/openapi.json"]) expect((await call(path, {}, open)).status).toBe(401);
     expect(assets.fetch).toHaveBeenCalledTimes(ASSET_PATHS.length);
   });
@@ -182,7 +182,7 @@ describe("private Worker routing", () => {
     const memoryEnv = { ...env, MEMORY_DB: { prepare: () => ({ bind: () => ({ first: async () => null }) }) } };
     const answers: Record<string, unknown[]> = {};
     for (const method of ["GET", "POST"]) {
-      for (const path of ["/", "/apps/", "/apps/hello/", "/apps/hello/api/greeting", "/apps/hello/api.mjs", "/api/health", "/_memory/"]) {
+      for (const path of ["/", "/apps/", "/apps/hello/", "/apps/hello/api/greeting", "/apps/hello/api.mjs", "/api/health", "/_memory/v2/caller"]) {
         const response = await call(path, headers, memoryEnv, method);
         const type = response.headers.get("Content-Type") ?? "";
         const body = type.includes("json") ? await response.json() : await response.text();
@@ -197,7 +197,7 @@ describe("private Worker routing", () => {
       // An old source path gets the single-page app's page, never the file.
       "/apps/hello/api.mjs": [200, "asset", 200, "asset"],
       "/api/health": [200, { ok: true }, 404, { error: "Not found" }],
-      "/_memory/": [401, expect.objectContaining({ errors: [expect.objectContaining({ code: 10000 })] }), 401, expect.objectContaining({ errors: [expect.objectContaining({ code: 10000 })] })],
+      "/_memory/v2/caller": [401, { error: expect.stringContaining("not signed in") }, 401, { error: expect.stringContaining("not signed in") }],
     });
     expect(assets.fetch).toHaveBeenCalledTimes(6);
   });
@@ -234,7 +234,7 @@ describe("private Worker routing", () => {
   it("keeps memory independently key-authenticated and unavailable on staging", async () => {
     const absent = await call("/_memory/accounts/a/d1/database/d/query");
     expect(absent.status).toBe(404);
-    expect(await absent.json()).toMatchObject({ errors: [{ code: "no_store" }] });
+    expect(await absent.json()).toMatchObject({ error: expect.stringContaining("no memory store") });
     const validHash = await hashKey("wongm_test-memory-key");
     const memoryDb = {
       prepare: () => ({ bind: (hash: string) => ({ first: async () => hash === validHash ? { email: "owner@example.com", role: "admin", expires_at: null, machine_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } : null }) }),
@@ -242,11 +242,11 @@ describe("private Worker routing", () => {
     // The open-site key works only while the app has no sign-in; on a private app it is refused like any other.
     const openEnv = { ASSETS: assets, WORKSPACE_LOGIN: "off", MEMORY_DB: memoryDb };
     for (const key of [undefined, "wongm_wrong-key", "wongm_test-memory-key"]) {
-      const response = await call("/_memory/unknown", key ? { Authorization: `Bearer ${key}` } : {}, openEnv);
+      const response = await call("/_memory/v2/unknown", key ? { Authorization: `Bearer ${key}` } : {}, openEnv);
       expect(response.status).toBe(key === "wongm_test-memory-key" ? 404 : 401);
-      expect(await response.json()).toMatchObject({ errors: [{ code: key === "wongm_test-memory-key" ? "no_route" : 10000 }] });
+      expect(await response.json()).toMatchObject({ error: expect.stringMatching(key === "wongm_test-memory-key" ? /no memory operation/ : /not signed in/) });
     }
-    const refused = await call("/_memory/unknown", { Authorization: "Bearer wongm_test-memory-key" }, { ...env, MEMORY_DB: memoryDb });
+    const refused = await call("/_memory/v2/unknown", { Authorization: "Bearer wongm_test-memory-key" }, { ...env, MEMORY_DB: memoryDb });
     expect(refused.status).toBe(401);
     expect(assets.fetch).not.toHaveBeenCalled();
   });
@@ -260,8 +260,8 @@ describe("private Worker routing", () => {
     }
     expect((await call("/_memory/setup.mjs", {}, env, "POST")).status).toBe(405);
     expect(memory).not.toHaveBeenCalled();
-    // A neighbouring address is memory's, and still needs a memory key.
-    for (const path of ["/_memory/setup.mjs/", "/_memory/setup", "/_memory/setup.mjsx"]) expect((await call(path, {}, { ...env, MEMORY_DB: {} })).status, path).toBe(401);
+    // A neighbouring address is memory's, and memory answers only its own operations.
+    for (const path of ["/_memory/setup.mjs/", "/_memory/setup", "/_memory/setup.mjsx"]) expect((await call(path, {}, { ...env, MEMORY_DB: {} })).status, path).toBe(404);
     expect((await call("/setup.mjs")).status).toBe(401);
     expect(assets.fetch).not.toHaveBeenCalled();
   });

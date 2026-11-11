@@ -6,6 +6,8 @@ Company knowledge is the team's own pages (people, customers, how the company wo
 
 A fact goes in `knowledge/` when it is about the company, not the code: a person and how they like work done, a customer, a supplier, a process, a price. Pages and pictures only (`.md`, `.png`, `.jpg`, `.gif`, `.webp`); a script or a config file goes in the code repository, through a pull request. The [wiki rules](../wiki-style.md#repeatable-knowledge) say what makes a fact repeatable, and they apply to these pages too: a hub `README.md` in each folder, every page linked, no orphans.
 
+Each page is a memory [topic](../development/memory.md#topics). Its tag is its path inside `knowledge/` without `.md`, such as `people/ada`, and its first sentence is its summary. A chat that names the topic gets that summary, and [the tidy](../development/wiki-dream.md#placing-a-fact-on-a-page) puts the topic's lasting facts on the page. So open each page with one true sentence about the whole page.
+
 People pages live in `knowledge/people/`. The [memory digest](../development/memory.md) reads the current person's page from there first, then from `wiki/people/`. [Memory search](../development/document-retrieval.md) finds every other knowledge page, never a people page.
 
 ## Where it lives
@@ -19,8 +21,8 @@ The app hands it out at `/api/access/knowledge/git/`, beside [the project's Git 
 Each computer keeps one copy, in the primary checkout's `knowledge/` folder (git-ignored). Each workspace gets a `knowledge` link to that copy (a junction on Windows), so every chat on the computer sees the same pages. The workspace setup step and each chat's start make the link; you can also run it:
 
 ```bash
-node .claude/skills/memory/scripts/knowledge.mjs status   # the copy, its link, unsaved pages, and whether the app answers
-node .claude/skills/memory/scripts/knowledge.mjs update   # make the copy, or move it to the newest saved version
+node .claude/memory/knowledge.mjs status   # the copy, its link, unsaved pages, and whether the app answers
+node .claude/memory/knowledge.mjs update   # make the copy, or move it to the newest saved version
 ```
 
 Git reaches the app with the copy's own sign-in helper, [`company-git-credential.mjs`](../../scripts/company-git-credential.mjs), set for that address alone. No sign-in goes in a URL, a config file or an argument. When a chat starts, the copy moves to the newest version in the background; a copy with unsaved edits is left as it is, and the chat names those pages in one line.
@@ -30,7 +32,7 @@ Git reaches the app with the copy's own sign-in helper, [`company-git-credential
 The assistant picks the pages and the words; the script does every git step:
 
 ```bash
-node .claude/skills/memory/scripts/knowledge.mjs save knowledge/people/ada.md knowledge/people/README.md -m "Add Ada's page"
+node .claude/memory/knowledge.mjs save knowledge/people/ada.md knowledge/people/README.md -m "Add Ada's page"
 ```
 
 A save takes only the pages you name, so two chats on one computer never save each other's edits. It puts them on top of the newest published version, checks the links by [the wiki rules](../wiki-style.md#no-orphans-no-dead-ends-full-hub-coverage), and publishes with no force. It prints:

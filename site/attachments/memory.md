@@ -3,10 +3,10 @@ title: You explain your business again every day
 problem: Each new chat starts from zero, so you explain your business again.
 fix: Each chat saves what it learned, and the next one starts knowing it.
 order: 1
-checked: 2026-11-04
+checked: 2026-11-10
 sources:
   - wiki/development/memory.md
-  - .agents/skills/memory/SKILL.md
+  - .agents/plugins/memory/SKILL.md
 ---
 Add a memory system to my AI setup. Build it in this project and ask me before anything you can't undo:
 
@@ -21,8 +21,9 @@ Add a memory system to my AI setup. Build it in this project and ask me before a
 > Keep the digest small, and say how many facts it left out
 > Before the first edit in a folder, show that folder's open questions and newest facts
 > Map folders to topic tags in one file, so a fact about code reaches the next change there
+> Treat each company page as a topic: list them in the digest, one line each, and when a message names one, show its summary
 > Before big work, run one search across facts and documents, then read the originals it cites
-> Save facts when I save work, and catch up idle chats I never saved in the background
+> When a chat ends, save its facts in the background, and catch up chats that never ended cleanly
 > Before each write, show the closest existing facts: add, replace, or drop
 > Every open question names who checks it next, so none is left without an owner
 > Note where the assistant struggled, so a regular review can fix the cause

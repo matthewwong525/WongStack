@@ -501,7 +501,7 @@ test('an interrupted one-time machine secret handoff recovers only the owned ser
   assertNoSecret(env, JSON.stringify(recovered));
 });
 
-/** A target with the memory skill and the app's package.json, as an install leaves it before provisioning.
+/** A target with the memory plugin, its profile and the app's package.json, as an install has it before provisioning.
  * Any other option (`paid`, `repos`) goes to the fake Cloudflare. */
 async function setup(t, { r2 = true, email = EMAIL, subdomain, ...cloudflareOptions } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-provision-'));
@@ -511,7 +511,8 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain, ...cloudflareOpti
   execFileSync('git', ['init', '-q', '-b', 'main', dir]);
   writeFileSync(join(dir, '.git/info/exclude'), '.env*\n');
   if (email) execFileSync('git', ['-C', dir, 'config', 'user.email', email]);
-  cpSync(join(repoRoot, '.agents/skills/memory'), join(dir, '.agents/skills/memory'), { recursive: true });
+  for (const part of ['.agents/plugins/memory', '.agents/memory']) cpSync(join(repoRoot, part), join(dir, part), { recursive: true });
+  symlinkSync('../plugins/memory', join(dir, '.agents/skills/memory'));
   symlinkSync('.agents', join(dir, '.claude'));
   mkdirSync(join(dir, 'app'));
   cpSync(join(repoRoot, 'app/package.json'), join(dir, 'app/package.json'));

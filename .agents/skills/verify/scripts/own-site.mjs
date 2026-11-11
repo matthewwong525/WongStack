@@ -2,7 +2,8 @@
 // Whether an address is this install's own https site, the only place a walk sends the Access key. The live app's
 // address is the memory store's Worker. Exit codes: 0 own · 1 not own, printing why · 2 usage.
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
-import { loadConfig, memoryOrigin, repoContext } from '../../memory/scripts/lib/store.mjs';
+import { loadConfig, memoryOrigin } from '../../../memory/d1/connect.mjs';
+import { repoContext } from '../../memory/scripts/lib/store.mjs';
 
 const USAGE = `usage: own-site.mjs <address>
   exits 0 when <address> is on this install's own https site, else 1 and prints why`;

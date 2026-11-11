@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { hashKey, newKey } from '../../.agents/skills/memory/worker/memory-worker.mjs';
-import { repoContext } from '../../.agents/skills/memory/scripts/lib/store.mjs';
+import { hashKey, newKey } from '../../.agents/memory/d1/store.mjs';
+import { repoContext } from '../../.agents/plugins/memory/scripts/lib/store.mjs';
 import { list, make, revoke } from '../../.agents/skills/wong-setup/scripts/memory-schedule.mjs';
 import { memory, node, rows, setup, signInAs, tempDir } from './fixtures/memory/harness.mjs';
 

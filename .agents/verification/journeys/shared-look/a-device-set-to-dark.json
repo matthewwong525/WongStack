@@ -23,7 +23,7 @@
     ".agents/skills/hand-over/scripts/view-page.html",
     ".agents/skills/hand-over/scripts/view-page.mjs",
     ".agents/skills/hand-over/scripts/view.mjs",
-    ".agents/skills/memory/references/areas.json",
+    ".agents/memory/areas.json",
     ".agents/skills/shop/scripts/shop.mjs",
     ".agents/skills/verify/references/walkthrough.md",
     ".agents/skills/wong-setup/references/seed/wiki-development-README.md",

@@ -12,8 +12,9 @@ import {
 import { dirname, isAbsolute, posix, relative, resolve, sep } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
-import { readMoves } from '../../memory/scripts/lib/links.mjs';
-import { SAVED } from '../../memory/scripts/knowledge.mjs';
+import { readMoves } from '../../../memory/lib/links.mjs';
+import { SAVED } from '../../../memory/knowledge.mjs';
+import { installPath, installText, mappedDirs } from './install-path.mjs';
 
 const SCHEMA_VERSION = 1;
 const DEFAULT_MAX_CHANGES = 10_000;
@@ -173,6 +174,10 @@ function validateInventory(inventory, revision) {
     ))) {
       fail('invalid-inventory', `${category}.blocks at ${revision} is invalid`);
     }
+    if (entry.mapped !== undefined && (!entry.mapped || typeof entry.mapped !== 'object' || Array.isArray(entry.mapped)
+      || Object.values(entry.mapped).some(value => typeof value !== 'string'))) {
+      fail('invalid-inventory', `${category}.mapped at ${revision} must map folders to install folders`);
+    }
   }
 }
 
@@ -243,7 +248,8 @@ function expandInventory(source, revision, tree, inventory, record) {
     for (const value of entry.exclude ?? []) excludes.push(safeRelativePath(value, `${category}.exclude`));
   }
 
-  const addFile = (logicalPath, category) => {
+  // A unit is keyed by where the install keeps it, so a file whose source moves to a mapped folder stays one unit.
+  const addFile = (logicalPath, category, mapped) => {
     const path = safeRelativePath(logicalPath, `${category} payload path`);
     if (excluded(path, excludes)) return;
     const existing = files.get(path);
@@ -251,11 +257,12 @@ function expandInventory(source, revision, tree, inventory, record) {
       existing.categories = [...new Set([...existing.categories, category])].sort();
       return;
     }
-    const targetPath = targetPathFor(path, mapping);
+    const targetPath = targetPathFor(installPath(path, mapped ? [mapped] : []), mapping);
     const owner = targets.get(targetPath);
     if (owner) fail('path-collision', `${owner} and ${path} both map to ${targetPath}`);
     targets.set(targetPath, path);
-    files.set(path, { key: `file:${path}`, kind: 'file', sourcePath: path, targetPath, categories: [category] });
+    const installRoot = mapped && targetPathFor(safeRelativePath(mapped[1], `${category}.mapped`), mapping);
+    files.set(path, { key: `file:${targetPath}`, kind: 'file', sourcePath: path, targetPath, ...(installRoot && { installRoot }), categories: [category] });
   };
 
   for (const category of categories) {
@@ -269,6 +276,9 @@ function expandInventory(source, revision, tree, inventory, record) {
     for (const directory of entry.dirs ?? []) {
       const root = safeRelativePath(directory, `${category}.dirs`);
       for (const path of listTree(tree, root)) addFile(path, category);
+    }
+    for (const pair of Object.entries(entry.mapped ?? {})) {
+      for (const path of listTree(tree, safeRelativePath(pair[0], `${category}.mapped`))) addFile(path, category, pair);
     }
     for (const block of entry.blocks ?? []) {
       const file = safeRelativePath(block.file, `${category}.blocks.file`);
@@ -303,8 +313,12 @@ function extractBlock(content, markers, label, { required }) {
   return Buffer.from(text.slice(start, nextLine < 0 ? text.length : nextLine + 1));
 }
 
-function sourceValue(source, revision, tree, unit) {
+// A file's value is its text as an install gets it, by the current mapping on both commits alike.
+function sourceValue(source, revision, tree, unit, mapped) {
   const found = blob(source, revision, unit.sourcePath, tree);
+  if (unit.kind === 'file' && found && unit.sourcePath.endsWith('.md')) {
+    return Buffer.from(installText(unit.sourcePath, found.content.toString('utf8'), mapped));
+  }
   if (unit.kind === 'file') return found?.content ?? null;
   return extractBlock(found?.content ?? null, unit.markers, `${unit.sourcePath} at ${revision}`, { required: true });
 }
@@ -317,6 +331,8 @@ export function targetValue(target, unit) {
     while (!existsSync(parent) && parent !== target) parent = dirname(parent);
     inside(target, realpathSync(parent), 'target payload parent');
   }
+  // A module kept as a folder link (task 1.6's layout) is not installed: its files read as missing.
+  if (unit.installRoot && kindAt(resolve(target, unit.installRoot)) === 'link') return null;
   let content;
   try {
     content = readFileSync(path);
@@ -336,7 +352,7 @@ function equal(left, right) {
 function mergeUnit(base, current) {
   if (!base) return { ...current, categories: [...current.categories] };
   if (!current) return { ...base, categories: [...base.categories] };
-  if (base.kind !== current.kind || base.sourcePath !== current.sourcePath || base.targetPath !== current.targetPath) {
+  if (base.kind !== current.kind || base.targetPath !== current.targetPath) {
     fail('inventory-conflict', `payload unit ${base.key} changes identity across revisions`);
   }
   return { ...current, categories: [...new Set([...base.categories, ...current.categories])].sort() };
@@ -409,6 +425,7 @@ export function compareSelection({ target: targetInput, source: sourceInput, rec
     : { categories: [], units: new Map() };
   const seeded = [baseInventory?.value, currentInventory].flatMap(value => value?.seededBySetup?.files ?? []);
   const currentSelection = expandInventory(source, currentCommit, currentTree, currentInventory, record);
+  const mapped = mappedDirs(currentInventory);
   const keys = [...new Set([...baseSelection.units.keys(), ...currentSelection.units.keys()])].sort();
   const changes = [];
 
@@ -419,8 +436,8 @@ export function compareSelection({ target: targetInput, source: sourceInput, rec
     const baseEntry = baseUnit?.kind === 'file' ? baseTree.get(baseUnit.sourcePath) : null;
     const currentEntry = currentUnit?.kind === 'file' ? currentTree.get(currentUnit.sourcePath) : null;
     if (baseUnit?.kind === 'file' && currentUnit?.kind === 'file' && baseEntry?.oid === currentEntry?.oid) continue;
-    const baseValue = baseUnit ? sourceValue(source, installedCommit, baseTree, baseUnit) : null;
-    const currentValue = currentUnit ? sourceValue(source, currentCommit, currentTree, currentUnit) : null;
+    const baseValue = baseUnit ? sourceValue(source, installedCommit, baseTree, baseUnit, mapped) : null;
+    const currentValue = currentUnit ? sourceValue(source, currentCommit, currentTree, currentUnit, mapped) : null;
     if (equal(baseValue, currentValue)) continue;
     const localValue = targetValue(target, unit);
     changes.push({
@@ -444,6 +461,7 @@ export function compareSelection({ target: targetInput, source: sourceInput, rec
     baseSelection,
     currentSelection,
     seeded,
+    mapped,
     keys,
     changes,
   };
@@ -525,7 +543,7 @@ function skillNames(target) {
 
 // The moves an install may still need, from its layout (lstat only, plus deploy.yml's secret name) and its
 // record. references/catch-up.md owns what each code asks of the plan.
-function catchUpNeeds(target, record, installedVersion, baseline, own) {
+function catchUpNeeds(target, record, installedVersion, baseline, own, mapped) {
   const reasons = [];
   const at = path => kindAt(resolve(target, path));
   const agents = at('.agents');
@@ -573,6 +591,9 @@ function catchUpNeeds(target, record, installedVersion, baseline, own) {
     const top = path => { const rest = path.slice(root.length + 1); return rest.includes('/') ? `${root}/${rest.split('/')[0]}` : path; };
     reasons.push({ code: 'own-pages', paths: [...new Set(pages.map(top))].sort() });
   }
+  // A module kept as a folder link becomes a real folder: the link leaves before its files are copied.
+  const moduleLinks = mapped.map(([, to]) => to).filter(path => at(path) === 'link');
+  if (moduleLinks.length) reasons.push({ code: 'module-link', paths: moduleLinks });
   if (baseline === 'empty') reasons.push({ code: 'no-baseline', paths: [] });
   return { needed: reasons.length > 0 || below(installedVersion, [19, 0, 0]), reasons };
 }
@@ -637,7 +658,7 @@ export function preflight(options) {
     },
     changes,
     catchUp: catchUpNeeds(compared.target, record, installedVersion, compared.baseline,
-      ownWikiFiles(compared.target, record, shippedPaths(compared))),
+      ownWikiFiles(compared.target, record, shippedPaths(compared)), compared.mapped),
     updating,
     updatingComplete,
     diagnostics: [],

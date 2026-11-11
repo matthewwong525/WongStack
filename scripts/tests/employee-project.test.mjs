@@ -239,7 +239,7 @@ function connected(t, { code = 'ready', installed = false } = {}) {
   const state = { code, copies: [], requests: [], result: {} };
   const client = companyClient({ root, stateDir, cacheDir, routesDir: join(base, 'routes'), run: async () => TOKEN, request: async (url, init) => {
     state.requests.push({ path: url.pathname, session: init.headers['cf-access-token'] });
-    if (state.memoryDown && url.pathname === '/_memory/caller') return new Response('', { status: 404 });
+    if (state.memoryDown && url.pathname === '/_memory/v2/caller') return new Response('', { status: 404 });
     return Response.json({ identity, role: 'employee', apps: ['orders'], api: 'authenticated', code: state.code, repository: 'manual_provider_setup', memory: 'independent_operator_setup' });
   } });
   const copy = async options => {
@@ -264,7 +264,7 @@ test('install signs in, downloads the project for a person who holds Project cod
   const report = await f.client.install(origin, folder, f.copy);
   assert.deepEqual(report, { connected: origin, signedInAs: identity.email, signIn: 'reused', apps: ['orders'], memory: 'works', state: f.stateDir, project: 'installed', folder, summary: DONE(folder) });
   // Memory is asked once, with the same sign-in.
-  assert.deepEqual(f.state.requests.filter(row => row.path === '/_memory/caller'), [{ path: '/_memory/caller', session: TOKEN }]);
+  assert.deepEqual(f.state.requests.filter(row => row.path === '/_memory/v2/caller'), [{ path: '/_memory/v2/caller', session: TOKEN }]);
   // The report names no command to run, no environment file and no key: its next step is a lesson for the person.
   assert.doesNotMatch(JSON.stringify(report), /\bnode\b|company-api|--state|\.env\b|\bkey\b|"next":/i);
   // The download asks the app's own address, as the person who signed in.

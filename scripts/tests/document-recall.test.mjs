@@ -4,14 +4,16 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node
 import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildDigest } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
-import { renderPacket, byteSize } from '../../.agents/skills/memory/scripts/lib/documents/packet.mjs';
-import { validateRetrieval } from '../../.agents/skills/memory/scripts/lib/documents/input.mjs';
-import { recallPacket } from '../../.agents/skills/memory/scripts/lib/documents/commands.mjs';
-import { callMemory, memoryOperations } from '../../.agents/skills/memory/scripts/operations.mjs';
+import { buildDigest } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
+import { renderPacket, byteSize } from '../../.agents/plugins/memory/scripts/lib/documents/packet.mjs';
+import { validateRetrieval } from '../../.agents/plugins/memory/scripts/lib/documents/input.mjs';
+import { recallPacket } from '../../.agents/plugins/memory/scripts/lib/documents/commands.mjs';
+import { callMemory, memoryOperations } from '../../.agents/memory/operations.mjs';
 import { memory, node, setup, signInAs, tempDir } from './fixtures/memory/harness.mjs';
 
 const root = resolve(fileURLToPath(new URL('../..', import.meta.url)));
+// operations.mjs sits in WongStack's extras, beside the plugin the harness runs scripts from.
+const OPERATIONS = '../../../memory/operations.mjs';
 function document(repo, text = '# Delivery guidance\nDelivery waits for approved checks.\n') {
   mkdirSync(join(repo.root, 'wiki'), { recursive: true }); writeFileSync(join(repo.root, 'wiki/guide.md'), text);
 }
@@ -76,7 +78,7 @@ test('company CLI writes near-budget document packets compactly without enlargin
 test('document CLI requires no memory configuration or secret and invalid input exits2 before access', t => {
   const target = tempDir(t, 'documents-portable-'); execFileSync('git', ['init', '-q'], { cwd: target });
   document({ root: target });
-  const cli = join(root, '.agents/skills/memory/scripts/memory.mjs');
+  const cli = join(root, '.agents/plugins/memory/scripts/memory.mjs');
   const run = args => execFileSync(process.execPath, [cli, ...args], { cwd: target, encoding: 'utf8', env: { ...process.env, XDG_DATA_HOME: join(target, 'data'), CLOUDFLARE_MEMORY_TOKEN: '' } });
   const packet = JSON.parse(run(['documents', 'delivery', '--mode', 'keyword', '--json']));
   assert.equal(packet.documents[0].path, 'wiki/guide.md'); assert.equal(packet.facts.length, 0); assert.equal(packet.backend, 'lexical-fallback');
@@ -119,7 +121,7 @@ test('member installed recall keeps personal facts private and never expands adm
   const insert = fake.db.prepare("INSERT INTO facts (slug,type,body,source,created_at,author,owner_subject,shared) VALUES ('delivery',?,?,'migration','2026-10-04','same@example.com',?,?)");
   insert.run('project', 'Delivery shared evidence.', 'same', 1);
   insert.run('user', 'Delivery private evidence.', 'other-owner', 0);
-  const result = await node(repo, fake, 'operations.mjs', ['call', 'memory.recall', '--file', '-'],
+  const result = await node(repo, fake, OPERATIONS, ['call', 'memory.recall', '--file', '-'],
     { input: JSON.stringify({ question: 'delivery', mode: 'keyword' }) });
   assert.equal(result.code, 0, result.stderr); const packet = JSON.parse(result.stdout);
   assert.equal(packet.version, 1); assert.deepEqual(packet.facts.map(fact => fact.body), ['Delivery shared evidence.']);
@@ -147,12 +149,13 @@ test('installed local operation validates before loading credentials and returns
 });
 test('payload carries every retrieval module and runbook but no installed models', t => {
   const target = tempDir(t, 'retrieval-payload-');
-  cpSync(join(root, '.agents/skills/memory'), join(target, '.agents/skills/memory'), { recursive: true });
+  cpSync(join(root, '.agents/plugins/memory'), join(target, '.agents/skills/memory'), { recursive: true });
+  cpSync(join(root, '.agents/memory'), join(target, '.agents/memory'), { recursive: true });
   const inventory = JSON.parse(readFileSync(join(root, '.agents/skills/wong-sync/references/payload-files.json')));
   assert.ok(inventory.core.files.includes('wiki/development/document-retrieval.md'));
   for (const file of ['commands.mjs', 'corpus.mjs', 'state.mjs', 'qmd.mjs', 'setup.mjs', 'retrieve.mjs', 'lexical.mjs', 'packet.mjs', 'runtime.json', 'runtime/package-lock.json'])
     assert.ok(existsSync(join(target, '.agents/skills/memory/scripts/lib/documents', file)));
-  const description = JSON.parse(execFileSync(process.execPath, [join(target, '.agents/skills/memory/scripts/operations.mjs'), 'describe', 'memory.documents'], { cwd: target, encoding: 'utf8' }));
+  const description = JSON.parse(execFileSync(process.execPath, [join(target, '.agents/memory/operations.mjs'), 'describe', 'memory.documents'], { cwd: target, encoding: 'utf8' }));
   assert.equal(description.transport, 'installed-client'); assert.equal(description.authentication, 'local-checkout');
   assert.equal(existsSync(join(target, 'models')), false); assert.equal(existsSync(join(target, 'node_modules')), false);
 });
@@ -160,7 +163,7 @@ test('agent guidance recalls then reads originals while startup and first-edit h
   const digest = buildDigest({ facts: [fakeFact(1)], personal: true, admin: true });
   assert.match(digest, /recall <question>/); assert.match(digest, /search <terms> --everyone/);
   assert.doesNotMatch(digest, /recall <question> --everyone/);
-  for (const path of ['.agents/skills/memory/scripts/session-start.mjs', '.agents/skills/memory/scripts/before-edit.mjs']) {
+  for (const path of ['.agents/plugins/memory/scripts/session-start.mjs', '.agents/plugins/memory/scripts/before-edit.mjs']) {
     const source = readFileSync(join(root, path), 'utf8'); assert.doesNotMatch(source, /documents\/|runQmd|documents-setup/);
   }
   const explore = readFileSync(join(root, '.agents/skills/explore/SKILL.md'), 'utf8');

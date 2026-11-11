@@ -2,8 +2,8 @@
   "format": "verify-recipe-1",
   "id": "memory-areas",
   "sourcePaths": [
-    ".agents/skills/memory/scripts/memory.mjs",
-    ".agents/skills/memory/scripts/lib/areas.mjs"
+    ".agents/plugins/memory/scripts/memory.mjs",
+    ".agents/plugins/memory/scripts/lib/areas.mjs"
   ],
   "instructions": "scripts/fixtures/verify-receipts/README.md",
   "scenarios": [

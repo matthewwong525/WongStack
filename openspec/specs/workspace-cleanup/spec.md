@@ -35,40 +35,15 @@ Agents SHALL put throwaway files in a `.scratch/` folder at the checkout's root,
 - **THEN** the tidy-up deletes only the 2-day-old file
 
 ### Requirement: /close wraps up a session with no questions
-`/close` SHALL, without asking, record the conversation's facts in memory, update the wiki by the rule below, keep any unpublished work, and then close the Paseo workspace after its reply ends: the chat and workspace are archived, processes still running from the workspace stop, a private link this chat left open is closed, and a branch whose pull request merged at its current commit is deleted locally. `/close` SHALL NOT stop what other chats share, such as the agent's browser. The chat SHALL stay readable in Paseo's archived list.
+`/close` SHALL, without asking, update the wiki by the rule below, keep any unpublished work, and then close the Paseo workspace after its reply ends: the chat and workspace are archived, processes still running from the workspace stop, a private link this chat left open is closed, and a branch whose pull request merged at its current commit is deleted locally. `/close` SHALL NOT write to memory: the memory plugin records the chat by itself. `/close` SHALL NOT stop what other chats share, such as the agent's browser. The chat SHALL stay readable in Paseo's archived list.
 
 #### Scenario: Close after a research answer
 - **WHEN** a chat in a Paseo worktree answered a question, changed no repo file, and the person runs `/close`
-- **THEN** the chat's facts are recorded, the reply ends, and the chat and workspace are archived
+- **THEN** the reply ends, the chat and workspace are archived, and `/close` wrote nothing to memory
 
 #### Scenario: Close after a publish
 - **WHEN** `/ship` merged from a Paseo worktree, no asked-for work waits, and the person says yes to *Close this chat?*
 - **THEN** `/close` runs, the reply ends, the chat and workspace are archived, their leftover processes stop, and the merged branch is deleted locally
-
-- **WHEN** the person declined to publish a wiki note, then runs `/close`
-- **THEN** the note is saved to its branch with an open pull request, not published, and `/close` writes no wiki edit of its own
-
-### Requirement: /close records what the session planned and what is left
-Before closing, `/close` SHALL record in memory what the session set out to do and what got done, and SHALL leave one open thread for each planned piece not done, so the next session start and `/continue` show it. It SHALL close any open thread the session finished. It SHALL record the wrap-up on every route, including when work is thrown away.
-
-#### Scenario: Work left undone
-- **WHEN** a session planned a feature and its tests, built the feature, and the person runs `/close`
-- **THEN** memory holds a wrap-up naming the feature as done and an open thread for the tests
-
-#### Scenario: Everything finished
-- **WHEN** a session did everything it set out to do and the person runs `/close`
-- **THEN** the wrap-up is recorded, no new open thread is left, and the session's own threads are closed
-
-### Requirement: /close keeps the session's transcript
-Before closing, when the store has a transcript bucket, `/close` SHALL upload the session's full transcript, with secrets redacted as capture does, so it is kept even if no later session captures it. A session an earlier version recorded as private SHALL NOT be uploaded; no word in a message SHALL keep a session from being uploaded. A store without a bucket, or an unreachable one, SHALL skip the upload without blocking the close and SHALL say so.
-
-#### Scenario: A normal close
-- **WHEN** the person runs `/close` in a repo whose memory store has a bucket
-- **THEN** the session's redacted transcript is in the bucket before the workspace closes, and `source` on the session's facts shows it
-
-#### Scenario: A private session
-- **WHEN** an earlier version recorded the session as private and the person runs `/close`
-- **THEN** nothing is uploaded and the close goes on
 
 ### Requirement: /close keeps unpublished work unless told to throw it away
 `/close` SHALL save unpublished work to its branch on the remote, with an open pull request, so `/continue` can resume it, and SHALL NOT publish it. Only when the person explicitly asks to throw the work away SHALL `/close` discard it: close its pull request, delete its branch locally and on the remote, then close the workspace. It SHALL never discard work in the primary checkout.
@@ -82,10 +57,10 @@ Before closing, when the store has a transcript bucket, `/close` SHALL upload th
 - **THEN** the pull request is closed, the branch is deleted locally and on the remote, and the workspace closes
 
 ### Requirement: /close updates the wiki
-`/close` SHALL read the facts recorded in this session, on its branch, and on its change by any session, so a renamed branch or a change resumed elsewhere loses none. It SHALL keep only repeatable knowledge, write it into the owning pages, and save those edits to company knowledge at once before closing, naming the pages and the undo. On an install with no knowledge copy, and for an edit to a page in the code repository, it SHALL publish the edits in their own pull request. It SHALL skip the update when unpublished work is kept (the close after that work ships runs it) and when work is thrown away. It SHALL never publish edits the person made and did not publish. A private-life fact SHALL NOT move into the repo's knowledge or wiki, and an unreachable store SHALL skip the step without blocking the close.
+`/close` SHALL read this chat's own conversation, keep only repeatable knowledge, write it into the owning pages, and save those edits to company knowledge at once before closing, naming the pages and the undo. On an install with no knowledge copy, and for an edit to a page in the code repository, it SHALL publish the edits in their own pull request. It SHALL skip the update when unpublished work is kept (the close after that work ships runs it) and when work is thrown away. It SHALL never publish edits the person made and did not publish. A private-life fact SHALL NOT move into the repo's knowledge or wiki. Knowledge from other chats reaches the wiki through the memory plugin's tidy, not through `/close`.
 
 #### Scenario: Close after a publish
-- **WHEN** `/ship` merged a change whose facts record a convention for future work, and the person runs `/close`
+- **WHEN** `/ship` merged a change whose chat agreed a convention for future work, and the person runs `/close`
 - **THEN** the owning page in `knowledge/` is saved live with no pull request, the reply names it and the undo, and the workspace closes
 
 #### Scenario: A declined publish stays unpublished
@@ -93,11 +68,11 @@ Before closing, when the store has a transcript bucket, `/close` SHALL upload th
 - **THEN** the note is saved to its branch with an open pull request, not published, and `/close` writes no wiki edit of its own
 
 ### Requirement: /close where there is no workspace to close
-In the primary checkout, or in a chat that is not a Paseo agent, `/close` SHALL still record facts, update the wiki, and keep unpublished work, then SHALL say there is no workspace to close.
+In the primary checkout, or in a chat that is not a Paseo agent, `/close` SHALL still update the wiki and keep unpublished work, then SHALL say there is no workspace to close.
 
 #### Scenario: Main checkout
 - **WHEN** the person runs `/close` in the primary checkout after an errand
-- **THEN** facts are recorded and any wiki edit is published, and the reply says the main checkout does not close
+- **THEN** any wiki edit is published, and the reply says the main checkout does not close
 
 ### Requirement: A new task opens a new workspace
 When the person asks a chat in a Paseo worktree for a task that is not that chat's task, and not a quick question about it, the agent SHALL open a new workspace with a brief for it, say `Opened: <title>`, and do nothing of it in this chat. The agent SHALL keep the task here when the person says to do it here, when Paseo is missing, or when nobody can answer. Daily, its helper chats and routine chats SHALL keep their own rules.

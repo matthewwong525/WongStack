@@ -17,7 +17,7 @@
     ".agents/skills/hand-over/scripts/lib/inbox.mjs",
     ".agents/skills/hand-over/scripts/lib/uploads.mjs",
     ".agents/skills/hand-over/scripts/reply-link.mjs",
-    ".agents/skills/memory/references/areas.json",
+    ".agents/memory/areas.json",
     ".agents/skills/plan/SKILL.md",
     ".agents/skills/plan/references/drawings.md",
     ".agents/skills/plan/references/review-kit.html",

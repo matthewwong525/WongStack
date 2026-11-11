@@ -3,7 +3,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { helperFiles } from '../../../hand-over/scripts/lib/computer.mjs';
-import { signIn } from '../../../memory/scripts/lib/store.mjs';
+import { signIn } from '../../../../memory/d1/connect.mjs';
 
 const VERSION = /^[a-f0-9]{64}$/;
 

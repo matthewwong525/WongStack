@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { move, plan, READER_APP, recopy } from '../../.agents/skills/wong-sync/scripts/knowledge-move.mjs';
-import { checkWiki } from '../../.agents/skills/memory/scripts/lib/links.mjs';
+import { checkWiki } from '../../.agents/memory/lib/links.mjs';
 
 const SCRIPT = resolve(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/wong-sync/scripts/knowledge-move.mjs');
 

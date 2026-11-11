@@ -6,11 +6,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { buildDigest, consolidationDue, currentSlug, formatRun, MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
+import { buildDigest, consolidationDue, formatRun, MAX_BYTES, MAX_LINES } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
+import { currentSlug } from '../../.agents/memory/lookup.mjs';
 import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills/memory/scripts/lib/transcripts.mjs';
 import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
-import { MAX_TRANSCRIPT_BYTES } from '../../.agents/skills/memory/worker/memory-worker.mjs';
+import { MAX_TRANSCRIPT_BYTES } from '../../.agents/plugins/memory/store/interface.mjs';
 import { agentCommand, runbook, takeLock, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
 import { memory, node, rows, SECRET, setup, signInAs, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
@@ -214,12 +215,25 @@ test('Codex transcripts parse, and an unknown format is reported and stores noth
 
 const hook = (env, extraEnv = {}, input = { session_id: 'live-1', transcript_path: null, cwd: env.repo.root }) =>
   node(env.repo, env.fake, 'session-start.mjs', ['--agent', 'claude'], { input: JSON.stringify(input), env: extraEnv });
+// The hook's lines before the digest; the digest always lists the profile's topics.
+const beforeDigest = out => out.split(/^# Memory digest\n/m)[0];
 
-test('the hook adds nothing and starts nothing when there is nothing to do', async t => {
+test('with no profile, the hook asks once per chat to set memory up, and a resume stays quiet', async t => {
+  const env = await setup(t);
+  const start = session_id => hook(env, { WONG_MEMORY_PROFILE: join(env.repo.root, 'no-profile.mjs') }, { session_id, cwd: env.repo.root });
+  const first = await start('chat-1');
+  assert.equal(first.code, 0);
+  assert.match(first.stdout, /^Memory is not set up in this repo\. Ask the person "Memory isn't set up yet\. Set it up now\?" Only on a yes, follow .*references\/setup\.md\.\n$/);
+  assert.deepEqual(await start('chat-1'), { code: 0, stdout: '', stderr: '' });
+  assert.equal((await start('chat-2')).stdout, first.stdout);
+});
+
+test('the hook adds only the topics and starts nothing when there is nothing to do', async t => {
   const env = await setup(t);
   const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.equal(result.code, 0);
-  assert.equal(result.stdout, '');
+  assert.match(result.stdout, /^# Memory digest\n[\s\S]*## Topics\nCode: .+\nPull a topic: .+\n$/);
+  assert.doesNotMatch(result.stdout, /## Live facts|Start one background subagent/);
   assert.match(readFileSync(join(env.repo.stateDir, 'registry.jsonl'), 'utf8'), /"id":"claude:live-1"/);
 });
 
@@ -252,7 +266,8 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   for (let i = 0; i < 100 && !existsSync(marker); i += 1) await new Promise(done => setTimeout(done, 100));
   const called = readFileSync(marker, 'utf8');
   assert.match(called, /-p You are the WongStack memory background run/);
-  assert.match(called, /--no-session-persistence --permission-mode dontAsk --allowedTools Bash\(node \.claude\/skills\/memory\/scripts\/memory\.mjs:\*\)/);
+  // This test repo holds no plugin copy, so the run names the plugin by its full path.
+  assert.match(called, /--no-session-persistence --permission-mode dontAsk --allowedTools Bash\(node \S*\/plugins\/memory\/scripts\/memory\.mjs:\*\)/);
   assert.doesNotMatch(called, /(^|\s)--model(\s|$)/);
   assert.match(called, /Never capture session claude:live-1/);
   assert.match(called, /RUN=1/);
@@ -267,8 +282,8 @@ test('the hook prints the last tidy-up line once, and starts the next tidy-up de
   writeFileSync(join(tidy, 'report.json'), JSON.stringify({ closed: ['Old docs'], left: [{ name: 'Weekly plan', reason: 'it has unsaved work' }] }));
   const first = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.equal(first.code, 0, first.stderr);
-  assert.equal(first.stdout, 'Tidy-up: closed 1 workspace ("Old docs"); left "Weekly plan" open: it has unsaved work.\n');
-  assert.equal((await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' })).stdout, '', 'the line prints once');
+  assert.equal(beforeDigest(first.stdout), 'Tidy-up: closed 1 workspace ("Old docs"); left "Weekly plan" open: it has unsaved work.\n\n');
+  assert.equal(beforeDigest((await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' })).stdout), '', 'the line prints once');
   assert.ok(!existsSync(join(tidy, 'last-sweep')), 'WONG_TIDY=0 starts no tidy-up');
   const temp = tempDir(t, 'hook-tmp-');
   const started = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1', WONG_TIDY: '1', TMPDIR: temp, TIDY_PASEO_BIN: join(temp, 'no-paseo') });
@@ -285,12 +300,12 @@ test('a broken tidy-up never breaks the hook', async t => {
   writeFileSync(join(env.repo.root, '.git', 'wong-tidy', 'report.json'), '{ torn');
   const torn = await hook(env, { ...extra, WONG_TIDY: '0' });
   assert.equal(torn.code, 0, torn.stderr);
-  assert.equal(torn.stdout, '');
+  assert.equal(beforeDigest(torn.stdout), '');
   rmSync(join(env.repo.root, '.git', 'wong-tidy'), { recursive: true, force: true });
   writeFileSync(join(env.repo.root, '.git', 'wong-tidy'), 'not a folder');
   const broken = await hook(env, extra);
   assert.equal(broken.code, 0, broken.stderr);
-  assert.equal(broken.stdout, '');
+  assert.equal(beforeDigest(broken.stdout), '');
 });
 
 test('an unreachable store falls back to the cached digest and never fails the session', async t => {
@@ -424,8 +439,8 @@ test('the current change comes from the proposal Branch line, and consolidation 
   const dir = tempDir(t, 'slug-');
   mkdirSync(join(dir, 'openspec/changes/one'), { recursive: true });
   writeFileSync(join(dir, 'openspec/changes/one/proposal.md'), '**Branch:** feat/one\n');
-  assert.equal(currentSlug(dir, 'feat/one'), 'one');
-  assert.equal(currentSlug(dir, 'other'), null);
+  assert.equal(currentSlug({ root: dir, branch: 'feat/one' }), 'one');
+  assert.equal(currentSlug({ root: dir, branch: 'other' }), null);
   const now = Date.parse('2026-09-25T00:00:00Z');
   assert.equal(consolidationDue({ last_consolidation: '2026-09-23T00:00:00Z', captured_since: 6 }, now), true);
   assert.equal(consolidationDue({ last_consolidation: '2026-09-23T00:00:00Z', captured_since: 2 }, now), false);
@@ -524,7 +539,7 @@ test('inside a run, put-facts and strip add what they stored to the tally, and f
 test('a consolidation that ends well leaves a marker the wiki tidy claims once; capture and a failed run leave none', async t => {
   const env = await setup(t);
   const marker = join(env.repo.stateDir, 'consolidated.json');
-  const check = () => node(env.repo, env.fake, '../../daily/scripts/wiki-tidy-check.mjs');
+  const check = () => node(env.repo, env.fake, '../../../skills/daily/scripts/wiki-tidy-check.mjs');
   await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok']);
   await memory(env.repo, env.fake, ['finish-run', '--kind', 'consolidation', '--status', 'failed', '--reason', 'store down']);
   assert.equal(existsSync(marker), false);
@@ -702,7 +717,7 @@ test('new registered transcript capture writes its owned ledger before upload; a
   env.fake.db.prepare("INSERT INTO sessions (id, agent, author, status, updated_at) VALUES (?, 'claude', 'dev@example.com', 'captured', 'now')").run(historical.id);
   const count = env.fake.objects.size;
   const refused = await memory(env.repo, env.fake, ['strip', historical.id]); assert.equal(refused.code, 0, refused.stderr);
-  assert.match(refused.stdout, /^refused: the memory store refused this write: /);
+  assert.match(refused.stdout, /^refused: the memory store refused this: session \S+ belongs to another person or unassigned history\./);
   assert.doesNotMatch(refused.stdout, /Historical unowned private conversation/); assert.equal(env.fake.objects.size, count);
   assert.equal(rows(env, 'SELECT owner_subject FROM sessions WHERE id = ?', historical.id)[0].owner_subject, null);
   // One refused session is not a rejected sign-in: nothing marks it refused, and the session is not offered again.

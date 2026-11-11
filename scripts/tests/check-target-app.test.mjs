@@ -38,7 +38,7 @@ test('the real inventory leaves the sample apps, the sample skill and this check
   const manifest = JSON.parse(readFileSync(join(repo, INVENTORY), 'utf8'));
   const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: repo, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\0').filter(Boolean);
   const received = targetFiles(tracked, manifest);
-  for (const kept of ['app/package.json', 'app/worker/index.ts', 'app/worker/employee-access/seed.test.ts', 'app/src/apps/hello/App.tsx', 'scripts/cf-build.sh', 'schema/seed.sql', '.agents/skills/memory/worker/memory-worker.mjs']) {
+  for (const kept of ['app/package.json', 'app/worker/index.ts', 'app/worker/employee-access/seed.test.ts', 'app/src/apps/hello/App.tsx', 'scripts/cf-build.sh', 'schema/seed.sql', '.agents/memory/d1/migrations/0001_memory.sql']) {
     assert.ok(received.includes(kept), `${kept} did not reach the install`);
   }
   const left = received.filter(path => /^app\/(src|worker)\/apps\/(tips|sample)\/|sample-report|check-target-app|^app\/wrangler\.jsonc$|wong-setup/.test(path));

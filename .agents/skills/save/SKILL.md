@@ -1,6 +1,6 @@
 ---
 name: save
-description: Checkpoint work: commit, push, update the PR, wait for CI, return the preview, record session facts. Never implements or merges.
+description: Checkpoint work: commit, push, update the PR, wait for CI, return the preview. Never implements or merges.
 user-invocable: true
 ---
 
@@ -12,14 +12,13 @@ user-invocable: true
 
 ## 1. Protect credentials and select the route
 
-**Keep every credential supplied, rotated, read or written this session out of** tracked files, changes, facts, messages, PR text and reports. Values stay in working memory and their intended ignored live file; record only names and sources.
+**Keep every credential supplied, rotated, read or written this session out of** tracked files, changes, messages, PR text and reports. Values stay in working memory and their intended ignored live file; record only names and sources.
 
 Load each matching procedure before its actions; conditions combine:
 
 | Condition | Procedure |
 |---|---|
 | User supplied or rotated an explicitly named secret | [Named-secret persistence](references/named-secrets.md), before writing records |
-| Only facts, including a to-do that changed no repo file | [Facts-only save](references/facts-save.md) |
 | Code or a code plan needs a new change | [New-plan fallback](references/new-plan.md) |
 | The exact selected handoff is archived | [The archived handoff](#the-archived-handoff) |
 
@@ -34,7 +33,7 @@ bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candid
 
 Save the change this work touched, found by [the rungs](references/checkpoint-evidence.md#selection-rungs), never a plan merely because it is the only one open. Keep `BRANCH`, `NAME`, `CHANGE_ROOT` separate; never rename or duplicate a change to match its branch.
 
-A save changing repo files takes the normal route, except the validated record-only procedure above. Nothing learned, decided, or changed → report and stop.
+Work that changed no repo file, such as an errand → say the chat's memory capture keeps its progress, and stop. Nothing learned, decided, or changed → report and stop.
 
 ## 2. Maintain the handoff and capture context
 
@@ -45,7 +44,6 @@ Maintain the living handoff:
 - Proposal header: current `**Status:**`, actual `**Branch:**`, and `**Open questions:**` (`none` when empty).
 - Plan sections: the current intent from the latest agreed plan and diff, self-contained, edited in place under existing headings. Tasks: true checked state and agreed additions.
 - `## Decision log`: append one dated entry; never change earlier ones: a cold reader inherits the why from them.
-- Session facts: [write them](../memory/references/writing-facts.md) through [the memory write gate](../memory/SKILL.md#write) with `"session": "current"` and `"source": "save"`. A spooled result does not block the save.
 
 For an active change, [reconcile its deltas](../plan/references/openspec-cli.md#reconcile-deltas). Read artifact and task progress [from the CLI](../plan/references/openspec-cli.md#create-or-read-a-change).
 
@@ -71,6 +69,6 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/checkpoint.mj
 
 ## 5. Report
 
-Report outcome and one link in plain words. Inside a verb or on request, include branch/commit, PR, change/archive Status, fact counts and stored/spooled/skipped state, CI fixes/uncertainty and preview/absence. Return the command's `SAVE_HEAD`, [`RECEIPT`](references/git-gate.md#saved-revision-handoff) and `SAVE_GATE_RESULT` lines; always print the last inside a verb. Explicit errors; continue command only for active changes.
+Report outcome and one link in plain words. Inside a verb or on request, include branch/commit, PR, change/archive Status, CI fixes/uncertainty and preview/absence. Return the command's `SAVE_HEAD`, [`RECEIPT`](references/git-gate.md#saved-revision-handoff) and `SAVE_GATE_RESULT` lines; always print the last inside a verb. Explicit errors; continue command only for active changes.
 
 Direct invocation asks [next steps](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) with the question tool: continue, publish or stop; failed/unverified gates offer repairs.

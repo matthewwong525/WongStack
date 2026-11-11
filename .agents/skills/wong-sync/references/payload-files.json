@@ -15,7 +15,9 @@
     "",
     "skillDirs are directory names under .claude/skills/, copied whole (references/",
     "and scripts/ included). dirs are copied whole from the repo root. Anything in",
-    "'exclude' is removed after its directory is walked."
+    "'exclude' is removed after its directory is walked. mapped folders are copied whole",
+    "from a source path to an install path: a module in .claude/plugins/<name>/ lands",
+    "in .claude/skills/<name>/. No folder link ships."
   ],
   "core": {
     "skillDirs": [
@@ -26,7 +28,6 @@
       "continue",
       "ship",
       "close",
-      "dream-memory",
       "verify",
       "hand-over",
       "browser",
@@ -37,7 +38,6 @@
       "connect",
       "services",
       "lesson",
-      "memory",
       "wong-sync",
       "agent-browser"
     ],
@@ -50,6 +50,7 @@
       ".claude/skills/save/scripts/checkpoint.mjs",
       ".claude/skills/ship/scripts/ship.mjs",
       ".claude/settings.json",
+      ".claude-plugin/marketplace.json",
       ".claude/hooks.json",
       ".claude/config.toml",
       "paseo.json",
@@ -70,6 +71,7 @@
       "wiki/development/loosened-checks.md",
       "wiki/development/repository-improvement.md",
       "wiki/development/memory.md",
+      "wiki/development/memory-search.md",
       "wiki/development/wiki-dream.md",
       "wiki/development/document-retrieval.md",
       "wiki/development/memory-extraction.md",
@@ -108,8 +110,12 @@
       }
     ],
     "dirs": [
-      "wiki/development/first-day"
-    ]
+      "wiki/development/first-day",
+      ".claude/memory"
+    ],
+    "mapped": {
+      ".claude/plugins/memory": ".claude/skills/memory"
+    }
   },
   "ui": {
     "files": [

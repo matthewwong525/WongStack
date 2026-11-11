@@ -5,6 +5,7 @@
 import { spawnSync } from 'node:child_process';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 
+import { installText } from './install-path.mjs';
 import { compareSelection, targetValue } from './preflight.mjs';
 
 const SCHEMA_VERSION = 1;
@@ -87,6 +88,8 @@ export function mergeCheck({ target, source, from, record }) {
         ? hunks.map(row => ({ lines: row.lines.filter(line => line.at >= range[0] && line.at <= range[1]) })).filter(row => row.lines.length)
         : [];
     }
+    // An added line is read as the install writes it: a link into a mapped folder names the install path.
+    hunks = hunks.map(row => ({ lines: row.lines.map(line => ({ ...line, text: installText(unit.sourcePath, line.text, compared.mapped) })) }));
     const local = targetValue(compared.target, unit);
     const have = new Set((local ? local.toString('utf8') : '').split('\n').map(line => line.trim()));
     const missing = [];

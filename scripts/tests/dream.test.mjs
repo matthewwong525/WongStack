@@ -4,19 +4,28 @@ import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { dreamChecks, isDreamFact, isShipped, lastDream, pageList, pagesNamed, planDrift, saysGone, shippedPaths, stalePaths } from '../../.agents/skills/dream-memory/scripts/dream.mjs';
-import { memory, node, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { pathToFileURL } from 'node:url';
+import { dreamChecks, isDreamFact, lastDream, pageList, pagesNamed, planDrift, saysGone, stalePaths } from '../../.agents/plugins/memory/skills/dream-memory/scripts/dream.mjs';
+import { isShipped, kindOf, shippedPaths } from '../../.agents/memory/tidy-pages.mjs';
+import { memory, node, PROFILE, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
 
-const DREAM = '../../dream-memory/scripts/dream.mjs';
+const DREAM = '../skills/dream-memory/scripts/dream.mjs';
+const TIDY = new URL('../../.agents/memory/tidy-pages.mjs', import.meta.url).href;
 const PAYLOAD = {
   core: { skillDirs: ['dream-memory'], files: ['wiki/wiki-style.md', 'wiki/development/memory.md'] },
   pack: { files: ['scripts/cf-build.sh'], dirs: ['wiki/stack'] },
   seededBySetup: { files: ['wiki/README.md'] },
 };
 const SHIPPED = shippedPaths(PAYLOAD);
+const withKinds = pages => pages.map(page => ({ ...page, kind: kindOf(page.path, SHIPPED) }));
 const today = new Date().toISOString().slice(0, 10);
 
-const dream = (env, ...args) => node(env.repo, env.fake, DREAM, args);
+// A profile with WongStack's store and tidy pages alone, or the one given.
+function profile(env, text = `import base from '${pathToFileURL(PROFILE).href}';\nimport { tidyPages } from '${TIDY}';\nexport default { connect: base.connect, tidy: { pages: tidyPages } };\n`) {
+  write(env.repo.home, 'profile.mjs', text);
+  return { env: { WONG_MEMORY_PROFILE: join(env.repo.home, 'profile.mjs') } };
+}
+const dream = (env, ...args) => node(env.repo, env.fake, DREAM, args, profile(env));
 const put = (env, body) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Math.random()}.json`, {
   source: 'save', slug: 'wiki-dream',   facts: [{ action: 'add', type: 'project', body, tags: ['dream'] }],
 })]);
@@ -42,7 +51,7 @@ test('an earlier dream fact gives its date, the highest fact id it read, and the
     { id: 901, created_at: '2026-09-20T08:00:00Z', body: 'Dream 2026-09-20: read facts up to #900. Checked: wiki/people/README.md.' },
     { id: 1240, created_at: '2026-10-01T08:00:00Z', body: 'Dream 2026-10-01: read facts up to #1234. Checked: wiki/people/README.md, wiki/people/a-b.md.' },
     // Upkeep tags `dream` any fact naming the skill's folder; only a dream's own fact counts.
-    { id: 1250, created_at: '2026-10-03T08:00:00Z', body: 'Session 2026-10-03: edited .agents/skills/dream-memory/SKILL.md and wiki/people/c.md, PR #9.' },
+    { id: 1250, created_at: '2026-10-03T08:00:00Z', body: 'Session 2026-10-03: edited .agents/plugins/memory/skills/dream-memory/SKILL.md and wiki/people/c.md, PR #9.' },
   ];
   assert.deepEqual(lastDream(facts), { since: '2026-10-01', afterFact: 1234, pages: ['wiki/people/README.md', 'wiki/people/a-b.md'], dream: 1240 });
   assert.deepEqual(lastDream([{ id: 7, created_at: '2026-10-02T00:00:00Z', body: 'Dream 2026-10-02: nothing to add.' }]),
@@ -98,14 +107,14 @@ test('pages sort longest unchecked first: never, then oldest, the newer of commi
   ]);
   assert.equal(checks.get('wiki/people/a.md'), '2026-10-01');
   assert.equal(checks.get('wiki/people/b.md'), '2026-09-01');
-  const list = pageList([
+  const list = pageList(withKinds([
     { path: 'wiki/people/a.md', text: 'one two three', committed: '2026-01-01T00:00:00+00:00' },
     { path: 'wiki/people/b.md', text: 'one\n\ntwo', committed: '2026-09-15T00:00:00+00:00' },
     { path: 'wiki/people/c.md', text: '', committed: null },
     { path: 'wiki/stack/d.md', text: 'word', committed: '2026-03-01T00:00:00+00:00' },
     { path: 'wiki/people/e.md', text: 'word', committed: '2026-03-01T00:00:00+00:00' },
     { path: 'openspec/specs/memory/spec.md', text: 'a spec here', committed: '2026-02-01T00:00:00+00:00' },
-  ], SHIPPED, checks);
+  ]), checks);
   assert.deepEqual(list, [
     { path: 'wiki/people/c.md', kind: 'own', words: 0, lastChecked: null },
     { path: 'openspec/specs/memory/spec.md', kind: 'spec', words: 3, lastChecked: '2026-02-01' },
@@ -163,6 +172,11 @@ test('since and pages read the store and the checkout, and write neither', async
     ['wiki/people/b.md', today],
   ]);
   assert.equal(execFileSync('git', ['-C', root, 'status', '--porcelain', '--', 'wiki'], { encoding: 'utf8' }).trim(), '?? wiki/people/b.md', 'the script edits no page');
+
+  // With no tidy pages, the topic pages alone are checked, all the repo's own.
+  const topics = profile(env, `import base from '${pathToFileURL(PROFILE).href}';\nexport default { connect: base.connect, topics: () => [{ tag: 'a', page: 'wiki/people/a.md' }, { tag: 'x', page: null }] };\n`);
+  const own = (await node(env.repo, env.fake, DREAM, ['pages'], topics)).stdout.trim();
+  assert.equal(own, `own\t4\t${today}\twiki/people/a.md`);
 });
 
 test('a store that can not be read stops since, and leaves pages on commit dates', async t => {
@@ -226,7 +240,7 @@ test('a dream record dated ahead or not in plain UTC, or claiming facts written 
   const checks = dreamChecks(facts);
   assert.deepEqual([...checks], [['wiki/people/a.md', '2026-10-01']]);
   const pages = ['a', 'b'].map(name => ({ path: `wiki/people/${name}.md`, text: 'words', committed: null }));
-  assert.deepEqual(pageList(pages, SHIPPED, checks).map(page => [page.path, page.lastChecked]), [['wiki/people/b.md', null], ['wiki/people/a.md', '2026-10-01']]);
+  assert.deepEqual(pageList(withKinds(pages), checks).map(page => [page.path, page.lastChecked]), [['wiki/people/b.md', null], ['wiki/people/a.md', '2026-10-01']]);
 });
 
 test("a small wiki tidy's record counts as the last dream; a forged future one does not", () => {

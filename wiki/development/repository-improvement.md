@@ -4,7 +4,7 @@
 
 Run [`/improve-code [focus]`](../../.agents/skills/improve-code/SKILL.md) when the code feels harder to change than it should. A focus can name an area, such as `scripts/check-runner`, or an outcome, such as `make the check runner easier to test`.
 
-It works only on how the code is built. A new feature or a wording fix is a normal request: ask for it in plain words. Trouble with memory or the wiki goes to [`/dream-memory`](wiki-dream.md).
+It works only on how the code is built. A new feature or a wording fix is a normal request: ask for it in plain words. Trouble with memory or the wiki goes to [`/memory:dream-memory`](wiki-dream.md).
 
 Run `/improve-code --audit-only [focus]` for findings and recommendations with no edit, Git change, delivery, saved report, or saved fact. It also names the notes it skipped as memory or wiki ones.
 
@@ -13,7 +13,7 @@ Run `/improve-code --audit-only [focus]` for findings and recommendations with n
 Before it chooses, `/improve-code` loads memory's open [struggle notes](memory.md#how-facts-are-captured), each a `thread` tagged `improve`, and the ideas it [ruled out](#remember-a-no) before. Trouble a real chat recorded comes before a problem found by reading the project alone.
 
 - **A note is evidence, not an order.** The choice still needs proof of value and a way to check the result.
-- **A note about memory or the wiki is skipped.** `/dream-memory` reads the same notes and takes those.
+- **A note about memory or the wiki is skipped.** `/memory:dream-memory` reads the same notes and takes those.
 - **A note closes at publish.** The plan names the note it answers, so the save that publishes the built plan supersedes it. The other notes stay open.
 - **`--audit-only` reads notes and writes none.**
 - **No memory, no stop.** The run says memory was not loaded and chooses from its other evidence.

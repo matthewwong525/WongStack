@@ -1,5 +1,5 @@
 // Only deliberately described routes enter the company catalogue.
-import { selectOperations } from "../../../.agents/skills/memory/scripts/lib/operations.mjs";
+import { selectOperations } from "../../../.agents/memory/lib/operations.mjs";
 import { apiActions, toolActions } from "./router.ts";
 import { appActions, type AppEnv } from "../apps/index.ts";
 import type { AccessIdentity } from "../access.ts";

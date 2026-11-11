@@ -9,7 +9,7 @@ import test from 'node:test';
 import * as fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import { INVENTORY, SEEDS, install, targetFiles } from '../../.agents/skills/wong-setup/scripts/install.mjs';
-import { checkWiki } from '../../.agents/skills/memory/scripts/lib/links.mjs';
+import { checkWiki } from '../../.agents/memory/lib/links.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const SCRIPT = join(repo, '.agents/skills/wong-setup/scripts/install.mjs');
@@ -35,6 +35,10 @@ test('an install into an empty folder holds the payload, the links, the hubs, th
   assert.equal(readlinkSync(join(target, 'CLAUDE.md')), 'AGENTS.md');
   assert.ok(lstatSync(join(target, '.agents')).isDirectory());
   assert.ok(existsSync(join(target, '.claude/skills/save/SKILL.md')), 'skills read through the link');
+  assert.ok(lstatSync(join(target, '.agents/skills/memory')).isDirectory(), 'the memory module is a real folder');
+  assert.ok(existsSync(join(target, '.claude/skills/memory/scripts/memory.mjs')));
+  assert.ok(!existsSync(join(target, '.agents/plugins')), 'no source-only module folder');
+  assert.deepEqual(report.links, ['.claude', '.codex', 'CLAUDE.md']);
   assert.ok(existsSync(join(target, '.claude/skills/daily/SKILL.md')), 'the daily skill ships');
   assert.ok(!existsSync(join(target, '.claude/skills/daily/team.md')) && !existsSync(join(target, '.claude/skills/daily/people')), 'with no steps');
   assert.ok(existsSync(join(target, '.env.example')));
@@ -115,6 +119,33 @@ test('it never writes over a file, and a stop removes everything it wrote', (t) 
   writeFileSync(join(source, INVENTORY), JSON.stringify(inventory));
   assert.throws(() => install({ source, target: `${target}-2`, repo: REPO, openspec: noOpenspec }), /missing listed files: wiki\/missing\.md/);
   rmSync(`${target}-2`, { recursive: true, force: true });
+});
+
+test('a mapped module folder installs as a real folder at its install path, its links moved with it', (t) => {
+  const source = folder(t);
+  const inventory = { core: { files: ['paseo.json', 'wiki/page.md'], mapped: { '.claude/plugins/memory': '.claude/skills/memory' } } };
+  const files = { [INVENTORY]: JSON.stringify(inventory), 'paseo.json': '{}', '.env.example': '', VERSION: '1.0.0\n',
+    '.agents/plugins/memory/scripts/memory.mjs': 'memory\n', '.agents/plugins/memory/SKILL.md': '[sync](../../skills/wong-sync/SKILL.md)\n',
+    'wiki/page.md': '[memory](../.agents/plugins/memory/SKILL.md)\n', 'AGENTS.md': '<!-- WONG-STACK:BEGIN -->\nrules\n<!-- WONG-STACK:END -->\n' };
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(source, path)), { recursive: true });
+    writeFileSync(join(source, path), text);
+  }
+  fs.symlinkSync('../plugins/memory', join(source, '.agents/skills/memory'));
+  fs.symlinkSync('../../skills', join(source, '.agents/plugins/memory/stray'));
+  execFileSync('git', ['init', '-q', source]);
+  execFileSync('git', ['-C', source, 'add', '-A']);
+  execFileSync('git', ['-C', source, '-c', 'user.name=A', '-c', 'user.email=a@example.com', 'commit', '-q', '-m', 'source']);
+
+  const target = `${source}-target`;
+  t.after(() => rmSync(target, { recursive: true, force: true }));
+  assert.deepEqual(install({ source, target, repo: REPO, openspec: noOpenspec }).links, ['.claude', '.codex', 'CLAUDE.md']);
+  assert.ok(lstatSync(join(target, '.agents/skills/memory')).isDirectory());
+  assert.equal(readFileSync(join(target, '.agents/skills/memory/scripts/memory.mjs'), 'utf8'), 'memory\n');
+  assert.equal(readFileSync(join(target, '.agents/skills/memory/SKILL.md'), 'utf8'), '[sync](../wong-sync/SKILL.md)\n');
+  assert.equal(readFileSync(join(target, 'wiki/page.md'), 'utf8'), '[memory](../.agents/skills/memory/SKILL.md)\n');
+  assert.ok(!existsSync(join(target, '.agents/plugins')), 'the source folder stays behind');
+  assert.ok(!existsSync(join(target, '.agents/skills/memory/stray')), 'a stray folder link stays behind');
 });
 
 test('a refused link stops before any file is copied, with the fix', (t) => {

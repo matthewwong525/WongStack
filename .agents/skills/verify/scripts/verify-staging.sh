@@ -160,15 +160,17 @@ load_credentials() {
 has_access_token() { [ -n "${CF_ACCESS_CLIENT_ID:-}" ] && [ -n "${CF_ACCESS_CLIENT_SECRET:-}" ]; }
 
 # The production site's address: the Worker the memory store records, read
-# through the memory skill so a linked worktree gets the primary checkout's.
+# through WongStack's memory profile so a linked worktree gets the primary checkout's.
 # Prints nothing when no store is recorded.
 production_origin() {
   node --input-type=module -e '
-    const [store, root] = process.argv.slice(1);
-    const { loadConfig, repoContext } = await import((await import("node:url")).pathToFileURL(store));
+    const [store, connect, root] = process.argv.slice(1);
+    const { pathToFileURL } = await import("node:url");
+    const { repoContext } = await import(pathToFileURL(store));
+    const { loadConfig } = await import(pathToFileURL(connect));
     const worker = loadConfig(repoContext(root)).worker;
     if (worker) console.log(new URL(worker).origin);
-  ' "$1/.claude/skills/memory/scripts/lib/store.mjs" "$1" 2>/dev/null
+  ' "$1/.claude/skills/memory/scripts/lib/store.mjs" "$1/.claude/memory/d1/connect.mjs" "$1" 2>/dev/null
 }
 
 # The names the picture route keeps (.claude/skills/verify/worker/walk-pictures.mjs).

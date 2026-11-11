@@ -6,7 +6,7 @@ This page owns the steps the assistant follows. [Getting started](getting-starte
 
 ## What is read
 
-[`recent-chats`](../../.agents/skills/memory/SKILL.md#read) prints only what the person typed, from every folder, newest first, in the Claude Code and Codex chats kept on this computer. It leaves out the assistant's replies, tool output, pasted text, and helpers' chats, and replaces every key with a placeholder. It needs no [memory store](../development/memory.md), so it runs before the install has one. Other assistants keep no chat files here, so nothing of theirs is read.
+[`recent-chats`](../../.agents/plugins/memory/SKILL.md#read) prints only what the person typed, from every folder, newest first, in the Claude Code and Codex chats kept on this computer. It leaves out the assistant's replies, tool output, pasted text, and helpers' chats, and replaces every key with a placeholder. It needs no [memory store](../development/memory.md), so it runs before the install has one. Other assistants keep no chat files here, so nothing of theirs is read.
 
 Chat text goes nowhere new: the assistant reads it as it reads any chat.
 
@@ -50,7 +50,7 @@ Merge the helpers' notes when the install's `wiki/` is in place. Where two notes
 
 1. **The person** → their page and the people hub, by [the People rules](../wiki-style.md#people).
 2. **The business** → topic pages, by [the wiki rules](../wiki-style.md#repeatable-knowledge): the first fact on a topic makes its page, linked from its hub.
-3. **Facts** → memory, once [the memory store exists](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store), through [the write gate](../../.agents/skills/memory/SKILL.md#write): `gate`, then `put-facts`, with `"source": "backfill"` and no `session`. They wait on this computer until the site first goes live.
+3. **Facts** → memory, once [the memory store exists](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store), through [the write gate](../../.agents/plugins/memory/SKILL.md#write): `gate`, then `put-facts`, with `"source": "backfill"` and no `session`. They wait on this computer until the site first goes live.
 
 All of it lands in the install's first save.
 

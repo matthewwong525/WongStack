@@ -7,8 +7,8 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSyn
 import { tmpdir } from 'node:os';
 import { dirname, join, posix } from 'node:path';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
-import { checkWiki, linksIn, MOVES_FILE, readMoves } from '../../memory/scripts/lib/links.mjs';
-import { SAVED } from '../../memory/scripts/knowledge.mjs';
+import { checkWiki, linksIn, MOVES_FILE, readMoves } from '../../../memory/lib/links.mjs';
+import { SAVED } from '../../../memory/knowledge.mjs';
 import { compareSelection, ownWikiFiles, shippedPaths, wikiRoot } from './preflight.mjs';
 
 const VERSION = 1;

@@ -4,7 +4,7 @@
 
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { checkWiki, WIKI_PAGE_WORDS, wikiPages } from '../../.agents/skills/memory/scripts/lib/links.mjs';
+import { checkWiki, WIKI_PAGE_WORDS, wikiPages } from '../../.agents/memory/lib/links.mjs';
 
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL('../..', import.meta.url)));
 const problems = checkWiki(root);

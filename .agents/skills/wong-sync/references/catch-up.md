@@ -24,6 +24,7 @@ Each step keeps the person's own text: a move is `git mv` or a reviewed merge, n
 
    Show each app in the preview. Then, in the same change, remove `mini-apps/`, `scripts/mini-dashboard.mjs`, and any reader of `/apps/apps.json` the repo added.
 9. **`own-pages` — own pages in the code repo.** After `wiki-elsewhere`, they go to the knowledge repo by [moving an older install's pages](../../../../wiki/stack/company-knowledge.md#move-an-older-installs-pages). A held move holds `wiki-elsewhere`, keeping `docsPath`. Its install-record task sets `components.knowledgeMove: 'held'`; the move's drops it.
+10. **`module-link` — a module kept as a folder link**, such as `.claude/skills/memory`. Remove it before the copy, and `.agents/plugins/<name>/` unless it holds the repo's own files.
 
 The install-record task comes last, after every step above, and advances the record once.
 

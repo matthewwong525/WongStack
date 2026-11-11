@@ -80,11 +80,13 @@ load_access_token() {
 # The production site the memory store records, or nothing.
 recorded_origin() {
   node --input-type=module -e '
-    const [store, root] = process.argv.slice(1);
-    const { loadConfig, repoContext } = await import((await import("node:url")).pathToFileURL(store));
+    const [store, connect, root] = process.argv.slice(1);
+    const { pathToFileURL } = await import("node:url");
+    const { repoContext } = await import(pathToFileURL(store));
+    const { loadConfig } = await import(pathToFileURL(connect));
     const worker = loadConfig(repoContext(root)).worker;
     if (worker) console.log(new URL(worker).origin);
-  ' "$LIB/store.mjs" "$ROOT" 2>/dev/null
+  ' "$LIB/store.mjs" "$ROOT/.claude/memory/d1/connect.mjs" "$ROOT" 2>/dev/null
 }
 
 # Every status of the commit's production deployments: "<state><TAB><address>".

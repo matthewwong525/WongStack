@@ -16,6 +16,7 @@ const read = path => readFileSync(join(repo, path), 'utf8');
 const TOOLS = '.agents/skills/wong-setup/references/tools.md';
 const SETTINGS = '.agents/settings.json';
 const CODEX_HOOKS = '.agents/hooks.json';
+const PLUGIN_HOOKS = '.agents/plugins/memory/hooks/claude.json';
 const LINE = 'export PATH="$HOME/.local/bin:$PATH"';
 const PREFIX = 'PATH="$HOME/.local/bin:$PATH" ';
 const TOOL = 'wong-fake-tool';
@@ -199,13 +200,14 @@ test("a command that reads the hook's env file finds the tool", unix, t => {
 });
 
 test("every one of Claude Code's node hooks looks in the user folder, and Codex's hook file sets no PATH", unix, () => {
-  const node = allCommands().filter(command => /(^|\s)node\s/.test(command));
+  const plugin = Object.values(JSON.parse(read(PLUGIN_HOOKS)).hooks).flat().flatMap(group => group.hooks).map(hook => hook.command);
+  const node = [...allCommands(), ...plugin].filter(command => /(^|\s)node\s/.test(command));
 
-  assert.equal(node.length, 14, `${SETTINGS} should hold fourteen hooks that run node; found ${node.length}`);
+  assert.equal(node.length, 16, `${SETTINGS} and ${PLUGIN_HOOKS} should hold sixteen hooks that run node; found ${node.length}`);
   for (const command of node) {
     assert.ok(command.startsWith(`${PREFIX}node `), `${SETTINGS}: a node hook must start with ${PREFIX}so it finds a Node in the user folder: ${command}`);
   }
   // Codex starts a hook in a login shell, which setup's line reaches; on Windows
   // it uses cmd.exe, where a PATH= prefix is a syntax error.
-  assert.doesNotMatch(read(CODEX_HOOKS), /PATH=/, `${CODEX_HOOKS} must not set PATH`);
+  for (const file of [CODEX_HOOKS, '.agents/plugins/memory/hooks/codex.json']) assert.doesNotMatch(read(file), /PATH=/, `${file} must not set PATH`);
 });

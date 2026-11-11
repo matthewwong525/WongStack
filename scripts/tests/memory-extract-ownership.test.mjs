@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { taskIdentity } from '../../.agents/skills/memory/scripts/lib/extract-ledger.mjs';
-import { hashKey, newKey } from '../../.agents/skills/memory/worker/memory-worker.mjs';
+import { hashKey, newKey } from '../../.agents/memory/d1/store.mjs';
 import { memory, setup, signInAs } from './fixtures/memory/harness.mjs';
 
 const otherMachine = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', other = 'other-subject';
@@ -52,18 +52,20 @@ test('search, JSON, brief and extract preserve personal privacy and source permi
         assert.deepEqual(resultIds(result.stdout, format), role === 'admin' && everyone ? broad : narrow, `${format}, ${role}, everyone=${everyone}`);
         assert.doesNotMatch(result.stdout, /raw_key|private-object-key|sessions\/|PRIVATE TRANSCRIPT CONTENT|replaced old decision/);
         if (role !== 'admin' || !everyone) assert.doesNotMatch(result.stdout, /claude:private-evidence/);
-        if (format === 'brief' || format === 'extract') assert.match(result.stdout, /session: claude:shared-private-source/);
+        if (format === 'brief' || format === 'extract') assert.match(result.stdout, /session: ?claude:shared-private-source/);
       }
     }
+    assert.ok(env.fake.calls.every(call => !call.includes('/v2/transcript')), 'extraction never follows transcript sources');
     if (role !== 'admin') {
       const source = await memory(env.repo, env.fake, ['source', String(shared)], options);
       assert.equal(source.code, 0, source.stderr);
       assert.match(source.stdout, /only its owner and the admin/);
       assert.doesNotMatch(source.stdout, /PRIVATE TRANSCRIPT CONTENT/);
+      // Only `source` asks for a transcript; the next role's reads start from an empty call list.
+      env.fake.calls.length = 0;
     }
   }
   assert.equal(transcriptGets, 0, 'facts and briefs never fetch private transcript bytes');
-  assert.ok(env.fake.calls.every(call => !call.includes('/r2/')), 'extraction never follows transcript sources');
   signInAs(env.repo, null);
   for (const args of [['search', 'evidence', '--json'], ['brief', 'evidence']]) {
     const denied = await memory(env.repo, env.fake, args, { env: { CLOUDFLARE_MEMORY_TOKEN: 'invalid-credential' } });

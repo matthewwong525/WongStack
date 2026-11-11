@@ -8,12 +8,13 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { handleMemory, hashKey, newKey } from '../../../../.agents/skills/memory/worker/memory-worker.mjs';
-import { tokenClaims } from '../../../../.agents/skills/memory/scripts/lib/store.mjs';
+import { handleMemory, hashKey, newKey } from '../../../../.agents/memory/d1/store.mjs';
+import { tokenClaims } from '../../../../.agents/memory/d1/connect.mjs';
 import { d1Query } from '../d1.mjs';
 
 const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
-const SCRIPTS = join(REPO, '.agents/skills/memory/scripts');
+const SCRIPTS = join(REPO, '.agents/plugins/memory/scripts');
+export const PROFILE = join(REPO, '.agents/memory/profile.mjs');
 const TOKEN = 'test-memory-token-value';
 export const SECRET = 'super-secret-value-123';
 export const TEST_AUD = 'test-aud';
@@ -35,6 +36,20 @@ export function signInAs(repo, claims) {
   writeFileSync(join(repo.bin, 'cloudflared'), claims ? `#!/bin/sh\necho ${typeof claims === 'string' ? claims : testToken(claims)}\n` : '#!/bin/sh\nexit 1\n', { mode: 0o755 });
 }
 
+// A D1 binding on node:sqlite: a batch runs in one transaction, as D1's does.
+export function d1Binding(db) {
+  const statement = (sql, params = []) => ({
+    bind: (...values) => statement(sql, values),
+    first: async () => db.prepare(sql).get(...params) || null,
+    all: async () => ({ results: db.prepare(sql).all(...params).map(row => ({ ...row })), meta: {} }),
+  });
+  return { prepare: sql => statement(sql), batch: async statements => {
+    db.exec('BEGIN');
+    try { const out = []; for (const each of statements) out.push(await each.all()); db.exec('COMMIT'); return out; }
+    catch (error) { db.exec('ROLLBACK'); throw error; }
+  } };
+}
+
 async function fakeCloudflare({ bucket = true } = {}) {
   const db = new DatabaseSync(':memory:');
   const objects = new Map();
@@ -49,21 +64,11 @@ async function fakeCloudflare({ bucket = true } = {}) {
     if (offline === 'hang') return;
     if (offline) { res.socket.destroy(); return; }
     if (req.headers.authorization !== `Bearer ${TOKEN}`) {
-      const statement = (sql, params = []) => ({
-        bind: (...values) => statement(sql, values),
-        first: async () => db.prepare(sql).get(...params) || null,
-        all: async () => ({ results: db.prepare(sql).all(...params), meta: {} }),
-      });
-      const binding = { prepare: sql => statement(sql), batch: async statements => {
-        db.exec('BEGIN');
-        try { const out = []; for (const each of statements) out.push(await each.all()); db.exec('COMMIT'); return out; }
-        catch (error) { db.exec('ROLLBACK'); throw error; }
-      } };
       const request = new Request(`http://127.0.0.1:${server.address().port}${req.url}`, { method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : body });
-      const response = await handleMemory(request, { MEMORY_DB: binding, ...(bucket ? { MEMORY_BUCKET: {
+      const response = await handleMemory(request, { MEMORY_DB: d1Binding(db), ...(bucket ? { MEMORY_BUCKET: {
         get: async key => objects.has(key) ? { body: objects.get(key) } : null,
         put: async (key, value) => objects.set(key, Buffer.from(value)),
-      } } : {}) }, fakeSignIn);
+      } } : {}) }, fakeSignIn, '/client/v4/v2/');
       res.writeHead(response.status, Object.fromEntries(response.headers));
       res.end(Buffer.from(await response.arrayBuffer()));
       return;
@@ -128,6 +133,7 @@ function envFor(repo, fake, extra = {}) {
     WONG_MEMORY_CLIENT_ID: '',
     WONG_MEMORY_CLIENT_SECRET: '',
     WONG_MEMORY_API: fake.api,
+    WONG_MEMORY_PROFILE: PROFILE,
     WONG_MEMORY_STATE_DIR: repo.stateBase,
     XDG_DATA_HOME: repo.dataHome,
     WONG_CLOUDFLARE_API: fake.api,

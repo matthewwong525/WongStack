@@ -285,14 +285,14 @@ test('a local branch that diverged from origin\'s copy is exit 2', t => {
 test('a teammate branch that edits the hooks\' shared library runs nothing on pickup', t => {
   const { base, owner, teammate } = repo(t, dir => {
     cpSync(path.join(root, '.agents'), path.join(dir, '.agents'), {
-      recursive: true, filter: src => !['.wong-stack.json', 'settings.local.json'].includes(path.basename(src)),
+      recursive: true, verbatimSymlinks: true, filter: src => !['.wong-stack.json', 'settings.local.json'].includes(path.basename(src)),
     });
     symlinkSync('.agents', path.join(dir, '.claude'));
     symlinkSync('.agents', path.join(dir, '.codex'));
     commit(dir, 'README.md');
   });
   const marker = path.join(base, 'branch-code-ran');
-  const library = '.agents/skills/memory/scripts/lib/cli.mjs';
+  const library = '.agents/plugins/memory/scripts/lib/cli.mjs';
   git(teammate, 'switch', '-q', '-c', 'teammate-change');
   appendFileSync(path.join(teammate, library),
     `\nimport { appendFileSync as markBranchCode } from 'node:fs';\nmarkBranchCode(${JSON.stringify(marker)}, \`\${process.argv[1]}\\n\`);\n`);
@@ -320,7 +320,7 @@ test('a teammate branch that edits the hooks\' shared library runs nothing on pi
     return size() > start;
   });
   const node = commands.filter(command => /\bnode "/.test(command));
-  assert.equal(node.length, 23);
+  assert.equal(node.length, 20);
   assert.deepEqual(runHooks(), []);
   assert.ok(!existsSync(marker), 'branch code ran after the pickup');
 

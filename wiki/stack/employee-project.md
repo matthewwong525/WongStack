@@ -194,6 +194,6 @@ Inside an installed copy, [company calls](company-api.md#connect-and-call) use t
 
 ## Memory comes with the sign-in
 
-Setup's sign-in also opens memory: setup confirms it with one call to `/_memory/caller`, and its summary says whether memory works. Memory that does not answer yet blocks nothing. [Memory](../development/memory.md) owns who sees which notes.
+Setup's sign-in also opens memory: setup confirms it with one call to `/_memory/v2/caller`, and its summary says whether memory works. Memory that does not answer yet blocks nothing. [Memory](../development/memory.md) owns who sees which notes.
 
 Part of the [Cloudflare stack](README.md).

@@ -13,6 +13,11 @@ CLAUDE.md  ─▶ AGENTS.md    the doctrine file
 Git tracks the real paths — `.agents/**` and `AGENTS.md` — plus the three links. Nothing is
 duplicated: a payload file is **one file with several names**, not copies to keep in sync.
 
+One more link is in this repo only: `.agents/skills/memory ─▶ ../plugins/memory`, so Claude Code
+loads each [module](adding-a-module.md) from the checkout. No install gets it: the payload's
+`mapped` entry copies the module to a real `.agents/skills/memory/` folder, and every other folder
+link stays behind.
+
 ## Editing
 
 **Edit the `.agents/` target, not the `.claude/` name.** The Edit tool refuses to write through a

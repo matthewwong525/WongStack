@@ -16,13 +16,14 @@ const STAGING_SECRET = 'stag"ing\\x=z';
 const ACCESS_KEYS = ['CF_ACCESS_CLIENT_ID', 'CF_ACCESS_CLIENT_SECRET', 'CF_ACCESS_STAGING_CLIENT_ID', 'CF_ACCESS_STAGING_CLIENT_SECRET'];
 
 // A throwaway repo whose .env uses quotes, `export`, a comment, and CRLF line ends, with the
-// memory skill's parser where an installed repo keeps it.
+// memory skill's parser and WongStack's memory profile where an installed repo keeps them.
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-verify-env-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const work = join(root, 'work');
   mkdirSync(join(work, '.claude/skills/memory/scripts/lib'), { recursive: true });
   for (const lib of ['store.mjs', 'primary-root.mjs', 'cli.mjs']) symlinkSync(join(repo, '.agents/skills/memory/scripts/lib', lib), join(work, '.claude/skills/memory/scripts/lib', lib));
+  symlinkSync(join(repo, '.agents/memory'), join(work, '.claude/memory'));
   execFileSync('git', ['init', '-q'], { cwd: work });
   writeFileSync(join(work, '.env'), ['# Access', 'export CF_ACCESS_CLIENT_ID="client-id.access"', `CF_ACCESS_CLIENT_SECRET='${SECRET}'`, `CF_ACCESS_STAGING_CLIENT_ID=${STAGING_ID}`, `CF_ACCESS_STAGING_CLIENT_SECRET='${STAGING_SECRET}'`, 'CLOUDFLARE_API_TOKEN=tok=en== # api', ''].join('\r\n'));
   const bin = join(root, 'bin');

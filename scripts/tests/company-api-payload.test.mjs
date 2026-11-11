@@ -9,9 +9,11 @@ const read = path => readFileSync(join(root, path), 'utf8');
 
 test('fresh payload carries every helper dependency and memory descriptions stay independent of the app', t => {
   const inventory = JSON.parse(read('.agents/skills/wong-sync/references/payload-files.json'));
-  assert.ok(inventory.pack.files.includes('scripts/company-api.mjs')); assert.ok(inventory.core.skillDirs.includes('memory'));
+  assert.ok(inventory.pack.files.includes('scripts/company-api.mjs')); assert.equal(inventory.core.mapped['.claude/plugins/memory'], '.claude/skills/memory'); assert.ok(inventory.core.dirs.includes('.claude/memory'));
   const target = tempDir(t, 'company-payload-');
-  cpSync(join(root, '.agents/skills/memory'), join(target, '.agents/skills/memory'), { recursive: true });
+  // An install keeps the memory module as a real skill folder.
+  cpSync(join(root, '.agents/plugins/memory'), join(target, '.agents/skills/memory'), { recursive: true });
+  cpSync(join(root, '.agents/memory'), join(target, '.agents/memory'), { recursive: true });
   mkdirSync(join(target, 'scripts'), { recursive: true });
   cpSync(join(root, 'scripts/company-api.mjs'), join(target, 'scripts/company-api.mjs'));
   assert.ok(inventory.pack.files.includes('scripts/employee-bootstrap.mjs'));
@@ -25,7 +27,7 @@ test('fresh payload carries every helper dependency and memory descriptions stay
   // The real layout is shared by both agent aliases in every installed target.
   cpSync(join(target, '.agents'), join(target, '.claude'), { recursive: true });
   assert.equal(existsSync(join(target, 'app')), false); assert.equal(existsSync(join(target, '.env')), false);
-  const standalone = execFileSync(process.execPath, [join(target, '.agents/skills/memory/scripts/operations.mjs'), 'describe', 'memory.show'], { cwd: target, encoding: 'utf8' });
+  const standalone = execFileSync(process.execPath, [join(target, '.agents/memory/operations.mjs'), 'describe', 'memory.show'], { cwd: target, encoding: 'utf8' });
   assert.equal(JSON.parse(standalone).operationId, 'memory.show');
   const helper = execFileSync(process.execPath, [join(target, 'scripts/company-api.mjs'), '--help'], { cwd: target, encoding: 'utf8' });
   assert.match(helper, /usage/); assert.doesNotMatch(helper, /saved-business/);

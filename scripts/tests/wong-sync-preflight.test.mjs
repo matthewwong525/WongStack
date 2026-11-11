@@ -396,6 +396,64 @@ test('directory and dangling links never become payload units', t => {
   assert.deepEqual(report.changes.map(change => change.sourcePath), ['docs/page.md']);
 });
 
+// A module ships from .agents/plugins/memory/ in the source to a real .agents/skills/memory/ in an install.
+function moduleFixture(t, manifestCore = {}) {
+  const manifest = inventory({ core: { ...inventory().core, mapped: { '.claude/plugins/memory': '.claude/skills/memory' }, ...manifestCore } });
+  const f = fixture(t);
+  write(f.source, '.agents/skills/wong-sync/references/payload-files.json', `${JSON.stringify(manifest, null, 2)}\n`);
+  write(f.source, '.agents/plugins/memory/scripts/memory.mjs', 'memory\n');
+  symlinkSync('../plugins/memory', join(f.source, '.agents/skills/memory'));
+  symlinkSync('../../../app', join(f.source, '.agents/plugins/memory/stray'));
+  f.commit('memory module');
+  return f;
+}
+
+test('a mapped module folder installs at its install path, and no folder link becomes a unit', t => {
+  const f = moduleFixture(t);
+  const strip = report => report.changes.map(({ unit, sourcePath, targetPath, operation, localState }) => ({ unit, sourcePath, targetPath, operation, localState }));
+  assert.deepEqual(strip(f.inspect()), [{
+    unit: 'file:.claude/skills/memory/scripts/memory.mjs',
+    sourcePath: '.claude/plugins/memory/scripts/memory.mjs',
+    targetPath: '.claude/skills/memory/scripts/memory.mjs',
+    operation: 'added',
+    localState: 'missing',
+  }]);
+  write(f.target, '.claude/skills/memory/scripts/memory.mjs', 'memory\n');
+  assert.deepEqual(f.inspect().changes.map(change => change.localState), ['latest-equivalent']);
+  assert.ok(!f.inspect().catchUp.reasons.some(reason => reason.code === 'module-link'));
+});
+
+test('an install that keeps the module as a folder link reads it as missing and gets the module-link catch-up', t => {
+  const f = moduleFixture(t);
+  write(f.target, '.claude/plugins/memory/scripts/memory.mjs', 'memory\n');
+  symlinkSync('../plugins/memory', join(f.target, '.claude/skills/memory'));
+  const report = f.inspect();
+  assert.deepEqual(report.changes.map(change => change.localState), ['missing']);
+  assert.deepEqual(report.catchUp.reasons.find(reason => reason.code === 'module-link'), { code: 'module-link', paths: ['.claude/skills/memory'] });
+});
+
+test('a module that moves from a skill folder to a mapped folder stays one unit, and a moved link is no change', t => {
+  const f = fixture(t, { manifest: inventory({ core: { ...inventory().core, skillDirs: ['alpha', 'memory'] } }), components: { skills: ['alpha', 'memory'] } });
+  write(f.source, '.agents/skills/memory/scripts/memory.mjs', 'memory\n');
+  write(f.source, '.agents/skills/memory/SKILL.md', 'See [sync](../wong-sync/SKILL.md#run).\n');
+  write(f.source, 'wiki/ux-principles.md', 'See [memory](../.agents/skills/memory/SKILL.md).\n');
+  const base = f.commit('memory as a skill');
+  f.updateRecord({ commit: base });
+  write(f.target, '.claude/skills/memory/scripts/memory.mjs', 'memory\n');
+
+  rmSync(join(f.source, '.agents/skills/memory'), { recursive: true });
+  write(f.source, '.agents/plugins/memory/scripts/memory.mjs', 'memory\n');
+  write(f.source, '.agents/plugins/memory/SKILL.md', 'See [sync](../../skills/wong-sync/SKILL.md#run).\n');
+  symlinkSync('../plugins/memory', join(f.source, '.agents/skills/memory'));
+  write(f.source, 'wiki/ux-principles.md', 'See [memory](../.agents/plugins/memory/SKILL.md).\n');
+  const manifest = inventory({ core: { ...inventory().core, mapped: { '.claude/plugins/memory': '.claude/skills/memory' } } });
+  write(f.source, '.agents/skills/wong-sync/references/payload-files.json', `${JSON.stringify(manifest, null, 2)}\n`);
+  f.commit('memory as a module');
+  const report = f.inspect();
+  assert.deepEqual(report.changes, []);
+  assert.equal(report.status, 'current');
+});
+
 test('WongStack as its own source reads its linked CLAUDE.md block', t => {
   const target = mkdtempSync(join(tmpdir(), 'wong-sync-self-'));
   t.after(() => rmSync(target, { recursive: true, force: true }));
