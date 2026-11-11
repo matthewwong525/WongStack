@@ -84,7 +84,7 @@ test("areas loads a change's facts by the folders it names: threads first, cappe
   assert.match(loaded.stdout, /^Areas: worker \(app\/worker\/index\.ts\)\n/);
   assert.deepEqual(factLines(loaded).map(line => line.split('?')[0].split(',')[0]), ['- [thread] Does every route need its own test', '- [project] When you touch the server routes']);
   const capped = await memory(env.repo, env.fake, ['areas', 'app/worker/api/health.ts', '--limit', '1']);
-  assert.deepEqual(factLines(capped).map(line => line.slice(0, 12)), ['- [thread] D']);
+  assert.deepEqual(factLines(capped).map(line => line.slice(0, 14)), ['- [thread] Doe', '- [project] Wh'], '--limit caps each group');
   const none = await memory(env.repo, env.fake, ['areas', 'README.md', 'docs/x.md']);
   assert.equal(none.stdout.trim(), 'No mapped area for these paths.');
 });
@@ -161,7 +161,8 @@ test('areas prints docs, past changes, and backlinks before the facts, even with
   const loaded = await memory(env.repo, env.fake, ['areas', 'app/worker/apps/hello/index.ts']);
   assert.equal(loaded.code, 0, loaded.stderr);
   assert.deepEqual(loaded.stdout.trim().split('\n').slice(0, 7), expected, 'openspec/specs/mini-apps/spec.md is missing here, so it is skipped');
-  assert.match(loaded.stdout.trim().split('\n')[7], /^- \[project\] Test every route/);
+  const lines = loaded.stdout.trim().split('\n');
+  assert.match(lines[lines.indexOf('## Decided') + 1], /^- \[project\] Test every route/);
   env.fake.setOffline(true);
   const unreachable = await memory(env.repo, env.fake, ['areas', 'app/worker/apps/hello/index.ts']);
   assert.equal(unreachable.code, 0, unreachable.stderr);

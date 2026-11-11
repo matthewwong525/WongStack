@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { buildDigest, consolidationDue, formatRun, MAX_BYTES, MAX_LINES } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
+import { buildDigest, formatRun, formatTidy, latelyLine, MAX_BYTES, MAX_LINES } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
 import { currentSlug } from '../../.agents/memory/lookup.mjs';
 import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills/memory/scripts/lib/transcripts.mjs';
 import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
@@ -252,6 +252,8 @@ test('the hook prints the digest with branch threads, and starts one detached ru
     { action: 'add', type: 'thread', body: 'Is the other change blocked?', tags: ['worker'] },
   ] })]);
   claudeSession(env, 1, [['user', 'Old work.']]);
+  // The day's tidy captures too; memory-daily.test.mjs owns it, so it is off here.
+  writeFileSync(join(env.repo.stateDir, 'daily.json'), '{"off":true}\n');
   const bin = join(env.repo.home, 'bin');
   mkdirSync(bin, { recursive: true });
   const marker = join(env.repo.home, 'claude-called');
@@ -262,7 +264,11 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   assert.match(result.stdout, /# Memory digest\nFacts are dated context.* Before substantial work, recall the task in your own words: .*recall <question>/);
   assert.match(result.stdout, /## Open threads on `add-po-search`\n- \[thread\] Should search rank by recency\?.*\nOpen threads on other changes, by step: 1 untagged\. /);
   assert.doesNotMatch(result.stdout, /Is the other change blocked\?/);
-  assert.match(result.stdout, /## Live facts\n- \[feedback\] .*\n- \[project\] .*\n- \[reference\] .*\n- \[user\] /);
+  assert.match(result.stdout, /pull <topic>`; give a task that spans topics to the memory helper: \S*references\/recall-helper\.md\./);
+  assert.match(result.stdout, /\nLast tidy: none yet; the first chat of a day starts one\.\n/);
+  // Only the person's own new preferences are listed; the other facts wait for a pull or a search.
+  assert.match(result.stdout, /## New since the last tidy\n- \[(feedback|user)\] .*\n- \[(feedback|user)\] .*\n6 live facts\. Pull a topic/);
+  assert.doesNotMatch(result.stdout, /## Live facts|Grafana|ships in October/);
   for (let i = 0; i < 100 && !existsSync(marker); i += 1) await new Promise(done => setTimeout(done, 100));
   const called = readFileSync(marker, 'utf8');
   assert.match(called, /-p You are the WongStack memory background run/);
@@ -310,7 +316,7 @@ test('a broken tidy-up never breaks the hook', async t => {
 
 test('an unreachable store falls back to the cached digest and never fails the session', async t => {
   const env = await setup(t);
-  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'Cached fact.' }] })]);
+  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'feedback', body: 'Cached fact.' }] })]);
   env.fake.setOffline(true);
   const result = await hook(env);
   assert.equal(result.code, 0);
@@ -332,7 +338,7 @@ test('the run lock admits one run, and a stale lock is taken over', t => {
 
 test('the hook gives up on a store that never answers and uses the cached digest', async t => {
   const env = await setup(t);
-  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'project', body: 'Cached fact.' }] })]);
+  await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'feedback', body: 'Cached fact.' }] })]);
   env.fake.setOffline('hang');
   const result = await hook(env, { WONG_MEMORY_NO_HEADLESS: '1' });
   assert.equal(result.code, 0);
@@ -370,7 +376,7 @@ test('the background runbook runs only the granted script and writes files only 
   const codeLines = prompt.split('\n').filter(line => line.startsWith('node '));
   const commands = [...spans, ...codeLines].filter(text => text.startsWith('node ') || Object.hasOwn(COMMANDS, text.split(' ')[0]))
     .map(text => text.startsWith('node ') ? text : `${prefix}${text}`);
-  for (const name of ['spool', 'pending', 'strip', 'gate', 'put-facts', 'due', 'live', 'finish-run']) {
+  for (const name of ['spool', 'pending', 'strip', 'gate', 'put-facts', 'live', 'finish-run']) {
     assert.ok(commands.some(command => command.startsWith(`${prefix}${name}`)), `the runbook names ${name}`);
   }
   for (const command of commands) {
@@ -417,35 +423,62 @@ test('the input folder is outside the repo and is removed when the run fails', (
   assert.equal(existsSync(seen), false);
 });
 
-test('the digest stays within its limits and states what it left out', () => {
-  const fact = (i, type, slug, words) => ({ id: i + 1, slug, type, body: `Fact number ${i} ${'with some words '.repeat(words)}`.trim(), author: 'a@b', created_at: '2026-09-01T00:00:00Z' });
-  const facts = Array.from({ length: 400 }, (_, i) => fact(i, 'project', 's', 1));
-  const threads = [fact(400, 'thread', 'add-po-search', 1), fact(401, 'thread', 'add-po-search', 1)];
+const digestFact = (i, type, slug, words) => ({ id: i + 1, slug, type, body: `Fact number ${i} ${'with some words '.repeat(words)}`.trim(), author: 'a@b', created_at: '2026-09-01T00:00:00Z' });
+
+test('the digest lists no live fact but your new preferences, and stays within its limits', () => {
   const now = Date.parse('2026-09-11T00:00:00Z');
-  const text = buildDigest({ facts: [...threads, ...facts], live: 402, threads, slug: 'add-po-search', now });
+  const threads = [digestFact(400, 'thread', 'add-po-search', 1), digestFact(401, 'thread', 'add-po-search', 1)];
+  const fresh = [digestFact(500, 'feedback', 's', 1), digestFact(501, 'user', 's', 1)];
+  const daily = { day: '2026-09-10', last: '2026-09-10T08:00:00Z', status: 'ok', host: 'laptop', counts: { merged: 2, superseded: 1 } };
+  const lately = [{ tag: 'checks', n: 9 }, { tag: 'not-a-topic', n: 7 }, { tag: 'worker', n: 3 }];
+  const topics = ['## Topics', 'Code: checks, worker', 'Pull a topic: `x`'];
+  const text = buildDigest({ live: 400, threads, fresh, daily, lately, topics, topicTags: ['checks', 'worker'], slug: 'add-po-search', now });
+  const lines = text.split('\n');
+  assert.equal(lines[2], 'Last tidy (2026-09-10 on laptop): merged 2, superseded 1');
+  assert.deepEqual(lines.slice(3, 6), ['## Open threads on `add-po-search`', '- [thread] Fact number 400 with some words (add-po-search, 10d, a@b, #401)', '- [thread] Fact number 401 with some words (add-po-search, 10d, a@b, #402)']);
+  assert.deepEqual(lines.slice(6, 10), [...topics, 'Lately: checks 9 · worker 3']);
+  assert.deepEqual(lines.slice(10, 13), ['## New since the last tidy', '- [feedback] Fact number 500 with some words (s, 10d, a@b, #501)', '- [user] Fact number 501 with some words (s, 10d, a@b, #502)']);
+  assert.equal(lines.at(-1), '400 live facts. Pull a topic for its facts: `node .claude/skills/memory/scripts/memory.mjs pull <topic>`; search them: `node .claude/skills/memory/scripts/memory.mjs search <terms>`.');
+  assert.equal(lines.length, 14);
+  const many = Array.from({ length: 60 }, (_, i) => digestFact(i, 'feedback', 's', 20));
+  const long = buildDigest({ live: 400, fresh: many, threads: many, slug: 's', now });
+  assert.ok(Buffer.byteLength(long) <= MAX_BYTES && long.split('\n').length <= MAX_LINES);
+  assert.match(long.split('\n').at(-1), /^400 live facts\. Pull a topic/);
+  assert.equal(buildDigest({ live: 0 }), '');
+});
+
+test('an older store lists its facts as before, with no tidy line and no Lately line', () => {
+  const now = Date.parse('2026-09-11T00:00:00Z');
+  const facts = Array.from({ length: 400 }, (_, i) => digestFact(i, 'project', 's', 1));
+  const threads = [digestFact(400, 'thread', 'add-po-search', 1), digestFact(401, 'thread', 'add-po-search', 1)];
+  const text = buildDigest({ older: true, facts: [...threads, ...facts], live: 402, threads, lately: [{ tag: 'checks', n: 3 }], topicTags: ['checks'], slug: 'add-po-search', now });
   const lines = text.split('\n');
   assert.equal(lines.length, MAX_LINES);
   assert.deepEqual(lines.slice(2, 5), ['## Open threads on `add-po-search`', '- [thread] Fact number 400 with some words (add-po-search, 10d, a@b, #401)', '- [thread] Fact number 401 with some words (add-po-search, 10d, a@b, #402)']);
   assert.equal(lines[5], '## Live facts');
-  assert.match(text, /- \[project\] Fact number 0 with some words \(s, 10d, a@b, #1\)/);
+  assert.doesNotMatch(text, /Last tidy|Lately:/);
   assert.equal(lines.at(-1), '367 more live facts are not shown. Search them: `node .claude/skills/memory/scripts/memory.mjs search <terms>`.');
-  const long = buildDigest({ facts: Array.from({ length: 400 }, (_, i) => fact(i, 'project', 's', 20)), now });
+  const long = buildDigest({ older: true, facts: Array.from({ length: 400 }, (_, i) => digestFact(i, 'project', 's', 20)), now });
   assert.ok(Buffer.byteLength(long) <= MAX_BYTES && long.split('\n').length < MAX_LINES);
   assert.match(long.split('\n').at(-1), /^\d+ more live facts are not shown\. Search them:/);
-  assert.equal(buildDigest({ facts: [] }), '');
+  assert.equal(buildDigest({ older: true, facts: [] }), '');
 });
 
-test('the current change comes from the proposal Branch line, and consolidation needs a day and five sessions', t => {
+test('the tidy line and the Lately line read only what they can trust', () => {
+  assert.equal(formatTidy(null), 'Last tidy: none yet; the first chat of a day starts one.');
+  assert.equal(formatTidy({ day: '2026-09-10', status: 'started', host: 'a\nb' }), 'Last tidy (2026-09-10 on a b): started, not finished.');
+  assert.equal(formatTidy({ day: '2026-09-10', status: 'failed', host: 'h', reason: 'x'.repeat(400) }), `Last tidy (2026-09-10 on h) failed: ${'x'.repeat(300)}`);
+  assert.equal(formatTidy({ day: '2026-09-10', status: 'ok', host: 'h', counts: { merged: 1, 'BAD key': 5, note: 'text' } }), 'Last tidy (2026-09-10 on h): merged 1');
+  assert.equal(formatTidy({ day: '2026-09-10\n## You', status: 'ok' }), null);
+  assert.equal(latelyLine([{ tag: 'x', n: 2 }], ['y']), null);
+});
+
+test('the current change comes from the proposal Branch line', t => {
   const dir = tempDir(t, 'slug-');
   mkdirSync(join(dir, 'openspec/changes/one'), { recursive: true });
   writeFileSync(join(dir, 'openspec/changes/one/proposal.md'), '**Branch:** feat/one\n');
   assert.equal(currentSlug({ root: dir, branch: 'feat/one' }), 'one');
   assert.equal(currentSlug({ root: dir, branch: 'other' }), null);
-  const now = Date.parse('2026-09-25T00:00:00Z');
-  assert.equal(consolidationDue({ last_consolidation: '2026-09-23T00:00:00Z', captured_since: 6 }, now), true);
-  assert.equal(consolidationDue({ last_consolidation: '2026-09-23T00:00:00Z', captured_since: 2 }, now), false);
-  assert.equal(consolidationDue({ last_consolidation: '2026-09-24T12:00:00Z', captured_since: 9 }, now), false);
-  assert.equal(consolidationDue({ first_fact: '2026-09-01T00:00:00Z', captured_since: 5 }, now), true);
 });
 
 test('the session that started a background run can never be listed or stripped by it', async t => {
@@ -493,7 +526,8 @@ test('a run keeps its tally only while it runs, and records what was stored, not
   assert.equal(existsSync(tally), false, 'the tally is gone after the run');
   assert.deepEqual(rows(env, 'SELECT status, counts, reason FROM runs'), [{ status: 'ok', counts: '{}', reason: 'model reported other counts: captured' }]);
   const digest = await memory(env.repo, env.fake, ['digest']);
-  assert.match(digest.stdout, /Last background capture run \(.*\): nothing to do \(the run's own report differed\)/);
+  // A finished capture run says nothing in the digest; only a failed one, or the last tidy, does.
+  assert.doesNotMatch(digest.stdout, /Last background capture run/);
 });
 
 test('a background run runs upkeep once at its end, outside the tally', async t => {
@@ -534,27 +568,6 @@ test('inside a run, put-facts and strip add what they stored to the tally, and f
     { kind: 'consolidation', counts: { merged: 1, superseded: 1 }, reason: null },
     { kind: 'capture', counts: { captured: 1, skipped: 1, unrecognized: 1, added: 1, dropped: 1 }, reason: null },
   ]);
-});
-
-test('a consolidation that ends well leaves a marker the wiki tidy claims once; capture and a failed run leave none', async t => {
-  const env = await setup(t);
-  const marker = join(env.repo.stateDir, 'consolidated.json');
-  const check = () => node(env.repo, env.fake, '../../../skills/daily/scripts/wiki-tidy-check.mjs');
-  await memory(env.repo, env.fake, ['finish-run', '--kind', 'capture', '--status', 'ok']);
-  await memory(env.repo, env.fake, ['finish-run', '--kind', 'consolidation', '--status', 'failed', '--reason', 'store down']);
-  assert.equal(existsSync(marker), false);
-  assert.equal((await check()).stdout, '');
-  const done = await memory(env.repo, env.fake, ['finish-run', '--kind', 'consolidation', '--status', 'ok']);
-  assert.equal(done.code, 0, done.stderr);
-  const { at } = JSON.parse(readFileSync(marker, 'utf8'));
-  assert.deepEqual(JSON.parse((await check()).stdout), { run: { consolidated: at } });
-  assert.equal((await check()).stdout, '', 'claimed once');
-  writeFileSync(marker, JSON.stringify({ at: '2026-01-01T00:00:00Z', claimed: '2026-01-01T00:00:00Z' }));
-  await memory(env.repo, env.fake, ['finish-run', '--kind', 'consolidation', '--status', 'ok']);
-  const next = JSON.parse(readFileSync(marker, 'utf8'));
-  assert.equal(next.claimed, '2026-01-01T00:00:00Z', 'the claim stays');
-  assert.notEqual(next.at, '2026-01-01T00:00:00Z');
-  assert.deepEqual(JSON.parse((await check()).stdout), { run: { consolidated: next.at } });
 });
 
 test('a hand run writes no tally, and finish-run with no tally records --counts as given', async t => {

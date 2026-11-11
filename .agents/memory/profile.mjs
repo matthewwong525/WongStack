@@ -23,6 +23,7 @@ export default {
   },
   tidy: {
     pages: lazy('./tidy-pages.mjs', 'tidyPages'),
+    deny: lazy('./tidy-pages.mjs', 'tidyDeny'),
     publish: 'save a `knowledge/` page by wiki/stack/company-knowledge.md#save-a-page; for any other, `git fetch origin main`, '
       + '`git switch -c <branch> origin/main`, then `/ship` minus its closing question.',
   },

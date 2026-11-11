@@ -17,7 +17,7 @@ Add shared team learning to my AI setup. Build it in this project and ask me bef
 > Decisions, open questions, and links are shared with the whole team
 > Personal preferences and chat transcripts stay with their owner; an admin can see everything
 > Removing a person from the project ends their memory access at once
-> Every chat starts with a short digest of the team's open questions and recent decisions
+> Every chat starts with a short digest of the team's open questions and the topics that moved lately
 > Every fact names who wrote it, when, and in which chat
 > Keep the team's lasting know-how as plain pages: pages about the code are reviewed like code
 > Each teammate gets a page: their email, their preferences, and how they like work done
@@ -28,6 +28,6 @@ Add shared team learning to my AI setup. Build it in this project and ask me bef
 > Open questions name who checks them next, so the next teammate picks them up
 > Newest wins between facts about the same person or the whole team
 > Different people's preferences are not contradictions: keep each on their own page
-> A regular pass merges duplicate facts and moves lasting ones to the pages
+> The first chat each day starts a background tidy that merges duplicate facts, moves lasting ones to the pages, and links related topics
 > Something personal said in a work project stays in that project, where an admin can read it
 > For more context, look at this repo: https://github.com/matthewwong525/WongStack (start at wiki/development/memory.md)

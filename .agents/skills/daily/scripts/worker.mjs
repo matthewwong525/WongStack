@@ -33,7 +33,7 @@ const plain = value => value !== null && typeof value === 'object' && !Array.isA
 const BRIEF = /^[a-z0-9][a-z0-9-]*\.md$/;
 
 /** The default list with the install's merged over it: its `events` over the default's. A `sweeps` entry is a timed
- * job: one with a default schedule's id is that schedule's, and any other waits, by id, in `waiting`, to move. */
+ * job: a default schedule's id, shipped or retired, is that schedule's; any other waits, by id, in `waiting`. */
 export function loadSweeps({ project, file, base = DEFAULT_SWEEPS, schedules = DEFAULT_SCHEDULES }) {
   const read = path => JSON.parse(readFileSync(path, 'utf8'));
   const defaults = read(base);
@@ -44,7 +44,9 @@ export function loadSweeps({ project, file, base = DEFAULT_SWEEPS, schedules = D
     || (Array.isArray(merged.deny) && merged.deny.every(pattern => typeof pattern === 'string' && pattern.trim() !== ''));
   const bad = (goodDeny ? undefined : 'deny') ?? Object.entries(merged.events).find(([, entry]) => !plain(entry) || !BRIEF.test(entry.brief))?.[0];
   if (bad !== undefined) throw new Error(`The sweep list has a bad entry: ${bad}. See wiki/development/daily.md#your-own-jobs.`);
-  const ids = new Set(read(schedules).schedules.map(schedule => schedule.id));
+  const shipped = read(schedules);
+  // A retired default's id is still WongStack's, so an install entry naming it is skipped, not moved.
+  const ids = new Set([...shipped.schedules, ...(shipped.retired ?? [])].map(schedule => schedule.id));
   merged.waiting = (own.sweeps ?? []).filter(sweep => !ids.has(sweep?.id) && sweep?.off !== true).map(sweep => String(sweep?.id));
   return merged;
 }

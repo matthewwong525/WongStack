@@ -23,14 +23,14 @@ A handle names the work ([the rungs](../save/references/checkpoint-evidence.md#s
 - **First token**: the handle — a change name, PR number, or PR URL.
 - **The rest**: an explicit instruction that overrides "work the tasks" in step 4, e.g. `/continue add-auth fix the failing test`.
 - **No handle** → run `openspec list`, and list open non-code threads with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread --state conversation --limit 10`. Offer both in [an ordinary ask](../explore/references/asking-the-user.md), recommending what the branch or latest checkpoint points at: each change's name, task progress, and `Status:` line ([its values](../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan)); each thread's slug, age, and next step. Don't guess.
-- **A non-code thread** (picked, or a handle naming a topic slug with open threads and no change) → no branch or change. Run `memory.mjs show <slug>`, recap what is done and next, and hand the rest to `/apply` as its to-do. Skip steps 2–4.
+- **A non-code thread** (picked, or a handle naming a topic slug with open threads and no change) → no branch or change. Run `memory.mjs pull <slug>`, recap what is done and next, and hand the rest to `/apply` as its to-do. Skip steps 2–4.
 
 ### 2. Resolve the change and the branch
 
 - **Change name** (a folder under `openspec/changes/` or an `openspec list` entry) → its proposal's `**Branch:**` value, which may differ from the name, is `BRANCH`:
   ```bash
   openspec show <name>   # or read openspec/changes/<name>/proposal.md + tasks.md
-  node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" show <name>
+  node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" pull <name>
   ```
   Facts are keyed by the change name, whatever the branch; **no facts is normal.** No folder in a fresh checkout → `git fetch origin`, then test each `git for-each-ref refs/remotes/origin` ref with `git cat-file -e "$ref:openspec/changes/$NAME/proposal.md"`, checking out nothing. One match supplies the proposal (`git show` that path) and the branch; several need a choice. A proposal with no Branch line never selects a branch by name: stay here for an unsaved plan; ask for the branch or PR when it is saved elsewhere.
 - **PR number or URL** → the branch is its `headRefName`; find the one active change in its diff:

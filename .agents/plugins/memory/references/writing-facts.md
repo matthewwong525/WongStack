@@ -6,7 +6,7 @@ A fact is the least a cold reader needs to act as this session would: one or two
 
 - **What the user stated**: facts, constraints, preferences, corrections. Type `user` (who they are, private life included) or `feedback` (how they want work done). [Teammates never see these](../../../../wiki/development/memory.md#who-sees-what); the admin can.
 - **Decisions with their reason**, and ruled-out options with theirs: *Rejected a Worker in front of the store: one more service to keep alive.* Type `project`.
-- **Specifics**: names, repo-relative paths, numbers, versions, error strings. Tag a fact's code area (`memory.mjs areas <path>` prints it), or the company page it is about (`people/ada`).
+- **Specifics**: names, repo-relative paths, numbers, versions, error strings. Tag every topic it touches, not only the main one: code areas (`memory.mjs pull <path>` names them) and company pages (`people/ada`).
 - **Pointers** to dashboards, tickets, external docs. Type `reference`.
 - **Unanswered questions**. Type `thread`, tagged with the verb (`plan`) or area whose next run should check it, or it is refused. A fact answering a listed thread supersedes it, saying what it found.
 - **Where the assistant struggled**, only when the chat shows one of four: a correction, an offered choice answered in the person's own words, a step failing repeatedly, a long hunt. One `thread` tagged `improve`: the moment, what it cost. Never private detail or a general tip; a smooth chat, showing none of the four, gets none. A repeat supersedes the earlier note, adding its date.

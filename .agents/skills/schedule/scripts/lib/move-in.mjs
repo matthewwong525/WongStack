@@ -159,7 +159,8 @@ export function gather({ root, primary, me, config, records = listRecords(root),
     catch (error) { found.push({ id: `${check.team ? 'team' : 'check'}:${check.id}`, reason: error.message }); }
   }
   if (config?.sweeps) {
-    const defaults = new Set(readJson(DEFAULT_SCHEDULES).schedules.map(schedule => schedule.id));
+    const shipped = readJson(DEFAULT_SCHEDULES);
+    const defaults = new Set([...shipped.schedules, ...(shipped.retired ?? [])].map(schedule => schedule.id));
     const own = (readJson(resolve(root, config.sweeps)).sweeps ?? []).filter(sweep => !defaults.has(sweep?.id) && sweep.off !== true
       && (sweep.every || sweep.at));
     for (const sweep of own) found.push(...fromSweep(sweep, { brief: readBrief(root, sweep.brief), primary, timezone: config.timezone }));

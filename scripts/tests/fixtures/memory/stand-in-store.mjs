@@ -3,9 +3,11 @@
 import { MAX_TRANSCRIPT_BYTES, StoreError } from '../../../../.agents/plugins/memory/store/interface.mjs';
 
 const SOURCES = ['save', 'backfill', 'migration', 'consolidation'];
-const TYPE_ORDER = { feedback: 1, project: 2, reference: 3, user: 4 };
+const RUN_STATUS = { capture: ['ok', 'failed'], consolidation: ['ok', 'failed'], daily: ['started', 'ok', 'failed'] };
 const forbidden = reason => new StoreError(reason, { kind: 'forbidden' });
 const now = () => new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+const ago = ms => new Date(Date.now() - ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+const parsed = text => { try { const value = JSON.parse(text || '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; } catch { return {}; } };
 const newest = (a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id;
 const words = text => [...new Set(String(text).toLowerCase().match(/[\p{L}\p{N}_]{3,}/gu) || [])];
 
@@ -31,7 +33,7 @@ export function standInStore() {
       const kept = facts.filter(f => (q.all || f.superseded_by === null) && visible(f, q.everyone)
         && (!terms.length || hits(f) > 0)
         && (!Array.isArray(q.ids) || q.ids.map(Number).includes(f.id))
-        && (!q.slug || f.slug === q.slug) && (!q.notSlug || f.slug !== q.notSlug)
+        && (!q.slug || f.slug === q.slug) && (!q.notSlug || f.slug !== q.notSlug) && (!q.session || f.session_id === q.session)
         && (!q.type || f.type === q.type) && (!q.notType || f.type !== q.notType)
         && (!q.since || f.created_at >= q.since) && (!q.until || f.created_at <= q.until)
         && (!q.author || (f.author || '').toLowerCase().includes(q.author.toLowerCase()))
@@ -78,26 +80,28 @@ export function standInStore() {
       caller: async () => caller,
       facts: async queries => queries.map(read),
 
-      async digest({ slug = null, stepTags = [], limit = 60 }) {
+      async digest({ slug = null, stepTags = [] }) {
         const live = facts.filter(f => f.superseded_by === null && visible(f, false));
         const counts = new Map();
         for (const thread of live.filter(f => f.type === 'thread' && f.slug !== (slug || ''))) {
           const named = tagsOf(thread.id).filter(name => stepTags.includes(name));
           for (const tag of named.length ? named : [null]) counts.set(tag, (counts.get(tag) || 0) + 1);
         }
-        const last = runs.filter(r => r.kind === 'consolidation' && r.status === 'ok' && r.owner_subject === subject).map(r => r.finished_at).sort().at(-1) ?? null;
-        const run = ownRun().at(-1);
+        const run = ownRun().filter(r => r.kind !== 'daily').at(-1);
+        const dailies = ownRun().filter(r => r.kind === 'daily').sort((a, b) => a.day.localeCompare(b.day));
+        const daily = dailies.at(-1);
+        const since = dailies.filter(r => r.status === 'ok').at(-1)?.started_at ?? ago(86400000);
+        const week = ago(7 * 86400000), lately = new Map();
+        for (const f of live.filter(f => f.created_at >= week)) for (const tag of tagsOf(f.id)) lately.set(tag, (lately.get(tag) || 0) + 1);
         return {
-          facts: live.filter(f => f.type !== 'thread').sort((a, b) => TYPE_ORDER[a.type] - TYPE_ORDER[b.type] || newest(a, b)).slice(0, Number(limit) || 60).map(f => asFact(f)),
           live: live.length,
           threads: live.filter(f => f.type === 'thread' && f.slug === (slug || '')).sort(newest).map(f => asFact(f)),
           steps: [...counts].map(([tag, n]) => ({ tag, n })),
           run: run ? { kind: run.kind, host: run.host, started_at: run.started_at, finished_at: run.finished_at, status: run.status, reason: run.reason, counts: run.counts } : null,
-          consolidation: {
-            last_consolidation: last,
-            captured_since: [...sessions.values()].filter(s => s.status === 'captured' && s.updated_at > (last || '') && ownSession(s)).length,
-            first_fact: facts.filter(f => visible(f, true)).map(f => f.created_at).sort()[0] ?? null,
-          },
+          daily: daily ? { day: daily.day, last: daily.finished_at || daily.started_at, status: daily.status, host: daily.host, reason: daily.reason, counts: parsed(daily.counts) } : null,
+          lately: [...lately].map(([tag, n]) => ({ tag, n })).sort((a, b) => b.n - a.n || a.tag.localeCompare(b.tag)).slice(0, 8),
+          fresh: caller.role === 'team' ? [] : live.filter(f => f.owner_subject === subject && ['feedback', 'user'].includes(f.type) && f.created_at > since)
+            .sort(newest).slice(0, 5).map(f => asFact(f)),
         };
       },
 
@@ -163,10 +167,20 @@ export function standInStore() {
         return { key };
       },
 
-      async putRun({ kind, host, startedAt, status, reason, counts }) {
-        runs.push({ kind, host: host ?? null, started_at: startedAt || now(), finished_at: now(), status, reason: reason ?? null,
-          counts: typeof counts === 'string' ? counts : JSON.stringify(counts ?? {}), owner_subject: subject });
-        return {};
+      async putRun({ kind, host, startedAt, status, reason, counts, day, force = false }) {
+        if (!RUN_STATUS[kind]?.includes(status)) throw new StoreError(`a ${kind} run's status is not ${status}`);
+        const row = { kind, host: host ?? null, started_at: startedAt || now(), finished_at: now(), status, reason: reason ?? null,
+          counts: typeof counts === 'string' ? counts : JSON.stringify(counts ?? {}), owner_subject: subject };
+        if (kind !== 'daily') { runs.push(row); return {}; }
+        if (caller.role === 'team') throw forbidden('a schedule sign-in runs no daily tidy');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(String(day))) throw new StoreError('a daily run names its day as YYYY-MM-DD');
+        const held = runs.find(r => r.kind === 'daily' && r.owner_subject === subject && r.day === day);
+        const started = status === 'started';
+        if (!held) { runs.push({ ...row, day, ...(started ? { finished_at: null } : {}) }); return { claimed: started }; }
+        if (started && !force) return { claimed: false };
+        Object.assign(held, started ? { host: row.host, started_at: row.started_at, finished_at: null, status, reason: null, counts: '{}' }
+          : { finished_at: now(), status, reason: row.reason, counts: row.counts });
+        return { claimed: started };
       },
 
       async stats() {

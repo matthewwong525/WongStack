@@ -44,7 +44,7 @@ test('a summary is the first sentence after the frontmatter and title, links rea
 test('topic lines: hub order, eight company lines at most, the code names, the pull, within 1 KB', () => {
   assert.deepEqual(topicLines([], 'memory.mjs'), []);
   const lines = topicLines([company('people/bo', 1), company('loose'), company('people/ada', 0), code('worker'), code('memory')], 'memory.mjs');
-  assert.deepEqual(lines, ['## Topics', 'people/ada  All about people/ada.', 'people/bo  All about people/bo.', 'Code: worker, memory', 'Pull a topic: `memory.mjs areas <topic>`']);
+  assert.deepEqual(lines, ['## Topics', 'people/ada  All about people/ada.', 'people/bo  All about people/bo.', 'Code: worker, memory', 'Pull a topic: `memory.mjs pull <topic>`']);
   const many = [...Array.from({ length: 12 }, (_, i) => company(`page-${i}`, i, `${'x'.repeat(100)}.`)), ...Array.from({ length: 80 }, (_, i) => code(`area-${i}`))];
   const capped = topicLines(many, 'memory.mjs');
   assert.ok(Buffer.byteLength(capped.join('\n')) <= 1024);
@@ -106,7 +106,7 @@ test('the prompt hook adds a topic once per chat, and nothing for a skill name o
   });
   const first = hook(root, 'What did Ada say about the ads?');
   assert.match(first, /^Topic people\/ada: Ada runs the ads\.$/m);
-  assert.match(first, /areas <topic>/);
+  assert.match(first, /pull <topic>/);
   assert.equal(hook(root, 'And Ada again?'), '', 'once per chat');
   assert.match(hook(root, 'Ada?', 'chat-2'), /Topic people\/ada/, 'a new chat shows it again');
   assert.equal(hook(root, 'run refunds now'), '', 'a topic named for a skill is left out');

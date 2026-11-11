@@ -419,7 +419,7 @@ test('a try that runs starts no second one for an hour; one silent past the hour
 
 test('a failed try waits an hour for the same stamp, not for a changed one', () => {
   const { stateDir, list, add, kept } = defaultsCheckout();
-  const fail = now => defaultsFailed({ stateDir, timezone: ZONE, list, reason: 'wiki-tidy: refused', now });
+  const fail = now => defaultsFailed({ stateDir, timezone: ZONE, list, reason: 'line-up: refused', now });
   assert.equal(add(NOW.getTime()), true);
   fail(NOW.getTime() + 60e3);
   assert.equal(kept().tried, undefined, 'the failure ends the try');

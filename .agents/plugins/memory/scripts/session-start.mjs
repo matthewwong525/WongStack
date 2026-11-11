@@ -5,7 +5,8 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCli } from './lib/cli.mjs';
-import { loadDigest, profileTopicLines, readCache } from './lib/digest.mjs';
+import { startDaily } from './lib/daily.mjs';
+import { loadDigest, olderNote, profileTopicLines, readCache } from './lib/digest.mjs';
 import { codexPluginName, detached, isMain, loadProfile, openStore, pluginPath, readJson, repoContext, SETUP_GUIDE, spoolList, statePath, writeJson } from './lib/store.mjs';
 import { pending, registerSession } from './lib/transcripts.mjs';
 
@@ -15,7 +16,7 @@ const BUDGET_MS = 1500;
 
 const fallbackInstruction = sessionId => `Memory: past sessions wait for capture, and a background run could not start on its own. Start one background subagent with the smallest capable model. Tell it to follow the "Background run" section of ${pluginPath('SKILL.md')} and to exclude session ${sessionId}. Do not wait for it.`;
 
-const startRun = (ctx, agent, sessionId) => process.env.WONG_MEMORY_NO_HEADLESS !== '1' && detached(join(HERE, 'run.mjs'), ['--agent', agent],
+const startRun = (ctx, agent, sessionId, more = []) => process.env.WONG_MEMORY_NO_HEADLESS !== '1' && detached(join(HERE, 'run.mjs'), ['--agent', agent, ...more],
   { cwd: ctx.root, env: { ...process.env, WONG_MEMORY_RUN_STARTED: new Date().toISOString(), WONG_MEMORY_EXCLUDE: sessionId } });
 
 const versionOf = dir => readJson(join(dir, '.codex-plugin', 'plugin.json'), {}).version;
@@ -64,7 +65,11 @@ async function main(agent) {
     else out.push(...(await profileTopicLines(ctx, profile)));
     out.push(`Memory: skipped the store (${result.error.reason || result.error.message}).`);
   } else if (result.text) out.push(result.text);
-  if (!result.error && (result.due || localWork) && !startRun(ctx, agent, sessionId)) out.push(fallbackInstruction(sessionId));
+  const older = result.older ? olderNote(ctx) : null;
+  if (older) out.push(older);
+  // The day's tidy captures too, so a chat that starts it starts no capture run.
+  const daily = startDaily(ctx, result, { start: () => startRun(ctx, agent, sessionId, ['--daily']) });
+  if (!daily && !result.error && localWork && !startRun(ctx, agent, sessionId)) out.push(fallbackInstruction(sessionId));
   return out.length ? `${out.join('\n\n')}\n` : '';
 }
 

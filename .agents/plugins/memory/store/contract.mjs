@@ -142,19 +142,64 @@ export function checkStore(makeStore, name = 'memory store') {
       const newTags = [{ name: 'plan', definition: 'Planning.' }];
       const here = await one(ana, { type: 'thread', body: 'Plan the deploy.', tags: ['plan'] }, { newTags });
       await one(ana, { slug: 'other', type: 'thread', body: 'Plan another change.', tags: ['plan'] });
-      const decision = await one(ana, { type: 'project', body: 'A decision.' });
+      await one(ana, { type: 'project', body: 'A decision.' });
       assert.deepEqual(await ana.putRun({ kind: 'capture', host: 'test-host', startedAt: '2026-01-01T00:00:00Z', status: 'ok', reason: null, counts: { captured: 1 } }), {});
-      const digest = await ana.digest({ slug: 'demo', stepTags: ['plan'], limit: 60 });
+      const digest = await ana.digest({ slug: 'demo', stepTags: ['plan'] });
       assert.deepEqual(digest.threads.map(fact => fact.id), [here]);
       assert.deepEqual(digest.steps.map(({ tag, n }) => ({ tag, n })), [{ tag: 'plan', n: 1 }]);
-      assert.deepEqual(digest.facts.map(fact => fact.id), [decision]);
-      assert.deepEqual([digest.live, digest.run.kind, digest.run.status], [3, 'capture', 'ok']);
-      for (const key of ['last_consolidation', 'captured_since', 'first_fact']) assert.ok(key in digest.consolidation, key);
-      assert.equal((await bo.digest({ slug: 'demo', stepTags: ['plan'], limit: 60 })).run, null, 'a run is only its sender\'s');
+      assert.deepEqual([digest.live, digest.run.kind, digest.run.status, digest.daily], [3, 'capture', 'ok', null]);
+      assert.ok(!('facts' in digest) && !('consolidation' in digest), 'the digest lists no facts of its own');
+      assert.equal((await bo.digest({ slug: 'demo', stepTags: ['plan'] })).run, null, 'a run is only its sender\'s');
       const stats = await ana.stats();
       assert.deepEqual(stats.types.map(({ type, n }) => ({ type, n })), [{ type: 'project', n: 1 }, { type: 'thread', n: 2 }]);
       assert.deepEqual(['facts', 'live', 'sessions', 'private'].map(key => Number(stats.totals[key])), [3, 3, 0, 0]);
       assert.ok(Array.isArray(stats.consolidations));
+    });
+
+    test('a read by session gives only that chat\'s facts', async () => {
+      const ana = await (await open())(ANA);
+      const mine = await one(ana, { type: 'project', body: 'Said in chat one.' }, { session: session(S1) });
+      await one(ana, { type: 'project', body: 'Said in chat two.' }, { session: session(S2) });
+      await one(ana, { type: 'project', body: 'Said outside a chat.' });
+      assert.deepEqual((await ana.facts([{ session: S1 }]))[0].map(fact => fact.id), [mine]);
+    });
+
+    test('one daily run a day for each sign-in: the first claim wins, force claims again, and the finish fills the row', async () => {
+      const as = await open();
+      const [ana, bo, team] = await Promise.all([ANA, BO, TEAM].map(as));
+      const daily = (store, extra) => store.putRun({ kind: 'daily', status: 'started', day: '2026-11-11', host: 'laptop', reason: null, counts: {}, ...extra });
+      assert.deepEqual(await daily(ana), { claimed: true });
+      assert.deepEqual(await daily(ana, { host: 'desktop' }), { claimed: false }, 'a second computer the same day starts none');
+      assert.deepEqual(await daily(bo), { claimed: true }, 'a teammate has a day of their own');
+      assert.deepEqual(await daily(ana, { day: '2026-11-12' }), { claimed: true });
+      assert.deepEqual(await daily(ana, { day: '2026-11-12', force: true, host: 'desktop' }), { claimed: true });
+      await ana.putRun({ kind: 'daily', status: 'ok', day: '2026-11-12', host: 'desktop', reason: null, counts: { added: 4, pages: 2 } });
+      const { daily: last } = await ana.digest({});
+      assert.deepEqual([last.day, last.status, last.host, last.counts], ['2026-11-12', 'ok', 'desktop', { added: 4, pages: 2 }]);
+      assert.equal(typeof last.last, 'string');
+      assert.equal((await bo.digest({})).daily.day, '2026-11-11', 'each sign-in reads its own');
+      await assert.rejects(daily(ana, { day: 'today' }), { kind: 'query' });
+      await assert.rejects(daily(team), refused);
+    });
+
+    test('the digest names the busy tags of the week, eight at most, and only your own new preferences', async () => {
+      const as = await open();
+      const [ana, bo] = await Promise.all([ANA, BO].map(as));
+      const names = Array.from({ length: 10 }, (_, i) => `topic${i}`);
+      const newTags = names.map(name => ({ name, definition: `Topic ${name}.` }));
+      for (const [i, name] of names.entries()) {
+        for (let n = 0; n <= i; n += 1) await one(ana, { type: 'project', body: `Work on ${name}, part ${n}.`, tags: [name] }, { newTags });
+      }
+      await one(ana, { type: 'project', body: 'An old decision.', tags: ['topic0'] }, { createdAt: '2026-01-01T00:00:00Z' });
+      const { lately } = await ana.digest({});
+      assert.deepEqual(lately.map(({ tag, n }) => [tag, Number(n)]), names.slice(2).reverse().map((name, i) => [name, 10 - i]));
+      const liked = await one(ana, { type: 'feedback', body: 'Ana wants tests first.' });
+      const who = await one(ana, { type: 'user', body: 'Ana runs operations.' });
+      await one(ana, { type: 'feedback', body: 'Ana liked short replies long ago.' }, { createdAt: '2026-01-01T00:00:00Z' });
+      await one(bo, { type: 'feedback', body: 'Bo wants long replies.' });
+      assert.deepEqual((await ana.digest({})).fresh.map(fact => fact.id).sort(), [liked, who].sort());
+      await ana.putRun({ kind: 'daily', status: 'ok', day: '2099-01-01', host: 'laptop', reason: null, counts: {}, startedAt: '2099-01-01T00:00:00Z' });
+      assert.deepEqual((await ana.digest({})).fresh, [], 'a finished tidy placed them');
     });
   });
 }

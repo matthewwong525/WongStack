@@ -27,7 +27,7 @@ Readers land from search, without context.
 
 ## Folders only for deep branches
 
-Use a folder only if a step grows into several pages (`onboarding/`: a hub, a page per role), with its `README.md` as the hub; a lone page stays flat. Breadcrumbs follow folders; don't hand-write them. Moving a page changes its URL: `memory.mjs areas <page>` lists links to fix.
+Use a folder only if a step grows into several pages (`onboarding/`: a hub, a page per role), with its `README.md` as the hub; a lone page stays flat. Breadcrumbs follow folders; don't hand-write them. Moving a page changes its URL: `memory.mjs pull <page>` lists links to fix.
 
 ## Maps are pictures; links live in the list
 

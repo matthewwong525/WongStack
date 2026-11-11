@@ -484,7 +484,7 @@ test("each caller's digest shows only its own last run, and a read naming no run
   for (const [caller, host] of callers) assert.equal((await call(env, caller, 'putRun', { kind: 'capture', host, startedAt: iso(), status: 'ok', reason: `${host} reason`, counts: {} })).status, 200);
   for (const [caller, host] of callers) assert.equal((await result(await call(env, caller, 'digest', {}))).run.host, host);
   // A store that skipped `migrate`: a read naming no runs still works; the digest waits for the migration.
-  env.fake.db.exec('DROP INDEX runs_owner; ALTER TABLE runs DROP COLUMN owner_subject');
+  env.fake.db.exec('DROP INDEX runs_owner; DROP INDEX runs_daily; ALTER TABLE runs DROP COLUMN owner_subject');
   assert.equal((await call(env, grant(), 'facts', [{}])).status, 200);
   assert.equal((await call(env, grant(), 'digest', {})).status, 503);
 });

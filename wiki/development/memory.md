@@ -21,8 +21,8 @@ Memory has three parts, so another repo can use it with its own database.
 | `steps` | each verb tag, and the slash commands that name it |
 | `currentSlug`, `slugState` | the change on this branch, and whether a slug is active, shipped, or a conversation |
 | `person` | the current person's page, for the digest |
-| `lookup` | what `areas` adds: docs, past changes, links, and code users |
-| `tidy` | more pages for [the tidy](wiki-dream.md) to check, and how its edits publish |
+| `lookup` | what `pull` adds: docs, past changes, links, and code users |
+| `tidy` | more pages for [the tidy](wiki-dream.md) to check, how its edits publish, and its deny list |
 | `sessionStart` | a job at chat start: the company knowledge refresh |
 | `commands` | admin commands on WongStack's own store: `migrate`, `migrate-people`, `assign`, `member` |
 
@@ -63,7 +63,7 @@ Each repo's memory is its own: nothing goes to another repo, and nothing loads f
 
 ## When memory loads
 
-When a chat starts or resumes, the plugin's start hook prints a **digest** of what applies to any task: every open thread of the change on your branch first, then one line counting the open threads on other changes by step (`plan 3, save 5; 41 untagged`), then [the topic list](#topics), then [your people page](../wiki-style.md#people) (from [`knowledge/people/`](../stack/company-knowledge.md#what-goes-there) first), cut at 1.5 KB with a line naming the page, then the other live facts by type and age. Its first line tells the agent to [recall its task](document-retrieval.md) before substantial work; the count line tells a verb to load its own threads when it starts. Code builds it from one `digest` call, with no model, in under two seconds. It is capped at 40 lines and 6 KB; the last line says how many facts it left out. Offline or signed out, the hook prints this computer's cached digest with its age; a refused sign-in turns that off until one succeeds. The digest stays the same for the whole chat, so the prompt cache holds.
+When a chat starts or resumes, the plugin's start hook prints a **digest** of threads, not facts: the [last daily tidy](wiki-dream.md#the-daily-tidy), every open thread of the change on your branch, one line counting the open threads on other changes by step (`plan 3, save 5; 41 untagged`), [the topic list](#topics), a `Lately:` line with the topics that gained facts this week, [your people page](../wiki-style.md#people) (from [`knowledge/people/`](../stack/company-knowledge.md#what-goes-there) first) cut at 1.5 KB with a line naming the page, then only the preferences you stated since the last tidy. An older preference is on your page or under its topic. Its first lines tell the agent to [recall its task](document-retrieval.md) and [pull](memory-search.md#pull-a-thread) its topics before substantial work, or give a task that spans topics to [the memory helper](memory-search.md#the-memory-helper). Code builds it from one `digest` call, with no model, in under two seconds. It is capped at 40 lines and 6 KB; the last line says how many live facts memory holds. A store older than the plugin lists the newest facts, as before, and the digest says so once. Offline or signed out, the hook prints this computer's cached digest with its age; a refused sign-in turns that off until one succeeds. The digest stays the same for the whole chat, so the prompt cache holds.
 
 **Before the first edit in a folder**, a hook shows that [area's](#facts-by-code-area) open threads, then its newest live facts, eight lines at most, as [who sees what](#who-sees-what) allows. It fires once per area per chat, on Claude Code's edit tools and Codex's `apply_patch`, and never holds up the edit: no answer within 3 seconds shows nothing.
 
@@ -80,12 +80,8 @@ What a topic does:
 
 - **The digest lists them**: up to eight company topics, in the order the company hub links them, one line each with its summary; then the code topics' names on one line; then the pull command. The list shows even when the store is empty or down.
 - **A message that names one gets its summary.** Before the assistant reads your message, a hook matches it against the topics, from files on this computer only: no store, no network. A whole name, an alias, or a company topic's last part (*Ada* for `people/ada`) adds the summary; a word that only starts a name adds the name. At most three, each once per chat; a topic named for a skill, such as `plan`, is skipped.
-- **`memory.mjs areas <topic>` pulls one**: its summary, its page, the pages it links to and from, then its facts.
+- **`memory.mjs pull <topic>` [pulls one](memory-search.md#pull-a-thread)**: its page, linked pages, related topics, changes, and facts by kind.
 - **A fact can carry a company topic.** The gate defines a missing company tag from its page's summary, and [upkeep](#consolidation) tags a fact that names a `knowledge/` page by path. The tidy puts a topic's lasting facts [on its page](wiki-dream.md#placing-a-fact-on-a-page).
-
-## Experimental extraction
-
-An opt-in helper returns verified original facts within fixed task budgets. [Its own page](memory-extraction.md) owns its interface, limits, hosts, and evaluation. Ordinary search stays model-free.
 
 ## How facts are captured
 
@@ -103,8 +99,8 @@ A fact about code carries the **area tag** of the folder it concerns, so the nex
 
 - **A fact gets its area when it is written.** The writer tags it, as [writing facts](../../.agents/plugins/memory/references/writing-facts.md) says. An area tag the store lacks is defined from the list on first use. [Upkeep](#consolidation) tags older facts whose words name a mapped path.
 - **The list owns each area tag's definition and look-alikes.** Upkeep copies them to the store on the admin's next write: an entry's `aliases` point at its area, *testing* at `tests`, and a read by a tag also finds its aliases. Fix a definition in `areas.json`, not in the store. For a look-alike outside the list, the admin runs `memory.mjs tag <name> --alias-of <tag>`; a teammate never changes a tag.
-- **One lookup shows everything linked.** `memory.mjs areas <path or topic>` prints the areas, their docs and code folders, up to five past changes, the files linking to and the code using each path, then at most 20 live facts, open threads first. When the store doesn't answer, it says so, and work goes on.
-- **The build and planning load it.** Before its first edit, [`/apply`'s build](../../.agents/skills/apply/references/build-helper.md) runs `memory.mjs areas --change <name>` on the paths the change names. [`/explore`](../../.agents/skills/explore/SKILL.md#search-memory-before-asking) runs it on the paths it expects to touch.
+- **One lookup shows everything linked.** `memory.mjs pull <path>` prints the areas, their docs and code folders, past changes, the files linking to and the code using the path, then its areas' facts. When the store doesn't answer, it says so, and work goes on.
+- **The build and planning load it.** Before its first edit, [`/apply`'s build](../../.agents/skills/apply/references/build-helper.md) pulls the change and runs `memory.mjs areas --change <name>` on the paths it names. [`/explore`](../../.agents/skills/explore/SKILL.md#search-memory-before-asking) pulls the paths it expects to touch.
 - **A repo adds its own areas** in `areas.json`: a tag, a definition, folder prefixes, and docs; a doc the repo lacks is skipped. [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) keeps the edit as a local change.
 
 ## Consolidation
@@ -112,11 +108,11 @@ A fact about code carries the **area tag** of the folder it concerns, so the nex
 Two passes keep the live facts tidy: plain code for what follows a rule, and a model only for what takes judgment.
 
 - **Upkeep** runs after every `put-facts` and at the end of every background run, with no model and no wait. It closes an open thread still open 30 days after its own date with a fact naming it, *Closed unchecked after 30 days (thread #N, date)*; the thread stays searchable with `--all`, and a re-tag never restarts its clock. It **re-tags** a fact whose words name a path in a mapped folder with [its area](#facts-by-code-area), one that names a `knowledge/` page with [its topic](#topics), and a thread whose words name a slash command with that verb (`/wong-sync` gives `sync`, `/improve-code` gives `improve`, `/dream-memory` gives `dream`). A re-tagged fact keeps its words, its date, its author, and its sources; it supersedes the untagged one. It restates at most 50 facts a pass, and never fails the write before it: `put-facts` prints `upkeep skipped: <reason>`. `memory.mjs upkeep` runs it by hand.
-- **Consolidation** runs inside the background run, and only once 24 hours *and* five captured sessions have passed since the last one. It merges facts that say the same thing, supersedes contradicted ones, newest first, closes an open thread a later live fact shows was answered, and re-tags only where reading a fact's area or verb takes judgment. It has no command of its own.
+- **Consolidation** is the first step of the [daily tidy](wiki-dream.md#the-daily-tidy). It merges facts that say the same thing, supersedes contradicted ones, newest first, closes an open thread a later live fact shows was answered, and re-tags only where reading a fact's area or verb takes judgment. It has no command of its own.
 
 For a teammate both passes change only their own facts, and no tag; the admin's tidy everyone's.
 
-Both passes tidy facts; [a small wiki tidy](wiki-dream.md#the-small-wiki-tidy) then moves lasting ones onto pages. [A memory dream](wiki-dream.md) runs consolidation at once when you type `/memory:dream-memory`, and also supersedes a fact the project outgrew, such as one naming a gone file.
+Both passes tidy facts; the daily tidy then moves lasting ones onto pages. [A memory dream](wiki-dream.md) runs consolidation at once when you type `/memory:dream-memory`, and also supersedes a fact the project outgrew, such as one naming a gone file.
 
 ## Sign-in and expiry
 

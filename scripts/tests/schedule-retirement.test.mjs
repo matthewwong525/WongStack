@@ -36,3 +36,12 @@ test('memory keeps the old routine topic as an alias and maps the skill and old 
   assert.ok(areas.schedule.docs.includes('wiki/stack/host-schedules.md'));
   assert.ok(areas.schedule.docs.includes('wiki/stack/legacy-cloud-schedules.md'));
 });
+
+test('the wiki tidy schedule is retired: its check, brief and default entry are gone, and the list names why', () => {
+  for (const path of ['.agents/skills/daily/scripts/wiki-tidy-check.mjs', '.agents/skills/daily/references/briefs/wiki-tidy.md']) {
+    assert.equal(existsSync(new URL(`../../${path}`, import.meta.url)), false, path);
+  }
+  const list = JSON.parse(read('.agents/skills/daily/references/schedules.json'));
+  assert.ok(!list.schedules.some(entry => entry.id === 'wiki-tidy'));
+  assert.match(list.retired.find(entry => entry.id === 'wiki-tidy').reason, /first chat of each day/);
+});

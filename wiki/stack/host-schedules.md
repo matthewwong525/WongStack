@@ -66,12 +66,13 @@ In the Inbox's *Schedules* list you can pause, resume, run now, or cancel a wait
 
 ## Default schedules
 
-WongStack ships two background schedules in [its list](../../.agents/skills/daily/references/schedules.json): *Keep my chats in line*, every 5 minutes, runs [the line-up](../development/daily.md#your-chats-in-line), and *Wiki tidy*, every 30 minutes, runs [the small wiki tidy](../development/wiki-dream.md#the-small-wiki-tidy). Most checks find nothing to do and start no run. A chat start adds each one you lack and approves it on this computer, because it comes from this checkout's own code.
+WongStack ships one background schedule in [its list](../../.agents/skills/daily/references/schedules.json): *Keep my chats in line*, every 5 minutes, runs [the line-up](../development/daily.md#your-chats-in-line). Most checks find nothing to do and start no run. A chat start adds each one you lack and approves it on this computer, because it comes from this checkout's own code.
 
 - **A default you changed, paused or ended stays yours.** An update never changes it or adds it back.
 - **A default you did not change** takes an update's new version, approved here.
 - **An `off` entry** in [your own jobs](../development/daily.md#your-own-jobs) adds that default paused.
 - **A default you did not change waits paused while [check-ins are off](../development/daily.md#check-ins)** on this computer, and goes on again when they go on. If you resume it while they are off, it stays on.
+- **A retired default ends at the update**, changed, paused or not, with one line in [the journal](../development/daily.md#the-journal). It is never added again. The *Wiki tidy* schedule is retired: memory starts [its own daily tidy](../development/wiki-dream.md#the-daily-tidy) at your first chat of each day.
 - **A setup that fails writes its reason in [the journal](../development/daily.md#the-journal)**, one line a day for each reason. A chat start about an hour later tries again.
 
 ## Existing schedules

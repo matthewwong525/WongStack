@@ -22,11 +22,12 @@ It keeps your own edits to this folder. When one of your edits and a new change 
 
 ## What you get
 
-- **A digest at chat start**: open questions on your current work, your topics, your own page, and the newest facts.
+- **A digest at chat start**: open questions on your current work, your topics and the ones that changed lately, your own page, and the preferences you stated since the last tidy.
 - **Capture**: when a chat ends, a background run saves what it set out to do, what got done, and what is left.
-- **Topics**: a message that names a topic gets the topic's one-line summary; `memory.mjs areas <topic>` pulls the rest.
+- **Topics that link**: a message that names a topic gets the topic's one-line summary. `memory.mjs pull <topic>` shows its page, related topics, changes, open questions, and decisions, each a name you can pull next.
+- **A memory helper**: for a task that spans topics, a helper follows [these steps](references/recall-helper.md) and gives back a short brief with sources.
 - **A warning before the first edit in a folder**, from the facts about that folder.
-- **The tidy**: `/memory:dream-memory` puts lasting facts on their topic's page and checks those pages.
+- **A daily tidy**: your first chat each day starts it in the background. It merges facts, puts lasting facts on their topic's page, links topics that connect, and checks a few old pages. `/memory:dream-memory` runs a full check at any time.
 
 Who sees which fact is the store's decision, never the plugin's.
 

@@ -6,6 +6,8 @@ import { callMemory, memoryOperations } from '../../.agents/memory/operations.mj
 import { selectOperations } from '../../.agents/memory/lib/operations.mjs';
 import { readArguments, READ_OPTIONS } from '../../.agents/skills/memory/scripts/lib/read-options.mjs';
 import { memory, node, PROFILE, rows, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { loadDigest, olderNote } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
+import { tempDir } from './fixtures/memory/harness.mjs';
 
 // operations.mjs sits in WongStack's extras, beside the plugin the harness runs scripts from.
 const OPERATIONS = '../../../memory/operations.mjs';
@@ -102,4 +104,23 @@ test('the memory transport refuses redirects before a credential can reach anoth
   t.mock.method(globalThis, 'fetch', async (_url, init) => { called++; assert.equal(init.redirect, 'manual'); return new Response(null, { status: 302, headers: { Location: 'https://attacker.example.com' } }); });
   const ctx = { root: repo.root, primaryRoot: repo.root, machineId: repo.machineId, stateDir: repo.stateDir, author: 'dev@example.com' };
   await assert.rejects((await openStore(ctx)).caller(), /refused a redirect/); assert.equal(called, 1);
+});
+
+test('an older store, one with no daily tidy, keeps its listed facts, starts no tidy, and says so once a day', async t => {
+  const ctx = { stateDir: tempDir(t, 'older-') };
+  const fact = { id: 1, slug: 's', type: 'project', body: 'Delivery uses the approved carrier.', author: 'a@b', created_at: '2026-09-01T00:00:00Z' };
+  const store = answer => ({ role: 'member', profile: { steps: {} }, digest: async () => answer });
+  const older = await loadDigest(ctx, store({ facts: [fact], live: 1, threads: [], steps: [], run: null, consolidation: {} }));
+  assert.equal(older.older, true);
+  assert.equal(older.daily, null);
+  assert.match(older.text, /## Live facts\n- \[project\] Delivery uses the approved carrier\./);
+  assert.doesNotMatch(older.text, /Lately:|Last tidy/);
+  const now = new Date('2026-09-11T10:00:00');
+  assert.match(olderNote(ctx, now), /memory store is older than this plugin/);
+  assert.equal(olderNote(ctx, new Date('2026-09-11T18:00:00')), null, 'once a day on this computer');
+  assert.match(olderNote(ctx, new Date('2026-09-12T09:00:00')), /older/);
+  const daily = { day: '2026-09-11', last: '2026-09-11T08:00:00Z', status: 'ok', host: 'h', counts: {} };
+  const current = await loadDigest(ctx, store({ live: 1, threads: [], steps: [], run: null, daily, lately: [], fresh: [] }));
+  assert.deepEqual({ older: current.older, daily: current.daily }, { older: false, daily });
+  assert.doesNotMatch(current.text, /Delivery uses/);
 });

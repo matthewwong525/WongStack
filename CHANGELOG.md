@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 53.0.0 — Memory links its topics and tidies itself each day
+
+- **One daily tidy, started by your first chat of the day.** It runs in the background, and the chat never waits. It saves what your chats learned, merges facts that say the same thing, puts lasting facts on their topic's page, links topics that connect, and checks three old pages and one spec. It uses your own AI plan. Its own work stops after 30 minutes, and the wait for the project's checks can add up to an hour. With two computers, only one tidies each day ([the daily tidy](wiki/development/wiki-dream.md#the-daily-tidy)).
+- **You control it from any chat**: *when did memory last tidy*, *stop the daily memory tidy* (on that computer), *start it again*, and *tidy memory now*.
+- **The *Wiki tidy* schedule ends.** The daily tidy does its work, so the first chat after the update ends it in your *Schedules* list, also if you changed or paused it. This can't be undone.
+- **One pull reads any point in memory.** `memory.mjs pull <name>` takes a topic, a file path, a change, or a fact number, and names each thing it connects to: the page, related topics, changes, open questions, preferences, and decisions. `memory.mjs related <topic>` lists the topics that share facts ([pull a thread](wiki/development/memory-search.md#pull-a-thread)). `areas` and `show` still work.
+- **A memory helper reads for a task that spans topics**, and gives the chat a brief of about 300 words, each line with its source ([the memory helper](wiki/development/memory-search.md#the-memory-helper)).
+- **A shorter chat start.** It shows threads, not facts: the last tidy, your open questions, the topics that changed lately, your page, and only the preferences you stated since the last tidy.
+- **A fact gets every topic it touches**, so topics that share facts find each other.
+- **Removed:** the experimental `extract` and `extract-task` commands, and `memory.mjs due`.
+
+**Updating.** Nothing to do by hand for most projects. The first chat after the update ends the *Wiki tidy* schedule by itself, and the first chat of the next day starts the first daily tidy. To turn the daily tidy off on a computer, ask a chat there to *stop the daily memory tidy*. The app's memory store gets one database change: an admin runs `memory.mjs migrate` after the app deploys; until then, memory works as before and starts no daily tidy. If one of your project's own skills runs `memory.mjs extract`, `extract-task` or `due`, change it to `memory.mjs pull <name>`, or to the memory helper's steps in `.claude/skills/memory/references/recall-helper.md`.
+
 ## 52.0.1 — Two notes from the memory plugin release
 
 - **A plan keeps checks that run after the deploy out of its task list**, because `/ship` archives a plan only when every task is ticked. The design names the check, and `/ship` runs it after the merge.

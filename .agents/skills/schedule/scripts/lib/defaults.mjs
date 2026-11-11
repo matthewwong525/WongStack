@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { readJson, writeJson } from '../../../daily/scripts/chief.mjs';
 import { defaultsFile } from '../../../daily/scripts/daily.mjs';
+import { addLine } from '../../../daily/scripts/journal.mjs';
 import { DEFAULT_SCHEDULES } from '../../../daily/scripts/worker.mjs';
 import { approveHere, definition, readSchedule, saveDefinition, send } from './app.mjs';
 import { fromSweep, readBrief } from './move-in.mjs';
@@ -46,8 +47,28 @@ function checkins(state, held, mark, { off, applied, paused }) {
   return !applied && held.state === 'on' ? 'paused' : null;
 }
 
-/** `defaults`: adds or updates each default schedule and approves it here, paused while check-ins are `off`; `dryRun`
- *  only shows them. */
+/** The defaults WongStack retired: `[{id, reason}]` from the shipped list. */
+export const retiredDefaults = (list = DEFAULT_SCHEDULES) => JSON.parse(readFileSync(list, 'utf8')).retired ?? [];
+
+/** Ends each retired default the person still has, changed or not, with one journal line, and forgets it here; one
+ *  already ended or never added is only forgotten. */
+async function endRetired({ list, client, added, stateDir, timezone }) {
+  const results = [];
+  for (const { id, reason } of retiredDefaults(list)) {
+    try {
+      const held = (await readSchedule(client, id))?.schedule;
+      delete added[id];
+      if (!held || held.ended) continue;
+      await send(client, 'schedule-end', 'POST', { key: id, reason: `WongStack retired this default: ${reason}`.slice(0, 300) });
+      addLine({ stateDir, timezone, line: `Default schedule ended: ${held.name}. ${reason}`, kind: 'defaults' });
+      results.push({ key: id, state: 'retired' });
+    } catch (error) { results.push({ key: id, state: 'failed', reason: error.extra?.reason ?? error.message }); }
+  }
+  return results;
+}
+
+/** `defaults`: adds or updates each default schedule and approves it here, paused while check-ins are `off`, and ends
+ *  each retired one; `dryRun` only shows them. */
 export async function addDefaults({ root, primary, config, stateDir, client, computer, env, email, dryRun = false, list, off = false }) {
   const items = defaultDefinitions({ root, primary, config, list });
   if (dryRun) return { dryRun: true, schedules: items.map(item => (item.def ? { ...item.def, version: scheduleVersion(item.def), paused: item.paused } : item)) };
@@ -79,6 +100,7 @@ export async function addDefaults({ root, primary, config, stateDir, client, com
       results.push({ key, state, ...(state === 'add' && paused ? { paused } : {}), ...(moved && wants ? { checkins: wants } : {}) });
     } catch (error) { results.push({ key, state: 'failed', reason: error.extra?.reason ?? error.message }); }
   }
+  results.push(...await endRetired({ list, client, added, stateDir, timezone: config.timezone }));
   // A failed default keeps the old off state, so the next pass flips it again.
   const applied = results.some(each => each.state === 'failed') ? Boolean(kept.off) : off;
   writeJson(defaultsFile(stateDir), { ...readJson(defaultsFile(stateDir), {}), added, off: applied });

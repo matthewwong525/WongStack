@@ -504,7 +504,7 @@ test("without Paseo the worker's pass still runs, and an own timed job waits to 
   assert.deepEqual(lines(stateDir), ['Timed jobs wait to move to the app, and do not run: pay']);
 });
 
-test("an install's timed job waits to move, unless it names a default schedule or is off; the merged list runs no timed job", () => {
+test("an install's timed job waits to move, unless it names a default schedule, shipped or retired, or is off; the merged list runs no timed job", () => {
   const project = folder();
   const own = sweeps => {
     writeFileSync(join(project, 'jobs.json'), JSON.stringify({ sweeps }));
@@ -514,6 +514,7 @@ test("an install's timed job waits to move, unless it names a default schedule o
   // `wrap-up` was once a default job: an install list that still turns it off keeps working, and waits for nothing.
   assert.deepEqual(own([{ id: 'wiki-tidy', every: '60m', brief: 'tidy.md' }, { id: 'wrap-up', off: true }, { id: 'pay', at: ['09:00'], brief: 'pay.md' },
     { id: 'nap', every: '5m', do: 'sleep' }]), [undefined, ['pay', 'nap']]);
+  // The wiki tidy is a retired default: an install list that turns it off, or times it, gets no error and no wait.
   assert.deepEqual(own([{ id: 'wiki-tidy', off: true }, { id: 'line-up', off: true }]), [undefined, []]);
 });
 

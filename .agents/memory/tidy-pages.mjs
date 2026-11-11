@@ -40,3 +40,11 @@ export function tidyPages({ root }) {
   const knowledge = knowledgeCopy(root) ? wikiPages(root, 'knowledge') : [];
   return [...wikiPages(root), ...knowledge, ...specPages(root)].map(path => ({ path, kind: kindOf(path, shipped) }));
 }
+
+/** The tools the daily tidy's full-access part refuses: the install's daily deny list, as the daily's own runs. */
+export async function tidyDeny({ root }) {
+  const { personSettings } = await import('../skills/daily/scripts/daily.mjs');
+  const { loadSweeps } = await import('../skills/daily/scripts/worker.mjs');
+  const { config } = personSettings({ repo: root });
+  return loadSweeps({ project: root, file: config?.sweeps }).deny ?? [];
+}
