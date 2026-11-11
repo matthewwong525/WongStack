@@ -5,9 +5,11 @@ import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { cli, readRun, restartRefusal, restartRun, startKeysRun, verdict, waitRun } from '../../.agents/skills/save/scripts/artifacts-run.mjs';
+import { cli, readRun, restartRefusal, restartRun, startKeysRun, verdict, waitRun } from '../../.agents/loop/routes/artifacts-run.mjs';
 import { runId } from '../check-runner/run-id.mjs';
 
+// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
+process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
 const scripts = new URL('../../.agents/skills/save/scripts/', import.meta.url).pathname;
 const ACCOUNT = '0123456789abcdef'.repeat(2);
 const REMOTE = `https://${ACCOUNT}.artifacts.cloudflare.net/git/wongstack/recipe-box.git`;

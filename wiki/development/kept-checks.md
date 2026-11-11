@@ -1,8 +1,8 @@
 # Kept checks
 
-A kept check is a passed preview check saved in your project, so a later publish can repeat it with no AI. [`/verify`](../../.agents/skills/verify/SKILL.md) keeps and replays them only inside [`/ship`](../../.agents/skills/ship/SKILL.md#step-4--verify-the-preview-evidence-not-a-gate)'s check before publishing.
+A kept check is a passed preview check saved in your project, so a later publish can repeat it with no AI. [`/verify`](../../.agents/plugins/loop/skills/verify/SKILL.md) keeps and replays them only inside [`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md#step-4--verify-the-preview-evidence-not-a-gate)'s check before publishing.
 
-This page owns the reasons. [The staging walkthrough](staging-walkthrough.md) owns the check itself, and [its reference](../../.agents/skills/verify/references/walkthrough.md#g--kept-checks) owns the commands.
+This page owns the reasons. [The staging walkthrough](staging-walkthrough.md) owns the check itself, and [its reference](../../.agents/plugins/loop/skills/verify/references/walkthrough.md#g--kept-checks) owns the commands.
 
 ## Why keep a check
 
@@ -59,7 +59,7 @@ A fresh look ends one of three ways:
 
 - **The promise still holds and only the page changed**, such as a renamed button. The kept check is replaced and nothing stops.
 - **The promise is broken and your change broke it.** The assistant fixes it, saves, and replays that check, without asking, at most twice. It never edits code your change didn't touch: that would turn one change into another.
-- **The break survives two tries, or doesn't come from your change.** The check is a failure that names the older promise. `/ship` [fixes it once](../../.agents/skills/ship/SKILL.md#step-4--verify-the-preview-evidence-not-a-gate); if it still fails, it asks: fix more, or publish anyway.
+- **The break survives two tries, or doesn't come from your change.** The check is a failure that names the older promise. `/ship` [fixes it once](../../.agents/plugins/loop/skills/ship/SKILL.md#step-4--verify-the-preview-evidence-not-a-gate); if it still fails, it asks: fix more, or publish anyway.
 
 At most three fresh looks per publish. One renamed menu could otherwise send the assistant through every kept check; the rest are named as not checked.
 

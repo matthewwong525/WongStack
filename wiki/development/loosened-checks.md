@@ -27,7 +27,7 @@ A kept check needs no reason when the change:
 
 A kept check that can no longer be read counts as changed.
 
-`keep --install` prints `REPLACED=<path>` or `REMOVED=<path>` for each kept check it replaced with other steps or expectations, or deleted. Inside `/ship`, the assistant writes each one's reason into the archived proposal before it saves ([the command](../../.agents/skills/verify/references/walkthrough.md#g--kept-checks)).
+`keep --install` prints `REPLACED=<path>` or `REMOVED=<path>` for each kept check it replaced with other steps or expectations, or deleted. Inside `/ship`, the assistant writes each one's reason into the archived proposal before it saves ([the command](../../.agents/plugins/loop/skills/verify/references/walkthrough.md#g--kept-checks)).
 
 ## The guard a pull request can not edit
 
@@ -44,10 +44,10 @@ A change to the guard still passes with a `Check:` bullet naming the file; the p
 Its limits:
 
 - **`guard.yml` can not run on the pull request that adds it.** The next pull request is its first run.
-- **It is not a required check until the owner adds it.** [`/ship`](../../.agents/skills/ship/SKILL.md) stops on a red `guard` either way. A person merging by hand on GitHub can pass one, unless `guard` is in the branch's required checks: *Settings → Rules → Rulesets* in the GitHub project.
+- **It is not a required check until the owner adds it.** [`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md) stops on a red `guard` either way. A person merging by hand on GitHub can pass one, unless `guard` is in the branch's required checks: *Settings → Rules → Rulesets* in the GitHub project.
 - **Off GitHub there is no second run.** [Artifacts](../stack/artifacts-route.md) and [the pre-check on this computer](the-change-loop.md#the-gate) use the branch's copy.
 - **A broken published guard blocks every pull request**, its own fix included. The fix needs only a `Check:` bullet naming the guard file. If the reader of those bullets is the broken part, a person merges the fix by hand.
 
-[`/save`](../../.agents/skills/save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure) waits for `guard` by name where the default branch holds `guard.yml`: GitHub starts it for the pull request, not the push, so it can be listed after the other checks pass.
+[`/save`](../../.agents/plugins/loop/skills/save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure) waits for `guard` by name where the default branch holds `guard.yml`: GitHub starts it for the pull request, not the push, so it can be listed after the other checks pass.
 
 Part of [development](README.md).

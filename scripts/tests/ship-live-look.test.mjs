@@ -5,7 +5,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-const script = new URL('../../.agents/skills/ship/scripts/live-look.sh', import.meta.url).pathname;
+// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
+process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
+
+const script = new URL('../../.agents/loop/staging/live-look.sh', import.meta.url).pathname;
 const SHA = 'c'.repeat(40);
 const LIVE = 'https://demo.example.workers.dev';
 

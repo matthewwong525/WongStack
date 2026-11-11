@@ -4,7 +4,7 @@ A dream checks everything your project remembers against itself and against the 
 
 ## When to run one
 
-[`/close`](../../.agents/skills/close/SKILL.md) moves one chat's lasting points onto the wiki, and the daily tidy moves the rest each day. A page nobody reads still stays wrong. Run a dream:
+[`/close`](../../.agents/plugins/loop/skills/close/SKILL.md) moves one chat's lasting points onto the wiki, and the daily tidy moves the rest each day. A page nobody reads still stays wrong. Run a dream:
 
 - when a page or a saved fact told your assistant something that is no longer true;
 - before someone new starts reading the wiki.

@@ -96,7 +96,7 @@ A key over several lines is stored on one: JSON compacted, other text in double 
 A linked worktree works on its own **branch copy** of each live file, at the same repo-relative path as the primary's. Seed the copies when you create the worktree:
 
 ```bash
-node .claude/skills/ship/scripts/worktree-secrets.mjs seed
+node .claude/loop/worktree-secrets.mjs seed
 ```
 
 Wire that command into your worktree tool's setup step. `seed` copies each primary live file the worktree ignores, never overwrites a file the worktree has, and records a baseline of key names and value hashes in the worktree's own Git directory — never in the working tree, and never a value. It also copies your local chat settings, `.claude/settings.local.json`, once; `status` and `promote` skip them.
@@ -109,7 +109,7 @@ Route each edit by its kind, so `main` sees an edit only when it is safe:
 | Rotate a value (the old one no longer works) | both, now | the primary must not keep a dead value |
 | Delete a key, or set a value only this branch needs | the branch copy only | `main` still reads the old one until the merge |
 
-[`/ship`](../../.agents/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies to the primary only what this branch changed, compared three ways against the baseline, so a key another branch added to the primary is kept and a rotation made there is not reverted. A key both sides changed is skipped and named for you to resolve. Without a baseline it applies adds only and names the rest. Every command prints key names, never values; `status` shows what is still pending.
+[`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies to the primary only what this branch changed, compared three ways against the baseline, so a key another branch added to the primary is kept and a rotation made there is not reverted. A key both sides changed is skipped and named for you to resolve. Without a baseline it applies adds only and names the rest. Every command prints key names, never values; `status` shows what is still pending.
 
 WongStack tools read primary `.env` first; branch-only settings belong to the app. After merging outside `/ship`, run `promote` before deleting the worktree. Abandoned worktrees need no promotion.
 
