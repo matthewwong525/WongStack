@@ -3,7 +3,7 @@ title: It builds something you never asked for
 problem: You ask for one thing, and your AI guesses the rest and builds it.
 fix: It shows you a plan, with its guesses listed, and waits for your go.
 order: 3
-checked: 2026-11-10
+checked: 2026-11-11
 sources:
   - wiki/development/the-change-loop.md
   - .agents/skills/plan/SKILL.md
@@ -20,6 +20,7 @@ Add a plan-first workflow to my AI setup. Build it in this project and ask me be
 > Turn the plan into one review page I can open on my phone
 > Show each change as close to the real result as you can, so my go means I know what I get
 > For a new or changed screen, build a quick throwaway copy with sample data and show a picture of each state beside today's screen
+> For a phone or desktop app the browser can't open, draw those pictures with the app's own screen test, and write the steps down once for the next plan
 > For a website, build the real pages while planning, let me try them on the review page, and build from the ones I approve
 > Ask every choice in the chat before the review page, so the page is only for my final look and go
 > List what the build needs from me, each key, login, file, or answer marked ready or needed, and let me send files on the page

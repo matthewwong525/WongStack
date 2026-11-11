@@ -667,11 +667,11 @@ function view(drawn) {
     + `<div class="clip">${shown.html}</div><figcaption>${esc(shown.label)}</figcaption></figure>`).join('')}</div></div>`;
 }
 
-// A sketch stands in for a real picture only with a line that names the step that failed.
+// A sketch stands in for a real picture only with a line that names the step that failed, or the part no test draws.
 function sketchOnly(block, ctx, warnings) {
   const sketch = block.drawings.find(fence => fence.lang === 'screen' || fence.lang === 'svg');
   if (!sketch || block.drawings.some(fence => fence.lang === 'picture') || /\bNo real picture:/i.test(block.text)) return;
-  warnings.push(`${ctx.file} line ${sketch.at}: item ${block.n}: a screen sketch with no real picture: run the prototype with sample data, `
+  warnings.push(`${ctx.file} line ${sketch.at}: item ${block.n}: a screen sketch with no real picture: draw it from the prototype or the app's screen test, with sample data, `
     + 'or add a line "No real picture: <the step that failed>"');
 }
 
