@@ -27,6 +27,14 @@ paseo wait <agentId>; paseo logs <agentId>; paseo delete <agentId>
 
 This session loads every project hook, memory included, like a real chat.
 
+## Apart from your own daily
+
+The [daily](../../.agents/skills/daily/SKILL.md)'s hooks act on your real chats and settings. To test them apart, give the test chat a temp home:
+
+- Run it with `HOME=<temp>` and `CLAUDE_CONFIG_DIR` set to your own `~/.claude`, so sign-in stays. Link `<temp>/.paseo` and `<temp>/.gitconfig` to yours, and unset every `PASEO_*` variable.
+- Its hooks start a daily worker from the primary checkout in the temp home. Stop that worker before you test new delivery code: it runs the old code.
+- After the test, delete the `.claude.json` the run made in your `~/.claude`.
+
 ## In Codex
 
 Codex runs a project hook only after you trust it. Point `CODEX_HOME` at a scratch folder holding a copy of `~/.codex/auth.json` and a `config.toml` that trusts your probe hooks, run `codex exec "<a prompt that triggers it>"` in a scratch project, then delete both folders. Your own Codex setup stays untouched. For a one-off probe, `codex exec --dangerously-bypass-hook-trust` runs the scratch project's hooks with no trust step; use it only on hooks you wrote.
