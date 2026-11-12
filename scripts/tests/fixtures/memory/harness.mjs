@@ -89,7 +89,7 @@ async function fakeCloudflare({ bucket = true } = {}) {
   const api = `http://127.0.0.1:${server.address().port}/client/v4`;
   return {
     db, objects, calls, api,
-    // true drops each connection; 'hang' never answers, so the caller's timeout fires; a function decides from each body.
+    // true drops each connection; 'hang' never answers, so the caller's timeout fires; a function decides by the body.
     setOffline: value => { offline = value; },
     close: () => new Promise(done => { server.closeAllConnections(); server.close(done); }),
   };

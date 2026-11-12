@@ -199,7 +199,7 @@ function stillMissing(copy, { command, words }) {
   } catch { return true; }
 }
 
-// The map made again, up to three times: a store that does not answer once can answer seconds later. Null when none did.
+// The map made again, up to three times: a store that fails once can answer seconds later. Null when none did.
 async function secondMap(ctx, options) {
   for (let tries = 1; ; tries++) {
     try { return await surveyMap(ctx, options); } catch {
