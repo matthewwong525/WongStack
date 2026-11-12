@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Each plugin's guide stands on its own
+## 57.0.1 — Each plugin's guide stands on its own
 
 - **The build loop, memory, and Daily carry the rules they follow.** Before, their steps sent the assistant to WongStack's own guide pages, which a project with only the plugin does not have. Now the loop's shared rules are in [its own page](.agents/plugins/loop/references/rules.md), the plan's review page and prototype steps are in [the plan's](.agents/plugins/loop/skills/plan/references/review-page.md) [own pages](.agents/plugins/loop/skills/plan/references/prototypes.md), memory's [who sees what](.agents/plugins/memory/README.md#who-sees-what) and its [fact placing](.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) are in memory, and [your Daily settings](.agents/plugins/daily/README.md#your-settings), add-ons and own jobs are in Daily.
 - **WongStack's guide points down to the plugin.** Each moved heading stays, with a short line and a link, so older links still open.
