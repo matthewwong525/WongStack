@@ -8,7 +8,7 @@
 
 ### Requirement: Verify is a verb that gates nothing
 
-The walk SHALL run only when a person invokes `/verify`, or once inside `/ship` as evidence before the merge; `/save`, `/apply`, and `/continue` SHALL NOT walk. `/verify` SHALL run at any point in a change and any number of times, and its own run SHALL block, delay, or condition nothing. What a failed walk does inside `/ship` SHALL be `delivery-gate`'s rule, not this one.
+The walk SHALL run only when a person invokes `/verify`, or once inside `/ship` as evidence before the merge; saving and `/apply` SHALL NOT walk. `/verify` SHALL run at any point in a change and any number of times, and its own run SHALL block, delay, or condition nothing. What a failed walk does inside `/ship` SHALL be `delivery-gate`'s rule, not this one.
 
 #### Scenario: A failing walk
 

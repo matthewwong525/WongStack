@@ -75,7 +75,7 @@ A result that can not be read is **unverified**: a save reports it and carries o
   - `finish` runs [`merge.sh`](../../.agents/plugins/loop/skills/ship/scripts/merge.sh), which hands over to [`publish-artifacts.sh`](../../.agents/loop/routes/publish-artifacts.sh); that prints `merged=`, `commit=` and `main=`. `finish` gives [`live-look.sh`](../../.agents/loop/staging/live-look.sh) the `commit=` value, not a pull request's merge commit.
   - `moved=yes` → `main` moved and nothing was published. `NEXT:` says to bring `main` in with `prepare --sync`, `/save`, and run `finish` again on `SUCCESS` or `NONE`.
   - Exit 3 → the change is on `main`, but `main` is red, unread, or cut off. `finish` skips the live look, and `NEXT:` says to report it and stop, never to push again. `main=INTERRUPTED` → `NEXT:` gives the [restart](#a-run-that-was-cut-off) first.
-- **`/continue`.** A handle is a change name. With none, [`other-work.mjs`](../../.agents/loop/other-work.mjs) lists `savedBranches`: each remote branch holding an unarchived change, with its Status. The drift check counts commits only.
+- **`/apply`, picking up saved work.** A handle is a change name. With none, [`other-work.mjs`](../../.agents/loop/other-work.mjs) lists `savedBranches`: each remote branch holding an unarchived change, with its Status. The drift check counts commits only.
 - **`/apply`** previews from this host as on GitHub.
 - **Reports** name the preview, never *the change on GitHub*.
 

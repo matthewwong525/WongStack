@@ -1,6 +1,6 @@
 # Build loop
 
-The build loop gives your AI assistant eight commands that take an idea to a published change: `/explore`, `/plan`, `/apply`, `/save`, `/ship`, `/verify`, `/continue`, and `/close`. Each plan is a set of [OpenSpec](https://github.com/Fission-AI/OpenSpec) files with a review page you open in a browser. It works in Claude Code and Codex, with or without GitHub.
+The build loop gives your AI assistant seven commands that take an idea to a published change: `/explore`, `/plan`, `/apply`, `/save`, `/ship`, `/verify`, and `/close`. Each plan is a set of [OpenSpec](https://github.com/Fission-AI/OpenSpec) files with a review page you open in a browser. It works in Claude Code and Codex, with or without GitHub.
 
 ## Add it to your project
 
@@ -8,7 +8,7 @@ Paste this message into a chat in your project, in any AI tool:
 
 > Add WongStack's build loop to this project. Follow the setup guide at https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/loop/references/setup.md
 
-The AI copies the eight commands in, installs OpenSpec, finds your test command, writes the profile, builds a sample plan page, and saves the work. It asks you before each step that costs money or makes something public, and before it pushes.
+The AI copies the seven commands in, installs OpenSpec, finds your test command, writes the profile, builds a sample plan page, and saves the work. It asks you before each step that costs money or makes something public, and before it pushes.
 
 A [WongStack](https://github.com/matthewwong525/WongStack) project already has the loop: it comes with each update. The guide stops there and changes nothing.
 
@@ -24,13 +24,11 @@ It keeps your own edits to the loop's folders and never touches your profile. Wh
 
 - **`/explore`** thinks an idea through with you and changes no file.
 - **`/plan`** writes the plan and builds its review page.
-- **`/apply`** builds the plan, with its tests, and runs your test command.
+- **`/apply`** builds the plan, with its tests, and runs your test command. To pick up saved work in a new chat, type `/apply <name>`, or `/apply` alone to choose from a list.
 - **`/save`** makes a commit. On GitHub it also opens or updates the pull request and waits for its checks.
 - **`/ship`** merges the change when the checks pass.
 - **`/verify`** checks the result: your checks on GitHub, or your own check through the profile.
-- **`/continue`** picks up saved work, and **`/close`** puts what a chat learned in your docs.
-
-With the [memory](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/memory/README.md) module in `.claude/skills/memory/`, each command also reads and writes memory. Without it, the commands skip those steps.
+- **`/close`** keeps unfinished work and closes the chat's workspace.
 
 ## Without GitHub
 

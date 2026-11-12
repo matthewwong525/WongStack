@@ -33,6 +33,6 @@ The assistant saves the change with `/save`. It shows you the link to the saved 
 
 ## 6. Come back to unfinished work
 
-Work you saved but did not finish waits for you. In a new chat, type `/continue` and pick it from the list, or name it. The assistant picks it up where it stopped.
+Work you saved but did not finish waits for you. In a new chat, type `/apply` and pick it from the list, or type `/apply` and its name. The assistant picks it up where it stopped.
 
 Part of [a teammate's first day](README.md).

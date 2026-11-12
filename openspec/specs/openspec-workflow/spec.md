@@ -50,17 +50,17 @@ The verbs SHALL read and write a change at the paths the CLI reports, keep a sel
 
 ### Requirement: Continue finds the branch from the change
 
-`/continue` SHALL resume a change on the branch its proposal records, or on a pull request's head branch, and SHALL NOT assume a change name is a branch name.
+`/apply` SHALL pick up a saved change on the branch its proposal records, or on a pull request's head branch, and SHALL NOT assume a change name is a branch name. With no change named and none in this chat, it SHALL list the saved changes and ask which to pick up.
 
 #### Scenario: Resume by name from a fresh clone
 
-- **WHEN** `/continue review-handoff` runs where the folder exists only on the remote branch `editor-work`
+- **WHEN** `/apply review-handoff` runs where the folder exists only on the remote branch `editor-work`
 - **THEN** it reads the proposal from that branch and checks out `editor-work` when that is safe
 
 #### Scenario: No recorded branch
 
 - **WHEN** a change has no recorded branch and a branch with its name exists
-- **THEN** `/continue` does not check out that branch on the name alone
+- **THEN** `/apply` does not check out that branch on the name alone
 
 ### Requirement: Specs hold promises, not procedure
 
@@ -78,9 +78,9 @@ A spec requirement SHALL state what a person or an installed repo relies on: wha
 
 ### Requirement: Continue never builds on the wrong branch
 
-When `/continue` cannot or should not check out the change's branch here, because other unpublished work holds this workspace or another worktree has the branch, it SHALL recap the change and stop with a next-step question, and SHALL NOT build or edit files.
+When `/apply` cannot or should not check out a saved change's branch here, because other unpublished work holds this workspace or another worktree has the branch, it SHALL recap the change and stop with a next-step question, and SHALL NOT build or edit files.
 
 #### Scenario: Branch open in another worktree
 
-- **WHEN** `/continue add-auth` runs and `add-auth`'s branch is checked out in another worktree
+- **WHEN** `/apply add-auth` runs and `add-auth`'s branch is checked out in another worktree
 - **THEN** it recaps the change, says where the branch is open, and asks what next, with nothing built here
