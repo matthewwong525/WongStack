@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The agent signs in with your unlocked 1Password, after your yes
+## 55.3.0 — The agent signs in with your unlocked 1Password, after your yes
 
 - **1Password comes with the agent's browser.** A new browser adds it, and an older one gets it once, at its next start, by the same checks as an add you ask for. It is not added when you removed it, said no to a password manager before, or when the agent already added another one. A failed download never stops a start; a start a day later tries again ([your password manager](.agents/plugins/browser/browser/references/password-manager.md)).
 - **The agent signs in with a login from your unlocked 1Password, after your yes.** At a login page it reads only the names of the logins 1Password offers there, and asks you every time: the login, the site, and the steps it will take once signed in. On your yes it picks that one login, does only those steps, and names them at the end. It never unlocks 1Password and never reads a password. Locked, or no login for the site: you sign in yourself, as before ([use it at a sign-in](.agents/plugins/browser/browser/references/password-manager.md#use-it-at-a-sign-in)).

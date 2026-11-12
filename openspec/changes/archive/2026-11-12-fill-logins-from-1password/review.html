@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · fill-logins-from-1password</title>
+<title>Review · 2026-11-12-fill-logins-from-1password</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="fill-logins-from-1password" data-own-back>
+<body data-change="2026-11-12-fill-logins-from-1password" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>fill-logins-from-1password</h1>
+  <h1>2026-11-12-fill-logins-from-1password</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -524,6 +524,7 @@
 <li class="decision card" id="decision-40" data-note="decision-40" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-11</p>Check: <code>scripts/tests/browse.test.mjs</code> <i>saved logins are gone</i> now looks for a top-level <code>login</code>, <code>logins</code>, or <code>forget</code> command in the help, not any use of the word, because <code>addon logins</code> names the add-on's list; the fixture's answer file is <code>fill-list</code>, not the retired <code>logins.json</code>.</li>
 <li class="decision card" id="decision-41" data-note="decision-41" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Tested (2.5): with the browser's real 1Password unlocked, <code>addon logins</code> on a local test page read the one offered login's name, <code>addon pick 1</code> printed <code>filled</code>, the page's check confirmed the sign-in, and the password showed only as <code>[hidden]</code>. A second pick without a new <code>addon logins</code> was refused, and <code>press ArrowDown</code> and <code>press Enter</code> were refused while the fill list showed. 1Password itself submitted the form after the fill (its own setting), so the agent's later click on sign-in was a second submit.</li>
 <li class="decision card" id="decision-42" data-note="decision-42" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Saved after the live test (2.5) passed, for the CI run in 4.2; the separate cut-off live view on a phone was fixed in its own change (#578).</li>
+<li class="decision card" id="decision-43" data-note="decision-43" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Archived for release 55.3.0, after CI passed on the merge with main (#579).</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

@@ -30,4 +30,4 @@
 ## 4. Checks
 
 - [x] 4.1 Run `openspec validate fill-logins-from-1password --strict --no-interactive`, `node --test scripts/tests/addons.test.mjs scripts/tests/browse.test.mjs`, and the wiki checks (`node --test scripts/tests/wiki-links.test.mjs`).
-- [ ] 4.2 `/save`, then confirm CI passes on the saved change.
+- [x] 4.2 `/save`, then confirm CI passes on the saved change.
