@@ -1,5 +1,9 @@
 # Proposal
 
+**Status:** ready-to-ship
+**Branch:** daily-close-card
+**Open questions:** none
+
 ## Why
 
 Chats often ask you something in plain text: *Close this chat?*, *Should I keep the old page?*. You then have to type an answer, and the chat does not stand out as one that waits for you. You want every question for you on a card you answer with one tap.
