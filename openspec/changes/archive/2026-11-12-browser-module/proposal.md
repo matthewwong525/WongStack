@@ -99,3 +99,4 @@ None. `browser-engine`, `browser-logins`, `password-manager-add-on`, `saved-deta
 - **2026-11-11** — Assumed (ship): the module keeps memory's `.env` reader as its own copy instead of Node's `parseEnv`, because Node's cuts a value at any `#`, so a proxy password holding `#` would break, and this change keeps every behavior.
 - **2026-11-12** — Archive checkpoint: brought in main's v53.2.0 (another chat's click waits behind your turn), carried its browser edits into the module's own files, and numbered this release 53.3.0.
 - **2026-11-12** — Asked whether to fix the chat-name test that failed the online checks outside this change (its cleanup raced a background write of this computer's id) → chose fix the test here: the test now waits for that write to end before it deletes its folder.
+- **2026-11-12** — Archive checkpoint: brought in main's v53.2.1; raised the loop module to 1.0.2 for this change's two link edits in it, since main took 1.0.1.
