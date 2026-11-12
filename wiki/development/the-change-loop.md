@@ -42,7 +42,7 @@ A skill whose page fixes a small change's shape, such as [connecting tools](../s
 
 ### Offer a routine or an app
 
-When a task done by hand will clearly come back, the agent offers once to make next time easier, as one choice in its closing question: [the loop's rules](../../.agents/plugins/loop/references/rules.md#offer-a-routine-or-an-app) say when and how. In WongStack, the help can also be a [mini app](../stack/mini-apps.md), because [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
+When a task done by hand will clearly come back, the agent offers once to make next time easier, as one choice in its closing question: [the loop's rules](../../.agents/plugins/loop/references/rules.md#offer-a-routine-or-an-app) say when and how. In WongStack, the help can also be a [mini app](../stack/mini-apps.md), because [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai). With memory, the search is `memory.mjs search` on the task's key terms, and a no is a `feedback` fact through [the write gate](../../.agents/plugins/memory/SKILL.md#write).
 
 ### One task, one workspace
 

@@ -83,10 +83,10 @@ Scratch files go in the git-ignored `.scratch/` at the checkout root, not the sy
 When a task done by hand, a plain request or non-code work under a step, will clearly come back, offer to make next time easier: one option in [the next-step question](../skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step), beside *stop here*, never a question of its own. Most tasks get none.
 
 - **Only on a clear signal**: the person says it recurs (*every Monday*, *again*), or memory shows they asked before. Never on a hunch: an offer after every task teaches people to skip it.
-- **Search memory once**, when the project has it: `memory.mjs search` on the task's key terms finds a past request or decline.
+- **Search once** for a past request or decline, where the project keeps notes.
 - **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through `/schedule`. Fixed steps get a script, not AI, on an existing clock: code runs the same way each time and costs nothing to run again. Build needed code through this loop.
 - **Name the outcome, not the tool**: *do this every Monday at 9*, *a page that splits the bill for you*.
-- **A no is final**: with memory, record a `feedback` fact through [its write gate](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/memory/SKILL.md#write), naming the task in the person's words, and never offer for it again.
+- **A no is final**: record it where the project keeps preferences, naming the task in the person's words, and never offer for it again.
 - **A yes starts the usual route**: `/schedule`'s own confirmation, or the loop stopping at the plan's review.
 
 No offer after a code change you built, or in an unattended run.
