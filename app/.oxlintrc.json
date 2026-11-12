@@ -44,6 +44,16 @@
       }
     },
     {
+      // Access is the one app whose page lives in its plugin, as plain scripts: its shell mounts that page.
+      "files": ["src/apps/access/App.tsx"],
+      "rules": {
+        "no-restricted-imports": ["error", { "patterns": [{
+          "group": ["../**", "!../../lib/**", "!../../components/**", "!../../../../.agents/skills/access/screen/main.mjs", "@/apps/**", "@/pages/**"],
+          "message": "A mini app imports only its own folder, src/lib/ and src/components/."
+        }] }]
+      }
+    },
+    {
       // A folder inside a mini app's page keeps the same bounds, one level down.
       "files": ["src/apps/*/*/**"],
       "rules": {

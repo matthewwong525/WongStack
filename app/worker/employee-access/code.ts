@@ -4,7 +4,7 @@ import { boundedBytes } from "../api/body.ts";
 import { type Artifacts, type Failed, type Scope, type Upstream, ARTIFACT, FLUSH, HEAD_LIMIT, artifactsSource, artifactsUpstream, bound, gitCall,
   passed, plain, readPush, refUpdates, refused, relay, relayed, setting, whole } from "./git-relay.ts";
 import { type Github, GithubError, defaultBranch } from "./github.ts";
-import type { CurrentPolicy } from "./policy.ts";
+import type { CurrentPolicy } from "../access-slots.ts";
 
 export { codeUnavailable, gitSignIn, pkt } from "./git-relay.ts";
 

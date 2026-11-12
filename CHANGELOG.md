@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 54.0.0 — Daily becomes a module any project can add
+## Next (major) — Daily becomes a module any project can add
 
 - **Daily is now one module, the same for any repo.** It lives in [`.agents/plugins/daily/`](.agents/plugins/daily/daily/README.md), in two folders, `daily` and `schedule`, and brings its own hooks. A project without WongStack adds Daily alone with one pasted message ([the module](wiki/development/daily.md#the-module)).
 - **A repo fills Daily's parts in one profile**, `.agents/daily/profile.mjs`: where schedules live, who you are, the chat names, and more ([the profile](wiki/development/daily.md#the-profile)). A part that fails counts as empty and writes one journal line a day.
@@ -12,6 +12,23 @@
 - **Removed:** *remind me* as its own feature, and the *tell* and *watch* asks. Ask *remind me* in any chat, and `/schedule` saves a one-time schedule. A `chats` entry in Daily's `sources` setting does nothing now.
 
 **Updating.** Daily moves into its own folders and keeps every schedule, OK and setting. The update also adds Daily to Codex on this computer, so its check-ins run there. On each other computer you use Codex on, the next chat names one command to run; until you run it, Daily's check-ins do not run in Codex there. The Inbox now opens on the plans waiting for you. To get a reminder, ask *remind me* in a chat: it becomes a one-time schedule through `/schedule`. The *tell* and *watch* asks are gone. The app deletes its saved list of your chats when it deploys.
+
+## 54.0.1 — Two notes on the company sign-in and preview walks
+
+- **The company sign-in link works for about two minutes.** Start it when the person can open it at once ([connect and call](wiki/stack/company-api.md#connect-and-call)).
+- **A preview walk can't show a refusal.** The checker and the owner open every app there, so the code tests show it ([the checker on a preview](wiki/stack/preview-access.md#the-checker-on-a-preview)).
+
+**Updating.** Nothing to do by hand.
+
+## 54.0.0 — Access is a module any app can add
+
+- **Access is now one module, the same for any app.** It lives in [`.agents/plugins/access/`](.agents/plugins/access/README.md), and your project gets it at `.claude/skills/access/`. Your app gives it one object, its slots: who is signed in, where people are stored, and who the owner is. An app with no WongStack adds Access by one message pasted into a chat; [its setup guide](.agents/plugins/access/references/setup.md) connects the app's sign-in and database. The Access page, people, roles, apps and key levels stay the same ([employee access](wiki/stack/employee-access.md)).
+- **Services come with it.** The services list, direct calls, keys sent sealed, tools added from a chat, and the services skill are now in the same folder. `company-api.mjs services`, `api`, `record`, `key` and `tool` work as before ([the services list](wiki/stack/service-catalogue.md)).
+- **`/access` reads and changes people from a chat.** It says who has what, and adds, changes or removes a person after you say yes.
+- **The app no longer uses MCP servers.** A tool that has only an MCP server shows *not connected yet* ([connect your tools](wiki/stack/connect-your-tools.md#work-out-how-to-add-a-new-tool)).
+- **Memory works without Access, and Access without memory.** The app helper loads each one only when it is there.
+
+**Updating.** Nothing to do by hand for most projects: no database change, and every person keeps what they have. If you added a tool through its MCP server, it stops working, and the change record names it once: add the tool again through its API, or ask its maker for one. If one of your own pages or skills links `.agents/skills/services/SKILL.md`, the update's link check names it: the skill is now `.claude/skills/access/skills/services/SKILL.md`. The service-records check moves too: `scripts/check-service-definitions.mjs` is now `.claude/skills/access/scripts/check-definitions.mjs`, and the app's `npm test` runs it there. If one of your own scripts runs the old file, point it at the new one.
 
 ## 53.3.0 — The browser is a module any project can add
 

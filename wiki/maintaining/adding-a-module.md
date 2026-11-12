@@ -24,6 +24,7 @@ A module is a part of WongStack that any repo can add alone, with one pasted mes
 
 - **Only its own folder.** A module imports no file outside it, so it runs in a repo that has nothing else. It reaches the repo only through a named slot that the repo fills, such as memory's [profile](../development/memory.md#the-profile), and works when an optional slot is empty.
 - **No other module.** A module works without the others; one that adds to another does so through that one's slot.
+- **A server part ships `serve()`, a store check, and one slots object.** The project's route calls `serve(request)` and gives it the project's slots as one object, not a file per part. A store check that runs with `node --test` tells a new database it is ready. Memory's [store check](../../.agents/plugins/memory/store/contract.mjs) and Access's [slots](../../.agents/plugins/access/references/setup.md#6-write-the-slots) are the examples: a project with another database or sign-in fills the slots, and the module stays as shipped.
 
 ## Versions and checks
 

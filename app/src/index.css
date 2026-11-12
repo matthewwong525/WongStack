@@ -4,6 +4,9 @@
    its own elements and built from those parts; no CSS file sits beside one. A real one-off need goes here, not in a second file. */
 @import "tailwindcss";
 @import "tw-animate-css";
+/* The Access page is plain scripts in its plugin: Tailwind reads its class names there too. */
+@source "../../.agents/skills/access/screen";
+@source not "../../.agents/skills/access/screen/vendor";
 
 /* Tailwind's `dark:` follows the device by default, so a part's `dark:` classes would fire over light colours on a
    dark device. Tied to the `.dark` class on <html>, they fire only when the person's switch (ThemeToggle) turns dark on. */

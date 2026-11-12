@@ -36,7 +36,7 @@ For a tool the person's assistant can use through the company app, the helper SH
 
 ### Requirement: The helper works out how to add a tool the app does not know
 
-For a tool the company app does not know, the helper SHALL find from the tool's own developer pages how the app can reach it with a fixed key, with an ID and a secret the app trades for a short token, or through the tool's own MCP server, SHALL add that to the app, and SHALL write what it found on that tool's notes page. A tool that offers only a sign-in the person renews SHALL be shown as not connected yet, with the reason.
+For a tool the company app does not know, the helper SHALL find from the tool's own developer pages how the app can reach it with a fixed key, or with an ID and a secret the app trades for a short token, SHALL add that to the app, and SHALL write what it found on that tool's notes page. A tool that offers only a sign-in the person renews, or only an MCP server, SHALL be shown as not connected yet, with the reason.
 
 #### Scenario: A tool with a personal token
 
@@ -52,6 +52,11 @@ For a tool the company app does not know, the helper SHALL find from the tool's 
 
 - **WHEN** the owner names a tool that only offers a sign-in that renews, with no fixed key
 - **THEN** the list shows it as not connected yet and says it needs a sign-in the app can not keep yet
+
+#### Scenario: A tool with only an MCP server
+
+- **WHEN** the owner names a tool whose only way in is its MCP server
+- **THEN** the list shows it as not connected yet and says the app does not use MCP servers
 
 ### Requirement: A teammate gets a message for the owner
 

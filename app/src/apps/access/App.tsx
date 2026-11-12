@@ -1,19 +1,25 @@
-import { Button } from '@/components/ui/button'
-import { appAccessSchema, useAccess } from '../../lib/access'
-import { LoadingPeople, Owner } from './Owner'
-import { Own } from './Own'
-import { FinishStep } from './Notices'
+import { useEffect, useRef } from 'react'
+import { useBlocker, useLocation, useNavigate } from 'react-router'
+import { appTitle } from '../../lib/apps'
+import { mount, type Mounted } from '../../../../.agents/skills/access/screen/main.mjs'
 
-// The owner and an Admin manage people and roles, and find themselves in the People table; everyone else sees what
-// they can use. The page sets no width or margin of its own; it measures itself, so rows stack by the room they have.
+// Access is the access plugin's own page, plain scripts with no build: this mounts it once, tells it when the app's
+// router moved, and lets an opened person or role with changes hold any move away, Back and Forward included.
 export function App() {
-  const { data, error, reload } = useAccess('apps', appAccessSchema)
-  const manages = !!data && data.state !== 'legacy' && (data.role === 'owner' || !!data.manages)
-  return <div className="@container grid gap-4">
-    <h1>Access</h1>
-    {!data && !error && <LoadingPeople />}
-    {error && <><p role="alert">Access is unavailable.</p><Button type="button" variant="outline" className="justify-self-start" onClick={reload}>Retry</Button></>}
-    {data?.state === 'legacy' && <FinishStep><strong>Access setup is not finished.</strong> Everyone who signs in keeps every app. To choose apps per person, ask your assistant:</FinishStep>}
-    {data && data.state !== 'legacy' && (manages ? <Owner /> : <Own apps={data.apps} keys={(data.state === 'current' && data.keys) || []} />)}
-  </div>
+  const box = useRef<HTMLDivElement>(null)
+  const page = useRef<Mounted>(null)
+  const navigate = useNavigate()
+  const leave = useRef(navigate)
+  const { key } = useLocation()
+  useEffect(() => { leave.current = navigate })
+  useEffect(() => {
+    const mounted = mount(box.current!, { base: '/api/access/', appTitle, leave: to => void leave.current(to), hosted: true })
+    page.current = mounted
+    return () => mounted.unmount()
+  }, [])
+  useEffect(() => { page.current!.update() }, [key])
+  const blocker = useBlocker(({ nextLocation }) => page.current!.hold(nextLocation.pathname))
+  // The page asks its own question, and moves on itself once the owner answers Leave.
+  useEffect(() => { if (blocker.state === 'blocked') blocker.reset() }, [blocker])
+  return <div ref={box} />
 }

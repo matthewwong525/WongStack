@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import type { AccessIdentity } from "../../access";
+import type { AccessIdentity } from "../../access-slots";
 import { handleApp } from "../index";
 import { body, type Loose } from "../../../tests/body";
 import { fakeEnv } from "../../../tests/env";

@@ -1,0 +1,7 @@
+{
+  "slots": "app/worker/access-slots.ts",
+  "definitions": "schema/services",
+  "types": "app/worker/services",
+  "notes": "wiki/services",
+  "keys": "app/worker/keys.ts"
+}

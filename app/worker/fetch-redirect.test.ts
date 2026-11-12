@@ -17,6 +17,6 @@ it("keeps every Worker source off that redirect mode", () => {
   const root = new URL("./", import.meta.url);
   const files = readdirSync(root, { recursive: true, encoding: "utf8" })
     .filter(file => file.endsWith(".ts") && !file.endsWith(".test.ts") && !file.endsWith(".d.ts"));
-  expect(files).toContain("employee-access/provider.ts");
+  expect(files).toContain("employee-access/github.ts");
   expect(offenders(Object.fromEntries(files.map(file => [file, readFileSync(new URL(file, root), "utf8")])))).toEqual([]);
 });

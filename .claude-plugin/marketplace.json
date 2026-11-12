@@ -3,6 +3,7 @@
   "owner": { "name": "WongStack" },
   "plugins": [
     { "name": "memory", "source": "./.agents/skills/memory", "description": "Session memory for a repo: past decisions, open threads, and your topics." },
-    { "name": "daily", "source": "./.agents/skills/daily", "description": "Daily check-ins for a repo: a background worker, a check at each chat's stop, and schedules." }
+    { "name": "daily", "source": "./.agents/skills/daily", "description": "Daily check-ins for a repo: a background worker, a check at each chat's stop, and schedules." },
+    { "name": "access", "source": "./.agents/skills/access", "description": "Who signs in to your app, what each person may open, and what their assistant may do with its keys." }
   ]
 }

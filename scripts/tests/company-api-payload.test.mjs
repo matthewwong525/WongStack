@@ -18,19 +18,16 @@ test('fresh payload carries every helper dependency and memory descriptions stay
   cpSync(join(root, 'scripts/company-api.mjs'), join(target, 'scripts/company-api.mjs'));
   assert.ok(inventory.pack.files.includes('scripts/employee-bootstrap.mjs'));
   cpSync(join(root, 'scripts/employee-bootstrap.mjs'), join(target, 'scripts/employee-bootstrap.mjs'));
-  cpSync(join(root, 'scripts/lib-cli.mjs'), join(target, 'scripts/lib-cli.mjs'));
-  assert.ok(inventory.pack.files.includes('scripts/mcp-session.mjs'));
-  cpSync(join(root, 'scripts/mcp-session.mjs'), join(target, 'scripts/mcp-session.mjs'));
-  for (const lib of ['scripts/lib-services.mjs', 'scripts/lib-openapi.mjs', 'scripts/lib-scrub.mjs']) {
-    assert.ok(inventory.pack.files.includes(lib), lib); cpSync(join(root, lib), join(target, lib));
-  }
+  // The services commands come with the Access module, a real skill folder too.
+  assert.equal(inventory.core.mapped['.claude/plugins/access'], '.claude/skills/access');
+  cpSync(join(root, '.agents/plugins/access'), join(target, '.agents/skills/access'), { recursive: true });
   // The real layout is shared by both agent aliases in every installed target.
   cpSync(join(target, '.agents'), join(target, '.claude'), { recursive: true });
   assert.equal(existsSync(join(target, 'app')), false); assert.equal(existsSync(join(target, '.env')), false);
   const standalone = execFileSync(process.execPath, [join(target, '.agents/memory/operations.mjs'), 'describe', 'memory.show'], { cwd: target, encoding: 'utf8' });
   assert.equal(JSON.parse(standalone).operationId, 'memory.show');
   const helper = execFileSync(process.execPath, [join(target, 'scripts/company-api.mjs'), '--help'], { cwd: target, encoding: 'utf8' });
-  assert.match(helper, /usage/); assert.doesNotMatch(helper, /saved-business/);
+  assert.match(helper, /usage/); assert.match(helper, /key send/); assert.doesNotMatch(helper, /saved-business|mcp/);
   const agent = read('AGENTS.md'); assert.match(agent, /Company actions and memory reads/); assert.match(agent, /wiki\/stack\/company-api.md/);
   assert.ok(!read('.agents/skills/memory/scripts/session-start.mjs').includes('company-api'));
   assert.ok(!read('.agents/skills/memory/scripts/session-start.mjs').includes('openapi.json'));
@@ -41,13 +38,13 @@ test('explicit distribution retains Access, additive schema and a standalone API
   const inventory = JSON.parse(read('.agents/skills/wong-sync/references/payload-files.json'));
   for (const path of ['scripts/employee-bootstrap.mjs', 'schema/migrations/0001_employee_access.sql', 'schema/migrations/0002_employee_connections.sql',
     'schema/migrations/0003_key_levels.sql', 'schema/migrations/20261005142459_access_managers.sql', 'schema/migrations/20261006031500_area_levels.sql', 'schema/migrations/20261007220000_key_direct_use.sql', 'schema/migrations/20261013205049_admin_role.sql',
-    'scripts/check-app-keys.mjs', 'scripts/check-service-definitions.mjs', 'scripts/check-skill-actions.mjs']) assert.ok(inventory.pack.files.includes(path));
+    'scripts/check-app-keys.mjs', 'scripts/check-skill-actions.mjs']) assert.ok(inventory.pack.files.includes(path));
   // The key registry and its check ship with the scaffold, so an install's Access lists the keys its apps use.
   for (const path of ['app/worker/keys.ts', 'app/worker/keys.test.ts']) assert.ok(inventory.scaffold.files.includes(path));
   // The code checks close the app's suite: an unlisted key, a service definition, and a skill reading a key or calling
   // an undeclared action.
   assert.match(JSON.parse(read('app/package.json')).scripts.test,
-    /check-app-keys\.mjs && node \.\.\/scripts\/check-service-definitions\.mjs && node \.\.\/scripts\/check-skill-actions\.mjs$/);
+    /check-app-keys\.mjs && node \.\.\/\.agents\/skills\/access\/scripts\/check-definitions\.mjs && node \.\.\/scripts\/check-skill-actions\.mjs$/);
   assert.ok(inventory.scaffold.files.includes('app/src/apps/access/App.tsx'));
   // The setup file the app serves ships beside its route, and the retired pins do not.
   for (const path of ['app/worker/employee-access/setup-file.ts', 'app/worker/employee-access/setup-file.test.ts']) assert.ok(inventory.scaffold.files.includes(path));

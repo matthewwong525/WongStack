@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
-import { seal } from './seal'
+
+// The app's own reads of Access: who may open which app, and the viewer's setup message. The Access page itself is a
+// module with its own client: the shell only mounts it.
 
 const prompt = z.discriminatedUnion('state', [
   z.object({ state: z.literal('ready'), text: z.string().min(1) }),
@@ -9,7 +11,6 @@ const prompt = z.discriminatedUnion('state', [
 const role = z.enum(['owner', 'employee'])
 // A level for a saved key: `read` looks things up, `write` also changes or sends things. No level is None.
 const level = z.enum(['read', 'write'])
-const levels = z.record(z.string(), level)
 // Whether this person may connect an assistant: `ready` installs the project, `lacked` greys Connect (no Project
 // code), and `off`, or left out, keeps everyone on the apps-only connection.
 const code = z.enum(['ready', 'lacked', 'off']).default('off')
@@ -30,95 +31,10 @@ export const appAccessSchema = z.discriminatedUnion('state', [
   z.object({ state: z.literal('current'), role, manages, signIn, code, apps: z.array(z.string()), revision: z.number(),
     keys: z.array(z.object({ id: z.string(), title: z.string(), level })).optional() }),
 ])
-// The whole Access status. No key's value is ever here, and the server checks `viewer` again on every save.
-// `project` and `projectSave`: `ready`, the step left, or `live` on a preview; left out, an older status, and no step.
-const project = z.enum(['ready', 'key', 'setup', 'live'])
-export const statusSchema = z.object({ ownerEmail: z.string(), environment: z.enum(['live', 'practice']),
-  viewer: z.object({ email: z.string(), owner: z.boolean() }),
-  key: z.enum(['ready', 'missing', 'practice']), started: z.boolean(), imported: z.number(),
-  // Why this open could not start permissions: a reason code; null once started; absent on a save or an older status.
-  startError: z.string().nullable().optional(),
-  keysStarted: z.boolean(),
-  apps: z.array(z.object({ id: z.string(), title: z.string(), description: z.string() })),
-  unticked: z.object({ people: z.array(z.object({ email: z.string(), apps: z.array(z.string()) })), roles: z.array(z.object({ name: z.string(), apps: z.array(z.string()) })) }),
-  keys: z.array(z.object({ id: z.string(), title: z.string(), levels: z.array(level), saved: z.boolean(), setup: z.boolean(),
-    alone: z.boolean(),
-    // Only the live app may ever hold it; an older status leaves it out.
-    liveOnly: z.boolean().optional(),
-    // What the key's service is for, and its API guide when the key is used directly; an older status has neither.
-    direct: z.boolean().optional(), purpose: z.string().optional(), docs: z.string().optional(),
-    // A tool added from a chat, and the requests it counts as reads beyond GET; an older status has neither.
-    chat: z.boolean().optional(), reads: z.array(z.string()).optional(),
-    // What the paste box asks for, one label per secret, none for a key no person sends; and a key sent to the app
-    // that waits for the next publish, with its last four characters. An older status has neither.
-    parts: z.array(z.string()).optional(), waiting: z.object({ ends: z.string() }).optional() })),
-  roles: z.array(z.object({ id: z.string(), name: z.string(), builtIn: z.boolean().optional(), apps: z.array(z.string()), keys: levels })),
-  people: z.array(z.object({ email: z.string(), status: z.enum(['active', 'removed']), settled: z.boolean(),
-    role: z.string().nullable(), apps: z.array(z.string()), keys: levels })),
-  work: z.array(z.object({ kind: z.enum(['policy', 'sessions']), status: z.enum(['pending', 'ready', 'failed']) })),
-  project: project.optional(), projectSave: project.optional() })
-  .transform(status => ({ ...status, project: status.project ?? (status.keys.some(key => key.id === 'code' && key.saved) ? 'ready' : 'key') }))
-export type Status = z.infer<typeof statusSchema>
-export type Person = Status['people'][number]
-export type Role = Status['roles'][number]
-export type SavedKey = Status['keys'][number]
-export type BuiltApp = Status['apps'][number]
-export type Level = z.infer<typeof level>
-
-// Who can push to the project on GitHub, each let in to previews alone. `state` says why none are listed: no GitHub
-// key, a project kept elsewhere, Access not started, or a preview. `split`: the previews app has its own list yet.
-export const pushersSchema = z.object({ state: z.enum(['listed', 'unavailable', 'no_github', 'not_github', 'not_started', 'live_only']),
-  split: z.boolean().optional(),
-  pushers: z.array(z.object({ githubId: z.number(), login: z.string(), email: z.string().nullable(),
-    emailSource: z.enum(['owner', 'profile', 'commit']).nullable(), canOpenPreviews: z.boolean() })) })
-export type Pushers = z.infer<typeof pushersSchema>
-export type Pusher = Pushers['pushers'][number]
-
-/** The owner or an Admin types a pusher's email; the server checks again who is asking. */
-export async function savePusherEmail(githubId: number, email: string): Promise<void> {
-  const response = await fetch(`/api/access/pushers/${githubId}`, { method: 'PUT', redirect: 'error',
-    headers: { Origin: window.location.origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) })
-  if (!response.ok) throw new Error('Access change unavailable')
-}
-
-/** Why a pasted key was not sent, in words for the person. */
-const KEY_REFUSALS = new Map([
-  ['no_seal', 'This app has no lock for keys yet. Ask the assistant to make the pair of locks.'],
-  ['live_only', 'Only the live app takes a key.'],
-  ['bad_name', 'This key can not be pasted here.'],
-])
-const refusal = z.object({ error: z.object({ code: z.string() }) })
-
-/** Seals each part of a key on this page with the publish's public key, then sends it to the key's place in the
- *  app: the value never leaves the page unsealed. Throws the words to show when the app refuses. */
-export async function sendKey(id: string, values: string[]): Promise<void> {
-  const refused = async (response: Response) => {
-    const code = refusal.safeParse(await response.json().catch(() => null)).data?.error.code
-    return new Error(KEY_REFUSALS.get(String(code)) ?? 'The key was not sent. Try again.')
-  }
-  const lock = await fetch('/api/access/keys/seal', { cache: 'no-store', redirect: 'error' })
-  if (!lock.ok) throw await refused(lock)
-  const { publicKey } = z.object({ publicKey: z.string() }).parse(await lock.json())
-  for (const [part, value] of values.entries()) {
-    const sealed = JSON.parse(await seal(value, publicKey)) as unknown
-    const response = await fetch(`/api/access/keys/${encodeURIComponent(id)}/${part}`, { method: 'PUT', redirect: 'error',
-      headers: { Origin: window.location.origin, 'Content-Type': 'application/json' }, body: JSON.stringify({ sealed, ends: value.slice(-4) }) })
-    if (!response.ok) throw await refused(response)
-  }
-}
-
-/** Whether a person holds the built-in Admin role. */
-export const isAdmin = (status: Pick<Status, 'roles'>, person: Pick<Person, 'role'>) => status.roles.some(role => role.builtIn && role.id === person.role)
-
-export async function readAccess<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
+async function readAccess<T>(path: string, schema: z.ZodType<T>, signal?: AbortSignal): Promise<T> {
   const response = await fetch(`/api/access/${path}`, { signal, cache: 'no-store', redirect: 'error' })
   if (!response.ok) throw new Error('Access unavailable')
   return schema.parse(await response.json())
-}
-export async function changeAccess(path: 'people' | 'roles' | 'retry', body?: object): Promise<void> {
-  const response = await fetch(`/api/access/${path}`, { method: 'POST', redirect: 'error',
-    headers: { Origin: window.location.origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body ?? {}) })
-  if (!response.ok) throw new Error('Access change unavailable')
 }
 export function useAccess<T>(path: string, schema: z.ZodType<T>) {
   const [revision, refresh] = useState(0)

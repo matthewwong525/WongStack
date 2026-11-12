@@ -93,8 +93,8 @@ test('a repo with no registry, or with no apps, has nothing to check', t => {
 });
 
 test('a key that breaks a direct-use rule fails, naming the key and the rule, by the rules the app holds', t => {
-  const worker = join(scripts, '..', 'app', 'worker');
-  const rules = { 'key-rules.ts': readFileSync(join(worker, 'key-rules.ts'), 'utf8'), 'api/mcp.ts': readFileSync(join(worker, 'api', 'mcp.ts'), 'utf8') };
+  const module = join(scripts, '..', '.agents', 'skills', 'access', 'server', 'key-rules.mjs');
+  const rules = { '../../.agents/skills/access/server/key-rules.mjs': readFileSync(module, 'utf8') };
   const registry = forward => `export const keys = { notion: { title: "Notion", purpose: "Team notes", docs: "https://developers.notion.example",
   secrets: ["NOTION_TOKEN"], forward: ${JSON.stringify(forward)} } };\n`;
   const good = { base: 'https://api.notion.example/v1/', secret: 'NOTION_TOKEN', header: 'Authorization' };

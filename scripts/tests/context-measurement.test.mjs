@@ -93,20 +93,17 @@ test('a call-only skill is counted as on-call: out of the instruction total and 
   assert.deepEqual(row(DESCRIPTIONS).after, countText('Search facts.'));
 });
 
-test("a module's setup guide is counted as on-call; its other references stay instructions", t => {
+test("a module's setup guide is counted as on-call: it stops at once in a WongStack install", t => {
   const root = skillTree(t, {
-    '.agents/skills/daily/SKILL.md': '---\ndescription: Daily asks.\n---\ndaily body',
-    '.agents/skills/daily/.claude-plugin/plugin.json': '{}',
-    '.agents/skills/daily/references/setup.md': 'setup steps here',
-    '.agents/skills/daily/references/chief.md': 'chief rules',
-    '.agents/skills/plan/SKILL.md': '---\ndescription: Plan.\n---\nplan body',
-    '.agents/skills/plan/references/setup.md': 'plan setup',
+    '.agents/skills/access/SKILL.md': '---\ndescription: See who can sign in.\n---\naccess body',
+    '.agents/skills/access/references/setup.md': 'setup steps',
+    '.agents/skills/access/references/other.md': 'other steps',
   });
   const report = measureContext(root, { revision: 'fixture', owners: [], files: {}, routes: {} });
-  const kind = path => report.inventory.find(entry => entry.path === path).kind;
-  assert.equal(kind('.agents/skills/daily/references/setup.md'), 'on-call');
-  assert.equal(kind('.agents/skills/daily/references/chief.md'), 'instructions');
-  assert.equal(kind('.agents/skills/plan/references/setup.md'), 'instructions');
+  const row = path => report.inventory.find(entry => entry.path === path);
+  assert.equal(row('.agents/skills/access/references/setup.md').kind, 'on-call');
+  assert.equal(row('.agents/skills/access/references/other.md').kind, 'instructions');
+  assert.equal(row('.agents/skills/access/SKILL.md').kind, 'instructions');
 });
 
 test('the startup ceiling names the load and the ceiling when exceeded, and is silent under it', t => {

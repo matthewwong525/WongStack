@@ -1,12 +1,10 @@
 // Each person's own setup: the one setup message for everyone who may connect, and none for someone who lacks
 // Project code. Setup itself decides what a person receives when it runs.
-import type { AccessIdentity } from "../access.ts";
-import { type ConnectionEnv, reply } from "./core.ts";
+import { reply } from "../../../.agents/skills/access/server/errors.mjs";
+import { currentPolicy, humanEmail, policyDenied, type AccessIdentity, type ConnectionEnv } from "../access-slots.ts";
 import { codeState } from "./code.ts";
 import { businessName, setupMessage } from "./prompt.ts";
-import { appTitle } from "./catalogue.ts";
-import { businessApps } from "./sets.ts";
-import { currentPolicy, humanEmail, policyDenied } from "./policy.ts";
+import { appTitle, catalogue } from "./catalogue.ts";
 export async function setupStatus(request: Request, env: ConnectionEnv, identity: AccessIdentity | null): Promise<Response> {
   if (request.method !== "GET") return reply({ code: "method_not_allowed" }, 405);
   const policy = await currentPolicy(env, identity);
@@ -17,7 +15,8 @@ export async function setupStatus(request: Request, env: ConnectionEnv, identity
   const origin = new URL(request.url).origin;
   // Before permissions start, everyone keeps every app; the owner and an Admin always do.
   // Access itself is nobody's to list.
-  const apps = policy.state === "current" ? businessApps().filter(app => policy.apps.has(app)) : businessApps();
+  const business = catalogue().filter(app => app !== "access");
+  const apps = policy.state === "current" ? business.filter(app => policy.apps.has(app)) : business;
   return reply({ identity: { email, subject: identity!.claims.sub },
     role: policy.state === "legacy" ? "employee" : policy.role,
     permissions: policy.state === "current" ? "started" : "not_started",

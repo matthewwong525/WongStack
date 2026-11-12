@@ -28,7 +28,7 @@ Only explicitly reviewed harmless infrastructure uses `{ kind: "infrastructure" 
 
 Each business call reads installation, membership, apps and key levels together from a D1 session beginning at the primary. The server retains no positive permission cache between requests. A request admitted before a removal may finish; the next request observes the committed removal, including with the same unexpired app login. Missing or unavailable authority returns a safe unavailable response. Preserve this mapping and every existing custom handler during updates.
 
-[Access](employee-access.md) knows its owner by the recorded sign-in email. Its people-management routes are administration, absent from action discovery. Before permissions start, every signed-in person keeps their existing access. Repository authentication stays manual through its provider.
+[Access](employee-access.md) knows its owner by the recorded sign-in email. The [Access module](../../.agents/plugins/access/README.md) answers its routes, and its `gate` makes the app check above. Its people-management routes are administration, absent from action discovery. Before permissions start, every signed-in person keeps their existing access. Repository authentication stays manual through its provider.
 
 ## List the keys a route uses
 
@@ -72,20 +72,6 @@ Before a direct call, read the service's [notes page](service-catalogue.md#notes
 
 **A tool added in a chat moves into the code when an app first uses it**: that change copies its entry into the key registry and declares `TOOL_<ID>` in `app/.dev.vars.example`. The saved key keeps working, and the code's entry wins.
 
-## Use an MCP server through the app
-
-An outside MCP server goes through the app, never into a chat's own server settings such as `.mcp.json`. A server connected to a chat loads every one of its tool descriptions into every chat, even one that never uses it; through the app, a chat sees them only when a task asks.
-
-- **Set it up as a key used directly**, [as above](#use-a-key-directly), with `mcp: { path, reads }` in its `forward`: `path` is the server's address under `base`, and only that path is passed on. A public server names no secret, `secret` or `header`:
-  ```ts
-  deepwiki: { title: "DeepWiki", purpose: "Questions about public code", secrets: [], docs: "https://docs.devin.ai/work-with-devin/deepwiki-mcp",
-    forward: { base: "https://mcp.deepwiki.com/", mcp: { path: "mcp", reads: ["read_wiki_structure", "ask_wiki_question"] } } },
-  ```
-- **`reads` names the tools that only look things up.** List only tools the server marks read-only, each checked by hand. Opening the session and listing tools also need only Read; any other tool, including one the service adds later, needs Read & write.
-- **Call it with the helper:** `node scripts/company-api.mjs mcp <key> tools` lists the tools, `tools <name>` shows one tool's arguments, and `mcp <key> tool <name> --file -` runs one with its arguments as JSON. It keeps the server's session across calls and tries Read first.
-
-A service-specific helper may wrap [`scripts/mcp-session.mjs`](../../scripts/mcp-session.mjs) for friendlier commands.
-
 ## Connect and call
 
 From an empty folder, use the [setup message](employee-project.md#install-in-one-step). A copy that [Connect your assistant installed](employee-project.md#install-in-one-step) is an installed project: run the helper from inside it with no `--state`. It finds the sign-in setup saved for the origin the copy records, and setup checks this before it names the first lesson or says *Nothing else is needed*. A reused sign-in starts the summary with *Used this computer's existing sign-in as <email>*: a shared computer never connects as someone else unnoticed. Installed projects run [the helper](../../scripts/company-api.mjs) from the repository root; `--state` can select the same private connection, while existing private folder locators remain compatible. New installs record `components.companyApi.origin` in `.claude/.wong-stack.json`, using the production Worker name and the account hostname read back during provisioning. An older record names only `components.memory.worker`; a workspace then uses that app's sign-in, else its main copy's.
@@ -99,7 +85,7 @@ node scripts/company-api.mjs call hello.greeting --file - <<'JSON'
 JSON
 ```
 
-`login` confirms the HTTPS company origin for this OS user. It uses [cloudflared’s employee sign-in](https://developers.cloudflare.com/cloudflare-one/tutorials/cli/), opens the employee’s browser, checks discovery, and privately records the target outside the repository. Install a missing helper at [the point of need](../development/required-tools.md); the employee finishes login in their own browser ([when a step needs you](../../.agents/plugins/browser/browser/references/browsing.md#when-a-step-needs-you)). On a headless host, only a validated provider login URL is shown while the helper waits. Never print the token or raw login output.
+`login` confirms the HTTPS company origin for this OS user. It uses [cloudflared’s employee sign-in](https://developers.cloudflare.com/cloudflare-one/tutorials/cli/), opens the employee’s browser, checks discovery, and privately records the target outside the repository. Install a missing helper at [the point of need](../development/required-tools.md); the employee finishes login in their own browser ([when a step needs you](../../.agents/plugins/browser/browser/references/browsing.md#when-a-step-needs-you)). On a headless host, only a validated provider login URL is shown while the helper waits. It waits about two minutes, and a link opened later does nothing: start `login` when the person can open the link at once, and run it again after *sign-in did not complete*. Never print the token or raw login output.
 
 Keep `~/.cloudflared` owned by the current OS user, mode 0700, with token files mode 0600. The helper captures token output privately and sends it only in request headers to the connected origin. Cloudflared caches the normal session; expiry or removal requires the employee’s own login again. Changed public routing requires an explicit connection. Redirects, arbitrary server URLs and outside schema references are refused. The helper never borrows owner, deploy, business, memory or verification credentials for company calls.
 
