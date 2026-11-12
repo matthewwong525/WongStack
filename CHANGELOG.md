@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Closing a chat works again
+
+- **Closing a chat works again**, and so does opening a new workspace. Since 57.0.0 both stopped with an error, because the build loop still looked for the browser's and Daily's helpers in their old folders. Closing a chat also closes its live-view link again.
+
+**Updating.** Nothing to do by hand.
+
 ## 57.0.0 — The browser and Daily each come in one folder
 
 - **The browser and Daily each install as one folder** in your skills folder: `.claude/skills/browser/` and `.claude/skills/daily/`. Their other commands sit inside it, in `skills/` ([adding a module](wiki/maintaining/adding-a-module.md)). Before, each one came in two or three folders.
