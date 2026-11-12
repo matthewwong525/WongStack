@@ -17,13 +17,13 @@ const ROUTE_SCRIPTS = { artifacts: 'routes/artifacts-run.mjs', app: 'routes/app-
 /** Close this chat's workspace: its private link, then the workspace itself. */
 function closeWorkspace({ root, args = [] }) {
   const skills = join(root, '.claude/skills');
-  runCommand('node', [join(skills, 'hand-over/scripts/hand-over.mjs'), 'close'], { cwd: root, stdio: 'ignore' });
-  return runCommand('node', [join(skills, 'schedule/scripts/tidy.mjs'), 'close', ...args], { cwd: root });
+  runCommand('node', [join(skills, 'browser/skills/hand-over/scripts/hand-over.mjs'), 'close'], { cwd: root, stdio: 'ignore' });
+  return runCommand('node', [join(skills, 'daily/skills/schedule/scripts/tidy.mjs'), 'close', ...args], { cwd: root });
 }
 
 /** A new workspace through Paseo (`open …`), or the scratch folder its brief goes in (`scratch`). */
 function newWorkspace({ root, args = [] }) {
-  const script = args[0] === 'scratch' ? 'schedule/scripts/tidy.mjs' : 'schedule/scripts/workspace.mjs';
+  const script = args[0] === 'scratch' ? 'daily/skills/schedule/scripts/tidy.mjs' : 'daily/skills/schedule/scripts/workspace.mjs';
   return runCommand('node', [join(root, '.claude/skills', script), ...args], { cwd: root });
 }
 
