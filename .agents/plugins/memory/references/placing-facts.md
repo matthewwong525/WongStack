@@ -1,6 +1,6 @@
 # Placing a fact on a page
 
-How a dream and the daily tidy put a fact on a page. A fact goes on a page only when it passes three tests: **will it help a future task that is not this one, will it still be true in six months, and would it change what a reader does?** A fact that fails one stays in memory.
+How the daily tidy puts a fact on a page. A fact goes on a page only when it passes three tests: **will it help a future task that is not this one, will it still be true in six months, and would it change what a reader does?** A fact that fails one stays in memory.
 
 The fact's topic picks the page:
 

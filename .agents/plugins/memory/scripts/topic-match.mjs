@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { parseCli } from './lib/cli.mjs';
 import { matchTopics } from './lib/topics.mjs';
 import { SCRIPT, isMain, loadProfile, readJson, repoContext, statePath, writeJson } from './lib/store.mjs';
+import { recordUse } from './lib/usage.mjs';
 
 const dirNames = dir => { try { return readdirSync(dir); } catch { return []; } };
 
@@ -21,6 +22,7 @@ export async function topicMatch(input) {
   const hits = matchTopics(input.prompt, await profile.topics(ctx), { skip: shown, skills });
   if (!hits.length) return '';
   writeJson(shownFile, [...shown, ...hits.map(({ topic }) => topic.tag)]);
+  recordUse(ctx, { command: 'topic', topics: hits.map(({ topic }) => topic.tag) });
   const lines = hits.map(({ topic, clear }) => (clear ? `Topic ${topic.tag}: ${topic.summary}` : `Topic ${topic.tag}`));
   const additionalContext = [...lines, `Pull a topic: \`${SCRIPT} pull <topic>\``].join('\n');
   return `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext } })}\n`;

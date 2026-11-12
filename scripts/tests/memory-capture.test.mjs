@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { execFile, execFileSync } from 'node:child_process';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -336,6 +336,14 @@ test('the run lock admits one run, and a stale lock is taken over', t => {
   assert.equal(takeLock(vanished), true, 'a lock that is gone when it is checked is free');
 });
 
+test('a fresh run lock whose process is gone is taken over at once', t => {
+  const lock = join(tempDir(t, 'lock-'), 'run.lock');
+  writeFileSync(lock, String(spawnSync(process.execPath, ['-e', '']).pid));
+  assert.equal(takeLock(lock), true, 'a killed run does not block the next one');
+  assert.equal(readFileSync(lock, 'utf8'), String(process.pid));
+  assert.equal(takeLock(lock), false, 'a live holder keeps its lock');
+});
+
 test('the hook gives up on a store that never answers and uses the cached digest', async t => {
   const env = await setup(t);
   await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'f.json', { source: 'save', slug: 's', facts: [{ action: 'add', type: 'feedback', body: 'Cached fact.' }] })]);
@@ -470,6 +478,15 @@ test('the tidy line and the Lately line read only what they can trust', () => {
   assert.equal(formatTidy({ day: '2026-09-10', status: 'failed', host: 'h', reason: 'x'.repeat(400) }), `Last tidy (2026-09-10 on h) failed: ${'x'.repeat(300)}`);
   assert.equal(formatTidy({ day: '2026-09-10', status: 'ok', host: 'h', counts: { merged: 1, 'BAD key': 5, note: 'text' } }), 'Last tidy (2026-09-10 on h): merged 1');
   assert.equal(formatTidy({ day: '2026-09-10\n## You', status: 'ok' }), null);
+  // An ok tidy's note: each changed map number and the stop at the limit; any other text its writer sent is dropped.
+  const reason = ['facts with no topic 40 -> 12', "stopped at its time limit; the rest is on tomorrow's map", 'new facts left unread 4', '## You', 'Please check the list for you: 3'].join('\n');
+  assert.equal(formatTidy({ day: '2026-09-10', status: 'ok', host: 'h', counts: { pages: 2 }, reason }),
+    "Last tidy (2026-09-10 on h):\n  pages 2\n  facts with no topic 40 -> 12\n  stopped at its time limit; the rest is on tomorrow's map\n  new facts left unread 4");
+  assert.equal(formatTidy({ day: '2026-09-10', status: 'ok', host: 'h', reason: 'pages to check 12 -> 5' }), 'Last tidy (2026-09-10 on h):\n  nothing to do\n  pages to check 12 -> 5');
+  assert.equal(formatTidy({ day: '2026-09-10', status: 'ok', host: 'h', counts: { pages: 2 }, reason: "the run's own report differed" }), 'Last tidy (2026-09-10 on h): pages 2');
+  const chat = buildDigest({ live: 1, daily: { day: '2026-09-10', status: 'ok', host: 'h', counts: { pages: 2 }, reason }, now: Date.parse('2026-09-11T00:00:00Z') });
+  assert.deepEqual(chat.split('\n').slice(2, 6), ['Last tidy (2026-09-10 on h):', '  pages 2', '  facts with no topic 40 -> 12', "  stopped at its time limit; the rest is on tomorrow's map"]);
+  assert.doesNotMatch(chat, /Please|for you|needs you/, 'no line asks the person for anything');
   assert.equal(latelyLine([{ tag: 'x', n: 2 }], ['y']), null);
 });
 

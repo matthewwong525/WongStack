@@ -1,5 +1,5 @@
 // The pages WongStack's memory tidy checks beyond the topic pages: each wiki page, the company knowledge copy's
-// pages, and each spec, as own|shipped|spec. A shipped page comes from WongStack, so a dream never edits it.
+// pages, and each spec, as own|shipped|spec. A shipped page comes from WongStack, so the tidy never edits it.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { knowledgeCopy } from '../skills/memory/scripts/lib/knowledge-copy.mjs';
@@ -39,6 +39,13 @@ export function tidyPages({ root }) {
   const shipped = shippedPaths(payloadFiles(root));
   const knowledge = knowledgeCopy(root) ? wikiPages(root, 'knowledge') : [];
   return [...wikiPages(root), ...knowledge, ...specPages(root)].map(path => ({ path, kind: kindOf(path, shipped) }));
+}
+
+/** Links the run's copy to this computer's company knowledge, as a chat start does: git holds no `knowledge/`, so
+ *  the copy has none, and no company page would be a topic or due. With no copy on the computer, it links nothing. */
+export async function tidyPrepare({ root }) {
+  const { linkCopy, place } = await import('./knowledge.mjs');
+  linkCopy(place(root));
 }
 
 /** The tools the daily tidy's full-access part refuses: the install's daily deny list, as the daily's own runs. */

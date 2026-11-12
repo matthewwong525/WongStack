@@ -2,6 +2,7 @@ import { loadProfile, openStore } from '../store.mjs';
 import { loadAreas } from '../areas.mjs';
 import { filesBehind } from '../files.mjs';
 import { readFacts } from '../read-facts.mjs';
+import { recordUse, weakAnswer } from '../usage.mjs';
 import { scanCorpus, verifyPassage } from './corpus.mjs';
 import { interleaveSources, lexicalSearch } from './lexical.mjs';
 import { validateRetrieval } from './input.mjs';
@@ -57,12 +58,18 @@ export async function recallPacket(ctx, options, { includeFacts = true,
       filters: Object.fromEntries(Object.entries(fact.filters || options.filters).filter(([key]) => ['tag', 'type', 'slug', 'since', 'until'].includes(key))) }, { json: options.json });
     const usable = ['ok', 'empty', 'partial'].includes(fact.factSource.state) && includeFacts
       || ['ok', 'empty', 'partial'].includes(documents.documentSource.state);
-    return { ...rendered, code: usable ? 0 : 1 };
+    return { ...rendered, code: usable ? 0 : 1, found: { facts: fact.facts, documents: documents.documents || [], state: fact.factSource.state } };
   } finally { clearTimeout(timer); controller.signal.removeEventListener('abort', onDocumentTimeout); controller.abort(); }
 }
 const lookup = includeFacts => async (ctx, { positionals, values }) => {
   const options = validateRetrieval(positionals.join(' '), values, { recall: includeFacts });
   const result = await recallPacket(ctx, options, { includeFacts });
   process.stdout.write(result.text); process.exitCode = result.code;
+  if (includeFacts) recordUse(ctx, recallUse(options.question, result.found));
 };
+// A recall as a use count: the facts and their tags it gave, or a miss when a readable memory gave no answer.
+function recallUse(words, { facts, documents, state }) {
+  const miss = ['ok', 'empty'].includes(state) && weakAnswer(words, [...facts.map(fact => fact.body), ...documents.map(doc => doc.text)]);
+  return { command: 'recall', facts: miss ? [] : facts.map(fact => fact.id), topics: miss ? [] : facts.flatMap(fact => fact.tags || []), miss, words };
+}
 export const DOCUMENT_COMMANDS = { documents: lookup(false), recall: lookup(true) };

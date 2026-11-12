@@ -7,6 +7,7 @@ import { formatFact } from './digest.mjs';
 import { filesBehind } from './files.mjs';
 import { matchTopics, pageLinks } from './topics.mjs';
 import { loadProfile, openStore, StoreError } from './store.mjs';
+import { recordUse } from './usage.mjs';
 
 export const MAX_LINES = 60;
 export const MAX_BYTES = 6 * 1024;
@@ -209,7 +210,7 @@ async function topicAnswer(ctx, { tag, areas, profile, store, everyone }) {
   } catch (error) {
     if (!(error instanceof StoreError)) throw error;
     const changes = section('changes', 'Changes', archived.map(name => `${name} (shipped)`), { inline: true });
-    return { kind: 'topic', name: tag, head, sections: [...local, changes], tail: [missingLine(error)] };
+    return { kind: 'topic', name: tag, topics: [tag], head, sections: [...local, changes], tail: [missingLine(error)] };
   }
   const state = (await profile?.slugState?.(ctx)) ?? (() => undefined);
   const onFacts = changeItems(facts, state);
@@ -217,7 +218,7 @@ async function topicAnswer(ctx, { tag, areas, profile, store, everyone }) {
   const changes = [...onFacts.map(item => item.text), ...archived.filter(name => !seen.has(name)).map(name => `${name} (shipped)`)];
   const relatedItems = near.map(row => `${row.tag} (${plural(row.facts, 'shared fact')}, ${plural(row.changes, 'shared change')}${row.linked ? ', linked' : ''})`);
   const count = facts.length >= READ_LIMIT ? `${READ_LIMIT}+` : facts.length;
-  return { kind: 'topic', name: tag, head, related: near,
+  return { kind: 'topic', name: tag, topics: [tag], head, related: near,
     sections: [...local, section('related', 'Related', relatedItems, { inline: true }), section('changes', 'Changes', changes, { inline: true }), ...factSections(facts)],
     tail: [`${count} live facts. Pull a name or a number above to go deeper; \`--more <group>\` shows one group whole.`] };
 }
@@ -241,7 +242,7 @@ export async function pathAnswer(ctx, { names, change, areas, profile, store, ev
     ...(folders.length ? [`Code: ${folders.join(', ')}`] : []),
     ...((await profile?.lookup?.after?.(ctx, { paths, named, tags, change, areas })) ?? []),
   ].flatMap(line => line.split('\n'));
-  const answer = { kind: 'path', name: names.join(' ') || change, head, sections: [], tail: [] };
+  const answer = { kind: 'path', name: names.join(' ') || change, topics: tags, head, sections: [], tail: [] };
   if (!found.size) return answer;
   try {
     const [facts] = await (await store()).facts([{ tags, everyone, withTags: true, limit: READ_LIMIT }]);
@@ -328,7 +329,7 @@ async function factAnswer(ctx, { id, areas, profile, store, everyone, script }) 
   const tags = [...new Set((fact.tags || []).map(canon))];
   const sources = fact.sources?.length ? fact.sources.join(', ') : 'none';
   const { files } = await filesBehind(ctx, [fact], { profile, areas, limit: MORE_ITEMS, deadline: Date.now() + FILES_MS });
-  return { kind: 'fact', name: `#${id}`, fact,
+  return { kind: 'fact', name: `#${id}`, topics: tags, fact,
     head: [`# Fact #${fact.id} (${fact.type}${fact.superseded_by ? `, superseded by #${fact.superseded_by}` : ', live'})`,
       String(fact.body).replace(/\s+/g, ' ').trim(),
       `Written ${String(fact.created_at).slice(0, 10)} by ${fact.author || 'unknown'}; sources: ${sources}`],
@@ -376,6 +377,15 @@ export function renderAnswer(answer, { more, limit = ITEMS } = {}) {
   return { lines, code: 0 };
 }
 
+// What a pull gave the chat, for the use counts: the node's topics, and the facts it showed.
+function useOf(answer, { more, limit, json }) {
+  const wanted = more && String(more).toLowerCase();
+  const take = json ? Infinity : wanted ? MORE_ITEMS : Number(limit) || ITEMS;
+  const shown = answer.sections.filter(each => holdsFacts(each) && (!wanted || each.key === wanted || each.title.toLowerCase().startsWith(wanted)))
+    .flatMap(each => each.items.slice(0, take));
+  return { command: 'pull', node: answer.name, topics: answer.topics ?? [], facts: [...(answer.fact ? [answer.fact.id] : []), ...shown.map(fact => fact.id)] };
+}
+
 // The answer as JSON: the same data, fact sections as facts.
 const jsonOf = answer => ({ version: 1, kind: answer.kind, name: answer.name, head: answer.head, ...(answer.related ? { related: answer.related } : {}),
   ...(answer.fact ? { fact: answer.fact } : {}),
@@ -407,9 +417,11 @@ export async function pull(ctx, { values = {}, positionals = [] }, { script = 'm
     const near = nearestTopics(name, topicList);
     if (values.json) console.log(JSON.stringify({ version: 1, kind: null, name, nearest: near }));
     else console.log(`No memory node named ${name}.${near.length ? ` Nearest topics: ${near.join(' · ')}.` : ''}`);
+    recordUse(ctx, { command: 'pull', miss: true, words: name });
     process.exitCode = 1;
     return 1;
   }
+  recordUse(ctx, useOf(answer, values));
   return printAnswer(answer, values);
 }
 
@@ -443,6 +455,8 @@ export async function relatedCommand(ctx, { values = {}, positionals = [] }) {
   const tag = canonical(areas)(word);
   if (!isTopic(areas, tag)) throw new StoreError(`${word} is not a topic: only a tag with a page is one`);
   const rows = await related(await store(), areas, tag, { root: ctx.root });
+  // Only the topic asked for: memory's own answer must not make two topics look used together.
+  recordUse(ctx, { command: 'related', node: tag, topics: [tag] });
   if (values.json) { console.log(JSON.stringify({ version: 1, tag, related: rows })); return 0; }
   console.log(rows.length ? [`# Related to ${tag}`, ...rows.map(row => `- ${row.tag}: score ${row.score}; ${plural(row.facts, 'shared fact')}, ${plural(row.changes, 'shared change')}; ${row.linked ? 'linked' : 'not linked'}. ${row.sample}`)].join('\n')
     : `No topic shares live facts or changes with ${tag}.`);

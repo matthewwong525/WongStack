@@ -36,6 +36,17 @@ An answer stays within 60 lines and 6 KB. `--more <group>` shows one group whole
 
 For a task that spans topics, give the task to a helper of your AI tool with [the helper's steps](../../.agents/plugins/memory/references/recall-helper.md). It pulls up to three topics, follows only what bears on the task, within 12 pulls, and answers in at most 300 words: what applies with its source, open threads, your preferences, and what it did not follow. Its reads stay out of your chat. With no helper tool, the chat follows the same steps itself. One pull needs no helper.
 
+## How use is counted
+
+Each look-up a chat makes adds one line to a file on your computer, outside git and outside the shared store: a `pull`, `recall`, `search`, `brief`, `related`, or `source`, and each topic the prompt hook adds to a message. A line holds the time, the command, the topics and fact numbers that came back, and the workspace's folder name. It holds a question's words only when the question found nothing, cut to 200 characters. A question also found nothing when no one fact or passage that came back holds half of its main words: a search always returns something, and unrelated facts are not an answer. Lines older than 30 days are dropped.
+
+- **Only a chat's look-ups count.** A background run and [the memory tidy](wiki-dream.md) add no line: only a chat's use says what people need.
+- **A count never fails a read.** When the file can not be written, the look-up answers as before.
+- **See the counts**: ask *how is memory used?*, or run `memory.mjs usage [--days <n>] [--json]`. It lists the most used topics, the facts returned most, and the questions that found nothing.
+- **The tidy reads them** as part of [its map](wiki-dream.md#the-goal-and-the-map): it checks the most used pages first, puts a fact that chats get again and again on its topic's page, links two topics used together, and changes a topic or a page so a missed question finds its answer. A missed question's words never go on a page or in a fact.
+
+The counts are one computer's. With two computers, each tidy sees the counts of the computer it runs on.
+
 ## When to add embeddings
 
 Search is keyword search (FTS5) with tags. It matches a word's other forms through the porter stemmer, so *previews* finds *preview*, and filler words like *how* and *should* never match on their own. It matches forms, not meanings: *Concise language please* misses a fact that says *The owner wants short replies in plain words*, so search with the words the fact would use. A shipped set of real-shaped questions, `scripts/tests/fixtures/memory-search-questions.json`, runs in CI, each with the fact it must rank in the top three; a question that should have matched and didn't belongs there first. That is enough at a few thousand facts: the write gate asks a model about paraphrases, and consolidation merges what it missed. Add embeddings when `memory.mjs stats` reports the trigger as met: more than 2,000 live facts, or merged duplicates growing across three consolidations. Search stays behind the one script, so nothing else changes.

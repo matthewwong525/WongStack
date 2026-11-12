@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 59.0.0 — Memory cleans itself each day, with no command to type
+
+- **The command `/dream-memory` is gone.** The [daily tidy](wiki/development/wiki-dream.md) your first chat of the day starts now does the full job. You type nothing, and it asks you nothing.
+- **The tidy chooses its own work from a map.** Plain code counts where memory is weak: new facts not yet read, facts with no topic, labels with no page, topics too big to read, facts that name a file that is gone, pages due a check, and questions that found no answer. The tidy works on the weakest place first. It has a goal and a short list of things it must never do, in place of fixed steps and counts ([the goal and the map](wiki/development/wiki-dream.md#the-goal-and-the-map)).
+- **Memory counts how chats use it.** Each look-up adds one line to a file on your computer: the topic, the fact numbers, and the words only of a question that found nothing. A question that got only unrelated facts counts as one that found nothing. Lines last 30 days and never leave the computer. Ask *how is memory used?* to see them ([how use is counted](wiki/development/memory-search.md#how-use-is-counted)).
+- **The tidy shows what got better.** The *Last tidy* line at the start of a chat lists each map number that changed, such as *facts with no topic 40 -> 12*. When the map could not be read after the tidy, the line says so ([how it shows its work](wiki/development/wiki-dream.md#how-it-shows-its-work)).
+- **The tidy sees your company pages.** Its copy of the repo now links this computer's company knowledge, so a company page can be due a check, and a label with a company page counts as one with a page. The tidy saves a company page right after it edits it ([your pages and shipped pages](wiki/development/wiki-dream.md#your-pages-and-shipped-pages)).
+- **A tidy has 60 minutes.** At the limit it publishes the parts it finished, and the rest is on the next day's map, with the questions it did not reach. Before, a tidy that reached its limit kept nothing ([the time limit](wiki/development/wiki-dream.md#the-time-limit)).
+- **The tidy no longer lists specs or plans for you.** It reads them as evidence and changes none. It leaves alone what it may not fix, and looks again after 7 days.
+
+**Updating.** Nothing to do by hand, with one exception: if you made a schedule that runs the old `/dream-memory` command, delete it. The daily tidy does that work now.
+
 ## 58.0.1 — Closing a chat works again
 
 - **Closing a chat works again**, and so does opening a new workspace. Since 57.0.0 both stopped with an error, because the build loop still looked for the browser's and Daily's helpers in their old folders. Closing a chat also closes its live-view link again.
@@ -31,7 +43,7 @@
 
 ## 57.1.2 — Each plugin's guide stands on its own
 
-- **The build loop, memory, and Daily carry the rules they follow.** Before, their steps sent the assistant to WongStack's own guide pages, which a project with only the plugin does not have. Now the loop's shared rules are in [its own page](.agents/plugins/loop/references/rules.md), the plan's review page and prototype steps are in [the plan's](.agents/plugins/loop/skills/plan/references/review-page.md) [own pages](.agents/plugins/loop/skills/plan/references/prototypes.md), memory's [who sees what](.agents/plugins/memory/README.md#who-sees-what) and its [fact placing](.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) are in memory, and [your Daily settings](.agents/plugins/daily/README.md#your-settings), add-ons and own jobs are in Daily.
+- **The build loop, memory, and Daily carry the rules they follow.** Before, their steps sent the assistant to WongStack's own guide pages, which a project with only the plugin does not have. Now the loop's shared rules are in [its own page](.agents/plugins/loop/references/rules.md), the plan's review page and prototype steps are in [the plan's](.agents/plugins/loop/skills/plan/references/review-page.md) [own pages](.agents/plugins/loop/skills/plan/references/prototypes.md), memory's [who sees what](.agents/plugins/memory/README.md#who-sees-what) and its [fact placing](.agents/plugins/memory/references/placing-facts.md) are in memory, and [your Daily settings](.agents/plugins/daily/README.md#your-settings), add-ons and own jobs are in Daily.
 - **WongStack's guide points down to the plugin.** Each moved heading stays, with a short line and a link, so older links still open.
 - **A WongStack-only page is linked by its full web address**, so it opens from any project. Links that only explained why are gone.
 - **A check keeps it so**: the plugin test fails on a link that leaves the plugin's own folder by a short path ([adding a module](wiki/maintaining/adding-a-module.md#what-it-may-reach)).

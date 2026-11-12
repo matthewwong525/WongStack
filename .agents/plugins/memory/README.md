@@ -27,7 +27,8 @@ It keeps your own edits to this folder. When one of your edits and a new change 
 - **Topics that link**: a message that names a topic gets the topic's one-line summary. `memory.mjs pull <topic>` shows its page, related topics, changes, open questions, and decisions, each a name you can pull next.
 - **A memory helper**: for a task that spans topics, a helper follows [these steps](references/recall-helper.md) and gives back a short brief with sources.
 - **A warning before the first edit in a folder**, from the facts about that folder.
-- **A daily tidy**: your first chat each day starts it in the background. It merges facts, puts lasting facts on their topic's page, links topics that connect, and checks a few old pages. `/memory:dream-memory` runs a full check at any time.
+- **A daily tidy**: your first chat each day starts it in the background, with no command to type. It works from a map of where memory is weak: it merges facts, puts lasting facts on their topic's page, links topics that connect, and checks your pages. Ask *tidy memory now* for one at once.
+- **Use counts**: memory counts on your computer what each chat looks up and which question found nothing, and the tidy works where that helps most. Ask *how is memory used?* to see them.
 
 ## Who sees what
 

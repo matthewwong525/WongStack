@@ -61,8 +61,9 @@ async function fakeCloudflare({ bucket = true } = {}) {
     const body = Buffer.concat(chunks);
     calls.push(`${req.method} ${req.url}`);
     const send = (status, data, raw) => { res.writeHead(status, raw ? {} : { 'Content-Type': 'application/json' }); res.end(raw ? data : JSON.stringify(data)); };
-    if (offline === 'hang') return;
-    if (offline) { res.socket.destroy(); return; }
+    const down = typeof offline === 'function' ? offline(body.toString('utf8')) : offline;
+    if (down === 'hang') return;
+    if (down) { res.socket.destroy(); return; }
     if (req.headers.authorization !== `Bearer ${TOKEN}`) {
       const request = new Request(`http://127.0.0.1:${server.address().port}${req.url}`, { method: req.method, headers: req.headers, body: ['GET', 'HEAD'].includes(req.method) ? undefined : body });
       const response = await handleMemory(request, { MEMORY_DB: d1Binding(db), ...(bucket ? { MEMORY_BUCKET: {
@@ -88,7 +89,7 @@ async function fakeCloudflare({ bucket = true } = {}) {
   const api = `http://127.0.0.1:${server.address().port}/client/v4`;
   return {
     db, objects, calls, api,
-    // true drops each connection; 'hang' never answers, so the caller's timeout fires.
+    // true drops each connection; 'hang' never answers, so the caller's timeout fires; a function decides by the body.
     setOffline: value => { offline = value; },
     close: () => new Promise(done => { server.closeAllConnections(); server.close(done); }),
   };
