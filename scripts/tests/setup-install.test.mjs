@@ -40,7 +40,11 @@ test('an install into an empty folder holds the payload, the links, the hubs, th
   assert.ok(!existsSync(join(target, '.agents/plugins')), 'no source-only module folder');
   assert.deepEqual(report.links, ['.claude', '.codex', 'CLAUDE.md']);
   assert.ok(existsSync(join(target, '.claude/skills/daily/SKILL.md')), 'the daily skill ships');
-  assert.ok(!existsSync(join(target, '.claude/skills/daily/team.md')) && !existsSync(join(target, '.claude/skills/daily/people')), 'with no steps');
+  assert.match(readFileSync(join(target, '.claude/skills/schedule/SKILL.md'), 'utf8'), /^# \/schedule$/m, 'a module command loads in every chat');
+  assert.ok(!existsSync(join(target, '.claude/skills/daily/skills/schedule/SKILL.md')), 'and loads once');
+  assert.ok(existsSync(join(target, '.claude/skills/daily/skills/schedule/scripts/schedule.mjs')), 'its scripts stay in the module');
+  assert.doesNotMatch(readFileSync(join(target, 'AGENTS.md'), 'utf8'), /\/daily:schedule/, 'the rules name it /schedule');
+  assert.ok(!existsSync(join(target, '.claude/skills/daily/team.md')) &&!existsSync(join(target, '.claude/skills/daily/people')), 'with no steps');
   assert.ok(existsSync(join(target, '.env.example')));
   assert.equal(readFileSync(join(target, '.env'), 'utf8'), 'CLOUDFLARE_API_TOKEN=\n', 'setup\'s own .env is kept');
   assert.ok(!existsSync(join(target, 'app/wrangler.jsonc')), 'the source config stays behind');

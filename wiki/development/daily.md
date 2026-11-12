@@ -111,7 +111,7 @@ Your `sweeps` file adds event jobs, changes the default schedules, and lists too
 
 ## The module
 
-Daily is one folder, [`.agents/plugins/daily/`](../../.agents/plugins/daily/README.md), with [`/daily:schedule`](../../.agents/plugins/daily/skills/schedule/SKILL.md) inside it in `skills/schedule/`. It imports no file outside the folder, links no file of another module, and reaches the repo only through [the profile](#the-profile). It has two installs:
+Daily is one folder, [`.agents/plugins/daily/`](../../.agents/plugins/daily/README.md), with [`/daily:schedule`](../../.agents/plugins/daily/skills/schedule/SKILL.md) inside it in `skills/schedule/`. A WongStack install also gives the command's `SKILL.md` its own top-level skill folder, so it loads in every chat by its bare name, also in a folder you did not trust. It imports no file outside the folder, links no file of another module, and reaches the repo only through [the profile](#the-profile). It has two installs:
 
 - **WongStack ships it** with each update, and fills every part of the profile.
 - **Any repo adds it alone** by [its README](../../.agents/plugins/daily/README.md): one pasted message copies the folder in and runs `D check`. That prints `ok` when the profile loads, one worker pass runs, a sample stop sorts, and it names the schedule store: `app`, `paseo` or `off`.

@@ -3,6 +3,9 @@
 // it in, for the units the preflight called modified. A line match is loose on purpose: only a dropped section fails.
 
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 
 import { installText } from './install-path.mjs';
@@ -28,10 +31,19 @@ function parseArgs(argv) {
   return options;
 }
 
-// Added lines of `git diff -U0 <old blob> <new blob>`, grouped by hunk, with new-side line numbers.
-function addedHunks(source, oldOid, newOid) {
-  const result = spawnSync('git', ['-C', source, 'diff', '--no-color', '--no-ext-diff', '-U0', oldOid, newOid], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  if (result.status !== 0) {
+// Added lines of `git diff -U0` from one text to another, grouped by hunk, with new-side line numbers.
+function addedHunks(oldText, newText) {
+  const dir = mkdtempSync(join(tmpdir(), 'wong-merge-check-'));
+  let result;
+  try {
+    writeFileSync(join(dir, 'base'), oldText);
+    writeFileSync(join(dir, 'current'), newText);
+    result = spawnSync('git', ['diff', '--no-index', '--no-color', '--no-ext-diff', '-U0', 'base', 'current'], { cwd: dir, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+  // `--no-index` exits 1 when the texts differ.
+  if (result.status !== 0 && result.status !== 1) {
     const error = new Error(`git diff failed: ${String(result.stderr).trim().split('\n')[0]}`);
     error.code = 'git-failed';
     throw error;
@@ -81,15 +93,17 @@ export function mergeCheck({ target, source, from, record }) {
     if (!change.baseEntry || !change.currentEntry) continue;
     checked += 1;
     const { unit } = change;
-    let hunks = addedHunks(compared.source, change.baseEntry.oid, change.currentEntry.oid);
+    // Both sides are read as the install writes them, each by its own commit's pairs: a link into a mapped folder
+    // names the install path, and a new pair's rename shows as an added line though the source is unchanged.
+    const baseText = installText(unit.sourcePath, showBlob(compared.source, change.baseEntry.oid), compared.baseMapped);
+    const currentText = installText(unit.sourcePath, showBlob(compared.source, change.currentEntry.oid), compared.mapped);
+    let hunks = addedHunks(baseText, currentText);
     if (unit.kind === 'block') {
-      const range = blockRange(showBlob(compared.source, change.currentEntry.oid), unit.markers);
+      const range = blockRange(currentText, unit.markers);
       hunks = range
         ? hunks.map(row => ({ lines: row.lines.filter(line => line.at >= range[0] && line.at <= range[1]) })).filter(row => row.lines.length)
         : [];
     }
-    // An added line is read as the install writes it: a link into a mapped folder names the install path.
-    hunks = hunks.map(row => ({ lines: row.lines.map(line => ({ ...line, text: installText(unit.sourcePath, line.text, compared.mapped) })) }));
     const local = targetValue(compared.target, unit);
     const have = new Set((local ? local.toString('utf8') : '').split('\n').map(line => line.trim()));
     const missing = [];

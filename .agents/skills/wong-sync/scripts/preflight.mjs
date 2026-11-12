@@ -136,10 +136,13 @@ function treeAt(source, revision) {
   return entries;
 }
 
-function blob(source, revision, logicalPath, tree) {
+// `cache`, keyed by blob id, reads an unchanged file once when both commits' values are needed.
+function blob(source, revision, logicalPath, tree, cache) {
   const found = tree.get(logicalPath);
   if (!found) return null;
-  return { ...found, content: git(source, ['show', `${revision}:${found.gitPath}`], { buffer: true }) };
+  const content = cache?.get(found.oid) ?? git(source, ['show', `${revision}:${found.gitPath}`], { buffer: true });
+  cache?.set(found.oid, content);
+  return { ...found, content };
 }
 
 // An installed commit from before the inventory existed has none: with `optional`,
@@ -176,7 +179,7 @@ function validateInventory(inventory, revision) {
     }
     if (entry.mapped !== undefined && (!entry.mapped || typeof entry.mapped !== 'object' || Array.isArray(entry.mapped)
       || Object.values(entry.mapped).some(value => typeof value !== 'string'))) {
-      fail('invalid-inventory', `${category}.mapped at ${revision} must map folders to install folders`);
+      fail('invalid-inventory', `${category}.mapped at ${revision} must map folders or files to install paths`);
     }
   }
 }
@@ -217,9 +220,10 @@ function selectedCategories(inventory) {
   return ['core', 'ui', 'pack', 'scaffold'].filter(category => category === 'core' || inventory[category]);
 }
 
+// A mapped entry may name one file, so the root itself is listed when it is a file.
 function listTree(tree, logicalDirectory) {
   const root = safeRelativePath(logicalDirectory, 'payload directory');
-  return [...tree.keys()].filter(path => path.startsWith(`${root}/`)).sort();
+  return [...tree.keys()].filter(path => path === root || path.startsWith(`${root}/`)).sort();
 }
 
 function excluded(path, excludes) {
@@ -315,9 +319,9 @@ function extractBlock(content, markers, label, { required }) {
   return Buffer.from(text.slice(start, nextLine < 0 ? text.length : nextLine + 1));
 }
 
-// A file's or block's value is its text as an install gets it, by the current mapping on both commits alike.
-function sourceValue(source, revision, tree, unit, mapped) {
-  const found = blob(source, revision, unit.sourcePath, tree);
+// A file's or block's value is its text as an install gets it, by the mapped pairs of the commit it is read at.
+function sourceValue(source, revision, tree, unit, mapped, cache) {
+  const found = blob(source, revision, unit.sourcePath, tree, cache);
   if (unit.kind === 'file' && found && installsAsText(unit.sourcePath)) {
     return Buffer.from(installText(unit.sourcePath, found.content.toString('utf8'), mapped));
   }
@@ -429,6 +433,10 @@ export function compareSelection({ target: targetInput, source: sourceInput, rec
   const seeded = [baseInventory?.value, currentInventory].flatMap(value => value?.seededBySetup?.files ?? []);
   const currentSelection = expandInventory(source, currentCommit, currentTree, currentInventory, record);
   const mapped = mappedDirs(currentInventory);
+  // The base value is read with the base commit's pairs: a new pair changes an install's text with no source edit.
+  const baseMapped = baseInventory ? mappedDirs(baseInventory.value) : [];
+  const pairKey = pairs => JSON.stringify(pairs.map(pair => pair.join('\0')).sort());
+  const samePairs = pairKey(baseMapped) === pairKey(mapped);
   const keys = [...new Set([...baseSelection.units.keys(), ...currentSelection.units.keys()])].sort();
   const changes = [];
 
@@ -438,9 +446,11 @@ export function compareSelection({ target: targetInput, source: sourceInput, rec
     const unit = mergeUnit(baseUnit, currentUnit);
     const baseEntry = baseUnit?.kind === 'file' ? baseTree.get(baseUnit.sourcePath) : null;
     const currentEntry = currentUnit?.kind === 'file' ? currentTree.get(currentUnit.sourcePath) : null;
-    if (baseUnit?.kind === 'file' && currentUnit?.kind === 'file' && baseEntry?.oid === currentEntry?.oid) continue;
-    const baseValue = baseUnit ? sourceValue(source, installedCommit, baseTree, baseUnit, mapped) : null;
-    const currentValue = currentUnit ? sourceValue(source, currentCommit, currentTree, currentUnit, mapped) : null;
+    const sameBlob = baseUnit?.kind === 'file' && currentUnit?.kind === 'file' && baseEntry?.oid === currentEntry?.oid;
+    if (sameBlob && (samePairs || !installsAsText(currentUnit.sourcePath))) continue;
+    const cache = sameBlob ? new Map() : undefined;
+    const baseValue = baseUnit ? sourceValue(source, installedCommit, baseTree, baseUnit, baseMapped, cache) : null;
+    const currentValue = currentUnit ? sourceValue(source, currentCommit, currentTree, currentUnit, mapped, cache) : null;
     if (equal(baseValue, currentValue)) continue;
     const localValue = targetValue(target, unit);
     changes.push({
@@ -465,6 +475,7 @@ export function compareSelection({ target: targetInput, source: sourceInput, rec
     currentSelection,
     seeded,
     mapped,
+    baseMapped,
     keys,
     changes,
   };

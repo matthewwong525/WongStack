@@ -93,4 +93,4 @@ Commit the folder and each file you added. Ask before any push.
    - only at `main`: add it;
    - only at the base: remove it, unless the repo changed it: a conflict;
    - deleted here and changed upstream: a conflict.
-5. **On a conflict, write nothing:** name each file and stop. Else put the folder in place at `.claude/skills/daily/`, remove `.claude/skills/schedule/` when it is there, and change `/schedule` to `/daily:schedule` in `AGENTS.md`. [Run the check](#6-run-the-check), rerun [Codex's commands](#5-codex) when Codex is here, commit, and ask before any push.
+5. **On a conflict, write nothing:** name each file and stop. Else put the folder in place at `.claude/skills/daily/`, remove `.claude/skills/schedule/` when it is there, and in `AGENTS.md` change `/schedule` to the name in the title of [the schedule command](../skills/schedule/SKILL.md). [Run the check](#6-run-the-check), rerun [Codex's commands](#5-codex) when Codex is here, commit, and ask before any push.

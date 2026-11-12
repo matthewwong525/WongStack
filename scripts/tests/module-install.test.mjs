@@ -12,7 +12,8 @@ import { INVENTORY, installPath, installsAsText, installText, mappedDirs } from 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const STAND_IN = pathToFileURL(join(repo, 'scripts/tests/fixtures/memory/stand-in-store.mjs')).href;
 const load = (folder, path) => import(pathToFileURL(join(folder, path)).href);
-const mapped = mappedDirs(JSON.parse(readFileSync(join(repo, INVENTORY), 'utf8')));
+// A module copied alone keeps its commands in its folder, so a WongStack install's SKILL.md file entries are left out.
+const mapped = mappedDirs(JSON.parse(readFileSync(join(repo, INVENTORY), 'utf8'))).filter(([from]) => !from.endsWith('/SKILL.md'));
 const SLOTS = ['look', 'wakeChat', 'inbox', 'keyFiles', 'sendKey'];
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|new URL\(\s*)['"](\.{1,2}(?:\/[^'"]*)?)['"]/g;
 // A Markdown link or reference definition; fenced code and code spans are blanked first, as examples are not links.
@@ -113,6 +114,10 @@ const CHECKS = {
     for (const tool of ['node', 'git']) symlinkSync(execFileSync('which', [tool], { encoding: 'utf8' }).trim(), join(bin, tool));
     const script = (file, args, input, extra) => spawnSync(process.execPath, [join(folder, 'scripts', file), ...args],
       { cwd: root, env: { HOME: home, PATH: bin, WONG_DAILY_WORKER: '0', ...extra }, encoding: 'utf8', input });
+
+    test('daily copied alone keeps its schedule command in its folder, named /daily:schedule', () => {
+      assert.match(readFileSync(join(folder, 'skills/schedule/SKILL.md'), 'utf8'), /^# \/daily:schedule$/m);
+    });
 
     test('daily asks once at a new chat\'s start in a repo with no settings, and not on a resume', () => {
       const start = script('session-start.mjs', ['--agent', 'claude'], JSON.stringify({ source: 'startup', session_id: 'a', cwd: root }));

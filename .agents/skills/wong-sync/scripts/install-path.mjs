@@ -31,6 +31,15 @@ const SPECIFIER = /(\bfrom\s*['"]|\bimport\s*\(\s*['"]|\bimport\s+['"])(\.{1,2}\
 // `node `, so a setup guide's source paths stay the source's.
 const ROOTED = { script: /(?<!https?:\/\/\S*)\.(?:claude|agents)\/plugins\/[\w.-]+(?:\/[\w.-]+)*/g,
   md: /(?<=--show-toplevel\)\/|\bnode )\.(?:claude|agents)\/plugins\/[\w.-]+(?:\/[\w.-]+)*/g };
+// A module command's `SKILL.md` mapped to a top-level skill: an install names it `/<name>`, not `/<module>:<command>`.
+const COMMAND_FILE = /^\.claude\/plugins\/([\w.-]+)\/skills\/([\w.-]+)\/SKILL\.md$/;
+const SKILL_FILE = /^\.claude\/skills\/([\w.-]+)\/SKILL\.md$/;
+const renames = mapped => mapped.flatMap(([from, to]) => {
+  const [, module, command] = from.match(COMMAND_FILE) ?? [];
+  const name = to.match(SKILL_FILE)?.[1];
+  const literal = `/${module}:${command}`.replace(/\./g, '\\.');
+  return module && name ? [[new RegExp(`(?<![\\w/])${literal}(?![\\w:-])`, 'g'), `/${name}`]] : [];
+});
 /** True for a file whose text an install may rewrite; any other file is copied byte for byte. */
 export const installsAsText = path => /\.(md|mjs|js|sh)$/.test(path);
 
@@ -63,6 +72,7 @@ export function installText(sourcePath, text, mapped) {
       return moved === logical(path) ? path : path.slice(0, path.indexOf('/')) + moved.slice(moved.indexOf('/'));
     });
   }
+  for (const [old, name] of renames(mapped)) out = out.replace(old, name);
   return out;
 }
 
