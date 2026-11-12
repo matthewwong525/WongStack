@@ -31,7 +31,7 @@ The philosophy page SHALL name each durable surface (agent instructions, path-sc
 
 ### Requirement: Capture happens during the work
 
-The docs SHALL present capture as part of the work: the memory store is short-term memory, company knowledge is long-term memory written when a session learns something, and `/close` is the catch-up that moves a session's and its change's remaining repeatable facts into company knowledge, saved at once. On an install with no knowledge copy, `/close` SHALL publish them in their own pull request.
+The docs SHALL present capture as part of the work: the memory store is short-term memory, and company knowledge is long-term memory written when a session learns something. Memory's daily tidy and `/dream-memory` SHALL be the catch-up that moves the remaining repeatable facts into company knowledge, saved at once; `/close` SHALL NOT be.
 
 #### Scenario: Reader sees why capture pays off
 

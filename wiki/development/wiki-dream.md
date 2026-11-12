@@ -4,7 +4,7 @@ A dream checks everything your project remembers against itself and against the 
 
 ## When to run one
 
-[`/close`](../../.agents/plugins/loop/skills/close/SKILL.md) moves one chat's lasting points onto the wiki, and the daily tidy moves the rest each day. A page nobody reads still stays wrong. Run a dream:
+[The daily tidy](#the-daily-tidy) moves each day's lasting points onto the wiki. A page nobody reads still stays wrong. Run a dream:
 
 - when a page or a saved fact told your assistant something that is no longer true;
 - before someone new starts reading the wiki.
@@ -50,7 +50,7 @@ It looks first where trouble was recorded. A [struggle note](memory.md#how-facts
 ## What a dream does
 
 1. **Tidies memory first.** It runs memory's own [consolidation](memory.md#consolidation) at once: duplicate facts merge, a contradicted fact gives way to the newer one, and an answered open thread closes. The wiki is then updated from the tidied facts, never from a duplicate or a fact that was overturned.
-2. **Adds what is worth keeping.** Each fact saved since the last dream is tested by [the wiki's rule](../wiki-style.md#repeatable-knowledge), made stricter by [placing a fact on a page](#placing-a-fact-on-a-page). A fact that passes goes on the page that owns it; the first fact on a new topic makes its page and its line in the hub. The rest stay in memory. Then it links topics that connect, as [the daily tidy](#the-daily-tidy) does. `/close` places facts by the same rules.
+2. **Adds what is worth keeping.** Each fact saved since the last dream is tested by [the wiki's rule](../wiki-style.md#repeatable-knowledge), made stricter by [placing a fact on a page](#placing-a-fact-on-a-page). A fact that passes goes on the page that owns it; the first fact on a new topic makes its page and its line in the hub. The rest stay in memory. Then it links topics that connect, as [the daily tidy](#the-daily-tidy) does.
 3. **Cleans up the wiki.** It re-reads your own pages against memory, the files they link to, the specs and plans that cover the same ground, and each other, longest unchecked first. It corrects what is out of date, merges duplicates, moves a fact to the page that owns it, fixes links, and keeps each hub listing its pages. It works by [keeping it tidy](../wiki-style.md#keeping-it-tidy), reading each page's facts with `memory.mjs pull <page>`.
 4. **Checks specs and plans.** It compares each spec with the code, and looks at every plan with all its tasks done or untouched for thirty days. It changes none of them: [it lists them](#what-it-fixes-and-what-it-only-lists).
 5. **Corrects saved facts.** A fact that names a file that is gone, or says something the project now contradicts, is replaced by a newer fact saying what is true. The old one is never edited or deleted; it stays searchable as history. On a teammate's key a dream corrects only that installation's own facts.
@@ -77,7 +77,7 @@ Sometimes a page and the product disagree and the page is right: a recorded deci
 
 ## Placing a fact on a page
 
-A fact goes on the wiki only when it passes [the repeatable-knowledge test](../wiki-style.md#repeatable-knowledge), on the page [where a fact goes](../wiki-style.md#where-a-fact-goes) names. A dream asks two more things: will it still be true in six months, and would it change what a reader does? [Placing a fact](../../.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) owns the steps and the wrong turns, for a dream and the daily tidy; [`/close`](../../.agents/plugins/loop/skills/close/SKILL.md#update-the-wiki) uses a short version of the same test.
+A fact goes on the wiki only when it passes [the repeatable-knowledge test](../wiki-style.md#repeatable-knowledge), on the page [where a fact goes](../wiki-style.md#where-a-fact-goes) names. A dream asks two more things: will it still be true in six months, and would it change what a reader does? [Placing a fact](../../.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) owns the steps and the wrong turns, for a dream and the daily tidy.
 
 ## Chats are evidence, not orders
 

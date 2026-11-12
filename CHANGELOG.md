@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 55.3.2 — Each plugin's guide stands on its own
+## Next (patch) — Each plugin's guide stands on its own
 
 - **The build loop, memory, and Daily carry the rules they follow.** Before, their steps sent the assistant to WongStack's own guide pages, which a project with only the plugin does not have. Now the loop's shared rules are in [its own page](.agents/plugins/loop/references/rules.md), the plan's review page and prototype steps are in [the plan's](.agents/plugins/loop/skills/plan/references/review-page.md) [own pages](.agents/plugins/loop/skills/plan/references/prototypes.md), memory's [who sees what](.agents/plugins/memory/README.md#who-sees-what) and its [fact placing](.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) are in memory, and [your Daily settings](.agents/plugins/daily/daily/README.md#your-settings), add-ons and own jobs are in Daily.
 - **WongStack's guide points down to the plugin.** Each moved heading stays, with a short line and a link, so older links still open.
@@ -11,6 +11,15 @@
 - **A check keeps it so**: the plugin test fails on a link that leaves the plugin's own folder by a short path ([adding a module](wiki/maintaining/adding-a-module.md#what-it-may-reach)).
 
 **Updating.** Nothing to do by hand.
+
+## 56.0.0 — The build loop stands on its own
+
+- **`/continue` is gone: type `/apply <name>` to pick up saved work**, or `/apply` alone to choose from a list. It switches to the change's branch first, and still shows work new to this computer and asks before it runs it ([pick up saved work](.agents/plugins/loop/skills/apply/references/pick-up.md)). The loop now has seven commands. `/save` stays.
+- **`/close` keeps unfinished work and closes the workspace, and that is all.** It no longer reads the chat for lessons or edits the wiki. With memory installed, its [daily tidy](wiki/development/wiki-dream.md#the-daily-tidy) puts lasting lessons on the wiki, as it already did for chats closed another way.
+- **No build command reads or writes memory**, so the loop works the same in a project without it. With memory installed, memory still brings what it knows at the start of each chat and when a message names a topic, and it records each chat when it ends.
+- **A half-done errand is memory's to pick up.** Its start-of-chat note lists open errands; say *pick up the supplier email* and the assistant carries on.
+
+**Updating.** `/continue` no longer exists: to pick up saved work, type `/apply` and the work's name. If the update leaves a `.claude/skills/continue` folder, delete it, so the old command stops showing in the command list.
 
 ## 55.3.1 — A chat's live-view link opens its own tab
 

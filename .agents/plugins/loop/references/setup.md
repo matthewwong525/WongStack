@@ -33,7 +33,7 @@ For Codex, link each command into `.agents/skills/`, unless `.agents` and `.clau
 
 ```bash
 mkdir -p .agents/skills
-for name in explore plan apply save ship verify continue close; do ln -sfn "../../.claude/skills/$name" ".agents/skills/$name"; done
+for name in explore plan apply save ship verify close; do ln -sfn "../../.claude/skills/$name" ".agents/skills/$name"; done
 ```
 
 ## 3. OpenSpec
@@ -89,4 +89,4 @@ Commit the folders and every file you added. Ask before any push.
    - only at `main`: add it;
    - only at the base: remove it, unless the repo changed it: a conflict.
 5. **On any conflict, write nothing:** name each file and stop.
-6. Else put the merged files in place, [run the check](#5-run-the-check), commit, and ask before any push. Never touch `.agents/loop/`.
+6. Else put the merged files in place, remove each `.agents/skills/` command link whose target is now gone, [run the check](#5-run-the-check), commit, and ask before any push. Never touch `.agents/loop/`.

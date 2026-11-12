@@ -1,8 +1,8 @@
 # The loop's rules
 
-These are the rules every loop step follows; each step links the section it needs. The loop runs `/explore → /plan → /apply → /save → /ship`, then `/close`, and `/continue` resumes saved work. Each plan is an [OpenSpec](https://github.com/Fission-AI/OpenSpec) change in `openspec/changes/<name>/`, saved with the code.
+These are the rules every loop step follows; each step links the section it needs. The loop runs `/explore → /plan → /apply → /save → /ship`, then `/close`, and `/apply <name>` picks up saved work. Each plan is an [OpenSpec](https://github.com/Fission-AI/OpenSpec) change in `openspec/changes/<name>/`, saved with the code.
 
-- **OpenSpec owns plans; the loop's steps own all git.** `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, pull requests, and merges.
+- **OpenSpec owns plans; the loop's steps own all git.** `/explore`, `/plan`, and `/apply` run none, but for `/apply`'s [switch to a saved branch](../skills/apply/references/pick-up.md#2-check-out-the-branch); `/save`, `/ship`, and `/close` own branches, pull requests, and merges.
 - **A step whose precondition is missing runs the step before it**, nested: `/ship` runs `/apply`, which runs `/plan`, which runs `/explore`.
 - **No step merges as a way of stopping.** A paused `/plan`, an `/apply` with tasks pending, or a failing checkpoint reports the blocker and stops before the archive. A partial change is never archived or merged.
 
@@ -44,7 +44,7 @@ A verb the person invokes for work that changes no repo file, such as research, 
 
 - **`/plan`** writes a short numbered to-do in the chat, marking each step that acts outside it.
 - **`/apply`** works the to-do. Only an outward action, such as a sent message or a payment, asks first, showing exactly what it will do.
-- **`/save`** says the chat's memory capture keeps the progress, and **`/continue`** resumes it.
+- **Progress** stays in the chat. With memory installed, its capture keeps an open thread, and *pick up <the errand>* in a new chat carries on.
 - **`/ship`** is for repo changes only; the work finishes in `/apply`.
 
 ## The gate
@@ -60,13 +60,13 @@ A verb the person invokes for work that changes no repo file, such as research, 
 
 `/save` keeps three surfaces on the change, so a cold reader inherits the *why*, not just the *what*:
 
-- **The `**Status:**` line** under the proposal's H1: `in-progress` | `blocked (<on what>)` | `ready-to-ship` | `parked`. The `/continue` menu shows it.
+- **The `**Status:**` line** under the proposal's H1: `in-progress` | `blocked (<on what>)` | `ready-to-ship` | `parked`. `/apply`'s list of saved work shows it.
 - **The append-only, dated `## Decision log`** at the foot of `proposal.md`: what landed, what was decided or ruled out and why, what blocks it. Never rewrite it.
 - **The pull request body**, regenerated on every `/save` as a mirror of the change, so the forge alone is a full handoff. Reviewers comment instead of editing it.
 
 ## Where the plan and record live
 
-The change folder on the feature branch *is* the plan, and `/continue <name>` finds it from a fresh clone. Its archive on the default branch, with the synced `openspec/specs/`, *is* the record; there are no planning issues.
+The change folder on the feature branch *is* the plan, and `/apply <name>` finds it from a fresh clone. Its archive on the default branch, with the synced `openspec/specs/`, *is* the record; there are no planning issues.
 
 The branch and the change can have different names. The folder and the session's facts use the change name; `/save` records the branch in the proposal's `**Branch:**` line. Each step selects a change by [the selection rungs](../skills/save/references/checkpoint-evidence.md#selection-rungs), and `/ship` moves another change the branch adds to its own branch first.
 
