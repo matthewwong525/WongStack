@@ -20,6 +20,8 @@ export default {
     named: lazy('./lookup.mjs', 'changePaths'),
     before: lazy('./lookup.mjs', 'movedLines'),
     after: lazy('./lookup.mjs', 'lookupLines'),
+    // The files each change touched, read fresh from git history.
+    files: lazy('./lookup.mjs', 'changeFiles'),
   },
   tidy: {
     pages: lazy('./tidy-pages.mjs', 'tidyPages'),

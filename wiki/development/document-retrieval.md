@@ -15,6 +15,21 @@ node .claude/skills/memory/scripts/memory.mjs documents "How do we publish a fin
 
 Both formats return original evidence, source status, mode, backend, coverage, omissions and references within **6,144 UTF-8 bytes**, including metadata. Recall reserves room for both sources, reclaims unused space and preserves whole fact bodies. Documents reserve a useful passage per source role before expanding excerpts; empty or heading-only excerpts are omitted. Passages end at line boundaries; truncated excerpts say to read the original. A selected entry omitted for space is counted; this is not a count of every possible match. JSON is version 1. Fact filters are `--tag`, `--type`, `--slug`, `--since`, `--until`; document `--change` does not silently change those filters. `--limit 1..5` limits documents. Unsupported filters, query field injection and invalid input fail before backend access.
 
+## Files behind the facts
+
+Recall ends with up to eight files and docs that its facts are about, each with the facts that led to it. It is a place to start, not a full list: open the files, then decide.
+
+```text
+Files (from the facts above; a place to start, not a full list):
+- .agents/plugins/memory/scripts/lib/pull.mjs (#1798)
+- wiki/development/memory.md (#1798, #597)
+```
+
+- **Three sources.** The files each fact's change touched, by changed lines, ten at most a change. A path the fact names in its words, ranked higher. For a fact with neither, its topic's docs and code folders.
+- **Read fresh, stored nowhere.** A shipped change's files come from the commit that published it, read from git history on each call. A file that moved since shows at its new path; a deleted file drops. An active change gives the paths its plan names. With no history, the archived plan's paths stand in.
+- **Inside the limits.** The list takes at most 600 of the 6,144 bytes and 1.5 seconds, and never pushes out a fact or a passage. JSON adds `files` and `sources.files`; a slow history read shows as `files: unavailable`.
+- **One fact or change.** `memory.mjs pull #<id>` and `pull <change>` list the same kind of files; `--more files` shows them all.
+
 ## Choose the source scope
 
 | Scope | Eligible evidence |

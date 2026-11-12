@@ -1,4 +1,6 @@
-import { openStore } from '../store.mjs';
+import { loadProfile, openStore } from '../store.mjs';
+import { loadAreas } from '../areas.mjs';
+import { filesBehind } from '../files.mjs';
 import { readFacts } from '../read-facts.mjs';
 import { scanCorpus, verifyPassage } from './corpus.mjs';
 import { interleaveSources, lexicalSearch } from './lexical.mjs';
@@ -9,10 +11,21 @@ import { documentsStatus, setupDocuments } from './setup.mjs';
 import { retrieveDocuments } from './retrieve.mjs';
 import { renderPacket } from './packet.mjs';
 const REFUSED = ['auth', 'forbidden', 'signin'];
+const FILES_MS = 1500;
+
+// The files behind the facts, within FILES_MS and the recall deadline; a failure leaves the facts as they are.
+async function factFiles(ctx, facts, { profile, deadline }) {
+  if (!facts.length) return { files: [], state: 'empty' };
+  try {
+    const chosen = profile === undefined ? await loadProfile(ctx) : profile;
+    return await filesBehind(ctx, facts.slice(0, 8), { profile: chosen, areas: await loadAreas(ctx, chosen), limit: 16,
+      deadline: Math.min(deadline, Date.now() + FILES_MS) });
+  } catch { return { files: [], state: 'unavailable' }; }
+}
 
 export async function recallPacket(ctx, options, { includeFacts = true, paths = documentPaths(ctx),
-  factsRead = (signal) => readFacts(ctx, { positionals: [options.question], values: { ...options.filters, limit: 8 } }, openStore(ctx, { signal, timeoutMs: 16000 })),
-  documentsRead = retrieveDocuments, timeoutMs = 19000 } = {}) {
+  factsRead = (signal) => readFacts(ctx, { positionals: [options.question], values: { ...options.filters, limit: 8, withTags: true } }, openStore(ctx, { signal, timeoutMs: 16000 })),
+  documentsRead = retrieveDocuments, timeoutMs = 19000, profile } = {}) {
   const deadline = Date.now() + Math.min(19000, timeoutMs), controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1, deadline - Date.now()));
   let onDocumentTimeout;
@@ -39,7 +52,12 @@ export async function recallPacket(ctx, options, { includeFacts = true, paths = 
       };
       controller.signal.addEventListener('abort', onDocumentTimeout, { once: true });
     })]);
-    const [fact, documents] = await Promise.all([boundedFacts, boundedDocuments]);
+    const withFiles = boundedFacts.then(async fact => {
+      if (!includeFacts) return fact;
+      const { files, state } = await factFiles(ctx, fact.facts, { profile, deadline });
+      return { ...fact, files, fileSource: state === 'unavailable' ? { state, reason: 'file history unavailable; facts and documents remain usable' } : undefined };
+    });
+    const [fact, documents] = await Promise.all([withFiles, boundedDocuments]);
     const rendered = renderPacket({ ...options, ...fact, ...documents,
       filters: Object.fromEntries(Object.entries(fact.filters || options.filters).filter(([key]) => ['tag', 'type', 'slug', 'since', 'until'].includes(key))) }, { json: options.json });
     const usable = ['ok', 'empty', 'partial'].includes(fact.factSource.state) && includeFacts

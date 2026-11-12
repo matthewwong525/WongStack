@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 55.1.0 — Memory shows the files behind each fact
+
+- **A memory answer ends with a short list of files.** After its facts and passages, `recall` lists up to eight files and docs those facts are about, each with the facts that led to it, so the AI opens the right place first ([files behind the facts](wiki/development/document-retrieval.md#files-behind-the-facts)). The list says it is a place to start, not a full list.
+- **The files come from the past change behind each fact**, read fresh from the repo's history, plus any path a fact names and, for a fact with neither, its topic's docs. A file that moved shows at its new place.
+- **A look at one fact or one past change lists its files too**: `memory.mjs pull #<id>` and `pull <change>`.
+
+**Updating.** Nothing to do by hand.
+
 ## 55.0.0 — Daily becomes a module any project can add
 
 - **Daily is now one module, the same for any repo.** It lives in [`.agents/plugins/daily/`](.agents/plugins/daily/daily/README.md), in two folders, `daily` and `schedule`, and brings its own hooks. A project without WongStack adds Daily alone with one pasted message ([the module](wiki/development/daily.md#the-module)).
