@@ -66,14 +66,14 @@ Most tools are new to the app, so this is the main step. For each tool with no r
 |---|---|---|
 | A fixed API key or personal access token | [A key used directly](company-api.md#use-a-key-directly): `forward`, `docs`, `lookups` | Stripe restricted key, Figma personal token |
 | An ID and a secret that trade for a short token (the client-credentials grant) | The same, with `forward.exchange`: [an ID and a secret](#a-tool-with-an-id-and-a-secret) | Shopify's Dev Dashboard app |
-| A remote MCP server that takes a fixed key | [An MCP server through the app](company-api.md#use-an-mcp-server-through-the-app): `forward.mcp`, with `reads` checked by hand | a server with a bearer key |
 | Only a sign-in that renews (OAuth) | Nothing yet: *not connected yet: it needs a sign-in, which the app can't keep yet* | Google mail and calendar |
+| Only an MCP server | Nothing yet: *not connected yet: the app does not use MCP servers* | a tool with no public API but its MCP server |
 
 Write what you found on the tool's notes page: the kind of key, the page that makes it, the permissions, and one look-up. It goes in the next wiki save, like [any notes page](service-catalogue.md#notes-on-each-key-based-service). The next chat then reads it, and does not work it out again.
 
 ## Pick the browser
 
-The assistant makes each new tool's key in its own browser, Camoufox, on every computer, through [`browser.mjs`](../../.agents/skills/connect/scripts/browser.mjs) only: never raw `agent-browser` or `browse.mjs`. Run `browser.mjs where` first. It connects to nothing and prints one line:
+The assistant makes each new tool's key in its own browser, Camoufox, on every computer, through [`connect-browser.mjs`](../../.agents/plugins/browser/browser/scripts/connect-browser.mjs) only: never raw `agent-browser` or `browse.mjs`. Run `connect-browser.mjs where` first. It connects to nothing and prints one line:
 
 - `WHERE=window`: a Mac or Windows computer. The browser shows in its own window, the one used for robot checks. [Use the assistant's browser](#use-the-assistants-browser), with no question.
 - `WHERE=server`: a server with no screen. Use the same browser, with the [watch link](../development/watch-link.md) for a sign-in.
@@ -85,9 +85,10 @@ The request to connect is the go-ahead: ask nothing first. Pasting in Access is 
 
 The assistant starts at once. Sign-ins stay in its browser for the next time. On a server, it sends the watch link only when a tool asks the person to sign in, or when the person asks to watch; while a link is open, the person can take over or hand back. On a Mac or Windows computer, the window is already in view. To stop, the person says so in the chat.
 
-1. **`attach`** prints `BROWSER=camoufox`. On `BROWSE_NEEDS=install`, ask once, by [the browser's install rule](../development/browsing.md).
+1. **`attach`** prints `BROWSER=camoufox`. On `BROWSE_NEEDS=install`, ask once, by [the browser's install rule](../../.agents/plugins/browser/browser/references/browsing.md).
 2. **`open <key page>`** for the first tool. Only when the person asks to watch, run **`watch`**: on a server it prints `HANDOVER_LINK`, so send the link and go on; in a window it prints `HANDOVER_VIEW=window` and opens nothing.
 3. **`read`**, then **make the narrowest key that only reads**, with `click`, `fill`, `select` and `wait`. Make a key that can change things only when the person asks for it by name. `read` hides any key on the page as `[key …abcd]`, and `picture` refuses while a key shows. While a link is open, each command sets its line, such as *Clicking New integration…*.
+   A `click` can also say it waits for the person's turn in another chat's tab. Then run **`wait-click`** in the background with the host's longest limit, and take no other step until it ends.
 4. **Signed out?** Run **`sign-in --tool <title>`** on the sign-in page. It prints `CONNECT_PAUSED=your-turn`:
    - **In a window** it prints `HANDOVER_VIEW=window` first. End the turn with *Sign in to Shopify in the browser window, then say done.* Run `hand-over.mjs wait` in the background. The turn ends only on the person's *done*: then run `hand-over.mjs close`.
    - **On a server** it opens the watch link first and prints `HANDOVER_LINK`. Its line says *Sign in to Notion, then tap Hand back.* Run `hand-over.mjs wait` in the background and end the turn with the link. On `opened`, `wait` again.
@@ -96,7 +97,7 @@ The assistant starts at once. Sign-ins stay in its browser for the next time. On
 5. **`take-key [<ref>] --tool <id>`** takes the key from the page, [seals it and sends it to the app](#how-a-key-reaches-the-app), and prints only `TOOL_<ID> sent, ends in …abcd, goes live at the next publish`. Add `--id` to send a tool's ID as `TOOL_<ID>_ID`. It also saves the key in the primary `app/.dev.vars`, for local runs. A key in the code has its own name, so the person [pastes it in Access](#paste-a-key-in-access).
 6. **`done`** closes the page and any open link. The link says *All done. Go back to the chat.* When the person says *stop* in the chat, run `done --stopped`: the link says *Stopped*. Keys sent stay sent.
 
-When `watch` or `sign-in` prints `HANDOVER_NEEDS=live-view`, or another chat's view is open, follow the [live view's rules](../development/live-view.md#when-it-opens).
+When `watch` or `sign-in` prints `HANDOVER_NEEDS=live-view`, or another chat's view is open, follow the [live view's rules](../../.agents/plugins/browser/hand-over/references/live-view.md#when-it-opens).
 
 Every command reads who holds the browser first:
 
@@ -108,9 +109,9 @@ Every command reads who holds the browser first:
 A key goes to the company app locked, and only the next publish can open it. Even the app can't read a key while it waits.
 
 1. **The lock.** Each install has one pair of locks, made once by [`node scripts/seal-keys.mjs pair`](../../scripts/seal-keys.mjs) at setup. The public half, `WONG_KEY_SEAL_PUBLIC`, is in `app/wrangler.jsonc`, and the app hands it out. The private half, `WONG_KEY_SEAL_PRIVATE`, is only where publishing runs: a GitHub secret, or the check runner's secret on [the Artifacts route](artifacts-route.md).
-2. **Sealed before it leaves.** [`take-key`](#use-the-assistants-browser) seals the key on the computer, through `company-api.mjs key send <NAME> --value-stdin`, under the person's company sign-in. [Access](#paste-a-key-in-access) seals it in the browser. The app keeps only the sealed key, its last four characters, who sent it and when. A newer key for the same name replaces a waiting one.
+2. **Sealed before it leaves.** [`take-key`](#use-the-assistants-browser) seals the key on the computer, through `company-api.mjs key send <NAME> --value-stdin`, under the person's company sign-in. [Access](#paste-a-key-in-access) seals it in the browser. The [Access module](../../.agents/plugins/access/README.md) keeps only the sealed key, its last four characters, who sent it and when. A newer key for the same name replaces a waiting one.
 3. **The next publish puts it in.** After each deploy of the live app, `seal-keys.mjs put` opens every waiting key, puts them all in the live app's Cloudflare secrets at once, and deletes them from the app's database. A key it can't open stays waiting, named in the run's log without its value. A preview never opens one.
-4. **Offer a keys-only publish.** A key goes live at the next publish, not at once. When no other change waits, ask: *Publish the waiting keys now?* On a yes, run `gh workflow run deploy.yml --ref main` on GitHub, or `node .claude/skills/save/scripts/artifacts-run.mjs keys "$(git rev-parse origin/main)"` on the Artifacts route. Either deploys `main` again, with no code change, then puts the keys. Then run each tool's look-up.
+4. **Offer a keys-only publish.** A key goes live at the next publish, not at once. When no other change waits, ask: *Publish the waiting keys now?* On a yes, run `gh workflow run deploy.yml --ref main` on GitHub, or `node .claude/loop/routes/artifacts-run.mjs keys "$(git rev-parse origin/main)"` on the Artifacts route. Either deploys `main` again, with no code change, then puts the keys. Then run each tool's look-up.
 
 The app refuses a key with `no_seal` when the install has no pair yet: make one first. `take-key` then saves the key with this computer's Cloudflare login when it has one (`cf-secrets.mjs put-tool`), and says so. The app also refuses, with `bad_name`, any name but a key's in the code or a tool's added in a chat, and never takes a `WONG_` or `CLOUDFLARE_` name.
 
@@ -145,7 +146,7 @@ Some tools, such as Shopify's Dev Dashboard, give an ID and a secret, which trad
   "exchange": { "url": "https://<store>.myshopify.com/admin/oauth/access_token" } }
 ```
 
-The tool then needs two keys: the secret as `TOOL_<ID>`, and the ID as `TOOL_<ID>_ID` (`take-key --id`). The app trades them by the standard client-credentials grant, keeps the token until a minute before it runs out, and gets a new one when the service refuses the old one. No token, ID, or secret goes back to the caller. A token address on another host, or with an MCP server, is refused.
+The tool then needs two keys: the secret as `TOOL_<ID>`, and the ID as `TOOL_<ID>_ID` (`take-key --id`). The app trades them by the standard client-credentials grant, keeps the token until a minute before it runs out, and gets a new one when the service refuses the old one. No token, ID, or secret goes back to the caller. A token address on another host is refused.
 
 ## A teammate's computer
 

@@ -4,9 +4,9 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync,
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { cacheFile, credential, CredentialError, helperConfig, install, parseRequest, repositoryOf } from '../../.agents/skills/save/scripts/artifacts-credential.mjs';
+import { cacheFile, credential, CredentialError, helperConfig, install, parseRequest, repositoryOf } from '../../.agents/loop/routes/artifacts-credential.mjs';
 
-const script = new URL('../../.agents/skills/save/scripts/artifacts-credential.mjs', import.meta.url).pathname;
+const script = new URL('../../.agents/loop/routes/artifacts-credential.mjs', import.meta.url).pathname;
 const ACCOUNT = '0123456789abcdef'.repeat(2);
 const HOST = `${ACCOUNT}.artifacts.cloudflare.net`;
 const REMOTE = `https://${HOST}/git/wongstack/recipe-box.git`;

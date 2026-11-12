@@ -1,6 +1,6 @@
 // Files a review page sends from the Inbox: kept for their own item and person, read by the computer, gone in a day.
 import { expect, it } from "vitest";
-import type { AccessIdentity } from "../../access";
+import type { AccessIdentity } from "../../access-slots";
 import { handleApp } from "../index";
 import { FILE_LIMITS } from "./files";
 import { body } from "../../../tests/body";

@@ -17,6 +17,7 @@ The **payload** is the set that [`/wong-sync`](../../.agents/skills/wong-sync/SK
 - [Repo layout](repo-layout.md) — `.claude` and `.codex` are symlinks to `.agents`, and `CLAUDE.md` to `AGENTS.md`: which path to edit and to link, and why a repo-wide `grep` under-counts.
 - [Run a security audit](run-a-security-audit.md) — run Cloudflare's security-audit skill on this repo in a sandbox, where its results go, and which proposed fixes to check first.
 - [Test a setup change on a real install](test-a-setup-change.md) — install from an unpublished branch into a throwaway folder, what to walk, and how to remove it.
+- [Test a live view on a real browser](test-a-live-view.md) — run two chats' live views in a throwaway browser on this server, press their buttons, and expect each Hand back to wake your own chat.
 - [Test a hook in a live session](test-a-hook.md) — run a Claude Code hook headless on its own and in a Paseo chat with the question box, and what a blocking `Stop` hook shows.
 - [The landing page](landing-page.md) — the public site in `site/`, which no install receives: where its install wording lives, what it must never offer, its privacy promises, and how it is checked, previewed, and published.
 - [The app's admin address](admin-address.md) — this repo's own app answers at `admin.wongstack.com` and keeps its `workers.dev` address: why the computer keeps the old one, why no environment takes the name, and why the config is the record.

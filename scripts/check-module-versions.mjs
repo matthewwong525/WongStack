@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Release check: a module folder that differs from main raises its version in both plugin.json files, so one version
-// names one exact folder, the base a repo with memory alone merges from. Owner: wiki/maintaining/adding-a-module.md
+// Release check: a module folder that differs from main raises its version, in its module.json or both plugin.json
+// files, so one version names one exact folder, an update's merge base. Owner: wiki/maintaining/adding-a-module.md
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,17 +14,30 @@ const version = text => { try { return JSON.parse(text).version ?? null; } catch
 const read = path => { try { return readFileSync(path, 'utf8'); } catch { return ''; } };
 const newer = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }) > 0;
 
+/** A module's version files: a `module.json` with a version for plain skill folders; else both plugin.json files, in
+ *  the module's own folder or, for a module of several folders like Daily's, the first folder `module.json` names. */
+function manifestsOf(root, folder, name) {
+  const single = [`${name}/module.json`, 'module.json'].find(file => existsSync(join(root, folder, file)));
+  if (!single || existsSync(join(root, folder, MANIFESTS[0]))) return MANIFESTS;
+  let listed = {};
+  try { listed = JSON.parse(read(join(root, folder, single))); } catch { /* unreadable: no version */ }
+  if (listed.version) return [single];
+  const first = listed.folders?.[0];
+  return first ? MANIFESTS.map(file => `${first}/${file}`) : [single];
+}
+
 /** A line per module whose version is off: its two manifests differ, or it changed since `base` at one version. */
 export function moduleProblems(root, base) {
   const dir = join(root, '.agents/plugins');
   const names = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name) : [];
   return names.flatMap(name => {
     const folder = `.agents/plugins/${name}`;
-    const [now, other] = MANIFESTS.map(file => version(read(join(root, folder, file))));
+    const manifests = manifestsOf(root, folder, name);
+    const [now, other = now] = manifests.map(file => version(read(join(root, folder, file))));
     if (now !== other) return [`${folder}: its two plugin.json versions differ (${now}, ${other}); give both the same version`];
-    const before = version(git(root, 'show', `${base}:${folder}/${MANIFESTS[0]}`).stdout);
+    const before = version(git(root, 'show', `${base}:${folder}/${manifests[0]}`).stdout);
     const changed = git(root, 'diff', '--quiet', base, '--', folder).status === 1;
-    return before && changed && !newer(now, before) ? [`${folder} differs from ${base}, but its version is still ${now}; raise it in both plugin.json files`] : [];
+    return before && changed && !newer(now, before) ? [`${folder} differs from ${base}, but its version is still ${now}; raise it in ${manifests[1] ? 'both plugin.json files' : manifests[0]}`] : [];
   });
 }
 

@@ -14,8 +14,8 @@
     ".agents/skills/ship/SKILL.md",
     ".agents/skills/verify/SKILL.md",
     ".agents/skills/verify/references/walkthrough.md",
-    ".agents/skills/verify/scripts/verify-journeys.mjs",
-    ".agents/skills/verify/scripts/verify-staging.sh",
+    ".agents/loop/staging/verify-journeys.mjs",
+    ".agents/loop/staging/verify-staging.sh",
     ".agents/skills/wong-sync/references/payload-files.json"
   ],
   "recordedAt": "e3421e2cf656d17f7a22edd871a1a493dbf2f3bc",

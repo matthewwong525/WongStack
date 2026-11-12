@@ -40,7 +40,7 @@ Keep each task in its own chat, so the assistant keeps its mind on that one task
 - **With Paseo:** each task gets its own workspace, on *New worktree* from *main*. When a task is done, type `/close`: it saves what the chat learned and closes the workspace.
 - **With another assistant:** open a new chat in the project's folder for each task. Type `/close` when a task is done, then close the chat.
 
-Each open chat shows as one row in the Inbox of [your company app](../../stack/company-api.md), with its step, such as *Plan*. A chat that waits on your review sits on top, under *Needs you* ([your chat list](../daily.md#your-chat-list)).
+Each plan that waits on your review shows as one row in the Inbox of [your company app](../../stack/company-api.md), under *Needs you* ([your chat list](../daily.md#your-chat-list)).
 
 ## 7. Open Lesson 2
 

@@ -4,6 +4,8 @@ Access is the mini app where the owner chooses who can sign in to the business a
 
 [Cloudflare's sign-in wall](cloudflare-access.md#the-wall-decides-who-the-app-decides-what) decides who gets in. The app decides the rest, on every request.
 
+The rules live in the [Access module](../../.agents/plugins/access/README.md), the same for any app. WongStack gives it [one slots object](../../.agents/plugins/access/references/setup.md#6-write-the-slots), built per request in `app/worker/access-slots.ts`: the Cloudflare sign-in, the database store, the owner, the apps, and the keys. `/access` reads and changes people from a chat.
+
 ## How the owner is known
 
 The owner is the person whose sign-in email equals `WONG_OWNER_EMAIL`, a committed, nonsecret setting in both Workers' `vars` in `app/wrangler.jsonc`. [Setup](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) writes it beside the `CF_ACCESS_*` ids.
@@ -115,7 +117,7 @@ Admin is the one role made for you: its holder has every app and every key, and 
 - **An Admin's open can finish [the first open](#the-first-open)** when the owner's could not, such as before the key arrived. It takes nothing away.
 - **It replaced a tick on each person.** The update that brought it gave Admin to everyone who had that tick, and renamed a role you had called Admin to *Admin (custom)*, with its apps, keys and people as they were.
 
-A new Access save takes a [`Core`](../../app/worker/employee-access/core.ts), the sign-in check's pass; an owner-only one takes an `OwnerCore`. Building either by hand [fails the checks](../../app/worker/checked-caller.test.ts).
+A new Access save takes the management pass the module makes once it has checked who is asking; an owner-only save checks that the pass is the owner's. No route builds a pass by hand: the module makes it, and its tests fail on a route that does.
 
 ## Skills
 

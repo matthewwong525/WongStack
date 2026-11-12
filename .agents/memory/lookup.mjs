@@ -1,8 +1,10 @@
 // WongStack's lookups for memory: the change a branch works on, a slug's state, the person's page, and what the
 // `areas` command adds about paths: their moves, past changes, backlinks, and code users.
+import { execFile } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { longestArea, normalizePath, pathAreas } from '../skills/memory/scripts/lib/areas.mjs';
+import { promisify } from 'node:util';
+import { longestArea, normalizePath, pathAreas, realPath } from '../skills/memory/scripts/lib/areas.mjs';
 import { readHead } from '../skills/memory/scripts/lib/store.mjs';
 import { codeUsers } from './lib/callers.mjs';
 import { backlinks, readMoves } from './lib/links.mjs';
@@ -107,4 +109,83 @@ export function lookupLines({ root }, { paths, named, tags, change, areas }) {
     if (users.length) lines.push(`Code using ${path}:\n${capped(users)}`);
   }
   return lines;
+}
+
+const runGit = promisify(execFile);
+const NOISE = /^(?:openspec\/changes\/|CHANGELOG\.md$|VERSION$|(?:.*\/)?package-lock\.json$)/;
+const kept = (path, root) => {
+  const rel = bare(path, root);
+  return rel && !NOISE.test(rel) ? rel : null;
+};
+const here = (root, path) => existsSync(join(root, path));
+// A change's plan-named paths that exist now, for an active change or when git can not answer.
+const planFiles = (root, name) => [...new Set(changePaths({ root }, name).filter(looksLikePath).map(word => kept(word, root))
+  .map(path => path && realPath(path, root)).filter(Boolean))].map(path => ({ path, churn: 0 }));
+
+// Each archived slug's archive commit, newest first, so a slug archived twice keeps its newest.
+async function archiveCommits(git) {
+  const out = await git(['log', '--diff-filter=A', '--format=@%H', '--name-only', '--', 'openspec/changes/archive/*/proposal.md']);
+  const commits = new Map();
+  let commit;
+  for (const line of out.split('\n')) {
+    if (line.startsWith('@')) commit = line.slice(1);
+    const slug = line.match(/^openspec\/changes\/archive\/\d{4}-\d{2}-\d{2}-([^/]+)\/proposal\.md$/)?.[1];
+    if (slug && !commits.has(slug)) commits.set(slug, { commit, order: commits.size });
+  }
+  return commits;
+}
+
+// One commit's files and changed lines, without the plan folder, release files, or lockfiles.
+async function commitFiles(git, commit, root) {
+  const out = await git(['show', '--numstat', '--no-renames', '--format=', commit]);
+  return out.split('\n').filter(Boolean).map(line => line.split('\t')).map(([added, removed, path]) => ({ path: kept(path, root),
+    churn: (Number(added) || 0) + (Number(removed) || 0) })).filter(file => file.path);
+}
+
+// Every rename since `from`, oldest first. `follow(path, since)` replays only the moves from commit `since` on, so a
+// name reused after a move keeps its own file. Every commit is listed: `--diff-filter` would hide a change's position.
+async function renames(git, from) {
+  const out = await git(['log', '--reverse', '-M', '--name-status', '--format=@%H', `${from}..HEAD`]);
+  const moves = [], at = new Map();
+  for (const line of out.split('\n')) {
+    if (line.startsWith('@')) { at.set(line.slice(1), moves.length); continue; }
+    const [status, old, now] = line.split('\t');
+    if (status?.startsWith('R')) moves.push([old, now]);
+  }
+  return (path, since) => moves.slice(at.get(since) ?? 0).reduce((current, [old, now]) => current === old ? now : current, path);
+}
+
+/** The files each change touched: a shipped change's from its squash commit, by changed lines, followed through
+ *  renames; an active change's from its plan. On a git failure, the archived plan's paths. Never throws. */
+export async function changeFiles({ root }, slugs, { deadline = Date.now() + 1500, run = runGit } = {}) {
+  const git = args => run('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 1 << 28, timeout: Math.max(1, deadline - Date.now()) })
+    .then(result => result.stdout ?? result);
+  const found = new Map();
+  const archived = [];
+  for (const slug of slugs) {
+    if (existsSync(join(root, 'openspec', 'changes', slug, 'proposal.md'))) found.set(slug, planFiles(root, slug));
+    else archived.push(slug);
+  }
+  if (!archived.length) return found;
+  const archive = join(root, 'openspec', 'changes', 'archive');
+  const folders = existsSync(archive) ? readdirSync(archive).sort().reverse() : [];
+  const fallback = slug => {
+    const folder = folders.find(name => name.replace(/^\d{4}-\d{2}-\d{2}-/, '') === slug);
+    return folder ? planFiles(root, `archive/${folder}`) : [];
+  };
+  const commits = await archiveCommits(git).catch(() => new Map());
+  const read = await Promise.all(archived.map(slug => commits.has(slug)
+    ? commitFiles(git, commits.get(slug).commit, root).catch(() => fallback(slug)) : fallback(slug)));
+  const missing = read.some(files => files.some(file => !here(root, file.path)));
+  const oldest = archived.filter(slug => commits.has(slug)).sort((a, b) => commits.get(b).order - commits.get(a).order)[0];
+  const follow = missing && oldest ? await renames(git, commits.get(oldest).commit).catch(() => path => path) : path => path;
+  archived.forEach((slug, index) => {
+    const merged = new Map();
+    for (const { path, churn } of read[index]) {
+      const now = realPath(path, root) ?? realPath(follow(path, commits.get(slug)?.commit), root);
+      if (now) merged.set(now, (merged.get(now) || 0) + churn);
+    }
+    found.set(slug, [...merged].map(([path, churn]) => ({ path, churn })).sort((a, b) => b.churn - a.churn || a.path.localeCompare(b.path)));
+  });
+  return found;
 }

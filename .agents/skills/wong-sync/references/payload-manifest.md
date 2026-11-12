@@ -6,14 +6,14 @@
 
 Every install starts empty and takes **every** category.
 
-- **Core** ships every listed skill's scripts/references, including browser discovery, private/reply links, Camoufox, shopping through Shop, improvement, scheduling and memory. It also ships Claude ask hooks, project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test and guard workflows/change-scope action, and the `WONG-STACK` block.
+- **Core** ships every listed skill's scripts/references, including reply links, improvement, scheduling, browser and memory. It also ships Claude ask hooks, project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test and guard workflows/change-scope action, and the `WONG-STACK` block.
 - **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
 - **Pack** adds scripts, [comment rule](../../../../scripts/lint-comment-length.mjs), workflow, schema, `wiki/stack/`, [check runner](../../../../scripts/check-runner/worker.mjs) and [company calls](../../../../scripts/company-api.mjs). Employee migrations are additive; memory imports need no app packages.
 - **Scaffold** adds `app/`, except `app/wrangler*.jsonc`, which hold source-repo database IDs.
 
 ## The agent folder
 
-Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. `mapped` installs `.claude/plugins/memory` as a real `.claude/skills/memory/`. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
+Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. `mapped` installs each module folder under `.claude/plugins/` as a real skill folder, such as [the loop](../../../plugins/loop/README.md)'s commands as `.claude/skills/<name>/` and Daily's two folders as `.claude/skills/daily/` and `.claude/skills/schedule/`; the longest entry wins. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
 
 Real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex and Claude read their respective names; the inventory block remains `CLAUDE.md`. Sync preserves every target-owned line:
 
@@ -27,15 +27,15 @@ On Windows, link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`,
 
 `components.skills` preserves local skill names. Explore dependencies beyond the copying inventory. Never copy target-owned notes, app code, business docs, `knowledge/` or OpenSpec records; seed no knowledge sections, including `wiki/people/`.
 
-Setup also copies the source's values-blank `.env.example`. It is not in `payload-files.json`, so a sync never updates it.
+Setup also copies the values-blank `.env.example`, outside `payload-files.json`, so a sync never updates it.
 
 ## Deterministic sync preflight
 
-[`preflight.mjs`](../scripts/preflight.mjs) compares recorded `commit` with refreshed `HEAD`, using both inventories' union, including additions/removals, folders, exclusions and manifest changes. It selects all four categories; `seededBySetup` is not payload.
+[`preflight.mjs`](../scripts/preflight.mjs) compares recorded `commit` with refreshed `HEAD` over both inventories' union: additions/removals, folders, exclusions and manifest changes. It selects all four categories; `seededBySetup` is not payload.
 
-Skill mappings use logical `.claude/` paths: string arrays map names to themselves; objects or source/local pairs preserve renames. New skills keep upstream names until implementation records another.
+Skill mappings use logical `.claude/` paths: string arrays map names to themselves; objects or source/local pairs preserve renames. New skills keep upstream names until another is recorded.
 
-Read source symlinks one Git hop. Folder, chained or broken links are no unit; real files win at the same path. Copy a mapped unit by `node <source path>/.claude/skills/wong-sync/scripts/install-path.mjs --source <source path> <sourcePath> > <targetPath>`: its links point at install paths.
+Read source symlinks one Git hop. Folder, chained or broken links are no unit; real files win at the same path. Copy a mapped unit or the marked `CLAUDE.md` block by `node <source path>/.claude/skills/wong-sync/scripts/install-path.mjs --source <source path> <sourcePath> > <targetPath>`; links point at install paths.
 
 Compare Git blobs, limiting `CLAUDE.md` to the marked block. Upstream units are `added|modified|removed`; target classes are `missing`, `installed-equivalent` (recorded source), `latest-equivalent` (refreshed source), or protected `locally-adapted` (neither).
 
@@ -52,13 +52,13 @@ Before advancing the record, [`merge-check.mjs`](../scripts/merge-check.mjs) wit
 
 **improve-code** ships the [improvement brief](../../../../wiki/development/repository-improvement.md): optional focus/outcome, findings-only mode, and one supported improvement plan.
 
-**save/ship** ship [`checkpoint.mjs`](../../save/scripts/checkpoint.mjs) and [`ship.mjs`](../../ship/scripts/ship.mjs) for checkpoint/prepare/finish. Portable `--worktree` checks precede pushing. Source payload/session-measurement scripts stay meta-only.
+**save/ship** ship [`checkpoint.mjs`](../../../plugins/loop/skills/save/scripts/checkpoint.mjs) and [`ship.mjs`](../../../plugins/loop/skills/ship/scripts/ship.mjs) for checkpoint/prepare/finish. Source payload/session-measurement scripts stay meta-only.
 
-**plan** ships its builder, [kit](../../plan/references/review-kit.html), [CLI contract](../../plan/references/openspec-cli.md) and [drawing guide](../../plan/references/drawings.md). Build/rebuild standalone `review.html` from `proposal.md` alone, bundling the viewer. Cited owner pages must ship; the payload-link check enforces closure.
+**plan** ships its builder, [kit](../../../plugins/loop/skills/plan/references/review-kit.html), [CLI contract](../../../plugins/loop/skills/plan/references/openspec-cli.md) and [drawing guide](../../../plugins/loop/skills/plan/references/drawings.md). Build/rebuild standalone `review.html` from `proposal.md` alone, bundling the viewer. Cited owner pages must ship; the payload-link check enforces closure.
 
 ### Planning an update
 
-Every sync reads this source page. Add these report instructions to its explore/plan handoff, in order, verbatim:
+Add these report instructions to each sync's explore/plan handoff, in order, verbatim:
 
 - Go straight into `/plan`: run any `/explore` as its bounded pass, never stopping at *Plan it?*.
 - When `catchUp.needed`, plan each reported move by [catching up an older install](catch-up.md).
@@ -92,7 +92,7 @@ The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide remo
 
 [Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `schedule`, its host and legacy references, and Node helpers; no cloud runner/bootstrap/model setup.
 
-An install owns its `.agents/daily/`, old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records until the move at the update. Never add those live records to this inventory or overwrite them. A schedule's instructions, progress and runs live in the app, not in the repo. Updates preserve deployed cloud resources and native host jobs. [Migration/teardown](../../../../wiki/stack/legacy-cloud-schedules.md) is explicit: no action runs twice.
+An install owns its `.agents/daily/`, except WongStack's [profile](../../../daily/profile.mjs), the one shipped file there; [`.claude/inbox/`](../../../inbox/schedules.mjs) ships WongStack's schedule store. It also owns old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records until the move at the update. Never add those live records to this inventory or overwrite them. A schedule's instructions, progress and runs live in the app, not in the repo. Updates preserve deployed cloud resources and native host jobs. [Migration/teardown](../../../../wiki/stack/legacy-cloud-schedules.md) is explicit: no action runs twice.
 
 ## OpenSpec integration and migration
 

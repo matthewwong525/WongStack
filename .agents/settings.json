@@ -11,17 +11,12 @@
           },
           {
             "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/hand-over/scripts/helper.mjs\" start",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/reply-link/scripts/helper.mjs\" start",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/explore/scripts/step-title.mjs\" hook --agent claude --event session-start",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/daily.mjs\" mark --agent claude",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/loop/step-title.mjs\" hook --agent claude --event session-start",
             "timeout": 3
           }
         ]
@@ -31,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/explore/scripts/ask-check.mjs\" reminder",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/loop/ask-check.mjs\" reminder",
             "timeout": 3
           }
         ]
@@ -42,12 +37,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/explore/scripts/step-title.mjs\" hook --agent claude",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/daily.mjs\" mark --agent claude",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/loop/step-title.mjs\" hook --agent claude",
             "timeout": 3
           }
         ]
@@ -59,7 +49,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/explore/scripts/ask-check.mjs\" links",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/loop/ask-check.mjs\" links",
             "timeout": 3
           }
         ]
@@ -70,28 +60,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/explore/scripts/ask-check.mjs\" stop",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/daily.mjs\" mark --agent claude",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/stop-check.mjs\" stop --agent claude",
-            "timeout": 300
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/daily.mjs\" mark --agent claude",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/loop/ask-check.mjs\" stop",
             "timeout": 3
           }
         ]
@@ -102,7 +71,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/apply/scripts/helper-stop-check.mjs\"",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/loop/helper-stop-check.mjs\"",
             "timeout": 3
           }
         ]

@@ -11,7 +11,7 @@ import { checkRecipe, collectCapture, compareCaptures, validateCapture } from '.
 // Protocol fixtures are intentionally synthetic; the real pilot is inspected separately after /save.
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const CLI = join(ROOT, '.agents/skills/verify/scripts/verify-receipts.mjs');
-const STAGING = join(ROOT, '.agents/skills/verify/scripts/verify-staging.sh');
+const STAGING = join(ROOT, '.agents/loop/staging/verify-staging.sh');
 const headSha = 'a'.repeat(40);
 const scenario = { capability: 'memory', requirement: 'Reads areas', scenario: 'Missing store' };
 const recipe = { format: 'verify-recipe-1', id: 'memory-areas', sourcePaths: ['entry.mjs'], instructions: 'capture.md', scenarios: [scenario], capture: { workflow: '.github/workflows/payload.yml', artifact: 'verify-memory-areas' } };

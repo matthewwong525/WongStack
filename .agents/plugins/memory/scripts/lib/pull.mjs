@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { areaDocs, loadAreas, pathAreas } from './areas.mjs';
 import { formatFact } from './digest.mjs';
+import { filesBehind } from './files.mjs';
 import { matchTopics, pageLinks } from './topics.mjs';
 import { loadProfile, openStore, StoreError } from './store.mjs';
 
@@ -20,6 +21,8 @@ const SAMPLE = 80;
 const BODY = 160;
 const READ_LIMIT = 1000;
 const NEAREST = 3;
+const FILES_MS = 1500;
+const FILES_TITLE = 'Files (a place to start, not a full list)';
 
 const cut = (text, max) => {
   const flat = String(text ?? '').replace(/\s+/g, ' ').trim();
@@ -259,17 +262,25 @@ function companyLines(ctx, tag, list) {
   return [`${tag}: ${list[tag].definition} (${list[tag].page})`, ...(out.length ? [`Links to: ${out.join(', ')}`] : []), ...(back.length ? [`Linked from: ${back.join(', ')}`] : [])];
 }
 
-// A change's answer: title, state, proposal; its topics; threads; newest facts; its chats.
+// The files a change touched, from the profile's lookup; none when it has no such part or the read fails.
+async function changeFiles(ctx, profile, name) {
+  try {
+    return ((await profile?.lookup?.files?.(ctx, [name], { deadline: Date.now() + FILES_MS }))?.get(name) ?? []).map(file => file.path);
+  } catch { return []; }
+}
+
+// A change's answer: title, state, proposal; its topics; the files it touched; threads; newest facts; its chats.
 async function changeAnswer(ctx, { name, areas, profile, store, all, everyone }) {
   const proposal = proposalOf(ctx.root, name);
   const state = ((await profile?.slugState?.(ctx)) ?? (() => undefined))(name);
   const extra = proposal ? [`Proposal: ${proposal.path} — ${proposal.title}`] : [];
+  const files = section('files', FILES_TITLE, await changeFiles(ctx, profile, name));
   let facts;
   try {
     [facts] = await (await store()).facts([{ slug: name, all, everyone, withTags: true, limit: READ_LIMIT }]);
   } catch (error) {
     if (!(error instanceof StoreError)) throw error;
-    return { kind: 'change', name, head: [`# ${name}${state ? ` (${state})` : ''}`, ...extra], sections: [], tail: [missingLine(error)] };
+    return { kind: 'change', name, head: [`# ${name}${state ? ` (${state})` : ''}`, ...extra], sections: [files].filter(each => each.items.length), tail: [missingLine(error)] };
   }
   const canon = canonical(areas);
   const live = facts.filter(fact => !fact.superseded_by);
@@ -291,6 +302,7 @@ async function changeAnswer(ctx, { name, areas, profile, store, all, everyone })
     head: [`# ${name}${state ? ` (${state})` : ''}: ${live.length} live facts`, ...extra],
     sections: [
       section('topics', 'Topics', topics, { inline: true }),
+      files,
       { ...section('open', 'Open threads', threads), facts: true },
       { ...section('facts', 'Facts, newest first', rest), facts: true },
       section('chats', 'Chats', chats),
@@ -315,6 +327,7 @@ async function factAnswer(ctx, { id, areas, profile, store, everyone, script }) 
   const canon = canonical(areas);
   const tags = [...new Set((fact.tags || []).map(canon))];
   const sources = fact.sources?.length ? fact.sources.join(', ') : 'none';
+  const { files } = await filesBehind(ctx, [fact], { profile, areas, limit: MORE_ITEMS, deadline: Date.now() + FILES_MS });
   return { kind: 'fact', name: `#${id}`, fact,
     head: [`# Fact #${fact.id} (${fact.type}${fact.superseded_by ? `, superseded by #${fact.superseded_by}` : ', live'})`,
       String(fact.body).replace(/\s+/g, ' ').trim(),
@@ -322,6 +335,7 @@ async function factAnswer(ctx, { id, areas, profile, store, everyone, script }) 
     sections: [
       section('topics', 'Topics', tags, { inline: true }),
       section('change', 'Change', fact.slug ? [`${fact.slug}${state ? ` (${state})` : ''}`] : [], { inline: true }),
+      section('files', FILES_TITLE, files.map(file => file.path)),
       { ...section('replaced-by', 'Replaced by', replacedBy), facts: true },
       { ...section('replaced', 'Replaced', replaced), facts: true },
       { ...section('chat', 'From the same chat', sameChat.filter(each => each.id !== fact.id)), facts: true },

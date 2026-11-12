@@ -4,7 +4,7 @@ import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { updateCopy } from '../../.agents/skills/save/scripts/update-copy.mjs';
+import { updateCopy } from '../../.agents/loop/routes/update-copy.mjs';
 
 const APP = 'https://business.example.com/api/access/code/git/';
 const env = { ...process.env, GIT_AUTHOR_NAME: 'Ada', GIT_AUTHOR_EMAIL: 'ada@example.com', GIT_COMMITTER_NAME: 'Ada', GIT_COMMITTER_EMAIL: 'ada@example.com', GIT_CONFIG_GLOBAL: '/dev/null' };

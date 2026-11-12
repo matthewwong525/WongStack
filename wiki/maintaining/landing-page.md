@@ -15,6 +15,8 @@ Four rules:
 - **Describe the install that works today**, not one that is planned. A page that promises a route early sends a visitor to a dead end.
 - **Name an assistant or a chat app as an example, never as needed.** `STEPS` in [`site/src/install.ts`](../../site/src/install.ts) says *any assistant that can work on your computer* first, then names one as an example. A picture names the optional chat app shown in its caption. The headline and the text a shared link shows name only assistants in `AGENTS`, each one tried as a working assistant first: a name that was never tried sends a visitor to a dead end.
 
+**The compatibility section names no model.** It says WongStack works with any coding agent that can read and change files and run commands. It keeps the automatic memory load of Claude Code and Codex apart from the manual look-up another assistant does. The page has no Supports row.
+
 The site compares WongStack with no other product: a wrong claim about another company's product is a liability. [`Site.test.tsx`](../../site/src/Site.test.tsx) reads every page for one.
 
 ## No hosting offer
@@ -46,7 +48,7 @@ A change that breaks one updates the page's sentence and its *Last updated* date
 2. **Preview.** On a branch, the workflow publishes the staging site and posts the change's own address on the commit as the `landing-preview` status. It shows as a *Details* link beside the change's checks. Read it with `gh api repos/<repo>/commits/<sha>/statuses`. The main preview link stays the starter app's. [Kept checks](../development/kept-checks.md#what-is-kept) of the landing page name `landing-preview` as their `site`, so they replay at this address, and read *not run* on a change that gets none.
 3. **Publish.** A merge to the default branch puts the site live at [wongstack.com](#wongstackcom-is-the-sites-address). It keeps its own `workers.dev` address too.
 
-The branch's own install, tests and build run with no deploy key. The preview and the publish then run in a second job from the default branch's files: its tools, installed with install scripts off, and its own `wrangler.site.jsonc`, with only the built `dist/` copied in. So a branch's edit to that config shows once published, never in its preview, and a preview always lands on `wongstack-site-staging` with no routes. The starter app splits the same way: [where the deploy key is](../stack/github-actions.md#where-the-deploy-key-is).
+The branch's own install, tests and build run with no deploy key. The preview and the publish then run in a second job from the default branch's files: its tools, installed with install scripts off, and its own `wrangler.site.jsonc`, with only the built `dist/` copied in. That job uses the repository's `CLOUDFLARE_DEPLOY_TOKEN`, the Cloudflare key that [Cloudflare credentials](../stack/cloudflare-credentials.md#store-it) owns. So a branch's edit to that config shows once published, never in its preview, and a preview always lands on `wongstack-site-staging` with no routes. The starter app splits the same way: [where the deploy key is](../stack/github-actions.md#where-the-deploy-key-is).
 
 A change under `site/` also runs the starter app's checks and staging deploy, as any code folder does: [the gate](../development/the-change-loop.md#the-gate) treats every path outside the docs as the main app.
 
@@ -63,8 +65,6 @@ The live site answers at `wongstack.com` and `www.wongstack.com`, and at its own
 [The guard test](../../scripts/tests/landing-site.test.mjs) fails when an environment loses its empty list, when the two names change, or when `"workers_dev": true` goes: with `routes` declared and that key absent, the site loses its own address.
 
 Both names show the same page; `www` does not send a visitor on. Every page names `wongstack.com` as its one address to index and share ([`site/index.html`](../../site/index.html)), so neither `www` nor a preview becomes the indexed copy.
-
-The compatibility section describes any model or setup through a coding agent that can read/change files and run commands. Keep Claude Code/Codex automatic memory loading distinct from another assistant’s manual lookup. There is no separate Supports row.
 
 ## Pictures and brand files
 

@@ -6,13 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/hand-over/scripts/helper.mjs\" start",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/reply-link/scripts/helper.mjs\" start",
             "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
-            "timeout": 3
           },
           {
             "type": "command",
@@ -27,29 +22,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/explore/scripts/step-title.mjs\" hook --agent codex",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/loop/step-title.mjs\" hook --agent codex",
             "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
-            "timeout": 3
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/stop-check.mjs\" stop --agent codex",
-            "timeout": 300
           }
         ]
       }
@@ -59,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/apply/scripts/helper-stop-check.mjs\"",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/loop/helper-stop-check.mjs\"",
             "timeout": 3
           }
         ]

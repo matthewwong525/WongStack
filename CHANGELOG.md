@@ -5,12 +5,109 @@
 
 ## Next (minor) — The agent signs in with your unlocked 1Password, after your yes
 
-- **1Password comes with the agent's browser.** A new browser adds it, and an older one gets it once, at its next start, by the same checks as an add you ask for. It is not added when you removed it, said no to a password manager before, or when the agent already added another one. A failed download never stops a start; a start a day later tries again ([your password manager](wiki/development/password-manager.md)).
-- **The agent signs in with a login from your unlocked 1Password, after your yes.** At a login page it reads only the names of the logins 1Password offers there, and asks you every time: the login, the site, and the steps it will take once signed in. On your yes it picks that one login, does only those steps, and names them at the end. It never unlocks 1Password and never reads a password. Locked, or no login for the site: you sign in yourself, as before ([use it at a sign-in](wiki/development/password-manager.md#use-it-at-a-sign-in)).
+- **1Password comes with the agent's browser.** A new browser adds it, and an older one gets it once, at its next start, by the same checks as an add you ask for. It is not added when you removed it, said no to a password manager before, or when the agent already added another one. A failed download never stops a start; a start a day later tries again ([your password manager](.agents/plugins/browser/browser/references/password-manager.md)).
+- **The agent signs in with a login from your unlocked 1Password, after your yes.** At a login page it reads only the names of the logins 1Password offers there, and asks you every time: the login, the site, and the steps it will take once signed in. On your yes it picks that one login, does only those steps, and names them at the end. It never unlocks 1Password and never reads a password. Locked, or no login for the site: you sign in yourself, as before ([use it at a sign-in](.agents/plugins/browser/browser/references/password-manager.md#use-it-at-a-sign-in)).
 - **New advice: set your password manager to lock after 8 hours**, so one unlock lasts the workday. The old advice, a separate vault and a 5-minute lock, ends.
 - **New commands:** `browse.mjs addon logins` and `addon pick <n>`. Every other step aimed at an add-on is still refused, and so is a key that could pick from 1Password's open list.
 
 **Updating.** Nothing to do by hand. The browser adds 1Password at its next start. Sign in to it once, in the browser the agent sends you, and set its auto-lock to 8 hours. If you don't want it, ask the agent to *remove my password manager*: it stays removed.
+
+## 55.2.1 — The password manager's page fits a phone in a live view
+
+- **On a phone, the password manager's own page narrows to the phone's width**, as a site's page does. The whole sign-in form shows, its right side included ([password manager](.agents/plugins/browser/browser/references/password-manager.md)). Before, the page stayed as wide as the computer's screen, and the view showed only a narrow strip at its left.
+- **A laptop sees no change**, and the site gets its own size back when you leave that page or the view ends.
+
+**Updating.** Nothing to do by hand.
+
+## 55.2.0 — One live view, a tab for each chat
+
+- **Several chats share one live view link.** When a second chat needs you while a view is open, its step joins that view as a tab in a row above the page, and the chat sends you the same link. Before, its view could not open until the first one closed ([one live view, a tab for each chat](.agents/plugins/browser/hand-over/references/live-view.md#what-the-link-can-do)).
+- **A new tab waits for your tap.** It shows a dot and never takes the page from you while you type. You tap a tab to show its page.
+- ***Hand back* ends only the tab you see.** Only its chat is told, and it carries on. The oldest tab left then shows. The link closes after the last tab.
+- **Each tab keeps its own 8-hour limit**, from when its chat joins. A chat's `close` ends only its own tab.
+- **A browser in a window, and the watch link, work as before.**
+
+**Updating.** Nothing to do by hand.
+
+## 55.1.1 — A note on checking the inbox on a preview
+
+- **Clear the browser's cookies before you check the inbox on a preview as yourself.** A browser that opened the preview as the checker keeps that sign-in, and the inbox refuses it ([an app that serves only the signed-in person](wiki/stack/cloudflare-access.md#setup)).
+
+**Updating.** Nothing to do by hand.
+
+## 55.1.0 — Memory shows the files behind each fact
+
+- **A memory answer ends with a short list of files.** After its facts and passages, `recall` lists up to eight files and docs those facts are about, each with the facts that led to it, so the AI opens the right place first ([files behind the facts](wiki/development/document-retrieval.md#files-behind-the-facts)). The list says it is a place to start, not a full list.
+- **The files come from the past change behind each fact**, read fresh from the repo's history, plus any path a fact names and, for a fact with neither, its topic's docs. A file that moved shows at its new place.
+- **A look at one fact or one past change lists its files too**: `memory.mjs pull #<id>` and `pull <change>`.
+
+**Updating.** Nothing to do by hand.
+
+## 55.0.0 — Daily becomes a module any project can add
+
+- **Daily is now one module, the same for any repo.** It lives in [`.agents/plugins/daily/`](.agents/plugins/daily/daily/README.md), in two folders, `daily` and `schedule`, and brings its own hooks. A project without WongStack adds Daily alone with one pasted message ([the module](wiki/development/daily.md#the-module)).
+- **A repo fills Daily's parts in one profile**, `.agents/daily/profile.mjs`: where schedules live, who you are, the chat names, and more ([the profile](wiki/development/daily.md#the-profile)). A part that fails counts as empty and writes one journal line a day.
+- **Daily works with no company app.** Schedules then go to Paseo on this computer, and the line-up runs from Daily's worker. A Paseo schedule runs with full permissions, as the app's schedules do, unless it names its own. With no Paseo either, `/schedule` is off, says what it needs, and gives the line to add to the computer's own timer to run a script ([with no app](wiki/stack/host-schedules.md#with-no-app)).
+- **The Inbox opens on the plans waiting for you**, one row per review page, newest first. It keeps no list of your chats ([your chat list](wiki/development/daily.md#your-chat-list)).
+- **Removed:** *remind me* as its own feature, and the *tell* and *watch* asks. Ask *remind me* in any chat, and `/schedule` saves a one-time schedule. A `chats` entry in Daily's `sources` setting does nothing now.
+
+**Updating.** Daily moves into its own folders and keeps every schedule, OK and setting. The update also adds Daily to Codex on this computer, so its check-ins run there. On each other computer you use Codex on, the next chat names one command to run; until you run it, Daily's check-ins do not run in Codex there. The Inbox now opens on the plans waiting for you. To get a reminder, ask *remind me* in a chat: it becomes a one-time schedule through `/schedule`. The *tell* and *watch* asks are gone. The app deletes its saved list of your chats when it deploys.
+
+## 54.0.1 — Two notes on the company sign-in and preview walks
+
+- **The company sign-in link works for about two minutes.** Start it when the person can open it at once ([connect and call](wiki/stack/company-api.md#connect-and-call)).
+- **A preview walk can't show a refusal.** The checker and the owner open every app there, so the code tests show it ([the checker on a preview](wiki/stack/preview-access.md#the-checker-on-a-preview)).
+
+**Updating.** Nothing to do by hand.
+
+## 54.0.0 — Access is a module any app can add
+
+- **Access is now one module, the same for any app.** It lives in [`.agents/plugins/access/`](.agents/plugins/access/README.md), and your project gets it at `.claude/skills/access/`. Your app gives it one object, its slots: who is signed in, where people are stored, and who the owner is. An app with no WongStack adds Access by one message pasted into a chat; [its setup guide](.agents/plugins/access/references/setup.md) connects the app's sign-in and database. The Access page, people, roles, apps and key levels stay the same ([employee access](wiki/stack/employee-access.md)).
+- **Services come with it.** The services list, direct calls, keys sent sealed, tools added from a chat, and the services skill are now in the same folder. `company-api.mjs services`, `api`, `record`, `key` and `tool` work as before ([the services list](wiki/stack/service-catalogue.md)).
+- **`/access` reads and changes people from a chat.** It says who has what, and adds, changes or removes a person after you say yes.
+- **The app no longer uses MCP servers.** A tool that has only an MCP server shows *not connected yet* ([connect your tools](wiki/stack/connect-your-tools.md#work-out-how-to-add-a-new-tool)).
+- **Memory works without Access, and Access without memory.** The app helper loads each one only when it is there.
+
+**Updating.** Nothing to do by hand for most projects: no database change, and every person keeps what they have. If you added a tool through its MCP server, it stops working, and the change record names it once: add the tool again through its API, or ask its maker for one. If one of your own pages or skills links `.agents/skills/services/SKILL.md`, the update's link check names it: the skill is now `.claude/skills/access/skills/services/SKILL.md`. The service-records check moves too: `scripts/check-service-definitions.mjs` is now `.claude/skills/access/scripts/check-definitions.mjs`, and the app's `npm test` runs it there. If one of your own scripts runs the old file, point it at the new one.
+
+## 53.3.0 — The browser is a module any project can add
+
+- **The browser, private links, and shopping are one module** that any project can add with one pasted message, in any AI tool ([the browser module](.agents/plugins/browser/browser/README.md)). Your project still gets the same three skills, `browser`, `hand-over`, and `shop`, as real folders at `.agents/skills/`.
+- **Their guides moved into the module.** Browsing, login codes, your password manager, the browser window, proxies, the live view, saved details, and shopping are now in each skill's `references/` folder. [The key link](.agents/plugins/browser/hand-over/references/key-link.md) has its own page; the secrets page links it.
+- **Your project's own parts sit in one profile**, `.agents/browser/profile.mjs`: the app's look on private pages, waking the chat, the inbox, which file takes each key, and sending a key to the app. A project with no profile gets a plain look, and every key goes to its git-ignored `.env`.
+- **Reply links and the live line's helper moved to a hidden `reply-link` skill.** The helper finds its new place at the next chat start.
+
+**Updating.** One step, done in the update's plan. Your project's own list of development guides, `wiki/development/README.md`, still links the eight browser guides at their old place, and the update removes those pages. Point each of those links at the guide's new place:
+
+- `browsing.md`, `login-codes.md`, `browser-window.md`, `browser-proxy.md`, and `password-manager.md` → `../../.agents/skills/browser/references/`
+- `live-view.md` and `saved-details.md` → `../../.agents/skills/hand-over/references/`
+- `shopping.md` → `../../.agents/skills/shop/references/`
+
+Do the same in any other page of your own that links one of these guides. Everything else changes by itself.
+
+## 53.2.1 — Two small notes on new chats and shipped plans
+
+- **Opening a new chat for another part names the right folder.** The scratch command prints JSON; the brief goes in its `path` ([open each workspace](.agents/plugins/loop/skills/plan/references/new-workspace.md#open-each-workspace)).
+- **A shipped plan's link is its saved file, on purpose** ([review pages](wiki/review-pages.md#the-frame)). A live page would wait for an answer again.
+
+**Updating.** Nothing to do by hand.
+
+## 53.2.0 — Another chat's click goes on behind your turn
+
+- **A chat's click no longer stops during your turn.** While you use the browser in one chat's tab, another chat clicks a button, a link, or a tick box in its own tab by its key, as you would press Tab and Enter. The page acts as on a mouse click, and your tab stays in front. Before, the click waited 20 seconds, then gave up with *the person is using the browser* ([your turn keeps its tab in front](wiki/development/browser-window.md#a-tab-for-each-chat)).
+- **A part of a page that reacts only to a mouse waits for your turn to end.** The chat hears at once that its click waits. The click then runs by itself when you hand back or say *done*, and the chat hears that it ran. Until then, that chat takes no other step on its page, so nothing happens out of order.
+- **With no turn open, a click works as before.**
+
+**Updating.** Nothing to do by hand. A browser that is running keeps the old behavior until it next starts.
+
+## 53.1.0 — The build loop is a module any project can add
+
+- **Any project can add the build loop with one pasted message.** The eight commands, `/explore`, `/plan`, `/apply`, `/save`, `/ship`, `/verify`, `/continue`, and `/close`, are now one module in [`.agents/plugins/loop/`](.agents/plugins/loop/README.md). Its [setup guide](.agents/plugins/loop/references/setup.md) copies them in, installs OpenSpec after a yes, finds the project's test command, and builds a sample plan page. Each command keeps its name.
+- **It works alone, and does more where the project has more.** Each part that differs by project comes through one part of a profile file, `.agents/loop/profile.mjs`. A missing part turns off only its own feature: a review page then opens as a file, and you reply in the chat.
+- **A project with no GitHub still saves and publishes.** `/save` commits on the change's branch and pushes nothing. `/ship` merges into the main branch on this computer after the tests pass, and asks before any push.
+- **WongStack works as before.** Its own parts of the loop moved to `.claude/loop/`: chat names, the check for other work, company git, Artifacts, Cloudflare previews, and the staging walk. [WongStack's profile](.agents/loop/profile.mjs) connects each one to the loop.
+
+**Updating.** Nothing to do by hand for most projects: the eight commands stay at `.claude/skills/<name>/`, and the update moves WongStack's own scripts. If one of your project's own skills, hooks, or scripts runs a file that moved, change its path: `.claude/skills/explore/scripts/step-title.mjs` is now `.claude/loop/step-title.mjs`, the Artifacts and company-git scripts are in `.claude/loop/routes/`, and the staging scripts are in `.claude/loop/staging/`.
 
 ## 53.0.0 — Memory links its topics and tidies itself each day
 
@@ -481,7 +578,7 @@ Memory's list of areas gains one entry, for the address of the app the WongStack
 
 ## 47.1.0 — Chats opened for you think at medium or more and show their names
 
-- **A chat opened for you never thinks below medium.** The workspace launcher and a schedule on the app's clock pass `--thinking`. Low, off, or none becomes medium. High and above stay. An unset level stays unset when the model's own default is medium or more, so a model that defaults to high keeps high; when the default is lower or can not be read, it becomes medium ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)). A chat you start yourself keeps the level you pick.
+- **A chat opened for you never thinks below medium.** The workspace launcher and a schedule on the app's clock pass `--thinking`. Low, off, or none becomes medium. High and above stay. An unset level stays unset when the model's own default is medium or more, so a model that defaults to high keeps high; when the default is lower or can not be read, it becomes medium ([`workspace.mjs`](.agents/plugins/daily/schedule/scripts/workspace.mjs)). A chat you start yourself keeps the level you pick.
 - **Open a workspace only through the launcher.** A raw `paseo run --new-workspace` with `--new-branch`, or Paseo's Handoff skill, keeps a slug name such as `roadmap-week-bricks` and the caller's thinking level ([new workspaces](.agents/skills/plan/references/new-workspace.md)).
 - **Your day shows a chat's workspace name, not its folder.** The chat on a board to-do, the chats in *what's going on?*, and the journal show *Task: Call Kim*, not `potent-quail`. The folder name still finds the chat.
 
@@ -610,7 +707,7 @@ Memory's list of areas gains one entry, for the address of the app the WongStack
 
 ## 45.4.0 — Small fixes from WongOS
 
-- **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)).
+- **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/plugins/daily/schedule/scripts/workspace.mjs)).
 - **A new workspace keeps your chat settings.** The worktree setup now also copies your `.claude/settings.local.json`, such as the commands you allowed, into a new workspace that has none. So a new chat does not ask for them again ([worktrees and branch copies](wiki/development/secrets.md#worktrees-and-branch-copies)).
 - **The app opens like a real app from a phone's home screen.** Add it to the home screen, and it opens full screen with no browser bar.
 - **Two lessons for checks.** A kept check points at sample data, not at a record a check made: a fresh rebuild removes that record ([kept checks](wiki/development/kept-checks.md)). A check reads a date or time field again after it types in it, because the browser tool can say the typing worked while the field stays empty.

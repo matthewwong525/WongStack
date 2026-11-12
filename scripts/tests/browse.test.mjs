@@ -80,7 +80,7 @@ test('install makes a venv, installs the pinned library and its build there, and
     [join(f.home, 'bin', 'python3'), ['-m', 'venv', join(f.camofox.install, 'venv', '0.5.9')]],
     [venv, ['-m', 'pip', 'install']],
     [venv, ['-m', 'camoufox', 'fetch']],
-    [venv, ['-I', join(repo, '.agents/skills/browser/scripts/launch-config.py'), '--library']],
+    [venv, ['-I', join(repo, '.agents/plugins/browser/browser/scripts/launch-config.py'), '--library']],
   ]);
   assert.ok(runs[1].args.includes('camoufox[geoip]==0.5.9'), 'pip gets the one pinned version');
   assert.deepEqual(runs.at(-1).args.slice(3), ['0.5.9', '--build', 'v158.0.1-beta.41', '--check']);
@@ -1108,6 +1108,67 @@ test('a click says BROWSE_CLICK=script only when the page\'s own script took it'
   assert.equal(out.status, 0, out.stdout + out.stderr);
   assert.equal(out.stdout, 'BROWSE_CLICK=script\nBROWSE_DONE=click\n');
   assert.match(out.stderr, /live view that stays open/);
+});
+
+test('a click behind the person\'s turn says key or queued, and wait-click says how a queued one landed', t => {
+  const f = fixture(t);
+  assert.equal(ok(f, 'wait-click'), 'BROWSE_CLICK=none\n', 'with no page open, no click waits');
+  assert.equal(f.camofox.starts(), 0, 'and no browser starts for it');
+  ok(f, 'open', SHOP);
+  assert.equal(ok(f, 'wait-click'), 'BROWSE_CLICK=none\n');
+  f.camofox.set('click-via', 'key');
+  let out = f.run('click', '#send');
+  assert.deepEqual([out.status, out.stdout, out.stderr], [0, 'BROWSE_CLICK=key\nBROWSE_DONE=click\n', '']);
+  f.camofox.unset('click-via');
+
+  f.camofox.set('click-queued');
+  out = f.run('click', '#more');
+  assert.deepEqual([out.status, out.stdout], [0, 'BROWSE_CLICK=queued\nBROWSE_DONE=click\n']);
+  assert.match(out.stderr, /runs when their turn ends\. Run `browse\.mjs wait-click` in the background, and take no other step on this page/);
+  f.camofox.unset('click-queued');
+  f.camofox.set('click-still-waiting');
+  f.camofox.set('waited-via', 'forced');
+  const before = f.camofox.calls().length;
+  assert.equal(ok(f, 'wait-click'), 'BROWSE_CLICK=forced\n');
+  assert.deepEqual(f.camofox.calls().slice(before), ['GET /tabs/:tab/click', 'GET /tabs/:tab/click'], 'it asks again while the click waits');
+  assert.equal(ok(f, 'wait-click'), 'BROWSE_CLICK=none\n', 'once it ran, none waits');
+
+  f.camofox.set('click-queued');
+  ok(f, 'click', 'e2');
+  f.camofox.set('waited-error', 'e2 is not on the page now; read the page again and use a current ref');
+  out = f.run('wait-click');
+  assert.deepEqual([out.status, out.stdout], [1, 'BROWSE_ERROR=e2 is not on the page now; read the page again and use a current ref\n']);
+});
+
+test('wait-click on a closed tab says none when this session queued no click, else that its click never ran', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP);
+  const tabFile = join(f.camofox.install, 'tabs', `${basename(f.home)}.json`);
+  f.camofox.set('reaped-once');
+  assert.equal(ok(f, 'wait-click'), 'BROWSE_CLICK=none\n', 'an idle tab the server closed had no click');
+
+  ok(f, 'open', SHOP);
+  f.camofox.set('click-queued');
+  assert.equal(ok(f, 'click', '#more'), 'BROWSE_CLICK=queued\nBROWSE_DONE=click\n');
+  assert.equal(JSON.parse(readFileSync(tabFile, 'utf8')).clickQueued, true, 'the tab file keeps that a click waits');
+  f.camofox.set('reaped-once');
+  const out = f.run('wait-click');
+  assert.deepEqual([out.status, out.stdout], [1, 'BROWSE_ERROR=this task\'s tab closed before its click ran\n']);
+  assert.equal(JSON.parse(readFileSync(tabFile, 'utf8')).clickQueued, undefined, 'and forgets it once reported');
+});
+
+test('a tick box pressed by key keeps the read and the Space retry; a queued one skips both', t => {
+  const f = boxPage(t);
+  f.camofox.set('box-ignores-click');
+  f.camofox.set('click-via', 'key');
+  let before = f.camofox.calls().length;
+  assert.equal(ok(f, 'click', 'e3'), 'BROWSE_CLICK=key\nBROWSE_DONE=click\n');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/evaluate', 'POST /tabs/:tab/type', 'POST /tabs/:tab/press', 'GET /tabs/:tab/snapshot', 'POST /tabs/:tab/evaluate']);
+  assert.equal(f.camofox.tabs()[0].ticked, true);
+  f.camofox.set('click-queued');
+  before = f.camofox.calls().length;
+  assert.equal(ok(f, 'click', 'e3'), 'BROWSE_CLICK=queued\nBROWSE_DONE=click\n');
+  assert.deepEqual(f.camofox.calls().slice(before), ['POST /tabs/:tab/click'], 'the waiting click refuses every other step on its tab');
 });
 
 test('a snapshot keeps each ref\'s box in the tab file, and a new page drops them', t => {

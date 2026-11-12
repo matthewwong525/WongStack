@@ -4,7 +4,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
-import { ending, shapeOf, strokes, watchEnding, watchShows } from '../../.agents/skills/hand-over/scripts/view-page.mjs';
+import { ending, shapeOf, strokes, tabsShow, watchEnding, watchShows } from '../../.agents/skills/hand-over/scripts/view-page.mjs';
 
 const scripts = new URL('../../.agents/skills/hand-over/scripts/', import.meta.url);
 const sourcePath = fileURLToPath(new URL('view-page.mjs', scripts));
@@ -23,8 +23,8 @@ const DONE = 'Done. Go back to the chat.';
 const CLOSED = 'This link has closed. Ask in the chat for a new one.';
 const [BACK, TAB, ENTER] = [0xff08, 0xff09, 0xff0d];
 
-// The page at `width` with stand-in `viewers`; `view`, `receipts`, and `watch` answer `GET /view`, `/receipt`, `/watch`
-// (null view: closed); take, give, and stop change the watch's `control` like the link. `holder` is the stage width.
+// The page at `width` with stand-in `viewers`; `view`, `receipts`, and `watch` answer `/view`, `/receipt`, `/watch`
+// (null view: closed); take and give change the watch's `control`, show a turn view's tab. `holder` is the stage width.
 function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wide }, receipts = [], hash = '#key=secret', viewer = true, before = () => {}, watch = null } = {}) {
   const calls = [];
   const viewers = [];
@@ -52,6 +52,7 @@ function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wid
       calls.push({ path, key: init.headers?.['x-hand-over-key'], body });
       if (path === 'view') return view ? answer(200, view) : answer(410);
       if (path === 'fit') return FITS[body.fit] ? answer(200, { fit: FITS[body.fit] }) : answer(400);
+      if (path === 'show') return view.tabs?.some(tab => tab.chat === body.chat) ? answer(200, Object.assign(view, { shown: body.chat })) : answer(409);
       const holds = { take: 'person', give: 'assistant' }[path];
       if (watch && holds) watch.control = holds;
       if (watch && (path === 'watch' || holds)) return answer(200, { ...watch });
@@ -385,6 +386,59 @@ test('Ctrl+V on the screen reaches the page\'s paste, not the viewer, and lets g
   assert.deepEqual(viewer.calls.at(-1), ['sendKey', 0x6b, null]);
 });
 
+const TABS = [{ chat: 'dentist', id: 1, note: 'Type the code from your phone', fresh: false }, { chat: 'flights', id: 2, note: 'Pay for the seat', fresh: true }];
+const tabsView = (shown = 'dentist', tabs = TABS) => ({ note: tabs.find(tab => tab.chat === shown).note, fit: FITS.wide, shown, tabs: tabs.map(tab => ({ ...tab })) });
+const row = p => [...p.$('#tabs').children].map(tab => [tab.textContent, tab.className, tab.getAttribute('aria-current')]);
+
+test('a view shared by chats shows a tab per chat above the page: the shown one filled, a new one marked', async t => {
+  const p = await live(t, { view: tabsView() });
+  assert.equal(p.$('#tabs').hidden, false);
+  assert.equal(p.$('#tabs').getAttribute('aria-label'), 'Chats that need you');
+  assert.deepEqual(row(p), [['dentist', 'shown', 'page'], ['flights', 'fresh', null]]);
+  assert.equal(p.$('#tabs .fresh').getAttribute('aria-label'), 'flights, new');
+  assert.equal(p.$('#line-text').textContent, 'Type the code from your phone', 'the line is the shown chat\'s');
+
+  const one = await live(t, { view: tabsView('dentist', TABS.slice(0, 1)) });
+  assert.equal(one.$('#tabs').hidden, true, 'one chat needs no row');
+  assert.equal(one.$('#line-text').textContent, 'Type the code from your phone');
+});
+
+test('a tap on a tab shows that chat: the line follows, the box empties, and Hand back names the chat it ends', async t => {
+  const view = tabsView();
+  const p = await live(t, { view });
+  p.$('#text').value = 'half typed';
+  p.$('#tabs .fresh').click();
+  await settle();
+  assert.deepEqual(p.calls.at(-1), { path: 'show', key: 'secret', body: { chat: 'flights' } });
+  assert.deepEqual(row(p), [['dentist', '', null], ['flights', 'shown', 'page']]);
+  assert.equal(p.$('#line-text').textContent, 'Pay for the seat');
+  assert.equal(p.$('#text').value, '', 'what was typed for one page is not left for the next');
+
+  p.$('#hand').click();
+  await settle();
+  assert.deepEqual(p.calls.at(-1), { path: 'give', key: 'secret', body: { chat: 'flights' } });
+  assert.equal(p.$('#hand').disabled, true, 'one press per turn');
+  Object.assign(view, tabsView('dentist', TABS.slice(0, 1)));
+  await pause(1100);
+  assert.ok(p.paths().filter(path => path === 'view').length > 1, 'the page asks the link for its tabs');
+  assert.equal(p.$('#line-text').textContent, 'Type the code from your phone', 'the tab left shows');
+  assert.equal(p.$('#tabs').hidden, true);
+  assert.equal(p.$('#hand').disabled, false, 'and its own Hand back is ready');
+  assert.equal(p.shown().live, true, 'the link stays open for it');
+});
+
+test('a chat\'s next turn gets its own Hand back, even when the page saw no poll between the two', async t => {
+  const view = tabsView('flights', TABS.slice(1));
+  const p = await live(t, { view });
+  p.$('#hand').click();
+  await settle();
+  assert.equal(p.$('#hand').disabled, true);
+  // While the phone slept, the other tab closed and flights joined again: the next poll shows its new turn.
+  Object.assign(view, tabsView('flights', [{ ...TABS[1], id: 3, note: 'Pick a seat' }]));
+  await pause(1100);
+  assert.deepEqual([p.$('#line-text').textContent, p.$('#hand').disabled], ['Pick a seat', false]);
+});
+
 const WATCHED = { note: 'The assistant is connecting your tools.', watch: true };
 const SHOWN = {
   assistant: { line: 'Clicking New integration…', hand: 'Take over', main: 'btn-primary', hands: false },
@@ -428,7 +482,11 @@ test('Take over and Hand back post their route; the close ends the page with its
   }
 });
 
-test('the pure helpers: the shape a width reports, and the closing line', () => {
+test('the pure helpers: the shape a width reports, the closing line, and the tabs', () => {
+  assert.deepEqual(tabsShow({ note: 'Sign in' }), { row: [], line: 'Sign in', id: '' }, 'an answer with no tabs keeps its note');
+  assert.deepEqual(tabsShow(tabsView('dentist', TABS.slice(0, 1))), { row: [], line: 'Type the code from your phone', id: 1 });
+  assert.deepEqual(tabsShow(tabsView('flights')), { row: [{ chat: 'dentist', shown: false, fresh: false }, { chat: 'flights', shown: true, fresh: false }], line: 'Pay for the seat', id: 2 }, 'the shown tab is never new');
+  assert.deepEqual(tabsShow({}), { row: [], line: '', id: '' });
   assert.equal(watchEnding({ result: 'done' }), 'All done. Go back to the chat.');
   assert.equal(watchEnding({ result: 'stopped' }), 'Stopped. Go back to the chat.');
   assert.equal(watchEnding(null), CLOSED);

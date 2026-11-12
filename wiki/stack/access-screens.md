@@ -1,6 +1,6 @@
 # The Access screens
 
-Access's screens are three lists the owner switches between, People, Roles and Services, and a panel that opens beside a list for one row. [Employee access](employee-access.md) owns the rules these screens show: who the owner is, apps, keys, roles and Admin.
+Access's screens are three lists the owner switches between, People, Roles and Services, and a panel that opens beside a list for one row. [Employee access](employee-access.md) owns the rules these screens show: who the owner is, apps, keys, roles and Admin. The screens ship in the [Access module](../../.agents/plugins/access/README.md)'s `screen/` folder.
 
 ## Three views
 

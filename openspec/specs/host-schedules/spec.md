@@ -290,7 +290,7 @@ A schedule SHALL be able to run as a background job, with no chat: an optional c
 #### Scenario: A run with something for the person
 
 - **WHEN** the weekly invoice check finds three late invoices
-- **THEN** one chat *Invoice check* opens with the three invoices, it shows in Jo's Inbox, and no other chat opens for that run
+- **THEN** one chat *Invoice check* opens with the three invoices, its review page shows in Jo's Inbox, and no other chat opens for that run
 
 ### Requirement: One schedule list shows every schedule
 

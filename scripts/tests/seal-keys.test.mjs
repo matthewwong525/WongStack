@@ -6,7 +6,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from
 import { dirname, join } from 'node:path';
 import { REPO, pack } from './fixtures/pack.mjs';
 import { parseConfig } from '../lib-wrangler-config.mjs';
-import { makePair, open, seal } from '../../app/src/lib/seal.ts';
+import { makePair, open, seal } from '../../.agents/skills/access/screen/seal.mjs';
 
 const CONFIG = `{
   "name": "demo",
@@ -41,8 +41,8 @@ fs.writeFileSync(path.join(process.env.FAKE_ROOT, 'gh-secret'), handed);
 
 function repo(t, config = CONFIG) {
   const made = pack(t, { scripts: ['seal-keys.mjs', 'lib-wrangler-config.mjs', 'lib-cli.mjs'], config, tools: { wrangler: WRANGLER, gh: GH }, prefix: 'seal-keys-' });
-  mkdirSync(join(made.root, 'app/src/lib'), { recursive: true });
-  copyFileSync(join(REPO, 'app/src/lib/seal.ts'), join(made.root, 'app/src/lib/seal.ts'));
+  mkdirSync(join(made.root, '.agents/skills/access/screen'), { recursive: true });
+  copyFileSync(join(REPO, '.agents/skills/access/screen/seal.mjs'), join(made.root, '.agents/skills/access/screen/seal.mjs'));
   const env = { WONG_WRANGLER: join(made.dir, 'bin', 'wrangler') };
   const run = (command, extra = {}) => made.run('seal-keys.mjs', [command], { env: { ...env, ...extra } });
   const read = name => readFileSync(join(made.root, name), 'utf8');

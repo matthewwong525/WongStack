@@ -21,7 +21,7 @@ Memory has three parts, so another repo can use it with its own database.
 | `steps` | each verb tag, and the slash commands that name it |
 | `currentSlug`, `slugState` | the change on this branch, and whether a slug is active, shipped, or a conversation |
 | `person` | the current person's page, for the digest |
-| `lookup` | what `pull` adds: docs, past changes, links, and code users |
+| `lookup` | what `pull` adds: docs, past changes, links, code users, and each change's files |
 | `tidy` | more pages for [the tidy](wiki-dream.md) to check, how its edits publish, and its deny list |
 | `sessionStart` | a job at chat start: the company knowledge refresh |
 | `commands` | admin commands on WongStack's own store: `migrate`, `migrate-people`, `assign`, `member` |
@@ -41,13 +41,13 @@ Codex copies the plugin once per computer from the root `.claude-plugin/marketpl
 
 - **Facts**, in a D1 database named `<repo>-memory`. A fact is at most 400 characters, with a slug (the change name, or a topic), a type, tags, an author, a time, its sources, and a separate owner: the person's sign-in. The types: `user` (who the user is), `feedback` (how they want work done), `project` (decisions and ruled-out options, with reasons), `reference` (pointers to outside resources), and `thread` (an open question). [Writing facts](../../.agents/plugins/memory/references/writing-facts.md) owns what a good fact keeps.
 - **Sessions**, one row per transcript: agent, branch, status (`captured` or `skipped`), and how far it was read. A session an earlier version marked `private` keeps that status: nothing of it is uploaded or read.
-- **Raw transcripts**, in a private R2 bucket of the same name, kept forever. Before upload, and before capture reads one, `.env` values and token-shaped strings are replaced with a placeholder. A transcript over 50 MB is not kept: its facts are still captured, and `source` says why. The bucket is optional: see [without R2](#without-r2).
+- **Raw transcripts**, in a private R2 bucket of the same name, kept forever. Before upload or capture, `.env` values and token-shaped strings become a placeholder. A transcript over 50 MB is not kept: its facts are still captured, and `source` says why. The bucket is optional: see [without R2](#without-r2).
 
-A fact is never edited or deleted. A later fact **supersedes** it, and only live facts show by default. That keeps history without stale answers: *the digest cap is 150 lines* supersedes *the cap is 100*, and both stay searchable.
+A fact is never edited or deleted. A later fact **supersedes** it; only live facts show by default, so history stays without stale answers: *the digest cap is 150 lines* supersedes *the cap is 100*, and both stay searchable.
 
 ## Who sees what
 
-Each repo's memory is its own: nothing goes to another repo, and nothing loads from one. A repo has two levels, the team or only you, and the admin sees both:
+Each repo's memory is its own: nothing goes to or loads from another repo. A repo has two levels, the team or only you, and the admin sees both:
 
 | What | You | Teammates | Admin |
 |---|---|---|---|
@@ -67,7 +67,7 @@ When a chat starts or resumes, the plugin's start hook prints a **digest** of th
 
 **Before the first edit in a folder**, a hook shows that [area's](#facts-by-code-area) open threads, then its newest live facts, eight lines at most, as [who sees what](#who-sees-what) allows. It fires once per area per chat, on Claude Code's edit tools and Codex's `apply_patch`, and never holds up the edit: no answer within 3 seconds shows nothing.
 
-A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.agents/skills/explore/SKILL.md) searches before it asks a question, and `/continue` reads the change's facts and open threads. [Memory search](memory-search.md) says which read to use.
+A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.agents/plugins/loop/skills/explore/SKILL.md) searches before it asks a question, and `/continue` reads the change's facts and open threads. [Memory search](memory-search.md) says which read to use.
 
 ## Topics
 
@@ -99,8 +99,8 @@ A fact about code carries the **area tag** of the folder it concerns, so the nex
 
 - **A fact gets its area when it is written.** The writer tags it, as [writing facts](../../.agents/plugins/memory/references/writing-facts.md) says. An area tag the store lacks is defined from the list on first use. [Upkeep](#consolidation) tags older facts whose words name a mapped path.
 - **The list owns each area tag's definition and look-alikes.** Upkeep copies them to the store on the admin's next write: an entry's `aliases` point at its area, *testing* at `tests`, and a read by a tag also finds its aliases. Fix a definition in `areas.json`, not in the store. For a look-alike outside the list, the admin runs `memory.mjs tag <name> --alias-of <tag>`; a teammate never changes a tag.
-- **One lookup shows everything linked.** `memory.mjs pull <path>` prints the areas, their docs and code folders, past changes, the files linking to and the code using the path, then its areas' facts. When the store doesn't answer, it says so, and work goes on.
-- **The build and planning load it.** Before its first edit, [`/apply`'s build](../../.agents/skills/apply/references/build-helper.md) pulls the change and runs `memory.mjs areas --change <name>` on the paths it names. [`/explore`](../../.agents/skills/explore/SKILL.md#search-memory-before-asking) pulls the paths it expects to touch.
+- **One lookup shows everything linked.** `memory.mjs pull <path>` prints the areas, their docs and code folders, past changes, the files linking to and the code using the path, then its areas' facts. A change or a fact lists [its files](document-retrieval.md#files-behind-the-facts). When the store doesn't answer, it says so.
+- **The build and planning load it.** Before its first edit, [`/apply`'s build](../../.agents/plugins/loop/skills/apply/references/build-helper.md) pulls the change and runs `memory.mjs areas --change <name>` on the paths it names. [`/explore`](../../.agents/plugins/loop/skills/explore/SKILL.md#search-memory-before-asking) pulls the paths it expects to touch.
 - **A repo adds its own areas** in `areas.json`: a tag, a definition, folder prefixes, and docs; a doc the repo lacks is skipped. [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) keeps the edit as a local change.
 
 ## Consolidation

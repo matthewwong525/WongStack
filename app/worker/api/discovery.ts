@@ -2,10 +2,10 @@
 import { selectOperations } from "../../../.agents/memory/lib/operations.mjs";
 import { apiActions, toolActions } from "./router.ts";
 import { appActions, type AppEnv } from "../apps/index.ts";
-import type { AccessIdentity } from "../access.ts";
 import { actionError, containsCredential, needFor, schemas, uniqueActions, type Registration } from "./contract.ts";
-import { currentPolicy, listedKeys, policyAllows, policyDenied } from "../employee-access/policy.ts";
-import { described, keyTitle, registered, registryOf, saved, type Level, type Registry } from "../employee-access/key-levels.ts";
+import { currentPolicy, listedKeys, policyAllows, policyDenied, registryOf, saved, type AccessIdentity, type Level,
+  type Registry } from "../access-slots.ts";
+import { described, keyTitle, registered } from "../../../.agents/skills/access/server/levels.mjs";
 
 const issuesSchema = { type: "array", maxItems: 10, items: { type: "object", required: ["path", "message"], additionalProperties: false,
   properties: { path: { type: "string", maxLength: 200 }, message: { type: "string", maxLength: 200 } } } };

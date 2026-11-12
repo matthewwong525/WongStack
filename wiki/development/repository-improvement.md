@@ -47,7 +47,7 @@ Some mistakes happen in the chat, and no file shows them: a helper that stops wh
 - **A block with a reason**, so the agent learns the fix from the refusal.
 - **A check right after a write**, while the mistake is still cheap.
 
-Ship each hook for Claude Code and Codex, where the host fires the event, in [`.agents/settings.json`](../../.agents/settings.json) and [`.agents/hooks.json`](../../.agents/hooks.json). Let the second attempt through: a hook that traps the agent costs more than the mistake. [The build helper's stop check](../../.agents/skills/apply/scripts/helper-stop-check.mjs) is the example: it sends a helper back once when it stops without its report.
+Ship each hook for Claude Code and Codex, where the host fires the event, in [`.agents/settings.json`](../../.agents/settings.json) and [`.agents/hooks.json`](../../.agents/hooks.json). Let the second attempt through: a hook that traps the agent costs more than the mistake. [The build helper's stop check](../../.agents/loop/helper-stop-check.mjs) is the example: it sends a helper back once when it stops without its report.
 
 A written rule is for a judgment call no check or hook could make. `/improve-code` does not write one: its report names the note as one for a normal request.
 
@@ -69,7 +69,7 @@ An idea the run weighed and turned down for a reason that will still hold, a res
 
 ## It plans, then stops
 
-`/improve-code` hands [`/plan`](../../.agents/skills/plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and the note it answers. The run ends at the plan's link, as every finished plan does: you build it from its page, change it, or drop it. No code has changed.
+`/improve-code` hands [`/plan`](../../.agents/plugins/loop/skills/plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and the note it answers. The run ends at the plan's link, as every finished plan does: you build it from its page, change it, or drop it. No code has changed.
 
 Every run ends one of three ways, named in its report:
 
@@ -79,7 +79,7 @@ Every run ends one of three ways, named in its report:
 
 ## Run it on a cadence
 
-Run [`/schedule every Monday at 9am: /improve-code`](../../.agents/skills/schedule/SKILL.md): it verifies an existing host clock and future-session access before activation ([host schedules](../stack/host-schedules.md)). Each run plans and waits; the schedule grants no permission to build or publish its improvement. [Legacy migration](../stack/legacy-cloud-schedules.md#move-one-job) covers prompts under older skill names.
+Run [`/schedule every Monday at 9am: /improve-code`](../../.agents/plugins/daily/schedule/SKILL.md): it verifies an existing host clock and future-session access before activation ([host schedules](../stack/host-schedules.md)). Each run plans and waits; the schedule grants no permission to build or publish its improvement. [Legacy migration](../stack/legacy-cloud-schedules.md#move-one-job) covers prompts under older skill names.
 
 A scheduled run has nobody to answer, and its copy of the project is thrown away when it ends. So it saves the plan on its own branch and leaves a note in memory that starts `Improve plan:` and names it; your next chat shows the note. Nothing is built or published until you say yes.
 
@@ -89,7 +89,7 @@ Any other scheduler must provide a clean, current checkout and serialize runs so
 
 ## Keep one delivery owner
 
-`/improve-code` owns choosing; [`/plan`](../../.agents/skills/plan/SKILL.md) owns the plan; [`/apply`](../../.agents/skills/apply/SKILL.md) and [`/ship`](../../.agents/skills/ship/SKILL.md) own building, Git, checks, and publishing, and run only after your yes. Normal gates and scope boundaries apply, including preserving unrelated unfinished work.
+`/improve-code` owns choosing; [`/plan`](../../.agents/plugins/loop/skills/plan/SKILL.md) owns the plan; [`/apply`](../../.agents/plugins/loop/skills/apply/SKILL.md) and [`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md) own building, Git, checks, and publishing, and run only after your yes. Normal gates and scope boundaries apply, including preserving unrelated unfinished work.
 
 ## Where the ideas come from
 

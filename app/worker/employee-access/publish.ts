@@ -4,9 +4,8 @@ import { z } from "zod";
 import { joined } from "../api/body.ts";
 import { CODE_CHANGE, changeOf, commit, rows, runOf, sent } from "./change.ts";
 import { type ChecksBinding, NOT_SET_UP, codeUnavailable, pkt, saveSource, upstream } from "./code.ts";
-import { AccessError, reply } from "./core.ts";
 import { type Github, GithubError, github } from "./github.ts";
-import { boundedJson } from "./json.ts";
+import { AccessError, boundedJson, reply } from "../../../.agents/skills/access/server/errors.mjs";
 
 export const CODE_PUBLISH = `${CODE_CHANGE}/publish`;
 

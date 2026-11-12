@@ -137,6 +137,35 @@ test('pull #N: the whole fact, its topics and change, and what replaced it', asy
   assert.match(after.stdout, /## Replaced\n- \[project\] A pull shows three items a group\. /);
 });
 
+const FILES = '## Files (a place to start, not a full list)';
+test('pull <change> lists the files it touched: three, a count, the whole group with --more, in JSON, and with no store', async t => {
+  const env = await seeded(t);
+  const paths = ['wiki/development/memory.md', 'wiki/stack/mini-apps.md', 'wiki/stack/core-stack.md', 'app/worker/index.ts', 'app/worker/api.ts'];
+  files(env.repo.root, { 'app/worker/api.ts': '', 'openspec/changes/topic-web/proposal.md': `# Pull any node\n\nEdits ${paths.map(path => `\`${path}\``).join(', ')} and \`gone.md\`.\n` });
+  const result = await memory(env.repo, env.fake, ['pull', 'topic-web']);
+  assert.equal(result.code, 0, result.stderr);
+  assert.ok(result.stdout.includes(`${FILES}\n${paths.slice(0, 3).join('\n')}\n· 2 more\n`), result.stdout);
+  assert.ok(result.stdout.trimEnd().split('\n').length <= MAX_LINES && Buffer.byteLength(result.stdout) <= MAX_BYTES);
+  const more = await memory(env.repo, env.fake, ['pull', 'topic-web', '--more', 'files']);
+  assert.deepEqual(more.stdout.trim().split('\n').slice(1), paths.map(path => `- ${path}`));
+  const json = JSON.parse((await memory(env.repo, env.fake, ['pull', 'topic-web', '--json'])).stdout);
+  assert.deepEqual(json.sections.find(each => each.key === 'files'), { key: 'files', title: FILES.slice(3), total: 5, items: paths });
+  env.fake.setOffline(true);
+  const offline = await memory(env.repo, env.fake, ['pull', 'topic-web']);
+  assert.equal(offline.code, 0, offline.stderr);
+  assert.ok(offline.stdout.includes(`${FILES}\n${paths.slice(0, 3).join('\n')}\n`), offline.stdout);
+  assert.match(offline.stdout.trim().split('\n').at(-1), /^Memory was not loaded/);
+});
+
+test('pull #N lists the files behind that one fact, a path it names first', async t => {
+  const env = await seeded(t);
+  await put(env, { source: 'save', slug: 'topic-web', facts: [{ action: 'add', type: 'project', body: 'Mini apps are told in wiki/stack/mini-apps.md.', tags: ['mini-apps'] }] });
+  const [row] = rows(env, "SELECT id FROM facts WHERE body LIKE 'Mini apps are told%'");
+  const result = await memory(env.repo, env.fake, ['pull', `#${row.id}`]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.ok(result.stdout.includes(`${FILES}\nwiki/stack/mini-apps.md\n`), result.stdout);
+});
+
 test('a word that is no node exits 1 with the nearest topics and no facts', async t => {
   const env = await seeded(t);
   const result = await memory(env.repo, env.fake, ['pull', 'memry']);

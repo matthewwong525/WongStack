@@ -2,7 +2,7 @@
 
 ## Context
 
-The agent's browser is Camoufox (pinned in `browse.mjs` as `CAMOUFOX`). Add-ons come only through `addons.mjs` (`browse.mjs addon <verb>`): found on addons.mozilla.org, sha256-checked, unzipped to `~/.wong-stack/camoufox/addons/<guid>/`, recorded in `addons.json` (`{ added: [...] }`), and loaded by `startArgs()` at each browser start, which also swaps in updates weekly ([password manager](../../../wiki/development/password-manager.md)). 1Password's slug is `1password-x-password-manager`; on this server it is added, at 8.12.41.1, and the person has signed in to it in a live view.
+The agent's browser is Camoufox (pinned in `browse.mjs` as `CAMOUFOX`). Add-ons come only through `addons.mjs` (`browse.mjs addon <verb>`): found on addons.mozilla.org, sha256-checked, unzipped to `~/.wong-stack/camoufox/addons/<guid>/`, recorded in `addons.json` (`{ added: [...] }`), and loaded by `startArgs()` at each browser start, which also swaps in updates weekly ([password manager](../../../.agents/plugins/browser/browser/references/password-manager.md)). 1Password's slug is `1password-x-password-manager`; on this server it is added, at 8.12.41.1, and the person has signed in to it in a live view.
 
 Today `browse.mjs` hides every `moz-extension://` frame from readings and refuses any click or typing aimed at one (`password-manager-add-on`: *The agent never uses the password manager*). The person fills from 1Password's in-page fill list in a live view.
 

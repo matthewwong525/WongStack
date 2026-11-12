@@ -32,7 +32,7 @@ export const itemPut = inboxAction<Input>({
     actions: z.array(actionName).max(LIMITS.actions).describe("The actions a tap may name besides send."),
     version: z.string().min(1).max(100).describe("The body's version."), closesAt: z.number().int().positive().describe("When the item closes, in ms."),
     hidden: z.boolean().optional().describe("The item takes taps but shows in no list, such as a chat's watch."),
-    chat: agentId.optional().describe("The agent id of the chat that sent it, so its row in the chat list shows it."),
+    chat: agentId.optional().describe("The agent id of the chat that sent it."),
   }),
   output: z.strictObject({ id: itemId, version: z.string() }), encoding: "json", effect: "write",
   limits: { inputBytes: 3145728, outputBytes: 65536, timeoutMs: 15000 },

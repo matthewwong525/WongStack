@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vitest";
-import type { AccessIdentity } from "../../access";
+import type { AccessIdentity } from "../../access-slots";
 import { handleApp } from "../index";
 import { body, type Loose } from "../../../tests/body";
 import { fakeEnv } from "../../../tests/env";
@@ -413,4 +413,15 @@ it("starts staging with Fay's review pages: two waiting, and an Archive answered
   const pages = await Promise.all(archived.map(row => read(`item?id=${row.id}`)));
   expect(pages.map(({ item }) => [item.workspace, item.archived.answers.map(answer => answer.action), String(item.body).includes(`data-change="${item.workspace}"`)]))
     .toEqual([["weekly-profit-summary", ["send"], true], ["stock-check-friday", ["build"], true], ["bfcm-landing-page", [], true]]);
+});
+
+it("answers the week board's and the chat list's old routes with retired, and changes nothing", async () => {
+  expect(await call(sam, "GET", "daily-tasks", { week: "2026-10-05" })).toMatchObject({ status: 404, json: { error: { code: "retired" } } });
+  expect(await call(sam, "POST", "daily-task-add", { importKey: "chat:x", title: "x" })).toMatchObject({ status: 404, json: { error: { code: "retired" } } });
+  expect((await call(sam, "PATCH", "task", { id: "x" })).status).toBe(404);
+  const computer = "c".repeat(32);
+  for (const [method, route, input] of [["GET", "chats", undefined], ["PUT", "chat", { agentId: "a1", computer, name: "Chat", folder: "desk" }],
+    ["POST", "chats-sync", { computer, chats: [] }], ["POST", "chat-remove", { agentId: "a1" }], ["POST", "chat-close", { agentId: "a1" }]] as const) {
+    expect(await call(sam, method, route, input), `${method} ${route}`).toEqual({ status: 404, json: { error: { code: "retired" } } });
+  }
 });

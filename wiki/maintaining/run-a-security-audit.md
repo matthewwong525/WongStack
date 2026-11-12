@@ -18,7 +18,7 @@ The standard profile on 2026-10-21 spent about 120 agents over seven hunt waves.
 
 ## Fix a finding
 
-- **Check a host the way its user reads it.** Node's `URL` reads `https://own.host\@evil.example` as `own.host`, but curl sends it to `evil.example`. A check that parses with Node and hands the text to curl lets the key out. Also require the written address to start with the parsed origin, as [`own-site.mjs`](../../.agents/skills/verify/scripts/own-site.mjs) does.
+- **Check a host the way its user reads it.** Node's `URL` reads `https://own.host\@evil.example` as `own.host`, but curl sends it to `evil.example`. A check that parses with Node and hands the text to curl lets the key out. Also require the written address to start with the parsed origin, as [`own-site.mjs`](../../.agents/loop/staging/own-site.mjs) does.
 - **Scope browser headers to one site.** agent-browser's `set headers` sends them to every host a page loads, fonts and scripts included; `open <url> --headers` sends them only to that URL's origin.
 - **Add a regression test per finding** that replays the audit's reproduction with dummy data, as the [send-secrets-only-to-their-site change](../../openspec/changes/archive/2026-10-21-send-secrets-only-to-their-site/proposal.md) did.
 

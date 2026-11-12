@@ -342,16 +342,15 @@ function fakePage(f, first = [2560, 1328]) {
     now: first,
     fails: false,
     hidden: false,
-    // While the password manager's page shows, the server keeps the page's size and says so.
+    // While the password manager's page shows, the server sets the asked width, keeps the page's height, and says so.
     addon: false,
     show() { f.set('tabs.json', page.hidden ? [] : [{ size: page.now }, { size: [2560, 1328] }]); },
     async resize(width, height) {
       page.calls.push([width, height]);
       if (page.fails) throw new Error('the browser refused the step');
-      if (page.addon) return { ok: true, width: page.now[0], height: page.now[1], addonPage: true };
-      page.now = [width, height];
+      page.now = page.addon ? [width, page.now[1]] : [width, height];
       page.show();
-      return { ok: true, width, height };
+      return { ok: true, width, height: page.now[1], ...(page.addon && { addonPage: true }) };
     },
   };
   page.show();
@@ -442,7 +441,7 @@ test('a first fit on the password manager\'s page reads no bar, and the first fi
   page.addon = true;
   const live = liveView({ size: null, display: ':97', ...standIn(t, f) }, page);
   await live.fit();
-  assert.deepEqual(page.now, [1280, 663], 'its page keeps the size it was given');
+  assert.deepEqual(page.now, [1280, 663], 'its page keeps the height it was given, under the bar');
   assert.deepEqual(raised(f), ['100'], 'and its window, as tall as the screen, comes to the front');
   assert.deepEqual(sizedWindows(f), ['101'], 'a window that already fits the screen is left alone; only the other, bigger one is sized');
   page.addon = false;
@@ -458,15 +457,31 @@ test('on the password manager\'s page, a window bigger than the screen is sized 
   page.addon = true;
   const live = liveView({ size: null, display: ':97', ...standIn(t, f) }, page);
   assert.deepEqual(await live.fit('phone'), { kind: 'phone', width: 480, screen: SCREEN });
-  assert.deepEqual(page.now, [1920, 979], 'the browser keeps that page\'s own size');
+  assert.deepEqual(page.now, [480, 979], 'that page takes the width, and the browser keeps its height');
   const calls = f.tools.calls('xdotool').map(args => args.join(' '));
   assert.deepEqual(calls.filter(line => line.startsWith('windowsize')), ['windowsize 100 1280 720 windowmove 100 0 0', 'windowsize 101 1280 720 windowmove 101 0 0'],
-    'the whole screen, even for a phone: the page can not be narrowed there');
+    'each window taller than the screen is sized to the screen');
   assert.ok(calls.findIndex(line => line.startsWith('windowraise')) > calls.findIndex(line => line.startsWith('windowsize')), 'sized first, then raised');
   assert.deepEqual(raised(f), ['100']);
   await live.fit();
   assert.equal(sizedWindows(f).length, 2, 'the keep-alive leaves a window that now fits alone');
   assert.deepEqual(raised(f), ['100', '100']);
+});
+
+test('on a phone, the password manager\'s page narrows to 480 under the bar, as a site does', async t => {
+  const f = setup(t);
+  const page = fakePage(f, [1280, 663]);
+  page.addon = true;
+  const live = liveView({ size: null, display: ':97', ...standIn(t, f) }, page);
+  assert.deepEqual(await live.fit('phone'), { kind: 'phone', width: 480, screen: SCREEN }, 'the 480 strip shows the whole page');
+  assert.deepEqual(page.now, [480, 663], 'the page takes the phone\'s width and keeps its height');
+  assert.deepEqual(sizedWindows(f), ['101'], 'its window already fits the screen, so only the other, bigger one is sized');
+  assert.deepEqual(raised(f), ['100'], 'and the page\'s window comes to the front');
+
+  const before = page.calls.length;
+  assert.deepEqual(await live.fit(), { kind: 'phone', width: 480, screen: SCREEN });
+  assert.deepEqual(page.calls.slice(before), [[480, 720]], 'the keep-alive sends only the fit\'s size: no reading of the bar widens the page');
+  assert.deepEqual(page.now, [480, 663], 'so the page stays 480 wide');
 });
 
 test('fits take turns, and a failed one does not stop the next', async t => {
@@ -536,6 +551,26 @@ test('a page that can not be resized still has its source stopped; a source with
   assert.equal(f.tools.calls('x11vnc').length, 0);
 });
 
+test('a shared view fits only the page it shows: show lets the page before go first, and nothing shows after the end', async t => {
+  const f = setup(t);
+  const [first, second] = [fakePage(f, [1440, 900]), fakePage(f, [1440, 900])];
+  const view = { display: ':97', ...standIn(t, f) };
+  const live = liveView(view);
+  assert.equal(await live.fit('wide'), null, 'no page shows yet, and none is resized');
+  const steps = [];
+  await live.show(first, async () => steps.push('none'));
+  await live.fit('wide');
+  await live.show(second, async () => steps.push(first.calls.length));
+  await live.fit('phone');
+  assert.deepEqual(steps, ['none', 2], 'the swap runs before the next page shows');
+  assert.equal(first.calls.length, 2, 'the page before is not fitted again');
+  assert.deepEqual(second.calls.at(-1)[0], 480);
+  await live.end();
+  assert.ok(!alive(view.sourcePid));
+  await live.show(first, async () => steps.push('late'));
+  assert.deepEqual(steps, ['none', 2], 'a show after the end does nothing');
+});
+
 test('viewerFile gives only a script under the viewer\'s core/ or vendor/ folder', t => {
   const f = setup(t);
   const dir = fakeViewer(f.home, VIEWER.version);
@@ -565,7 +600,9 @@ test('the view\'s routes give the note, the fit, and the deadline, take a shape,
   const fits = [];
   const ends = [];
   const fit = kind => ({ kind, width: kind === 'phone' ? 480 : 1280, screen: SCREEN });
-  const call = await mounted(t, viewRoutes({ note: 'Messenger wants to know you\'re a person' }, { fitted: () => fit('wide'), onFit: async kind => { fits.push(kind); return fit(kind); }, onGive: () => ends.push('give'), closesAt: 1234 }));
+  // The watcher ends a turn once: a second press finds no turn to end.
+  const onGive = () => ends.length ? null : () => ends.push('give');
+  const call = await mounted(t, viewRoutes({ note: 'Messenger wants to know you\'re a person' }, { fitted: () => fit('wide'), onFit: async kind => { fits.push(kind); return fit(kind); }, onGive, closesAt: 1234 }));
   const view = await call('view');
   assert.equal(view.status, 200);
   assert.deepEqual({ ...view.json, now: 0 }, { note: 'Messenger wants to know you\'re a person', control: 'turn', fit: fit('wide'), closesAt: 1234, now: 0 });
@@ -585,4 +622,28 @@ test('the view\'s routes give the note, the fit, and the deadline, take a shape,
   assert.deepEqual(Object.keys((await bare('view')).json).sort(), ['control', 'fit', 'note', 'now'], 'nothing else from the page');
   assert.deepEqual((await bare('fit', { fit: 'wide' })).json, { fit: null });
   assert.equal((await bare('stop', {})).status, 400, 'Stop is gone: the route is no turn action');
+});
+
+test('a shared view\'s routes add its tabs, show a tab a press names, and end the turn of the chat Hand back names', async t => {
+  const shown = { now: 'dentist' };
+  const given = [];
+  const tabs = () => ({ note: 'Booking needs a code', shown: shown.now, tabs: [{ chat: 'dentist', note: 'Booking needs a code', fresh: false }, { chat: 'flights', note: 'Pay for the seat', fresh: true }] });
+  const call = await mounted(t, viewRoutes({ note: 'Booking needs a code' }, {
+    tabs,
+    onShow: async chat => chat === 'flights' && Boolean(shown.now = chat),
+    onGive: chat => chat === 'flights' ? () => given.push(chat) : null,
+  }));
+  const view = (await call('view')).json;
+  assert.deepEqual([view.control, view.shown, view.tabs.map(tab => tab.chat)], ['turn', 'dentist', ['dentist', 'flights']]);
+  assert.equal((await call('show')).status, 405);
+  assert.equal((await call('show', { chat: 'garage' })).status, 409, 'a chat with no tab');
+  const showing = await call('show', { chat: 'flights' });
+  assert.deepEqual([showing.status, showing.json.shown], [200, 'flights']);
+  assert.equal((await call('give', { chat: 'dentist' })).status, 409, 'a chat whose turn is not open');
+  assert.equal((await call('give', { chat: 'flights' })).status, 200);
+  await pause(20);
+  assert.deepEqual(given, ['flights']);
+
+  const single = await mounted(t, viewRoutes({ note: null }));
+  assert.equal((await single('show', { chat: 'flights' })).status, 404, 'a view with no tabs has no route to show one');
 });

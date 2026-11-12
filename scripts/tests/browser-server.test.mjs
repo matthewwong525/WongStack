@@ -23,11 +23,19 @@ function inPage(document, script, ...args) {
   try { return script(...args.map(arg => (arg?.[HANDLE] ? arg.value : arg))); } finally { globalThis.document = kept; }
 }
 
+/** An element as a page script sees it: its tag, `type`, attributes, `tabIndex`, whether it is disabled, and whether
+ * a focus lands on it. */
+function element(localName, { type = '', attributes = {}, tabIndex = 0, disabled = false, focusable = true } = {}) {
+  const root = { activeElement: null };
+  const made = { localName, type, tabIndex, matches: selector => selector === ':disabled' && disabled, getAttribute: name => attributes[name] ?? null, hasAttribute: name => name in attributes };
+  return Object.assign(made, { getRootNode: () => root, focus: () => { if (focusable) root.activeElement = made; } });
+}
+
 /** A frame whose text is `yaml`; its locators record each step in `calls`. A click throws each `clickFails` error. */
 function stubFrame(calls, { url = 'about:blank', name = '', yaml = '' } = {}) {
   // `addonTargets` are the selectors that find the password manager's frame in the page; `rows` its fill list's login
-  // names; `boxes: false` finds no box; `visible` is its element's.
-  const frame = { yaml, clickFails: [], detached: false, addonTargets: [], rows: [], boxes: true, visible: true };
+  // names; `boxes: false` finds no box; `visible` is its element's; `elements`, each locator's.
+  const frame = { yaml, clickFails: [], detached: false, addonTargets: [], rows: [], boxes: true, visible: true, elements: {} };
   // `dom`, when set, is the stand-in page a box's script or the frame element's runs in: `{document, login, element}`.
   const locator = desc => ({
     nth: n => locator(`${desc}#${n}`),
@@ -43,10 +51,12 @@ function stubFrame(calls, { url = 'about:blank', name = '', yaml = '' } = {}) {
     evaluateHandle: async script => ({ [HANDLE]: true, value: inPage(frame.dom.document, script, frame.dom.login), dispose: async () => {} }),
     evaluate: async (script, arg) => {
       if (frame.dom && arg) return inPage(frame.dom.document, script, frame.dom.login, arg);
-      calls.push(['dom click', desc]);
+      const found = frame.elements[desc] ?? {};
+      found.click ??= () => { calls.push(['dom click', desc]); };
+      return script(found);
     },
     fill: async text => { calls.push(['fill', desc, text]); },
-    focus: async () => { calls.push(['focus', desc]); },
+    focus: async () => { calls.push(['focus', desc]); frame.elements[desc]?.focus(); },
     count: async () => (frame.boxes ? 1 : 0),
     evaluateAll: async () => (desc === 'css:[role="menuitem"].entry' ? frame.rows : frame.addonTargets.includes(desc)),
     selectOption: async choice => {
@@ -91,7 +101,8 @@ function stubPage(calls, yaml, frames = []) {
       if (expression === 'window.opener = null') calls.push(['no opener']);
       return { 'document.URL': url, '[innerWidth, innerHeight, outerHeight]': [1100, 663, 748] }[expression] ?? { expression };
     },
-    setViewportSize: async size => { calls.push(['viewport', size]); },
+    // On the password manager's page, a resize applies but never answers, as in the real browser.
+    setViewportSize: size => { calls.push(['viewport', size]); return url.startsWith('moz-extension:') ? new Promise(() => {}) : Promise.resolve(); },
     bringToFront: async () => { calls.push(['front']); },
     screenshot: async options => Buffer.from(`png full=${options.fullPage}`),
     close: async () => { closed = true; listeners.close?.(); },
@@ -438,13 +449,31 @@ test("the password manager's frames, page and keyboard are the person's: the age
     const read = await post('evaluate', { expression: '[innerWidth, innerHeight]' });
     await refused(read, true);
     assert.deepEqual((await read).body.size, [1100, 663], 'a size read gives the page\'s own size, so a view over it sets that back at its end');
-    assert.deepEqual((await post('viewport', { width: 480, height: 663 })).body, { ok: true, width: 1280, height: 635, addonPage: true }, 'a live view\'s fit goes on, and the page keeps its size');
-    assert.equal(page.calls.filter(([step]) => step === 'viewport').length, 1, 'only the first sizing reached the page');
+    const sized = () => page.calls.filter(([step]) => step === 'viewport');
+    assert.deepEqual((await post('viewport', { width: 480, height: 663 })).body, { ok: true, width: 480, height: 635, addonPage: true }, 'a phone fit answers at once, though the page never does');
+    assert.deepEqual(sized().at(-1), ['viewport', { width: 480, height: 635 }], 'the page takes the width and keeps its height under the bar');
+    await post('viewport', { width: 480, height: 663 });
+    assert.equal(sized().length, 2, 'the same size again, a view\'s keep-alive, reaches the page no more');
+    assert.deepEqual((await post('viewport', { width: 1280, height: 720 })).body, { ok: true, width: 1280, height: 635, addonPage: true });
+    assert.deepEqual(sized().at(-1), ['viewport', { width: 1280, height: 635 }], 'a new size does');
     assert.match((await post('viewport', { width: 50, height: 663 })).body.error, /100\.\.4000/);
     assert.deepEqual((await post('front')).body, { ok: true });
     assert.match((await post('navigate', { url: 'chrome://settings' })).body.error, /http\(s\)/);
 
-    assert.deepEqual((await post('viewport', { width: 1100, height: 663 })).body.addonPage, true, 'a view\'s end asks for the size it read');
+    // A tab closed under the waiting resize rejects it later, which must not end the server.
+    const unhandled = [];
+    const note = error => unhandled.push(error);
+    process.on('unhandledRejection', note);
+    const resize = page.setViewportSize;
+    page.setViewportSize = size => { page.calls.push(['viewport', size]); return new Promise((_, fail) => setTimeout(fail, 20, new Error('Target closed'))); };
+    try {
+      assert.deepEqual((await post('viewport', { width: 1100, height: 663 })).body, { ok: true, width: 1100, height: 635, addonPage: true }, 'a view\'s end asks for the size it read');
+      await new Promise(done => setTimeout(done, 60));
+      assert.deepEqual(unhandled, [], 'the late rejection is dropped');
+    } finally {
+      process.off('unhandledRejection', note);
+      page.setViewportSize = resize;
+    }
 
     await page.goto('https://shop.example.test/');
     assert.equal((await call('GET', `/tabs/${tabId}/snapshot?userId=me`)).status, 200, 'once the person is back on the site, the agent reads it again');
@@ -577,7 +606,7 @@ test('two tasks opening at once each get their own tab', async () => {
   } finally { await close(); }
 });
 
-test('while the person has a turn in one tab, no other tab comes to the front: front is refused, a click or resize waits', async () => {
+test('while the person has a turn in one tab, no other tab comes to the front: front is refused, a resize waits', async () => {
   const context = stubContext();
   const { call, close } = await serve(context, { turnWaitMs: 300 });
   try {
@@ -591,9 +620,8 @@ test('while the person has a turn in one tab, no other tab comes to the front: f
     assert.deepEqual(await post(other, 'front'), { status: 409, type: 'application/json', body: { error: 'the person is using the browser' } });
     assert.equal((await post(other, 'front', { turn: true })).status, 409, 'and no second turn starts');
     const before = otherPage.calls.length;
-    const click = await post(other, 'click', { selector: '#buy' });
-    assert.deepEqual([click.status, click.body.error], [409, 'the person is using the browser in another tab; try again once their turn ends'], 'a click selects its tab');
-    assert.equal((await post(other, 'viewport', { width: 800, height: 600 })).status, 409, 'a resize shows its tab');
+    const resize = await post(other, 'viewport', { width: 800, height: 600 });
+    assert.deepEqual([resize.status, resize.body.error], [409, 'the person is using the browser in another tab; try again once their turn ends'], 'a resize shows its tab');
     assert.equal((await post(other, 'navigate', { url: 'moz-extension://pm-uuid/popup/index.html' })).status, 409, 'and so does an add-on\'s page');
     assert.equal(otherPage.calls.length, before, 'none reached the page');
     assert.equal((await post(other, 'type', { selector: '#q', text: 'hi', mode: 'keyboard' })).status, 200, 'typing stays behind, so it goes on');
@@ -605,11 +633,161 @@ test('while the person has a turn in one tab, no other tab comes to the front: f
     assert.equal(page.calls.filter(([step]) => step === 'front').length, fronts, 'a renewal alone shows nothing');
     assert.equal((await post(mine, 'viewport', { width: 480, height: 663 })).status, 200, 'the turn\'s own tab still resizes, for a live view');
 
-    const waiting = post(other, 'click', { selector: '#buy' });
+    const waiting = post(other, 'viewport', { width: 800, height: 600 });
     assert.deepEqual((await post(other, 'front', { turn: false })).body, { ok: true }, 'another tab can not end the turn');
     assert.deepEqual((await post(mine, 'front', { turn: false })).body, { ok: true });
-    assert.equal((await waiting).status, 200, 'a waiting click goes on once the turn ends');
+    assert.equal((await waiting).status, 200, 'a waiting resize goes on once the turn ends');
     assert.deepEqual((await post(other, 'front')).body, { ok: true });
+  } finally { await close(); }
+});
+
+test('during another tab\'s turn, a click on a target the keyboard presses goes by its key, behind; with none, by mouse', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context);
+  try {
+    const { tabId: mine } = (await open(call, 'mine')).body;
+    const { tabId: other } = (await open(call, 'other')).body;
+    const otherPage = context.opened[1];
+    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
+    Object.assign(otherPage.main.elements, {
+      'css:#buy:visible': element('button'),
+      'css:#next:visible': element('a', { attributes: { href: '/next' } }),
+      'css:#send:visible': element('input', { type: 'submit' }),
+      'css:#agree:visible': element('input', { type: 'checkbox' }),
+      'css:#menu:visible': element('div', { attributes: { role: 'button' } }),
+      'css:#toggle:visible': element('span', { attributes: { role: 'switch' } }),
+      'role:button:Go:true#0': element('button'),
+    });
+    await post(mine, 'front', { turn: true });
+    const before = otherPage.calls.length;
+    for (const [selector, key] of [['#buy', 'Enter'], ['#next', 'Enter'], ['#send', 'Enter'], ['#agree', 'Space'], ['#menu', 'Enter'], ['#toggle', 'Space']]) {
+      assert.deepEqual((await post(other, 'click', { selector })).body, { ok: true, url: 'https://shop.example.test/', via: 'key' }, selector);
+      assert.deepEqual(otherPage.calls.slice(-2), [['focus', `css:${selector}:visible`], ['press', key]], selector);
+    }
+    assert.deepEqual((await post(other, 'click', { ref: 'e1' })).body.via, 'key', 'a ref goes by key too');
+    assert.ok(!otherPage.calls.slice(before).some(([step]) => step === 'front' || step === 'click'), 'no click or front reached the tab behind');
+
+    await post(mine, 'front', { turn: false });
+    assert.deepEqual((await post(other, 'click', { selector: '#buy' })).body.via, 'mouse', 'with no turn, a click is the mouse click');
+    assert.deepEqual(otherPage.calls.at(-1), ['click', 'css:#buy:visible', { timeout: 3000 }]);
+  } finally { await close(); }
+});
+
+test('a click the keyboard can not make waits for the turn to end, and its tab takes no other step before it', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context, { clickPollMs: 100 });
+  try {
+    const { tabId: mine } = (await open(call, 'mine')).body;
+    const { tabId: other } = (await open(call, 'other')).body;
+    const otherPage = context.opened[1];
+    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
+    const result = () => call('GET', `/tabs/${other}/click?userId=me`);
+    // Each ask holds 100 ms here, so an ask goes on until the click ran.
+    const ran = async () => {
+      for (;;) {
+        const answer = await result();
+        if (!answer.body.waiting) return answer;
+      }
+    };
+    Object.assign(otherPage.main.elements, {
+      'css:#plain:visible': element('div'),
+      'css:#hidden:visible': element('button', { focusable: false }),
+      'css:#off:visible': element('button', { disabled: true }),
+      'css:#skipped:visible': element('a', { attributes: { href: '/x' }, tabIndex: -1 }),
+    });
+    assert.deepEqual((await result()).body, { ok: true, none: true }, 'with no click waiting, none');
+    await post(mine, 'front', { turn: true });
+    for (const selector of ['#plain', '#hidden', '#off', '#skipped']) {
+      assert.deepEqual((await post(other, 'click', { selector })).body, { ok: true, queued: true }, `${selector} waits`);
+      const refused = { status: 409, type: 'application/json', body: { error: 'a click on this page waits for the person\'s turn in another tab; run `wait-click`' } };
+      if (selector === '#plain') {
+        const before = otherPage.calls.length;
+        for (const [route, body] of [['click', { selector: '#buy' }], ['type', { selector: '#q', text: 'x' }], ['press', { key: 'Enter' }], ['evaluate', { expression: '1' }], ['front', {}], ['navigate', { url: 'https://shop.example.test/next' }]]) {
+          assert.deepEqual(await post(other, route, body), refused, route);
+        }
+        assert.deepEqual(await call('GET', `/tabs/${other}/snapshot?userId=me`), refused);
+        assert.equal((await call('GET', `/tabs/${other}/screenshot?userId=me`)).status, 409);
+        assert.equal((await open(call, 'other', 'https://shop.example.test/again')).status, 409, 'and so does opening a page in it');
+        assert.equal(otherPage.calls.length, before, 'none reached the page');
+        assert.deepEqual((await result()).body, { ok: true, waiting: true }, 'an ask before the turn ends hears it still waits');
+      }
+      const answer = ran();
+      await post(mine, 'front', { turn: false });
+      assert.deepEqual((await answer).body, { ok: true, url: 'https://shop.example.test/', via: 'mouse' }, 'the turn ended, so the click ran');
+      assert.deepEqual(otherPage.calls.at(-1), ['click', `css:${selector}:visible`, { timeout: 3000 }]);
+      assert.deepEqual((await result()).body, { ok: true, none: true }, 'once asked, it is gone');
+      await post(mine, 'front', { turn: true });
+    }
+    assert.ok(!otherPage.calls.some(([step]) => step === 'press'), 'no key went to any of them');
+  } finally { await close(); }
+});
+
+test('a waiting click runs when the turn\'s lease lapses, and a closed tab drops it', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context, { turnMs: 300 });
+  try {
+    const { tabId: mine } = (await open(call, 'mine')).body;
+    const { tabId: other } = (await open(call, 'other')).body;
+    const otherPage = context.opened[1];
+    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
+    otherPage.main.elements['css:#plain:visible'] = element('div');
+    await post(mine, 'front', { turn: true });
+    assert.equal((await post(other, 'click', { selector: '#plain' })).body.queued, true);
+    assert.equal((await call('GET', `/tabs/${other}/click?userId=me`)).body.via, 'mouse', 'its helper stopped renewing the turn');
+
+    await post(mine, 'front', { turn: true });
+    assert.equal((await post(other, 'click', { selector: '#plain' })).body.queued, true);
+    const clicks = otherPage.calls.filter(([step]) => step === 'click').length;
+    const answer = call('GET', `/tabs/${other}/click?userId=me`);
+    await call('DELETE', `/tabs/${other}?userId=me`);
+    assert.deepEqual(await answer, { status: 410, type: 'application/json', body: { error: 'the tab closed before its click ran' } });
+    await new Promise(done => setTimeout(done, 400));
+    assert.equal(otherPage.calls.filter(([step]) => step === 'click').length, clicks, 'and the click never runs');
+    assert.equal((await call('GET', `/tabs/${other}/click?userId=me`)).status, 404);
+  } finally { await close(); }
+});
+
+test('waiting clicks on two tabs run oldest first once the turn ends', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context);
+  try {
+    const { tabId: mine } = (await open(call, 'mine')).body;
+    const { tabId: first } = (await open(call, 'first')).body;
+    const { tabId: second } = (await open(call, 'second')).body;
+    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
+    const order = [];
+    for (const [page, name] of [[context.opened[1], first], [context.opened[2], second]]) {
+      page.main.elements['css:#plain:visible'] = element('div');
+      const push = page.calls.push.bind(page.calls);
+      page.calls.push = (...items) => { if (items.some(([step]) => step === 'click')) order.push(name); return push(...items); };
+    }
+    await post(mine, 'front', { turn: true });
+    // The later-opened tab queues first, so the order is by wait, not by tab.
+    assert.equal((await post(second, 'click', { selector: '#plain' })).body.queued, true);
+    await new Promise(done => setTimeout(done, 20));
+    assert.equal((await post(first, 'click', { selector: '#plain' })).body.queued, true);
+    await post(mine, 'front', { turn: false });
+    for (const tab of [second, first]) assert.equal((await call('GET', `/tabs/${tab}/click?userId=me`)).body.via, 'mouse');
+    assert.deepEqual(order, [second, first]);
+  } finally { await close(); }
+});
+
+test('a click that ran keeps refusing its tab\'s other steps until its result is claimed', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context);
+  try {
+    const { tabId: mine } = (await open(call, 'mine')).body;
+    const { tabId: other } = (await open(call, 'other')).body;
+    const otherPage = context.opened[1];
+    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
+    otherPage.main.elements['css:#plain:visible'] = element('div');
+    await post(mine, 'front', { turn: true });
+    assert.equal((await post(other, 'click', { selector: '#plain' })).body.queued, true);
+    await post(mine, 'front', { turn: false });
+    while (!otherPage.calls.some(([step]) => step === 'click')) await new Promise(done => setTimeout(done, 50));
+    assert.equal((await post(other, 'type', { selector: '#q', text: 'x' })).status, 409, 'the click ran, but its chat has not heard');
+    assert.deepEqual((await call('GET', `/tabs/${other}/click?userId=me`)).body, { ok: true, url: 'https://shop.example.test/', via: 'mouse' });
+    assert.equal((await post(other, 'type', { selector: '#q', text: 'x' })).status, 200, 'once claimed, steps run');
   } finally { await close(); }
 });
 

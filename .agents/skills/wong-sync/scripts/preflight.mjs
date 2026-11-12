@@ -14,7 +14,7 @@ import { performance } from 'node:perf_hooks';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
 import { readMoves } from '../../../memory/lib/links.mjs';
 import { SAVED } from '../../../memory/knowledge.mjs';
-import { installPath, installText, mappedDirs } from './install-path.mjs';
+import { installPath, installsAsText, installText, mappedDirs, pairFor } from './install-path.mjs';
 
 const SCHEMA_VERSION = 1;
 const DEFAULT_MAX_CHANGES = 10_000;
@@ -277,8 +277,10 @@ function expandInventory(source, revision, tree, inventory, record) {
       const root = safeRelativePath(directory, `${category}.dirs`);
       for (const path of listTree(tree, root)) addFile(path, category);
     }
+    const pairs = mappedDirs(inventory);
     for (const pair of Object.entries(entry.mapped ?? {})) {
-      for (const path of listTree(tree, safeRelativePath(pair[0], `${category}.mapped`))) addFile(path, category, pair);
+      // A nested entry's folder is its own: the parent's copy skips it.
+      for (const path of listTree(tree, safeRelativePath(pair[0], `${category}.mapped`))) if (pairFor(path, pairs)?.[0] === pair[0]) addFile(path, category, pair);
     }
     for (const block of entry.blocks ?? []) {
       const file = safeRelativePath(block.file, `${category}.blocks.file`);
@@ -313,14 +315,15 @@ function extractBlock(content, markers, label, { required }) {
   return Buffer.from(text.slice(start, nextLine < 0 ? text.length : nextLine + 1));
 }
 
-// A file's value is its text as an install gets it, by the current mapping on both commits alike.
+// A file's or block's value is its text as an install gets it, by the current mapping on both commits alike.
 function sourceValue(source, revision, tree, unit, mapped) {
   const found = blob(source, revision, unit.sourcePath, tree);
-  if (unit.kind === 'file' && found && unit.sourcePath.endsWith('.md')) {
+  if (unit.kind === 'file' && found && installsAsText(unit.sourcePath)) {
     return Buffer.from(installText(unit.sourcePath, found.content.toString('utf8'), mapped));
   }
   if (unit.kind === 'file') return found?.content ?? null;
-  return extractBlock(found?.content ?? null, unit.markers, `${unit.sourcePath} at ${revision}`, { required: true });
+  const block = extractBlock(found?.content ?? null, unit.markers, `${unit.sourcePath} at ${revision}`, { required: true });
+  return Buffer.from(installText(unit.sourcePath, block.toString('utf8'), mapped));
 }
 
 export function targetValue(target, unit) {

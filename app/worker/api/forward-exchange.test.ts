@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { fixture, owner, site } from "../../tests/employee-access/connections";
-import type { KeyEntry } from "../employee-access/key-levels";
+import type { KeyEntry } from "../../../.agents/skills/access/server/levels.mjs";
 import { dispatch } from "./contract";
 import { forwardRoutes } from "./forward";
 import { body } from "../../tests/body";

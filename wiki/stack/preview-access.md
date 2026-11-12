@@ -1,6 +1,6 @@
 # Access on previews
 
-A preview has its own sign-in list and its own practice people: this page says who signs in to previews and what they can open there. [Employee access](employee-access.md) owns the live app's people, apps and key levels.
+A preview has its own sign-in list and its own practice people: this page says who signs in to previews and what they can open there. [Employee access](employee-access.md) owns the live app's people, apps and key levels. The [Access module](../../.agents/plugins/access/README.md) knows a preview from its `environment` slot, and its `checker` slot names the verification service token.
 
 ## People who can push on GitHub
 
@@ -22,10 +22,11 @@ A preview has its own people, roles and key levels. On staging the owner opens A
 
 ## The checker on a preview
 
-On staging and its previews, the preview checker counts as the owner: it opens Access's views and saves against the practice list, so [a preview walk](../development/browsing.md) can click through a change to Access and show pictures of it.
+On staging and its previews, the preview checker counts as the owner: it opens Access's views and saves against the practice list, so [a preview walk](../../.agents/plugins/browser/browser/references/browsing.md) can click through a change to Access and show pictures of it.
 
 - **Only where `WONG_ENVIRONMENT` is `staging`.** That name is committed in `app/wrangler.jsonc`, never something a request sets. On the live app, and on a local run, a checker is refused: it keeps every app and manages nobody.
 - **Nothing real is in reach.** A preview holds no sign-in-list key, makes no Cloudflare call, and its people are made up.
 - **The checker no longer sees the view of someone who is not the owner** on a preview, an Admin's included; code tests cover those views, and a waiting sign-in.
+- **A walk can't show a refusal.** The checker and the owner both open every app on a preview, so only the code tests show a person without an app refused.
 
 Part of the [Cloudflare stack](README.md).

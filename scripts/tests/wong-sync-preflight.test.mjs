@@ -181,20 +181,20 @@ test('directory expansion detects additions and removals while exclusions stay o
 
 test("an update never lists a target's daily steps, even when the source holds some", t => {
   const real = JSON.parse(readFileSync(join(repo, '.agents/skills/wong-sync/references/payload-files.json'), 'utf8'));
-  const manifest = inventory({ core: { skillDirs: ['alpha', 'daily'], exclude: real.core.exclude } });
+  const manifest = inventory({ core: { ...inventory().core, mapped: { '.claude/plugins/daily/daily': '.claude/skills/daily' }, exclude: real.core.exclude } });
   const steps = { '.claude/skills/daily/team.md': '- Team step.\n', '.claude/skills/daily/people/jo.md': '---\nemails: [jo@example.com]\n---\n- Jo step.\n' };
-  const f = fixture(t, { manifest, components: { skills: ['alpha', 'daily'] }, targetFiles: { '.claude/skills/daily/SKILL.md': 'daily base\n', ...steps } });
-  write(f.source, '.agents/skills/daily/SKILL.md', 'daily base\n');
+  const f = fixture(t, { manifest, targetFiles: { '.claude/skills/daily/SKILL.md': 'daily base\n', ...steps } });
+  write(f.source, '.agents/plugins/daily/daily/SKILL.md', 'daily base\n');
   f.commit('add daily');
   f.updateRecord({ commit: git(f.source, 'rev-parse', 'HEAD') });
   git(f.target, 'add', '.');
   git(f.target, 'commit', '-m', 'record daily base');
 
-  write(f.source, '.agents/skills/daily/SKILL.md', 'daily latest\n');
-  write(f.source, '.agents/skills/daily/team.md', '- Upstream team step.\n');
-  write(f.source, '.agents/skills/daily/people/sam.md', '- Upstream person.\n');
+  write(f.source, '.agents/plugins/daily/daily/SKILL.md', 'daily latest\n');
+  write(f.source, '.agents/plugins/daily/daily/team.md', '- Upstream team step.\n');
+  write(f.source, '.agents/plugins/daily/daily/people/sam.md', '- Upstream person.\n');
   f.commit('change daily');
-  assert.deepEqual(f.inspect().changes.map(change => [change.sourcePath, change.operation]), [
+  assert.deepEqual(f.inspect().changes.map(change => [change.targetPath, change.operation]), [
     ['.claude/skills/daily/SKILL.md', 'modified'],
   ]);
 });
@@ -452,6 +452,19 @@ test('a module that moves from a skill folder to a mapped folder stays one unit,
   const report = f.inspect();
   assert.deepEqual(report.changes, []);
   assert.equal(report.status, 'current');
+});
+
+test('the root block links a mapped module where an install keeps it, so a fresh install is current', t => {
+  const f = moduleFixture(t, { blocks: [{ file: 'CLAUDE.md', markers: ['WONG-STACK:BEGIN', 'WONG-STACK:END'] }] });
+  write(f.target, '.claude/skills/memory/scripts/memory.mjs', 'memory\n');
+  write(f.source, 'CLAUDE.md', 'header\n<!-- WONG-STACK:BEGIN -->\nSee [memory](.agents/plugins/memory/scripts/memory.mjs#use).\n<!-- WONG-STACK:END -->\n');
+  f.commit('block links the module');
+  const block = () => f.inspect().changes.find(change => change.kind === 'block');
+  const installed = 'header\n<!-- WONG-STACK:BEGIN -->\nSee [memory](.agents/skills/memory/scripts/memory.mjs#use).\n<!-- WONG-STACK:END -->\n';
+  write(f.target, 'CLAUDE.md', installed);
+  assert.equal(block().localState, 'latest-equivalent');
+  write(f.target, 'CLAUDE.md', installed.replace('skills/memory', 'plugins/memory'));
+  assert.equal(block().localState, 'locally-adapted');
 });
 
 test('WongStack as its own source reads its linked CLAUDE.md block', t => {

@@ -1,10 +1,10 @@
 # Measure a skill change
 
-Measuring a skill change means running the skill's instructions against a practice site with planted mistakes, before and after your edit, and keeping the edit only if it catches clearly more. One skill has a practice site today: [`/verify`](../../.agents/skills/verify/SKILL.md), through [`scripts/eval-verify.mjs`](../../scripts/eval-verify.mjs).
+Measuring a skill change means running the skill's instructions against a practice site with planted mistakes, before and after your edit, and keeping the edit only if it catches clearly more. One skill has a practice site today: [`/verify`](../../.agents/plugins/loop/skills/verify/SKILL.md), through [`scripts/eval-verify.mjs`](../../scripts/eval-verify.mjs).
 
 ## When to measure
 
-Measure before you change how the walk [writes journeys](../../.agents/skills/verify/references/walkthrough.md#b--write-the-journeys) or [grades evidence](../../.agents/skills/verify/references/walkthrough.md#d--grade-against-the-written-expectation). Those two sections are judgment, and a test can't tell a sharper instruction from a longer one. Script work, like finding the preview, needs a test instead.
+Measure before you change how the walk [writes journeys](../../.agents/plugins/loop/skills/verify/references/walkthrough.md#b--write-the-journeys) or [grades evidence](../../.agents/plugins/loop/skills/verify/references/walkthrough.md#d--grade-against-the-written-expectation). Those two sections are judgment, and a test can't tell a sharper instruction from a longer one. Script work, like finding the preview, needs a test instead.
 
 Run it by hand, never in CI: every run is a paid agent session.
 
@@ -15,7 +15,7 @@ node scripts/eval-verify.mjs --label baseline
 node scripts/eval-verify.mjs --label my-idea --reference path/to/candidate.md
 ```
 
-The first line measures [the live walkthrough reference](../../.agents/skills/verify/references/walkthrough.md). The second measures a candidate: a full copy of that file with your edit, kept in your change's folder. The live skill changes only after the numbers are in.
+The first line measures [the live walkthrough reference](../../.agents/plugins/loop/skills/verify/references/walkthrough.md). The second measures a candidate: a full copy of that file with your edit, kept in your change's folder. The live skill changes only after the numbers are in.
 
 Each line makes three runs. Add `--runs 1` for a smoke test.
 

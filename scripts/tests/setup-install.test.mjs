@@ -69,15 +69,16 @@ test('an install into an empty folder holds the payload, the links, the hubs, th
 
 test('the program writes every path the manifest says setup seeds, from a template of its own', () => {
   assert.deepEqual(Object.keys(SEEDS).sort(), [...manifest.seededBySetup.files].sort());
-  for (const template of [...Object.values(SEEDS), 'openspec-config.yaml']) {
+  for (const template of Object.values(SEEDS)) {
     assert.ok(existsSync(join(repo, '.agents/skills/wong-setup/references/seed', template)), template);
   }
+  assert.ok(existsSync(join(repo, '.agents/plugins/loop/references/openspec-config.yaml')), 'the plans rules ship with the loop');
   assert.deepEqual(targetFiles(Object.keys(SEEDS), manifest), [], 'a seeded file is not payload');
 });
 
 test("the daily skill ships without the team's or anyone's steps", () => {
-  const daily = ['SKILL.md', 'scripts/daily.mjs', 'team.md', 'people/jo-lee.md', 'people/sam.md'].map(file => `.agents/skills/daily/${file}`);
-  assert.deepEqual(targetFiles(daily, manifest), ['.agents/skills/daily/SKILL.md', '.agents/skills/daily/scripts/daily.mjs']);
+  const daily = ['SKILL.md', 'scripts/daily.mjs', 'team.md', 'people/jo-lee.md', 'people/sam.md'].map(file => `.agents/plugins/daily/daily/${file}`);
+  assert.deepEqual(targetFiles(daily, manifest), ['.agents/plugins/daily/daily/SKILL.md', '.agents/plugins/daily/daily/scripts/daily.mjs']);
 });
 
 test('a folder with files, or with saved history, is refused and left as it was', (t) => {

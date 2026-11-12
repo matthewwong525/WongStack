@@ -1,16 +1,19 @@
 // People who can push to the project on GitHub: read on the live app every 15 minutes and when Access opens, and
 // given the previews' sign-in alone. wiki/stack/preview-access.md#people-who-can-push-on-github
 import { z } from "zod";
-import type { AccessIdentity } from "../access.ts";
+import { AccessError, boundedJson, now, reply } from "../../../.agents/skills/access/server/errors.mjs";
+import type { Extra, RouteContext, ScheduledContext } from "../../../.agents/skills/access/server/index.mjs";
+import type { CloudflareList } from "../../../.agents/skills/access/signin/cloudflare-list.mjs";
+import type { ConnectionEnv } from "../access-slots.ts";
+import { auditStatement, type D1AccessStore } from "../access-store/index.ts";
 import { codeSource, codeStep } from "./code.ts";
-import { type ConnectionEnv, type Core, AccessError, now, ownerCore, permissionsStarted, reply, scheduledCore } from "./core.ts";
 import { type Github, GithubError, github, githubUser } from "./github.ts";
-import { boundedJson } from "./json.ts";
-import { loginAuthority, previewsDrifted } from "./login-management.ts";
-import { reconcile } from "./management.ts";
-import { audit } from "./sets.ts";
 
-export const PUSHERS = "/api/access/pushers";
+/** One pass's view for this file: the database, the installation, who is acting, and the sign-in list. */
+type Core = { db: D1DatabaseSession; installationId: string; email: string; actor: string; env: ConnectionEnv;
+  store: D1AccessStore; reconcile(): Promise<void> } & ({ live: true; list: CloudflareList } | { live: false; list?: undefined });
+/** The live app, which always has its sign-in list. */
+type LiveCore = Extract<Core, { live: true }>;
 type Source = "owner" | "profile" | "commit";
 type Row = { github_id: number; login: string; email: string | null; email_source: Source | null; checked_at: string | null };
 const LOGIN = /^[A-Za-z0-9-]{1,39}$/;
@@ -75,15 +78,17 @@ async function listChange(core: Core, was: Set<string>, will: Set<string>, drift
     outcome = NULL, scope = CASE WHEN wong_access_work.status != 'ready' THEN wong_access_work.scope ELSE excluded.scope END`)
     .bind(kind, scope, id);
   return [core.db.prepare("UPDATE wong_access_installation SET revision = revision + 1 WHERE installation_id = ?").bind(id),
-    queue("policy", "both"), ...(left ? [queue("sessions", "previews")] : []), audit(core, "pushers_changed")];
+    queue("policy", "both"), ...(left ? [queue("sessions", "previews")] : []), auditStatement(core.db, id, core.actor, "pushers_changed")];
 }
 
 /** Bring both sign-in lists to the saved rows. A busy lease leaves the work pending for the next run. */
-const settle = (core: Core) => reconcile(core).catch(() => {});
+const settle = (core: Core) => core.reconcile().catch(() => {});
+const permissionsStarted = async (core: LiveCore) => (await core.store.started()).policy;
+const previewsDrifted = (core: LiveCore) => core.list.drifted({ store: core.store, owner: core.email });
 
 /** Read who can push, find each new one's email, and update the previews' sign-in list when it no longer matches.
  *  Only the live app, a project on GitHub, and once permissions started: before, a list write could drop a teammate. */
-export async function refreshPushers(core: Core): Promise<void> {
+async function refreshPushers(core: Core): Promise<void> {
   const source = codeSource(core.env);
   if (!core.live || !source || !("github" in source) || !await permissionsStarted(core)) return;
   let current: { id: number; login: string }[];
@@ -114,11 +119,24 @@ export async function refreshPushers(core: Core): Promise<void> {
   await settle(core);
 }
 
-/** The timed run: the live app's own pass, the same function Access calls when it opens. */
-export async function refreshOnSchedule(env: ConnectionEnv): Promise<void> {
-  const core = await scheduledCore(env);
-  if (core) await refreshPushers(core);
+/** The previews' extra sign-ins: each pusher with an email. */
+export const pusherEmails = async (store: D1AccessStore): Promise<string[]> => (await store.db.prepare(
+  "SELECT email FROM wong_access_pushers WHERE installation_id = ? AND email IS NOT NULL").bind(await store.installation())
+  .all<{ email: string }>()).results.map(row => row.email);
+
+/** This file's view of a pass: the timed job's, or the owner's or an Admin's on a request. */
+async function coreOf(ctx: RouteContext | ScheduledContext, env: ConnectionEnv, list: CloudflareList | undefined): Promise<Core> {
+  const store = ctx.store as D1AccessStore;
+  const pass = ctx.pass!;
+  const base = { db: store.db, installationId: await store.installation(), email: pass.email, actor: pass.actor, env, store,
+    reconcile: ctx.reconcile };
+  // The live app, and nothing else, keeps a sign-in list: access-slots.ts gives one on production alone.
+  return list ? { ...base, live: true, list } : { ...base, live: false };
 }
+
+/** The timed run: the live app's own pass, the same function Access calls when it opens. */
+export const refreshOnSchedule = (env: ConnectionEnv, list: CloudflareList | undefined) =>
+  async (ctx: ScheduledContext) => refreshPushers(await coreOf(ctx, env, list));
 
 /** The owner or an Admin types a pusher's email, or clears it ("") so the app looks one up again. */
 async function typeEmail(core: Core, githubId: number, value: unknown): Promise<void> {
@@ -148,30 +166,30 @@ async function listing(core: Core): Promise<object> {
   const read = await core.db.prepare("SELECT status FROM wong_access_pusher_reads WHERE installation_id = ?")
     .bind(core.installationId).first<{ status: string }>();
   // An older single sign-in app has no previews list to widen yet.
-  const split = loginAuthority(core.env)?.version === 3;
+  const split = core.list.split();
   return { state: read?.status === "unavailable" ? "unavailable" : "listed", split,
     pushers: (await stored(core)).map(row => ({ githubId: row.github_id, login: row.login, email: row.email,
       emailSource: row.email_source, canOpenPreviews: split && !!row.email })) };
 }
 
 /** `GET` lists and starts a fresh read; `PUT /{githubId}` saves a typed email. The owner or an Admin only. */
-export async function pushersRoute(request: Request, env: ConnectionEnv, identity: AccessIdentity | null,
-  wait: (work: Promise<unknown>) => void): Promise<Response> {
-  try {
-    const core = await ownerCore(request, env, identity);
-    const rest = new URL(request.url).pathname.slice(PUSHERS.length);
-    if (request.method === "GET" && rest === "") {
-      // The first open waits for GitHub, so the list is not empty; later ones show the last list at once.
-      const first = !await core.db.prepare("SELECT 1 FROM wong_access_pusher_reads WHERE installation_id = ?").bind(core.installationId).first();
-      const fresh = core.live ? refreshPushers(core).catch(() => {}) : null;
-      if (fresh && first) await fresh; else if (fresh) wait(fresh);
+export const pushers = (env: ConnectionEnv, list: CloudflareList | undefined): Extra => ({ path: "pushers", need: "manage",
+  async handle(ctx) {
+    try {
+      const core = await coreOf(ctx, env, list);
+      const rest = ctx.path.slice("pushers".length);
+      if (ctx.request.method === "GET" && rest === "") {
+        // The first open waits for GitHub, so the list is not empty; later ones show the last list at once.
+        const first = !await core.db.prepare("SELECT 1 FROM wong_access_pusher_reads WHERE installation_id = ?").bind(core.installationId).first();
+        const fresh = core.live ? refreshPushers(core).catch(() => {}) : null;
+        if (fresh && first) await fresh; else if (fresh) ctx.wait(fresh);
+        return reply(await listing(core));
+      }
+      const githubId = /^\/([1-9]\d{0,15})$/.exec(rest)?.[1];
+      if (ctx.request.method !== "PUT" || !githubId) return reply({ code: "not_found" }, 404);
+      await typeEmail(core, Number(githubId), await boundedJson(ctx.request, 4096));
       return reply(await listing(core));
+    } catch (error) {
+      return reply({ code: error instanceof AccessError ? error.code : "access_unavailable" }, error instanceof AccessError ? error.status : 503);
     }
-    const githubId = /^\/([1-9]\d{0,15})$/.exec(rest)?.[1];
-    if (request.method !== "PUT" || !githubId) return reply({ code: "not_found" }, 404);
-    await typeEmail(core, Number(githubId), await boundedJson(request, 4096));
-    return reply(await listing(core));
-  } catch (error) {
-    return reply({ code: error instanceof AccessError ? error.code : "access_unavailable" }, error instanceof AccessError ? error.status : 503);
-  }
-}
+  } });

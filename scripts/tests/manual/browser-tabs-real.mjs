@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // By hand, never in CI: a throwaway Camoufox in its own home folder checks tabs in one window, the person's turn, a
-// resize, a real add-on, and on a Mac the window count, aimed at this run's own windows alone.
+// click and a resize behind it, a real add-on, and on a Mac the window count, aimed at this run's own windows alone.
 import { execSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -54,6 +54,7 @@ const site = createServer((request, response) => {
   }
   response.writeHead(200, { 'content-type': 'text/html' }).end(`<!doctype html><title>${request.url}</title>
 <input id="q"><button id="go" onclick="document.title = 'clicked ' + (++window.clicks || (window.clicks = 1))">Go</button>
+<div id="plain" onclick="this.dataset.clicks = (+this.dataset.clicks || 0) + 1">Plain</div>
 <form><input name="username" autocomplete="username"><input type="password" name="password"></form>`);
 });
 const page = `http://127.0.0.1:${await listen(site)}`;
@@ -71,7 +72,9 @@ function probeAddon() {
 
 const added = await addAddon(SLUG).catch(error => ({ error: error.message }));
 check(`add ${SLUG} from Firefox's add-on site through addons.mjs`, !added.error, added.error ?? added.name);
-const config = await launchConfig(['--window', '--fingerprint', join(process.env.HOME, 'fingerprint.json'), ...(await startArgs())]);
+// On Linux the library's start reads no DISPLAY of its own, so the screen goes by name, as the server's Xvfb does.
+const screen = process.platform === 'linux' && process.env.DISPLAY ? ['--display', process.env.DISPLAY] : ['--window'];
+const config = await launchConfig([...screen, '--fingerprint', join(process.env.HOME, 'fingerprint.json'), ...(await startArgs())]);
 if (config.error) throw new Error(config.error);
 const camou = JSON.parse(config.options.env.CAMOU_CONFIG_1);
 config.options.env.CAMOU_CONFIG_1 = JSON.stringify({ ...camou, addons: [...(camou.addons ?? []), probeAddon()] });
@@ -111,10 +114,10 @@ try {
   const shot = await call('GET', `/tabs/${b}/screenshot?userId=me`);
   check('a tab behind takes a picture', shot.status === 200 && shot.body.byteLength > 1000, `${shot.body.byteLength} bytes`);
   check('none of these shows the tab behind', await shownNow() === urlOf('a'), shown);
-  const click = await post(b, 'click', { selector: '#go' });
-  check('a click in a tab behind waits, then is refused', click.status === 409, click.body.error);
+  const pressed = await post(b, 'click', { selector: '#go' });
+  check('a button click in a tab behind lands by its key', pressed.body.via === 'key' && await read(b, 'document.title') === 'clicked 1', JSON.stringify(pressed.body));
   const resize = await post(b, 'viewport', { width: 800, height: 600 });
-  check('and so is a resize', resize.status === 409, resize.body.error);
+  check('a resize in a tab behind waits, then is refused', resize.status === 409, resize.body.error);
   check('so the turn\'s tab stays shown', await shownNow() === urlOf('a'), shown);
 
   const [aWas, bWas] = [await size(a), await size(b)];
@@ -124,9 +127,13 @@ try {
   const bAfter = await size(b);
   check('a live view\'s resize of one tab, set back, leaves the other tab its size', bAfter === bWas, `b ${bWas} → ${bDuring} during → ${bAfter} after; a ${aWas} → ${aDuring} during → ${await size(a)}`);
 
+  const plain = await post(b, 'click', { selector: '#plain' });
+  check('a click on a plain clickable element in a tab behind waits for the turn', plain.body.queued === true, JSON.stringify(plain.body));
+  check('its tab takes no other step meanwhile', (await post(b, 'evaluate', { expression: '1' })).status === 409);
+  check('and the turn\'s tab stays shown', await shownNow() === urlOf('a'), shown);
   await post(a, 'front', { turn: false });
-  const clicked = await post(b, 'click', { selector: '#go' });
-  check('once the turn ends, the click lands, with the mouse', clicked.status === 200 && clicked.body.via === 'mouse' && await read(b, 'document.title') === 'clicked 1', JSON.stringify(clicked.body));
+  const clicked = (await call('GET', `/tabs/${b}/click?userId=me`)).body;
+  check('once the turn ends, the click lands, with the mouse', clicked.via === 'mouse' && await read(b, "document.querySelector('#plain').dataset.clicks") === '1', JSON.stringify(clicked));
   check('and shows its tab', await shownNow() === urlOf('b'), shown);
   await post(a, 'front');
   const resized = await post(b, 'viewport', sized(bWas));

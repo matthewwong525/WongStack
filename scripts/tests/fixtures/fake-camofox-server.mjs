@@ -92,12 +92,27 @@ function evaluate(tab, expression) {
   return new Function('document', `return ${expression}`)({ querySelector });
 }
 
+/** A waiting click's result, as the long poll gives it: `{waiting}` while `click-still-waiting` is set, else how it
+ * landed, by `waited-via`, or the refusal `waited-error` holds. */
+function clickResult(tab, response) {
+  if (!tab.waiting) return send(response, 200, { ok: true, none: true });
+  if (once('click-still-waiting')) return send(response, 200, { ok: true, waiting: true });
+  tab.waiting = false;
+  if (has('waited-error')) return refuse(response, 409, text('waited-error'));
+  return send(response, 200, { ok: true, url: tab.url, via: has('waited-via') ? text('waited-via') : 'mouse' });
+}
+
 const STEPS = {
   async click(tab, body, response) {
     await held('hold-click');
     if (once('timeout-click-once')) return refuse(response, 500, 'click timed out after 30000ms');
     if (has('fail-click')) return refuse(response, 500, 'click failed');
     if (has('click-refused')) return refuse(response, 403, text('click-refused'));
+    // `click-queued`: the person's turn holds another tab, and the target takes no key, so the click waits.
+    if (has('click-queued')) {
+      tab.waiting = true;
+      return send(response, 200, { ok: true, queued: true });
+    }
     if (has('click-url')) tab.url = text('click-url');
     if (has('click-count')) writeFileSync(file('count'), text('click-count'));
     if (isBox(body) && !has('box-ignores-click')) toggle(tab);
@@ -165,7 +180,8 @@ const STEPS = {
 /** A request on one tab: its step, or the tab closed, or the reply camofox gives for a tab it lost. */
 function onTab(request, response, [id, step], body, query) {
   const lost = once('gone-once') || has('gone');
-  if (lost) tabs.delete(id);
+  // `reaped-once`: the server closed the tab itself, as its idle reaper does, so it answers 404.
+  if (lost || once('reaped-once')) tabs.delete(id);
   const tab = tabs.get(id);
   if (request.method === 'DELETE' && !step) {
     tabs.delete(id);
@@ -174,11 +190,14 @@ function onTab(request, response, [id, step], body, query) {
   if (!tab) return lost ? refuse(response, 410, 'Tab no longer exists (browser was restarted). Create a new tab.', { code: 'browser_restarted' }) : refuse(response, 404, 'Tab not found');
   // `addon-back`: the person pressed Back from the password manager's page to the site, which gets its own size back.
   if (tab.addon && once('addon-back')) Object.assign(tab, { addon: null, size: tab.own, own: null });
+  // On that page a resize takes the asked width and keeps the page's height, as browser-server.mjs does.
   if (tab.addon && step === 'viewport') {
     tab.own = [body.width, body.height];
+    tab.size = [body.width, tab.size[1]];
     return send(response, 200, { ok: true, width: tab.size[0], height: tab.size[1], addonPage: true });
   }
   if (tab.addon && step !== 'navigate' && step !== 'front') return refuse(response, 403, ADDON_REFUSAL, { addonPage: true, size: tab.own });
+  if (request.method === 'GET' && step === 'click') return clickResult(tab, response);
   return STEPS[step](tab, body, response, query);
 }
 

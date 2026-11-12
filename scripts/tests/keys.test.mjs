@@ -16,7 +16,7 @@ const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
-const seedScript = join(repo, '.agents/skills/ship/scripts/worktree-secrets.mjs');
+const seedScript = join(repo, '.agents/loop/worktree-secrets.mjs');
 const KEY = /#key=([0-9a-f]{64})$/m;
 const SECRET = 'sk_live_Secret123';
 const SPACED = 'pa ss #word';
@@ -43,7 +43,7 @@ const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.email=t@example.c
 
 // A primary checkout declaring MAPS_API_KEY (.env), STRIPE_SECRET_KEY (app/.dev.vars), and TWICE (both); only `.env`
 // is seeded into a linked worktree. A fake agent-browser and tunnel tool log each call; HOME is the fixture's own.
-function fixture(t, { env = 'A=1\n', ignore = IGNORE } = {}) {
+function fixture(t, { env = 'A=1\n', ignore = IGNORE, profile } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-keys-'));
   const bin = join(root, 'bin');
   const primary = join(root, 'primary');
@@ -63,7 +63,9 @@ function fixture(t, { env = 'A=1\n', ignore = IGNORE } = {}) {
   writeFileSync(join(primary, '.env'), env);
   git(primary, 'worktree', 'add', '-q', '-b', 'feature', worktree);
   execFileSync(process.execPath, [seedScript, 'seed'], { cwd: worktree, stdio: 'ignore' });
-  const environment = { ...process.env, ...TUNNEL_ENV, HOME: root, PATH: `${bin}:/usr/bin:/bin`, HANDOVER_POLL_MS: '50' };
+  let profileFile = profile;
+  if (profile) writeFileSync(profileFile = join(root, 'profile.mjs'), profile);
+  const environment = { ...process.env, ...TUNNEL_ENV, HOME: root, PATH: `${bin}:/usr/bin:/bin`, HANDOVER_POLL_MS: '50', ...(profile !== undefined && { WONG_BROWSER_PROFILE: profileFile }) };
   const outputs = [];
   const run = (cwd, ...args) => {
     const out = spawnSync(process.execPath, [script, ...args], { cwd, env: environment, encoding: 'utf8', timeout: 30_000 });
@@ -232,6 +234,34 @@ test('a destination the checkout does not ignore opens no link', t => {
   assert.equal(out.status, 1);
   assert.match(out.stderr, /Not git-ignored.*app\/\.dev\.vars/);
   assert.ok(!existsSync(f.state));
+});
+
+test('with no profile, every key goes to the top .env alone, and a .env the checkout does not ignore opens no link', async t => {
+  const f = fixture(t, { profile: '' });
+  const { port, key } = opened(f, 'STRIPE_SECRET_KEY,NEW_KEY');
+  assert.deepEqual((await route(port, key, 'keys')).json.keys.map(({ name, hint }) => [name, hint]), [['STRIPE_SECRET_KEY', ''], ['NEW_KEY', '']]);
+  await route(port, key, 'save', { keys: { STRIPE_SECRET_KEY: SECRET, NEW_KEY: 'x1' } });
+  assert.equal(f.read(f.primary, '.env'), `A=1\nSTRIPE_SECRET_KEY=${SECRET}\nNEW_KEY=x1\n`);
+  assert.equal(f.read(f.primary, 'app/.dev.vars'), null, 'no app file');
+  assert.equal(f.read(f.worktree, '.env'), 'A=1\n', 'no branch copy without a profile');
+  assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=done\nHANDOVER_SAVED=STRIPE_SECRET_KEY,NEW_KEY\nHANDOVER_APP_KEYS=\nHANDOVER_OPENED=yes\n');
+
+  const open = fixture(t, { profile: '', ignore: '.dev.vars*\n' });
+  const out = open.run('open', '--keys', 'NEW_KEY');
+  assert.equal(out.status, 1);
+  assert.match(out.stderr, /Not git-ignored.*\.env/);
+  assert.ok(!existsSync(open.state));
+});
+
+test('a profile\'s keyFiles slot names each key\'s file and hint, and a name no file takes is undeclared', async t => {
+  const profile = "export default { keyFiles: ctx => [{ file: 'keys.env', names: name => name.startsWith('MY_') ? `Mine, in ${ctx.primary === ctx.root ? 'the primary' : 'a worktree'}.` : null }] };\n";
+  const f = fixture(t, { profile, ignore: `${IGNORE}keys.env\n` });
+  assert.equal(f.run('open', '--keys', 'MAPS_API_KEY').stdout, 'KEYS_UNDECLARED=MAPS_API_KEY\n');
+  const { port, key } = opened(f, 'MY_KEY');
+  assert.deepEqual((await route(port, key, 'keys')).json.keys, [{ name: 'MY_KEY', hint: 'Mine, in a worktree.', set: false }]);
+  await route(port, key, 'save', { keys: { MY_KEY: SECRET } });
+  assert.equal(f.read(f.primary, 'keys.env'), `MY_KEY=${SECRET}\n`);
+  assert.equal(f.read(f.primary, '.env'), 'A=1\n');
 });
 
 test('an opened key link refuses a second link', async t => {

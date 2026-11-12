@@ -13,7 +13,7 @@ beforeEach(() => {
     // The page frame asks which apps the person may open.
     if (url.pathname.startsWith('/api/access/')) return Response.json({ state: 'legacy' })
     calls.push(url.pathname.replace('/apps/inbox/api/', ''))
-    if (url.pathname.endsWith('/chats')) return Response.json({ chats: [], computerOnline: true })
+    if (url.pathname.endsWith('/items')) return Response.json({ items: [], computerOnline: true })
     if (url.pathname.endsWith('/reviews')) return Response.json({ waiting: [], archived: [], more: false })
     return new Response(null, { status: 410 })
   }))
@@ -25,16 +25,16 @@ const open = async (at: string) => {
   await act(async () => { render(<RouterProvider router={router} />) })
 }
 
-it('opens the chat list at its own address, inside the page frame', async () => {
+it('opens the waiting pages at their own address, inside the page frame', async () => {
   await open('/apps/inbox/')
-  expect(await screen.findByText('No open chats. A chat you start shows here.')).toBeTruthy()
+  expect(await screen.findByText('Nothing waits for you.')).toBeTruthy()
   expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Inbox')
-  expect(calls.filter(call => call === 'chats')).toHaveLength(1)
+  expect(calls.filter(call => call === 'items')).toHaveLength(1)
 })
 
-it('opens a plan from its link, not the chat list', async () => {
+it('opens a plan from its link, not the waiting pages', async () => {
   await open(`/apps/inbox/?item=${'c'.repeat(32)}`)
   expect(await screen.findByRole('link', { name: /Back/ })).toBeTruthy()
-  expect(calls).not.toContain('chats')
+  expect(calls).not.toContain('reviews')
   expect(calls.filter(call => call === 'item')).toHaveLength(1)
 })
