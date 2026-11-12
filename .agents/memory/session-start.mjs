@@ -1,6 +1,5 @@
-// WongStack's part of each session start: the daily's worker, the teammate copy, the tidy-up, company knowledge, and
-// the sign-in lines. The profile's `sessionStart`; it returns lines and never throws.
-import { spawn } from 'node:child_process';
+// WongStack's part of each session start: the teammate copy, the tidy-up, company knowledge, and the sign-in lines.
+// Daily starts its own worker from its hooks. The profile's `sessionStart`; it returns lines and never throws.
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -12,16 +11,6 @@ const TIDY = join(HERE, '../skills/schedule/scripts/tidy.mjs');
 // Moves a clean teammate's copy forward in the background: wiki/stack/employee-project.md#update-the-copy
 const UPDATE = join(HERE, '../skills/save/scripts/update-copy.mjs');
 const KNOWLEDGE = join(HERE, 'knowledge.mjs');
-// Starts the daily's worker when the person has a job for it: wiki/development/daily.md#the-daily-on-a-computer
-const DAILY = join(HERE, '../skills/daily/scripts/daily.mjs');
-
-/** `D ensure`, detached and silent: a background run, or WONG_DAILY_WORKER=0, starts none. True when it started. */
-export function ensureDaily(ctx, agent, { env = process.env, start = spawn } = {}) {
-  if (!existsSync(DAILY) || env.WONG_DAILY_WORKER === '0'
-    || ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK'].some(name => env[name])) return false;
-  return detached(DAILY, ['ensure', '--agent', agent], { cwd: ctx.root, start });
-}
-
 // The last tidy-up's one line, read and cleared in-process, then the next tidy-up, detached; WONG_TIDY=0
 // skips starting it. The tidy-up runs at most every 6 hours on its own.
 async function tidyUp(ctx) {
@@ -61,8 +50,7 @@ async function knowledgeLine(ctx) {
 }
 
 /** The lines WongStack adds before the digest, in order; the slow parts run while the digest loads. */
-export async function sessionStart(ctx, { agent }) {
-  ensureDaily(ctx, agent);
+export async function sessionStart(ctx) {
   await import(pathToFileURL(UPDATE).href).then(module => module.updateCopy(ctx.root), () => {});
   const [tidied, known] = await Promise.all([tidyUp(ctx), knowledgeLine(ctx)]);
   const [signInLine, branchLine] = configLines(ctx);

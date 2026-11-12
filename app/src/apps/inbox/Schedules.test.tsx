@@ -29,7 +29,7 @@ beforeEach(() => {
     calls.push({ path, body: init?.body && JSON.parse(init.body as string) })
     const url = new URL(path, 'https://app.test')
     const route = url.pathname.replace('/apps/inbox/api/', '')
-    if (route === 'chats' || route === 'reviews') return Response.json({ chats: [], computerOnline: server.online, waiting: [], archived: [], more: false })
+    if (route === 'items' || route === 'reviews') return Response.json({ items: [], computerOnline: server.online, waiting: [], archived: [], more: false })
     if (route === 'schedules') return server.schedules ? Response.json({ schedules: server.schedules, computerOnline: server.online })
       : new Response(null, { status: 503 })
     if (route === 'schedule') {
@@ -53,7 +53,7 @@ const open = async () => { show(); await screen.findByRole('region', { name: 'Sc
 const card = (name: string) => screen.getByRole('button', { name }).closest<HTMLElement>('[data-slot="card"]')!
 const buttons = (name: string) => within(card(name)).getAllByRole('button').map(button => button.textContent).slice(1)
 const press = (name: string, inside: HTMLElement) => act(async () => { fireEvent.click(within(inside).getByRole('button', { name })) })
-const changes = () => calls.filter(call => !/\/(schedules|chats|reviews)(\?|$)/.test(call.path)).map(call => [call.path.split('/').at(-1), call.body])
+const changes = () => calls.filter(call => !/\/(schedules|items|reviews)(\?|$)/.test(call.path)).map(call => [call.path.split('/').at(-1), call.body])
 
 it('shows each schedule in plain words: what it does, when it runs next, how its last run went, and what you can do', async () => {
   server.schedules = [
@@ -218,7 +218,7 @@ it('says when the schedules could not be loaded, and that none are set up yet, w
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry' })) })
   expect(screen.getByText('No schedules yet')).toBeTruthy()
   expect(screen.getByText('Ask a chat to do something every week, or on a date.')).toBeTruthy()
-  // Back goes to the chat list, whose top bar opens Schedules again.
+  // Back goes to the waiting pages, whose top bar opens Schedules again.
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Back' })) })
   expect(screen.getByTestId('where').textContent).toBe('/apps/inbox/')
   await act(async () => { fireEvent.click(await screen.findByRole('link', { name: 'Schedules' })) })

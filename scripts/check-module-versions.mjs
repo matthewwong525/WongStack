@@ -14,15 +14,25 @@ const version = text => { try { return JSON.parse(text).version ?? null; } catch
 const read = path => { try { return readFileSync(path, 'utf8'); } catch { return ''; } };
 const newer = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }) > 0;
 
+/** Where a module keeps its version: its own folder, or for a module of several folders, such as Daily's, the first
+ *  folder its `module.json` names. */
+function versionFolder(root, folder) {
+  if (existsSync(join(root, folder, MANIFESTS[0]))) return folder;
+  const listed = readdirSync(join(root, folder), { withFileTypes: true }).filter(entry => entry.isDirectory())
+    .map(entry => join(folder, entry.name, 'module.json')).find(file => existsSync(join(root, file)));
+  const first = listed && JSON.parse(read(join(root, listed)) || '{}').folders?.[0];
+  return first ? join(folder, first) : folder;
+}
+
 /** A line per module whose version is off: its two manifests differ, or it changed since `base` at one version. */
 export function moduleProblems(root, base) {
   const dir = join(root, '.agents/plugins');
   const names = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name) : [];
   return names.flatMap(name => {
-    const folder = `.agents/plugins/${name}`;
-    const [now, other] = MANIFESTS.map(file => version(read(join(root, folder, file))));
+    const folder = `.agents/plugins/${name}`, home = versionFolder(root, folder);
+    const [now, other] = MANIFESTS.map(file => version(read(join(root, home, file))));
     if (now !== other) return [`${folder}: its two plugin.json versions differ (${now}, ${other}); give both the same version`];
-    const before = version(git(root, 'show', `${base}:${folder}/${MANIFESTS[0]}`).stdout);
+    const before = version(git(root, 'show', `${base}:${home}/${MANIFESTS[0]}`).stdout);
     const changed = git(root, 'diff', '--quiet', base, '--', folder).status === 1;
     return before && changed && !newer(now, before) ? [`${folder} differs from ${base}, but its version is still ${now}; raise it in both plugin.json files`] : [];
   });

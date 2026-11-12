@@ -1,6 +1,6 @@
 # Host schedules
 
-A schedule starts agreed work later: a morning routine, a weekly report, a timed background job, or a task that ends when its goal is met. [`/schedule`](../../.agents/skills/schedule/SKILL.md) first checks whether a script can do the work, then saves the schedule in your company app after your OK.
+A schedule starts agreed work later: a morning routine, a weekly report, a timed background job, or a task that ends when its goal is met. [`/schedule`](../../.agents/plugins/daily/schedule/SKILL.md) first checks whether a script can do the work, then saves the schedule after your OK: in your company app, or [with no app](#with-no-app), in Paseo.
 
 ## Script or routine
 
@@ -8,11 +8,20 @@ Prefer predictable code on an existing timed-job facility: an export, a fixed re
 
 ## Where a schedule lives
 
-Every schedule lives in your company app's database, in one list for each person. The app keeps what it does, when it runs, whether it is on, its progress, and every run. No schedule file goes in the repo, so a new or changed schedule needs no publish: you ask in a chat, and it is saved in seconds.
+In WongStack, every schedule lives in your company app's database, in one list for each person. The app keeps what it does, when it runs, whether it is on, its progress, and every run. No schedule file goes in the repo, so a new or changed schedule needs no publish: you ask in a chat, and it is saved in seconds.
 
 Each schedule belongs to the person who made it. You see, change, and run only yours, under your own [company sign-in](../development/memory.md#sign-in-and-expiry). The owner can make one schedule for everyone: each teammate then gets their own copy, which they approve and can pause for themselves. The owner can not see a teammate's copy after that.
 
 You see your schedules behind the *Schedules* button at the top of the Inbox, and in any chat through `/schedule`. You make or change one only in a chat.
+
+## With no app
+
+A repo with [Daily](../development/daily.md#the-module) and no company app has no schedule store of its own. `node .claude/skills/schedule/scripts/schedule.mjs store` names the one in use:
+
+- **`paseo`:** each schedule is a [Paseo](https://paseo.sh) schedule on this computer that opens a new chat. Your OK before the save is the approval; there is no OK on each computer. Paseo can not run a background run, a `check`, `minutes`, a `deny` list, a team copy, or an `until` goal, so `/schedule` refuses each with its reason.
+- **`off`:** with no Paseo either, `/schedule` answers `{ "ok": false, "code": "no-store" }` and says what it needs. For a script, it gives you the crontab line to add.
+
+The line-up, a [default schedule](#default-schedules) here, then runs from [Daily's worker](../development/daily.md#with-no-app).
 
 ## The OK on each computer
 
@@ -37,7 +46,7 @@ The host is the clock that starts each run, independently of which model you use
 
 A schedule runs in one of two ways:
 
-- **Chat:** it opens a new workspace named after the schedule, such as *Standup*, not *main*, in a chat app that can open one, Paseo today. In a git project the workspace is its own copy of the project from the latest default branch, so the chat never works on the main copy. A folder that is not a git project opens in place, still named. If the fetch or the name fails, the run still starts and [the helper's log](live-line.md#the-log) says why. The chat shows in your Inbox [only once it stops and stays open](../development/daily.md#your-chat-list); a run that closes itself never shows.
+- **Chat:** it opens a new workspace named after the schedule, such as *Standup*, not *main*, in a chat app that can open one, Paseo today. In a git project the workspace is its own copy of the project from the latest default branch, so the chat never works on the main copy. A folder that is not a git project opens in place, still named. If the fetch or the name fails, the run still starts and [the helper's log](live-line.md#the-log) says why. The Inbox lists no chats: a review page the chat makes shows there, by [your chat list](../development/daily.md#your-chat-list).
 - **Background:** the helper hands it to [the daily worker](../development/daily.md), which runs it with no chat, inside the worker's limits. An optional check can find that there is nothing to do; the run then shows as *Nothing to do*. A run that finds something for you, such as *3 invoices are late*, opens one chat named for the schedule, with what it found, by [the handoff](../development/daily.md#a-background-runs-handoff); that chat shows in your Inbox once it stops. A run that finds nothing for you opens no chat.
 
 On the app's clock a run starts at most once. A run due while the computer is off starts once when it's back, if it is still in time, and otherwise shows as *Missed*. A morning routine stays in time until the end of its day; a weekly or monthly one set to catch up stays in time until its next run. A run your computer took but never reported shows as not started after 2 minutes and never goes again. Your computer also refuses a run it already started, and starts one schedule no more often than its `authority.minIntervalMs`, or every 10 minutes when that is unset ([its limits](live-line.md#what-it-carries)). Nothing runs while every computer is off. A chat run has no one there to allow a step, so it opens in its provider's full mode unless its `run.mode` says otherwise; its instructions and `authority` set what it may do. The assistant checks the actual tools and account before it offers a mode; a product's documentation alone does not prove this account can run it.
@@ -52,7 +61,7 @@ Work with a finish line is a schedule with an end. Its plan names the completion
 
 ## How a run works
 
-Before a chat opens, your computer reads the schedule's instructions and progress from the app, checks the version against your approval, and takes the progress claim. The chat's first message is your approved instructions, word for word, so instructions that start with a skill, such as `/news`, run that skill. A short footer follows: what the run may do, when it ends, the progress so far, and the one `finish` command that saves progress, ends a met goal, and gives the claim back ([a run's steps](../../.agents/skills/schedule/references/run.md)). A changed version, an ended schedule, a missing folder, revoked access, or a run still holding the progress blocks the run before any chat opens, and the Inbox shows why, such as *already running*. A pending goal stays scheduled after the session ends. A successful ongoing routine keeps its next run.
+Before a chat opens, your computer reads the schedule's instructions and progress from the app, checks the version against your approval, and takes the progress claim. The chat's first message is your approved instructions, word for word, so instructions that start with a skill, such as `/news`, run that skill. A short footer follows: what the run may do, when it ends, the progress so far, and the one `finish` command that saves progress, ends a met goal, and gives the claim back ([a run's steps](../../.agents/plugins/daily/schedule/references/run.md)). A changed version, an ended schedule, a missing folder, revoked access, or a run still holding the progress blocks the run before any chat opens, and the Inbox shows why, such as *already running*. A pending goal stays scheduled after the session ends. A successful ongoing routine keeps its next run.
 
 Automatic contacting requires an agreed recipient, channel, message purpose, frequency, and end condition. It also requires saved progress that prevents overlapping sends. After an uncertain send, the next run checks the service's receipt; it waits for help if the result cannot be resolved. A schedule never grants itself permission to call, pay, refund, or publish code.
 
@@ -66,7 +75,7 @@ In the Inbox's *Schedules* list you can pause, resume, run now, or cancel a wait
 
 ## Default schedules
 
-WongStack ships one background schedule in [its list](../../.agents/skills/daily/references/schedules.json): *Keep my chats in line*, every 5 minutes, runs [the line-up](../development/daily.md#your-chats-in-line). Most checks find nothing to do and start no run. A chat start adds each one you lack and approves it on this computer, because it comes from this checkout's own code.
+WongStack ships one background schedule in [its list](../../.agents/plugins/daily/daily/references/schedules.json): *Keep my chats in line*, every 5 minutes, runs [the line-up](../development/daily.md#your-chats-in-line). Most checks find nothing to do and start no run. A chat start adds each one you lack and approves it on this computer, because it comes from this checkout's own code.
 
 - **A default you changed, paused or ended stays yours.** An update never changes it or adds it back.
 - **A default you did not change** takes an update's new version, approved here.

@@ -6,6 +6,7 @@ A module is a part of WongStack that any repo can add alone, with one pasted mes
 
 - **One folder per module, in the source:** `.agents/plugins/<name>/`, beside the others. Nothing else goes in `.agents/plugins/`.
 - **In the source, the skill folder is a link to it:** `.agents/skills/<name> → ../plugins/<name>`, so Claude Code loads it from the checkout and a branch runs its own code. A Markdown link names the real `.agents/plugins/<name>/…` path, by [repo layout](repo-layout.md#linking).
+- **A module with several skills lists them** in its first folder's `module.json`, one sibling folder each: Daily's [`module.json`](../../.agents/plugins/daily/daily/module.json) names `daily` and `schedule`, in `.agents/plugins/daily/`. Each folder links from, and installs to, its own skills folder; the first holds the hooks and the version.
 - **In every install, it is a real folder** at `.agents/skills/<name>/`. The [payload inventory](../../.agents/skills/wong-sync/references/payload-files.json)'s `mapped` entry sends the source folder there, and the sync writes each shipped link into the folder at that path. The installed modules are the module folders in the skills folder: keep no list of them, and no list of what each needs.
 - **The repo's own parts stay outside the folder:** its profile, its server part, and its settings. Memory's are in [`.agents/memory/`](../../.agents/memory/profile.mjs). An update can then replace the folder and lose nothing.
 
@@ -23,7 +24,7 @@ A module is a part of WongStack that any repo can add alone, with one pasted mes
 
 ## Versions and checks
 
-- **Each change to the folder raises the version** in both `plugin.json` files, and the two stay equal. The update finds its merge base by that version, so one version must mean one exact folder. [`check-module-versions.mjs`](../../scripts/check-module-versions.mjs), one of [the payload checks](../../scripts/payload-checks.mjs), fails when a folder differs from `main` and its version did not rise.
+- **Each change to the folder raises the version** in both `plugin.json` files, and the two stay equal. The update finds its merge base by that version, so one version must mean one exact folder. [`check-module-versions.mjs`](../../scripts/check-module-versions.mjs), one of [the payload checks](../../scripts/payload-checks.mjs), reads each module's folders from its `module.json`, and fails when one differs from `main` and the version did not rise.
 - **One test installs each module alone.** [`module-install.test.mjs`](../../scripts/tests/module-install.test.mjs) copies each folder into an empty repo, writes a minimal profile, runs a chat start and the module's check, and fails on an import from outside the folder.
 
 Part of [maintaining WongStack](README.md).

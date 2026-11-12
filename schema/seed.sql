@@ -1403,22 +1403,3 @@ VALUES
    'clock', 'started', 1792760520000, NULL, 'Sales digest for Friday', 'agent-sales-digest-1', 1792760520000),
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'b0000000000000000000000000000002', 'sales-digest', 1792674000000,
    'clock', 'blocked', 1792674060000, 'no_work', NULL, NULL, 1792674060000);
-
--- Fay's open chats in the Inbox's list. The profit summary's chat names its waiting page; the BFCM launch list's chat,
--- which a schedule's run opened, finds the landing page by its folder, as an older page with no chat does. Two chats
--- work with nothing waiting, and one runs outside Paseo, so its id is its session's. Seen in 2100, so no read drops them.
-INSERT INTO chats (installation_id, agent_id, owner, session_id, computer, name, step, folder, source, close_asked_at, seen_at)
-VALUES
-  ('11111111-1111-4111-8111-111111111111', 'agent-weekly-profit', 'fay@example.invalid', NULL, 'c0ffee00c0ffee00c0ffee00c0ffee00',
-   'Weekly profit summary', 'PLAN', 'weekly-profit-summary', NULL, NULL, 4102444800000),
-  ('11111111-1111-4111-8111-111111111111', 'agent-bfcm-launch-1', 'fay@example.invalid', NULL, 'c0ffee00c0ffee00c0ffee00c0ffee00',
-   'BFCM launch list', 'PLAN', 'bfcm-landing-page', 'schedule:bfcm-launch', NULL, 4102444700000),
-  ('11111111-1111-4111-8111-111111111111', 'agent-landing-check', 'fay@example.invalid', NULL, 'c0ffee00c0ffee00c0ffee00c0ffee00',
-   'Final check of the BFCM landing page', 'APPLY', 'landing-check', NULL, NULL, 4102444600000),
-  ('11111111-1111-4111-8111-111111111111', 'agent-bfcm-brief', 'fay@example.invalid', NULL, 'c0ffee00c0ffee00c0ffee00c0ffee00',
-   'Write the BFCM ad brief', 'EXPLORE', 'bfcm-brief', NULL, NULL, 4102444500000),
-  ('11111111-1111-4111-8111-111111111111', '6f1c0e2a-4b7d-4c1e-9a3f-2d8e5b7c9a10', 'fay@example.invalid',
-   'claude:6f1c0e2a-4b7d-4c1e-9a3f-2d8e5b7c9a10', 'c0ffee00c0ffee00c0ffee00c0ffee00', 'Supplier price list', 'SHIP', 'shop', NULL, NULL,
-   4102444400000);
-UPDATE inbox_items SET chat = 'agent-weekly-profit'
-WHERE installation_id = '11111111-1111-4111-8111-111111111111' AND email = 'fay@example.invalid' AND id = 'a0000000000000000000000000000006';

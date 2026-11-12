@@ -60,6 +60,8 @@ export function measureContext(root, baseline) {
   for (const skill of skillDirs(root)) {
     const dir = `.agents/skills/${skill}`;
     const text = existsSync(join(root, dir, 'SKILL.md')) ? readFileSync(join(root, dir, 'SKILL.md'), 'utf8') : '';
+    // A module's setup guide is read only in a project that adds the module, never in a session here.
+    if (existsSync(join(root, dir, '.claude-plugin/plugin.json'))) onCall.push(`${dir}/references/setup.md`);
     if (callOnly(text)) onCall.push(`${dir}/`);
     else if (text) descriptions.push(skillDescription(text));
     if (vendored.has(skill)) continue;

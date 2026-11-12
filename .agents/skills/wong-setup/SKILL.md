@@ -50,4 +50,4 @@ Explore/plan/apply/save own questions/planning/installation/first deploy. Instal
 
 [`install.mjs`](scripts/install.mjs) copies every [payload](../wong-sync/references/payload-manifest.md) category, makes [the agent folder](../wong-sync/references/payload-manifest.md#the-agent-folder) and its links, the wiki hubs, ignore rules, install record and `openspec/`, and prints one JSON report. A stop exits 1 with its `cause` and leaves the folder as it found it; fix it by [the failure map](references/failure-map.md), then run it again.
 
-Evaluation stops in exploration. Installation continues through plan/apply/save without another interview or approval. After first deploy, give [Step 5's report](references/cloudflare.md#step-5--the-closing-report), naming [preset](../schedule/scripts/presets.mjs) additions/keeps/skips or unavailable Paseo.
+Evaluation stops in exploration. Installation continues through plan/apply/save without another interview or approval. After first deploy, give [Step 5's report](references/cloudflare.md#step-5--the-closing-report), naming [preset](../../plugins/daily/schedule/scripts/presets.mjs) additions/keeps/skips or unavailable Paseo.

@@ -8,7 +8,7 @@ user-invocable: true
 
 Create an apply-ready OpenSpec change and its `review.html` page. First run `node .claude/skills/explore/scripts/step-title.mjs set PLAN --task "<the work>"`.
 
-**Change only plans and wiki pages**, and save a schedule to the app [after an OK](../schedule/SKILL.md); code waits for the person's go ([limits](../../../wiki/development/the-change-loop.md#what-each-step-may-change)).
+**Change only plans and wiki pages**, and save a schedule to the app [after an OK](../../plugins/daily/schedule/SKILL.md); code waits for the person's go ([limits](../../../wiki/development/the-change-loop.md#what-each-step-may-change)).
 
 **Work that changes no repo file** gets no change, page, or file: after the bounded `/explore` pass, write a short numbered to-do in chat, marking each step that acts outside it `(outward)` ([verbs for any work](../../../wiki/development/the-change-loop.md#verbs-for-any-work)).
 

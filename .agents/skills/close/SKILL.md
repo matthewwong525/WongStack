@@ -27,7 +27,6 @@ Read this chat for what it learned; [place the repeatable facts](../../../wiki/d
 ```bash
 S="$(git rev-parse --show-toplevel)/.claude/skills"
 node "$S/hand-over/scripts/hand-over.mjs" close # only when this chat's private link is open
-node "$S/explore/scripts/step-title.mjs" remove # off the Inbox's chat list; never stops the close
 node "$S/schedule/scripts/tidy.mjs" close # --discard on that route
 ```
 

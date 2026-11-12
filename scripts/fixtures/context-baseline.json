@@ -121,10 +121,6 @@
       "words": 959,
       "bytes": 7251
     },
-    ".agents/skills/daily/scripts/todos.mjs": {
-      "words": 1689,
-      "bytes": 11621
-    },
     ".agents/skills/daily/scripts/transcript.mjs": {
       "words": 182,
       "bytes": 1349
@@ -593,17 +589,9 @@
       "words": 121,
       "bytes": 1069
     },
-    ".agents/skills/schedule/scripts/lib/app-runs.mjs": {
-      "words": 1199,
-      "bytes": 8517
-    },
     ".agents/skills/schedule/scripts/lib/hosts.mjs": {
       "words": 2358,
       "bytes": 19393
-    },
-    ".agents/skills/schedule/scripts/lib/legacy.mjs": {
-      "words": 568,
-      "bytes": 5215
     },
     ".agents/skills/schedule/scripts/lib/lifecycle.mjs": {
       "words": 1675,
@@ -612,14 +600,6 @@
     ".agents/skills/schedule/scripts/lib/move.mjs": {
       "words": 364,
       "bytes": 2818
-    },
-    ".agents/skills/schedule/scripts/lib/paseo.mjs": {
-      "words": 529,
-      "bytes": 3689
-    },
-    ".agents/skills/schedule/scripts/lib/progress.mjs": {
-      "words": 197,
-      "bytes": 1828
     },
     ".agents/skills/schedule/scripts/lib/records.mjs": {
       "words": 1552,

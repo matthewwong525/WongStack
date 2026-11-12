@@ -93,6 +93,22 @@ test('a call-only skill is counted as on-call: out of the instruction total and 
   assert.deepEqual(row(DESCRIPTIONS).after, countText('Search facts.'));
 });
 
+test("a module's setup guide is counted as on-call; its other references stay instructions", t => {
+  const root = skillTree(t, {
+    '.agents/skills/daily/SKILL.md': '---\ndescription: Daily asks.\n---\ndaily body',
+    '.agents/skills/daily/.claude-plugin/plugin.json': '{}',
+    '.agents/skills/daily/references/setup.md': 'setup steps here',
+    '.agents/skills/daily/references/chief.md': 'chief rules',
+    '.agents/skills/plan/SKILL.md': '---\ndescription: Plan.\n---\nplan body',
+    '.agents/skills/plan/references/setup.md': 'plan setup',
+  });
+  const report = measureContext(root, { revision: 'fixture', owners: [], files: {}, routes: {} });
+  const kind = path => report.inventory.find(entry => entry.path === path).kind;
+  assert.equal(kind('.agents/skills/daily/references/setup.md'), 'on-call');
+  assert.equal(kind('.agents/skills/daily/references/chief.md'), 'instructions');
+  assert.equal(kind('.agents/skills/plan/references/setup.md'), 'instructions');
+});
+
 test('the startup ceiling names the load and the ceiling when exceeded, and is silent under it', t => {
   const root = skillTree(t, {
     'AGENTS.md': 'one two three four five',

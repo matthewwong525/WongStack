@@ -4,8 +4,8 @@ import test from 'node:test';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { main } from '../../.agents/skills/schedule/scripts/schedule.mjs';
-import { approvedVersion } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
-import { appProgress } from '../../.agents/skills/schedule/scripts/lib/progress.mjs';
+import { approvedVersion } from '../../.agents/inbox/lib/approvals.mjs';
+import { appProgress } from '../../.agents/inbox/lib/progress.mjs';
 import { COMPUTER, NOW, ORIGIN, fakeApp, folder, plan, runId, writeRecord } from './fixtures/scheduled-work.mjs';
 
 const JO = 'jo@example.test';

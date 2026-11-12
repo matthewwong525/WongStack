@@ -6,14 +6,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readOutput, runAddons, runNode } from '../../.agents/skills/daily/scripts/addons.mjs';
-import { ChatListError, chatCalls, chatClient } from '../../.agents/skills/daily/scripts/chats.mjs';
 import { SettingsError, defaultSettings, loadSettings, morningOf, placePath, settingsFor, validateConfig, validateTeam }
   from '../../.agents/skills/daily/scripts/config.mjs';
 import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { REMIND, checkinsOff, commandSettings, commands, defaultsDone, defaultsFailed, defaultsFile, defaultsStamp, ensure, firstMessage, holds, ignoreTasks, launcherArgs, markHook, offFile, personSettings, readArgs,
   start, startDefaults, startMoveIn, startReport, startServe, startedRecord, stateDirectory, stateOf, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
-import { codeStamp } from '../../.agents/skills/daily/scripts/worker.mjs';
+import { codeStamp, lineUpOffFile } from '../../.agents/skills/daily/scripts/worker.mjs';
 
 const SKILL = fileURLToPath(new URL('../../.agents/skills/daily/', import.meta.url));
 const EXAMPLE = JSON.parse(readFileSync(join(SKILL, 'references/example.json'), 'utf8'));
@@ -26,7 +25,7 @@ const temp = name => { const dir = mkdtempSync(join(tmpdir(), `daily-${name}-`))
 
 const routine = (more = {}) => ({ id: 'review', enabled: true, title: 'Review', place: 'home', scope: 'Last week', result: 'A list', procedure: '.agents/skills/review/SKILL.md',
   cadence: { kind: 'daily' }, effects: 'Reads only', activeFrom: '2026-10-01', start: 'run', missed: 'skip', ...more });
-const settings = (more = {}) => ({ version: 1, person: 'alex', emails: ['Alex@Example.com'], timezone: ZONE, sources: { chats: true },
+const settings = (more = {}) => ({ version: 1, person: 'alex', emails: ['Alex@Example.com'], timezone: ZONE, sources: {},
   places: { home: '.' }, ...more });
 
 /** A repo with the review skill, the person's settings and, when given, a team file. */
@@ -38,13 +37,6 @@ function repo({ config = settings(), team } = {}) {
   writeFileSync(join(root, '.agents/daily/alex.json'), JSON.stringify(config));
   if (team) writeFileSync(join(root, '.agents/daily/team.json'), JSON.stringify(team));
   return root;
-}
-
-/** Fake chat-list calls: `sent` keeps each sync; `origin` is the app's, or null with none. */
-function fakeChats(origin = 'https://app.example.com') {
-  const box = { sent: [] };
-  box.chats = { sync: async body => { box.sent.push(body); return { chats: [] }; }, put: async body => body, remove: async body => body, origin: async () => origin };
-  return box;
 }
 
 test('the example settings are valid, and each bad field is refused by name', () => {
@@ -88,41 +80,41 @@ test('the settings file is found by any email in any case; the team routines joi
   assert.throws(() => placePath({ places: {} }, 'x', root), /No place x/);
 });
 
-test('who names the settings, the team file and the guide; with no app it uses the git email', () => {
+test('who names the settings, the team file and the guide; with no profile person it uses the git email', () => {
   const root = repo({ config: settings({ guide: '.agents/daily/alex.md' }) });
-  const me = who({ repo: root, ctx: { author: 'alex@example.com' }, origin: null });
+  const me = who({ repo: root, ctx: { author: 'alex@example.com' }, person: null });
   assert.deepEqual(me, { source: 'git', state: 'valid', email: 'alex@example.com', origin: null, days: null, login: null,
     file: join(root, '.agents/daily/alex.json'), person: 'alex', team: null, guide: '.agents/daily/alex.md' });
   writeFileSync(join(root, '.agents/daily/sam.json'), JSON.stringify(settings({ person: 'sam', emails: ['sam@example.com'] })));
-  const signed = who({ repo: root, ctx: { author: '' }, origin: 'https://app.example.com', signedIn: () => ({ state: 'expired', email: 'sam@example.com' }) });
-  assert.equal(signed.person, 'sam');
+  const signed = who({ repo: root, ctx: { author: '' }, person: { state: 'expired', email: 'sam@example.com', origin: 'https://app.example.com',
+    login: 'Sign in again: cloudflared access login https://app.example.com' } });
+  assert.deepEqual([signed.source, signed.person], ['profile', 'sam']);
   assert.match(signed.login, /login|sign/i);
-  assert.equal(who({ repo: root, ctx: { author: 'x@example.com' }, origin: null }).file, null);
+  assert.equal(who({ repo: root, ctx: { author: 'x@example.com' }, person: null }).file, null);
   writeFileSync(join(root, '.agents/daily/sam.json'), '{"version":1}');
-  assert.match(who({ repo: root, ctx: {}, origin: null, config: join(root, '.agents/daily/sam.json') }).error, /Invalid daily settings/);
+  assert.match(who({ repo: root, ctx: {}, person: null, config: join(root, '.agents/daily/sam.json') }).error, /Invalid daily settings/);
 });
 
 test('a job list beside the one settings file is no settings file: who still finds the person by email', () => {
   const root = repo({ config: settings({ sweeps: '.agents/daily/sweeps.json' }) });
   writeFileSync(join(root, '.agents/daily/sweeps.json'), JSON.stringify({ events: {}, sweeps: [] }));
-  const me = who({ repo: root, ctx: { author: 'alex@example.com' }, origin: null });
+  const me = who({ repo: root, ctx: { author: 'alex@example.com' }, person: null });
   assert.equal(me.file, join(root, '.agents/daily/alex.json'));
   assert.equal(me.person, 'alex');
 });
 
 test("a teammate with no file is never the only file's person: check-ins, the off switch and the worker use their own defaults", () => {
   const root = repo();
-  const mate = personSettings({ repo: root, ctx: { author: 'jo@example.com' }, origin: null });
+  const mate = personSettings({ repo: root, ctx: { author: 'jo@example.com' }, person: null });
   assert.deepEqual([mate.me.file, mate.me.person, mate.config.person], [null, null, 'jo']);
-  const signed = personSettings({ repo: root, ctx: { author: 'jo@example.com' }, origin: 'https://app.example.com',
-    signedIn: () => ({ state: 'valid', email: 'ALEX@example.com' }) });
-  assert.equal(signed.me.file, join(root, '.agents/daily/alex.json'), 'the sign-in email finds the file');
+  const signed = personSettings({ repo: root, ctx: { author: 'jo@example.com' }, person: { state: 'valid', email: 'ALEX@example.com' } });
+  assert.equal(signed.me.file, join(root, '.agents/daily/alex.json'), "the profile person's email finds the file");
   assert.throws(() => commandSettings('start', mate), /No daily settings for jo@example\.com/);
 });
 
 test('a settings file with a misspelled person still fails on its bad field, not as no settings', () => {
   const root = repo({ config: { version: 1, Person: 'alex', emails: ['x@example.com'] } });
-  assert.match(who({ repo: root, ctx: { author: 'x@example.com' }, origin: null }).error, /Invalid daily settings/);
+  assert.match(who({ repo: root, ctx: { author: 'x@example.com' }, person: null }).error, /Invalid daily settings/);
 });
 
 test('a schedule\'s handoff chat opens with its schedule\'s label; another chat with none', () => {
@@ -181,22 +173,7 @@ test('add-ons run as scripts with the context on stdin; bad output or a missing 
   await assert.rejects(runNode({ file: join(root, 'crash.mjs'), cwd: root, input: {} }), /it broke/);
 });
 
-test('the chat-list calls go to the Inbox routes as the person; with no app each call is unavailable, never an empty list', async () => {
-  const seen = [];
-  const client = { http: async (path, init) => { seen.push([path, init.method, init.body]); return path.endsWith('remove') ? { value: { error: { code: 'not_found' } }, status: 404 } : { value: { chats: [] }, status: 200 }; },
-    target: () => 'https://app.example.com' };
-  const chats = chatCalls(Promise.resolve(client));
-  assert.deepEqual(await chats.sync({ computer: 'c', chats: [] }), { chats: [] });
-  await chats.put({ agentId: 'a' });
-  await assert.rejects(chats.remove({ agentId: 'a' }), /404: not_found/);
-  assert.deepEqual(seen, [['/apps/inbox/api/chats-sync', 'POST', '{"computer":"c","chats":[]}'], ['/apps/inbox/api/chat', 'PUT', '{"agentId":"a"}'],
-    ['/apps/inbox/api/chat-remove', 'POST', '{"agentId":"a"}']]);
-  assert.equal(await chats.origin(), 'https://app.example.com');
-  const none = chatCalls(Promise.resolve(null));
-  await assert.rejects(none.sync({ computer: 'c', chats: [] }), error => error instanceof ChatListError && error.message.startsWith('unavailable'));
-  assert.equal(await none.origin(), null);
-  assert.equal(await chatClient(temp('noapp'), async () => ({ companyClient: () => { throw new Error('no app'); } })), null);
-  assert.equal(await chatClient(fileURLToPath(new URL('../../', import.meta.url)), async () => ({ companyClient: () => client })), client);
+test('a launch claim older than 10 minutes is a failed launch', () => {
   assert.equal(holds({ pending: true, at: new Date(Date.now() - 11 * 60e3).toISOString() }), false, 'an old claim is a failed launch');
 });
 
@@ -216,11 +193,14 @@ test('readArgs takes each command with its flags, chief-service as serve, and re
   const told = readArgs(['tell', '--agent', 'a', '--file', 'f', '--now', '--covered-by', 'b', '--drop', 'a']).values;
   assert.deepEqual([told.now, told['covered-by'], told.drop], [true, 'b', 'a']);
   assert.equal(readArgs(['tell', '--drop', 'a']).command, 'tell');
-  assert.equal(readArgs(['answer', '--agent', 'a', '--request', 'r', '--file', 'f', '--bucket', 'line-up', '--label', 'x']).values.bucket, 'line-up');
+  assert.equal(readArgs(['lineup', 'off']).command, 'lineup off');
+  assert.equal(readArgs(['check']).command, 'check');
   for (const bad of [['nope'], ['start', '--agent', 'a'], ['hand'], ['watch'], ['serve', '--hours', '3'], ['ensure', '--agent', 'gpt'], ['checkins'],
     ['checkins', 'maybe'], ['allow', '--agent', 'a', '--request', 'r', '--bucket', 'pick', '--label', 'x'],
     ['hand', '--agent', 'a', '--source', 'asked'], ['open-daily'], ['picture'], ['close', '--agent', 'a'], ['journal', '--hook'], ['journal', '--agent', 'a'], ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'maybe', '--label', 'x'],
-    ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'line-up', '--label', 'x'], ['map'], ['tell'], ['tell', '--agent', 'a'], ['tell', '--file', 'f'],
+    ['reply', '--agent', 'a', '--file', 'f', '--bucket', 'line-up', '--label', 'x'], ['answer', '--agent', 'a', '--request', 'r', '--file', 'f', '--bucket', 'line-up', '--label', 'x'],
+    ['answer', '--agent', 'a', '--request', 'r', '--file', 'f', '--bucket', 'person', '--label', 'x'], ['allow', '--agent', 'a', '--request', 'r', '--bucket', 'person', '--label', 'x'],
+    ['lineup'], ['lineup', 'maybe'], ['map'], ['tell'], ['tell', '--agent', 'a'], ['tell', '--file', 'f'],
     ['tell', '--now'], ['line-up', '--agent', 'a'], ['handoff'], ['todo', 'link', '--agent', 'a', '--url', 'https://x'], ['start', '--id', 'a']]) {
     const run = spawnSync(process.execPath, ['-e', `import(${JSON.stringify(join(SKILL, 'scripts/daily.mjs'))}).then(m => m.readArgs(${JSON.stringify(bad)}))`],
       { encoding: 'utf8' });
@@ -231,7 +211,7 @@ test('readArgs takes each command with its flags, chief-service as serve, and re
 test('commands wire the settings: remind points to /schedule, and a handoff outside a background run is refused', async () => {
   const stateDir = temp('state');
   const config = validateConfig(settings());
-  const run = (command, values, env = {}) => commands({ config, project: '/w/main', stateDir, values, call: async () => [], chats: fakeChats().chats, env })[command]();
+  const run = (command, values, env = {}) => commands({ config, project: '/w/main', stateDir, values, call: async () => [], env })[command]();
   assert.deepEqual(await run('remind', { day: '2026-10-23', text: 'Call the bank' }), { status: 'refused', reason: 'schedule', error: REMIND });
   assert.match(REMIND, /one-time chat schedule.*\/schedule/);
   const found = join(stateDir, 'found.md');
@@ -253,14 +233,15 @@ test('commands wire the settings: remind points to /schedule, and a handoff outs
   assert.equal(stateDirectory('/w/main', 'alex', '/s'), stateDirectory('/w/main/', 'alex', '/s'));
 });
 
-test("an older file's tasks source still loads, and gets one journal line that it does nothing", () => {
+test("an older file's tasks and chats sources still load, and each gets one journal line that it does nothing", () => {
   const stateDir = temp('state');
   const older = validateConfig(settings({ sources: { tasks: true, chats: true } }));
   ignoreTasks({ config: older, stateDir });
   ignoreTasks({ config: older, stateDir });
   ignoreTasks({ config: validateConfig(settings()), stateDir: temp('other') });
-  assert.deepEqual(readLines({ stateDir }).map(entry => entry.kind), ['tasks-ignored']);
+  assert.deepEqual(readLines({ stateDir }).map(entry => entry.kind), ['tasks-ignored', 'chats-ignored']);
   assert.match(readLines({ stateDir })[0].line, /tasks.*week board is gone/);
+  assert.match(readLines({ stateDir })[1].line, /chats.*no chat list/);
 });
 
 // ---------------------------------------------------------------------------
@@ -268,25 +249,23 @@ test("an older file's tasks source still loads, and gets one journal line that i
 
 test('default settings take the email before the @ as the person, check-ins only, in the given time zone', () => {
   const made = defaultSettings({ email: 'Jo.Lee+work@Example.com', timezone: ZONE });
-  assert.deepEqual(made, { version: 1, person: 'jo-lee-work', emails: ['Jo.Lee+work@Example.com'], timezone: ZONE, sources: { chats: true },
+  assert.deepEqual(made, { version: 1, person: 'jo-lee-work', emails: ['Jo.Lee+work@Example.com'], timezone: ZONE, sources: {},
     places: {}, teamFile: null });
   assert.equal(defaultSettings({ email: 'team@example.com' }).person, 'team-member');
   assert.equal(defaultSettings({ email: '...@example.com' }).person, 'me');
   assert.equal(typeof defaultSettings({ email: 'a@b.co' }).timezone, 'string');
 });
 
-test("person settings: the file wins; else the sign-in email while it is good, else the git email; the routines' commands keep the error", () => {
+test("person settings: the file wins; else the profile person's email while it is good, else the git email; the routines' commands keep the error", () => {
   const root = repo();
-  const found = personSettings({ repo: root, ctx: { author: 'alex@example.com' }, origin: null });
+  const found = personSettings({ repo: root, ctx: { author: 'alex@example.com' }, person: null });
   assert.equal(found.config.person, 'alex');
   const empty = temp('empty');
-  const signed = personSettings({ repo: empty, ctx: { author: 'git@example.com' }, origin: 'https://app.example.com',
-    signedIn: () => ({ state: 'near', email: 'Sam.Lee@example.com', days: 3 }) });
+  const signed = personSettings({ repo: empty, ctx: { author: 'git@example.com' }, person: { state: 'near', email: 'Sam.Lee@example.com', days: 3 } });
   assert.deepEqual([signed.me.file, signed.config.person, signed.config.emails], [null, 'sam-lee', ['Sam.Lee@example.com']]);
-  const expired = personSettings({ repo: empty, ctx: { author: 'git@example.com' }, origin: 'https://app.example.com',
-    signedIn: () => ({ state: 'expired', email: 'sam@example.com' }) });
+  const expired = personSettings({ repo: empty, ctx: { author: 'git@example.com' }, person: { state: 'expired', email: 'sam@example.com' } });
   assert.equal(expired.config.person, 'git');
-  const nobody = personSettings({ repo: empty, ctx: { author: '' }, origin: null });
+  const nobody = personSettings({ repo: empty, ctx: { author: '' }, person: null });
   assert.equal(nobody.config, null);
   assert.throws(() => commandSettings('start', signed), /No daily settings for Sam\.Lee@example\.com/);
   for (const command of ['journal', 'remind', 'handoff']) assert.equal(commandSettings(command, signed).person, 'sam-lee');
@@ -317,10 +296,14 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   assert.deepEqual([...moved, ...added].map(each => [each.home.repo, each.stateDir, each.timezone]), Array(2).fill([root, plainState, ZONE]));
   const broken = () => { throw new Error('no app'); };
   assert.equal(go({ ...plain, checks: [routine()] }, { moveIn: broken, defaults: broken }), 'no-jobs', 'a failed move or add stops nothing');
-  // The chat list is a job once the person has an app, unless their settings turn it off.
-  assert.equal(go(plain, { resolve: () => ({ me: { origin: null }, config: plain }) }), 'no-jobs');
-  assert.equal(go(plain, { resolve: () => ({ me: { origin: 'https://app.example.com' }, config: { ...plain, sources: { chats: false } } }) }), 'no-jobs');
-  assert.equal(go(plain, { resolve: () => ({ me: { origin: 'https://app.example.com' }, config: plain }) }), 'started');
+  // With no schedule store the worker runs the line-up itself, until the person turns it off. It adds no defaults.
+  const none = [];
+  mkdirSync(plainState, { recursive: true });
+  assert.equal(go(plain, { schedules: false, defaults: args => none.push(args) }), 'started');
+  writeFileSync(lineUpOffFile(plainState), 'x');
+  assert.equal(go(plain, { schedules: false, defaults: args => none.push(args) }), 'no-jobs');
+  rmSync(lineUpOffFile(plainState));
+  assert.equal(none.length, 0);
   // A handed-over schedule run is a job, and so is a default schedule this computer added.
   const handed = join(states, '.wong-stack/agent-events', `schedule-run-${'a'.repeat(32)}.json`);
   mkdirSync(join(handed, '..'), { recursive: true });
@@ -551,7 +534,7 @@ test("each pass re-reads the settings from the main checkout, not from the copy 
   // The worker's start-time settings are the defaults: only the main checkout's file names the add-on.
   await commands({ config: defaultSettings({ email: 'alex@example.com', timezone: ZONE }), project: root, stateDir: temp('state'),
     values: { 'dry-run': true, seconds: 60 }, call: async args => (args[0] === 'ls' || args[0] === 'permit' ? [] : { ok: true }),
-    chats: fakeChats().chats, env: {}, print: text => printed.push(JSON.parse(text)) }).serve();
+    env: {}, print: text => printed.push(JSON.parse(text)) }).serve();
   assert.deepEqual(printed.filter(item => item.wouldRun), [{ wouldRun: 'add-on', addon: 'a.mjs' }]);
 });
 
@@ -569,7 +552,7 @@ test('checkins off writes the off file, stops the running worker and journals it
   assert.equal(ensure({ repo: root, root: states, env: {}, resolve: () => ({ config }), spawnServe: () => assert.fail('started while off'),
     defaults: () => {} }).state, 'off');
   const flips = [];
-  const run = command => commands({ config, project: root, stateDir, values: {}, call: async () => [], chats: fakeChats().chats, env: {},
+  const run = command => commands({ config, project: root, stateDir, values: {}, call: async () => [], env: {},
     keep: () => ({ state: 'started' }), defaults: () => flips.push(existsSync(offFile(stateDir))) })[command]();
   assert.deepEqual(await run('checkins on'), { state: 'on', worker: 'started' });
   assert.ok(!existsSync(offFile(stateDir)));
@@ -580,18 +563,22 @@ test('checkins off writes the off file, stops the running worker and journals it
 
 test('checkins off and on still answer when the start of the defaults throws', async () => {
   const stateDir = temp('state'), config = validateConfig(settings());
-  const run = command => commands({ config, project: temp('repo'), stateDir, values: {}, call: async () => [], chats: fakeChats().chats, env: {},
+  const run = command => commands({ config, project: temp('repo'), stateDir, values: {}, call: async () => [], env: {},
     keep: () => ({ state: 'started' }), defaults: () => { throw new Error('no node'); } })[command]();
   assert.deepEqual(await run('checkins off'), { state: 'off', stopped: null });
   assert.deepEqual(await run('checkins on'), { state: 'on', worker: 'started' });
 });
 
-test("each tool's hooks run mark at start, message and stop; mark writes the card but the stop's, and keeps Paseo's stop mark", () => {
-  for (const [file, tool] of [['settings.json', 'claude'], ['hooks.json', 'codex']]) {
-    const hooks = JSON.parse(readFileSync(fileURLToPath(new URL(`../../.agents/${file}`, import.meta.url)), 'utf8')).hooks;
-    const marks = event => hooks[event].flatMap(group => group.hooks).filter(hook => hook.command.endsWith(`daily.mjs" mark --agent ${tool}`));
-    for (const event of ['SessionStart', 'UserPromptSubmit', 'Stop']) assert.equal(marks(event).length, 1, `${file} ${event}`);
+test("each tool's plugin hooks run mark at start, message and stop; mark writes the card but the stop's, and keeps Paseo's stop mark", () => {
+  const read = path => JSON.parse(readFileSync(fileURLToPath(new URL(`../../.agents/${path}`, import.meta.url)), 'utf8')).hooks;
+  for (const tool of ['claude', 'codex']) {
+    const hooks = read(`plugins/daily/daily/hooks/${tool}.json`);
+    const runs = (event, script) => hooks[event].flatMap(group => group.hooks).filter(hook => hook.command.includes(`/scripts/${script}`)
+      && hook.command.endsWith(`--agent ${tool}`));
+    assert.equal(runs('SessionStart', 'session-start.mjs"').length, 1, `${tool} SessionStart marks through session-start.mjs`);
+    for (const event of ['UserPromptSubmit', 'Stop']) assert.equal(runs(event, 'daily.mjs" mark').length, 1, `${tool} ${event}`);
   }
+  for (const file of ['settings.json', 'hooks.json']) assert.doesNotMatch(JSON.stringify(read(file)), /daily\.mjs|\/stop-check\.mjs/, file);
   for (const tool of ['claude', 'codex']) {
     const home = temp('mark');
     const env = { HOME: home, PASEO_AGENT_ID: 'agent-7' };

@@ -721,7 +721,7 @@ async function watchedApps(state, { clientFor, env, service }) {
 const MIRROR_MS = 15 * 60_000;
 /** The least time between two rounds, however many looks arrive. */
 const ROUND_GAP_MS = 1000;
-const appRuns = () => import('../../schedule/scripts/lib/app-runs.mjs');
+const appRuns = () => import('../../../inbox/runs.mjs');
 
 /** Starts each app's due schedules on this computer, and sends its Paseo schedules to the app every 15 minutes. */
 async function scheduleRounds(apps, { rounds, computer, log, mirrored, now = Date.now() }) {

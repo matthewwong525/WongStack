@@ -8,7 +8,7 @@ const inventory = JSON.parse(read('.agents/skills/wong-sync/references/payload-f
 const listed = Object.values(inventory).filter(value => value && typeof value === 'object').flatMap(value => [...(value.files || []), ...(value.dirs || [])]);
 
 test('all installs receive schedule helpers without live definitions or the retired goal schema', () => {
-  assert.ok(inventory.core.skillDirs.includes('schedule'));
+  assert.equal(inventory.core.mapped['.claude/plugins/daily/schedule'], '.claude/skills/schedule', 'schedule ships in the Daily module');
   assert.ok(!inventory.core.skillDirs.includes('routine'));
   assert.deepEqual(listed.filter(path => path.startsWith('openspec/schemas/')), [], 'a goal is a schedule with an end, not an OpenSpec change');
   assert.ok(existsSync(new URL('../../.agents/skills/schedule/scripts/schedule.mjs', import.meta.url)));

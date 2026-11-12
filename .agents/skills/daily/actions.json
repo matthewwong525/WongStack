@@ -1,4 +1,0 @@
-{
-  "title": "Daily",
-  "actions": ["inbox.chat-put", "inbox.chats-sync", "inbox.chat-remove"]
-}
