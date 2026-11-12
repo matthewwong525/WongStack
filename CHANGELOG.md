@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A waiting chat goes on with your command
+## 57.2.0 — A waiting chat goes on with your command
 
 - **A chat that waited in the middle of a command you typed goes on with it.** You type `/ship`, and the chat stops to wait for another chat's work, a merge, or your answer elsewhere. When that wait ends, Daily's note tells the chat to go on with your `/ship` from where it stopped. Before, the note gave only the news, and the chat waited for you to say *go on* ([your chats in line](wiki/development/chats-in-line.md)).
 - **Your typed command is your yes for its own steps only.** The chat starts no new risky step of its own, such as a merge you never asked for: that still waits for you.
