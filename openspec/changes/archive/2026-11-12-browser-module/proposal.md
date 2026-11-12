@@ -1,6 +1,6 @@
 # The browser becomes a module any project can add
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** rare-octopus
 **Open questions:** none
 

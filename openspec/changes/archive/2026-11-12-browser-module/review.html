@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · browser-module</title>
+<title>Review · 2026-11-12-browser-module</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="browser-module" data-own-back>
+<body data-change="2026-11-12-browser-module" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>browser-module</h1>
+  <h1>2026-11-12-browser-module</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -505,6 +505,9 @@
 <li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): with no <code>look</code> slot, private pages use a plain light look (<code>plain-look.css</code>) and no theme switch.</li>
 <li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the module's <code>README.md</code> and <code>module.json</code> sit in <code>browser/</code>, so the three mapped folders carry them to installs; WongStack's setup now runs the <code>AGENTS.md</code> block and its seeded pages through the same link rewrite as every shipped page, so their links into the module land on the installed folders.</li>
 <li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (build): the journeys' source paths and the <code>.env.example</code> proxy notes name the new paths; a stray tracked <code>__pycache__</code> file was removed and <code>__pycache__/</code> added to <code>.gitignore</code>.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (ship): task 4.5 checks <code>helper.mjs status</code> runs from <code>reply-link/</code> and leaves the repoint of a running helper to its test, because this computer's one helper serves another project (ClaymooApp), and pointing it at this branch would move that project's helper.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (ship): task 4.4 counts the three skills as loaded when they stay hidden from the model's skill list, as they are in WongStack today (<code>hidden: true</code>, <code>disable-model-invocation: true</code>).</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed (ship): the module keeps memory's <code>.env</code> reader as its own copy instead of Node's <code>parseEnv</code>, because Node's cuts a value at any <code>#</code>, so a proxy password holding <code>#</code> would break, and this change keeps every behavior.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
