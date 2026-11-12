@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 56.0.1 — A retired server part opens no Needs-you chat
+
+- **When the server has retired a part your computer still uses, the daily no longer opens a *Needs you* chat.** It writes one line a day in its journal: your computer runs older code and updates itself. Before, two of these answers in a row opened a chat with steps that did not fit, such as *sign in*. A real fault still opens its chat as before.
+
+**Updating.** Nothing to do by hand.
+
 ## 56.0.0 — The build loop stands on its own
 
 - **`/continue` is gone: type `/apply <name>` to pick up saved work**, or `/apply` alone to choose from a list. It switches to the change's branch first, and still shows work new to this computer and asks before it runs it ([pick up saved work](.agents/plugins/loop/skills/apply/references/pick-up.md)). The loop now has seven commands. `/save` stays.
