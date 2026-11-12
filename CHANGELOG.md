@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 54.0.0 — Access is a module any app can add
+
+- **Access is now one module, the same for any app.** It lives in [`.agents/plugins/access/`](.agents/plugins/access/README.md), and your project gets it at `.claude/skills/access/`. Your app gives it one object, its slots: who is signed in, where people are stored, and who the owner is. An app with no WongStack adds Access by one message pasted into a chat; [its setup guide](.agents/plugins/access/references/setup.md) connects the app's sign-in and database. The Access page, people, roles, apps and key levels stay the same ([employee access](wiki/stack/employee-access.md)).
+- **Services come with it.** The services list, direct calls, keys sent sealed, tools added from a chat, and the services skill are now in the same folder. `company-api.mjs services`, `api`, `record`, `key` and `tool` work as before ([the services list](wiki/stack/service-catalogue.md)).
+- **`/access` reads and changes people from a chat.** It says who has what, and adds, changes or removes a person after you say yes.
+- **The app no longer uses MCP servers.** A tool that has only an MCP server shows *not connected yet* ([connect your tools](wiki/stack/connect-your-tools.md#work-out-how-to-add-a-new-tool)).
+- **Memory works without Access, and Access without memory.** The app helper loads each one only when it is there.
+
+**Updating.** Nothing to do by hand for most projects: no database change, and every person keeps what they have. If you added a tool through its MCP server, it stops working, and the change record names it once: add the tool again through its API, or ask its maker for one. If one of your own pages or skills links `.agents/skills/services/SKILL.md`, the update's link check names it: the skill is now `.claude/skills/access/skills/services/SKILL.md`. The service-records check moves too: `scripts/check-service-definitions.mjs` is now `.claude/skills/access/scripts/check-definitions.mjs`, and the app's `npm test` runs it there. If one of your own scripts runs the old file, point it at the new one.
+
 ## 53.3.0 — The browser is a module any project can add
 
 - **The browser, private links, and shopping are one module** that any project can add with one pasted message, in any AI tool ([the browser module](.agents/plugins/browser/browser/README.md)). Your project still gets the same three skills, `browser`, `hand-over`, and `shop`, as real folders at `.agents/skills/`.

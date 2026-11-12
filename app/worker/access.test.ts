@@ -5,7 +5,7 @@ import { jwk, signingPair } from "../tests/signing";
 // stubbed in one case cannot leak into a later one and turn a real failure into a pass.
 async function loadAccess() {
   vi.resetModules();
-  return await import("./access");
+  return await import("../../.agents/skills/access/signin/cloudflare.mjs");
 }
 
 const TEAM_DOMAIN = "example-team.cloudflareaccess.com";
@@ -37,7 +37,7 @@ afterEach(() => {
 // No network and no cryptography: `getAccessIdentity` returns before it reaches for a signing key.
 // Nothing here is stubbed, so nothing can pass against a path that did not truly run.
 describe("getAccessIdentity — rejections that need no key", () => {
-  let getAccessIdentity: typeof import("./access").getAccessIdentity;
+  let getAccessIdentity: typeof import("../../.agents/skills/access/signin/cloudflare.mjs").getAccessIdentity;
 
   beforeEach(async () => {
     ({ getAccessIdentity } = await loadAccess());
@@ -161,7 +161,7 @@ describe("getAccessIdentity — verified assertions", () => {
     hash: "SHA-256",
   };
 
-  let getAccessIdentity: typeof import("./access").getAccessIdentity;
+  let getAccessIdentity: typeof import("../../.agents/skills/access/signin/cloudflare.mjs").getAccessIdentity;
   let signingKey: CryptoKeyPair;
   let otherKey: CryptoKeyPair;
   let publicJwk: JsonWebKey & { kid: string };

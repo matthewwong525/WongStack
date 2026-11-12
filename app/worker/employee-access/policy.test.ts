@@ -1,8 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { authorizeRequest, currentPolicy, humanEmail, ownerEmail, policyAllows, type PolicyEnv, type RouteAccess } from "./policy";
-import type { AccessIdentity } from "../access";
+import { authorizeRequest, currentPolicy, humanEmail, ownerEmail, policyAllows, type AccessIdentity, type PolicyEnv, type RouteAccess } from "../access-slots";
 import { defineAction, dispatch, registrations, type Registration } from "../api/contract";
 import { handleApi } from "../api/router";
 import { discovery } from "../api/discovery";
@@ -51,7 +50,7 @@ afterEach(() => sql.close());
 
 it("keeps an install with no recorded owner on its existing behavior, without reading any database", async () => {
   for (const value of [undefined, "", "  "]) {
-    expect(await read(null, { ...env, WONG_OWNER_EMAIL: value })).toEqual({ state: "legacy" });
+    expect(await read(employee, { ...env, WONG_OWNER_EMAIL: value })).toEqual({ state: "legacy" });
     expect(ownerEmail({ WONG_OWNER_EMAIL: value })).toBeNull();
   }
   expect(ownerEmail({ WONG_OWNER_EMAIL: " Owner@Example.com " })).toBe("owner@example.com");
@@ -216,7 +215,8 @@ it("refuses service, unlisted and invalid human identities once permissions have
   expect(await read(unlisted)).toEqual({ state: "denied" });
   // Before permissions start, the same callers keep what the sign-in wall already gave them.
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
-  for (const identity of [...invalid, unlisted]) expect(await read(identity)).toEqual({ state: "not_started", role: "employee", manages: false });
+  for (const identity of [...invalid.slice(1), unlisted]) expect(await read(identity)).toEqual({ state: "not_started", role: "employee", manages: false });
+  expect(await read(null)).toEqual({ state: "denied" }); // nobody signed in is refused then too, but on an open starter
 });
 
 it("leaves everyone every app until permissions start, and names the owner meanwhile", async () => {
@@ -326,7 +326,7 @@ it("preserves action visibility, record guards, identity and readiness checks co
   const call = { url: new URL(req.url), route: "orders", identity: employee };
   expect((await dispatch({ ...action, allowed: () => false }, req, fakeEnv(env), call, access)).status).toBe(403);
   expect((await dispatch({ ...action, ready: () => false }, req, fakeEnv(env), call, access)).status).toBe(503);
-  expect((await dispatch(action, req, fakeEnv(env), { ...call, identity: null }, access)).status).toBe(403);
+  expect((await dispatch(action, req, fakeEnv(env), { ...call, identity: null }, access)).status).toBe(401);
   expect(handler).not.toHaveBeenCalled();
   const recordGuard = vi.fn(() => new Response("private record diagnostics", { status: 403 }));
   const result = await dispatch({ ...action, handler: recordGuard }, req, fakeEnv(env), call, access);
@@ -469,7 +469,7 @@ it("reads each person's apps and key levels with zero-app Access self-service, o
   expect((await readback()).status).toBe(403);
   expect((await readback(null)).status).toBe(403);
   expect((await readback(employee, { ...env, DB: undefined })).status).toBe(503);
-  expect(await (await readback(null, { ...env, WONG_OWNER_EMAIL: undefined })).json()).toEqual({ state: "legacy", code: "off", signIn: true });
+  expect([(await readback(null, { ...env, WONG_OWNER_EMAIL: undefined })).status, await (await readback(employee, { ...env, WONG_OWNER_EMAIL: undefined })).json()]).toEqual([403, { state: "legacy", code: "off", signIn: true }]);
   // Before permissions start a removed person is still refused, while the owner keeps every app.
   sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
   expect((await readback()).status).toBe(403);
@@ -479,7 +479,7 @@ it("reads each person's apps and key levels with zero-app Access self-service, o
   for (const [bindings, signIn] of [[env, true], [{ ...env, WONG_ENVIRONMENT: "staging" }, true], [open, false], [{ ...env, CF_ACCESS_AUD: undefined }, false],
     [{ ...env, WONG_ENVIRONMENT: "local", SKIP_AUTH: "true" }, false]] as const) {
     expect((await body(await readback(owner, bindings))).signIn, JSON.stringify(signIn)).toBe(signIn);
-    expect(await (await readback(null, { ...bindings, WONG_OWNER_EMAIL: undefined })).json()).toEqual({ state: "legacy", code: "off", signIn });
+    expect(await (await readback(bindings === open ? null : employee, { ...bindings, WONG_OWNER_EMAIL: undefined })).json()).toEqual({ state: "legacy", code: "off", signIn });
   }
   expect((await appAccess(new Request(req, { method: "POST" }), env, employee)).status).toBe(404);
 });

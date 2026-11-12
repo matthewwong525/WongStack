@@ -2,8 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { body as json } from "../../tests/body";
 import { employee, fixture, owner, req, site } from "../../tests/employee-access/connections";
 import { appAccess } from "./apps";
-import { management } from "./management";
-import { authorizeRequest } from "./policy";
+import { handleAccess as management } from "./router";
+import { authorizeRequest } from "../access-slots";
 
 vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtApps(["access", "orders", "reports"]));
 

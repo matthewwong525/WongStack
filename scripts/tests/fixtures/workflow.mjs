@@ -379,7 +379,7 @@ export function demoRepo(root, { config = DEMO_CONFIG, scripts = {} } = {}) {
   for (const name of SCRIPTS) write(`scripts/${name}`, readFileSync(join(REPO, 'scripts', name), 'utf8'));
   for (const shared of ['primary-root.mjs', 'cli.mjs']) write(`.claude/skills/memory/scripts/lib/${shared}`, readFileSync(join(REPO, '.claude/skills/memory/scripts/lib', shared), 'utf8'));
   write('scripts/check-private-access.mjs', '// The access check has its own tests.\n');
-  write('app/src/lib/seal.ts', readFileSync(join(REPO, 'app/src/lib/seal.ts'), 'utf8'));
+  write('.agents/skills/access/screen/seal.mjs', readFileSync(join(REPO, '.agents/skills/access/screen/seal.mjs'), 'utf8'));
   write('.nvmrc', readFileSync(join(REPO, '.nvmrc'), 'utf8'));
   write('app/wrangler.jsonc', `${JSON.stringify(config, null, 2)}\n`);
   write('app/package.json', `${JSON.stringify({ name: 'demo', private: true, scripts: { 'build:app': 'node build.mjs', ...scripts } }, null, 2)}\n`);

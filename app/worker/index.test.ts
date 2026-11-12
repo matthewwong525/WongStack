@@ -299,6 +299,6 @@ describe("private Worker routing", () => {
   it("hands the timetable to the pushers' refresh", async () => {
     const bindings = fakeEnv(env);
     await worker.scheduled({} as ScheduledController, bindings);
-    expect(refreshOnSchedule).toHaveBeenCalledWith(bindings);
+    expect(refreshOnSchedule).toHaveBeenCalledWith(bindings, undefined);
   });
 });

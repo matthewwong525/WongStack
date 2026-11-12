@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import type { AccessIdentity } from "../access";
+import type { AccessIdentity } from "../access-slots";
 import { APP_API, handleApp, type AppCall, type AppEnv } from "./index";
 import type { Route } from "../api/contract";
 import { fakeEnv } from "../../tests/env";
@@ -36,7 +36,7 @@ const person: AccessIdentity = { id: "owner@example.com", kind: "user", claims: 
 const env = fakeEnv({ DB: { name: "app-db" }, ASSETS: {}, PAYMENT_KEY: "secret", MEMORY_DB: { name: "memory" }, MEMORY_BUCKET: {},
   WONG_ACCESS_LOGIN_MANAGEMENT: "private-login" });
 const call = (path: string, method = "GET", identity: AccessIdentity | null = person) =>
-  handleApp(new Request(`https://workspace.example.com${path}`, { method }), env, identity);
+  handleApp(new Request(`https://workspace.example.com${path}`, { method }), identity ? env : { ...env, WORKSPACE_LOGIN: "off" }, identity);
 
 const expectNotFound = async (response: Response) => {
   expect(response.status).toBe(404);

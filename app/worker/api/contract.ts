@@ -2,14 +2,13 @@
 import { z } from "zod";
 import { en } from "zod/locales";
 import type { AppCall, AppEnv, AppHandler } from "../apps/index.ts";
-import { authorizeRequest, listedKeys, usedDirectly, type RouteAccess } from "../employee-access/policy.ts";
-import { saved, scopedEnv, type Level } from "../employee-access/key-levels.ts";
+import { authorizeRequest, listedKeys, saved, scopedEnv, usedDirectly, type Level, type RouteAccess } from "../access-slots.ts";
 import type { KeyId } from "../keys.ts";
 import { boundedBytes } from "./body.ts";
 
 // A mini app imports only this file, so one that keys rows on the signed-in person reads the person here, and one
 // that keeps the owner's data alone reads the owner here.
-export { humanEmail, ownerEmail } from "../employee-access/policy.ts";
+export { humanEmail, ownerEmail } from "../access-slots.ts";
 /** The reads the Knowledge app's routes are handed on their call. */
 export type { Commit, KnowledgeReader } from "../employee-access/knowledge-reader.ts";
 

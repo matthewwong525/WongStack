@@ -1,8 +1,8 @@
 import { type MockInstance, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { employee, fixture, owner, site } from "../../tests/employee-access/connections";
-import type { AccessIdentity } from "../access";
+import type { AccessIdentity } from "../access-slots";
 import { body } from "../../tests/body";
-import type { ConnectionEnv } from "./core";
+import type { ConnectionEnv } from "../access-slots";
 import { KNOWLEDGE_GIT, knowledgeGit, knowledgeSource } from "./knowledge";
 import { handleAccess } from "./router";
 

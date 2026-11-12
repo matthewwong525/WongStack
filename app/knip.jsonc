@@ -4,8 +4,6 @@
     "worker/index.ts",
     // The live line's own Worker (wrangler.line.jsonc).
     "worker/line-worker.ts",
-    // Shared signed-identity verifier used by the Worker entry point.
-    "worker/access.ts",
     // Each mini app's page and server side, which Vite finds by glob
     // (src/apps/index.ts, worker/apps/index.ts).
     "src/apps/*/App.tsx",
@@ -14,9 +12,9 @@
     "worker/services/*.ts"
   ],
   "project": ["worker/**/*.ts", "src/**/*.{ts,tsx}"],
-  // The ready-made parts are copied as written, and one exports pieces no screen uses yet.
+  // The ready-made parts are copied as written, and one exports pieces no screen uses yet; utils.ts is their helper.
   // The packages they import are still checked.
-  "ignore": ["src/components/ui/**"],
+  "ignore": ["src/components/ui/**", "src/lib/utils.ts"],
   "vite": {
     "config": ["vite.config.ts"]
   },

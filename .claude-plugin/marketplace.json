@@ -2,6 +2,7 @@
   "name": "wongstack",
   "owner": { "name": "WongStack" },
   "plugins": [
-    { "name": "memory", "source": "./.agents/skills/memory", "description": "Session memory for a repo: past decisions, open threads, and your topics." }
+    { "name": "memory", "source": "./.agents/skills/memory", "description": "Session memory for a repo: past decisions, open threads, and your topics." },
+    { "name": "access", "source": "./.agents/skills/access", "description": "Who signs in to your app, what each person may open, and what their assistant may do with its keys." }
   ]
 }

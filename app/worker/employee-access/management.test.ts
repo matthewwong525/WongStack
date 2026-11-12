@@ -1,15 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { cloudflare, fixture, owner, employee, site, req } from '../../tests/employee-access/connections';
 import { body as json } from '../../tests/body';
-import { accessStatus } from './members';
-import { management } from './management';
 import { mainRouteInventory } from '../api/router';
 import { setupMessage } from './prompt';
 import { setupStatus } from './setup';
-import { handleAccess } from './router';
-import { lease } from './core';
-import { authorizeRequest, currentPolicy } from './policy';
-import type { AccessIdentity } from '../access';
+import { handleAccess, handleAccess as management } from './router';
+import { d1Store } from '../access-store/index';
+import { authorizeRequest, currentPolicy } from '../access-slots';
+import type { AccessIdentity } from '../access-slots';
 
 vi.mock('./catalogue.ts', async () => (await import('../../tests/employee-access/catalogue')).builtApps(['access', 'orders', 'payroll']));
 let f: ReturnType<typeof fixture>;
@@ -132,7 +130,7 @@ it('saves choices with no key, and with a busy lease, leaving the sign-in step f
   expect(await (await run('retry', 'POST', undefined, missing)).json()).toMatchObject({ work: [{ status: 'pending' }] });
   expect(fetch).not.toHaveBeenCalled();
   // Another request holds the lease: the save still commits, and Try again reports the wait.
-  f.core.holder = await lease(f.core);
+  await d1Store(f.env.DB!).lease();
   expect(await (await run('people', 'POST', person('cy@example.com'))).json()).toMatchObject({ people: [{ email: 'bo@example.com' }, { email: 'cy@example.com', settled: false }, { email: employee.id }] });
   const busy = await run('retry');
   expect(busy.status).toBe(409); expect(await busy.json()).toEqual({ code: 'retry_pending' });
@@ -215,16 +213,6 @@ it('reports safe failures and rejects editing controls or assigning self-service
   f.sql.exec('DROP TABLE wong_access_audit');
   const failed = await run('people', 'POST', person(employee.id, [], true));
   expect(failed.status).toBe(503); expect(await failed.json()).toEqual({ code: 'access_unavailable' });
-});
-
-it('refuses a missing installation snapshot rather than inventing a status', async () => {
-  const prepare = f.core.db.prepare.bind(f.core.db);
-  const reader = vi.spyOn(f.core.db, 'prepare').mockImplementation(query => {
-    if (query.startsWith('SELECT policy_enabled')) return { bind: () => ({ first: async () => null }) } as unknown as D1PreparedStatement;
-    return prepare(query);
-  });
-  await expect(accessStatus(f.core)).rejects.toMatchObject({ code: 'installation_mismatch' });
-  reader.mockRestore();
 });
 
 it('serves the setup prompt to every signed-in person, before and after permissions start', async () => {

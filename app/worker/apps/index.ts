@@ -1,10 +1,9 @@
 // Every mini app's server side: /apps/<name>/api/<route> goes to the handler `apps/<name>/api.ts` lists for
 // "<METHOD> <route>". Vite finds each api.ts at build time, so a new app needs no edit here. wiki/stack/mini-apps.md
 import { dispatch, keyUses, registrations, type Route } from "../api/contract.ts";
-import type { AccessIdentity } from "../access.ts";
 import { hasScreen } from "../employee-access/catalogue.ts";
 import { knowledgeReader, type KnowledgeReader } from "../employee-access/knowledge-reader.ts";
-import type { PolicyEnv, RouteAccess } from "../employee-access/policy.ts";
+import type { AccessIdentity, PolicyEnv, RouteAccess } from "../access-slots.ts";
 
 // The memory store and the sign-in list key: a mini app is handed neither.
 type MemoryBindings = "MEMORY_DB" | "MEMORY_BUCKET" | "WONG_ACCESS_LOGIN_MANAGEMENT";

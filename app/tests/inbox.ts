@@ -1,6 +1,6 @@
 // What the inbox's API tests share: two people and a machine, a fresh database each test, the clock, and the calls.
 import { afterEach, beforeEach, vi } from "vitest";
-import type { AccessIdentity } from "../worker/access";
+import type { AccessIdentity } from "../worker/access-slots";
 import { handleApp } from "../worker/apps/index";
 import { body } from "./body";
 import { fakeEnv } from "./env";
@@ -26,7 +26,7 @@ export async function call(who: AccessIdentity | null, method: string, route: st
   const query = method === "GET" && input ? `?${new URLSearchParams(input as Record<string, string>)}` : "";
   const sends = method !== "GET" && input !== undefined;
   const response = await handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}${query}`, {
-    method, ...(sends && { headers: { "content-type": "application/json" }, body: JSON.stringify(input) }) }), fakeEnv({ DB: db.DB }), who);
+    method, ...(sends && { headers: { "content-type": "application/json" }, body: JSON.stringify(input) }) }), fakeEnv({ DB: db.DB, ...(!who && { WORKSPACE_LOGIN: "off" }) }), who);
   return { status: response.status, json: await body(response) };
 }
 

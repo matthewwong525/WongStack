@@ -5,7 +5,7 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { companyClient, companyOrigin, combinedList, cloudflared, loginUrl, listLines, saveAnswer, serviceLines, shortAnswer, withKeyNotes, withNotes } from '../company-api.mjs';
+import { companyClient, companyOrigin, combinedList, cloudflared, loginUrl, listLines, saveAnswer, shortAnswer, withKeyNotes } from '../company-api.mjs';
 import { memoryOperations } from '../../.agents/memory/operations.mjs';
 import { refuseExternalReferences, selectOperations } from '../../.agents/memory/lib/operations.mjs';
 
@@ -227,32 +227,6 @@ function helperCli(t, answer = 'async () => undefined') {
   return { run, base, temp };
 }
 
-test('services shows each key on one line with its level, notes page and guide, and counts the keys left out', t => {
-  const root = mkdtempSync(join(tmpdir(), 'company-notes-')); t.after(() => rmSync(root, { recursive: true, force: true }));
-  mkdirSync(join(root, 'wiki/services'), { recursive: true }); writeFileSync(join(root, 'wiki/services/stripe.md'), '# Stripe\n');
-  const answer = { revision: 'r', needAccess: 2, services: [
-    { id: 'stripe', name: 'Stripe', purpose: 'payments and refunds', ready: true, level: 'read', direct: true, docs: 'https://docs.stripe.com/api' },
-    { id: 'mailchimp', name: 'Mailchimp', purpose: 'email lists', ready: false, level: 'write', direct: false },
-    { id: '../odd', name: 'Odd', purpose: 'an id no page can have', ready: true, level: 'write', direct: false }] };
-  const noted = withNotes(answer, root);
-  assert.deepEqual(noted.services.map(service => service.notes), [{ path: 'wiki/services/stripe.md', exists: true }, { path: 'wiki/services/mailchimp.md', exists: false }, undefined]);
-  assert.deepEqual(noted.services.map(service => service.calls), [0, undefined, undefined], 'a key used directly counts its saved calls');
-  assert.deepEqual(serviceLines(noted).map(line => line.trimEnd().split(/ {2,}/)), [
-    ['Stripe', 'payments and refunds', 'ready', 'Read'], ['', 'notes: wiki/services/stripe.md', 'guide: https://docs.stripe.com/api'],
-    ['', 'calls: 0 · node scripts/company-api.mjs api stripe'],
-    ['Mailchimp', 'email lists', 'not saved yet: ask the owner'], ['', 'notes: none yet; start wiki/services/mailchimp.md'],
-    ['Odd', 'an id no page can have', 'ready', 'Read & write'],
-    ['2 more keys need access: ask the owner']]);
-  // With --all the keys left out are rows of their own, so no count follows.
-  const all = serviceLines({ needAccess: 1, services: [{ id: 'xero', name: 'Xero', purpose: 'books', ready: true, level: null, direct: false, notes: { path: 'wiki/services/xero.md', exists: false } }] });
-  assert.deepEqual(all.map(line => line.trimEnd().split(/ {2,}/)), [['Xero', 'books', 'needs access: ask the owner'], ['', 'notes: none yet; start wiki/services/xero.md']]);
-  // An MCP server's row says how to list its tools.
-  assert.deepEqual(serviceLines({ services: [{ id: 'docs', name: 'Docs', purpose: 'public docs', ready: true, level: 'read', direct: true, mcp: { path: 'mcp' },
-    notes: { path: 'wiki/services/docs.md', exists: false } }] }).map(line => line.trimEnd()),
-  ['Docs  public docs  ready  Read', '  notes: none yet; start wiki/services/docs.md', '  tools: node scripts/company-api.mjs mcp docs tools']);
-  assert.deepEqual(serviceLines({ services: [], needAccess: 1 }), ['1 more key needs access: ask the owner']);
-  assert.deepEqual(serviceLines({ services: [], needAccess: 0 }), ['No services yet.']);
-});
 test('the services command asks the app for this caller\'s list, and --json adds each key\'s notes page', t => {
   const cli = helperCli(t, `async target => target.pathname === '/api/services' ? Response.json({ revision: 'r', needAccess: target.searchParams.get('all') === '1' ? 0 : 1,
     services: [{ id: 'stripe', name: 'Stripe', purpose: 'payments', ready: true, level: 'write', direct: false }] }) : undefined`);
@@ -284,6 +258,7 @@ test('describe prints compact JSON without the shared error shape; --json prints
 test('describe adds each key\'s notes page in this checkout, written or not, and leaves a memory operation as it is', t => {
   const root = mkdtempSync(join(tmpdir(), 'company-notes-')); t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, 'wiki/services'), { recursive: true }); writeFileSync(join(root, 'wiki/services/stripe.md'), '# Stripe\n');
+  mkdirSync(join(root, '.agents/access'), { recursive: true }); writeFileSync(join(root, '.agents/access/slots.json'), '{"notes":"wiki/services"}');
   const keys = [{ id: 'stripe', name: 'Stripe', purpose: 'Payments and refunds', docs: 'https://docs.stripe.com/api', level: 'read' },
     { id: 'xero', name: 'Xero', purpose: 'Books', level: 'write' }, { id: '../odd', level: 'read' }];
   assert.deepEqual(withKeyNotes(descriptor({ keys }), root).keys, [{ ...keys[0], notes: { path: 'wiki/services/stripe.md', exists: true } },
@@ -340,37 +315,6 @@ test('a direct look-up its definition lacks prints the save command on stderr an
   assert.match(api.stdout, /^No calls saved for acme-crm yet\./);
   const usage = cli.run(['record', 'acme-crm', 'x', '--last', '--file', '-']); assert.notEqual(usage.status, 0); assert.match(usage.stderr, /record <key> <name> --last/);
 });
-test('the mcp command runs a session through the app as a chat runs it, and prints the tools or a tool\'s text', t => {
-  const cli = helperCli(t, `async (target, init) => {
-    if (target.pathname === '/api/services') return Response.json({ revision: 'r', needAccess: 0, services: [{ id: 'docs', name: 'Docs', purpose: 'p', ready: true, level: 'write', direct: true, mcp: { path: 'mcp' } }] });
-    const id = target.searchParams.get('id');
-    if (id) return Response.json({ operationId: id, summary: 's', source: 'company', transport: 'http', authentication: 'cloudflare-access', encoding: 'json',
-      effect: 'read', method: 'POST', path: '/api/direct/' + id.replace('.', '/'), inputSchema: { type: 'object' }, outputSchema: { type: 'object' }, revision: 'live' });
-    const message = init.body?.body;
-    if (!message) return undefined;
-    if (target.pathname === '/api/direct/docs/read' && message.method === 'tools/call' && message.params.name !== 'search') return Response.json({ error: { code: 'not_a_lookup', message: 'no' } }, { status: 400 });
-    if (message.method === 'notifications/initialized') return Response.json({ status: 202, contentType: '', body: '' });
-    const result = message.method === 'tools/list' ? { tools: [{ name: 'search', description: 'Find pages. More words.' }, { name: 'delete_page', description: 'Delete one.' }] }
-      : { content: [{ type: 'text', text: message.params?.arguments?.size ? 'y'.repeat(message.params.arguments.size)
-        : 'ran ' + message.params?.name + ' on ' + target.pathname + ' in ' + init.body.session }] };
-    return Response.json({ status: 200, contentType: 'text/event-stream', body: 'data: ' + JSON.stringify({ jsonrpc: '2.0', id: message.id, result }) + '\\n\\n', session: 'S-1' });
-  }`);
-  const tools = cli.run(['mcp', 'docs', 'tools']); assert.equal(tools.status, 0, tools.stderr);
-  assert.equal(tools.stdout, 'search       Find pages.\ndelete_page  Delete one.\n');
-  const ran = cli.run(['mcp', 'docs', 'tool', 'delete_page', '--file', '-'], { input: '{"id":"p1"}' }); assert.equal(ran.status, 0, ran.stderr);
-  assert.equal(ran.stdout, 'ran delete_page on /api/direct/docs/change in S-1\n');
-  const wrong = cli.run(['mcp', 'docs']); assert.equal(wrong.status, 1); assert.match(wrong.stderr, /usage:/);
-  // A tool's text is bounded like a call's answer, --full prints it all, and an unsafe answers folder prints it whole.
-  const big = (...flags) => cli.run(['mcp', 'docs', 'tool', 'search', '--file', '-', ...flags], { input: '{"size":30000}' });
-  const bounded = big(); assert.equal(bounded.status, 0, bounded.stderr);
-  const envelope = JSON.parse(bounded.stdout);
-  assert.deepEqual([envelope.truncated, envelope.bytes, envelope.preview], [true, 30000, 'y'.repeat(4096)]);
-  assert.equal(readFileSync(envelope.file, 'utf8'), `${'y'.repeat(30000)}\n`);
-  assert.equal(big('--full').stdout, `${'y'.repeat(30000)}\n`);
-  chmodSync(join(cli.temp, `wong-answers-${process.getuid()}`), 0o755);
-  const open = big(); assert.equal(open.status, 0, open.stderr);
-  assert.equal(open.stdout, `${'y'.repeat(30000)}\n`); assert.match(open.stderr, /not a private folder.*, so the whole answer follows\./);
-});
 test('tool add sends the entry to the app with the site as Origin, tool remove deletes it, and a refusal fails', t => {
   const seen = join(mkdtempSync(join(tmpdir(), 'company-tool-')), 'seen.jsonl'); t.after(() => rmSync(dirname(seen), { recursive: true, force: true }));
   const cli = helperCli(t, `async (target, init) => {
@@ -396,7 +340,7 @@ test('tool add sends the entry to the app with the site as Origin, tool remove d
   }
 });
 test('key send seals the key in this process and sends only the sealed value, with the site as Origin; a refusal fails', async t => {
-  const { makePair, open } = await import('../../app/src/lib/seal.ts');
+  const { makePair, open } = await import('../../.agents/skills/access/screen/seal.mjs');
   const pair = await makePair();
   const seen = join(mkdtempSync(join(tmpdir(), 'company-key-')), 'seen.jsonl'); t.after(() => rmSync(dirname(seen), { recursive: true, force: true }));
   const value = 'shpss_made-up-secret-9f2c';
@@ -429,4 +373,20 @@ test('key send seals the key in this process and sends only the sealed value, wi
   }
   const blank = cli.run(['key', 'send', 'TOOL_X', '--value-stdin'], { input: '\n' });
   assert.equal(blank.status, 1); assert.match(blank.stderr, /No key on stdin for TOOL_X/);
+});
+test('in a project with neither memory nor Access the helper still runs, and names what is not added', t => {
+  const base = mkdtempSync(join(tmpdir(), 'company-bare-')); t.after(() => rmSync(base, { recursive: true, force: true }));
+  const checkout = join(base, 'checkout'); mkdirSync(join(checkout, 'scripts'), { recursive: true });
+  for (const name of ['company-api.mjs', 'employee-bootstrap.mjs']) writeFileSync(join(checkout, 'scripts', name), readFileSync(fileURLToPath(new URL(`../${name}`, import.meta.url))));
+  execFileSync('git', ['init', '-q'], { cwd: checkout });
+  const run = (...args) => spawnSync(process.execPath, [join(checkout, 'scripts/company-api.mjs'), ...args, '--state', join(base, 'state')],
+    { cwd: checkout, env: { PATH: process.env.PATH, HOME: base }, encoding: 'utf8' });
+  const help = run('--help'); assert.equal(help.status, 0, help.stderr);
+  assert.match(help.stdout, /Access is not added to this project/); assert.doesNotMatch(help.stdout, /key send/);
+  const listed = run('list'); assert.equal(listed.status, 0, listed.stderr); assert.equal(listed.stdout, 'No matches.\n');
+  assert.match(listed.stderr, /Company actions are missing/);
+  for (const [args, said] of [[['list', '--scope', 'memory'], /Memory is not added/], [['describe', 'memory.search'], /Memory is not added/],
+    [['services'], /Access is not added/], [['key', 'send', 'TOOL_X', '--value-stdin'], /Access is not added/]]) {
+    const refused = run(...args); assert.equal(refused.status, 1, args.join(' ')); assert.match(refused.stderr, said);
+  }
 });

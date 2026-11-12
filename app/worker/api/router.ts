@@ -4,9 +4,8 @@ import { health } from "./health.ts";
 import { cloudflareRead } from "./cloudflare.ts";
 import { forwardRoutes } from "./forward.ts";
 import { dispatch, keyUses, registrations, type Route } from "./contract.ts";
-import type { AccessIdentity } from "../access.ts";
-import { chatTools, registryOf } from "../employee-access/key-levels.ts";
-import type { PolicyEnv, RouteAccess } from "../employee-access/policy.ts";
+import { registryOf, type AccessIdentity, type PolicyEnv, type RouteAccess } from "../access-slots.ts";
+import { chatTools } from "../../../.agents/skills/access/server/levels.mjs";
 import { keys } from "../keys.ts";
 
 export const API_PREFIX = "/api/";

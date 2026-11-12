@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { employee, fixture, owner, site } from "../../tests/employee-access/connections";
-import type { AccessIdentity } from "../access";
+import type { AccessIdentity } from "../access-slots";
 import { discovery } from "./discovery";
 import { handleApi } from "./router";
 import { body } from "../../tests/body";
@@ -93,7 +93,7 @@ it("belongs to the Cloudflare key alone: a level decides, no app is needed, and 
   f.sql.exec("UPDATE wong_access_installation SET keys_enabled = 1");
   const refused = await look("zones", undefined, employee);
   expect([refused.status, (await body(refused)).error.message]).toEqual([403, "Cloudflare: Read needed"]);
-  expect((await look("zones", undefined, null)).status).toBe(403);
+  expect((await look("zones", undefined, null)).status).toBe(401);
   expect(fetch).not.toHaveBeenCalled();
   const listing = async (identity: AccessIdentity) => (await body(await discovery(new Request(`${site.origin}/api/actions?app=main`), env(), identity))).actions;
   expect((await listing(employee)).map(item => item.operationId)).toEqual(["main.health"]);

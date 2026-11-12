@@ -1,18 +1,14 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { employee, fixture, owner, site } from "../../tests/employee-access/connections";
-import type { AccessIdentity } from "../access";
 import { keys } from "../keys";
 import { appAccess } from "./apps";
 import { CODE_CHANGE } from "./change";
 import { CODE_GIT, NOT_SET_UP, codeGit, codeSource, codeState, codeStep, saveSource, saveStep, savedBranch, upstream } from "./code";
-import type { ConnectionEnv } from "./core";
-import { keyCatalogue } from "./key-catalogue";
 import { KNOWLEDGE_GIT } from "./knowledge";
-import { everyKey, offered, saved, scopedEnv } from "./key-levels";
+import { everyKey, keyCatalogue, offered } from "../../../.agents/skills/access/server/levels.mjs";
 import { keyUse } from "./key-use";
-import { currentPolicy } from "./policy";
+import { currentPolicy, registryOf, saved, scopedEnv, type AccessIdentity, type ConnectionEnv } from "../access-slots";
 import { handleAccess } from "./router";
-import { changedSet } from "./sets";
 import { businessName, setupMessage } from "./prompt";
 import { setupStatus } from "./setup";
 import { body } from "../../tests/body";
@@ -87,9 +83,9 @@ it("registers Project code as a key with Read to install and Write to publish, o
     liveOnly: true });
   expect([offered(keys, "code"), everyKey(keys).get("code")]).toEqual([["read", "write"], "write"]);
   expect(keyUse.some(use => use.keys.includes("code"))).toBe(false);
-  expect(changedSet(keys, { apps: [], keys: {} }, { apps: { orders: true } })).toEqual({ apps: ["orders"], keys: {} });
   // Saved follows whether the project can be handed out: a Cloudflare-kept one needs no secret.
-  const row = (bindings: object) => keyCatalogue(bindings, new Map()).find(key => key.id === "code");
+  const row = (bindings: object) => (keyCatalogue(registryOf(bindings), name => Reflect.get(bindings, name), new Map()) as { id: string; saved: boolean }[])
+    .find(key => key.id === "code");
   expect(row({})).toEqual({ id: "code", title: "Project code", purpose: "This project's own code and company knowledge, to install, read and save them", levels: ["read", "write"], saved: false, parts: [], setup: false, liveOnly: true, alone: true, direct: false });
   expect([row(github)!.saved, row(saving)!.saved, row(artifacts().env)!.saved, saved({ WONG_CODE_READ: TOKEN }, "code")]).toEqual([true, true, true, false]);
   // No route is handed the credential or the binding, even one that lists the key.

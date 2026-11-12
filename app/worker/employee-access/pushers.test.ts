@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { PUSHERS, pushersRoute, refreshOnSchedule, refreshPushers } from "./pushers";
-import { handleAccess } from "./router";
+import { accessFor } from "../access-slots";
+import { handleAccess, handleAccess as pushersRoute } from "./router";
 import { cloudflare, employee, fixture, key, owner, req, site } from "../../tests/employee-access/connections";
 import { fakeArtifacts } from "../../tests/env";
 
@@ -50,7 +50,7 @@ it("lists a new pusher by their own commit email, skipping no-reply and other pe
   gh.collaborators = [user(7, "kim-lee"), user(8, "reader", false), user(9, "ci-bot", true, "Bot")];
   gh.commits["kim-lee"] = [commit("kim-lee", "7+kim-lee@users.noreply.github.com"), commit("someone-else", "other@example.com"),
     commit(null, "unlinked@example.com"), commit("Kim-Lee", "Kim@Example.com"), commit("kim-lee", "older@example.com")];
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   expect(rows()).toEqual([{ github_id: 7, login: "kim-lee", email: "kim@example.com", email_source: "commit" }]);
   expect(listed(staging)).toContain("kim@example.com");
   expect(listed(live)).not.toContain("kim@example.com");
@@ -64,56 +64,56 @@ it("takes a profile email over any commit, and looks up an unknown one at most o
   gh.collaborators = [user(7, "kim-lee"), user(8, "jo-builds")];
   gh.profiles["kim-lee"] = "kim@profile.example.com";
   gh.commits["kim-lee"] = [commit("kim-lee", "kim@commit.example.com")];
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   expect(rows()).toEqual([{ github_id: 7, login: "kim-lee", email: "kim@profile.example.com", email_source: "profile" },
     { github_id: 8, login: "jo-builds", email: null, email_source: null }]);
   const count = githubCalls().length;
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   // Only the list is read again: Kim is known, and Jo was looked up within the hour.
   expect(githubCalls().slice(count)).toEqual(["https://api.github.com/repos/acme/shop/collaborators?affiliation=all&per_page=100&page=1"]);
   f.sql.exec("UPDATE wong_access_pushers SET checked_at = '2000-01-01T00:00:00.000Z'");
   gh.commits["jo-builds"] = [commit("jo-builds", "jo@example.com")];
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   expect(rows()).toContainEqual({ github_id: 8, login: "jo-builds", email: "jo@example.com", email_source: "commit" });
 });
 
 it("keeps an email the owner typed across refreshes, and follows a renamed account by its id", async () => {
   gh.collaborators = [user(7, "kim-lee")];
   gh.commits["kim-lee"] = [commit("kim-lee", "kim@commit.example.com")];
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   f.sql.exec("UPDATE wong_access_pushers SET email = 'kim@shop.example.com', email_source = 'owner'");
   gh.collaborators = [user(7, "kim-renamed")];
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   expect(rows()).toEqual([{ github_id: 7, login: "kim-renamed", email: "kim@shop.example.com", email_source: "owner" }]);
 });
 
 it("puts known pushers back on the previews list after setup splits an older install's sign-in, reading it once a refresh", async () => {
   gh.collaborators = [user(7, "kim-lee")];
   gh.profiles["kim-lee"] = "kim@example.com";
-  await refreshPushers({ ...f.core, env: { ...f.env, WONG_ACCESS_LOGIN_MANAGEMENT: key } });
+  await accessFor({ ...f.env, WONG_ACCESS_LOGIN_MANAGEMENT: key }).schedule();
   expect([rows(), staging.writes]).toEqual([[{ github_id: 7, login: "kim-lee", email: "kim@example.com", email_source: "profile" }], []]);
   // Setup's split writes the previews list as the owner and the live app's people, with no pushers.
   staging.policy.include = [site.ownerEmail, employee.id].map(email => ({ email: { email } }));
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   expect(listed(staging)).toContain("kim@example.com");
   expect(listed(live)).not.toContain("kim@example.com");
   const count = fetch.mock.calls.length;
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   // Matching now: one read of the previews list, and no write.
   expect(fetch.mock.calls.slice(count).map(([url]) => String(url)).filter(url => url.startsWith(previewsRoot)))
     .toEqual([`${previewsRoot}/policies?per_page=1000`]);
   expect(staging.writes).toHaveLength(1);
   // A list the app can not read is left alone.
   staging.policy.include = [{ everyone: {} }];
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   expect(staging.writes).toHaveLength(1);
   // A write that failed is retried as it was, not queued again on every refresh.
   staging.policy.include = [{ email: { email: site.ownerEmail } }];
   staging.failPolicy = true;
   const changes = () => f.sql.prepare("SELECT COUNT(*) count FROM wong_access_audit WHERE event = 'pushers_changed'").get();
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   const queued = changes();
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   expect([changes(), f.sql.prepare("SELECT status FROM wong_access_work WHERE kind = 'policy'").get()]).toEqual([queued, { status: "failed" }]);
 });
 
@@ -121,14 +121,14 @@ it("drops a pusher gone from GitHub and ends previews sessions alone, unless the
   gh.collaborators = [user(7, "kim-lee"), user(8, "staff")];
   gh.commits["kim-lee"] = [commit("kim-lee", "kim@example.com")];
   gh.commits.staff = [commit("staff", employee.id)];
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   expect(listed(staging)).toEqual(expect.arrayContaining(["kim@example.com", employee.id]));
   // The employee leaves GitHub but stays a person in Access: both lists keep them, and no one is signed out.
   gh.collaborators = [user(7, "kim-lee")];
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   expect([listed(live).includes(employee.id), listed(staging).includes(employee.id), revoked()]).toEqual([true, true, []]);
   gh.collaborators = [];
-  await refreshPushers(f.core);
+  await accessFor(f.env).schedule();
   expect(rows()).toEqual([]);
   expect(listed(staging)).not.toContain("kim@example.com");
   expect(sessions()).toEqual({ status: "ready", scope: "previews" });
@@ -139,7 +139,7 @@ it("writes nothing when any page of the list fails, and says GitHub could not be
   gh.collaborators = Array.from({ length: 150 }, (_, at) => user(at + 1, `person-${at + 1}`));
   f.sql.prepare("INSERT INTO wong_access_pushers VALUES (?, 999, 'old-pusher', 'old@example.com', 'commit', NULL)").run(site.installationId);
   gh.failing = url => url.includes("page=2");
-  await expect(refreshPushers(f.core)).rejects.toThrow();
+  await expect(accessFor(f.env).schedule()).rejects.toThrow();
   expect(rows()).toEqual([{ github_id: 999, login: "old-pusher", email: "old@example.com", email_source: "commit" }]);
   expect(f.sql.prepare("SELECT COUNT(*) count FROM wong_access_work").get()).toEqual({ count: 0 });
   expect([live.writes, staging.writes, revoked()]).toEqual([[], [], []]);
@@ -150,12 +150,12 @@ it("writes nothing when any page of the list fails, and says GitHub could not be
 
 it("never calls GitHub on a preview, for a project kept in Cloudflare, without a key, or before permissions start", async () => {
   gh.collaborators = [user(7, "kim-lee")];
-  await refreshPushers({ ...f.core, live: false });
-  await refreshPushers({ ...f.core, env: { ...f.env, WONG_CODE_READ: undefined } });
-  await refreshPushers({ ...f.core, env: { ...f.env, WONG_CODE_REPOSITORY: "shop", ARTIFACTS: fakeArtifacts({ get: async () => ({}) }) } });
+  await accessFor({ ...f.env, WONG_ENVIRONMENT: "staging" }).schedule();
+  await accessFor({ ...f.env, WONG_CODE_READ: undefined }).schedule();
+  await accessFor({ ...f.env, WONG_CODE_REPOSITORY: "shop", ARTIFACTS: fakeArtifacts({ get: async () => ({}) }) }).schedule();
   f.sql.exec("UPDATE wong_access_installation SET policy_enabled = 0");
-  await refreshPushers(f.core);
-  await refreshOnSchedule({ ...f.env, WONG_ENVIRONMENT: "staging" });
+  await accessFor(f.env).schedule();
+  await accessFor({ ...f.env, WONG_ENVIRONMENT: "staging" }).schedule();
   expect(githubCalls()).toEqual([]);
   expect(rows()).toEqual([]);
 });
@@ -163,13 +163,13 @@ it("never calls GitHub on a preview, for a project kept in Cloudflare, without a
 it("runs on the timetable as the live app's own pass", async () => {
   gh.collaborators = [user(7, "kim-lee")];
   gh.profiles["kim-lee"] = "kim@example.com";
-  await refreshOnSchedule(f.env);
+  await accessFor(f.env).schedule();
   expect(rows()).toEqual([{ github_id: 7, login: "kim-lee", email: "kim@example.com", email_source: "profile" }]);
   expect(f.sql.prepare("SELECT actor_email, event FROM wong_access_audit WHERE event = 'pushers_changed'").get())
     .toEqual({ actor_email: site.ownerEmail, event: "pushers_changed" });
   // Before the owner first opened Access there is no installation, and the run does nothing.
   const empty = fixture({ started: false });
-  await refreshOnSchedule({ ...empty.env, WONG_CODE_REPOSITORY: "acme/shop", WONG_CODE_READ: TOKEN });
+  await accessFor({ ...empty.env, WONG_CODE_REPOSITORY: "acme/shop", WONG_CODE_READ: TOKEN }).schedule();
   expect(empty.sql.prepare("SELECT COUNT(*) count FROM wong_access_installation").get()).toEqual({ count: 0 });
   empty.sql.close();
 });
@@ -231,5 +231,4 @@ it("answers a preview with Live app only and never reads GitHub; names a missing
   const unsplit = await (await pushersRoute(req("pushers", "GET"), { ...f.env, WONG_ACCESS_LOGIN_MANAGEMENT: key }, owner, () => {})).json();
   expect(unsplit).toMatchObject({ state: "listed", split: false, pushers: [{ email: "kim@example.com", canOpenPreviews: false }] });
   expect((await pushersRoute(req("pushers/x", "PUT", {}), f.env, owner, () => {})).status).toBe(404);
-  expect(PUSHERS).toBe("/api/access/pushers");
 });

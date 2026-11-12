@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { employee, fixture, owner, req, seeded, site } from "../../tests/employee-access/connections";
-import type { AccessIdentity } from "../access";
+import type { AccessIdentity } from "../access-slots";
 import { discovery } from "../api/discovery";
 import { handleApi } from "../api/router";
-import type { KeyEntry } from "./key-levels";
-import { management } from "./management";
-import { authorizeRequest } from "./policy";
+import type { KeyEntry } from "../../../.agents/skills/access/server/levels.mjs";
+import { handleAccess as management } from "./router";
+import { authorizeRequest } from "../access-slots";
 import { body } from "../../tests/body";
 import { fakeEnv } from "../../tests/env";
 
@@ -62,7 +62,7 @@ it("refuses a person with no level, naming the key and the level, before any req
   expect(await told(await ask("notion", "read", kim))).toEqual([403, "Notion: Read needed"]);
   expect(await told(await ask("notion", "change", kim))).toEqual([403, "Notion: Read & write needed"]);
   // Nobody signed in is told nothing about the key.
-  expect(await told(await ask("notion", "read", null))).toEqual([403, "App access denied"]);
+  expect(await told(await ask("notion", "read", null))).toEqual([401, "Sign in first"]);
   expect(fetch).not.toHaveBeenCalled();
 });
 

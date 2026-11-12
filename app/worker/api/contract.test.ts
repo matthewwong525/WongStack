@@ -4,7 +4,7 @@ import { boundedText, defineAction, dispatch, registrations, uniqueActions, type
 import type { AppCall, AppEnv } from "../apps/index";
 import { body } from "../../tests/body";
 import { fakeEnv } from "../../tests/env";
-const env = {} as AppEnv;
+const env = { WORKSPACE_LOGIN: "off" } as AppEnv;
 const identity = { id: "employee@example.com", kind: "user" as const, claims: { aud: "a", iss: "i", exp: 9999999999 } };
 const action = (extra: Partial<Action> = {}) => defineAction({ operationId: "test.read", summary: "Test", description: "A synthetic action",
   encoding: "query", input: z.strictObject({ name: z.string().optional().describe("A name") }), output: z.strictObject({ value: z.string() }),
