@@ -1,6 +1,7 @@
 # A waiting chat goes on with your command
 
-**Status:** ready-to-build
+**Status:** ready-to-ship
+**Branch:** snobbish-blobfish
 **Open questions:** none
 
 ## Why
@@ -51,3 +52,4 @@ None.
 - **2026-11-12** — Assumed: no code change, because `D map` already keeps any field a wait carries, and the line-up run writes the note's words.
 - **2026-11-12** — Assumed: CI runs the full checks, because another chat held the shared local check turn for over 10 minutes twice, and CI is the gate.
 - **2026-11-12** — Assumed: `command` is `{at, text}`, like `choices`, because the note must give the time the person typed it (review finding).
+- **2026-11-12** — Archived and saved for release 56.1.0 on branch `snobbish-blobfish`.
