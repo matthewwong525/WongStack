@@ -140,6 +140,24 @@ Five faults, each with its fix:
 
 `DAILY_WORK_MS` defaults to 60 minutes and still covers capture and the tidy. `STALE_MS` for `run.lock` rises to 3 hours: 60 minutes of work and a 60-minute publish must end before the lock looks stale. The lock holds its run's process id, and `takeLock` takes over a lock whose process is gone, so a killed run does not block the next one for those 3 hours. The build runs one real full tidy here, times it, and writes the time in this file. A run far over or under 60 minutes changes the default in the same change.
 
+**Measured on 2026-11-12, three real tidies here** (each from a throwaway clone of this branch, with publishing off so page edits waited on a branch; the counts held 36 real look-ups):
+
+| Run | Time | What it did | The map, before to after |
+|---|---|---|---|
+| 1 | 353 s | superseded 48 facts | no topic 524 to 514, gone files 15 to 9 |
+| 2 | 607 s | superseded 462 facts, merged 10, edited 2 own pages | new facts 23 to 0, no topic 514 to 63, gone files 9 to 0, large topics 1 to 2 |
+| 3 | 321 s | superseded 8 facts, merged 4 look-alike labels | no topic 64 to 63, tags with no page 15 to 11, gone files 1 to 0 |
+
+The map before run 2: new facts 23, trouble notes 44, missed questions 1, no topic 514, tags with no page 15, large topics 1, gone files 9, due pages 0. After run 3: 0, 45, 0, 63, 11, 2, 0, 0.
+
+- **The limit stays 60 minutes.** The longest run used 10 of them to sort 451 facts. A store ten times this size still fits.
+- **Run 1 showed two faults**, fixed before run 2: it ended after 6 minutes with 514 facts unsorted, and a label it only looked at left the count. The prompt now gives the minutes and says not to end while the map shows work; a checked name leaves the names, never the count.
+- **Run 2 raised one number.** It sorted 451 facts into their topics, and `browser` passed 100 facts. The number is true. The brief now says a topic the tidy's own sorting made large is its own to split. Its record said `Map: no change.` because the second map failed once; the cause did not repeat in a 9-minute test of one long process, so the fix is the three tries and the honest `Map: not read.`
+- **Run 3 met the task**: the *Last tidy* line showed its counts and three changed numbers, each lower, none higher. No run edited a shipped page, a spec, or a plan (run 2's pages are `wiki/maintaining/adding-a-skill.md` and `test-a-live-view.md`, both own, and both are in this change after a read). No list thread was written. The company copy was linked in run 3 and left unchanged.
+- **What the runs left**: 63 facts with no topic, 11 labels with no page such as `context` and `managed-service`, and two large topics. Here a label gets a page only through `areas.json`, which ships, or a company page; the tidy looked at each and left it, as the brief says.
+
+**Read as a person (task 6.2).** `pull setup`, `pull connect`, and `pull close` each named its page. Three questions in a stranger's words each got the fact run 2 placed as the first answer (#2960 staging sweep, #3230 the built-in add-on, #2898 easy install). A question about run 2's page edit named both the fact and `wiki/maintaining/test-a-live-view.md`. *Which espresso machine does the office use* still finds nothing after each run, and `pull espresso` stays a miss when asked again as a pull: memory holds no answer, and the tidy left both. One miss by the rule and not by the reader: *why must a person pay before the managed service makes their computer* got the right fact first (#124) but counts as a miss, because the fact says *VM* and *payment*. The count errs toward a miss, the tidy then reads the question, and the brief already tells it to leave a question it can not settle, so the brief did not change.
+
 ### An `ok` run carries a note
 
 `finish-run --kind daily` already takes `--status` and `--reason`, and the run row holds both. An `ok` run's reason becomes its note: the map numbers that changed, and `stopped at its time limit; the rest is on tomorrow's map` for a cut-short run with published parts. `formatTidy` and `memory.mjs daily` print an `ok` row's note after its counts. No store change.
@@ -183,7 +201,7 @@ Two open changes touch the same files. `plugin-docs-stand-alone` plans `dream-me
 - [A missed question's words are private] → They stay in one file on the computer, outside git and the store, for 30 days; the brief forbids them on a page or in a fact.
 - [The tidy tunes memory to last month's questions] → Counts choose where to work, never what to remove; structure lines stay on the map with no counts.
 - [An install with a schedule that runs the old command] → The update note tells the person to delete it; the daily tidy already does that schedule's work.
-- [The 60-minute default is a guess] → Task 6.1 measures it before the change ships.
+- [The 60-minute default is a guess] → Task 6.1 measured it: the longest of three real runs took 10 minutes.
 
 ## Migration Plan
 

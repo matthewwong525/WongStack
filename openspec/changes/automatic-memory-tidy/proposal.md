@@ -131,6 +131,8 @@ Memory has two clean-ups. The daily tidy starts by itself, but it checks only a 
 - **2026-11-12** — Assumed: the run links the company pages into its copy, and the tidy saves a company page at once by itself, because the plan promises that a fact lands on its topic's page and the copy had no company page; the computer has one company copy, so the run can not hold such an edit back.
 - **2026-11-12** — Assumed: a run that stops at its time limit keeps its missed questions on the next map, because the spec says what a run did not reach stays, and the design had dropped them.
 - **2026-11-12** — Assumed: a record says *Map: not read* when the second map fails, because the second real tidy changed 451 facts and its record said *no change*.
+- **2026-11-12** — Assumed: the check *no map number is higher* is met by the third real tidy and not by the second, because the second sorted 451 facts and so made one topic too big to read; the number is true, and the brief now tells the tidy to split a topic its own sorting made large.
+- **2026-11-12** — Three real tidies ran (353 s, 607 s, 321 s), the reviewer's four findings and the run's fault are fixed, and the second look ended with none. The 60-minute limit stays.
 
 ## Capabilities
 
