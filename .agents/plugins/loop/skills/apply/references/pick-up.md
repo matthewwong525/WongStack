@@ -1,8 +1,8 @@
 # Pick up saved work
 
-`/apply` follows this page when it names a saved change or pull request this chat has not loaded yet. **The change is the plan and the source of truth** ([where it lives](../../../../../../wiki/development/the-change-loop.md#where-the-plan-and-record-live)).
+`/apply` follows this page when it names a saved change or pull request this chat has not loaded yet. **The change is the plan and the source of truth** ([where it lives](../../../references/rules.md#where-the-plan-and-record-live)).
 
-Check [preconditions](../../save/references/preconditions.md). `gh` resolves only GitHub; [Artifacts](../../../../../../wiki/stack/artifacts-route.md) lists saved branches.
+Check [preconditions](../../save/references/preconditions.md). `gh` resolves only GitHub; [Artifacts](https://github.com/matthewwong525/WongStack/blob/main/wiki/stack/artifacts-route.md) lists saved branches.
 
 ## 1. Resolve the change and the branch
 

@@ -14,6 +14,21 @@
 
 **Updating.** Nothing to do by hand, with one exception: if you made a schedule that runs the old `/dream-memory` command, delete it. The daily tidy does that work now.
 
+## 57.2.0 — A waiting chat goes on with your command
+
+- **A chat that waited in the middle of a command you typed goes on with it.** You type `/ship`, and the chat stops to wait for another chat's work, a merge, or your answer elsewhere. When that wait ends, Daily's note tells the chat to go on with your `/ship` from where it stopped. Before, the note gave only the news, and the chat waited for you to say *go on* ([your chats in line](wiki/development/chats-in-line.md)).
+- **Your typed command is your yes for its own steps only.** The chat starts no new risky step of its own, such as a merge you never asked for: that still waits for you.
+- **A wait outside a command you typed gets the news only**, as before.
+
+## 57.1.2 — Each plugin's guide stands on its own
+
+- **The build loop, memory, and Daily carry the rules they follow.** Before, their steps sent the assistant to WongStack's own guide pages, which a project with only the plugin does not have. Now the loop's shared rules are in [its own page](.agents/plugins/loop/references/rules.md), the plan's review page and prototype steps are in [the plan's](.agents/plugins/loop/skills/plan/references/review-page.md) [own pages](.agents/plugins/loop/skills/plan/references/prototypes.md), memory's [who sees what](.agents/plugins/memory/README.md#who-sees-what) and its [fact placing](.agents/plugins/memory/references/placing-facts.md) are in memory, and [your Daily settings](.agents/plugins/daily/README.md#your-settings), add-ons and own jobs are in Daily.
+- **WongStack's guide points down to the plugin.** Each moved heading stays, with a short line and a link, so older links still open.
+- **A WongStack-only page is linked by its full web address**, so it opens from any project. Links that only explained why are gone.
+- **A check keeps it so**: the plugin test fails on a link that leaves the plugin's own folder by a short path ([adding a module](wiki/maintaining/adding-a-module.md#what-it-may-reach)).
+
+**Updating.** Nothing to do by hand.
+
 ## 57.1.1 — A retired server part opens no Needs-you chat
 
 - **When the server has retired a part your computer still uses, the daily no longer opens a *Needs you* chat.** It writes one line a day in its journal: your computer runs older code and updates itself. Before, two of these answers in a row opened a chat with steps that did not fit, such as *sign in*. A real fault still opens its chat as before.

@@ -1,6 +1,6 @@
 # The daily tidy's brief
 
-This brief is for the unattended daily tidy: it works in a throwaway copy of the default branch, after memory's own tidy. `T` is `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/daily-tidy.mjs"`; `M` is [memory](../SKILL.md)'s `memory.mjs`. [Memory tidy](../../../../wiki/development/wiki-dream.md) owns the why.
+This brief is for the unattended daily tidy: it works in a throwaway copy of the default branch, after memory's own tidy. `T` is `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/daily-tidy.mjs"`; `M` is [memory](../SKILL.md)'s `memory.mjs`.
 
 ## The goal
 
@@ -23,17 +23,17 @@ A chat that pulls a topic gets what is true, quickly. You choose the work: the w
 
 What each line of the map asks:
 
-- **new facts**: read every one. When `M search --since <date> --limit 200` gives 200 rows, search again with `--until` set to the oldest row's date. Place each by [placing a fact on a page](../../../../wiki/development/wiki-dream.md#placing-a-fact-on-a-page).
+- **new facts**: read every one. When `M search --since <date> --limit 200` gives 200 rows, search again with `--until` set to the oldest row's date. Place each by [placing a fact](placing-facts.md).
 - **trouble notes**: read them first. Each says where memory misled a chat. Supersede a note you fixed.
 - **missed questions**: no one fact or passage it got holds half of its main words. Change the topic, the tag, or the page's words, so the question finds its answer. Memory holds no answer: leave it.
 - **no topic**: oldest first, many in one `M retag`. Give a fact its topic, or leave it.
 - **tags with no page**: make the page and its hub line, merge the tag into a topic, or leave it.
 - **large topics**: split one into smaller topics, the part chats use first.
 - **gone files**: read the repo, then supersede the fact with what is true now.
-- **due pages**: compare a page with `M pull <page>`, its linked files, and the other own pages; fix it by [keeping it tidy](../../../../wiki/wiki-style.md#keeping-it-tidy).
+- **due pages**: compare a page with `M pull <page>`, its linked files, and the other own pages; extend the page that owns each fact, merge duplicates, resolve contradictions newest-wins, prune stale text, fix links.
 - **most used**, **often returned**, **used together**: check the most used pages first. Put a fact that chats get again and again on its topic's page. Link two topics used together when neither page links the other: one sentence that says how they connect.
 
-[What it fixes and what it leaves alone](../../../../wiki/development/wiki-dream.md#what-it-fixes-and-what-it-leaves-alone) owns the limits. When a page is right by a recorded decision and the code breaks it, change neither: save one `thread` tagged `improve` that names the rule and where the code breaks it.
+When a page is right by a recorded decision and the code breaks it, change neither: save one `thread` tagged `improve` that names the rule and where the code breaks it.
 
 ## Never
 

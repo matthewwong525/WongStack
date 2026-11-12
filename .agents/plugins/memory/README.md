@@ -30,7 +30,20 @@ It keeps your own edits to this folder. When one of your edits and a new change 
 - **A daily tidy**: your first chat each day starts it in the background, with no command to type. It works from a map of where memory is weak: it merges facts, puts lasting facts on their topic's page, links topics that connect, and checks your pages. Ask *tidy memory now* for one at once.
 - **Use counts**: memory counts on your computer what each chat looks up and which question found nothing, and the tidy works where that helps most. Ask *how is memory used?* to see them.
 
-Who sees which fact is the store's decision, never the plugin's.
+## Who sees what
+
+Who sees which fact is the store's decision, never the plugin's. Each repo's memory is its own: nothing goes to or loads from another repo. The store gives each person a role, checked on every call: an admin, a member, or a reader.
+
+| What | You | Teammates | Admin |
+|---|---|---|---|
+| Decisions, open questions, and links (`project`, `thread`, `reference`) | yes | yes | yes |
+| Facts about you: likes, habits, your life (`user`, `feedback`) | yes | no | yes |
+| A reader's facts, of any type | the reader | no | yes |
+| Your chats (transcripts) | yes | no | yes |
+
+- **The store holds back what a teammate may not see**, however they ask. Only an admin's `--everyone` on `search`, `brief`, `show`, or `live` shows all; their own digest and search start with just their private facts. Author emails and people pages are labels only.
+- **Private memory belongs to the person**, by their sign-in's subject, not their email: an email change keeps it, and two computers share it. Notes from before sign-in wait unassigned, seen only by admins, until moved.
+- **Something personal you say in a work chat stays in that repo**, where the admin can read it. For anything no one else should see, use a repo only you use: there, you are the admin.
 
 ## What it needs
 

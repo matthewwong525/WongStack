@@ -6,7 +6,7 @@ user-invocable: true
 
 # /verify
 
-Check fresh scenarios on the exact saved revision. [Reference](references/walkthrough.md): how; [wiki](../../../../../wiki/development/staging-walkthrough.md): why. Gates nothing.
+Check fresh scenarios on the exact saved revision. [Reference](references/walkthrough.md): how. Gates nothing.
 
 Authorized: needed `/save` (kept checks' too), browser install, Access heal, staging preparation and § a's writes; other permissions join the handoff.
 
@@ -29,7 +29,7 @@ node "$V" verify preflight
 
 Heal **once per invocation**, never on `BLOCK=not-own-site`; retry dependents only.
 
-**BLOCK=access-challenge (exit 3)**: mint a repo-named service token with the Cloudflare API token, widening if needed. Confirm the preview app's machine policy accepts it; keep human permissions. Store it as `CF_ACCESS_STAGING_CLIENT_ID`/`SECRET` in the primary worktree's `.env` only ([secrets](../../../../../wiki/development/secrets.md), [Access](../../../../../wiki/stack/cloudflare-access.md), [authorized widen](../../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Name the mint; never print/commit credentials. Privacy changes need human login/revocation checks; machine access proves no email login.
+**BLOCK=access-challenge (exit 3)**: mint a repo-named service token with the Cloudflare API token, widening if needed. Confirm the preview app's machine policy accepts it; keep human permissions. Store it as `CF_ACCESS_STAGING_CLIENT_ID`/`SECRET` in the primary worktree's `.env` only ([secrets](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/secrets.md), [Access](https://github.com/matthewwong525/WongStack/blob/main/wiki/stack/cloudflare-access.md), [authorized widen](https://github.com/matthewwong525/WongStack/blob/main/wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized)). Name the mint; never print/commit credentials. Privacy changes need human login/revocation checks; machine access proves no email login.
 
 No token/surviving block → unverified; name credentials/repair gaps.
 
@@ -47,11 +47,11 @@ Named screenshot/request/click-through: skip scout, use its address and `mktemp 
 | **UNKNOWN** | reachable check blocked or ambiguous | unverified, why and needed help |
 | **TIMEOUT** | budget exceeded | unverified, what completed and where it stopped |
 
-Precedence: FAILURE, TIMEOUT, UNKNOWN. [`UNKNOWN` is not `NONE`](../save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure) ([why](../../../../../wiki/development/staging-walkthrough.md#the-verdicts)).
+Precedence: FAILURE, TIMEOUT, UNKNOWN. [`UNKNOWN` is not `NONE`](../save/references/git-gate.md#2--wait-for-checks-auto-fix-on-failure).
 
 ## Hard rules
 
-- [`agent-browser`](../../../../skills/agent-browser/SKILL.md)/Chrome only for browser journeys. New probe runtimes ask first; bundled collector authorized. No repo dependencies.
-- Saved-source previews/validated CI captures; [no local repo execution/invented tooling](../../../../../wiki/development/staging-walkthrough.md#what-it-is-not). Read-only recipes; written expectations judge.
+- [`agent-browser`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/agent-browser/SKILL.md)/Chrome only for browser journeys. New probe runtimes ask first; bundled collector authorized. No repo dependencies.
+- Saved-source previews/validated CI captures; no local repo execution/invented tooling. Read-only recipes; written expectations judge.
 - Keep journeys/evidence outside the repo, bar `/ship`'s kept checks; `cleanup` on **every** exit, including UNKNOWN/handoff.
 - Never merge/archive: `/ship` owns that.

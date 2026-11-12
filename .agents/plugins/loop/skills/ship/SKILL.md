@@ -6,9 +6,9 @@ user-invocable: true
 
 # /ship
 
-Invoking `/ship` authorizes every step below unprompted: archive, checkpoint, walk, merge, remote-branch deletion, sync, the pull-in with any save a task needs, and [safe picks](../../../../../wiki/development/the-change-loop.md#inside-ship). Confirm anything else (a force push, `--no-verify`, `git reset --hard`, `checkout .`) in [the shared ask format](../explore/references/asking-the-user.md).
+Invoking `/ship` authorizes every step below unprompted: archive, checkpoint, walk, merge, remote-branch deletion, sync, the pull-in with any save a task needs, and [safe picks](../../references/rules.md#inside-ship). Confirm anything else (a force push, `--no-verify`, `git reset --hard`, `checkout .`) in [the shared ask format](../explore/references/asking-the-user.md).
 
-[The change loop](../../../../../wiki/development/the-change-loop.md) owns the record, the pull-in, and [the gate](../../../../../wiki/development/the-change-loop.md#the-gate). `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
+[The loop's rules](../../references/rules.md) own the record and [the gate](../../references/rules.md#the-gate). `main` means [the default branch](../save/references/git-gate.md#the-default-branch).
 
 Each command ends with a `NEXT:` line; follow it:
 
@@ -32,7 +32,7 @@ Check [preconditions](../save/references/preconditions.md), then run `prepare`. 
 - **No argument** → invoke `/apply` bare when [its resolve order](../apply/SKILL.md#resolve-the-plan-first) lands before `sole-active`, or the session states clear intent with no change yet.
 - **The cold stop.** Landing on `sole-active` or nothing → **say** there is nothing to continue and `/ship <intent>` starts a new change, then stop: a cold `/ship` never publishes the only open plan.
 
-`/plan` pauses, tasks stay pending, or a task-driven `/save` fails or is unverifiable → report the blocker and stop before Step 2: [no verb merges to stop](../../../../../wiki/development/the-change-loop.md).
+`/plan` pauses, tasks stay pending, or a task-driven `/save` fails or is unverifiable → report the blocker and stop before Step 2: [no verb merges to stop](../../references/rules.md).
 
 **Work that changes no repo file** finishes in `/apply`: say so in one line and stop.
 
