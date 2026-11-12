@@ -34,6 +34,6 @@ The test chats run inside your workspace, so each *Hand back* wakes **your** cha
 
 ## Clean up
 
-Run `HOME=$T browse.mjs stop`, check that the link answers no more, then `rm -rf $T`. Don't `pkill -f` a script's name: the pattern also matches your own shell's command line and stops it.
+Run `HOME=$T browse.mjs stop`, check that the link answers no more, then `rm -rf $T`. Don't `pkill -f` a script's name: the pattern also matches your own shell's command line and stops it. For the same reason, never run `agent-browser close --all` in a test: its sessions are shared by the whole machine, so it closes every other chat's browser too. Give a test its own named session.
 
 Part of [Maintaining WongStack](README.md).
