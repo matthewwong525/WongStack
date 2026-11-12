@@ -14,7 +14,7 @@ import { sessionName } from '../../.agents/skills/browser/scripts/browse.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/reply-link/scripts/reply-link.mjs');
-const handOver = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
+const handOver = join(repo, '.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs');
 const LINK = new RegExp(`^REPLY_LINK=${ORIGIN}/p/([0-9a-f]{32})/#key=([0-9a-f]{64})$`, 'm');
 const HEADER = 'Notes on the plan example from the review page. Don\'t build yet.';
 const AGENT = 'a-full-workspace-id';

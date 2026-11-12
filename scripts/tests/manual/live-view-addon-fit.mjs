@@ -26,7 +26,7 @@ if (!process.env.LIVE_VIEW_ADDON_FIT_HOME) {
 
 const { FILES, launchConfig } = await import('../../../.agents/skills/browser/scripts/browse.mjs');
 const { persistentOptions, routes } = await import('../../../.agents/skills/browser/scripts/browser-server.mjs');
-const { liveView } = await import('../../../.agents/skills/hand-over/scripts/view.mjs');
+const { liveView } = await import('../../../.agents/skills/browser/skills/hand-over/scripts/view.mjs');
 
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 const check = (name, ok, detail = '') => {

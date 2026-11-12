@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { CAMOUFOX } from '../../.agents/skills/browser/scripts/browse.mjs';
-import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
-import { SHOP } from '../../.agents/skills/shop/scripts/shop.mjs';
+import { VIEWER } from '../../.agents/skills/browser/skills/hand-over/scripts/view.mjs';
+import { SHOP } from '../../.agents/skills/browser/skills/shop/scripts/shop.mjs';
 import {
   CAMOUFOX_PIN, PIN_FILES, SHOP_PIN, VIEWER_PIN, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamoufoxPin, readPin, readShopPin, readViewerPin, rewritePins, run,
 } from '../../.agents/skills/update-dependencies/scripts/update.mjs';
@@ -407,7 +407,7 @@ test('the viewer\'s pin is surveyed and never moved: a newer one is handed to th
   const newer = await f.go();
   assert.equal(newer.code, 0, newer.out);
   assert.match(newer.out, /^novnc 1\.6\.0 -> 1\.7\.0 pinned$/m);
-  assert.match(newer.out, /^needs you: novnc 1\.6\.0 -> 1\.7\.0: move the version, the address, and the fingerprint in \.agents\/skills\/hand-over\/scripts\/view\.mjs together, and only after a live view works from a phone with the new files$/m);
+  assert.match(newer.out, /^needs you: novnc 1\.6\.0 -> 1\.7\.0: move the version, the address, and the fingerprint in \.agents\/skills\/browser\/skills\/hand-over\/scripts\/view\.mjs together, and only after a live view works from a phone with the new files$/m);
   assert.match(newer.out, /^status: needs-agent$/m);
   assert.equal(f.read(VIEWER_PIN), VIEWER_FILE, 'the pin is left as it is');
   assert.doesNotMatch(f.calls(), /npm install/);
@@ -421,7 +421,7 @@ test('a view.mjs that pins nothing fails the survey, and a repo without it skips
   write(f.root, VIEWER_PIN, "export const VIEWER = { version: 'latest' };\n");
   const unpinned = await f.go();
   assert.equal(unpinned.code, 1);
-  assert.match(unpinned.out, /^FAIL \.agents\/skills\/hand-over\/scripts\/view\.mjs — names no pinned noVNC version$/m);
+  assert.match(unpinned.out, /^FAIL \.agents\/skills\/browser\/skills\/hand-over\/scripts\/view\.mjs — names no pinned noVNC version$/m);
 });
 
 const SHOP_FILE = "export const SHOP = { version: '1.1.0', integrity: 'sha512-abc', node: [[22, 21]] };\n";
@@ -438,7 +438,7 @@ test('the pin of Shop\'s command is surveyed and never moved: a newer one is han
   const newer = await f.go();
   assert.equal(newer.code, 0, newer.out);
   assert.match(newer.out, /^shop 1\.1\.0 -> 1\.2\.0 pinned$/m);
-  assert.match(newer.out, /^needs you: shop 1\.1\.0 -> 1\.2\.0: move the version and the fingerprint in \.agents\/skills\/shop\/scripts\/shop\.mjs together, and only after reading what the new version adds and running a search and a checkout read through it$/m);
+  assert.match(newer.out, /^needs you: shop 1\.1\.0 -> 1\.2\.0: move the version and the fingerprint in \.agents\/skills\/browser\/skills\/shop\/scripts\/shop\.mjs together, and only after reading what the new version adds and running a search and a checkout read through it$/m);
   assert.match(newer.out, /^status: needs-agent$/m);
   assert.equal(f.read(SHOP_PIN), SHOP_FILE, 'the pin is left as it is');
   assert.doesNotMatch(f.calls(), /npm install/);
@@ -452,5 +452,5 @@ test('a shop.mjs that pins nothing fails the survey, and a repo without it skips
   write(f.root, SHOP_PIN, "export const SHOP = { version: 'latest' };\n");
   const unpinned = await f.go();
   assert.equal(unpinned.code, 1);
-  assert.match(unpinned.out, /^FAIL \.agents\/skills\/shop\/scripts\/shop\.mjs — names no pinned version of Shop's command$/m);
+  assert.match(unpinned.out, /^FAIL \.agents\/skills\/browser\/skills\/shop\/scripts\/shop\.mjs — names no pinned version of Shop's command$/m);
 });

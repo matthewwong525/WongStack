@@ -5,13 +5,13 @@ import { dirname } from 'node:path';
 import { helperFiles } from '../skills/reply-link/scripts/lib/computer.mjs';
 import { approvedVersion, signedInAs } from './lib/approvals.mjs';
 import { appCall, appTiming, heldDefinition, readSchedule, runnableFolder } from './lib/app.mjs';
-import { listRecords } from '../skills/schedule/scripts/lib/records.mjs';
+import { listRecords } from '../skills/daily/skills/schedule/scripts/lib/records.mjs';
 import { companyFor } from '../skills/reply-link/scripts/lib/inbox.mjs';
 import { inProject } from '../skills/daily/scripts/schedule-runs.mjs';
-import { paseoAdapter } from '../skills/schedule/scripts/lib/hosts.mjs';
-import { startRun } from '../skills/schedule/scripts/lib/start-run.mjs';
+import { paseoAdapter } from '../skills/daily/skills/schedule/scripts/lib/hosts.mjs';
+import { startRun } from '../skills/daily/skills/schedule/scripts/lib/start-run.mjs';
 import { appProgress } from './lib/progress.mjs';
-import { scheduleVersion } from '../skills/schedule/scripts/lib/version.mjs';
+import { scheduleVersion } from '../skills/daily/skills/schedule/scripts/lib/version.mjs';
 
 const KEY = /^[a-z0-9][a-z0-9-]{0,63}$/, VERSION = /^[a-f0-9]{64}$/;
 /** The least gap between two starts of one schedule when it sets no `authority.minIntervalMs`. */

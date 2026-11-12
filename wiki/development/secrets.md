@@ -55,7 +55,7 @@ Other browsing, sign-ins, stored credentials, and token management through APIs 
 
 ## Receive a key through a private link
 
-When a task lacks a key, or the person asks for *the key link*, send a private link in the same reply: [the key link](../../.agents/plugins/browser/hand-over/references/key-link.md) owns the steps. It writes the primary worktree's file and any seeded [branch copy](#worktrees-and-branch-copies).
+When a task lacks a key, or the person asks for *the key link*, send a private link in the same reply: [the key link](../../.agents/plugins/browser/skills/hand-over/references/key-link.md) owns the steps. It writes the primary worktree's file and any seeded [branch copy](#worktrees-and-branch-copies).
 
 ## Worktrees and branch copies
 

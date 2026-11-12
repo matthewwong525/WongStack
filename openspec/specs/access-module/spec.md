@@ -105,12 +105,12 @@ When the Access folder is in a repo whose slots are missing, a new chat SHALL ha
 
 ### Requirement: Other modules use Access through their own slots
 
-Access SHALL fill another module's slot only from that module's own repo-side part, never by changing the other module's folder, and a module SHALL work when Access is absent. When a repo has memory and Access, Access's setup SHALL offer to fill memory's sign-in from Access's sign-in, so memory learns each person's identity and role from Access.
+Access SHALL change no file in another module's folder, and its setup SHALL offer no step that fills or changes another module. A project MAY connect another module to Access's sign-in from the project's own files. A module SHALL work when Access is absent.
 
 #### Scenario: Memory and Access together
 
 - **WHEN** Access's setup runs in a repo that already has memory
-- **THEN** it offers to connect memory's sign-in to Access, changes no file in memory's folder, and memory's own check still passes
+- **THEN** it changes no file in memory's folder and offers no memory step, and memory's own check still passes
 
 ### Requirement: An Access-only repo updates and keeps its edits
 

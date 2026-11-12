@@ -2,7 +2,7 @@
 
 A reply link opens a page the agent made at a web address, and the page's buttons reach the chat that made it: one sends what you wrote, with nothing to copy and paste, and others send a fixed action with optional notes. A plan's review page is the first page that uses one; [`reply-link.mjs`](../../.agents/skills/reply-link/scripts/reply-link.mjs) opens them. Part of [development](README.md).
 
-It is not a [private link](../../.agents/plugins/browser/browser/references/browsing.md#how-private-links-work). A private link takes a secret the agent must never see, and nothing typed into it reaches the chat. A reply link does the opposite: everything you send goes into the chat. **Never send a password, a key, or a card through one.**
+It is not a [private link](../../.agents/plugins/browser/references/browsing.md#how-private-links-work). A private link takes a secret the agent must never see, and nothing typed into it reaches the chat. A reply link does the opposite: everything you send goes into the chat. **Never send a password, a key, or a card through one.**
 
 ## A plan's link
 
@@ -69,7 +69,7 @@ A page opened from the plan's file, or from a pull request, is the same page wit
 - **A send is bounded:** 20,000 characters, and one every 5 seconds for each page.
 - **A button names a fixed action and may attach notes.** The opener fixes its instruction and chat target; reviewer text follows that instruction and is limited to 20,000 characters. Invalid or oversized notes never reach the chat. So the most a plan's link can do is send notes, start that plan's build, or start its publish.
 - **The link is in the chat's text.** Anyone who can read it there can send notes to that chat, and start that build or publish, until it closes.
-- **It never blocks a private link.** A reply link keeps its own state, apart from [`hand-over.mjs`](../../.agents/plugins/browser/hand-over/scripts/hand-over.mjs), so a key link opens at once during a review, and several pages hold links at the same time.
+- **It never blocks a private link.** A reply link keeps its own state, apart from [`hand-over.mjs`](../../.agents/plugins/browser/skills/hand-over/scripts/hand-over.mjs), so a key link opens at once during a review, and several pages hold links at the same time.
 - **A key, a password or a card never goes to the inbox.** Only a private link's address, kind, title and closing time do, and a test holds that line.
 
 ## Open one for another page

@@ -18,4 +18,4 @@
 
 - **2026-11-12** — Asked whether the fix goes to WongStack too → chose yes, and ship it there.
 - **2026-11-12** — Assumed: one line a day, not silence, because the person can then still see it.
-- **2026-11-12** — Archive checkpoint: archived for /ship as release 56.0.1.
+- **2026-11-12** — Archive checkpoint: archived for /ship as release 57.0.1.

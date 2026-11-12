@@ -14,7 +14,7 @@ import { fakeViewer, fakeViewTools, GREETING, SCREEN } from './fixtures/fake-vie
 const HOME = mkdtempSync(join(tmpdir(), 'wong-test-view-home-'));
 process.env.HOME = HOME;
 test.after(() => rmSync(HOME, { recursive: true, force: true }));
-const { checkView, endView, findTool, fingerprint, installView, listensOnTcp, liveView, MANUAL, OFF_LINUX, popupOpen, screenOf, socketOf, startSource, stopSource, TOOLS, VIEWER, viewerDir, viewerFile, viewRoutes } = await import('../../.agents/skills/hand-over/scripts/view.mjs');
+const { checkView, endView, findTool, fingerprint, installView, listensOnTcp, liveView, MANUAL, OFF_LINUX, popupOpen, screenOf, socketOf, startSource, stopSource, TOOLS, VIEWER, viewerDir, viewerFile, viewRoutes } = await import('../../.agents/skills/browser/skills/hand-over/scripts/view.mjs');
 
 // The checks that read the real /proc run where a live view does.
 const linux = { skip: process.platform !== 'linux' && 'a live view runs on Linux only' };

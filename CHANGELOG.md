@@ -3,11 +3,21 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 56.0.1 — A retired server part opens no Needs-you chat
+## 57.0.1 — A retired server part opens no Needs-you chat
 
 - **When the server has retired a part your computer still uses, the daily no longer opens a *Needs you* chat.** It writes one line a day in its journal: your computer runs older code and updates itself. Before, two of these answers in a row opened a chat with steps that did not fit, such as *sign in*. A real fault still opens its chat as before.
 
 **Updating.** Nothing to do by hand.
+
+## 57.0.0 — The browser and Daily each come in one folder
+
+- **The browser and Daily each install as one folder** in your skills folder: `.claude/skills/browser/` and `.claude/skills/daily/`. Their other commands sit inside it, in `skills/` ([adding a module](wiki/maintaining/adding-a-module.md)). Before, each one came in two or three folders.
+- **`/schedule` is now `/daily:schedule`.** It does the same work. Its scripts are in `.claude/skills/daily/skills/schedule/scripts/`. In Claude Code, a typed `/schedule` now opens Claude Code's own cloud schedules, not yours. To make a schedule, type `/daily:schedule` or ask in plain words.
+- **A module links no file in another module.** Each one asks you in one sentence, with your assistant's question tool or a short numbered list ([the browser](.agents/plugins/browser/README.md), [Daily](.agents/plugins/daily/README.md)).
+- **Access no longer sets up memory.** Its setup has ten steps, not eleven, and changes no other tool's files ([Access](.agents/plugins/access/README.md)).
+- **Each module's version is in its two `plugin.json` files.** The `module.json` files are gone.
+
+**Updating.** `/wong-sync` moves the folders. Nothing to do by hand. If you type `/schedule` to make a schedule, type `/daily:schedule` from now on. A repo with only the browser or Daily copies the update message from that module's README on GitHub, because the old link to its update steps no longer opens.
 
 ## 56.0.0 — The build loop stands on its own
 

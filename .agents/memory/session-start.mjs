@@ -7,7 +7,7 @@ import { detached } from '../skills/memory/scripts/lib/store.mjs';
 import { loadConfig, memoryOrigin, signIn, signInHelp } from './d1/connect.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const TIDY = join(HERE, '../skills/schedule/scripts/tidy.mjs');
+const TIDY = join(HERE, '../skills/daily/skills/schedule/scripts/tidy.mjs');
 // Moves a clean teammate's copy forward in the background: wiki/stack/employee-project.md#update-the-copy
 const UPDATE = join(HERE, '../loop/routes/update-copy.mjs');
 const KNOWLEDGE = join(HERE, 'knowledge.mjs');

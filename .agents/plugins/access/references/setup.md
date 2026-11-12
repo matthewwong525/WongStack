@@ -84,11 +84,7 @@ On Cloudflare Workers, call it from `fetch(request, env, ctx)` and pass `{ wait:
 
 Ask whether the app holds keys for outside services. On a yes, keep `secret`, add `keys` with each key's title and purpose, and offer `sealing`, so a person sends a key sealed, never in a chat. The services helper reads `definitions`, `types` and `notes` from `.agents/access/slots.json`.
 
-## 9. Memory
-
-When the repo has `.claude/skills/memory/`, offer to point memory's `connect` headers at [`signin/computer.mjs`](../signin/computer.mjs), and the memory route's caller at `app.decide`. Both then sign in one way.
-
-## 10. Run the check
+## 9. Run the check
 
 [`store/contract.mjs`](../store/contract.mjs) exports `checkStore(makeStore)`, one `node:test` suite over each operation. Add a test file:
 
@@ -99,7 +95,7 @@ checkStore(() => makeStore());   // a fresh, empty store
 
 Run it with `node --test`. Then send one signed-in request through `gate`, as the owner: it must pass. Access is ready only when both pass.
 
-## 11. Codex and save
+## 10. Codex and save
 
 Skip the Codex steps when `codex` is not on this computer.
 
@@ -135,4 +131,4 @@ Skip the Codex steps when `codex` is not on this computer.
    - only at `main`: add it;
    - only at the base: remove it, unless the repo changed it: a conflict.
 4. **On any conflict, write nothing:** name each file and stop.
-5. Else put the merged folder in place, [run the check](#10-run-the-check), rerun [Codex's two commands](#11-codex-and-save) when Codex is here, commit, and ask before any push.
+5. Else put the merged folder in place, [run the check](#9-run-the-check), rerun [Codex's two commands](#10-codex-and-save) when Codex is here, commit, and ask before any push.
