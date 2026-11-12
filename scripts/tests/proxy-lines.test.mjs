@@ -89,3 +89,10 @@ test('the first line is saved like the upstream line, under its own key and file
   assert.equal(resolveFirst({ env: { BROWSE_FIRST_PROXY: 'not a line' }, envFile, file, oldFile }), null);
   assert.equal(readFileSync(file, 'utf8'), 'http://127.0.0.1:1055\n');
 });
+
+test('an unquoted .env line keeps a # inside the password and drops only a comment after a space', t => {
+  const { envFile, files } = home(t);
+  const { file, oldFile } = files('upstream-proxy');
+  writeFileSync(envFile, 'BROWSE_UPSTREAM_PROXY=http://user:pa#ss@gw.example.test:8080 # home line\n');
+  assert.deepEqual(resolveUpstream({ env: {}, envFile, file, oldFile }), { host: 'gw.example.test', port: 8080, username: 'user', password: 'pa#ss' });
+});

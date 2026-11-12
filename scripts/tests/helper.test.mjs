@@ -6,13 +6,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { helper, launchdPlist, nodeAdvice, systemdUnit } from '../../.agents/skills/hand-over/scripts/helper.mjs';
-import { computerId, readApps, rememberApp } from '../../.agents/skills/hand-over/scripts/lib/computer.mjs';
-import { LOG_LIMIT, logAction } from '../../.agents/skills/hand-over/scripts/lib/helper-log.mjs';
+import { helper, launchdPlist, nodeAdvice, systemdUnit } from '../../.agents/skills/reply-link/scripts/helper.mjs';
+import { computerId, readApps, rememberApp } from '../../.agents/skills/reply-link/scripts/lib/computer.mjs';
+import { LOG_LIMIT, logAction } from '../../.agents/skills/reply-link/scripts/lib/helper-log.mjs';
 
-const HELPER = fileURLToPath(new URL('../../.agents/skills/hand-over/scripts/helper.mjs', import.meta.url));
+const HELPER = fileURLToPath(new URL('../../.agents/skills/reply-link/scripts/helper.mjs', import.meta.url));
 const REQUIRED_TOOLS = fileURLToPath(new URL('../../wiki/development/required-tools.md', import.meta.url));
-const SCRIPT = '.agents/skills/hand-over/scripts/reply-link.mjs';
+const SCRIPT = '.agents/skills/reply-link/scripts/reply-link.mjs';
 const TABLE = '| Node line | Minimum |\n|---|---|\n| 22 | 22.22.2 |\n| 24 | 24.15.0 |\n| 26 | 26.0.0 |\n';
 
 function temp(t, prefix) {
@@ -26,7 +26,7 @@ function checkouts(t, { protocol = 8, worktree = protocol } = {}) {
   const base = temp(t, 'wong-test-helper-repo-');
   const main = join(base, 'main');
   const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.email=t@example.invalid', '-c', 'user.name=t', '-c', 'commit.gpgsign=false', ...args], { cwd, stdio: 'ignore' });
-  mkdirSync(join(main, '.agents/skills/hand-over/scripts'), { recursive: true });
+  mkdirSync(join(main, '.agents/skills/reply-link/scripts'), { recursive: true });
   writeFileSync(join(main, SCRIPT), `export const PROTOCOL = ${protocol};\n`);
   git(base, 'init', '-q', main);
   git(main, 'add', '.');
@@ -145,6 +145,16 @@ test('start does nothing until the helper is installed, then starts it, and rest
   helper('start', { world });
   assert.deepEqual(world.ran, [], 'a current helper is left running');
   rmSync(record);
+});
+
+test('start points a launcher that names the old hand-over script at reply-link\'s, now that the old one is gone', t => {
+  const { main, worktree } = checkouts(t);
+  const world = computer(t, { script: join(worktree, SCRIPT) });
+  helper('install', { world });
+  const current = join(helperDir(world), 'current.json');
+  writeFileSync(current, JSON.stringify({ script: join(main, '.agents/skills/hand-over/scripts/reply-link.mjs'), protocol: 8 }));
+  helper('start', { world });
+  assert.deepEqual(JSON.parse(readFileSync(current, 'utf8')), { script: join(main, SCRIPT), protocol: 8 });
 });
 
 test('uninstall stops and removes the service, keeping the log and this computer\'s id', t => {

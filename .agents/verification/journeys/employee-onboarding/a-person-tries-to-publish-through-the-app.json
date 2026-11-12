@@ -11,8 +11,8 @@
   "writes": true,
   "sourcePaths": [
     ".agents/.wong-stack.json",
-    ".agents/skills/hand-over/scripts/hand-over.mjs",
-    ".agents/skills/hand-over/scripts/keys.mjs",
+    ".agents/plugins/browser/hand-over/scripts/hand-over.mjs",
+    ".agents/plugins/browser/hand-over/scripts/keys.mjs",
     ".agents/skills/verify/SKILL.md",
     ".agents/loop/staging/verify-journeys.mjs",
     ".agents/loop/staging/verify-runner.sh",

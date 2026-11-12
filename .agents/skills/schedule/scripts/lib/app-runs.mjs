@@ -3,7 +3,7 @@
 import { spawn as spawnChild } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { helperFiles } from '../../../hand-over/scripts/lib/computer.mjs';
+import { helperFiles } from '../../../reply-link/scripts/lib/computer.mjs';
 import { agentEvents } from '../../../daily/scripts/chief.mjs';
 import { SCHEDULE_LABEL } from '../../../daily/scripts/chats.mjs';
 import { approvedVersion, signedInAs } from './approvals.mjs';

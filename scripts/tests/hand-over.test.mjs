@@ -320,7 +320,7 @@ test('the key page loads the switch in its head, from its own site, and the live
   assert.ok(head.indexOf('<script src="theme.js"></script>') > head.indexOf('href="page.css"'), 'keys-page: theme.js after page.css, in <head>');
   assert.doesNotMatch(html, /color-scheme:\s*light/, 'keys-page: no fixed light');
   assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/hand-over/scripts/view-page.html'), 'utf8'), /theme\.js|data-theme-toggle/, 'the live view has no switch');
-  assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/hand-over/scripts/reply-link.mjs'), 'utf8'), /theme\.js|theme-toggle/, 'the closed page has no switch');
+  assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/reply-link/scripts/reply-link.mjs'), 'utf8'), /theme\.js|theme-toggle/, 'the closed page has no switch');
 });
 
 test('the timing record names what ended each link and how long it was open, with no key or value, readable by its owner alone', async t => {
@@ -989,7 +989,7 @@ test('a view handed back notifies the full originating workspace without wait; t
   const f = fixture(t, { view: true, paseo: 'ok' });
   const link = openedView(f);
   const state = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
-  assert.equal(state.agentId, 'a-full-workspace-id');
+  assert.equal(state.agentId, undefined, 'the chat is read when the link ends, not kept in the state');
   assert.match(state.completionId, /^[a-f0-9]{32}$/);
   await handBack(link);
   const receipt = await eventually(async () => {
@@ -1000,7 +1000,7 @@ test('a view handed back notifies the full originating workspace without wait; t
   assert.equal(receipt.ready, true);
   assert.equal((await fetch(`http://127.0.0.1:${link.port}/receipt`)).status, 403);
   const [sent] = f.sent();
-  assert.equal(sent[0], 'send'); assert.equal(sent[1], state.agentId);
+  assert.equal(sent[0], 'send'); assert.equal(sent[1], 'a-full-workspace-id');
   assert.ok(sent.includes('--no-wait')); assert.ok(sent.includes('--json'));
   assert.ok(sent[2].includes(state.completionId));
   f.run('close'); // a duplicate finish while the receipt window is open
@@ -1167,4 +1167,54 @@ test('a live view is listed by what it asks, never its note, and leaves the inbo
   assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=handed-back\n');
   assert.deepEqual(closedIn(calls), [state.completionId]);
   assert.doesNotMatch(JSON.stringify(calls()), /human/);
+});
+
+// The repo's own parts come through the profile's slots: WONG_BROWSER_PROFILE names a stand-in, or none when empty.
+const SLOT_KEY = 'sk_live_Slot123';
+test('a profile fills the look, the inbox, and the chat wake, and each gets the link', async t => {
+  const f = fixture(t, { checkout: true });
+  const log = join(f.root, 'slots.jsonl');
+  f.env.WONG_BROWSER_PROFILE = join(f.root, 'profile.mjs');
+  writeFileSync(f.env.WONG_BROWSER_PROFILE, `import { appendFileSync } from 'node:fs';
+const note = (...call) => appendFileSync(${JSON.stringify(log)}, JSON.stringify(call) + '\\n');
+export default {
+  look: () => ({ css: ':root { --stub-look: 1; }', themeJs: 'stubTheme();' }),
+  wakeChat: (state, message) => { note('wakeChat', state.completionId, message); return 'notified'; },
+  inbox: {
+    companyFor: async () => 'client',
+    listLink: async (client, listing) => note('listLink', client, listing.id),
+    closeItem: async (client, id) => note('closeItem', client, id),
+    inTime: job => job,
+  },
+};
+`);
+  const { port, key } = opened(f, ...KEYS);
+  const { completionId } = stateOf(f);
+  const sheet = await (await fetch(`http://127.0.0.1:${port}/page.css`)).text();
+  assert.ok(sheet.startsWith(':root { --stub-look: 1; }\n'), 'the profile\'s look first');
+  assert.match(sheet, /\.steps > li::before/, 'then the private page\'s own rules');
+  assert.equal(await (await fetch(`http://127.0.0.1:${port}/theme.js`)).text(), 'stubTheme();');
+  await route(port, key, 'save', { keys: { MAPS_API_KEY: SLOT_KEY } });
+  assert.match(f.run('wait').rawStdout, /^HANDOVER_NOTIFICATION=notified$/m);
+  const calls = () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line)) : []);
+  await eventually(() => calls().length === 3);
+  assert.deepEqual(calls().filter(([slot]) => slot !== 'wakeChat'), [['listLink', 'client', completionId], ['closeItem', 'client', completionId]]);
+  const [, id, message] = calls().find(([slot]) => slot === 'wakeChat');
+  assert.equal(id, completionId);
+  assert.ok(message.includes(completionId) && !message.includes(SLOT_KEY), 'the wake names the link, never the key');
+});
+
+test('with no profile, a private page has the plain look and no switch, and nothing is listed or woken', async t => {
+  const f = fixture(t, { checkout: true, paseo: 'ok' });
+  const calls = fakeInbox(f);
+  f.env.WONG_BROWSER_PROFILE = '';
+  const { port, key } = opened(f, ...KEYS);
+  const sheet = await (await fetch(`http://127.0.0.1:${port}/page.css`)).text();
+  assert.ok(sheet.startsWith(readFileSync(join(repo, '.agents/skills/hand-over/scripts/plain-look.css'), 'utf8')), 'the plain look');
+  assert.match(sheet, /--primary: #171717;[\s\S]*\.steps > li::before/, 'its tokens, then the page\'s rules');
+  assert.equal(await (await fetch(`http://127.0.0.1:${port}/theme.js`)).text(), '');
+  await route(port, key, 'save', { keys: { MAPS_API_KEY: SLOT_KEY } });
+  assert.match(f.run('wait').rawStdout, /^HANDOVER_NOTIFICATION=unavailable$/m);
+  assert.deepEqual([calls(), f.sent()], [[], []], 'no inbox call and no chat woken');
+  assert.match(readFileSync(join(f.cwd, '.env'), 'utf8'), /^MAPS_API_KEY=/m, 'the key went to the top .env');
 });

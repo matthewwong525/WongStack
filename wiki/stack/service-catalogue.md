@@ -2,7 +2,7 @@
 
 The services list is where a chat starts for any outside service: one short list of the saved keys you can use, then a search, one opened entry, and a call through the app. The [services skill](../../.agents/plugins/access/skills/services/SKILL.md) gives a chat these steps; it comes with the [Access module](../../.agents/plugins/access/README.md). The app holds every business key, so a chat never reads one from a file. [Company actions](company-api.md) owns how an action is built and how the helper signs in.
 
-When no action or key can do a task on a website, the agent does it in [the browser](../development/browsing.md), as you.
+When no action or key can do a task on a website, the agent does it in [the browser](../../.agents/plugins/browser/browser/references/browsing.md), as you.
 
 ```mermaid
 flowchart TD

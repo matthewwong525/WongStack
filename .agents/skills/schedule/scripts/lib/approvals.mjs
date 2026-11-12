@@ -2,7 +2,7 @@
 // person's OK in a chat; the app is never asked what is approved. wiki/stack/host-schedules.md
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { helperFiles } from '../../../hand-over/scripts/lib/computer.mjs';
+import { helperFiles } from '../../../reply-link/scripts/lib/computer.mjs';
 import { signIn } from '../../../../memory/d1/connect.mjs';
 
 const VERSION = /^[a-f0-9]{64}$/;

@@ -13,7 +13,7 @@ import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { loadConfig, memoryOrigin, signIn, signInHelp } from '../../../memory/d1/connect.mjs';
 import { repoContext } from '../../memory/scripts/lib/store.mjs';
 import { runAddons } from './addons.mjs';
-import { computerId } from '../../hand-over/scripts/lib/computer.mjs';
+import { computerId } from '../../reply-link/scripts/lib/computer.mjs';
 import { SCHEDULE_LABEL, chatCalls, chatClient } from './chats.mjs';
 import { BUCKETS, allow, answer, chiefDay, chiefEnv, doneAgent, hand, mark, noteEnd, paseoCli, readBeat, readJson, reply,
   serviceAlive, status, writeJson } from './chief.mjs';

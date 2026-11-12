@@ -13,6 +13,21 @@
 
 **Updating.** Nothing to do by hand for most projects: no database change, and every person keeps what they have. If you added a tool through its MCP server, it stops working, and the change record names it once: add the tool again through its API, or ask its maker for one. If one of your own pages or skills links `.agents/skills/services/SKILL.md`, the update's link check names it: the skill is now `.claude/skills/access/skills/services/SKILL.md`. The service-records check moves too: `scripts/check-service-definitions.mjs` is now `.claude/skills/access/scripts/check-definitions.mjs`, and the app's `npm test` runs it there. If one of your own scripts runs the old file, point it at the new one.
 
+## 53.3.0 — The browser is a module any project can add
+
+- **The browser, private links, and shopping are one module** that any project can add with one pasted message, in any AI tool ([the browser module](.agents/plugins/browser/browser/README.md)). Your project still gets the same three skills, `browser`, `hand-over`, and `shop`, as real folders at `.agents/skills/`.
+- **Their guides moved into the module.** Browsing, login codes, your password manager, the browser window, proxies, the live view, saved details, and shopping are now in each skill's `references/` folder. [The key link](.agents/plugins/browser/hand-over/references/key-link.md) has its own page; the secrets page links it.
+- **Your project's own parts sit in one profile**, `.agents/browser/profile.mjs`: the app's look on private pages, waking the chat, the inbox, which file takes each key, and sending a key to the app. A project with no profile gets a plain look, and every key goes to its git-ignored `.env`.
+- **Reply links and the live line's helper moved to a hidden `reply-link` skill.** The helper finds its new place at the next chat start.
+
+**Updating.** One step, done in the update's plan. Your project's own list of development guides, `wiki/development/README.md`, still links the eight browser guides at their old place, and the update removes those pages. Point each of those links at the guide's new place:
+
+- `browsing.md`, `login-codes.md`, `browser-window.md`, `browser-proxy.md`, and `password-manager.md` → `../../.agents/skills/browser/references/`
+- `live-view.md` and `saved-details.md` → `../../.agents/skills/hand-over/references/`
+- `shopping.md` → `../../.agents/skills/shop/references/`
+
+Do the same in any other page of your own that links one of these guides. Everything else changes by itself.
+
 ## 53.2.1 — Two small notes on new chats and shipped plans
 
 - **Opening a new chat for another part names the right folder.** The scratch command prints JSON; the brief goes in its `path` ([open each workspace](.agents/plugins/loop/skills/plan/references/new-workspace.md#open-each-workspace)).

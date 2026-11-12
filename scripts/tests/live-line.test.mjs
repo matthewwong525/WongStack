@@ -7,8 +7,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { nextPoll, openLine, waiter } from '../../.agents/skills/hand-over/scripts/lib/line.mjs';
-import { serveInbox } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
+import { nextPoll, openLine, waiter } from '../../.agents/skills/reply-link/scripts/lib/line.mjs';
+import { serveInbox } from '../../.agents/skills/reply-link/scripts/reply-link.mjs';
 import { primaryRoot } from '../../.agents/skills/memory/scripts/lib/primary-root.mjs';
 
 const REPO = fileURLToPath(new URL('../..', import.meta.url));

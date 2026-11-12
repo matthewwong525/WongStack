@@ -11,7 +11,7 @@ import { appProgress } from '../../.agents/skills/schedule/scripts/lib/progress.
 import { scheduleVersion } from '../../.agents/skills/schedule/scripts/lib/version.mjs';
 import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
 import { freshBase } from '../../.agents/skills/schedule/scripts/workspace.mjs';
-import { logAction } from '../../.agents/skills/hand-over/scripts/lib/helper-log.mjs';
+import { logAction } from '../../.agents/skills/reply-link/scripts/lib/helper-log.mjs';
 import { COMPUTER, NOW, ORIGIN, fakeApp, folder, plan, runId } from './fixtures/scheduled-work.mjs';
 
 const JO = 'jo@example.test', KIM = 'kim@example.test';
