@@ -741,7 +741,8 @@ export function client(given, { retry = true, start = true } = {}) {
     /** Shows this tab in front with the keyboard: `turn` holds or ends the person's turn, `raise: false` renews it,
      * and `reselect` leaves the person's own tab shown. */
     front: ({ turn, raise, reselect } = {}) => onTab(tabId => send('POST', `/tabs/${tabId}/front`, { userId: USER, ...(turn !== undefined && { turn }), ...(raise === false && { raise }), ...(reselect && { reselect }) })),
-    /** Sets the page's size; resolves to its size, with `addonPage` while the password manager's page keeps its own. */
+    /** Sets the page's size; resolves to its size. On the password manager's page the width applies, the height stays
+     * under the bar, and the answer says `addonPage`. */
     resize: (width, height) => onTab(tabId => json('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),
     /** Starts the browser when it is not running. */
     ready: async () => { await connect(); },

@@ -187,8 +187,10 @@ function onTab(request, response, [id, step], body, query) {
   if (!tab) return lost ? refuse(response, 410, 'Tab no longer exists (browser was restarted). Create a new tab.', { code: 'browser_restarted' }) : refuse(response, 404, 'Tab not found');
   // `addon-back`: the person pressed Back from the password manager's page to the site, which gets its own size back.
   if (tab.addon && once('addon-back')) Object.assign(tab, { addon: null, size: tab.own, own: null });
+  // On that page a resize takes the asked width and keeps the page's height, as browser-server.mjs does.
   if (tab.addon && step === 'viewport') {
     tab.own = [body.width, body.height];
+    tab.size = [body.width, tab.size[1]];
     return send(response, 200, { ok: true, width: tab.size[0], height: tab.size[1], addonPage: true });
   }
   if (tab.addon && step !== 'navigate' && step !== 'front') return refuse(response, 403, ADDON_REFUSAL, { addonPage: true, size: tab.own });

@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — The password manager's page fits a phone in a live view
+
+- **On a phone, the password manager's own page narrows to the phone's width**, as a site's page does. The whole sign-in form shows, its right side included ([password manager](.agents/plugins/browser/browser/references/password-manager.md)). Before, the page stayed as wide as the computer's screen, and the view showed only a narrow strip at its left.
+- **A laptop sees no change**, and the site gets its own size back when you leave that page or the view ends.
+
+**Updating.** Nothing to do by hand.
+
 ## 55.1.0 — Memory shows the files behind each fact
 
 - **A memory answer ends with a short list of files.** After its facts and passages, `recall` lists up to eight files and docs those facts are about, each with the facts that led to it, so the AI opens the right place first ([files behind the facts](wiki/development/document-retrieval.md#files-behind-the-facts)). The list says it is a place to start, not a full list.

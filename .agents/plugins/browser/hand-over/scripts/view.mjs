@@ -232,7 +232,7 @@ function pageWindows(display) {
 }
 
 /** Sizes each page window bigger than the screen to the screen, at its corner: on an add-on's page the browser keeps
- * the page's size, and a window from a bigger start would hang off the screen, toolbar included. */
+ * the page's height, and a window from a bigger start would hang off the screen, toolbar included. */
 function fitWindows(display, screen) {
   for (const win of pageWindows(display).filter(each => each.width > screen.width || each.height > screen.height)) {
     try {
@@ -266,6 +266,8 @@ export function liveView(view, page) {
   let kind = 'wide';
   let screen = null;
   let bar = null;
+  // The last answer came from the password manager's page.
+  let addon = false;
   let ended = false;
   let last = Promise.resolve();
   const seen = new Set();
@@ -278,12 +280,15 @@ export function liveView(view, page) {
   const fitted = () => ({ width: kind === 'phone' ? Math.min(PHONE_WIDTH, screen.width) : screen.width, height: screen.height - (bar ?? 0) });
   const describe = () => screen && { kind, width: fitted().width, screen: [screen.width, screen.height] };
   /** The bar above the page: how much taller its window is than the page, read with the page as tall as the screen.
-   * None on the password manager's page, which keeps its size; a window only the screen's size was sized there. */
+   * None on the password manager's page, which takes only the width and keeps its height under the bar. */
   const measureBar = async () => {
-    if ((await page.resize(screen.width, screen.height))?.addonPage) return null;
+    addon = Boolean((await page.resize(screen.width, screen.height))?.addonPage);
+    if (addon) return null;
     const over = pageWindows(view.display).filter(win => win.width === screen.width && win.height > screen.height).map(win => win.height - screen.height);
     return over.length ? Math.min(...over) : null;
   };
+  /** Sizes the page as the fit; resolves to whether the password manager's page shows. */
+  const size = async () => (addon = Boolean((await page.resize(fitted().width, fitted().height))?.addonPage));
   /** Raises and focuses a window as tall as the screen and at least as wide as the fit (the browser's stops near 500).
    * None while a pop-up shows: a raise covers it, and focus on it closes it; it takes keys with the page's focus. */
   const front = () => {
@@ -305,8 +310,15 @@ export function liveView(view, page) {
       if (ended) return describe();
       kind = next;
       screen ??= screenSize(view.display);
-      bar ??= await measureBar();
-      if ((await page.resize(fitted().width, fitted().height))?.addonPage) fitWindows(view.display, screen);
+      // On the password manager's page a reading widens the page to the screen, and the fit narrows it again: so the
+      // bar waits there, and is read at the first fit whose answer comes from a site.
+      const waited = addon;
+      if (!waited) bar ??= await measureBar();
+      if (!await size() && waited && bar == null) {
+        bar = await measureBar();
+        await size();
+      }
+      if (addon) fitWindows(view.display, screen);
       front();
       return describe();
     }),
