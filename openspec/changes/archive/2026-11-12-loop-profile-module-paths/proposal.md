@@ -1,6 +1,6 @@
 # Proposal
 
-**Status:** building
+**Status:** ready-to-ship
 **Branch:** daily-browser-old-paths
 **Open questions:** none
 
@@ -38,3 +38,4 @@ None: this restores the behavior the specs already promise.
 - **2026-11-12** — Assumed: a patch release with no spec delta, because the specs already promise that closing and opening work; only the paths were wrong.
 - **2026-11-12** — Assumed: the test runs the profile's parts with a stand-in `node` and checks each script it gets exists, because that tests the real calls, not a copy of their paths.
 - **2026-11-12** — Assumed: the build ran in this chat, not a helper, because it is three paths and one test, already found while closing.
+- **2026-11-12** — Assumed: archive checkpoint for release 57.1.1; the local pre-check did not run because another chat held the check slot, so CI is the only check before merge.
