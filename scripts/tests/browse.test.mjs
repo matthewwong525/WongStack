@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
@@ -27,17 +28,18 @@ function fixture(t, options = {}) {
   const runWith = (extra, ...args) => spawnSync(process.execPath, [script, ...args], { cwd: home, env: { ...env, ...extra }, encoding: 'utf8', timeout: 30_000 });
   const run = (...args) => runWith({}, ...args);
   /** Runs a command beside the test, so two can run at once; resolves to its status and output. */
-  const start = (...args) => {
-    const child = spawn(process.execPath, [script, ...args], { cwd: home, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const startWith = (extra, ...args) => {
+    const child = spawn(process.execPath, [script, ...args], { cwd: home, env: { ...env, ...extra }, stdio: ['ignore', 'pipe', 'pipe'] });
     const out = { stdout: '', stderr: '' };
     for (const name of ['stdout', 'stderr']) child[name].on('data', chunk => { out[name] += chunk; });
     return new Promise(done => child.on('close', status => done({ ...out, status })));
   };
+  const start = (...args) => startWith({}, ...args);
   t.after(() => {
     camofox.stop();
     rmSync(home, { recursive: true, force: true });
   });
-  return { home, env, camofox, run, runWith, start };
+  return { home, env, camofox, run, runWith, start, startWith };
 }
 
 /** Runs a command and asserts it worked; returns its stdout. */
@@ -93,6 +95,35 @@ test('install makes a venv, installs the pinned library and its build there, and
   assert.equal(failed.status, 1);
   assert.equal(failed.stdout, 'BROWSE_ERROR=the install failed at the camoufox library; see the lines above\n');
   assert.match(failed.stderr, /no space left/, 'pip\'s own lines reach the person');
+});
+
+test('install ends with the default 1Password add, and one that fails saves when, so a start a day later tries again', async t => {
+  const f = fixture(t, { installed: false });
+  const asked = [];
+  const site = createServer((request, response) => { asked.push(request.url); response.writeHead(503).end(); });
+  await new Promise(done => site.listen(0, '127.0.0.1', done));
+  t.after(() => site.close());
+  const out = await f.startWith({ BROWSE_ADDON_SITE: `http://127.0.0.1:${site.address().port}` }, 'install');
+  assert.equal(out.status, 0, out.stderr);
+  assert.equal(out.stdout, 'BROWSE_INSTALLED=yes camoufox 158.0.1-beta.41 library 0.5.9\n', 'the person is told nothing');
+  assert.deepEqual(asked, ['/api/v5/addons/addon/1password-x-password-manager/?lang=en-US']);
+  const { defaults } = JSON.parse(readFileSync(join(f.camofox.install, 'addons.json'), 'utf8'));
+  assert.ok(Number.isFinite(defaults['1password-x-password-manager'].failedAt), 'only the failed try\'s time is saved');
+});
+
+test('an install while the browser runs, maybe for another chat, leaves it running and makes no default add', async t => {
+  const f = fixture(t);
+  const asked = [];
+  const site = createServer((request, response) => { asked.push(request.url); response.writeHead(503).end(); });
+  await new Promise(done => site.listen(0, '127.0.0.1', done));
+  t.after(() => site.close());
+  ok(f, 'open', SHOP);
+  const { pid } = f.camofox.env();
+  const out = await f.startWith({ BROWSE_ADDON_SITE: `http://127.0.0.1:${site.address().port}` }, 'install');
+  assert.equal(out.status, 0, out.stderr);
+  assert.deepEqual(asked, [], 'the next start adds it');
+  assert.ok(alive(pid), 'the running browser stays');
+  assert.ok(!existsSync(join(f.camofox.install, 'addons.json')));
 });
 
 test('install with no Python 3.10 stops with BROWSE_NEEDS=python and installs nothing', t => {
@@ -481,7 +512,7 @@ test('saved logins are gone: login, logins and forget are usage errors, and no s
     assert.equal(out.status, 2, args.join(' '));
     assert.match(out.stderr, /usage: browse\.mjs/);
   }
-  assert.doesNotMatch(f.run('--help').stdout, /login|forget|main-domain/);
+  assert.doesNotMatch(f.run('--help').stdout, /^ {2}(login|logins|forget)\b|main-domain/m, 'no command of its own; addon logins reads the add-on');
   const browser = join(repo, '.agents/skills/browser/scripts');
   assert.ok(!existsSync(join(browser, 'logins.mjs')));
   for (const name of ['browse.mjs', 'browser-server.mjs']) assert.doesNotMatch(readFileSync(join(browser, name), 'utf8'), /logins\.(json|mjs)/, name);
@@ -1102,6 +1133,30 @@ test("status names each added add-on, and a password manager's refusal of a step
   assert.equal(out.stdout, "BROWSE_ERROR=that is the password manager's own; the person uses it in the live view\n");
 });
 
+test('addon logins prints the offered login names only, and addon pick prints the fill or the server\'s refusal', t => {
+  const f = fixture(t);
+  const on = (...args) => f.run(...args, '--session', 'a');
+  ok(f, 'open', SHOP, '--session', 'a');
+  assert.equal(on('addon', 'logins').stdout, 'BROWSE_ADDON_LOGIN=none\n');
+  f.camofox.set('fill-list', { state: 'locked', names: [] });
+  assert.equal(on('addon', 'logins').stdout, 'BROWSE_ADDON_LOGIN=locked\n');
+  f.camofox.set('fill-list', { state: 'list', names: ['Canva (work) · jo@example.com', 'Canva'] });
+  assert.equal(on('addon', 'logins').stdout, 'BROWSE_ADDON_LOGIN=1 | Canva (work) · jo@example.com\nBROWSE_ADDON_LOGIN=2 | Canva\n');
+  assert.equal(on('addon', 'pick', '2').stdout, 'BROWSE_ADDON_PICKED=filled\n');
+  const sent = f.camofox.requests().filter(({ path }) => /\/(logins|pick)$/.test(path)).map(({ path, body }) => [path.replace(/^\/tabs\/[^/]+/, ''), body]);
+  assert.deepEqual(sent.at(-1), ['/pick', { userId: 'me', n: 2 }]);
+  for (const bad of ['0', 'x', '1.5']) {
+    const out = on('addon', 'pick', bad);
+    assert.equal(out.stdout, 'BROWSE_ERROR=addon pick takes the number addon logins printed before the login\n', bad);
+  }
+  assert.equal(f.camofox.calls().filter(call => call.endsWith('/pick')).length, 1, 'a bad number reaches no server');
+  f.camofox.set('pick-refused', 'run `browse.mjs addon logins` first');
+  const refused = on('addon', 'pick', '1');
+  assert.equal(refused.status, 1);
+  assert.equal(refused.stdout, 'BROWSE_ERROR=run `browse.mjs addon logins` first\n');
+  assert.equal(f.run('addon', 'pick').status, 2, 'pick needs its number');
+});
+
 test('no password manager question: install, status and a task\'s first open print no offer, and asked and decline are gone', t => {
   const f = fixture(t);
   assert.equal(ok(f, 'open', SHOP), `BROWSE_URL=${SHOP}\n`);
@@ -1110,7 +1165,7 @@ test('no password manager question: install, status and a task\'s first open pri
   for (const verb of ['asked', 'decline']) {
     const out = f.run('addon', verb);
     assert.equal(out.status, 2, verb);
-    assert.match(out.stderr, /addon takes find, add, open, status, or remove/);
+    assert.match(out.stderr, /addon takes find, add, open, logins, pick, status, or remove/);
   }
   assert.doesNotMatch(f.run('--help').stdout, /asked|decline/);
 });

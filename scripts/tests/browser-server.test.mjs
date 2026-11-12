@@ -9,36 +9,54 @@ import { fileURLToPath } from 'node:url';
 
 // browse.mjs names its files from the home folder as it loads, so the test gets its own first.
 process.env.HOME = mkdtempSync(join(tmpdir(), 'browser-server-test-'));
-const { contextOptions, persistentOptions, pressKey, routes, startProxy } = await import('../../.agents/skills/browser/scripts/browser-server.mjs');
+const { contextOptions, persistentOptions, PICK_MS, pressKey, routes, startProxy } = await import('../../.agents/skills/browser/scripts/browser-server.mjs');
 const { ADDON_REFUSAL } = await import('../../.agents/skills/browser/scripts/refs.mjs');
 const { joinPieces } = await import('../../.agents/skills/browser/scripts/browse.mjs');
 
 const KEY = 'test-key';
 
+const HANDLE = Symbol('handle');
+/** Runs a script the server sends into the page against `document`, a small stand-in, as the page would. */
+function inPage(document, script, ...args) {
+  const kept = globalThis.document;
+  globalThis.document = document;
+  try { return script(...args.map(arg => (arg?.[HANDLE] ? arg.value : arg))); } finally { globalThis.document = kept; }
+}
+
 /** A frame whose text is `yaml`; its locators record each step in `calls`. A click throws each `clickFails` error. */
 function stubFrame(calls, { url = 'about:blank', name = '', yaml = '' } = {}) {
-  // `addonTargets` are the selectors that find the password manager's frame in the page.
-  const frame = { yaml, clickFails: [], detached: false, addonTargets: [] };
+  // `addonTargets` are the selectors that find the password manager's frame in the page; `rows` its fill list's login
+  // names; `boxes: false` finds no box; `visible` is its element's.
+  const frame = { yaml, clickFails: [], detached: false, addonTargets: [], rows: [], boxes: true, visible: true };
+  // `dom`, when set, is the stand-in page a box's script or the frame element's runs in: `{document, login, element}`.
   const locator = desc => ({
     nth: n => locator(`${desc}#${n}`),
+    first: () => locator(`${desc}#first`),
+    press: async key => { calls.push(['press', desc, key]); calls.onPress?.(); },
     ariaSnapshot: async () => frame.yaml,
     click: async options => {
       calls.push(['click', desc, options]);
       const fail = frame.clickFails.shift();
       if (fail) throw new Error(fail);
+      calls.onClick?.(desc);
     },
-    evaluate: async () => { calls.push(['dom click', desc]); },
+    evaluateHandle: async script => ({ [HANDLE]: true, value: inPage(frame.dom.document, script, frame.dom.login), dispose: async () => {} }),
+    evaluate: async (script, arg) => {
+      if (frame.dom && arg) return inPage(frame.dom.document, script, frame.dom.login, arg);
+      calls.push(['dom click', desc]);
+    },
     fill: async text => { calls.push(['fill', desc, text]); },
     focus: async () => { calls.push(['focus', desc]); },
-    count: async () => 1,
-    evaluateAll: async () => frame.addonTargets.includes(desc),
+    count: async () => (frame.boxes ? 1 : 0),
+    evaluateAll: async () => (desc === 'css:[role="menuitem"].entry' ? frame.rows : frame.addonTargets.includes(desc)),
     selectOption: async choice => {
       calls.push(['select', desc, choice]);
       if (choice.label === 'by-value') throw new Error('no such label');
     },
   });
   return Object.assign(frame, {
-    url: () => url,
+    url: () => frame.at ?? url,
+    frameElement: async () => ({ evaluate: async script => inPage(frame.dom.document, script, frame.dom.element), isVisible: async () => frame.visible }),
     name: () => name,
     isDetached: () => frame.detached,
     parentFrame: () => frame.parent ?? null,
@@ -71,7 +89,7 @@ function stubPage(calls, yaml, frames = []) {
     // The page is 1100x663, and the browser's bar 85 pixels: the window is that much taller than the page.
     evaluate: async expression => {
       if (expression === 'window.opener = null') calls.push(['no opener']);
-      return { 'document.URL': url, '[innerWidth, innerHeight, outerHeight]': [1100, 663, 748] }[expression] ?? (/activeElement/.test(expression) ? calls.focusInAddon === true : { expression });
+      return { 'document.URL': url, '[innerWidth, innerHeight, outerHeight]': [1100, 663, 748] }[expression] ?? { expression };
     },
     setViewportSize: async size => { calls.push(['viewport', size]); },
     bringToFront: async () => { calls.push(['front']); },
@@ -386,11 +404,30 @@ test("the password manager's frames, page and keyboard are the person's: the age
     await refused(post('click', { selector: '#pm-menu' }));
     await refused(post('type', { selector: '#pm-menu', text: 'x' }));
     await refused(post('select', { selector: '#pm-menu', option: 'a' }));
-    page.calls.focusInAddon = true;
-    await refused(post('press', { key: 'Enter' }));
+    // The frame sits in a closed shadow root, in a host inside the page's own open shadow root, as 1Password's does.
+    const frameElement = { getRootNode: () => closedRoot };
+    const document = { activeElement: null };
+    const closedRoot = { host: { shadowRoot: null, getRootNode: () => openRoot } };
+    const outer = { getRootNode: () => document };
+    const openRoot = { host: outer, activeElement: closedRoot.host };
+    outer.shadowRoot = openRoot;
+    page.extra[0].dom = { document, element: frameElement };
+    document.activeElement = outer;
+    await refused(post('press', { key: 'Escape' }));
+    await refused(post('type', { text: 'x', mode: 'keyboard' }));
     assert.equal(page.calls.length, before, 'no refused step reached the page');
-    page.calls.focusInAddon = false;
-    assert.equal((await post('press', { key: 'Enter' })).status, 200);
+    const listOpen = /fill list is open/;
+    openRoot.activeElement = { getRootNode: () => openRoot };
+    assert.match((await post('press', { key: 'Enter' })).body.error, listOpen, 'a box in the same open shadow root is the page\'s, but the list shows');
+    document.activeElement = { getRootNode: () => document };
+    for (const key of ['ArrowDown', 'Enter', 'Tab']) assert.match((await post('press', { key })).body.error, listOpen, `${key} in the page's box could pick from the list`);
+    for (const flag of ['pressEnter', 'submit']) assert.match((await post('type', { selector: '#email', text: 'x', [flag]: true })).body.error, listOpen);
+    assert.equal(page.calls.length, before, 'nor did a key while the list shows');
+    assert.equal((await post('press', { key: 'Escape' })).status, 200, 'Escape closes the list');
+    assert.equal((await post('type', { selector: '#email', text: 'x' })).status, 200, 'typing alone picks nothing');
+    for (const frame of page.extra) frame.visible = false;
+    assert.equal((await post('press', { key: 'Enter' })).status, 200, 'once the list is hidden, keys work');
+    assert.equal((await post('type', { selector: '#email', text: 'x', pressEnter: true })).status, 200);
     assert.equal((await post('click', { selector: '#buy' })).status, 200);
 
     assert.deepEqual((await post('navigate', { url: 'moz-extension://pm-uuid/popup/index.html' })).body, { ok: true, url: 'moz-extension://pm-uuid/popup/index.html' }, 'its sign-in page opens for the person');
@@ -413,6 +450,93 @@ test("the password manager's frames, page and keyboard are the person's: the age
     assert.equal((await call('GET', `/tabs/${tabId}/snapshot?userId=me`)).status, 200, 'once the person is back on the site, the agent reads it again');
     assert.deepEqual(page.calls.filter(([step]) => step === 'viewport').at(-1), ['viewport', { width: 1100, height: 663 }], 'and the site gets the size last asked for');
     assert.deepEqual((await post('viewport', { width: 480, height: 663 })).body, { ok: true, width: 480, height: 663 });
+  } finally { await close(); }
+});
+
+test("the one opening: logins reads the fill list's login names, and one pick of a name read follows on that page", async t => {
+  const context = stubContext('- textbox "Email"\n- textbox "Password"');
+  const { call, close } = await serve(context);
+  try {
+    const { tabId } = (await open(call)).body;
+    const page = context.opened[0];
+    const post = (route, body) => call('POST', `/tabs/${tabId}/${route}`, { userId: 'me', ...body });
+    const list = stubFrame(page.calls, { url: 'moz-extension://op-uuid/inline/menu/menu.html?locked=false&fieldContent=' });
+    list.rows = ['Canva (work) · jo@example.com', 'Canva · sam@example.com'];
+    // A key press in the login box opens the list, as 1Password's does.
+    page.calls.onPress = () => { if (!page.extra.includes(list)) page.extra.push(list); };
+    const rowClicks = () => page.calls.filter(([step, desc]) => step === 'click' && desc.startsWith('css:[role="menuitem"].entry'));
+    // The page's boxes, as the server's scripts see them there; a row's click fills what `fills` names.
+    const login = { value: '' };
+    const password = { value: '', checkVisibility: () => true };
+    let passwords = [password];
+    page.main.dom = { login, document: { querySelectorAll: selector => (selector === 'input[type="password"]' ? passwords : []) } };
+    let fills = { login: 'jo@example.com', password: 'stand-in' };
+    page.calls.onClick = desc => {
+      if (!desc.startsWith('css:[role="menuitem"].entry#')) return;
+      if (fills.login) login.value = fills.login;
+      if (fills.password) password.value = fills.password;
+    };
+
+    assert.match((await post('pick', { n: 1 })).body.error, /addon logins/, 'no pick before the names are read');
+    assert.deepEqual((await post('logins')).body, { ok: true, state: 'list', names: list.rows });
+    assert.deepEqual(page.calls.filter(([step]) => step === 'press').map(([, , key]) => key), ['ArrowDown']);
+    assert.equal((await call('GET', `/tabs/${tabId}/snapshot?userId=me`)).body.snapshot, '- textbox "Email" [e1]\n- textbox "Password" [e2]', 'a reading leaves the list out');
+    assert.equal((await post('pick', { n: 3 })).status, 400, 'a number past the list');
+    assert.equal((await post('pick', { n: 1 })).status, 409, 'and that read is spent');
+    assert.deepEqual(rowClicks(), []);
+
+    await post('logins');
+    assert.deepEqual((await post('pick', { n: 2 })).body, { ok: true, filled: true });
+    assert.deepEqual(rowClicks(), [['click', 'css:[role="menuitem"].entry#1', { timeout: 3000 }]], 'one click, on that row');
+    assert.equal((await post('pick', { n: 2 })).status, 409, 'one pick per read');
+
+    await post('logins');
+    list.rows = ['Someone else'];
+    assert.match((await post('pick', { n: 1 })).body.error, /no longer offers that login/, 'a name that changed is not picked');
+    await post('logins');
+    await post('navigate', { url: 'https://shop.example.test/other' });
+    assert.equal((await post('pick', { n: 1 })).status, 409, 'nor a name read on another address');
+    await post('logins');
+    t.mock.timers.enable({ apis: ['Date'], now: Date.now() + PICK_MS + 1 });
+    try {
+      assert.equal((await post('pick', { n: 1 })).status, 409, 'nor one read over 2 minutes ago');
+    } finally { t.mock.timers.reset(); }
+    assert.equal(rowClicks().length, 1);
+
+    // A pre-filled email the click leaves as it was, with the password box still empty, is no fill.
+    login.value = 'jo@example.com';
+    password.value = '';
+    fills = { login: 'jo@example.com' };
+    await post('logins');
+    const unfilled = await post('pick', { n: 1 });
+    assert.deepEqual([unfilled.status, unfilled.body.error], [502, 'the password manager did not fill the page']);
+    fills = { password: 'stand-in' };
+    await post('logins');
+    assert.deepEqual((await post('pick', { n: 1 })).body, { ok: true, filled: true }, 'a password filled beside it is');
+    // A 2-step sign-in has no password box yet: its login box must change and hold a login.
+    passwords = [];
+    await post('logins');
+    assert.equal((await post('pick', { n: 1 })).status, 502, 'a login box the click left as it was');
+    login.value = '';
+    fills = { login: 'jo@example.com' };
+    await post('logins');
+    assert.deepEqual((await post('pick', { n: 1 })).body, { ok: true, filled: true });
+    // Google's email step keeps a hidden password box on the page; it stays empty, and the login box's fill counts.
+    const hidden = { value: '', checkVisibility: () => false };
+    const older = { value: '', getClientRects: () => [] };
+    passwords = [hidden, older];
+    login.value = '';
+    await post('logins');
+    assert.deepEqual((await post('pick', { n: 1 })).body, { ok: true, filled: true }, 'a hidden password box is no password box');
+
+    list.at = 'moz-extension://op-uuid/inline/menu/menu.html?locked=true';
+    assert.deepEqual((await post('logins')).body, { ok: true, state: 'locked', names: [] }, 'a locked list offers no names');
+    assert.equal((await post('pick', { n: 1 })).status, 409);
+    page.extra.splice(page.extra.indexOf(list), 1);
+    page.calls.onPress = null;
+    assert.deepEqual((await post('logins')).body, { ok: true, state: 'none', names: [] }, 'no list within 3 seconds');
+    page.main.boxes = false;
+    assert.deepEqual((await post('logins')).body, { ok: true, state: 'none', names: [] }, 'no login box');
   } finally { await close(); }
 });
 
