@@ -7,8 +7,8 @@ The daily's line-up keeps your open chats in one project pointed the same way, i
   - **A chat in Paseo** gets it through Paseo: into its running step when waiting would waste work, else at its next stop, or at once as a new turn when it is idle.
   - **Any other chat** gets a waiting note: its own hooks hand it over at its next stop, or with your next message when it is idle. No hook fires in an idle chat, so the note waits for you there.
   - **A note Paseo fails to send** becomes a waiting note, with one journal line, so no note is lost.
-- **Waits.** When the work, the change or the answer a chat waits for lands, the run tells that chat, so it goes on without you.
+- **Waits.** When the work, the change or the answer a chat waits for lands, the run tells that chat, so it goes on without you. A chat that waited inside a command you typed, such as `/ship`, is told to go on with that command: you already said yes when you typed it. It starts no new risky step of its own.
 - **Covered.** A chat told that another chat covers its work passes on what only it has, then waits; *what's going on?* offers to [close it](daily.md#close-finished-chats).
 
-The [check-ins'](daily.md#check-ins) limits hold: risky steps wait for you, no chat closes without your pick, an agent's words are never your yes, and notes count toward the five in a row. Each note writes one journal line. *Stop check-ins* stops it too. It is the *Keep my chats in line* [default schedule](../stack/host-schedules.md#default-schedules): pause it in the Inbox's *Schedules* list to turn off only this.
+The [check-ins'](daily.md#check-ins) limits hold: risky steps wait for you, no chat closes without your pick, an agent's words are never your yes (a command you typed is, for its own steps only), and notes count toward the five in a row. Each note writes one journal line. *Stop check-ins* stops it too. It is the *Keep my chats in line* [default schedule](../stack/host-schedules.md#default-schedules): pause it in the Inbox's *Schedules* list to turn off only this.
 
