@@ -42,16 +42,7 @@ A skill whose page fixes a small change's shape, such as [connecting tools](../s
 
 ### Offer a routine or an app
 
-When a task done by hand — a plain request, or non-code work under a verb — will clearly come back, offer to make next time easier: one option in [the next-step question](../../.agents/plugins/loop/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step), beside *stop here*, never a question of its own. Most tasks get none.
-
-- **Only on a clear signal**: the person says it recurs ("every Monday", "again"), or memory shows they asked before. Never on a hunch: an offer after every task teaches people to skip it.
-- **Search memory once**: `memory.mjs search` on the task's key terms finds a past request or decline.
-- **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/schedule`](../../.agents/plugins/daily/schedule/SKILL.md). Fixed steps first use a script on an existing clock; build needed code through this loop, or a [mini app](../stack/mini-apps.md) when useful: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
-- **Name the outcome, not the tool**: *do this every Monday at 9*, *a page that splits the bill for you*.
-- **A no is final**: record a `feedback` fact through [the write gate](../../.agents/plugins/memory/SKILL.md#write), naming the task in the person's words, and never offer for it again.
-- **A yes starts the usual route**: `/schedule`'s own confirmation, or the change loop stopping at the plan's review.
-
-No offer after a code change you built, or in an unattended run.
+When a task done by hand will clearly come back, the agent offers once to make next time easier, as one choice in its closing question: [the loop's rules](../../.agents/plugins/loop/references/rules.md#offer-a-routine-or-an-app) say when and how. In WongStack, the help can also be a [mini app](../stack/mini-apps.md), because [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
 
 ### One task, one workspace
 
@@ -59,11 +50,9 @@ A [Paseo](https://paseo.sh) workspace holds one task. Done, the agent asks *Clos
 
 ### Several parts, several workspaces
 
-When a request has parts each publishable alone, the agent [asks once](../../.agents/plugins/loop/skills/plan/references/new-workspace.md#ask-once) how to split them; each new workspace plans its part and waits. [Open a part in a new workspace](../../.agents/plugins/loop/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the fallbacks.
+A request with parts each publishable alone gets one workspace a part, after one question: [the loop's rules](../../.agents/plugins/loop/references/rules.md#several-parts-several-workspaces) own it, and the check for other work before a plan.
 
-Before planning, the agent [checks for other work](../../.agents/plugins/loop/skills/explore/SKILL.md#check-for-other-work): other workspaces, their plans, and open pull requests. It speaks only on an overlap, and asks [where to go on](../../.agents/plugins/loop/skills/plan/references/new-workspace.md#ask-once).
-
-**Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/plugins/daily/schedule/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes with its workspace; in the main checkout, each session's tidy-up deletes day-old scratch files.
+Scratch files go in the git-ignored `.scratch/` at the checkout root, which [`tidy.mjs scratch`](../../.agents/plugins/daily/schedule/scripts/tidy.mjs) makes and prints. In the main checkout, each session's tidy-up deletes day-old scratch files.
 
 ### Asking before drafting
 
@@ -85,48 +74,25 @@ Loop back any time: re-`/plan` if the spec needs to change.
 
 ### What each step may change
 
-Every chat starts in plan; only you move it on. Each step may read, research, run the repo's tests and scripts, and try code in [`.scratch/`](#several-parts-several-workspaces); git-ignored output is no repo change.
-
-| Step | May change in the repo |
-|---|---|
-| `/explore` | nothing |
-| `/plan` and `/improve-code` | plans and wiki pages; a [schedule](../stack/host-schedules.md) goes to the app after your OK |
-| `/apply`, `/ship`, any other step you type | anything |
-
-You move it on by typing a step, tapping *Build it* or *Build and publish* on a plan's page, or picking build or publish when asked. A step run inside another, such as `/plan` inside `/ship`, keeps the outer step's reach. Add your own step as `.agents/skills/<name>/SKILL.md`, linked from this page.
+Every chat starts in plan; only you move it on, by typing a step, tapping *Build it* or *Build and publish*, or picking build or publish when asked. [The loop's rules](../../.agents/plugins/loop/references/rules.md#what-each-step-may-change) list what each step may change. In WongStack, `/improve-code` plans as `/plan` does, and a [schedule](../stack/host-schedules.md) goes to the app after your OK. Add your own step as `.agents/skills/<name>/SKILL.md`, linked from this page.
 
 **A chat's name starts with the step at work**: `EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `, then its task. It moves as each step starts; a chat that starts none, such as a question, keeps its name. A typed command shows at once: `/plan` as `PLAN`, `/verify` as `VERIFY`; `/apply`, `/continue` and `/ship` wait for their step. Each step names the work at that time, a plan's title once there is a plan: any name Paseo made gives way, and a name you give in Paseo stays. [`step-title.mjs`](../../.agents/loop/step-title.mjs) writes it, at once in Paseo and Codex; in Claude Code alone, a later step shows at your next message. The Daily chat, routines and helpers keep theirs.
 
 ### Fix it or ask
 
-One test decides what an agent fixes alone: **does the plan already settle what is right?** Yes → it fixes it and reports the fix: a broken plan scenario, a failing check, a reviewer's bug the builder accepts. No → it asks you one plain question, recommendation first, when the fix:
-
-1. **goes outside the plan**: a visible change it doesn't name, more scope, a new dependency, or unrelated code;
-2. **weakens a check**: turning one off, loosening it, or deleting a test ([caught after the fact too](#a-loosened-check-needs-a-reason));
-3. **can't be undone, or is risky**: keys, logins, access, lost data, or money;
-4. **still fails after two fixes**, or a step's own cap;
-5. **stays disputed**: builder and reviewer disagree after one exchange.
-
-`/apply`, [`/verify`](../../.agents/plugins/loop/skills/verify/references/walkthrough.md#e--after-a-failure) and [`/save`](../../.agents/plugins/loop/skills/save/references/git-gate.md#the-auto-fix-loop) link here: a copy goes stale.
+An agent fixes alone what the plan already settles, and asks you the rest, recommendation first: [the loop's rules](../../.agents/plugins/loop/references/rules.md#fix-it-or-ask) list the five cases that ask. A fix that weakens a check is [caught after the fact too](#a-loosened-check-needs-a-reason).
 
 #### Inside `/ship`
 
-In `/ship` and its steps, rules 1 and 5 take a recommendation that stays in the work and can be undone, logged as an `Assumed` line and listed under *Choices I made*. Rules 2–4, an outward action (sends, posts, business records, real data, deletes outside the change, terms) and no clear best answer still ask, as does a step typed alone.
+In `/ship`, a safe choice that stays in the work is made and listed under *Choices I made*, not asked: [the loop's rules](../../.agents/plugins/loop/references/rules.md#inside-ship) say which.
 
 ### `/apply` never saves to stop, but may save to finish a task
 
-`/apply` writes the whole change, source and tests, before it checks any of it, and never saves to stop or between parts. Checking each part cost over three minutes, again for each repair, so the checks run once, at the end. [The helper brief](../../.agents/plugins/loop/skills/apply/references/build-helper.md) owns how the build does it, and [`/plan`](../../.agents/plugins/loop/skills/plan/SKILL.md#finish) lays the tasks out for it.
-
-Nothing is checked less: deployed acceptance still needs evidence, and only acceptance seen to pass ticks its task. Final checks, fresh preview evidence and the one live look stay; batch repairs, and every pushed revision takes all required CI jobs.
+`/apply` writes the whole change before it checks any of it, so the slow checks run once, at the end. Nothing is checked less: [the loop's rules](../../.agents/plugins/loop/references/rules.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task) own it.
 
 ### Verbs for any work
 
-A verb you invoke for work that changes no repo file, such as research, a message or a change to data in a service, keeps its stage and drops the git and OpenSpec records:
-
-- **`/plan`** writes a short numbered to-do in the chat, marking each step that acts outside it.
-- **`/apply`** works the to-do. Only an outward action, such as a sent message or a payment, asks first, showing exactly what it will do.
-- **`/save`** says the chat's memory capture keeps the progress, and **`/continue`** resumes it.
-- **`/ship`** is for repo changes only; the work finishes in `/apply`.
+A verb works for work that changes no repo file too, such as research or a message: it keeps its stage and drops the git and OpenSpec records, by [the loop's rules](../../.agents/plugins/loop/references/rules.md#verbs-for-any-work).
 
 ### Mini apps
 
@@ -138,23 +104,13 @@ A verb you invoke for work that changes no repo file, such as research, a messag
 
 ## The gate
 
-This page owns delivery; other surfaces link here.
+**The gate is CI when present, else PR review; no local run is the gate.** [The loop's rules](../../.agents/plugins/loop/references/rules.md#the-gate) own the rules every route shares. WongStack adds these:
 
-**The GitHub gate is CI when present, else PR review**: Where checks exist, push and let CI run; the skills wait and fix failures. Where they don't, a human reviews the PR. Either way, **no local run is the gate**; `/apply`'s host preview gates nothing and never reaches production. [Artifacts](../stack/artifacts-route.md) runs them in Cloudflare.
-
-**A finished build is checked on this computer first.** [`checks.mjs --worktree`](../../.github/scripts/checks.mjs) runs CI's checks for the changed files, before the first push and again after publishing brings the default branch in; the build repairs what fails. [The build brief](../../.agents/plugins/loop/skills/apply/references/build-helper.md) reads its last line.
-
-**Every file edit takes the gate**, through a branch and pull request. Plans and archives stay with the verbs. Only code needs a change record; [`/save`](../../.agents/plugins/loop/skills/save/SKILL.md) decides.
-
-**GitHub's ladder is CI-when-present → merge**; a skipped rung is never a failure. The app's suite runs inside CI as an ordinary check, found by an `npm test` script at the repo root **or any immediate subdirectory**; a repo without tests passes, and gets no package manifest.
-
-**A branch that leaves the main app untouched skips its suite**: when every path it changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job, saying so; a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code: changing one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The Test job skips its wiki check when the branch changes no Markdown file and removes or moves none, since no link can break. Passed code skips too ([`already-passed.sh`](../../.github/scripts/already-passed.sh)): a merge identical to a passed branch head, or a push of only docs since a passed commit, named in the summary. Any doubt runs it.
+- **A finished build is checked on this computer first** by [`checks.mjs --worktree`](../../.github/scripts/checks.mjs), which runs CI's checks for the changed files. It is the loop's `precheck`. [Artifacts](../stack/artifacts-route.md) runs CI in Cloudflare.
+- **The app's suite runs inside CI as an ordinary check**, found by an `npm test` script at the repo root **or any immediate subdirectory**; a repo without tests passes, and gets no package manifest.
+- **A branch that leaves the main app untouched skips its suite**: when every path it changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job, saying so; a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code: changing one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The Test job skips its wiki check when the branch changes no Markdown file and removes or moves none, since no link can break. Passed code skips too ([`already-passed.sh`](../../.github/scripts/already-passed.sh)): a merge identical to a passed branch head, or a push of only docs since a passed commit, named in the summary. Any doubt runs it.
 
 [`checks.mjs`](../../.github/scripts/checks.mjs) owns discovery, tests and quality reports on both routes, and on this computer with `--worktree`.
-
-**The GitHub staging walkthrough is no rung either.** `/ship` runs [`/verify`](#verifying-the-app) and merges on the gate whatever the walk says; a walk that cannot run (no credential, budget spent) never blocks. A `FAILURE` gets one fix and one more walk; only a second `FAILURE` stops `/ship` to **ask** you: fix more, or merge anyway.
-
-An **unverifiable** gate is not an absent one: `/save` reports it and goes on; `/ship` stops, never reinterpreting or repeating it.
 
 ### A loosened check needs a reason
 
@@ -170,13 +126,11 @@ Only a proposal the branch adds or edits counts, archived ones included, so an o
 
 ## The change is a living handoff, not just a plan
 
-`/save` keeps three surfaces on the change, so a cold reader inherits the *why*, not just the *what*: the **`**Status:**`** line under the proposal's H1 (`in-progress` | `blocked (<on what>)` | `ready-to-ship` | `parked`), which the `/continue` menu shows; the **append-only** dated **`## Decision log`** at the foot of `proposal.md` — what landed, what was decided or ruled out and why, what blocks it — never rewritten; and **the PR body**, regenerated on every `/save` as a **mirror of the change**, so a forge alone is a full handoff. Reviewers comment instead of editing it.
+`/save` keeps the change's Status line, its append-only Decision log, and the PR body in step, so a cold reader inherits the *why*, not just the *what*: [the loop's rules](../../.agents/plugins/loop/references/rules.md#the-change-is-a-living-handoff-not-just-a-plan) say how.
 
 ## Where the plan and record live
 
-The change folder on the feature branch *is* the plan, and `/continue <name>` finds it from a fresh clone. Its **archive** on the default branch, with the synced `openspec/specs/`, *is* the record; there are no GitHub planning issues.
-
-**The branch and change can have different names.** The folder and the session's facts use the change name; `/save` records the branch in the proposal's `**Branch:**` line. Each verb selects a change by [the selection rungs](../../.agents/plugins/loop/skills/save/references/checkpoint-evidence.md#selection-rungs), and `/ship` moves another change the branch adds to its own branch first.
+The change folder on the feature branch is the plan; its archive on the default branch is the record. There are no GitHub planning issues: [the loop's rules](../../.agents/plugins/loop/references/rules.md#where-the-plan-and-record-live) own it.
 
 ## Spec deltas are optional
 

@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — Each plugin's guide stands on its own
+
+- **The build loop, memory, and Daily carry the rules they follow.** Before, their steps sent the assistant to WongStack's own guide pages, which a project with only the plugin does not have. Now the loop's shared rules are in [its own page](.agents/plugins/loop/references/rules.md), the plan's review page and prototype steps are in [the plan's](.agents/plugins/loop/skills/plan/references/review-page.md) [own pages](.agents/plugins/loop/skills/plan/references/prototypes.md), memory's [who sees what](.agents/plugins/memory/README.md#who-sees-what) and its [fact placing](.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) are in memory, and [your Daily settings](.agents/plugins/daily/daily/README.md#your-settings), add-ons and own jobs are in Daily.
+- **WongStack's guide points down to the plugin.** Each moved heading stays, with a short line and a link, so older links still open.
+- **A WongStack-only page is linked by its full web address**, so it opens from any project. Links that only explained why are gone.
+- **A check keeps it so**: the plugin test fails on a link that leaves the plugin's own folder by a short path ([adding a module](wiki/maintaining/adding-a-module.md#what-it-may-reach)).
+
+**Updating.** Nothing to do by hand.
+
 ## 55.2.1 — The password manager's page fits a phone in a live view
 
 - **On a phone, the password manager's own page narrows to the phone's width**, as a site's page does. The whole sign-in form shows, its right side included ([password manager](.agents/plugins/browser/browser/references/password-manager.md)). Before, the page stayed as wide as the computer's screen, and the view showed only a narrow strip at its left.

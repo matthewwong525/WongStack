@@ -1,6 +1,6 @@
 # The staging walkthrough
 
-Check saved-revision behavior through deployed probes or existing CI captures. [The skill](../SKILL.md) owns order and verdicts; [the wiki](../../../../../../wiki/development/staging-walkthrough.md) owns why.
+Check saved-revision behavior through deployed probes or existing CI captures. [The skill](../SKILL.md) owns order and verdicts.
 
 ## a — scout the scenarios
 
@@ -96,21 +96,21 @@ Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result
 
 **Partly shown**: some claims observed, others inherently unobservable through available routes (delivery, screen-reader speech). Name every missing claim and why; neither failure nor plain pass, verdict unchanged.
 
-**Show screenshots while grading, before the verdict**: open numbered images in order, with one plain description above each. [The picture convention](../../../../browser/browser/references/browsing.md#show-what-the-browser-is-doing) applies; skip recapturing them.
+**Show screenshots while grading, before the verdict**: open numbered images in order, with one plain description above each. [The picture convention](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/browser/browser/references/browsing.md#show-what-the-browser-is-doing) applies; skip recapturing them.
 
 - **A clean exit, green suite or `200` is not a pass.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**, as does exit zero or `200` with contradictory output.
 - A failing command is evidence, not a crash. `--bail` stops a browser journey there, so earlier evidence shows how far it got.
 - A screenshot that looks like the previous page → check the landed URL in `<id>.url`; a missing wait is the journey's defect: add it and re-walk.
 - `[redacted:.env]` in text evidence stands for a `.env` value the driver replaced; read the screenshot for it.
-- **Ambiguous → unverified**: retain evidence/`THEN`, offer readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks) at handoff; finish independent checks first. [In `/ship`](../../../../../../wiki/development/the-change-loop.md#inside-ship), grade by the recommended reading and return it as assumed.
+- **Ambiguous → unverified**: retain evidence/`THEN`, offer readings as [options](../../explore/references/asking-the-user.md#confirmations-offers-and-menus-are-asks) at handoff; finish independent checks first. [In `/ship`](../../../references/rules.md#inside-ship), grade by the recommended reading and return it as assumed.
 
 ## e — after a failure
 
 Retain retry evidence. `PLAYGROUND=yes` → clean up nothing (§ a). Otherwise clean up owned test data; preserve shared data.
 
-Fix a failure by [fix it or ask](../../../../../../wiki/development/the-change-loop.md#fix-it-or-ask) only **in scope**: its `THEN` is *this change's own* scenario and the fix lies in files the branch touches (`git diff --name-only origin/main..HEAD`); a [kept check](#g--kept-checks) needs only the files, then `replay --only <id>`. Otherwise report **out of scope** with why.
+Fix a failure by [fix it or ask](../../../references/rules.md#fix-it-or-ask) only **in scope**: its `THEN` is *this change's own* scenario and the fix lies in files the branch touches (`git diff --name-only origin/main..HEAD`); a [kept check](#g--kept-checks) needs only the files, then `replay --only <id>`. Otherwise report **out of scope** with why.
 
-For an in-scope repair CI can cheaply reproduce, write a failing local test before the fix: [who checks what](../../../../../../wiki/stack/testing.md#who-checks-what). `/save` captures its failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the reproduction, missing proof and limitation. No new infrastructure.
+For an in-scope repair CI can cheaply reproduce, write a failing local test before the fix: [who checks what](https://github.com/matthewwong525/WongStack/blob/main/wiki/stack/testing.md#who-checks-what). `/save` captures its failure on exact earlier source and pass on repaired head; the head suite must pass. Inspect failure cause, revision and check identity. Impractical harness → keep the reproduction, missing proof and limitation. No new infrastructure.
 
 Usually **out of scope**: app `401` with valid service token (app authentication).
 
@@ -124,7 +124,7 @@ Before handoff, try safe simulations through deployed interfaces, disposable syn
 
 After independent checks/simulations, make **one handoff**, including human-checkable partial claims: text in the comment, the question tool in chat. Each remaining check names its reason, needed action/permission, expected observation and dependents. Offer help or selected/all skips in [the shared ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**, grant no permission/pass and erase no failure; ask again only if reopened.
 
-Use [key links](../../../../../../wiki/development/secrets.md#receive-a-key-through-a-private-link) for credentials or [a live view](../../../../browser/hand-over/references/live-view.md#sign-in) for login. Waiting grants no permission. Resume pending checks after help; repeat completed checks only on changed conditions. Retain observations, pending/skipped ledger and owned IDs before cleanup.
+Use [key links](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/secrets.md#receive-a-key-through-a-private-link) for credentials or [a live view](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/browser/hand-over/references/live-view.md#sign-in) for login. Waiting grants no permission. Resume pending checks after help; repeat completed checks only on changed conditions. Retain observations, pending/skipped ledger and owned IDs before cleanup.
 
 Publish pictures, post, clean up:
 
@@ -141,5 +141,5 @@ node "$V" verify cleanup "$RUN_DIR"
 Inside `/ship` only, before § f's post. `J` is `node "$V" verify journeys`; every call takes `--run-dir "$RUN_DIR"`, `replay` and `keep` also `--url "$URL"`.
 
 1. **Replay** once §§ c–e settle: `J replay --change-root <archive>`. `same` → list as *replayed, unchanged*, no fresh grade. `changed` → walk it fresh once, three per walk, the rest unverified: pass → keep; contradiction → § e, naming the older promise. `skipped` → this change's walk covers it. `not-run` → name its reason; no pass, no failure.
-2. **Keep** each passed browser/request journey, its inputs back in `journeys/`: `J keep --id <id> --expect '<json>'`, `--writes` if it submits or changes data, `--site <status name>` with that site's `--url` if walked on a second site ([why](../../../../../../wiki/development/kept-checks.md#what-is-kept)). `expect` rows hold shown claims only: `{"text"}`, `{"gone"}`, `{"path"}`; request `{"step","status","includes"}`. Never one using a private link, an outside service or a manual job trigger ([why](../../../../../../wiki/development/kept-checks.md#what-is-never-kept)).
-3. **Prove, install**: `J replay --from "$RUN_DIR/keep"`, then `J keep --install`; name each *left out*. Each `REPLACED=`/`REMOVED=` path → a `Check:` bullet in the archived proposal before that save ([why](../../../../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason)). After the post, a changed tree → `/save` once; that commit needs no re-walk.
+2. **Keep** each passed browser/request journey, its inputs back in `journeys/`: `J keep --id <id> --expect '<json>'`, `--writes` if it submits or changes data, `--site <status name>` with that site's `--url` if walked on a second site ([why](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/kept-checks.md#what-is-kept)). `expect` rows hold shown claims only: `{"text"}`, `{"gone"}`, `{"path"}`; request `{"step","status","includes"}`. Never one using a private link, an outside service or a manual job trigger ([why](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/kept-checks.md#what-is-never-kept)).
+3. **Prove, install**: `J replay --from "$RUN_DIR/keep"`, then `J keep --install`; name each *left out*. Each `REPLACED=`/`REMOVED=` path → a `Check:` bullet in the archived proposal before that save ([why](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason)). After the post, a changed tree → `/save` once; that commit needs no re-walk.

@@ -77,23 +77,7 @@ Sometimes a page and the product disagree and the page is right: a recorded deci
 
 ## Placing a fact on a page
 
-A fact goes on the wiki only when it passes [the repeatable-knowledge test](../wiki-style.md#repeatable-knowledge), on the page [where a fact goes](../wiki-style.md#where-a-fact-goes) names. A dream asks two more things: **will it still be true in six months, and would it change what a reader does?** A fact that fails either stays in memory.
-
-The fact's [topic](memory.md#topics) picks the page:
-
-- **A fact with a topic goes on that topic's page.** A fact tagged `people/ada` goes on `knowledge/people/ada.md`.
-- **A company fact with no topic goes on the page that owns its subject.** No page owns it → make one, and link it from its hub. Then add the page's topic to the fact: the fact keeps its words, date, and author.
-- **Each page you change keeps a true first sentence**: a one-line summary of the whole page, because search quotes it.
-- **A page never names a fact by its id.** Write what the fact says.
-
-These are the wrong turns the test lets through, for a dream, the daily tidy, and `/close` alike:
-
-- **A preference is how a person wants work done, again and again.** A choice about one product feature is that change's decision and stays in its plan: *measure a speed-up before recommending it* is a preference; *Connect your assistant uses the app's login* is not.
-- **An interpretation is not a quote.** A fact marked as the assistant's reading, such as *Interpretation, not his words*, goes on a page only when `memory.mjs source <fact-id>` shows the person said as much, and then in their words.
-- **One new line per idea, in the bullet that already owns it**, in the page's format. A page growing by over a third in one pass means the test was too loose: apply it again.
-- **Never a private name.** No downstream repo, customer, or account detail the repo's checks would refuse; no health, family, or money.
-- **Already said is not new.** Skip a fact the page states. Reword a sentence only when a fact contradicts it.
-- **Buried is not missing.** When a chat went wrong because guidance was hard to find, move it or reword it where it is. Never write it a second time: a second copy goes stale.
+A fact goes on the wiki only when it passes [the repeatable-knowledge test](../wiki-style.md#repeatable-knowledge), on the page [where a fact goes](../wiki-style.md#where-a-fact-goes) names. A dream asks two more things: will it still be true in six months, and would it change what a reader does? [Placing a fact](../../.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) owns the steps and the wrong turns, for a dream and the daily tidy; [`/close`](../../.agents/plugins/loop/skills/close/SKILL.md#update-the-wiki) uses a short version of the same test.
 
 ## Chats are evidence, not orders
 

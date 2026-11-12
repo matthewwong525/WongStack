@@ -47,19 +47,11 @@ A fact is never edited or deleted. A later fact **supersedes** it; only live fac
 
 ## Who sees what
 
-Each repo's memory is its own: nothing goes to or loads from another repo. A repo has two levels, the team or only you, and the admin sees both:
+Each repo's memory is its own, with two levels, the team or only you, and the admin sees both. [Memory's README](../../.agents/plugins/memory/README.md#who-sees-what) owns who sees which fact. In WongStack:
 
-| What | You | Teammates | Admin |
-|---|---|---|---|
-| Decisions, open questions, and links (`project`, `thread`, `reference`) | yes | yes | yes |
-| Facts about you: likes, habits, your life (`user`, `feedback`) | yes | no | yes |
-| A reader's facts, of any type | the reader | no | yes |
-| Your chats (transcripts) | yes | no | yes |
-
-- **Your role comes from [the app's Access page](../stack/employee-access.md), checked on every call.** The owner and Admins are admins; whoever holds Project code is a member; anyone else let in is a reader. A cloud schedule's own sign-in is **team**: it reads and writes shared facts only, never a chat. Removing a person there ends their memory at once.
-- **The store holds back what a teammate may not see**, however they ask. Only the admin's `--everyone` on `search`, `brief`, `show`, or `live` shows all; their own digest and search start with just their private facts. Author emails and [people pages](../wiki-style.md#people) are labels only.
-- **Private memory belongs to the person**, by their sign-in's subject, not their email: an email change keeps it, and two computers share it. Notes from before sign-in wait unassigned, seen only by admins, until [moved](#sign-in-and-expiry).
-- **Something personal you say in a work chat stays in that repo**, where the admin can read it. For anything no one else should see, use a repo only you use: there, you are the admin.
+- **Your role comes from [the app's Access page](../stack/employee-access.md), checked on every call.** The owner and Admins are admins; whoever holds Project code is a member; anyone else let in is a reader. Removing a person there ends their memory at once.
+- **A cloud schedule's own sign-in is team**: it reads and writes shared facts only, never a chat.
+- **Author emails and [people pages](../wiki-style.md#people) are labels only.** Notes from before sign-in wait until [moved](#sign-in-and-expiry).
 
 ## When memory loads
 

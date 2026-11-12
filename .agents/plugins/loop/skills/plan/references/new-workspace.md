@@ -1,6 +1,6 @@
 # Open a part in a new workspace
 
-Each part of a request after the first gets its own [Paseo](https://paseo.sh) workspace and agent; this chat keeps the first. So does [a new task](#new-task-in-this-chat). [The change loop](../../../../../../wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule.
+Each part of a request after the first gets its own [Paseo](https://paseo.sh) workspace and agent ([why](../../../references/rules.md#several-parts-several-workspaces)); this chat keeps the first. So does [a new task](#new-task-in-this-chat).
 
 ## What counts as a part
 
@@ -50,7 +50,7 @@ When [the check for other work](../../explore/SKILL.md#check-for-other-work) fin
 
 On option 2, name the workspace to open in Paseo, or the pull request's link, and stop, drafting nothing here.
 
-Check `command -v paseo` first. Without it, drop option 1 from the first two lists and say in one line that new workspaces need Paseo; the busy-workspace ask keeps one option plus the person's own answer. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../../../memory/SKILL.md#write).
+Check `command -v paseo` first. Without it, drop option 1 from the first two lists and say in one line that new workspaces need Paseo; the busy-workspace ask keeps one option plus the person's own answer. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/memory/SKILL.md#write).
 
 ## New task in this chat
 

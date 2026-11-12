@@ -6,9 +6,9 @@ user-invocable: true
 
 # /continue
 
-Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth** ([where it lives](../../../../../wiki/development/the-change-loop.md#where-the-plan-and-record-live)); its memory facts hold the session context.
+Resume a saved OpenSpec change in a fresh session. **The change is the plan and the source of truth** ([where it lives](../../references/rules.md#where-the-plan-and-record-live)); its memory facts hold the session context.
 
-Check [preconditions](../save/references/preconditions.md). This skill owns checkout; `gh` resolves only GitHub; [Artifacts](../../../../../wiki/stack/artifacts-route.md) lists saved branches.
+Check [preconditions](../save/references/preconditions.md). This skill owns checkout; `gh` resolves only GitHub; [Artifacts](https://github.com/matthewwong525/WongStack/blob/main/wiki/stack/artifacts-route.md) lists saved branches.
 
 A handle names the work ([the rungs](../save/references/checkpoint-evidence.md#selection-rungs)): a change name is that change; a PR is the one active change its head branch carries.
 
@@ -22,7 +22,7 @@ A handle names the work ([the rungs](../save/references/checkpoint-evidence.md#s
 
 - **First token**: the handle — a change name, PR number, or PR URL.
 - **The rest**: an explicit instruction that overrides "work the tasks" in step 4, e.g. `/continue add-auth fix the failing test`.
-- **No handle** → run `openspec list`, and, with `.claude/skills/memory/`, list open non-code threads with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread --state conversation --limit 10`. Offer both in [an ordinary ask](../explore/references/asking-the-user.md), recommending what the branch or latest checkpoint points at: each change's name, task progress, and `Status:` line ([its values](../../../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan)); each thread's slug, age, and next step. Don't guess.
+- **No handle** → run `openspec list`, and, with `.claude/skills/memory/`, list open non-code threads with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread --state conversation --limit 10`. Offer both in [an ordinary ask](../explore/references/asking-the-user.md), recommending what the branch or latest checkpoint points at: each change's name, task progress, and `Status:` line ([its values](../../references/rules.md#the-change-is-a-living-handoff-not-just-a-plan)); each thread's slug, age, and next step. Don't guess.
 - **A non-code thread** (picked, or a handle naming a topic slug with open threads and no change) → no branch or change. Run `memory.mjs pull <slug>`, recap what is done and next, and hand the rest to `/apply` as its to-do. Skip steps 2–4.
 
 ### 2. Resolve the change and the branch
@@ -55,7 +55,7 @@ Recap the loaded state:
 
 - **The change**: 2–4 lines on the work and task progress, its `Status:` line, and any open questions.
 - **The journey**: the last 1–3 `## Decision log` entries: the *why*.
-- **The session context**: open threads first, then live facts the change lacks, with ages. No facts → skip the line; say so when [the store is unreachable](../../../memory/SKILL.md#read).
+- **The session context**: open threads first, then live facts the change lacks, with ages. No facts → skip the line; say so when [the store is unreachable](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/memory/SKILL.md#read).
 - **State**: the checked-out branch, and the PR as *the change on GitHub* ([plain words](../explore/references/asking-the-user.md#write-in-plain-words)).
 - **Drift check**: **counts only**; never reload the PR diff or review threads unless asked:
   ```bash

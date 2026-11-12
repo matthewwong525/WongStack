@@ -25,21 +25,7 @@ On a screen 900 px or wider, every part and the bar's buttons share one width, w
 
 ## A card shows the closest real result
 
-A card shows what the go makes, as close to the real thing as you can make it. A person who sees the real result decides once; a person who sees a sketch decides twice, before and after the build. Pick the card's content by the job:
-
-| Job | The card shows |
-|---|---|
-| A plan that adds or changes a screen | *Before*, a picture of today's screen; *After*, one picture per state from [the prototype](prototypes.md); and a *Try it* link when it is online |
-| A website this app doesn't run, such as a shop's pages | a [live card](#the-live-card) of [its prototype](#a-website-prototype) as its *After* picture, with no second picture of the same sample |
-| A screen, or a part of one, that no prototype or [screen test](prototypes.md#an-app-the-preview-cant-serve) can draw | a `screen` sketch, and a line `No real picture: <the step or part>` ([when every way fails](prototypes.md#when-every-way-fails)) |
-| A flow, states, or a back-and-forth | a `mermaid` picture |
-| A finished build | *Approved* and *Built*, or *Live now* and *Preview*, side by side |
-| Ads | an [`ad` card](#the-ad-card) per ad, side by side |
-| A whole designed page, such as an email | a [page card](#the-page-card), one picture a version |
-| Words to send, such as an email or a post | the real words, as the card's text |
-| Rows of data | a Markdown table |
-
-[The drawing guide](../.agents/plugins/loop/skills/plan/references/drawings.md) says how to write each fence.
+A card shows what the go makes, as close to the real thing as you can make it. A person who sees the real result decides once; a person who sees a sketch decides twice, before and after the build. [The plan's review page rules](../.agents/plugins/loop/skills/plan/references/review-page.md#a-card-shows-the-closest-real-result) say what a plan's card shows, and [the drawing guide](../.agents/plugins/loop/skills/plan/references/drawings.md) how to write each fence: an `ad`, a `page`, a table, or the real words to send. A finished build shows *Approved* and *Built*, or *Live now* and *Preview*, side by side.
 
 ## The card view
 
@@ -57,13 +43,7 @@ A plan that adds or changes a screen makes a throwaway copy of the app, changes 
 
 ## A website prototype
 
-A plan for a website this app doesn't run, such as a shop's theme or a landing page, makes the site's real files while it plans and shows them in [a live card](#the-live-card). Screens inside the app keep [the prototype](#the-prototype) above.
-
-1. Write the site in `openspec/changes/<change>/prototypes/<site>/`, with `index.html` first. Copy each font and picture into the folder: the card loads nothing from the web.
-2. Show it in the bullet's `live` fence, with `folder: prototypes/<site>`.
-3. Notes on the plan change the same files; rebuild the page.
-4. On the go, [the build](../.agents/plugins/loop/skills/apply/references/build-helper.md) starts from those approved files, not from a new start.
-5. After the build, take pictures of the approved card and the built page at 390 and 1280 px wide, and pass each pair to `preview-review.mjs --approved`, so the check shows *Approved* beside *Built*.
+A plan for a website this app doesn't run, such as a shop's theme or a landing page, makes the site's real files while it plans and shows them in [a live card](#the-live-card). [The plan's review page rules](../.agents/plugins/loop/skills/plan/references/review-page.md#a-website-prototype) own the steps. Screens inside the app keep [the prototype](#the-prototype) above.
 
 ## The live card
 
@@ -101,23 +81,11 @@ file: Logo | image, pdf | 2
 
 ## What the build needs
 
-Every plan lists what its build needs from you, so a build never stops halfway to ask. Write it as `## What the build needs`, after What Changes, one bullet a thing:
+Every plan lists what its build needs from you, so a build never stops halfway to ask. [The plan's review page rules](../.agents/plugins/loop/skills/plan/references/review-page.md#what-the-build-needs) own how a plan writes it. In WongStack:
 
-````markdown
-## What the build needs
-
-- **Shopify key**: Ready, `SHOPIFY_TOKEN` is in `.env`.
-- **Your logo**: Needs you.
-  ```form
-  file: Logo | image | 1
-  ```
-- **Meta ads key**: Needs you. Get it: <https://key.example.dev/k>
-````
-
-- **Check each thing before you mark it.** A business service's key: `node scripts/company-api.mjs services`, then the computer's own `.env` ([secrets](development/secrets.md)). A website sign-in: open the site with `browse.mjs` and read whether it is signed in ([saved browser logins](../.agents/plugins/browser/browser/references/browsing.md#saved-browser-logins)). A thing that is there is *Ready*.
-- **A *Needs you* item holds its file question or its link**: a [`form` fence](#files), or one `https` link, such as a key's [private link](development/secrets.md#receive-a-key-through-a-private-link), which the page shows as *Open the link*. A plan that needs nothing has one bullet, `- **Nothing.**`
+- **A business service's key** is checked by `node scripts/company-api.mjs services`, then the computer's own `.env` ([secrets](development/secrets.md)). A website sign-in is checked by opening the site with `browse.mjs` ([saved browser logins](../.agents/plugins/browser/browser/references/browsing.md#saved-browser-logins)).
+- **A key goes through [its private link](development/secrets.md#receive-a-key-through-a-private-link)**, which the page shows as *Open the link*.
 - **The bar waits for it.** An item counts as open until you send its files on the page. While any item is open, each button but *Send notes* reads *2 things need you*, and a tap shows the first open item. A key saved on its private link turns *Ready* when the chat builds the page again.
-- **A need still open stops the build**, which says what is missing.
 
 ## OK and Note
 

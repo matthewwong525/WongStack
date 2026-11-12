@@ -18,9 +18,9 @@ Read `git status --porcelain`, `git log origin/main..HEAD`, `gh pr view --json s
 
 ## Update the wiki
 
-Read this chat for what it learned; [place the repeatable facts](../../../../../wiki/development/wiki-dream.md#placing-a-fact-on-a-page). Memory and its daily tidy keep the rest.
+Read this chat for what it learned. Write only a fact that helps a later, different task and stays true: one line on the page that owns it, never a second copy or a private detail. Memory and its daily tidy keep the rest.
 
-[Save](../../../../../wiki/stack/company-knowledge.md#save-a-page) `knowledge/` pages at once; report the undo line. Publish other edits alone. After a merge, first `git fetch origin main`, `git switch -c "$BRANCH-wiki" origin/main`, and `git branch -D "$BRANCH"`. Then invoke `/ship`, minus its closing step. No edit → report `no repeatable fact`.
+[Save](https://github.com/matthewwong525/WongStack/blob/main/wiki/stack/company-knowledge.md#save-a-page) `knowledge/` pages at once; report the undo line. Publish other edits alone. After a merge, first `git fetch origin main`, `git switch -c "$BRANCH-wiki" origin/main`, and `git branch -D "$BRANCH"`. Then invoke `/ship`, minus its closing step. No edit → report `no repeatable fact`.
 
 ## 2. Close
 

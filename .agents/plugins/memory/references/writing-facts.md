@@ -4,7 +4,7 @@ A fact is the least a cold reader needs to act as this session would: one or two
 
 ## Keep
 
-- **What the user stated**: facts, constraints, preferences, corrections. Type `user` (who they are, private life included) or `feedback` (how they want work done). [Teammates never see these](../../../../wiki/development/memory.md#who-sees-what); the admin can.
+- **What the user stated**: facts, constraints, preferences, corrections. Type `user` (who they are, private life included) or `feedback` (how they want work done). [Teammates never see these](../README.md#who-sees-what); the admin can.
 - **Decisions with their reason**, and ruled-out options with theirs: *Rejected a Worker in front of the store: one more service to keep alive.* Type `project`.
 - **Specifics**: names, repo-relative paths, numbers, versions, error strings. Tag every topic it touches, not only the main one: code areas (`memory.mjs pull <path>` names them) and company pages (`people/ada`).
 - **Pointers** to dashboards, tickets, external docs. Type `reference`.

@@ -6,7 +6,7 @@ user-invocable: true
 
 # /schedule
 
-Use a script on a clock for exports, payment checks and narrow model calls; code goes through the [change loop](../../../../wiki/development/the-change-loop.md). A schedule is for work that needs judgment.
+Use a script on a clock for exports, payment checks and narrow model calls; code goes through the [change loop](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/the-change-loop.md). A schedule is for work that needs judgment.
 
 Use `node .claude/skills/schedule/scripts/schedule.mjs` (`--help`); `store` names the store: the profile's `schedules` part (the company app in WongStack), else Paseo, else off: then say what it needs and, for a script, give its `crontab` line; edit no timer. Make or change one by [registration](references/registration.md). `list` and `inspect` read; `pause`, `resume`, `run`, `cancel` and `end` change. Report only what it confirms.
 

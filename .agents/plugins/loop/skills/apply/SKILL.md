@@ -6,9 +6,9 @@ user-invocable: true
 
 # /apply
 
-Build [the chosen plan](../../../../../wiki/development/the-change-loop.md). Run `node .claude/plugins/loop/scripts/slot.mjs stepTitle set APPLY --task "<plan or to-do title>"` before a build, to-do, or preview.
+Build [the chosen plan](../../references/rules.md). Run `node .claude/plugins/loop/scripts/slot.mjs stepTitle set APPLY --task "<plan or to-do title>"` before a build, to-do, or preview.
 
-**No repo file** → [work the to-do](#work-that-changes-no-repo-file). Repo code or process, [mini apps](../../../../../wiki/stack/mini-apps.md) included → resolve the plan.
+**No repo file** → [work the to-do](#work-that-changes-no-repo-file). Repo code or process, [mini apps](https://github.com/matthewwong525/WongStack/blob/main/wiki/stack/mini-apps.md) included → resolve the plan.
 
 ## Resolve the plan first
 
@@ -35,7 +35,7 @@ A `.scratch/<name>-prototype` copy → first run `node .claude/skills/plan/scrip
 
 Act on reports:
 
-- **A question** → ask the person in [the shared ask format](../explore/references/asking-the-user.md), log the answer as an `Asked` [Decision-log line](../plan/SKILL.md#explore-first), then start a new helper. Inside `/ship`, a [safe pick](../../../../../wiki/development/the-change-loop.md#inside-ship) is logged `Assumed`, not asked.
+- **A question** → ask the person in [the shared ask format](../explore/references/asking-the-user.md), log the answer as an `Asked` [Decision-log line](../plan/SKILL.md#explore-first), then start a new helper. Inside `/ship`, a [safe pick](../../references/rules.md#inside-ship) is logged `Assumed`, not asked.
 - **A blocker** → report it and stop, ending with [the ways to clear it](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step).
 - **Final acceptance** → once the build and its tests are written, run `/save` and the retained live acceptance. Tick only what you saw pass; a blocked or failed check stays unticked and stops.
 - **All done** → confirm no unticked box, relay its `local checks:` line, then handle **all-tasks-complete** above.
@@ -44,12 +44,12 @@ No helper, or inside one → follow the brief inline.
 
 ## A second look
 
-Start a fresh helper as above, prompted with the change name, then *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/review-helper.md`, then review*. Route [its findings](references/review-helper.md) by [fix it or ask](../../../../../wiki/development/the-change-loop.md#fix-it-or-ask): `fix` → a new build helper, which may dispute one with a reason, then the reviewer rereads; two rounds at most. The rest → one question, as above. No helper → say no review ran.
+Start a fresh helper as above, prompted with the change name, then *read `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/review-helper.md`, then review*. Route [its findings](references/review-helper.md) by [fix it or ask](../../references/rules.md#fix-it-or-ask): `fix` → a new build helper, which may dispute one with a reason, then the reviewer rereads; two rounds at most. The rest → one question, as above. No helper → say no review ran.
 
 ## Finish with a preview
 
-1. **Run CI's guards**, `node "$(git rev-parse --show-toplevel)/.claude/plugins/loop/scripts/slot.mjs" guards`. `untouched=true` → skip the upload, in one line. Fix each file marked *needs a reason*: switch the check back on, or add [the `Check:` bullet](../../../../../wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) when the plan settles it, else ask. Rerun until it exits 0.
-2. **Upload the preview** from this host, `node "$(git rev-parse --show-toplevel)/.claude/plugins/loop/scripts/slot.mjs" --run preview --alias "<change-name>"`, with the credential from the primary worktree's `.env` ([secrets](../../../../../wiki/development/secrets.md)). Empty or can't run (no credential) → say why in one line.
+1. **Run CI's guards**, `node "$(git rev-parse --show-toplevel)/.claude/plugins/loop/scripts/slot.mjs" guards`. `untouched=true` → skip the upload, in one line. Fix each file marked *needs a reason*: switch the check back on, or add [the `Check:` bullet](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/the-change-loop.md#a-loosened-check-needs-a-reason) when the plan settles it, else ask. Rerun until it exits 0.
+2. **Upload the preview** from this host, `node "$(git rev-parse --show-toplevel)/.claude/plugins/loop/scripts/slot.mjs" --run preview --alias "<change-name>"`, with the credential from the primary worktree's `.env` ([secrets](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/secrets.md)). Empty or can't run (no credential) → say why in one line.
 3. **Show changed screens on a preview page**: capture each live and in this preview by [`/verify`'s plain checks](../verify/SKILL.md#plain-checks) at phone width (computer too if it differs), no `--full-page`, scout, save, or PR comment. Run `node "$(git rev-parse --show-toplevel)/.claude/skills/apply/scripts/preview-review.mjs" "<change-name>" --pair "<title>|<live>|<preview>" --link` (no live one for a new screen; `--approved` with the plan's *After*, or its live card at 390 and 1280 px, in place of live); report its link. None to show, or a capture fails → say why; keep the link and the choice.
 4. **Report and ask** in [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what was built, what the review found and fixed, any can't-be-undone line, [the preview link](../explore/references/asking-the-user.md#print-the-previews-link), each `Check:` bullet under *Checks loosened* (what is no longer checked, why), and unfixed files. Ask [the next step](../explore/references/asking-the-user.md#end-every-reply-with-the-next-step) with the question tool: publish it *(Recommended)* via [`/ship`](../ship/SKILL.md), change it more, or save via [`/save`](../save/SKILL.md).
 
@@ -57,9 +57,9 @@ Repeat under the same alias for more edits; added tasks go to a new helper.
 
 ## Work that changes no repo file
 
-Work the conversation's numbered to-do in order, writing one if missing ([verbs for any work](../../../../../wiki/development/the-change-loop.md#verbs-for-any-work)). Only an outward step asks, showing exactly what it will do (recipient, full text, amount, target) in [the shared ask format](../explore/references/asking-the-user.md): one confirmation, one action, unless the person asked for a batch. Skip and report a declined step. Report without `/save`. Done → `slot.mjs stepTitle set DONE`.
+Work the conversation's numbered to-do in order, writing one if missing ([verbs for any work](../../references/rules.md#verbs-for-any-work)). Only an outward step asks, showing exactly what it will do (recipient, full text, amount, target) in [the shared ask format](../explore/references/asking-the-user.md): one confirmation, one action, unless the person asked for a batch. Skip and report a declined step. Report without `/save`. Done → `slot.mjs stepTitle set DONE`.
 
 ## Boundaries
 
-- **Git stays with `/save`**, on [either route](../../../../../wiki/stack/artifacts-route.md); the preview upload is not git and gates nothing.
-- **Never save to stop or between parts** ([why](../../../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)), but for final acceptance.
+- **Git stays with `/save`**, on either route; the preview upload is not git and gates nothing.
+- **Never save to stop or between parts** ([why](../../references/rules.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)), but for final acceptance.

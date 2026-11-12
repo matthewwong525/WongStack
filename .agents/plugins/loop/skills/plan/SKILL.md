@@ -8,9 +8,9 @@ user-invocable: true
 
 Create an apply-ready OpenSpec change and its `review.html` page. First run `node .claude/plugins/loop/scripts/slot.mjs stepTitle set PLAN --task "<the work>"`.
 
-**Change only plans and wiki pages**, and save a schedule to the app [after an OK](../../../daily/schedule/SKILL.md); code waits for the person's go ([limits](../../../../../wiki/development/the-change-loop.md#what-each-step-may-change)).
+**Change only plans and wiki pages**, and save a schedule to the app [after an OK](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/daily/schedule/SKILL.md); code waits for the person's go ([limits](../../references/rules.md#what-each-step-may-change)).
 
-**Work that changes no repo file** gets no change, page, or file: after the bounded `/explore` pass, write a short numbered to-do in chat, marking each step that acts outside it `(outward)` ([verbs for any work](../../../../../wiki/development/the-change-loop.md#verbs-for-any-work)).
+**Work that changes no repo file** gets no change, page, or file: after the bounded `/explore` pass, write a short numbered to-do in chat, marking each step that acts outside it `(outward)` ([verbs for any work](../../references/rules.md#verbs-for-any-work)).
 
 ## Explore first
 
@@ -22,13 +22,13 @@ New workspaces chosen → [open one per other part](references/new-workspace.md)
 
 Write every artifact in the planning set by [the CLI contract](references/openspec-cli.md#create-or-read-a-change), in the selected root or store. Complete in place an incomplete change `/apply` selected; a block goes back to `/apply`, unbuilt.
 
-Before tasks, weigh deterministic code for a repeated process ([the principles](../../../../../wiki/agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai)); raise it in the exit round if it changes scope. Testable behavior, not prose, gets test authoring beside source tasks.
+Before tasks, weigh a script, not AI, for a repeated process; raise it in the exit round if it changes scope. Testable behavior, not prose, gets test authoring beside source tasks.
 
 Why and What Changes use [plain words](../explore/references/asking-the-user.md#write-in-plain-words): what the person will see or do. Deleting/reshaping data, sending a message, or removing a key gets one line: it can't be undone; otherwise none. Put file names, code and commands in design/specs/tasks, hidden on the page. Capabilities and Impact may be technical.
 
 ## Draw in the proposal, then build the page
 
-Draw as you write, with no second agent: by default one fence in each What Changes bullet, by [the drawing guide](references/drawings.md). A card shows [the closest real result](../../../../../wiki/review-pages.md#a-card-shows-the-closest-real-result): a screen change gets [a prototype](../../../../../wiki/prototypes.md) with sample data, by browser or [screen test](../../../../../wiki/prototypes.md#an-app-the-preview-cant-serve), a site this app doesn't run [a live one](../../../../../wiki/review-pages.md#a-website-prototype); notes update it too. Every plan lists [what the build needs](../../../../../wiki/review-pages.md#what-the-build-needs), its answers [asked in the chat](../explore/references/asking-the-user.md#choices-go-in-the-chat).
+Draw as you write, with no second agent: by default one fence in each What Changes bullet, by [the drawing guide](references/drawings.md). A card shows [the closest real result](references/review-page.md#a-card-shows-the-closest-real-result), notes included. Every plan lists [what the build needs](references/review-page.md#what-the-build-needs), its answers [asked in the chat](../explore/references/asking-the-user.md#choices-go-in-the-chat).
 
 Build the page after drafting and each edit:
 
@@ -38,7 +38,7 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.
 
 Copy its status, plan copy, link, and review lines as printed; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the last goes. Fix warned drawings. Keep no other copy of the proposal's text.
 
-A change that adds or restructures a screen gets [a `## UX` design section](../../../../../wiki/ux-principles.md#the--ux-section-in-designmd).
+A change that adds or restructures a screen gets [a `## UX` design section](references/drawings.md#the--ux-section-in-designmd).
 
 ## Review notes
 
@@ -50,6 +50,6 @@ A change that adds or restructures a screen gets [a `## UX` design section](../.
 
 ## Finish
 
-Lay out tasks so the build is written before it is checked ([why](../../../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)): group source and test authoring by surface, and put required checks in one final phase, not per-part `/save` tasks. A substantive deployed acceptance task names `/save` after implementation.
+Lay out tasks so the build is written before it is checked ([why](../../references/rules.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)): group source and test authoring by surface, and put required checks in one final phase, not per-part `/save` tasks. A substantive deployed acceptance task names `/save` after implementation.
 
 Run `slot.mjs stepTitle set PLAN --task "<proposal title>"`. Validate with `openspec validate "<name>" --strict --no-interactive`; confirm the review page and every apply-required artifact are complete. Standalone, end on [the plan's copy, link, and review line](../explore/references/asking-the-user.md#print-the-plans-link), asking nothing. Invoked by `/apply`, return the exact change name to it.
