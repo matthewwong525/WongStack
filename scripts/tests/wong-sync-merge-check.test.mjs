@@ -29,7 +29,7 @@ const baseRules = 'head\n<!-- WONG-STACK:BEGIN -->\n- rule one\n<!-- WONG-STACK:
 const latestRules = 'head\nupstream prose outside the block\n<!-- WONG-STACK:BEGIN -->\n- rule one\n- rule two\n<!-- WONG-STACK:END -->\nfoot\n';
 
 // A source with a base and a latest commit, and a target whose two units are locally adapted.
-function fixture(t, { page, rules, inventoryAtBase = true, latest = latestPage, inventory = manifest }) {
+function fixture(t, { page, rules, inventoryAtBase = true, latest = latestPage, inventory = manifest, baseInventory = inventory, base: basePageText = basePage }) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-merge-check-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const source = join(root, 'source');
@@ -39,8 +39,8 @@ function fixture(t, { page, rules, inventoryAtBase = true, latest = latestPage, 
   git(source, 'init', '-b', 'main');
   git(source, 'config', 'user.email', 'fixture@example.test');
   git(source, 'config', 'user.name', 'Fixture');
-  if (inventoryAtBase) write(source, '.agents/skills/wong-sync/references/payload-files.json', JSON.stringify(inventory));
-  write(source, 'wiki/page.md', basePage);
+  if (inventoryAtBase) write(source, '.agents/skills/wong-sync/references/payload-files.json', JSON.stringify(baseInventory));
+  write(source, 'wiki/page.md', basePageText);
   write(source, 'CLAUDE.md', baseRules);
   git(source, 'add', '.');
   git(source, 'commit', '-m', 'base');
@@ -103,4 +103,19 @@ test('an added link into a module folder is compared in its install form', t => 
   const { status, report } = fixture(t, { page, rules: mergedRules, latest, inventory }).run();
   assert.equal(status, 0, JSON.stringify(report));
   assert.equal(report.status, 'clean');
+});
+
+test('an edited page naming a module command, unchanged in source, misses the renamed line a new file pair writes', t => {
+  const daily = { '.claude/plugins/daily': '.claude/skills/daily' };
+  const baseInventory = { core: { ...manifest.core, mapped: daily } };
+  const inventory = { core: { ...manifest.core, mapped: { ...daily, '.claude/plugins/daily/skills/schedule/SKILL.md': '.claude/skills/schedule/SKILL.md' } } };
+  const page = `${basePage}\nType /daily:schedule to plan.\n`;
+  const edited = page.replace('Intro.', 'Intro, in our own words.');
+  const { status, report } = fixture(t, { page: edited, rules: mergedRules, base: page, latest: page, inventory, baseInventory }).run();
+  assert.equal(status, 1, JSON.stringify(report));
+  assert.deepEqual(report.files, [{
+    targetPath: 'wiki/page.md',
+    sourcePath: 'wiki/page.md',
+    missing: [{ sourceLines: '9', count: 1, first: 'Type /schedule to plan.' }],
+  }]);
 });

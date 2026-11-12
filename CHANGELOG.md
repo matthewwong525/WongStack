@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 60.0.0 — /schedule works in every chat again
+
+- **`/schedule` loads in every chat again, as it did before 57.0.0.** Since 57.0.0 it was `/daily:schedule`, and Claude Code loaded it only in a folder you trusted. In a new Paseo workspace it was missing, so *make a schedule* could open Claude Code's own cloud schedules, not yours. Now each update gives the command its own place in your skills folder, beside `/plan` and `/ship`.
+- **The browser's two private commands and the services helper load the same way**, by their bare names.
+- **Only each command's main file moves.** Its scripts and guides stay in its module's folder, so nothing else changes.
+- **Every guide and message in your project says `/schedule`**, so no page sends you to a command that is gone.
+- **A command of your own with the same name stays.** The update plan names the clash and keeps yours. Your install record can give WongStack's command another name.
+- **A repo that added Daily or the browser alone** keeps them in one folder, and keeps `/daily:schedule`.
+
+**Updating.** `/wong-sync` moves the files. Nothing to do by hand. From now on, type `/schedule` to make a schedule, not `/daily:schedule`.
+
 ## 59.0.0 — Memory cleans itself each day, with no command to type
 
 - **The command `/dream-memory` is gone.** The [daily tidy](wiki/development/wiki-dream.md) your first chat of the day starts now does the full job. You type nothing, and it asks you nothing.

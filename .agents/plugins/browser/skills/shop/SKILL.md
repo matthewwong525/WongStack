@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # shop
 
-`scripts/shop.mjs` installs Shop's command and stands between it and the agent. [Shopping](references/shopping.md) owns when and how to run it:
+`node .claude/skills/browser/skills/shop/scripts/shop.mjs` installs Shop's command and stands between it and the agent. [Shopping](references/shopping.md) owns when and how to run it:
 
 - `install` downloads the one tried version; `SHOP_NEEDS=install` asks for it.
 - `guide` prints Shop's own guide.

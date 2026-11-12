@@ -44,6 +44,8 @@ function git(...args) {
 function walk(dir) {
   const out = [];
   if (!existsSync(dir)) return out;
+  // A mapped entry may name one file.
+  if (!statSync(dir).isDirectory()) return [toPosix(relative(ROOT, dir))];
   for (const entry of readdirSync(dir)) {
     // Never payload, and full of third-party READMEs with their own broken links.
     if (entry === "node_modules" || entry === "dist" || entry === ".wrangler" || entry === ".git") continue;

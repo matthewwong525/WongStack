@@ -467,6 +467,46 @@ test('the root block links a mapped module where an install keeps it, so a fresh
   assert.equal(block().localState, 'locally-adapted');
 });
 
+// The 59.0.0 layout kept a module command's SKILL.md in its module; a file entry moves it to its own skill folder.
+function commandFixture(t, components, { note } = {}) {
+  const daily = { '.claude/plugins/daily': '.claude/skills/daily' };
+  const f = fixture(t, { components, manifest: inventory({ core: { ...inventory().core, mapped: daily } }) });
+  if (note) for (const root of [f.source, f.target]) write(root, 'wiki/ux-principles.md', note);
+  write(f.source, '.agents/plugins/daily/skills/schedule/SKILL.md', '# Schedule\n[run](references/run.md)\n');
+  write(f.source, '.agents/plugins/daily/skills/schedule/references/run.md', 'run\n');
+  f.updateRecord({ commit: f.commit('daily at the 59.0.0 layout') });
+  write(f.target, '.claude/skills/daily/skills/schedule/SKILL.md', '# Schedule\n[run](references/run.md)\n');
+  write(f.target, '.claude/skills/daily/skills/schedule/references/run.md', 'run\n');
+  const mapped = { ...daily, '.claude/plugins/daily/skills/schedule/SKILL.md': '.claude/skills/schedule/SKILL.md' };
+  write(f.source, '.agents/skills/wong-sync/references/payload-files.json', `${JSON.stringify(inventory({ core: { ...inventory().core, mapped } }), null, 2)}\n`);
+  f.commit('the command SKILL.md gets its own skill folder');
+  return f;
+}
+
+test('an install at the 59.0.0 layout moves the command SKILL.md as one removed and one added unit', t => {
+  const report = commandFixture(t).inspect();
+  assert.deepEqual(report.changes.map(change => [change.targetPath, change.operation]).sort(), [
+    ['.claude/skills/daily/skills/schedule/SKILL.md', 'removed'],
+    ['.claude/skills/schedule/SKILL.md', 'added'],
+  ]);
+});
+
+test('a new file pair reads the base with the base pairs, so a text it renames is modified and an untouched install is installed-equivalent', t => {
+  const f = commandFixture(t, undefined, { note: 'Type /daily:schedule to plan.\n' });
+  const changes = f.inspect().changes.map(change => [change.targetPath, change.operation, change.localState]).sort();
+  assert.deepEqual(changes, [
+    ['.claude/skills/daily/skills/schedule/SKILL.md', 'removed', 'installed-equivalent'],
+    ['.claude/skills/schedule/SKILL.md', 'added', 'missing'],
+    ['wiki/ux-principles.md', 'modified', 'installed-equivalent'],
+  ]);
+});
+
+test('the install record\'s skill rename gives a moved command another top-level name', t => {
+  const report = commandFixture(t, { skills: { alpha: 'alpha', schedule: 'my-schedule' } }).inspect();
+  assert.ok(report.changes.some(change => change.targetPath === '.claude/skills/my-schedule/SKILL.md' && change.operation === 'added'));
+  assert.ok(!report.changes.some(change => change.targetPath === '.claude/skills/schedule/SKILL.md'));
+});
+
 test('WongStack as its own source reads its linked CLAUDE.md block', t => {
   const target = mkdtempSync(join(tmpdir(), 'wong-sync-self-'));
   t.after(() => rmSync(target, { recursive: true, force: true }));
