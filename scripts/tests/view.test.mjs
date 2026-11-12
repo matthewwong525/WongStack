@@ -536,6 +536,26 @@ test('a page that can not be resized still has its source stopped; a source with
   assert.equal(f.tools.calls('x11vnc').length, 0);
 });
 
+test('a shared view fits only the page it shows: show lets the page before go first, and nothing shows after the end', async t => {
+  const f = setup(t);
+  const [first, second] = [fakePage(f, [1440, 900]), fakePage(f, [1440, 900])];
+  const view = { display: ':97', ...standIn(t, f) };
+  const live = liveView(view);
+  assert.equal(await live.fit('wide'), null, 'no page shows yet, and none is resized');
+  const steps = [];
+  await live.show(first, async () => steps.push('none'));
+  await live.fit('wide');
+  await live.show(second, async () => steps.push(first.calls.length));
+  await live.fit('phone');
+  assert.deepEqual(steps, ['none', 2], 'the swap runs before the next page shows');
+  assert.equal(first.calls.length, 2, 'the page before is not fitted again');
+  assert.deepEqual(second.calls.at(-1)[0], 480);
+  await live.end();
+  assert.ok(!alive(view.sourcePid));
+  await live.show(first, async () => steps.push('late'));
+  assert.deepEqual(steps, ['none', 2], 'a show after the end does nothing');
+});
+
 test('viewerFile gives only a script under the viewer\'s core/ or vendor/ folder', t => {
   const f = setup(t);
   const dir = fakeViewer(f.home, VIEWER.version);
@@ -565,7 +585,9 @@ test('the view\'s routes give the note, the fit, and the deadline, take a shape,
   const fits = [];
   const ends = [];
   const fit = kind => ({ kind, width: kind === 'phone' ? 480 : 1280, screen: SCREEN });
-  const call = await mounted(t, viewRoutes({ note: 'Messenger wants to know you\'re a person' }, { fitted: () => fit('wide'), onFit: async kind => { fits.push(kind); return fit(kind); }, onGive: () => ends.push('give'), closesAt: 1234 }));
+  // The watcher ends a turn once: a second press finds no turn to end.
+  const onGive = () => ends.length ? null : () => ends.push('give');
+  const call = await mounted(t, viewRoutes({ note: 'Messenger wants to know you\'re a person' }, { fitted: () => fit('wide'), onFit: async kind => { fits.push(kind); return fit(kind); }, onGive, closesAt: 1234 }));
   const view = await call('view');
   assert.equal(view.status, 200);
   assert.deepEqual({ ...view.json, now: 0 }, { note: 'Messenger wants to know you\'re a person', control: 'turn', fit: fit('wide'), closesAt: 1234, now: 0 });
@@ -585,4 +607,28 @@ test('the view\'s routes give the note, the fit, and the deadline, take a shape,
   assert.deepEqual(Object.keys((await bare('view')).json).sort(), ['control', 'fit', 'note', 'now'], 'nothing else from the page');
   assert.deepEqual((await bare('fit', { fit: 'wide' })).json, { fit: null });
   assert.equal((await bare('stop', {})).status, 400, 'Stop is gone: the route is no turn action');
+});
+
+test('a shared view\'s routes add its tabs, show a tab a press names, and end the turn of the chat Hand back names', async t => {
+  const shown = { now: 'dentist' };
+  const given = [];
+  const tabs = () => ({ note: 'Booking needs a code', shown: shown.now, tabs: [{ chat: 'dentist', note: 'Booking needs a code', fresh: false }, { chat: 'flights', note: 'Pay for the seat', fresh: true }] });
+  const call = await mounted(t, viewRoutes({ note: 'Booking needs a code' }, {
+    tabs,
+    onShow: async chat => chat === 'flights' && Boolean(shown.now = chat),
+    onGive: chat => chat === 'flights' ? () => given.push(chat) : null,
+  }));
+  const view = (await call('view')).json;
+  assert.deepEqual([view.control, view.shown, view.tabs.map(tab => tab.chat)], ['turn', 'dentist', ['dentist', 'flights']]);
+  assert.equal((await call('show')).status, 405);
+  assert.equal((await call('show', { chat: 'garage' })).status, 409, 'a chat with no tab');
+  const showing = await call('show', { chat: 'flights' });
+  assert.deepEqual([showing.status, showing.json.shown], [200, 'flights']);
+  assert.equal((await call('give', { chat: 'dentist' })).status, 409, 'a chat whose turn is not open');
+  assert.equal((await call('give', { chat: 'flights' })).status, 200);
+  await pause(20);
+  assert.deepEqual(given, ['flights']);
+
+  const single = await mounted(t, viewRoutes({ note: null }));
+  assert.equal((await single('show', { chat: 'flights' })).status, 404, 'a view with no tabs has no route to show one');
 });

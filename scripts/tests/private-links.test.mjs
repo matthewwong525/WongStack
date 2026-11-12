@@ -304,11 +304,12 @@ function screenTools(f) {
 }
 
 /** Opens `args` in `c` beside the test, which serves the fake browser; resolves to a keyed call on the link's page
- * and the state it wrote. */
+ * and the state it wrote: a turn view's is the computer's one view's. */
 async function openLink(c, ...args) {
   const out = await c.start('open', ...args, '--session', 'pay', '--minutes', '5');
   assert.equal(out.status, 0, out.stdout + out.stderr);
-  const state = JSON.parse(readFileSync(join(c.dir, 'state.json'), 'utf8'));
+  const own = join(c.dir, 'state.json');
+  const state = JSON.parse(readFileSync(existsSync(own) ? own : join(dirname(dirname(c.dir)), 'view', 'state.json'), 'utf8'));
   const call = async (path, body) => {
     const response = await fetch(`http://127.0.0.1:${state.port}/${path}`, { method: body ? 'POST' : 'GET', headers: { 'x-hand-over-key': state.key, 'content-type': 'application/json' }, ...(body && { body: JSON.stringify(body) }) });
     return { status: response.status, body: await response.json().catch(() => null) };

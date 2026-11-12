@@ -19,7 +19,7 @@ export const TOOLS = {
   novnc: `noVNC ${VIEWER.version} draws that screen on the link's page. It goes in your home folder.`,
 };
 export const OFF_LINUX = 'A live view needs Linux, where the browser runs on a virtual screen it can show.';
-export const VIEW_ROUTES = new Set(['/view', '/fit', '/give', '/watch', '/take']);
+export const VIEW_ROUTES = new Set(['/view', '/fit', '/give', '/show', '/watch', '/take']);
 /** A watch link's buttons, each its route: the person takes the browser, or hands it back. */
 const WATCH_ACTIONS = new Set(['/take', '/give']);
 const BODY_MOST = 16 * 1024;
@@ -260,9 +260,9 @@ export async function endView(view, page) {
   await stopSource(view);
 }
 
-/** The open view's fit and source, for the watcher. Each step waits for the one before it, and none
- * acts once `end` has run. */
-export function liveView(view, page) {
+/** The open view's fit and source, for the watcher, on the shown `page`, which `show` sets. Each step waits for the
+ * one before it, and none acts once `end` has run. */
+export function liveView(view, page = null) {
   let kind = 'wide';
   let screen = null;
   let bar = null;
@@ -302,7 +302,7 @@ export function liveView(view, page) {
     popupOpen: () => !ended && popupOpen(view.display),
     /** Fits the page as `next`, `phone` or `wide`, or as it was; resolves to the fit. */
     fit: (next = kind) => inTurn(async () => {
-      if (ended) return describe();
+      if (ended || !page) return describe();
       kind = next;
       screen ??= screenSize(view.display);
       bar ??= await measureBar();
@@ -317,6 +317,12 @@ export function liveView(view, page) {
       if (!display) throw new Error('the browser has no screen to show');
       Object.assign(view, { display }, await startSource(display, view.dir));
       return true;
+    }),
+    /** Shows `next`, or none, once `swap` has let the page shown before go. */
+    show: (next, swap = async () => {}) => inTurn(async () => {
+      if (ended) return;
+      await swap();
+      page = next;
     }),
     end: () => inTurn(async () => {
       ended = true;
@@ -355,30 +361,32 @@ export function reply(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }
 
-/** The view's routes for `{note}`: a view's first `/give` (Hand back) ends the turn, then runs `onGive()`; a watch
- * link's `watch` hooks answer `/watch` and its buttons with who holds the browser. `onFit(kind)` refits. */
-export function viewRoutes({ note }, { fitted = () => null, onFit = async () => null, onGive = () => {}, closesAt, watch = null } = {}) {
-  let ended = false;
+/** The view's routes for `{note}`: `tabs()` adds a turn view's tabs, `/show` runs `onShow(chat)`, and `/give` runs
+ * `onGive(chat)`, which gives what ends that turn after the answer, or null. `watch` hooks serve a watch link. */
+export function viewRoutes({ note }, { fitted = () => null, onFit = async () => null, onGive = () => null, onShow = async () => false, tabs = null, closesAt, watch = null } = {}) {
   return async (pathname, request, response) => {
     if (pathname === '/view') {
       if (request.method !== 'GET') return reply(response, 405);
       watch?.shown();
-      return reply(response, 200, { note, ...(watch ? { watch: true } : { control: 'turn' }), fit: fitted(), closesAt, now: Date.now() });
+      return reply(response, 200, { note, ...(watch ? { watch: true } : { control: 'turn' }), fit: fitted(), closesAt, ...tabs?.(), now: Date.now() });
     }
-    if (!watch && (pathname === '/watch' || pathname === '/take')) return reply(response, 404);
+    if ((!watch && (pathname === '/watch' || pathname === '/take')) || (!tabs && pathname === '/show')) return reply(response, 404);
     if (pathname === '/watch') return request.method === 'GET' ? reply(response, 200, watch.info()) : reply(response, 405);
     if (request.method !== 'POST') return reply(response, 405);
     if (watch && WATCH_ACTIONS.has(pathname)) {
       const now = watch[pathname.slice(1)]();
       return now ? reply(response, 200, now) : reply(response, 409);
     }
+    // A body that is too big or not JSON names no chat and no fit.
+    const body = await readBody(request).then(read => (typeof read === 'object' ? read : null));
     if (pathname === '/give') {
-      if (ended) return reply(response, 409);
-      ended = true;
-      response.once('finish', onGive);
+      const end = onGive(body?.chat);
+      if (!end) return reply(response, 409);
+      response.once('finish', end);
       return reply(response, 200, { control: 'assistant' });
     }
-    const kind = (await readBody(request))?.fit;
+    if (pathname === '/show') return (await onShow(body?.chat)) ? reply(response, 200, { ...tabs(), now: Date.now() }) : reply(response, 409);
+    const kind = body?.fit;
     if (!FITS.includes(kind)) return reply(response, 400);
     reply(response, 200, { fit: await onFit(kind) });
   };

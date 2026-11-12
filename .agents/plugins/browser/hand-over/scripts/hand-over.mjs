@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// Opens a private link that closes itself: the key link, or a live view for the person's turn in the browser.
-// One link per chat, in ~/.wong-stack/hand-over/links/. Exit codes: 0 ok · 1 failed · 2 usage · 3 a tool is missing.
+// Opens a private link that closes itself: a key link per chat, in ~/.wong-stack/hand-over/links/, or a turn in the
+// one live view, a tab per chat, in hand-over/view/. Exit codes: 0 ok · 1 failed · 2 usage · 3 a tool is missing.
 
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 import { basename, dirname, join } from 'node:path';
@@ -19,7 +19,7 @@ import { readableName } from './keys-page.mjs';
 import { appendTiming, linkOf } from './lib/timings.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from './lib/tunnel.mjs';
 import { screenBridge } from './lib/ws-bridge.mjs';
-import { checkView, endView, installView, liveView, MANUAL, OFF_LINUX, reply, screenOf, socketOf, startSource, TOOLS, VIEW_ROUTES, viewerFile, viewRoutes } from './view.mjs';
+import { checkView, endView, installView, liveView, MANUAL, OFF_LINUX, reply, screenOf, socketOf, startSource, stopSource, TOOLS, VIEW_ROUTES, viewerFile, viewRoutes } from './view.mjs';
 
 export { keyMatches, tunnelOrigin } from './lib/tunnel.mjs';
 
@@ -36,7 +36,8 @@ const USAGE = `usage: hand-over.mjs open --view --note <line> [--session <name>]
           stuck step; the person types or pastes on the real site, and the agent sees nothing
           until the turn ends; the page shows --note as its one line (what to do now), with
           Hand back; the turn ends only on Hand back, close, or the time limit, never on a page
-          change; open for 480 minutes
+          change; open for 480 minutes; while another chat's view is open, this chat's turn
+          joins it as a tab and prints the same link
           HANDOVER_VIEW=window, with no link, where the browser shows in its own window: the
           task's tab is brought to the front and held there, the person does the step there
           and says done in the chat, and close ends the turn; while a turn is open, no other
@@ -82,6 +83,8 @@ const TUNNEL_WAIT_MS = Number(process.env.HANDOVER_TUNNEL_WAIT_MS) || 30_000;
 const PAGE_WAIT_MS = 10_000;
 const POLL_MS = Number(process.env.HANDOVER_POLL_MS) || 2000;
 const KEEP_MS = Number(process.env.HANDOVER_KEEPALIVE_MS) || 60_000;
+/** How long an open waits for another process that starts, joins, or ends the view. */
+const LOCK_WAIT_MS = TUNNEL_WAIT_MS + PAGE_WAIT_MS + 20_000;
 const DIR = join(homedir(), '.wong-stack', 'hand-over');
 const LINKS = join(DIR, 'links');
 /** The chat's name: its checkout's folder, as the browser session names it. */
@@ -90,6 +93,13 @@ const CHAT_DIR = join(LINKS, CHAT);
 /** A link's files in `dir`; older code kept them in DIR itself. The timing record stays one for the computer. */
 const filesIn = dir => ({ pid: join(dir, 'watcher.pid'), state: join(dir, 'state.json'), result: join(dir, 'result.json'), log: join(dir, 'tunnel.log'), config: join(dir, 'cloudflared.yml'), opened: join(dir, 'opened'), replaced: join(dir, 'replaced.json'), closing: join(dir, 'closing'), shown: join(dir, 'shown'), line: join(dir, 'line.json'), turn: join(dir, 'turn.json'), control: join(dir, 'control.json'), seen: join(dir, 'watch-seen') });
 let FILES = { ...filesIn(CHAT_DIR), timings: join(DIR, 'timings.jsonl') };
+/** The one live view's place: its watcher, state, tunnel, lock, and `turns/<chat>.json` per turn (`.close` ends it).
+ * A chat's own folder keeps its result, and the watcher's pid while its turn is open. */
+const VIEW_DIR = join(DIR, 'view');
+const TURNS = join(VIEW_DIR, 'turns');
+const SHARED = { ...filesIn(VIEW_DIR), lock: join(VIEW_DIR, 'lock'), listed: join(VIEW_DIR, 'listed.json') };
+const turnFile = chat => join(TURNS, `${chat}.json`);
+const closeFile = chat => join(TURNS, `${chat}.close`);
 /** The mark an opener leaves in its chat's folder while a view starts, before its state is written. */
 const OPENER = /^view-opener\.(\d+)$/;
 /** Removes a link's own files, the pid last: `wait` reads its absence as the end. Its result stays, and
@@ -195,8 +205,9 @@ export function notifyWorkspace(state, result) {
   return wake(state, completionMessage(state, result));
 }
 
-/** Tears down a link whose watcher died without finishing. */
+/** Tears down a link whose watcher died without finishing; a turn in the one live view ends that view. */
 async function recoverStale(result) {
+  if (existsSync(turnFile(CHAT))) return recoverView(result);
   await teardown(result, readJson(FILES.state) ?? {}, result === 'closed' ? 'close-command' : 'error');
 }
 
@@ -349,8 +360,7 @@ function viewRefusal() {
 async function openView(session, note, watch = false) {
   const display = screenOf();
   if (!display) return void unsupported('The browser has no screen to show.');
-  // On the password manager's page, the size is the one the site gets back; an older browser server gives none.
-  const size = await pageOf(session).size().catch(error => (error.addonPage ? null : Promise.reject(error)));
+  const size = await sizeOf(pageOf(session));
   // The screen's socket stays in the computer's place: a long chat folder would pass the 108-character socket limit.
   return { note: note ?? null, ...(watch && { watch }), size, display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
 }
@@ -382,9 +392,9 @@ const viewOpening = dir => namesIn(dir).some(entry => {
   return pid && pid !== process.pid && alive(pid);
 });
 
-/** The chat whose live view is open or opening, from any chat's folder or an older link's shared place, or null. A
- * view shows the browser's one screen, so it counts on the whole computer; a dead watcher or opener reads as closed. */
-export function viewHolder() {
+/** The chat whose own live view, a watch link or a turn in the browser's window, is open or opening, from any chat's
+ * folder or an older link's shared place, or null. A dead watcher or opener reads as closed. */
+function chatViewHolder() {
   const chats = namesIn(LINKS).filter(entry => entry.isDirectory()).map(entry => entry.name);
   for (const [dir, chat] of [[DIR, null], ...chats.map(name => [join(LINKS, name), name])]) {
     const { state, pid } = filesIn(dir);
@@ -395,9 +405,16 @@ export function viewHolder() {
   return null;
 }
 
-/** Says a live view is open elsewhere and resolves to exit code 1, or to 0 when none is. */
-function viewTaken() {
-  const holder = viewHolder();
+/** The chat whose live view is open or opening, the one with a tab per chat included, or null. A view shows the
+ * browser's one screen, so it counts on the whole computer. */
+export function viewHolder() {
+  const locker = watcherPid(SHARED.lock);
+  const busy = alive(watcherPid(SHARED.pid)) || (locker !== process.pid && alive(locker));
+  return chatViewHolder() ?? (busy ? readJson(SHARED.listed)?.shown ?? turnsOnDisk()[0]?.chat ?? 'another chat' : null);
+}
+
+/** Says a live view is open in `holder` and resolves to exit code 1, or to 0 with no holder. */
+function refuseView(holder) {
   if (!holder) return 0;
   console.error(`A live view is already open in ${holder}.`);
   return 1;
@@ -406,26 +423,208 @@ function viewTaken() {
 async function open(values) {
   const keys = values.keys ? await keyConfig(values.keys, values.guide) : null;
   if (typeof keys === 'number') return keys;
-  const refused = values.view ? viewTaken() || viewRefusal() : 0;
+  // A turn by link joins the one live view: only a watch link, or a view in a window, keeps it out.
+  const turn = values.view && !values.watch && !checkView().window;
+  const refused = values.view ? refuseView(turn ? chatViewHolder() : viewHolder()) || viewRefusal() : 0;
   if (refused) return refused;
   mkdirSync(CHAT_DIR, { recursive: true });
+  if (turn) return openTurn(values);
   // Two views opening at once each see the other's mark, written before the second check, until the state stands.
   const mark = values.view ? join(CHAT_DIR, `view-opener.${process.pid}`) : null;
   if (!mark) return startLink(values, keys);
   writeFileSync(mark, `${process.pid}\n`, { mode: 0o600 });
   try {
-    return viewTaken() || (await startLink(values, keys));
+    return refuseView(viewHolder()) || (await startLink(values, keys));
   } finally {
     rmSync(mark, { force: true });
   }
 }
 
-/** Starts the watcher with `env`; resolves to its pid. */
-function startWatcher(env = process.env) {
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), 'watch'], { detached: true, stdio: 'ignore', env });
-  writeFileSync(FILES.pid, `${child.pid}\n`);
+/** Starts the watcher, `watch` or `watch-view`, with `env`; resolves to its pid. */
+function startWatcher(env = process.env, command = 'watch') {
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), command], { detached: true, stdio: 'ignore', env });
+  if (command === 'watch') writeFileSync(FILES.pid, `${child.pid}\n`);
   child.unref();
   return child.pid;
+}
+
+/** Takes the view's lock, so one process at a time starts, joins, closes, or mends the view; true once held. A dead
+ * holder's lock, or one left empty, is taken over. */
+function tryLock() {
+  mkdirSync(TURNS, { recursive: true, mode: 0o700 });
+  for (let tries = 0; tries < 2; tries++) {
+    try {
+      writeFileSync(SHARED.lock, `${process.pid}\n`, { flag: 'wx', mode: 0o600 });
+      return true;
+    } catch { /* held */ }
+    const holder = watcherPid(SHARED.lock);
+    if (holder === process.pid) return true;
+    const young = Date.now() - (statSync(SHARED.lock, { throwIfNoEntry: false })?.mtimeMs ?? 0) < 5000;
+    if (holder ? alive(holder) : young) return false;
+    rmSync(SHARED.lock, { force: true });
+  }
+  return false;
+}
+
+/** Waits up to `ms` for the view's lock; true once held. */
+async function lockView(ms = LOCK_WAIT_MS) {
+  for (const end = Date.now() + ms; !tryLock(); await sleep(100)) if (Date.now() >= end) return false;
+  return true;
+}
+
+const unlockView = () => { if (watcherPid(SHARED.lock) === process.pid) rmSync(SHARED.lock, { force: true }); };
+
+/** Each turn in the view, from its file: `{chat, note, session, deadline, completionId, joined, size, target}`. */
+const turnsOnDisk = () => namesIn(TURNS).map(entry => entry.name).filter(name => name.endsWith('.json'))
+  .map(name => ({ ...readJson(join(TURNS, name)), chat: name.slice(0, -5) })).filter(turn => turn.session).sort((a, b) => a.joined - b.joined);
+
+/** Removes the view's own files, the lock last and only when this process holds it. */
+function clearView() {
+  rmSync(TURNS, { recursive: true, force: true });
+  for (const file of [SHARED.log, SHARED.config, SHARED.opened, SHARED.state, SHARED.shown, SHARED.listed, SHARED.pid]) rmSync(file, { force: true });
+  unlockView();
+}
+
+/** Ends a view whose watcher died: pages back, `result` for this chat and `error` for the others, tunnel and source
+ * stopped. Does nothing while another process holds the lock, unless `locked` says this one does. */
+async function recoverView(result, locked = false) {
+  if (!locked && !tryLock()) return;
+  try {
+    if (alive(watcherPid(SHARED.pid))) return;
+    const state = readJson(SHARED.state) ?? {};
+    const shown = readJson(SHARED.listed)?.shown;
+    for (const turn of turnsOnDisk()) {
+      const page = pageOf(turn.session);
+      if (turn.chat === shown && turn.size) await page.resize(...turn.size).catch(() => {});
+      await endTurn(page);
+      const files = filesIn(join(LINKS, turn.chat));
+      const ended = turn.chat === CHAT ? result : 'error';
+      time(turn.completionId, { ended, cause: ended === 'closed' ? 'close-command' : 'error' });
+      writeFileSync(files.result, `${JSON.stringify({ result: ended })}\n`, { mode: 0o600 });
+      rmSync(files.pid, { force: true });
+    }
+    await killTunnel(state.tunnelPid);
+    if (state.view) await stopSource(state.view);
+    clearView();
+  } finally {
+    if (!locked) unlockView();
+  }
+}
+
+/** Opens this chat's turn in the one live view: starts the view, or joins the open one as a tab that waits for the
+ * person's tap. Resolves to the exit code. */
+async function openTurn(values) {
+  const own = watcherPid();
+  if (alive(own) && !(await givesWay(own))) {
+    console.error(`A private link is already open in ${CHAT}. Run \`hand-over.mjs close\` first.`);
+    return 1;
+  }
+  if (existsSync(FILES.pid)) await recoverStale('error');
+  for (const file of [FILES.result, FILES.opened, FILES.closing, FILES.shown]) rmSync(file, { force: true });
+  const session = sessionName(values.session);
+  const page = pageOf(session);
+  const fault = await pageFault(page);
+  if (fault) return turnFailed(fault);
+  if (!(await lockView())) return turnFailed('Another chat is still opening the live view; try again in a minute.');
+  try {
+    if (refuseView(chatViewHolder())) return 1;
+    const turn = { note: values.note, session, deadline: Date.now() + values.minutes * 60_000, completionId: randomBytes(16).toString('hex'), joined: Date.now(), target: (await (await slot('chatTarget'))?.()) ?? null };
+    return alive(watcherPid(SHARED.pid)) ? await joinView(turn, page) : await startView(turn, page);
+  } finally {
+    unlockView();
+  }
+}
+
+/** Says why this chat's turn did not open, records `error` as its result, and resolves to exit code 1. */
+function turnFailed(message) {
+  if (message) console.error(message);
+  writeFileSync(FILES.result, `${JSON.stringify({ result: 'error' })}\n`, { mode: 0o600 });
+  rmSync(FILES.pid, { force: true });
+  return 1;
+}
+
+/** The page's size, which the end of its turn sets back; null on the password manager's page, where the size is the
+ * one the site gets back. An older browser server gives none. */
+const sizeOf = page => page.size().catch(error => (error.addonPage ? null : Promise.reject(error)));
+
+/** Adds this chat's turn to the open view, behind the tab the person is on, and prints the view's link once the
+ * watcher lists it. Resolves to the exit code. */
+async function joinView(turn, page) {
+  const { origin, key } = readJson(SHARED.state) ?? {};
+  try {
+    turn.size = await sizeOf(page);
+  } catch (error) {
+    return turnFailed(error.message);
+  }
+  const pid = watcherPid(SHARED.pid);
+  writeFileSync(FILES.pid, `${pid}\n`);
+  writeWhole(turnFile(CHAT), turn);
+  for (const end = Date.now() + PAGE_WAIT_MS + POLL_MS; !readJson(SHARED.listed)?.chats?.includes(CHAT); await sleep(100)) {
+    if (Date.now() < end && alive(pid)) continue;
+    rmSync(turnFile(CHAT), { force: true });
+    return turnFailed('The live view did not take this chat\'s tab; try again.');
+  }
+  console.log(`HANDOVER_LINK=${addressOf(origin, key)}`);
+  console.log(`HANDOVER_SEND=${SEND_REMINDER}`);
+  return 0;
+}
+
+/** Starts the one live view with this chat's turn shown: the screen source, the tunnel, and the watcher. Resolves to
+ * the exit code once the link answers. */
+async function startView(turn, page) {
+  if (existsSync(SHARED.pid)) await recoverView('error', true);
+  if (!hasCloudflared()) {
+    console.log('HANDOVER_NEEDS=cloudflared');
+    console.error('Cloudflare\'s tunnel tool, cloudflared, is not installed; ask the person, install it, and retry.');
+    return 3;
+  }
+  let tunnelPid = null;
+  let watcher = null;
+  let view = null;
+  const fail = async message => {
+    if (watcher) signal(watcher, 'SIGKILL');
+    if (view) await stopSource(view);
+    // Only the watcher fits the page, so a page with no watcher yet was never resized.
+    if (watcher && turn.size) await page.resize(...turn.size).catch(() => {});
+    await endTurn(page);
+    await killTunnel(tunnelPid);
+    time(turn.completionId, { ended: 'error', cause: 'error' });
+    clearView();
+    return turnFailed(message);
+  };
+  // The task's tab comes to the front first; the turn holds it there, so no other task's tab takes its place.
+  const busy = await page.front({ turn: true }).then(() => null, error => (BUSY.test(error.message) ? error : null));
+  if (busy) return fail('The person is using the browser in another chat\'s tab; open this view once their turn ends.');
+  const display = screenOf();
+  if (!display) return fail(void unsupported('The browser has no screen to show.'));
+  try {
+    turn.size = await sizeOf(page);
+    // The screen's socket stays in the computer's place: a long folder would pass the 108-character socket limit.
+    view = { display, ...(await startSource(display, mkdtempSync(join(DIR, 'screen-')))) };
+  } catch (error) {
+    return fail(error.message);
+  }
+  const port = await freePort();
+  const key = randomBytes(32).toString('hex');
+  const tunnelDeadline = Date.now() + TUNNEL_WAIT_MS;
+  const tunnelDown = 'The Cloudflare tunnel did not come up within 30 seconds; try again in a minute.';
+  const tunnel = await startTunnel(port, tunnelDeadline, SHARED);
+  tunnelPid = tunnel.pid;
+  if (!tunnel.origin) return fail(tunnelDown);
+  const state = { completionId: turn.completionId, chat: CHAT, tunnelPid, port, key, origin: tunnel.origin, view };
+  const listing = listingOf({ ...state, deadline: turn.deadline }, tunnel.origin);
+  writeWhole(SHARED.state, state);
+  writeWhole(turnFile(CHAT), turn);
+  // The listing rides in the watcher's environment, never in a file.
+  watcher = startWatcher({ ...process.env, HANDOVER_LISTING: JSON.stringify(listing) }, 'watch-view');
+  for (const file of [SHARED.pid, FILES.pid]) writeFileSync(file, `${watcher}\n`);
+  if (!(await pageAnswers(port, watcher))) return fail('The link\'s page did not start; try again.');
+  if (!(await linkAnswers(tunnel.origin, port, tunnelPid, tunnelDeadline))) return fail(tunnelDown);
+  console.log(`HANDOVER_LINK=${addressOf(tunnel.origin, key)}`);
+  console.log(`HANDOVER_SEND=${SEND_REMINDER}`);
+  // The watcher lists the link in the inbox once the chat has it, so open returns at once.
+  writeFileSync(SHARED.shown, '');
+  return 0;
 }
 
 const writeState = state => writeFileSync(FILES.state, `${JSON.stringify(state)}\n`, { mode: 0o600 });
@@ -516,6 +715,22 @@ async function list(listing) {
   return client ?? null;
 }
 
+/** The inbox's listing of a link: `list()` once open has printed it, and `unlist()`, which every end calls. */
+function inboxListing(listing) {
+  let listed = null;
+  return {
+    list: () => { if (!listed && listing && existsSync(FILES.shown)) listed = list(listing); },
+    // One 3 s limit for the listing and its close together: a stalled app never holds the link's end back.
+    unlist: async () => {
+      const inbox = listed && (await slot('inbox'));
+      return inbox?.inTime((async () => {
+        const client = await listed;
+        if (client) await inbox.closeItem(client, listing.id);
+      })());
+    },
+  };
+}
+
 /** Serves the page until Hand back, a key link's save, `close`, or the deadline; a window view serves none. Polls
  * never read the page; one call a minute keeps an idle page. */
 async function watch() {
@@ -532,16 +747,7 @@ async function watch() {
   const watchSide = watchLink(state);
   const saved = state.keys ? [] : undefined;
   const saveState = () => writeState(state);
-  // The inbox's listing of the link, once open has printed it: every end below closes it.
-  let listed = null;
-  // One 3 s limit for the listing and its close together: a stalled app never holds the link's end back.
-  const unlist = async () => {
-    const inbox = listed && (await slot('inbox'));
-    return inbox?.inTime((async () => {
-      const client = await listed;
-      if (client) await inbox.closeItem(client, listing.id);
-    })());
-  };
+  const inbox = inboxListing(listing);
   /** Writes `outcome` as the result, tells the chat when `notifies`, and writes it again with how that went. */
   const publish = async (outcome, notifies) => {
     outcome.notification = notifies ? 'pending' : 'not-requested';
@@ -568,7 +774,7 @@ async function watch() {
         await closePage?.();
         await killTunnel(state.tunnelPid);
       });
-      void Promise.all([shutDown, unlist()]).then(() => {
+      void Promise.all([shutDown, inbox.unlist()]).then(() => {
         clearLink();
         process.exit(0);
       });
@@ -580,7 +786,7 @@ async function watch() {
   const causeOf = sig => (existsSync(FILES.closing) ? 'close-command' : readJson(FILES.replaced)?.completionId === state.completionId ? 'gave-way' : sig);
   // In a window the person says done in the chat, and the agent's close is their Hand back.
   for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => finish(watchSide ? watchSide.ending() : window ? 'handed-back' : 'closed', { ready: false, cause: causeOf(sig) }));
-  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', { ready }), onContinue: () => finish('done'), onOpened: () => writeFileSync(FILES.opened, ''), onGive: () => finish('handed-back', { cause: 'hand-back' }), fitted: () => live.describe(), onFit: kind => live.fit(kind), watch: watchSide?.hooks };
+  const hooks = { onSaved: name => { if (!saved.includes(name)) saved.push(name); }, onDone: ready => finish('done', { ready }), onContinue: () => finish('done'), onOpened: () => writeFileSync(FILES.opened, ''), fitted: () => live.describe(), onFit: kind => live.fit(kind), watch: watchSide?.hooks };
   try {
     await live?.fit();
     // A close that came during the first fit has ended the link: no page is served after it.
@@ -614,7 +820,7 @@ async function watch() {
   const keepOpen = () => (live && !live.popupOpen() ? live.fit() : page.keepAlive());
   let keepAt = Date.now() + KEEP_MS;
   while (!done) {
-    if (!listed && listing && existsSync(FILES.shown)) listed = list(listing);
+    inbox.list();
     if (Date.now() >= state.deadline) return finish('timeout', { cause: 'deadline' });
     const ended = state.view && (await pollView());
     if (ended) return finish(ended, { cause: 'error' });
@@ -624,6 +830,182 @@ async function watch() {
     }
     await sleep(Math.min(POLL_MS, Math.max(0, state.deadline - Date.now())));
   }
+}
+
+/** Serves the one live view: a tab per turn file, one shown at a time; each turn ends alone, on Hand back, close, or
+ * its limit, and the view closes after the last. Every change to the turns runs in order, polls included. */
+async function watchView() {
+  FILES = { ...SHARED, timings: FILES.timings };
+  const state = readJson(FILES.state);
+  if (!state) return 1;
+  const inbox = inboxListing(JSON.parse(process.env.HANDOVER_LISTING ?? 'null'));
+  delete process.env.HANDOVER_LISTING;
+  const live = liveView(state.view);
+  const turns = new Map();
+  // Chats whose turn ended last: each `wait` returns once the view has closed, or once another chat joins.
+  const held = new Set();
+  let shown = null;
+  let done = false;
+  let receipt = null;
+  let closePage = null;
+  let queue = Promise.resolve();
+  const inOrder = job => {
+    const run = queue.then(job);
+    queue = run.catch(() => {});
+    return run;
+  };
+  const record = () => writeWhole(SHARED.listed, { chats: [...turns.keys()], shown });
+  const putBack = async turn => {
+    if (turn.size) await turn.page.resize(...turn.size).catch(() => {});
+    await endTurn(turn.page);
+  };
+  /** Shows `chat`'s page, or none: the page shown before gets its size back and lets go of the turn first. The first
+   * page shown already holds the turn: open took it. */
+  const show = async chat => {
+    const [prev, next] = [turns.get(shown), turns.get(chat)];
+    await live.show(next?.page ?? null, async () => {
+      if (!prev) return;
+      await putBack(prev);
+      await next?.page.front({ turn: true }).catch(() => {});
+    });
+    shown = next ? chat : null;
+    if (next) next.seen = true;
+    if (next) await live.fit();
+    record();
+  };
+  const release = () => {
+    for (const chat of held) rmSync(filesIn(join(LINKS, chat)).pid, { force: true });
+    held.clear();
+  };
+  /** Adds each new turn file, oldest first; the first turn in an empty view shows at once, a later one waits. */
+  const addTurns = async () => {
+    const fresh = turnsOnDisk().filter(turn => !turns.has(turn.chat));
+    for (const turn of fresh) turns.set(turn.chat, { ...turn, page: pageOf(turn.session), seen: false });
+    if (fresh.length) release();
+    if (!shown && turns.size) await show(turns.keys().next().value);
+    else if (fresh.length) record();
+  };
+  /** Marks `chat`'s turn, or the shown one, as ending; its chat's name, or null when it is gone or already ending. */
+  const claim = chat => {
+    const turn = turns.get(chat ?? shown);
+    if (!turn || turn.ending) return null;
+    turn.ending = true;
+    return turn.chat;
+  };
+  /** Ends a claimed turn: the oldest turn left shows in its place, and its chat alone gets the result. */
+  const endOne = async (chat, result, cause) => {
+    const turn = turns.get(chat);
+    time(turn.completionId, { ended: result, cause, ms: Date.now() - turn.joined });
+    if (chat === shown) await show([...turns.keys()].find(other => other !== chat) ?? null);
+    turns.delete(chat);
+    record();
+    for (const file of [turnFile(chat), closeFile(chat)]) rmSync(file, { force: true });
+    receipt = await publishTurn(state, turn, result);
+    if (turns.size) rmSync(filesIn(join(LINKS, chat)).pid, { force: true });
+    else held.add(chat);
+  };
+  const endAll = async (result, cause) => {
+    for (const chat of turns.keys()) if (claim(chat)) await endOne(chat, result, cause);
+  };
+  const finish = () => {
+    if (done) return;
+    done = true;
+    void (async () => {
+      await closePage?.stopInput();
+      await live.end();
+      closePage?.setReceipt(receipt ?? { result: 'closed' });
+      const shutDown = sleep(closePage ? 1200 : 0).then(async () => {
+        await closePage?.();
+        await killTunnel(state.tunnelPid);
+      });
+      await Promise.all([shutDown, inbox.unlist()]);
+      release();
+      clearView();
+      process.exit(0);
+    })();
+  };
+  /** Closes the view once no turn is left, unless a chat is joining: the lock holds off a new turn meanwhile. */
+  const closeIfEmpty = async () => {
+    if (done || turns.size || !tryLock()) return;
+    await addTurns();
+    if (turns.size) return unlockView();
+    finish();
+  };
+  for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => void inOrder(async () => { await endAll('closed', sig); finish(); }));
+  const tabs = () => {
+    const open = [...turns.values()].filter(turn => !turn.ending);
+    return { note: turns.get(shown)?.note ?? null, closesAt: Math.max(0, ...open.map(turn => turn.deadline)) || null, shown, tabs: open.map(turn => ({ chat: turn.chat, id: turn.joined, note: turn.note, fresh: !turn.seen, closesAt: turn.deadline })) };
+  };
+  const hooks = {
+    onOpened: () => writeFileSync(FILES.opened, ''),
+    fitted: () => live.describe(),
+    onFit: kind => live.fit(kind),
+    tabs,
+    // The person hands back only the tab they see: a press from a page that showed another one ends nothing.
+    onGive: chat => {
+      const claimed = (chat ?? shown) === shown && claim(shown);
+      return claimed && (() => void inOrder(async () => { await endOne(claimed, 'handed-back', 'hand-back'); await closeIfEmpty(); }));
+    },
+    onShow: chat => inOrder(async () => {
+      if (!turns.has(chat) || turns.get(chat).ending) return false;
+      if (chat !== shown) await show(chat);
+      return true;
+    }),
+  };
+  /** One poll: new turns join, a closed or late turn ends, and the shown page keeps the person's turn and the front. */
+  const poll = async () => {
+    await addTurns();
+    for (const turn of turns.values()) {
+      const why = existsSync(closeFile(turn.chat)) ? ['closed', 'close-command'] : Date.now() >= turn.deadline ? ['timeout', 'deadline'] : null;
+      if (why && claim(turn.chat)) await endOne(turn.chat, ...why);
+    }
+    await closeIfEmpty();
+    if (done) return;
+    try {
+      if (await live.revive()) writeWhole(FILES.state, state);
+    } catch {
+      await endAll('error', 'error');
+      return finish();
+    }
+    const popup = live.popupOpen();
+    await turns.get(shown)?.page.front({ turn: true, ...(popup ? { raise: false } : { reselect: true }) }).catch(() => {});
+    live.front();
+  };
+  /** Keeps each turn's page open: the shown one by its fit again, unless a pop-up shows, each other by a constant. */
+  const keepOpen = async () => {
+    for (const turn of turns.values()) await (turn.chat === shown && !live.popupOpen() ? live.fit() : turn.page.keepAlive()).catch(() => {});
+  };
+  try {
+    await inOrder(addTurns);
+    if (!done) closePage = await servePage(state, hooks);
+  } catch {
+    await inOrder(() => endAll('error', 'error'));
+    return finish();
+  }
+  let keepAt = Date.now() + KEEP_MS;
+  while (!done) {
+    inbox.list();
+    await inOrder(poll);
+    if (!done && Date.now() >= keepAt) {
+      keepAt = Date.now() + KEEP_MS;
+      await inOrder(keepOpen);
+    }
+    const next = Math.min(...[...turns.values()].map(turn => turn.deadline));
+    await sleep(Math.min(POLL_MS, Math.max(0, next - Date.now())));
+  }
+}
+
+/** Writes a turn's result in its chat's folder, then wakes that chat, and only that chat, when the person ended it. A
+ * chat named by no target is the one that started the watcher, whose own environment names it. */
+async function publishTurn(state, turn, result) {
+  const file = filesIn(join(LINKS, turn.chat)).result;
+  const ready = PERSON_ENDS.has(result);
+  const outcome = { result, ready, completionId: turn.completionId, notification: ready ? 'pending' : 'not-requested' };
+  writeFileSync(file, `${JSON.stringify(outcome)}\n`, { mode: 0o600 });
+  const target = turn.target ?? (turn.chat === state.chat ? {} : null);
+  if (ready) outcome.notification = target ? await wake({ ...target, completionId: turn.completionId }, completionMessage(turn, outcome)) : 'unavailable';
+  writeFileSync(file, `${JSON.stringify(outcome)}\n`, { mode: 0o600 });
+  return outcome;
 }
 
 /** A watch link's side of the watcher, or null for any other link: it alone writes `control`, and wakes the chat when
@@ -745,6 +1127,11 @@ async function close({ stopped = false } = {}) {
     console.error('No private link is open.');
     return 0;
   }
+  // A turn in the one live view asks its watcher to end that turn alone; the view stays for the other chats.
+  if (alive(pid) && pid === watcherPid(SHARED.pid)) {
+    if (existsSync(turnFile(CHAT))) writeFileSync(closeFile(CHAT), '', { mode: 0o600 });
+    return wait({ final: true });
+  }
   if (alive(pid)) {
     writeFileSync(FILES.closing, stopped ? 'stopped' : '', { mode: 0o600 });
     process.kill(pid, 'SIGTERM');
@@ -774,7 +1161,7 @@ function parse(args) {
     process.exit(0);
   }
   const [command, ...rest] = parsed.positionals;
-  if (!['open', 'watch', 'wait', 'close', 'install-view', 'line', 'turn'].includes(command) || rest.length !== (command === 'line' ? 1 : 0)) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
+  if (!['open', 'watch', 'watch-view', 'wait', 'close', 'install-view', 'line', 'turn'].includes(command) || rest.length !== (command === 'line' ? 1 : 0)) usageError(command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   if (values.stopped && command !== 'close') usageError('--stopped goes with close only');
   // A live view holds a browser open while it waits, so it keeps the shorter day.
   const minutes = Number(values.minutes ?? (values.view || values.watch ? 480 : 1440));
@@ -836,7 +1223,7 @@ function keyNames(list) {
 
 if (isMain(import.meta.url)) {
   const { command, values } = parse(process.argv.slice(2));
-  const run = { open: () => open(values), watch, wait, close: () => close(values), 'install-view': installViewTools, line: () => lineCommand(values), turn: () => turnCommand(values) }[command];
+  const run = { open: () => open(values), watch, 'watch-view': watchView, wait, close: () => close(values), 'install-view': installViewTools, line: () => lineCommand(values), turn: () => turnCommand(values) }[command];
   const code = await run();
   process.exitCode = typeof code === 'number' ? code : 0;
 }

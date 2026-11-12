@@ -105,8 +105,10 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
   // The computer's place keeps the timing record; each chat's link lives in its own folder under it.
   const hub = join(root, '.wong-stack/hand-over');
   const state = join(hub, 'links', sessionName(cwd));
+  const others = [];
   t.after(() => {
     camofox.stop();
+    for (const other of others) other.run('close');
     run('close');
     const pid = Number(existsSync(file('tunnel.pid')) && readFileSync(file('tunnel.pid'), 'utf8'));
     if (pid) try { process.kill(pid, 'SIGKILL'); } catch { /* gone */ }
@@ -152,6 +154,20 @@ ${paseo === 'fail' ? 'process.exit(1);' : paseo === 'timeout' ? 'setTimeout(() =
     page: () => camofox.tabs()[0],
     stateFiles: () => (existsSync(state) ? readdirSync(state).map(name => readFileSync(join(state, name), 'utf8')).join('\n') : ''),
     tunnelPid: () => Number(readFileSync(file('tunnel.pid'), 'utf8')),
+    /** Another chat on this computer: a folder of its own, so a name of its own, and its own id to wake. */
+    chat(name, id = `${name}-workspace-id`) {
+      const dir = join(root, name);
+      mkdirSync(dir, { recursive: true });
+      const spawnIn = (file, args) => spawnSync(process.execPath, [file, ...args], { cwd: dir, env: { ...env, PASEO_AGENT_ID: id }, encoding: 'utf8', timeout: 30_000 });
+      const other = {
+        name,
+        run: (...args) => { const out = spawnIn(script, args); return { ...out, rawStdout: out.stdout, stdout: legacyOutput(out.stdout) }; },
+        browse: (...args) => spawnIn(browse, args),
+        state: join(hub, 'links', name),
+      };
+      others.push(other);
+      return other;
+    },
     result: () => legacyResult(JSON.parse(readFileSync(join(state, 'result.json'), 'utf8'))),
     /** The timing record's lines, oldest first. */
     timings: () => (existsSync(join(hub, 'timings.jsonl')) ? readFileSync(join(hub, 'timings.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line)) : []),
@@ -172,7 +188,7 @@ function opened(f, ...args) {
   const send = /^HANDOVER_LINK=[^\n]*\nHANDOVER_SEND=([^\n]+)$/m.exec(out.stdout)?.[1];
   assert.ok(send, `the send reminder sits right under the link:\n${out.stdout}`);
   assert.doesNotMatch(send, /https?:|key=|trycloudflare/, 'the reminder holds no link or key');
-  return { link, key: KEY.exec(link)?.[1], port: JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')).port };
+  return { link, key: KEY.exec(link)?.[1], port: stateOf(f).port };
 }
 
 /** Calls a route with the key header unless `key` is null; resolves to the status and JSON. */
@@ -373,8 +389,17 @@ const SOURCE_ARGS = dir => ['-display', DISPLAY, '-unixsock', join(dir, 'screen.
 const openedView = (f, ...args) => opened(f, '--view', '--session', SESSION, ...args, ...(args.includes('--note') ? [] : ['--note', NOTE]));
 /** Presses the view's Hand back. */
 const handBack = link => route(link.port, link.key, 'give', {});
-/** The link's recorded state, or null while the watcher is writing it. */
-const stateOf = f => { try { return JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8')); } catch { return null; } };
+/** The link's recorded state, or null while the watcher is writing it. A live view by link keeps its state in the
+ * computer's one view, and this chat's note, page, size, and limit in its turn there. */
+function stateOf(f) {
+  const shared = join(f.hub, 'view');
+  try {
+    if (!existsSync(join(shared, 'state.json'))) return JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
+    const state = JSON.parse(readFileSync(join(shared, 'state.json'), 'utf8'));
+    const { note, size, ...turn } = JSON.parse(readFileSync(join(shared, 'turns', `${basename(f.state)}.json`), 'utf8'));
+    return { ...state, ...turn, view: { note, size, ...state.view } };
+  } catch { return null; }
+}
 /** What a view's end must undo, read while it is open. */
 const kept = (f, link) => ({ view: stateOf(f).view, port: link.port, tunnel: f.tunnelPid() });
 const screenFolders = f => (existsSync(f.hub) ? readdirSync(f.hub).filter(name => name.startsWith('screen-')) : []);
@@ -420,6 +445,7 @@ test('--view needs a note and takes no finish; its flags go with --view only', t
   const help = f.run('--help').stdout;
   assert.match(help, /open --view --note <line> \[--session <name>\] \[--minutes N\]/);
   assert.match(help, /never on a page\s+change/);
+  assert.match(help, /joins it as a tab and prints the same link/);
   assert.match(help, /wait \| close \[--stopped\] \| install-view/);
   assert.match(help, /HANDOVER_NEEDS=live-view/);
   assert.match(help, /HANDOVER_VIEW=window/);
@@ -527,7 +553,8 @@ test('open --view starts the screen source on a private socket, fits the page, a
   assert.equal((await route(port, null, 'give', {})).status, 403);
   const shown = await route(port, key, 'view');
   assert.equal(shown.status, 200);
-  assert.deepEqual({ ...shown.json, now: 0 }, { note: NOTE, control: 'turn', fit: WIDE, closesAt: state.deadline, now: 0 });
+  const me = basename(f.state);
+  assert.deepEqual({ ...shown.json, now: 0 }, { note: NOTE, control: 'turn', fit: WIDE, closesAt: state.deadline, shown: me, tabs: [{ chat: me, id: state.joined, note: NOTE, fresh: false, closesAt: state.deadline }], now: 0 });
   assert.doesNotMatch(JSON.stringify(shown.json), /pay\.example|\.sock|hand-over/, 'no address of the page, and no path');
   assert.equal((await route(port, key, 'fit', { fit: 'tall' })).status, 400);
   assert.deepEqual(f.page().size, [1280, 663], 'a refused fit changes nothing');
@@ -537,6 +564,7 @@ test('open --view starts the screen source on a private socket, fits the page, a
   assert.equal((await route(port, key, 'fit')).status, 405);
   assert.equal((await route(port, key, 'give')).status, 405, 'a press is a POST');
   for (const gone of ['form', 'send', 'save', 'keys', 'screen', 'done', 'take', 'watch', 'picture']) assert.equal((await route(port, key, gone, {})).status, 404, gone);
+  assert.equal((await route(port, key, 'show', { chat: 'another' })).status, 409, 'a chat with no tab');
 });
 
 const WATCH_NOTE = 'The assistant is connecting your tools.';
@@ -906,6 +934,118 @@ test('where the browser shows in its own window, a watch opens no link, and a tu
 });
 
 
+const FLIGHTS = { session: 'flights', note: 'Pay for the seat' };
+/** Opens a second chat's turn in the open view, on its own page; returns the chat and its open's output. */
+function joined(f, name = 'flights', ...args) {
+  const other = f.chat(name);
+  const page = other.browse('open', RECEIPT, '--session', FLIGHTS.session);
+  assert.equal(page.status, 0, page.stdout + page.stderr);
+  return { other, out: other.run('open', '--view', '--session', FLIGHTS.session, '--note', FLIGHTS.note, ...args) };
+}
+/** The view's answer to the page's poll. */
+const tabsOf = async link => (await route(link.port, link.key, 'view')).json;
+
+test('a second chat\'s turn joins the open view as a tab behind the one shown: the same link, one tunnel, one screen', linux, async t => {
+  const f = fixture(t, { view: true, paseo: 'ok' });
+  const link = openedView(f);
+  const was = kept(f, link);
+  const me = basename(f.state);
+  const { other, out } = joined(f);
+  assert.equal(out.status, 0, out.stderr);
+  assert.equal(/^HANDOVER_LINK=(.+)$/m.exec(out.stdout)?.[1], link.link, 'the same link');
+  assert.match(out.stdout, /^HANDOVER_LINK=[^\n]*\nHANDOVER_SEND=[^\n]+$/m);
+  assert.equal(f.calls().filter(line => line.startsWith('cloudflared tunnel')).length, 1, 'one tunnel');
+  assert.equal(f.tools.calls('x11vnc').length, 1, 'one screen source');
+  assert.ok(existsSync(join(other.state, 'watcher.pid')), 'the second chat waits on the same watcher');
+  const view = await tabsOf(link);
+  assert.deepEqual([view.shown, view.note], [me, NOTE], 'a new tab does not take the screen from the person');
+  assert.deepEqual(view.tabs.map(tab => [tab.chat, tab.note, tab.fresh]), [[me, NOTE, false], ['flights', FLIGHTS.note, true]]);
+  assert.equal(view.closesAt, Math.max(...view.tabs.map(tab => tab.closesAt)), 'the link stays until its last limit');
+
+  const shown = await route(link.port, link.key, 'show', { chat: 'flights' });
+  assert.deepEqual([shown.status, shown.json.shown, shown.json.note], [200, 'flights', FLIGHTS.note]);
+  assert.deepEqual(shown.json.tabs.map(tab => tab.fresh), [false, false], 'a tab seen is no longer new');
+  assert.deepEqual(f.page().size, FIRST, 'the page shown before gets its size back');
+  assert.equal(f.fronts().filter(step => step === 'front end').length, 1, 'and lets go of the turn');
+  assert.equal((await route(link.port, link.key, 'show', { chat: me })).json.shown, me, 'and back');
+  assert.equal((await route(link.port, link.key, 'show', { chat: 'garage' })).status, 409, 'a chat with no tab');
+  assert.deepEqual(f.sent(), [], 'a tap wakes nobody');
+  assert.equal(other.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
+  assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
+  await assertPutBack(f, was);
+});
+
+test('Hand back ends the shown chat\'s turn alone, wakes only that chat, and shows the oldest tab left; the last closes the link', linux, async t => {
+  const f = fixture(t, { view: true, paseo: 'ok' });
+  const link = openedView(f);
+  const was = kept(f, link);
+  const me = basename(f.state);
+  const { other } = joined(f);
+  assert.deepEqual(await route(link.port, link.key, 'give', { chat: 'flights' }), { status: 409, json: null }, 'only the shown tab hands back');
+  assert.deepEqual(await route(link.port, link.key, 'give', { chat: me }), { status: 200, json: { control: 'assistant' } });
+  const out = f.run('wait');
+  assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=handed-back');
+  assert.match(out.rawStdout, /HANDOVER_NOTIFICATION=notified/);
+  assert.deepEqual(f.sent().map(message => message[1]), ['a-full-workspace-id'], 'only the first chat is woken');
+  const view = await eventually(async () => {
+    const now = await tabsOf(link);
+    return now.shown === 'flights' && now;
+  });
+  assert.deepEqual([view.note, view.tabs.map(tab => tab.chat)], [FLIGHTS.note, ['flights']]);
+  assert.ok(existsSync(join(other.state, 'watcher.pid')), 'the other turn is still open');
+  assert.ok(await answers(link.port), 'and so is the link');
+
+  assert.equal((await route(link.port, link.key, 'give', { chat: 'flights' })).status, 200);
+  const last = other.run('wait');
+  assert.equal(last.stdout.trim(), 'HANDOVER_RESULT=handed-back');
+  assert.deepEqual(f.sent().map(message => message[1]), ['a-full-workspace-id', 'flights-workspace-id'], 'then only the second');
+  assert.match(f.sent()[1][2], /"mode":"view","result":"handed-back"/);
+  await assertPutBack(f, was);
+  assert.ok(!existsSync(join(f.hub, 'view', 'state.json')), 'the view\'s own files are gone');
+  assert.deepEqual(f.timings().map(({ ended, cause }) => [ended, cause]), [['handed-back', 'hand-back'], ['handed-back', 'hand-back']]);
+});
+
+test('a chat\'s close and a turn\'s limit each end that turn alone, and wake nobody', linux, async t => {
+  const f = fixture(t, { view: true, paseo: 'ok' });
+  const link = openedView(f);
+  const was = kept(f, link);
+  const me = basename(f.state);
+  const { other, out } = joined(f, 'flights', '--minutes', '0.05');
+  assert.equal(out.status, 0, out.stderr);
+  assert.equal(other.run('wait').stdout.trim(), 'HANDOVER_RESULT=timeout', 'the joined turn runs out first');
+  const view = await tabsOf(link);
+  assert.deepEqual([view.shown, view.tabs.map(tab => tab.chat)], [me, [me]], 'the first chat\'s tab stays shown');
+  assert.ok(await answers(link.port), 'and the link open');
+  assert.ok(existsSync(join(f.state, 'watcher.pid')) && !existsSync(join(f.state, 'result.json')), 'the first chat has no result');
+
+  const { other: next, out: again } = joined(f, 'garage');
+  assert.equal(again.status, 0, again.stderr);
+  assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
+  assert.equal((await tabsOf(link)).shown, 'garage', 'a close ends only its own tab; the one left shows');
+  assert.ok(await answers(link.port), 'and the link stays open');
+  assert.ok(existsSync(join(next.state, 'watcher.pid')) && !existsSync(join(next.state, 'result.json')), 'that chat has no result');
+  assert.equal(next.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
+  await assertPutBack(f, was);
+  assert.deepEqual(f.sent(), []);
+  assert.deepEqual(f.timings().map(({ ended, cause }) => [ended, cause]), [['timeout', 'deadline'], ['closed', 'close-command'], ['closed', 'close-command']]);
+});
+
+test('a watch link and a turn by link keep each other out', linux, async t => {
+  const f = fixture(t, { view: true });
+  const me = basename(f.state);
+  openedWatch(f);
+  const { out: refused } = joined(f);
+  assert.equal(refused.status, 1);
+  assert.match(refused.stderr, new RegExp(`A live view is already open in ${me}\\.`));
+  assert.equal(f.run('close').status, 0);
+
+  openedView(f);
+  const watch = f.chat('tools').run('open', '--watch', '--session', FLIGHTS.session, '--note', WATCH_NOTE);
+  assert.equal(watch.status, 1);
+  assert.match(watch.stderr, new RegExp(`A live view is already open in ${me}\\.`));
+  assert.equal(f.tools.calls('x11vnc').length, 2, 'one source for the watch, one for the view');
+});
+
 test('a screen source that exits is started again on the same socket, and one that can not be ends the view as an error', linux, async t => {
   const f = fixture(t, { view: true });
   const link = openedView(f);
@@ -988,8 +1128,9 @@ test('a closed view refuses every route and the screen', async t => {
 test('a view handed back notifies the full originating workspace without wait; the receipt dispatches once', linux, async t => {
   const f = fixture(t, { view: true, paseo: 'ok' });
   const link = openedView(f);
-  const state = JSON.parse(readFileSync(join(f.state, 'state.json'), 'utf8'));
-  assert.equal(state.agentId, undefined, 'the chat is read when the link ends, not kept in the state');
+  const state = stateOf(f);
+  assert.equal(JSON.parse(readFileSync(join(f.hub, 'view', 'state.json'), 'utf8')).agentId, undefined, 'the view names no chat to wake');
+  assert.equal(state.target.agentId, 'a-full-workspace-id', 'each turn names its own, since a view serves several chats');
   assert.match(state.completionId, /^[a-f0-9]{32}$/);
   await handBack(link);
   const receipt = await eventually(async () => {
