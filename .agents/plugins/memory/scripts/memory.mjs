@@ -8,12 +8,13 @@ import { MAX_TRANSCRIPT_BYTES, megabytes } from '../store/interface.mjs';
 import { parseCli, usageError } from './lib/cli.mjs';
 import { readDaily, setDaily, today } from './lib/daily.mjs';
 import { DOCUMENT_COMMANDS } from './lib/documents/commands.mjs';
-import { DIFFERED, formatFact, loadDigest } from './lib/digest.mjs';
-import { loadAreas, withAreaTags } from './lib/areas.mjs';
+import { DIFFERED, formatFact, loadDigest, tidyNote } from './lib/digest.mjs';
+import { loadAreas, topicNamer, withAreaTags } from './lib/areas.mjs';
 import { hasTerms, readFacts } from './lib/read-facts.mjs';
 import { READ_OPTIONS } from './lib/read-options.mjs';
 import { BRIEF_DEFAULT_LIMIT, BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './lib/brief.mjs';
 import { areasCommand, pull, relatedCommand, showCommand } from './lib/pull.mjs';
+import { recordUse, USAGE_DAYS, usageSummary } from './lib/usage.mjs';
 import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
 import { detached, isMain, loadEnv, loadProfile, openStore, readJson, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
@@ -268,8 +269,13 @@ async function retagCommand(ctx, { values, tally }) {
   console.log([`retagged: ${result.written}`, ...result.skipped.map(({ id, why }) => `skipped #${id}: ${why}`)].join('\n'));
 }
 
+// A search or a brief as a use count: the tag or change it named, the facts it gave, or a miss with its words.
+const readUse = (command, { values, positionals }, facts) => ({ command, node: values.tag || values.slug || null, topics: values.tag ? [values.tag] : [],
+  facts: facts.map(fact => fact.id), miss: !facts.length, words: positionals.join(' ') });
+
 async function search(ctx, args) {
   const result = await readFacts(ctx, args);
+  recordUse(ctx, readUse('search', args, result.facts));
   console.log(args.values.json ? JSON.stringify(result) : result.facts.length ? result.facts.map(fact => formatFact(fact)).join('\n') : 'No matching facts.');
 }
 
@@ -280,6 +286,7 @@ async function brief(ctx, { values, positionals }) {
   }
   const limit = Math.min(BRIEF_LIMIT, Math.max(1, Number(values.limit) || BRIEF_DEFAULT_LIMIT));
   const result = await readFacts(ctx, { values: { ...values, limit, all: false }, positionals });
+  recordUse(ctx, readUse('brief', { values, positionals }, result.facts));
   process.stdout.write(renderBrief(result));
 }
 
@@ -289,12 +296,28 @@ async function source(ctx, { positionals: [raw] }) {
   if (!id) throw new StoreError('usage: memory.mjs source <fact-id>');
   const answer = await (await openStore(ctx)).transcript({ factId: id });
   if (answer?.fact === null) throw new StoreError(`no fact #${id}`);
+  recordUse(ctx, { command: 'source', node: `#${id}`, facts: [id] });
   if (!(answer instanceof Uint8Array)) { console.log(`Fact #${id} comes from session ${answer.session || '(none)'}: ${answer.missing}.`); return; }
   const text = Buffer.from(answer).toString('utf8');
   try { console.log(strip(parseTranscriptText(text).messages).slice(0, MAX_STRIPPED)); } catch (error) {
     if (!(error instanceof FormatError)) throw error;
     console.log(text.slice(0, MAX_STRIPPED));
   }
+}
+
+// `usage`: how chats on this computer used memory, from the counts in the state folder; it reads no store.
+async function usage(ctx, { values }) {
+  const days = Math.min(USAGE_DAYS, Math.max(1, Number(values.days) || USAGE_DAYS));
+  const areas = await loadAreas(ctx);
+  const topicOf = Object.values(areas).some(area => area.page) ? topicNamer(areas) : tag => tag;
+  const { lookups, topics, facts, misses } = usageSummary(ctx, { since: new Date(Date.now() - days * 86_400_000).toISOString(), topicOf });
+  if (values.json) { console.log(JSON.stringify({ version: 1, days, lookups, topics, facts, misses })); return; }
+  const list = (title, rows, none) => [`## ${title}`, ...(rows.length ? rows.slice(0, 10) : [none])];
+  console.log([`${lookups} look-ups by chats on this computer in the last ${days} days.`,
+    ...list('Most used topics', topics.map(row => `- ${row.topic} (${row.uses})`), 'None yet.'),
+    ...list('Facts returned most', facts.map(row => `- #${row.id} (${row.uses})`), 'None yet.'),
+    ...list('Questions that found nothing', misses.map(row => `- ${row.words} (${row.command}, ${row.at.slice(0, 10)}${row.times > 1 ? `, ${row.times} times` : ''})`), 'None.'),
+  ].join('\n'));
 }
 
 async function tags(ctx) {
@@ -630,7 +653,8 @@ async function dailyCommand(ctx, { values, positionals: [action] }) {
   if (!last) { console.log(`No daily memory tidy has run yet.${off}`); return; }
   let counts = last.counts;
   try { if (typeof counts === 'string') counts = JSON.parse(counts); } catch { counts = {}; }
-  console.log(`Last daily tidy: ${last.day} on ${last.host || 'an unknown computer'}, ${last.status}: ${countLine(counts)}.${off}`);
+  const note = last.status === 'ok' ? tidyNote(last.reason) : [];
+  console.log([`Last daily tidy: ${last.day} on ${last.host || 'an unknown computer'}, ${last.status}: ${countLine(counts)}.${off}`, ...note.map(line => `  ${line}`)].join('\n'));
 }
 
 async function spool(ctx) {
@@ -651,7 +675,7 @@ const removed = name => () => { throw new StoreError(`${name} was removed: for a
 
 export const COMMANDS = {
   ...DOCUMENT_COMMANDS,
-  search, brief, show: showCommand, source, tags, areas: areasCommand, pull, related: relatedCommand, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool,
+  search, brief, show: showCommand, source, usage, tags, areas: areasCommand, pull, related: relatedCommand, pending: pendingCommand, strip: stripCommand, live, digest, stats, spool,
   'keep-transcript': keepTranscript,
   'recent-chats': recentChats,
   extract: removed('extract'),
@@ -689,6 +713,7 @@ const USAGE = `usage: memory.mjs <command>
   related <topic> [--json]     the topics that share live facts and changes with it, and whether a page links them
   brief [terms] [search filters except --all]   dates and sources; default 8 facts, --limit up to 20 / 6144 bytes; requires scope
   source <fact-id>             the reduced transcript behind a fact
+  usage [--days n] [--json]    how chats on this computer used memory (30 days at most): topics, facts, questions that found nothing
   tags                         every tag with its definition and use count
   tag <name> [--definition text] [--alias-of tag | --no-alias]   correct a tag, or merge a look-alike into another (admin)
   areas [paths|topics…] [--change name] [--limit n]   everything linked to them: areas, docs, past changes, backlinks, code users, then live facts by group (--limit n a group)

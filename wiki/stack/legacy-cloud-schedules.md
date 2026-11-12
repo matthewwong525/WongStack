@@ -10,7 +10,7 @@ Use the [schedule skill's legacy path](../../.agents/plugins/daily/schedule/SKIL
 
 Move a job only when requested. Inspect its identity, prompt, timing, recent result, and permitted actions first. Adopt a host job by verified identity, or prepare a paused replacement with published instructions and future-session access. Pause the original and verify that state before arming the replacement. Read back its binding and time; keep a failed handoff recoverable, with neither side doing duplicate outreach. Other jobs remain untouched.
 
-Older prompts can invoke `/routine`, which has retired. Identify those during migration and repair them explicitly to use the published schedule-run instructions. The compatible migration/run path resolves older improve and dream prompts to the current skills; it does not silently rewrite deployed prompts. Removing the old resources is a separate choice after the new job is verified.
+Older prompts can invoke `/routine`, which has retired. Identify those during migration and repair them explicitly to use the published schedule-run instructions. The compatible migration/run path resolves an older improve prompt to the current skill, and an older dream prompt to the plain ask *Tidy memory now*; it does not silently rewrite deployed prompts. Removing the old resources is a separate choice after the new job is verified.
 
 ## Renew a key
 

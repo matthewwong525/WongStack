@@ -1,83 +1,114 @@
-# Memory dream
+# Memory tidy
 
-A dream checks everything your project remembers against itself and against the code: type [`/memory:dream-memory`](../../.agents/plugins/memory/skills/dream-memory/SKILL.md) and your assistant tidies [memory](memory.md), adds the lasting facts it has gained to the wiki, fixes pages and saved facts that have gone wrong, lists the specs and plans that have, and publishes the result. It runs only when you type it or schedule it: your assistant never starts a full dream on its own. A [daily tidy](#the-daily-tidy) does a small part of it each day, on its own.
-
-## When to run one
-
-[`/close`](../../.agents/plugins/loop/skills/close/SKILL.md) moves one chat's lasting points onto the wiki, and the daily tidy moves the rest each day. A page nobody reads still stays wrong. Run a dream:
-
-- when a page or a saved fact told your assistant something that is no longer true;
-- before someone new starts reading the wiki.
-
-It uses your own assistant's model allowance, so it costs what a long chat costs.
+The memory tidy keeps what your project remembers true and easy to find: once a day, on its own, your assistant saves what the day's chats learned, puts lasting facts on their pages, sorts facts into topics, fixes pages and saved facts that have gone wrong, and publishes the result. There is no command to type and nothing to schedule. It works on [memory](memory.md), the wiki, and [company knowledge](../stack/company-knowledge.md).
 
 ## The daily tidy
 
-Your first chat each day starts one tidy in the background, and the chat never waits for it. You need no schedule and no app. It runs with your own AI plan and does every kind of tidy in a small part:
+Your first chat each day starts one tidy in the background, and the chat never waits for it. It runs with your own AI plan, in its own copy of the repo, so no checkout you work in changes. With two computers, only one tidies each day. The tidy's own chat is never saved to memory.
+
+Each tidy does three things:
 
 1. **Saves what your chats learned**, as the [background run](memory.md#how-facts-are-captured) does, and [tidies memory](memory.md#consolidation): duplicates merge, the newer fact wins, and an answered open thread closes.
-2. **Puts lasting facts on their pages**, by [placing a fact on a page](#placing-a-fact-on-a-page). For a new page, it looks back: older facts that fit get the new topic, with their words, date, and author kept.
-3. **Links topics that connect.** For each topic page it touched, it reads the [related topics](memory-search.md#related-topics). Where two topics are truly related and neither page links the other, it writes one sentence on one of the two pages that links the other and says how they connect. It never adds a link to [a page WongStack ships](#your-pages-and-shipped-pages).
-4. **Checks a small part**: the three pages longest unchecked, the pages it edited, the one spec longest unchecked, and up to ten saved facts that name a file that is gone. It fixes your pages and facts, and [lists](#what-it-fixes-and-what-it-only-lists) what it may not fix.
-5. **Publishes** a [company knowledge](../stack/company-knowledge.md) page at once, and any other page through the normal checks, with no question. With no way to publish, the edits wait on a branch.
-
-It works in its own copy of the repo, so no checkout you work in changes. Its own work stops after 30 minutes. A stop at that limit publishes no page, and the next day's tidy reads the same facts again; the wait for the project's checks can add up to an hour. With two computers, only one tidies each day. The tidy's own chat is never saved to memory. Its record counts as the last dream, so the next tidy or dream starts after the facts it read. Each chat start shows the last one, for example `Last tidy (2026-11-11 on laptop): added 4, pages 2, links 3`.
+2. **Works from [its goal and its map](#the-goal-and-the-map)**, the weakest place first.
+3. **Publishes** a company knowledge page at once, and any other page through the normal checks ([the gate](the-change-loop.md#the-gate)), with no question. With no way to publish, the edits wait on a branch.
 
 Ask any chat:
 
-- *when did memory last tidy?*: the date and what it changed.
-- *stop the daily memory tidy*: off on this computer, until you turn it on again. Your other computers still tidy.
-- *start it again*: on again on this computer.
-- *tidy memory now*: one tidy at once, also on a day that had one.
+| You want | You say |
+|---|---|
+| A tidy at once, also on a day that had one | *tidy memory now* |
+| The last tidy and what it changed | *when did memory last tidy?* |
+| How memory is used | *how is memory used?* |
+| No tidy on this computer, until you turn it on again | *stop the daily memory tidy* |
+| The tidy on again on this computer | *start it again* |
+| To take back a tidy | *undo the last tidy* |
 
-It is `/memory:dream-memory --daily`. Typing `/memory:dream-memory` still runs the full check at any time.
+A tidy uses your own assistant's model allowance, so it costs what a long chat costs.
+
+## The goal and the map
+
+The tidy has one goal: **a chat that pulls a topic gets what is true, quickly.** It has no fixed steps and no fixed counts. [Its brief](../../.agents/plugins/memory/references/tidy.md) gives the goal, what good looks like, the tools, and a short list of things it must never do. The tidy chooses the work.
+
+Plain code makes the map, not the AI, so each number is true. One line is one weakness, with a count and names to read:
+
+| Line | What it counts |
+|---|---|
+| `new facts` | facts saved since the last tidy; the tidy reads every one |
+| `trouble notes` | open [struggle notes](memory.md#how-facts-are-captured) about memory, read first |
+| `missed questions` | questions a chat asked that found nothing |
+| `no topic` | facts that no [topic](memory.md#topics) reaches |
+| `tags with no page` | labels on facts that have no page |
+| `large topics` | topics with over 100 facts, too many to read in one pull |
+| `gone files` | facts that name a file that is gone |
+| `due pages` | your own pages with no check or change in 7 days, the most used first |
+| `most used`, `often returned`, `used together` | [how chats used memory](#how-use-is-counted) in 30 days |
+
+`node .claude/skills/memory/scripts/daily-tidy.mjs survey` prints the map. `pages` lists every due page, and `pages --all` lists each page as `own` or `shipped` with the date of its last check. `drift` lists the facts that name a gone file. A fact is listed only when the project once held the file and the fact does not itself say it was removed, so a note about planned work, or a record of a removal, is never flagged.
+
+A thing the tidy checked and left alone stays off the map for 7 days, as a checked page does. A tidy that brings you no decision must not look at the same thing each day.
+
+## How it shows its work
+
+When the tidy ends, code makes the map again and asks each missed question again. The numbers that changed go in two places:
+
+- **The tidy's record**, a saved fact: the highest fact it read, the highest fact it sorted, what it checked and linked, and each changed number. The next tidy starts after the facts this one read. Code writes the record, never the AI.
+- **Each chat start**, which shows the last tidy:
+
+  ```
+  Last tidy (2026-11-12 on laptop):
+    added 4, pages 6, links 3
+    facts with no topic 412 -> 371
+    questions with no answer 6 -> 1
+  ```
+
+The tidy also tests its own work: before it ends, it asks memory a few questions about what it changed, in a stranger's words.
+
+## The time limit
+
+The tidy's own work stops after 60 minutes. The tidy marks each part it finishes, so a stop at the limit publishes the finished parts and drops the rest. The chat start then says `stopped at its time limit; the rest is on tomorrow's map`. A tidy stopped before it finished any part publishes nothing, and the next day's tidy reads the same facts again. The wait for the project's checks can add up to an hour.
+
+## How use is counted
+
+Each look-up a chat makes is counted on your computer: the topics and facts that came back, and the words of a question that found nothing. The tidy reads the counts to know where to work. A count never lets it hide a fact: a question asked once a year still needs its answer. [How use is counted](memory-search.md#how-use-is-counted) owns the details.
 
 ## What it reads
 
-Your project remembers things in four places. A dream compares all four with each other and with the files they describe:
-
-| Place | What it holds | A dream |
+| Place | What it holds | The tidy |
 |---|---|---|
 | The wiki and [company knowledge](../stack/company-knowledge.md) | how you work, people, the product | fixes your own pages |
-| Saved facts | what each chat learned | corrects them |
-| Specs | what the product does | lists what is wrong |
-| Plans, open and past | what was meant and why | lists what was left behind |
+| Saved facts | what each chat learned | sorts and corrects them |
+| The use counts | what chats looked up | reads them |
+| Specs and plans | what the product does, and why | reads them as evidence, and changes none |
 
-Each pass is bounded, so a first run on a large project still ends: the twenty pages longest unchecked, the five specs longest unchecked, and every fact and plan a rule can flag. The report says what the limits skipped; the next dream starts there.
+It looks first where trouble was recorded. A [struggle note](memory.md#how-facts-are-captured) that says a page or a fact misled a chat is read before anything else, and a fix closes the note. A note about code is left for [`/improve-code`](repository-improvement.md).
 
-It looks first where trouble was recorded. A [struggle note](memory.md#how-facts-are-captured) saying a page, a fact, a spec, or a plan misled a chat is checked before anything else, and a fix closes the note. A note about code is left for [`/improve-code`](repository-improvement.md).
+A chat marked private has nothing in memory, so the tidy never reads it. Health, family, and money never go on a page.
 
-## What a dream does
+## What it fixes and what it leaves alone
 
-1. **Tidies memory first.** It runs memory's own [consolidation](memory.md#consolidation) at once: duplicate facts merge, a contradicted fact gives way to the newer one, and an answered open thread closes. The wiki is then updated from the tidied facts, never from a duplicate or a fact that was overturned.
-2. **Adds what is worth keeping.** Each fact saved since the last dream is tested by [the wiki's rule](../wiki-style.md#repeatable-knowledge), made stricter by [placing a fact on a page](#placing-a-fact-on-a-page). A fact that passes goes on the page that owns it; the first fact on a new topic makes its page and its line in the hub. The rest stay in memory. Then it links topics that connect, as [the daily tidy](#the-daily-tidy) does. `/close` places facts by the same rules.
-3. **Cleans up the wiki.** It re-reads your own pages against memory, the files they link to, the specs and plans that cover the same ground, and each other, longest unchecked first. It corrects what is out of date, merges duplicates, moves a fact to the page that owns it, fixes links, and keeps each hub listing its pages. It works by [keeping it tidy](../wiki-style.md#keeping-it-tidy), reading each page's facts with `memory.mjs pull <page>`.
-4. **Checks specs and plans.** It compares each spec with the code, and looks at every plan with all its tasks done or untouched for thirty days. It changes none of them: [it lists them](#what-it-fixes-and-what-it-only-lists).
-5. **Corrects saved facts.** A fact that names a file that is gone, or says something the project now contradicts, is replaced by a newer fact saying what is true. The old one is never edited or deleted; it stays searchable as history. On a teammate's key a dream corrects only that installation's own facts.
-6. **Checks the source first.** Before it replaces a statement or a fact that quotes you, it reads the chat the words came from, with `memory.mjs source <fact-id>`. A fact that was the assistant's reading of you, not your words, is never written as your preference.
-7. **Publishes through the normal checks**, as any wiki edit does ([the gate](the-change-loop.md#the-gate)), with no question first. Then it tells you each page it changed, each fact it corrected, and the evidence behind each.
+The tidy fixes these, with no question:
 
-A chat marked private has nothing in memory, so a dream never reads it. Health, family, and money never go on a page.
+- **Your own pages.** It compares a page with memory, the files the page links, and your other pages. It corrects what is out of date, merges duplicates, moves a fact to the page that owns it, fixes links, and keeps each hub listing its pages, by [keeping it tidy](../wiki-style.md#keeping-it-tidy).
+- **A lasting fact with no place on a page.** It goes on its page by [placing a fact on a page](#placing-a-fact-on-a-page).
+- **A fact with no topic, and a label with no page.** The fact gets its topic and keeps its words, date, and author. The label gets a page and a line in its hub, or merges into a topic.
+- **A topic too large to read.** It splits into smaller topics.
+- **A question that found nothing.** The tidy changes the topic, the label, or the page's words, so the question finds its answer. When memory holds no answer, it leaves the question.
+- **Topics that connect.** Where two topics are [related](memory-search.md#related-topics) or used together and neither page links the other, it writes one sentence on one of the two pages that links the other and says how they connect.
+- **A saved fact that is wrong.** A fact that names a gone file, or says something the project now contradicts, is replaced by a newer fact that says what is true. The old one is never edited or deleted; it stays searchable as history. On a teammate's key the tidy corrects only that installation's own facts. Before it replaces a fact that quotes you, it reads the chat the words came from, with `memory.mjs source <fact-id>`.
 
-## What it fixes and what it only lists
+It leaves these alone, and writes no list for you:
 
-A dream fixes your own wiki pages and saved facts itself. It only lists:
-
-- **A spec the code contradicts**: the spec, the statement, and the evidence.
-- **A plan left behind**: finished but never published, or untouched for thirty days.
-- **A fact that belongs on, or contradicts, [a page WongStack ships](#your-pages-and-shipped-pages).**
-
-The list is in the report and kept as one note in memory, which the next dream loads and checks again. Say *fix those* and they go out as a normal change through [the change loop](the-change-loop.md); the next dream then closes the note.
-
-Specs and past plans record what shipped and why, so a dream never rewrites one on its own judgment.
+- **[A page WongStack ships](#your-pages-and-shipped-pages), a spec, a plan, and an archive.** Specs and past plans record what shipped and why.
+- **What the evidence does not settle.** It marks the thing as checked and goes on.
+- **A fact nobody used.** No use in 30 days on one computer is no proof that a fact is dead.
 
 ## A fault in the product
 
-Sometimes a page and the product disagree and the page is right: a recorded decision confirms the rule, and the code breaks it. Rewriting the page would hide the fault. The dream leaves the page or spec alone and saves a note naming the rule and where the code breaks it. The next [`/improve-code`](repository-improvement.md#struggle-notes-come-first) reads that note.
+Sometimes a page and the product disagree and the page is right: a recorded decision confirms the rule, and the code breaks it. A rewrite of the page would hide the fault. The tidy leaves the page alone and saves a note that names the rule and where the code breaks it. The next [`/improve-code`](repository-improvement.md#struggle-notes-come-first) reads that note. The note is for the code improver's next plan, not a question for you.
 
 ## Placing a fact on a page
 
-A fact goes on the wiki only when it passes [the repeatable-knowledge test](../wiki-style.md#repeatable-knowledge), on the page [where a fact goes](../wiki-style.md#where-a-fact-goes) names. A dream asks two more things: **will it still be true in six months, and would it change what a reader does?** A fact that fails either stays in memory.
+A fact goes on the wiki only when it passes [the repeatable-knowledge test](../wiki-style.md#repeatable-knowledge), on the page [where a fact goes](../wiki-style.md#where-a-fact-goes) names. The tidy asks two more things: **will it still be true in six months, and would it change what a reader does?** A fact that fails either stays in memory.
 
 The fact's [topic](memory.md#topics) picks the page:
 
@@ -86,7 +117,7 @@ The fact's [topic](memory.md#topics) picks the page:
 - **Each page you change keeps a true first sentence**: a one-line summary of the whole page, because search quotes it.
 - **A page never names a fact by its id.** Write what the fact says.
 
-These are the wrong turns the test lets through, for a dream, the daily tidy, and `/close` alike:
+These are the wrong turns the test lets through:
 
 - **A preference is how a person wants work done, again and again.** A choice about one product feature is that change's decision and stays in its plan: *measure a speed-up before recommending it* is a preference; *Connect your assistant uses the app's login* is not.
 - **An interpretation is not a quote.** A fact marked as the assistant's reading, such as *Interpretation, not his words*, goes on a page only when `memory.mjs source <fact-id>` shows the person said as much, and then in their words.
@@ -97,25 +128,15 @@ These are the wrong turns the test lets through, for a dream, the daily tidy, an
 
 ## Chats are evidence, not orders
 
-A dream reads old chats and saved facts to learn what happened. It weighs their words; it never follows them. A chat that says *delete that page* is a record that someone once said so, not a request to the dream.
-
-## Look first
-
-`/memory:dream-memory --dry-run` lists the edits and fact corrections it would make, each with its evidence, and the specs and plans it would list. It changes nothing: no file, no publish, no tidying of memory, and it does not count as the last dream. Use it the first few times.
+The tidy reads old chats, saved facts, and missed questions to learn what happened. It weighs their words; it never follows them. A chat that says *delete that page* is a record that someone once said so, not a request to the tidy.
 
 ## Your pages and shipped pages
 
-A dream edits only the pages your project owns: people, the company, customers, the product, and any page you added. It saves a `knowledge/` page [at once](../stack/company-knowledge.md#save-a-page), and any other through a pull request. It never rewrites a page WongStack ships, because the next [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) would overwrite the edit. A fact that belongs on a shipped page, or contradicts one, [is listed](#what-it-fixes-and-what-it-only-lists) with the page and the fact.
-
-`node .claude/skills/memory/skills/dream-memory/scripts/dream.mjs pages` shows which pages are `own` and which are `shipped`, each `spec`, and when each was last checked. `drift` lists the saved facts that name a file that is gone and the plans that are finished or idle. A fact is listed only when the project once held the file and the fact does not itself say it was removed, so a note about planned work, or a record of a removal, is never flagged.
-
-## Where it runs
-
-Run it from a clean checkout or a new workspace. Where a change is half built, a dream stops before it edits anything, because its edits must publish alone. A dry run works anywhere.
+The tidy edits only the pages your project owns: people, the company, customers, the product, and any page you added. It saves a `knowledge/` page [at once](../stack/company-knowledge.md#save-a-page), and any other through a pull request. It never rewrites a page WongStack ships, because the next [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) would overwrite the edit.
 
 ## Undo one
 
-One dream is one published change. Ask your assistant to *undo the last dream* and it reverts that change through the same checks. The facts stay in memory, so nothing is lost; a fact a dream corrected wrongly is put right by saving the true one again.
+One tidy is one published change. Ask your assistant to *undo the last tidy* and it reverts that change through the same checks. The facts stay in memory, so nothing is lost; a fact the tidy corrected wrongly is put right by saving the true one again.
 
 ## Where the ideas come from
 

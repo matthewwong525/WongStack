@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Memory cleans itself each day, with no command to type
+
+- **The command `/dream-memory` is gone.** The [daily tidy](wiki/development/wiki-dream.md) your first chat of the day starts now does the full job. You type nothing, and it asks you nothing.
+- **The tidy chooses its own work from a map.** Plain code counts where memory is weak: new facts not yet read, facts with no topic, labels with no page, topics too big to read, facts that name a file that is gone, pages due a check, and questions that found no answer. The tidy works on the weakest place first. It has a goal and a short list of things it must never do, in place of fixed steps and counts ([the goal and the map](wiki/development/wiki-dream.md#the-goal-and-the-map)).
+- **Memory counts how chats use it.** Each look-up adds one line to a file on your computer: the topic, the fact numbers, and the words only of a question that found nothing. Lines last 30 days and never leave the computer. Ask *how is memory used?* to see them ([how use is counted](wiki/development/memory-search.md#how-use-is-counted)).
+- **The tidy shows what got better.** The *Last tidy* line at the start of a chat lists each map number that changed, such as *facts with no topic 40 -> 12* ([how it shows its work](wiki/development/wiki-dream.md#how-it-shows-its-work)).
+- **A tidy has 60 minutes.** At the limit it publishes the parts it finished, and the rest is on the next day's map. Before, a tidy that reached its limit kept nothing ([the time limit](wiki/development/wiki-dream.md#the-time-limit)).
+- **The tidy no longer lists specs or plans for you.** It reads them as evidence and changes none. It leaves alone what it may not fix, and looks again after 7 days.
+
+**Updating.** Nothing to do by hand, with one exception: if you made a schedule that runs the old `/dream-memory` command, delete it. The daily tidy does that work now.
+
 ## 55.2.1 — The password manager's page fits a phone in a live view
 
 - **On a phone, the password manager's own page narrows to the phone's width**, as a site's page does. The whole sign-in form shows, its right side included ([password manager](.agents/plugins/browser/browser/references/password-manager.md)). Before, the page stayed as wide as the computer's screen, and the view showed only a narrow strip at its left.

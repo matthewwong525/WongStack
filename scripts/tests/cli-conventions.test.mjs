@@ -52,7 +52,7 @@ const scripts = {
   '.agents/loop/other-work.mjs': [],
   '.agents/skills/continue/scripts/pickup.mjs': [],
   '.agents/loop/ask-check.mjs': ['stop'],
-  '.agents/plugins/memory/skills/dream-memory/scripts/dream.mjs': ['since'],
+  '.agents/plugins/memory/scripts/daily-tidy.mjs': ['since'],
   '.agents/skills/hand-over/scripts/hand-over.mjs': [],
   '.agents/skills/reply-link/scripts/reply-link.mjs': [],
   '.agents/skills/browser/scripts/browse.mjs': [],

@@ -12,6 +12,13 @@ export async function loadAreas(ctx, profile) {
   try { return areaMap(await (profile ?? await loadProfile(ctx))?.topics?.(ctx) ?? []); } catch { return {}; }
 }
 
+// The topic a tag names, through the areas' alias lists and the store's own aliases; null for a tag with no page.
+export function topicNamer(areas, tagRows = []) {
+  const alias = new Map([...tagRows.filter(row => row.alias_of).map(row => [row.name, row.alias_of]),
+    ...Object.entries(areas).flatMap(([tag, area]) => (area.aliases || []).map(name => [name, tag]))]);
+  return tag => [tag, alias.get(tag)].find(name => name && areas[name]?.page) ?? null;
+}
+
 // A repo-relative path, with .claude/ and .codex/ read as .agents/; null for a path outside the repo.
 export function normalizePath(path, root) {
   let rel = path.replace(/^\.\//, '');

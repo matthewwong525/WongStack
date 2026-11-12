@@ -1,5 +1,5 @@
 // The pages WongStack's memory tidy checks beyond the topic pages: each wiki page, the company knowledge copy's
-// pages, and each spec, as own|shipped|spec. A shipped page comes from WongStack, so a dream never edits it.
+// pages, and each spec, as own|shipped|spec. A shipped page comes from WongStack, so the tidy never edits it.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { knowledgeCopy } from '../skills/memory/scripts/lib/knowledge-copy.mjs';

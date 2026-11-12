@@ -69,5 +69,5 @@ export async function teardownLegacy(context, resources, { fetch: call = globalT
 }
 export function legacyPromptStatus(prompt) {
   if (/^\/(?:routine|schedule)\s+(?:create|setup)/.test(prompt)) return { compatible: false, repairRequired: true };
-  return { compatible: true, prompt: prompt.replace(/^\/improve(?=\s|$)/, '/improve-code').replace(/^\/dream(?:-memory)?(?=\s|$)/, '/memory:dream-memory') };
+  return { compatible: true, prompt: prompt.replace(/^\/improve(?=\s|$)/, '/improve-code').replace(/^\/(?:memory:dream-memory|dream-memory|dream)(?=\s|$).*$/s, 'Tidy memory now') };
 }

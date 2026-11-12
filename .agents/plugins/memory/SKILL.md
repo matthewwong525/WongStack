@@ -27,6 +27,7 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 | Topics sharing facts or changes | `related <topic>` |
 | Context for a task across topics | [the recall steps](references/recall-helper.md) |
 | The transcript behind a fact | `source <fact-id>` |
+| How is memory used? Topics, facts, questions that found nothing | `usage`; `--days <n>`, `--json` |
 | Tags; fix one, or merge a look-alike (admin) | `tags`; `tag <name> --definition <text>` or `--alias-of <tag>` |
 | Counts, embeddings trigger | `stats` |
 | Close stale threads, add path tags (`put-facts` runs it) | `upkeep` |
@@ -69,7 +70,7 @@ The **write gate**:
 
 ## Daily tidy
 
-The first chat each day starts [it](../../../wiki/development/wiki-dream.md#the-daily-tidy). Last tidy: `daily`. Stop or start it here: `daily off`, `daily on`. Tidy now: `daily now`.
+The first chat each day starts [it](../../../wiki/development/wiki-dream.md#the-daily-tidy); it works from [its brief](references/tidy.md). Last tidy and what it changed: `daily`. Stop or start it here: `daily off`, `daily on`. Tidy now: `daily now`.
 
 ## Team access
 

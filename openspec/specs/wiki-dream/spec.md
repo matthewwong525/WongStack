@@ -1,7 +1,7 @@
 # wiki-dream Specification
 
 ## Purpose
-`/dream-memory` keeps what an install remembers true when a person asks: it adds the repeatable facts memory has gained since the last dream, re-checks its own wiki pages against memory, specs, plans, and the code, corrects saved facts the project has outgrown, lists the specs and plans that are wrong, and publishes the result through the project's checks. Between dreams, a small wiki tidy after each memory consolidation places the facts saved since the last tidy or dream on the pages that own them, and publishes that one change by itself.
+The daily memory tidy keeps what an install remembers true and easy to find, with nothing for a person to start. After memory's own tidy, it works from a map of where memory is weak and of how chats used it: it reads each new fact, places the repeatable ones on the pages that own them, re-checks its own wiki pages, corrects saved facts the project has outgrown, and publishes the result through the project's checks. It brings no decision to a person, it leaves alone what it may not fix, and it shows which map numbers got better.
 
 ## Requirements
 

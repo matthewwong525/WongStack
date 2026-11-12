@@ -41,6 +41,6 @@ test('explicit legacy teardown requires empty jobs and removes only recorded sel
   const failed = await teardownLegacy(context, ['worker'], { fetch: async (url, init) => url.startsWith(context.installed.url) ? fake.fetch(url, init) : new Response('', { status: 500 }) }); assert.equal(failed.complete, false);
 });
 test('old improve/dream prompts retain compatibility, recursive scheduling prompts require repair', () => {
-  assert.equal(legacyPromptStatus('/improve --audit-only').prompt, '/improve-code --audit-only'); assert.equal(legacyPromptStatus('/dream').prompt, '/memory:dream-memory'); assert.equal(legacyPromptStatus('/dream-memory --small').prompt, '/memory:dream-memory --small');
+  assert.equal(legacyPromptStatus('/improve --audit-only').prompt, '/improve-code --audit-only'); for (const old of ['/dream', '/dream-memory --small', '/memory:dream-memory --daily']) assert.equal(legacyPromptStatus(old).prompt, 'Tidy memory now');
   assert.equal(legacyPromptStatus('/routine create a thing').repairRequired, true); assert.equal(legacyPromptStatus('Read news').compatible, true);
 });

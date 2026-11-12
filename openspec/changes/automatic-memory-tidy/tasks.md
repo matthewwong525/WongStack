@@ -1,0 +1,37 @@
+# Tasks
+
+## 1. The tidy's script: the map, and `keep`
+
+- [x] 1.1 Move `.agents/plugins/memory/skills/dream-memory/scripts/dream.mjs` to `.agents/plugins/memory/scripts/daily-tidy.mjs` and `scripts/tests/dream.test.mjs` to `scripts/tests/memory-tidy.test.mjs`, fixing imports and `scripts/tests/cli-conventions.test.mjs`; verify the moved tests pass unchanged
+- [x] 1.2 Replace `pages --daily` with the due list by design *The survey is the map*: own pages only, 7 days, no caps, `--all` for the whole list; drop the spec rows and `drift`'s plan lines; verify cases in `memory-tidy.test.mjs` cover a page checked 3 days ago (left out), one checked 8 days ago (listed), a page never checked (first), `--all`, and no spec or plan in any output
+- [x] 1.3 Add `keep` by design *`keep` marks a finished unit*; verify cases in `memory-tidy.test.mjs` cover: it stages a changed file and appends one JSON line, two calls append two lines, `--sorted` and a `tag:` name are kept, and with no `WONG_MEMORY_TIDY_PROGRESS` it exits 2 and stages nothing
+
+## 2. Use counts
+
+- [x] 2.1 Add `.agents/plugins/memory/scripts/lib/usage.mjs` by design *Use is counted on the computer*: `recordUse`, the 30-day trim, `usageSummary`; verify a new `scripts/tests/memory-usage.test.mjs` covers: one row for each call, a miss keeps its words cut to 200 characters and a hit keeps none, `WONG_MEMORY_RUN=1` writes nothing, a state folder that can't be written throws nothing, a 31-day-old row is dropped, and the summary's most used topics, often returned facts, missed questions, and pairs
+- [x] 2.2 Call `recordUse` from `pull`, `recall`, `search`, `brief`, `related`, and `source` in `memory.mjs` and from `topic-match.mjs`, and add `memory.mjs usage [--days n] [--json]`; verify `memory-usage.test.mjs` covers on a stand-in store: a `pull` writes its topic and fact ids, a `recall` with no answer writes a miss, a `pull` of an unknown name writes a miss, the hook writes each topic it adds, and `usage` prints the three lists
+- [x] 2.3 Add `survey [--json]` by design *The survey is the map*; verify cases in `memory-tidy.test.mjs` cover each line: a fact with no topic, names above the `sorted` id only, a tag with facts and no page, a tag checked 3 days ago (left out), a topic with 101 facts and its used share, new facts above the last record's id, missed questions since the last record only, due pages ordered by use then age, and an empty store with no counts file that prints zeros
+
+## 3. The run: the limit, the record, the note
+
+- [x] 3.1 In `.agents/plugins/memory/scripts/run.mjs`, point `tidyPrompt` at `references/tidy.md`, set `WONG_MEMORY_TIDY_PROGRESS`, raise the work limit to 60 minutes and `STALE_MS` to 3 hours, and at the limit keep what is staged by design *`keep` marks a finished unit*; verify `scripts/tests/memory-daily.test.mjs` covers: a tidy killed after two `keep` calls publishes the staged pages and not the unstaged one, and a tidy killed with no `keep` records `failed` and keeps nothing
+- [x] 3.2 Run `survey --json` before and after the tidy, paste the first into `tidyPrompt`, ask the missed questions again, build the record in `run.mjs` from the progress lines and the two surveys, and remove `cleanRecord` and the agent's record file; verify `memory-daily.test.mjs` covers: the record's ids are the highest `--read` and `--sorted`, a run with neither repeats the last record's ids, an older record with no `Sorted` part reads as 0, the `Map:` part holds the numbers that changed, six missed questions of which five now answer give `6 to 1`, a record over 400 characters splits into facts that `lastDream` reads as one, and a failed publish sends no record
+- [x] 3.3 Write the run's note (changed map numbers, a cut-short run): `run.mjs` passes it, `memory.mjs finish-run --kind daily` takes it, and `lib/digest.mjs` `formatTidy` and `memory.mjs daily` print an `ok` row's reason; verify `memory-daily.test.mjs` and `memory-capture.test.mjs` cover a chat start with the changed map numbers, the cut-short line, and no line that asks the person for anything
+
+## 4. The brief, and the command removed
+
+- [x] 4.1 Write `.agents/plugins/memory/references/tidy.md` by design *A brief, not a runbook*, *Every new fact is read*, and *Nothing waits for a person*, and delete `.agents/plugins/memory/skills/dream-memory/`; verify a test in `memory-tidy.test.mjs` finds the goal, each *Never* line, `survey`, `keep`, and the `recall` test in the brief, finds no numbered step, `--daily`, `--dry-run`, spec check, or list for a person, and `node scripts/measure-context.mjs --check` passes
+- [x] 4.2 Update `.agents/plugins/memory/SKILL.md` (*Daily tidy*; the ask *how is memory used?*), `README.md`, and the plugin's version; `.agents/memory/areas.json` (`dream`, `improve`), `.agents/memory/profile.mjs`, the comment in `.agents/memory/tidy-pages.mjs`, `.agents/skills/improve-code/SKILL.md`, and `legacyPromptStatus` in `.agents/inbox/lib/legacy.mjs` with `scripts/tests/schedule-legacy.test.mjs`; verify `memory-areas.test.mjs`, `codex-plugin.test.mjs`, and `schedule-legacy.test.mjs` pass
+- [x] 4.3 Add the old names to `scripts/retired-names.json` by design *Old names*, update the payload file list and manifest, the kept checks' `sourcePaths`, and `scripts/fixtures/context-baseline.json` if the check asks; verify `node scripts/check-retired-names.mjs` passes
+
+## 5. The wiki, the spec's purpose, the release note
+
+- [x] 5.1 Rewrite `wiki/development/wiki-dream.md` as *Memory tidy* by design *The wiki page*; add the counts to `wiki/development/memory-search.md`; update `wiki/development/memory.md`, `README.md`, `repository-improvement.md`, `daily.md`, `wiki/agent-knowledge-center.md`, `wiki/maintaining/adding-a-skill.md`, and `.agents/skills/wong-setup/references/seed/wiki-development-README.md`; verify `node scripts/check-payload-links.mjs` passes and `memory.md` stays under 3,000 words
+- [x] 5.2 Edit the Purpose of `openspec/specs/wiki-dream/spec.md` by hand to describe the daily tidy; verify it names no command and `openspec validate automatic-memory-tidy --strict --no-interactive` passes
+- [x] 5.3 Add `## Next (major) — Memory cleans itself each day, with no command to type` to `CHANGELOG.md`, with an **Updating.** note in plain words: nothing to do, except delete a schedule you made that runs the old command; the tidy no longer lists specs or plans for you; verify `node scripts/check-retired-names.mjs` still passes
+
+## 6. Checks
+
+- [ ] 6.1 Use memory here for a day so the counts hold real rows, run `daily-tidy.mjs survey`, and write its numbers in `design.md`; then run one full tidy for real with `memory.mjs daily now`; verify the `Last tidy` line shows its counts and the map numbers that changed, at least one map number is lower and none is higher, no shipped page, spec, or plan is in the published change, no new list thread exists, and write the run's time and the chosen limit in `design.md`
+- [ ] 6.2 Read that tidy's work as a person would: `pull` three topics it changed, ask `recall` three questions about facts it placed, and ask again one question that found nothing before the tidy; verify each answer names the page or the fact, and write any miss, with its fix to the brief, in `design.md`
+- [ ] 6.3 Run `node .github/scripts/checks.mjs --worktree`; verify every check passes
