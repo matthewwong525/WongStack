@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 53.2.0 — Another chat's click goes on behind your turn
+
+- **A chat's click no longer stops during your turn.** While you use the browser in one chat's tab, another chat clicks a button, a link, or a tick box in its own tab by its key, as you would press Tab and Enter. The page acts as on a mouse click, and your tab stays in front. Before, the click waited 20 seconds, then gave up with *the person is using the browser* ([your turn keeps its tab in front](wiki/development/browser-window.md#a-tab-for-each-chat)).
+- **A part of a page that reacts only to a mouse waits for your turn to end.** The chat hears at once that its click waits. The click then runs by itself when you hand back or say *done*, and the chat hears that it ran. Until then, that chat takes no other step on its page, so nothing happens out of order.
+- **With no turn open, a click works as before.**
+
+**Updating.** Nothing to do by hand. A browser that is running keeps the old behavior until it next starts.
+
 ## 53.1.0 — The build loop is a module any project can add
 
 - **Any project can add the build loop with one pasted message.** The eight commands, `/explore`, `/plan`, `/apply`, `/save`, `/ship`, `/verify`, `/continue`, and `/close`, are now one module in [`.agents/plugins/loop/`](.agents/plugins/loop/README.md). Its [setup guide](.agents/plugins/loop/references/setup.md) copies them in, installs OpenSpec after a yes, finds the project's test command, and builds a sample plan page. Each command keeps its name.

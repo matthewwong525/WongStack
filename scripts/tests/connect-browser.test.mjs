@@ -74,7 +74,7 @@ function fixture(t, { camoufox = null } = {}) {
 test('a command it does not know, the wrong number of words, or a flag of another command is a usage error', t => {
   const f = fixture(t);
   for (const args of [['look'], ['open'], ['take-key', '@e1', '@e2', '--tool', 'x'],
-    ['read', '--id'], ['read', '--server'], ['read', '--stopped']]) {
+    ['read', '--id'], ['read', '--server'], ['read', '--stopped'], ['wait-click', '@e2']]) {
     assert.equal(f.run(args).status, 2, args.join(' '));
   }
   assert.match(f.run(['click', 'button']).stderr, /not a ref from read/);
@@ -164,6 +164,31 @@ test('in the assistant\'s browser, read hides a key, no picture while one shows,
   assert.equal(f.run(['wait', 'e2']).status, 0);
   assert.equal(f.run(['wait', 'e9']).status, 1, 'a ref that never shows');
   assert.equal(f.run(['open', 'http://www.notion.so/']).status, 1, 'an address that is not https');
+});
+
+test('a click that waits for the person\'s turn in another chat\'s tab answers at once, and wait-click says how it ended', t => {
+  const f = onServer(t, '- heading "New integration"\n- button "Save" [e2]');
+  assert.deepEqual([f.run(['wait-click']).stdout], ['No click waits.\n'], 'with no click sent, none waits');
+  f.camofox.set('click-queued');
+  f.camofox.set('click-still-waiting');
+  let before = f.camofox.calls().length;
+  const clicked = f.run(['click', '@e2']);
+  assert.equal(clicked.status, 0, clicked.stderr);
+  assert.match(clicked.stdout, /^The person is using the browser in another chat's tab, so this click runs when their turn ends\. Run `browser\.mjs wait-click` in the background/);
+  assert.deepEqual(f.camofox.calls().slice(before).filter(call => /click/.test(call)), ['POST /tabs/:tab/click'], 'it did not wait for the turn');
+  f.camofox.unset('click-queued');
+  before = f.camofox.calls().length;
+  const ran = f.run(['wait-click']);
+  assert.deepEqual([ran.status, ran.stdout], [0, 'Done\n'], ran.stderr);
+  assert.deepEqual(f.camofox.calls().slice(before).filter(call => /click/.test(call)), ['GET /tabs/:tab/click', 'GET /tabs/:tab/click'], 'it waited until the click ran');
+  assert.equal(f.run(['wait-click']).stdout, 'No click waits.\n', 'once it ran, none waits');
+  f.camofox.set('click-queued');
+  f.run(['click', '@e2']);
+  f.camofox.unset('click-queued');
+  f.camofox.set('waited-error', 'e2 is not on the page now; read the page again and use a current ref');
+  const failed = f.run(['wait-click']);
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /e2 is not on the page now/);
 });
 
 /** No stand-in's log, and no argv sent, holds a copy of `value`. */
@@ -260,7 +285,7 @@ test('in the assistant\'s browser, done closes only its own page and leaves anot
   assert.match(f.run(['read']).stderr, /one this helper opened/, 'nothing is ours after done');
 });
 
-test('while the person holds the watch link\'s browser, every command but done is refused', t => {
+test('while the person holds the watch link\'s browser, every command that acts on the page is refused', t => {
   for (const [control, turn, marker] of [[{ control: 'person' }, null, 'CONNECT_PAUSED=taken-over'],
     [{ control: 'assistant', turnDone: 0 }, { n: 1, until: `${INTEGRATIONS}**` }, 'CONNECT_PAUSED=your-turn']]) {
     const f = onServer(t);
