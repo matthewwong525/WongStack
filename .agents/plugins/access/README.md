@@ -27,6 +27,7 @@ It keeps your own edits to this folder. When one of your edits and a new change 
 - **People from a chat**: `/access` says who has what, and adds, changes or removes a person after you say yes.
 - **Services**: a list of the keys you may use, a call through the app with your level, and a definition of each call your project uses. Keys reach the app sealed, never in a chat.
 - **A sign-in list kept in step**, when your sign-in wall has one: a person you add can sign in, and a person you remove can not.
+- **One sign-in for your other tools**: your project's own files may use [`signin/computer.mjs`](signin/computer.mjs) to sign this computer in to another tool through your app. Access changes no other tool's files.
 
 ## What it needs
 

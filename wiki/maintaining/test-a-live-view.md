@@ -1,6 +1,6 @@
 # Test a live view on a real browser
 
-Test a change to [the live view](../../.agents/plugins/browser/hand-over/references/live-view.md) in a throwaway browser on this server, never in the shared one: the shared browser may hold a real person's open turn, and a test tab brought to the front takes their screen.
+Test a change to [the live view](../../.agents/plugins/browser/skills/hand-over/references/live-view.md) in a throwaway browser on this server, never in the shared one: the shared browser may hold a real person's open turn, and a test tab brought to the front takes their screen.
 
 ## Set up a throwaway home
 

@@ -80,7 +80,7 @@ test('install makes a venv, installs the pinned library and its build there, and
     [join(f.home, 'bin', 'python3'), ['-m', 'venv', join(f.camofox.install, 'venv', '0.5.9')]],
     [venv, ['-m', 'pip', 'install']],
     [venv, ['-m', 'camoufox', 'fetch']],
-    [venv, ['-I', join(repo, '.agents/plugins/browser/browser/scripts/launch-config.py'), '--library']],
+    [venv, ['-I', join(repo, '.agents/plugins/browser/scripts/launch-config.py'), '--library']],
   ]);
   assert.ok(runs[1].args.includes('camoufox[geoip]==0.5.9'), 'pip gets the one pinned version');
   assert.deepEqual(runs.at(-1).args.slice(3), ['0.5.9', '--build', 'v158.0.1-beta.41', '--check']);

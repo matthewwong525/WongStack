@@ -1,0 +1,6 @@
+{
+  "name": "browser",
+  "version": "2.0.0",
+  "description": "Browse as the person in a real browser: sign-ins and payments through a live view, private links for keys and saved details, and Shop.",
+  "author": { "name": "WongStack" }
+}

@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { hintOf, keepSet, readDetails, writeDetails } from '../../.agents/skills/hand-over/scripts/details.mjs';
+import { hintOf, keepSet, readDetails, writeDetails } from '../../.agents/skills/browser/skills/hand-over/scripts/details.mjs';
 
-const SCRIPT = fileURLToPath(new URL('../../.agents/skills/hand-over/scripts/details.mjs', import.meta.url));
+const SCRIPT = fileURLToPath(new URL('../../.agents/skills/browser/skills/hand-over/scripts/details.mjs', import.meta.url));
 const CARD = [{ kind: 'cc-number', label: 'Card number', value: '4242 4242 4242 4242' }, { kind: 'cc-exp-month', label: 'Expiry month', value: '3' }, { kind: 'cc-exp-year', label: 'Expiry year', value: '28' }];
 
 /** A home of its own, so nothing touches the real saved details; `run` calls the CLI there. */

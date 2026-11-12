@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { approve } from '../../.agents/inbox/lib/approvals.mjs';
-import { scheduleVersion } from '../../.agents/skills/schedule/scripts/lib/version.mjs';
+import { scheduleVersion } from '../../.agents/skills/daily/skills/schedule/scripts/lib/version.mjs';
 import { mark } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { refuseRuns, takeRuns } from '../../.agents/skills/daily/scripts/schedule-runs.mjs';

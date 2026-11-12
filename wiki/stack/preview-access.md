@@ -22,7 +22,7 @@ A preview has its own people, roles and key levels. On staging the owner opens A
 
 ## The checker on a preview
 
-On staging and its previews, the preview checker counts as the owner: it opens Access's views and saves against the practice list, so [a preview walk](../../.agents/plugins/browser/browser/references/browsing.md) can click through a change to Access and show pictures of it.
+On staging and its previews, the preview checker counts as the owner: it opens Access's views and saves against the practice list, so [a preview walk](../../.agents/plugins/browser/references/browsing.md) can click through a change to Access and show pictures of it.
 
 - **Only where `WONG_ENVIRONMENT` is `staging`.** That name is committed in `app/wrangler.jsonc`, never something a request sets. On the live app, and on a local run, a checker is refused: it keeps every app and manages nobody.
 - **Nothing real is in reach.** A preview holds no sign-in-list key, makes no Cloudflare call, and its people are made up.
