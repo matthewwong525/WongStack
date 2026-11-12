@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/hand-over/scripts/helper.mjs\" start",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/reply-link/scripts/helper.mjs\" start",
             "timeout": 5
           },
           {

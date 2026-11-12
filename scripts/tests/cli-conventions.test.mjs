@@ -13,7 +13,7 @@ const scripts = {
   'scripts/company-api.mjs': [],
   'scripts/employee-bootstrap.mjs': [],
   'scripts/evaluate-document-retrieval.mjs': [],
-  '.agents/skills/connect/scripts/browser.mjs': [],
+  '.agents/skills/browser/scripts/connect-browser.mjs': [],
   '.agents/memory/operations.mjs': [],
   'scripts/measure-context.mjs': [],
   'scripts/check-openspec-config.mjs': [],
@@ -42,6 +42,7 @@ const scripts = {
   '.agents/loop/staging/verify-journeys.mjs': ['check'],
   '.agents/loop/staging/own-site.mjs': [],
   '.agents/skills/memory/scripts/lib/primary-root.mjs': [],
+  '.agents/skills/browser/scripts/lib/primary-root.mjs': [],
   '.github/scripts/loosened-checks.mjs': [],
   '.github/scripts/checks.mjs': [],
   '.agents/skills/plan/scripts/build-review.mjs': [],
@@ -52,7 +53,7 @@ const scripts = {
   '.agents/loop/ask-check.mjs': ['stop'],
   '.agents/plugins/memory/skills/dream-memory/scripts/dream.mjs': ['since'],
   '.agents/skills/hand-over/scripts/hand-over.mjs': [],
-  '.agents/skills/hand-over/scripts/reply-link.mjs': [],
+  '.agents/skills/reply-link/scripts/reply-link.mjs': [],
   '.agents/skills/browser/scripts/browse.mjs': [],
   '.agents/skills/shop/scripts/shop.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],
@@ -118,6 +119,19 @@ test('isMain is true through a symlinked path and false for an imported module',
     const result = spawnSync(process.execPath, [path], { encoding: 'utf8' });
     assert.deepEqual(JSON.parse(result.stdout), [true, false], `${path}: ${result.stderr}`);
   }
+});
+
+// The browser module keeps its own copies, so it imports nothing outside its folders; each must stay memory's.
+test("the browser module's cli, primary-root, and env copies equal memory's", async () => {
+  const lib = (skill, file) => import(pathToFileURL(join(repo, `.agents/skills/${skill}/scripts/lib/${file}`)).href);
+  for (const file of ['cli.mjs', 'primary-root.mjs']) {
+    const [mine, memory] = await Promise.all([lib('browser', file), lib('memory', file)]);
+    assert.deepEqual(Object.keys(mine).sort(), Object.keys(memory).sort(), file);
+    for (const name of Object.keys(memory)) assert.equal(String(mine[name]), String(memory[name]), `${file}: ${name}`);
+  }
+  const [env, store] = await Promise.all([lib('browser', 'env.mjs'), lib('memory', 'store.mjs')]);
+  assert.deepEqual(Object.keys(env), ['parseEnv'], 'env.mjs');
+  assert.equal(String(env.parseEnv), String(store.parseEnv), 'env.mjs: parseEnv');
 });
 
 // Both entry verbs send attached review notes to /plan's one section.

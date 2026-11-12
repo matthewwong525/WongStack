@@ -16,3 +16,4 @@ node_modules/
 
 # Agents' throwaway files (.claude/skills/schedule/scripts/tidy.mjs scratch).
 .scratch/
+__pycache__/

@@ -1,8 +1,8 @@
 # Reply links
 
-A reply link opens a page the agent made at a web address, and the page's buttons reach the chat that made it: one sends what you wrote, with nothing to copy and paste, and others send a fixed action with optional notes. A plan's review page is the first page that uses one; [`reply-link.mjs`](../../.agents/skills/hand-over/scripts/reply-link.mjs) opens them. Part of [development](README.md).
+A reply link opens a page the agent made at a web address, and the page's buttons reach the chat that made it: one sends what you wrote, with nothing to copy and paste, and others send a fixed action with optional notes. A plan's review page is the first page that uses one; [`reply-link.mjs`](../../.agents/skills/reply-link/scripts/reply-link.mjs) opens them. Part of [development](README.md).
 
-It is not a [private link](browsing.md#how-private-links-work). A private link takes a secret the agent must never see, and nothing typed into it reaches the chat. A reply link does the opposite: everything you send goes into the chat. **Never send a password, a key, or a card through one.**
+It is not a [private link](../../.agents/plugins/browser/browser/references/browsing.md#how-private-links-work). A private link takes a secret the agent must never see, and nothing typed into it reaches the chat. A reply link does the opposite: everything you send goes into the chat. **Never send a password, a key, or a card through one.**
 
 ## A plan's link
 
@@ -69,7 +69,7 @@ A page opened from the plan's file, or from a pull request, is the same page wit
 - **A send is bounded:** 20,000 characters, and one every 5 seconds for each page.
 - **A button names a fixed action and may attach notes.** The opener fixes its instruction and chat target; reviewer text follows that instruction and is limited to 20,000 characters. Invalid or oversized notes never reach the chat. So the most a plan's link can do is send notes, start that plan's build, or start its publish.
 - **The link is in the chat's text.** Anyone who can read it there can send notes to that chat, and start that build or publish, until it closes.
-- **It never blocks a private link.** A reply link keeps its own state, apart from [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs), so a key link opens at once during a review, and several pages hold links at the same time.
+- **It never blocks a private link.** A reply link keeps its own state, apart from [`hand-over.mjs`](../../.agents/plugins/browser/hand-over/scripts/hand-over.mjs), so a key link opens at once during a review, and several pages hold links at the same time.
 - **A key, a password or a card never goes to the inbox.** Only a private link's address, kind, title and closing time do, and a test holds that line.
 
 ## Open one for another page
@@ -77,9 +77,9 @@ A page opened from the plan's file, or from a pull request, is the same page wit
 Any single self-contained HTML file can open this way: a form with one *Submit*, a list to approve.
 
 ```bash
-node .claude/skills/hand-over/scripts/reply-link.mjs open "$page" --header "Answers from the intake form."   # prints REPLY_LINK=<url>
-node .claude/skills/hand-over/scripts/reply-link.mjs close "$page"
-node .claude/skills/hand-over/scripts/reply-link.mjs list
+node .claude/skills/reply-link/scripts/reply-link.mjs open "$page" --header "Answers from the intake form."   # prints REPLY_LINK=<url>
+node .claude/skills/reply-link/scripts/reply-link.mjs close "$page"
+node .claude/skills/reply-link/scripts/reply-link.mjs list
 ```
 
 `--header` is the fixed first line of every message the page sends; write it so the chat knows what to do with the text. `--hours N` changes the 24 hours. On `REPLY_LINK=none`, offer the file and take the answers in chat.
@@ -104,7 +104,7 @@ async function submit(text) {
 
 When `submit` is false, show the text for the person to copy: the page must never say *sent* on anything but `sent: true`. The file is read from disk on every visit, so a rebuilt page shows at the same link.
 
-One server and one tunnel serve every open page, and both stop once no page is open. Inbox items get their own small process, [`reply-link.mjs serve-inbox`](../../.agents/skills/hand-over/scripts/reply-link.mjs), which holds [the live line](../stack/live-line.md), delivers taps, and stops once no item it can reach is open; run as [the helper](../stack/live-line.md#the-helper), it never stops. Each serves every project on the computer, whichever [company app](../stack/company-api.md) it uses: an item, or a listed form, remembers the app it was put in, and is checked in, reported and closed there. An app the computer can't reach keeps its items waiting; the others' taps still go through. A closed chat's item closes through another folder signed in to its app; with none, each round tries again until its time runs out. A copy that changes either process raises `PROTOCOL` in that file past every other copy's number on the computer, so the next open replaces the one running. To try a changed copy beside the running one, give it a temporary `HOME` and a stand-in `paseo` in `HANDOVER_PASEO_BIN`. The chat is woken through [`lib/wake.mjs`](../../.agents/skills/hand-over/scripts/lib/wake.mjs), the one place that names how: a host with another way to wake a chat adds it there.
+One server and one tunnel serve every open page, and both stop once no page is open. Inbox items get their own small process, [`reply-link.mjs serve-inbox`](../../.agents/skills/reply-link/scripts/reply-link.mjs), which holds [the live line](../stack/live-line.md), delivers taps, and stops once no item it can reach is open; run as [the helper](../stack/live-line.md#the-helper), it never stops. Each serves every project on the computer, whichever [company app](../stack/company-api.md) it uses: an item, or a listed form, remembers the app it was put in, and is checked in, reported and closed there. An app the computer can't reach keeps its items waiting; the others' taps still go through. A closed chat's item closes through another folder signed in to its app; with none, each round tries again until its time runs out. A copy that changes either process raises `PROTOCOL` in that file past every other copy's number on the computer, so the next open replaces the one running. To try a changed copy beside the running one, give it a temporary `HOME` and a stand-in `paseo` in `HANDOVER_PASEO_BIN`. The chat is woken through [`lib/wake.mjs`](../../.agents/skills/reply-link/scripts/lib/wake.mjs), the one place that names how: a host with another way to wake a chat adds it there.
 
 ### Give a page a button
 
@@ -113,7 +113,7 @@ A [review page](../review-pages.md#a-page-for-other-work) gets labelled buttons 
 A button sends one message you fix when the link opens: *Send all* on a list of drafts, *Approve* on a quote.
 
 ```bash
-node .claude/skills/hand-over/scripts/reply-link.mjs open "$page" --header "Changes to the drafts." \
+node .claude/skills/reply-link/scripts/reply-link.mjs open "$page" --header "Changes to the drafts." \
   --action "send-all=Send every draft in $page as it stands."
 ```
 
@@ -143,7 +143,7 @@ Show a button only when `state.actions` lists its name. `version` names the file
 A chat that needs a button but no page puts an item straight in [the inbox](#in-your-inbox-first):
 
 ```bash
-node .claude/skills/hand-over/scripts/reply-link.mjs item --title "Email watch" --header "Email watch" --hours 8 \
+node .claude/skills/reply-link/scripts/reply-link.mjs item --title "Email watch" --header "Email watch" --hours 8 \
   --action "round=Take the new notes and picks." --hidden --keep-open --stop "The watch stopped after 8 hours."   # prints REPLY_ITEM=<id>
 ```
 

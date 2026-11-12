@@ -15,7 +15,7 @@ Then take the pictures by the route that fits the app: [a web app](#a-web-app), 
 ## A web app
 
 1. `prototype.mjs upload <change>` puts the copy on the change's preview address. A new file in `schema/migrations` stops it, because the preview shares the practice database. When `upload` can't run, `prototype.mjs serve <change>` runs the copy on this computer and prints `PROTOTYPE_URL=`: take the pictures there, and stop it when you are done.
-2. Take one picture per state the plan names, with [the browser](development/browsing.md) (`browse.mjs screenshot`), at phone width and the visible part only. Copy them to `<change>/pictures/`, and write them in the bullet's `picture` fence after the *Before* picture, with a `Try it: <https address>` line. *Try it* opens a new tab; an address that is not `https://` stops the builder.
+2. Take one picture per state the plan names, with [the browser](../.agents/plugins/browser/browser/references/browsing.md) (`browse.mjs screenshot`), at phone width and the visible part only. Copy them to `<change>/pictures/`, and write them in the bullet's `picture` fence after the *Before* picture, with a `Try it: <https address>` line. *Try it* opens a new tab; an address that is not `https://` stops the builder.
 
 *Before* is a screenshot of today's screen, by [the review file's rules](ux-principles.md#the-review-file).
 

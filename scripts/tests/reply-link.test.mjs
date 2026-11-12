@@ -6,14 +6,14 @@ import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { LIMITS, openReplyLink } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
-import { canWake, chatTarget, wakeChat } from '../../.agents/skills/hand-over/scripts/lib/wake.mjs';
+import { LIMITS, openReplyLink } from '../../.agents/skills/reply-link/scripts/reply-link.mjs';
+import { canWake, chatTarget, wakeChat } from '../../.agents/skills/reply-link/scripts/lib/wake.mjs';
 import { inboxCalls, inboxEnv } from './fixtures/fake-inbox.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { sessionName } from '../../.agents/skills/browser/scripts/browse.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const script = join(repo, '.agents/skills/hand-over/scripts/reply-link.mjs');
+const script = join(repo, '.agents/skills/reply-link/scripts/reply-link.mjs');
 const handOver = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
 const LINK = new RegExp(`^REPLY_LINK=${ORIGIN}/p/([0-9a-f]{32})/#key=([0-9a-f]{64})$`, 'm');
 const HEADER = 'Notes on the plan example from the review page. Don\'t build yet.';
