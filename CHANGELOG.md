@@ -16,6 +16,12 @@
 - **Before the update, let any schedule move finish.** If the assistant still says that a routine or schedule waits to move to the app, open a chat and let it finish first, because this update removes the mover. After the update, ask the assistant to save any routine or schedule file that is left as a schedule.
 - **If this install still has the older Cloudflare runner** (set up before version 40), pause its jobs and remove it before the update, because the commands that do this go. After the update, you remove its Worker, its AI Gateway, and its keys by hand in the Cloudflare dashboard.
 - **A computer that ran the QMD setup can delete one folder**: `wongstack/documents` in your user data folder (on Linux, `~/.local/share/wongstack/documents`), about 1 GB. Nothing reads it now. The update does not delete it, because it is outside the repo.
+## 57.2.0 — A waiting chat goes on with your command
+
+- **A chat that waited in the middle of a command you typed goes on with it.** You type `/ship`, and the chat stops to wait for another chat's work, a merge, or your answer elsewhere. When that wait ends, Daily's note tells the chat to go on with your `/ship` from where it stopped. Before, the note gave only the news, and the chat waited for you to say *go on* ([your chats in line](wiki/development/chats-in-line.md)).
+- **Your typed command is your yes for its own steps only.** The chat starts no new risky step of its own, such as a merge you never asked for: that still waits for you.
+- **A wait outside a command you typed gets the news only**, as before.
+
 ## 57.1.2 — Each plugin's guide stands on its own
 
 - **The build loop, memory, and Daily carry the rules they follow.** Before, their steps sent the assistant to WongStack's own guide pages, which a project with only the plugin does not have. Now the loop's shared rules are in [its own page](.agents/plugins/loop/references/rules.md), the plan's review page and prototype steps are in [the plan's](.agents/plugins/loop/skills/plan/references/review-page.md) [own pages](.agents/plugins/loop/skills/plan/references/prototypes.md), memory's [who sees what](.agents/plugins/memory/README.md#who-sees-what) and its [fact placing](.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) are in memory, and [your Daily settings](.agents/plugins/daily/README.md#your-settings), add-ons and own jobs are in Daily.
