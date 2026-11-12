@@ -16,6 +16,8 @@ echo '{"proxy":false}' > $T/.wong-stack/browser-settings.json
 
 Run every `browse.mjs` and `hand-over.mjs` command with `HOME=$T`. The browser then starts its own server and its own virtual screen, with none of the person's sign-ins.
 
+A throwaway home can't test a 1Password sign-in: a copied profile loses 1Password's sign-in and opens its Welcome page. Test that in the shared browser, after the person says yes to a restart.
+
 ## Act as several chats
 
 A chat's name is its folder's name, so `cd $T/a` and `cd $T/b` are two chats. Open a page in each with `browse.mjs open`, then `hand-over.mjs open --view` from each.
@@ -30,6 +32,6 @@ The test chats run inside your workspace, so each *Hand back* wakes **your** cha
 
 ## Clean up
 
-Run `HOME=$T browse.mjs stop`, check that the link answers no more, then `rm -rf $T`.
+Run `HOME=$T browse.mjs stop`, check that the link answers no more, then `rm -rf $T`. Don't `pkill -f` a script's name: the pattern also matches your own shell's command line and stops it.
 
 Part of [Maintaining WongStack](README.md).

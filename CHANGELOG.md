@@ -10,6 +10,15 @@
 
 **Updating.** Nothing to do by hand.
 
+## 55.3.0 — The agent signs in with your unlocked 1Password, after your yes
+
+- **1Password comes with the agent's browser.** A new browser adds it, and an older one gets it once, at its next start, by the same checks as an add you ask for. It is not added when you removed it, said no to a password manager before, or when the agent already added another one. A failed download never stops a start; a start a day later tries again ([your password manager](.agents/plugins/browser/browser/references/password-manager.md)).
+- **The agent signs in with a login from your unlocked 1Password, after your yes.** At a login page it reads only the names of the logins 1Password offers there, and asks you every time: the login, the site, and the steps it will take once signed in. On your yes it picks that one login, does only those steps, and names them at the end. It never unlocks 1Password and never reads a password. Locked, or no login for the site: you sign in yourself, as before ([use it at a sign-in](.agents/plugins/browser/browser/references/password-manager.md#use-it-at-a-sign-in)).
+- **New advice: set your password manager to lock after 8 hours**, so one unlock lasts the workday. The old advice, a separate vault and a 5-minute lock, ends.
+- **New commands:** `browse.mjs addon logins` and `addon pick <n>`. Every other step aimed at an add-on is still refused, and so is a key that could pick from 1Password's open list.
+
+**Updating.** Nothing to do by hand. The browser adds 1Password at its next start. Sign in to it once, in the browser the agent sends you, and set its auto-lock to 8 hours. If you don't want it, ask the agent to *remove my password manager*: it stays removed.
+
 ## 55.2.1 — The password manager's page fits a phone in a live view
 
 - **On a phone, the password manager's own page narrows to the phone's width**, as a site's page does. The whole sign-in form shows, its right side included ([password manager](.agents/plugins/browser/browser/references/password-manager.md)). Before, the page stayed as wide as the computer's screen, and the view showed only a narrow strip at its left.

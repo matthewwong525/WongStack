@@ -1,5 +1,5 @@
-// The add-ons a person asks the agent to add: checked Firefox add-ons, found on Firefox's add-on site, loaded side by
-// side at each start, kept up to date, and removed by name with their stored data. `browse.mjs addon <verb>` runs it.
+// The add-ons a person asks the agent to add, and 1Password by default: checked Firefox add-ons from Firefox's add-on
+// site, loaded side by side at each start, kept up to date, and removed by name with their stored data.
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -9,12 +9,18 @@ import { BrowseError, FILES, stopServer } from './browse.mjs';
 // BROWSE_ADDON_SITE is for tests only: a stand-in add-on site, so no test reaches the network.
 const SITE = process.env.BROWSE_ADDON_SITE || 'https://addons.mozilla.org';
 const SITE_MS = 60_000;
+/** The default add's first call to the site: it runs at each start until it works, so a dead network costs little. */
+export const DEFAULT_SITE_MS = 8_000;
+/** A failed default add waits this long before the next try. */
+export const DEFAULT_RETRY_MS = 24 * 60 * 60_000;
 /** A weekly update check, so a manager never falls so far behind that it stops working. */
 export const UPDATE_MS = 7 * 24 * 60 * 60_000;
 /** Below this many daily users, an add-on Mozilla does not feature gets a warning: a look-alike had 4. */
 export const FEW_USERS = 10_000;
+/** 1Password, which every browser gets once by default: its slug on the add-on site and its id. */
+export const ONE_PASSWORD = { slug: '1password-x-password-manager', guid: '{d634138d-c276-4fc8-924b-40a0ea21d284}' };
 /** The page an add-on names for its sign-in, where its toolbar pop-up is not the right one. */
-const OWN_PAGES = { '{d634138d-c276-4fc8-924b-40a0ea21d284}': 'app/app.html#/page/welcome' };
+const OWN_PAGES = { [ONE_PASSWORD.guid]: 'app/app.html#/page/welcome' };
 const UUIDS = 'extensions.webextensions.uuids';
 const TOOLBAR = 'browser.uiCustomization.state';
 
@@ -22,7 +28,15 @@ const TOOLBAR = 'browser.uiCustomization.state';
 const OLD_CHOICE = join(dirname(FILES.added), 'password-manager.json');
 
 const readJson = file => { try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; } };
-const save = added => { mkdirSync(dirname(FILES.added), { recursive: true, mode: 0o700 }); writeFileSync(FILES.added, `${JSON.stringify({ added })}\n`, { mode: 0o600 }); };
+/** Writes the added list, keeping the default add's saved state unless `defaults` replaces it. */
+function save(added, defaults = readJson(FILES.added)?.defaults) {
+  mkdirSync(dirname(FILES.added), { recursive: true, mode: 0o700 });
+  writeFileSync(FILES.added, `${JSON.stringify({ added, ...(defaults && { defaults }) })}\n`, { mode: 0o600 });
+}
+/** The default add's state for 1Password: `added`, `removed`, `skipped`, `{failedAt}` after a failed try, or
+ * undefined before its first try. */
+export const defaultState = () => readJson(FILES.added)?.defaults?.[ONE_PASSWORD.slug];
+const markDefault = state => save(addedList(), { ...readJson(FILES.added)?.defaults, [ONE_PASSWORD.slug]: state });
 export const folderOf = guid => join(FILES.addons, guid);
 
 /** The added add-ons, oldest first. An older version's one add-on, always a password manager, moves here once with
@@ -57,10 +71,10 @@ export function factsOf(record) {
   };
 }
 
-async function site(path) {
+async function site(path, wait = SITE_MS) {
   let response;
   try {
-    response = await fetch(new URL(path, SITE), { signal: AbortSignal.timeout(SITE_MS) });
+    response = await fetch(new URL(path, SITE), { signal: AbortSignal.timeout(wait) });
   } catch {
     throw new BrowseError("Firefox's add-on site did not answer");
   }
@@ -236,16 +250,16 @@ function removeOwnCopy(profile, guid) {
   for (const list of ['extensions.json', 'addonStartup.json.lz4']) rmSync(join(profile, list), { force: true });
 }
 
-/** Adds the add-on `slug` after its checks, beside the others, in place of the person's own copy of it; the browser
- * restarts with it. One the browser ships is refused before any download. */
-export async function addAddon(slug, { profile = FILES.profile, now = Date.now() } = {}) {
-  const record = await (await site(`/api/v5/addons/addon/${encodeURIComponent(slug)}/?lang=en-US`)).json();
+/** Adds the add-on `slug` after its checks, beside the others, in place of the person's own copy; the browser restarts
+ * with it unless `stop` is false, before a start. One the browser ships is refused before any download. */
+export async function addAddon(slug, { profile = FILES.profile, now = Date.now(), stop = true, wait = SITE_MS } = {}) {
+  const record = await (await site(`/api/v5/addons/addon/${encodeURIComponent(slug)}/?lang=en-US`, wait)).json();
   if (record.type !== 'extension') throw new BrowseError(`${slug} is a ${record.type ?? 'thing'}, not an extension`);
   const facts = factsOf(record);
   if (builtInGuids().has(facts.guid)) throw new BrowseError(builtInText(facts.name));
   const { staging, page, version } = await fetchChecked(record);
   try {
-    await stopForChange(`add ${facts.name}`);
+    if (stop) await stopForChange(`add ${facts.name}`);
   } catch (error) {
     rmSync(staging, { recursive: true, force: true });
     throw error;
@@ -255,7 +269,30 @@ export async function addAddon(slug, { profile = FILES.profile, now = Date.now()
   const tags = Array.isArray(record.tags) ? record.tags : [];
   const added = { slug: facts.slug, guid: facts.guid, name: facts.name, maker: facts.maker, website: facts.website, version, page, tags, checkedAt: now, addedAt: now };
   save([...addedList().filter(other => other.guid !== facts.guid), added]);
+  if (facts.guid === ONE_PASSWORD.guid) markDefault('added');
   return added;
+}
+
+/** Adds 1Password once, before a start, by an asked add's checks: never after the person removed or declined one, nor
+ * beside another password manager. A failure tries again a day later. Resolves to the add, or null. */
+export async function addDefault({ profile = FILES.profile, now = Date.now(), wait = DEFAULT_SITE_MS } = {}) {
+  const state = defaultState();
+  if (typeof state === 'string' || (state?.failedAt !== undefined && now - Number(state.failedAt) < DEFAULT_RETRY_MS)) return null;
+  const list = addedList();
+  // An older version's `declined` was the person's no to a password manager, as a remove is.
+  const declined = readJson(OLD_CHOICE)?.state === 'declined';
+  const kept = list.some(added => added.guid === ONE_PASSWORD.guid) ? 'added' : declined ? 'removed' : list.some(isPasswordManager) ? 'skipped' : null;
+  if (kept) {
+    markDefault(kept);
+    rmSync(OLD_CHOICE, { force: true });
+    return null;
+  }
+  try {
+    return await addAddon(ONE_PASSWORD.slug, { profile, now, stop: false, wait });
+  } catch (error) {
+    markDefault({ failedAt: now });
+    throw error;
+  }
 }
 
 /** The added add-on `name` names, by slug, id, or part of its name; with no name, the only one. */
@@ -281,6 +318,7 @@ export async function removeAddon(name, { profile = FILES.profile } = {}) {
   rmSync(folderOf(gone.guid), { recursive: true, force: true });
   if (!builtInGuids().has(gone.guid)) clearStorage(profile, gone.guid); // the browser's own copy keeps that data
   save(list.filter(added => added.guid !== gone.guid));
+  if (gone.guid === ONE_PASSWORD.guid) markDefault('removed');
   return gone.name;
 }
 
@@ -288,7 +326,7 @@ export async function removeAddon(name, { profile = FILES.profile } = {}) {
 export const addonStatus = () => addedList().map(added => added.name);
 
 /** What the agent tells the person once a password manager is in. */
-export const ADVICE = 'In your password manager, keep only the logins my errands need, in a vault of their own, and set it to lock after 5 minutes.';
+export const ADVICE = 'Set your password manager to lock after 8 hours, so one unlock lasts the workday. I never unlock it, and I ask you before I use a login from it.';
 /** What the agent tells the person once `added` is in. */
 export const tellOf = added => (isPasswordManager(added) ? ADVICE : `${added.name} loads from the browser's next start.`);
 
@@ -312,6 +350,8 @@ async function update(saved, now) {
 /** launch-config.py's words for this start: each add-on's folder, updated weekly and pinned to the toolbar. One the
  * browser has come to ship since its add is skipped, so it never loads beside the browser's own copy. */
 export async function startArgs({ profile = FILES.profile, now = Date.now() } = {}) {
+  // A failed default add keeps the start going.
+  await addDefault({ profile, now }).catch(() => null);
   const builtIn = builtInGuids();
   let list = addedList();
   const due = added => !builtIn.has(added.guid) && !(now - (Number(added.checkedAt) || 0) < UPDATE_MS);
@@ -362,4 +402,13 @@ export const ADDON_VERBS = {
     console.log((names.length ? names : ['none']).map(name => `BROWSE_ADDON=${name}`).join('\n'));
   }],
   open: [0, async page => { await openPage(page); console.log('BROWSE_ADDON_PAGE=opened'); }],
+  logins: [0, async page => console.log(loginLines(await page.logins()).join('\n'))],
+  pick: [1, async (page, [number]) => {
+    if (!/^[1-9]\d*$/.test(number)) throw new BrowseError('addon pick takes the number addon logins printed before the login');
+    await page.pick(Number(number));
+    console.log('BROWSE_ADDON_PICKED=filled');
+  }],
 };
+
+/** The lines `addon logins` prints: each offered login's number and name, else `locked` or `none`. */
+export const loginLines = ({ state, names = [] }) => (state === 'list' ? names.map((name, at) => `BROWSE_ADDON_LOGIN=${at + 1} | ${name}`) : [`BROWSE_ADDON_LOGIN=${state === 'locked' ? 'locked' : 'none'}`]);
