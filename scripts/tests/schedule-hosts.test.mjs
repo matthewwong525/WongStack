@@ -1,7 +1,7 @@
 // Host receipts and the Paseo adapter kept for the move: every change is read back, and nothing uncertain passes.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { firstMessage, normalizedReceipt, paseoAdapter, selectHost, unsupportedAdapter, validateReceipt } from '../../.agents/skills/schedule/scripts/lib/hosts.mjs';
+import { firstMessage, normalizedReceipt, paseoAdapter, selectHost, unsupportedAdapter, validateReceipt } from '../../.agents/skills/daily/skills/schedule/scripts/lib/hosts.mjs';
 
 test('the app host wins when it answers; else the enclosing host, and an unknown one stays unsupported', () => {
   assert.equal(selectHost({ enclosing: 'paseo', available: [{ name: 'app', supported: true }, { name: 'paseo', supported: true }] }).name, 'app');
@@ -26,7 +26,7 @@ test('the first message is the instructions word for word, then a footer naming 
   assert.match(message, /^May do: email, at most once each 60 minutes; ask before any other step\.$/m);
   assert.match(message, /^Ends when: The plan is done\.$/m);
   assert.match(message, /^Progress: \{"done":\["monday"\]\}$/m);
-  assert.match(message, /^When you stop: node \.agents\/skills\/schedule\/scripts\/schedule\.mjs finish --key weekly-plan --run 1{32} /m);
+  assert.match(message, /^When you stop: node \.agents\/skills\/daily\/skills\/schedule\/scripts\/schedule\.mjs finish --key weekly-plan --run 1{32} /m);
   assert.doesNotMatch(message, /invoice/, 'the name is not in the version, so it stays out');
   const bare = firstMessage({ schedule: { key: 'weekly-plan', instructions: 'Plan.' }, run });
   assert.match(bare, /^May do: read and draft only; /m);

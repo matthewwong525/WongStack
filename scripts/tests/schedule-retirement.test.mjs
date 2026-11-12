@@ -7,8 +7,8 @@ const read = rel => readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8
 
 test('retired runner source and cloud creation entry point are absent', () => {
   assert.equal(existsSync(new URL('../../scripts/routine-runner/', import.meta.url)), false);
-  assert.equal(existsSync(new URL('../../.agents/skills/schedule/scripts/routine.mjs', import.meta.url)), false);
-  assert.equal(existsSync(new URL('../../.agents/skills/schedule/scripts/lib/cloudflare.mjs', import.meta.url)), false);
+  assert.equal(existsSync(new URL('../../.agents/plugins/daily/skills/schedule/scripts/routine.mjs', import.meta.url)), false);
+  assert.equal(existsSync(new URL('../../.agents/plugins/daily/skills/schedule/scripts/lib/cloudflare.mjs', import.meta.url)), false);
 });
 
 test('the old skill folder stays retired with no exception, and the old entry point has only this test', () => {
@@ -30,14 +30,14 @@ test('the goal schema and the record-only save route are gone, so no schedule ne
 test('memory keeps the old routine topic as an alias and maps the skill and old repo records', () => {
   const areas = JSON.parse(read('.agents/memory/areas.json'));
   assert.ok(areas.schedule.aliases.includes('routine'), 'existing facts remain discoverable');
-  for (const path of ['.agents/plugins/daily/schedule/', 'schedules/']) assert.ok(areas.schedule.paths.includes(path));
+  for (const path of ['.agents/plugins/daily/skills/schedule/', 'schedules/']) assert.ok(areas.schedule.paths.includes(path));
   assert.ok(!areas.schedule.paths.some(path => path.includes('scheduled-work')));
   assert.ok(areas.schedule.docs.includes('wiki/stack/host-schedules.md'));
 });
 
 test('the mover and the old cloud commands are gone, with their pages', () => {
   // Split spellings keep the retired names out of this file.
-  for (const path of ['.agents/inbox/move-in.mjs', '.agents/inbox/lib/legacy.mjs', '.agents/skills/schedule/references/' + 'migration.md',
+  for (const path of ['.agents/inbox/move-in.mjs', '.agents/inbox/lib/legacy.mjs', '.agents/plugins/daily/skills/schedule/references/' + 'migration.md',
     'wiki/stack/legacy-' + 'cloud-schedules.md']) assert.equal(existsSync(new URL(`../../${path}`, import.meta.url)), false, path);
 });
 

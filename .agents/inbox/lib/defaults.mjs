@@ -8,7 +8,7 @@ import { addLine } from '../../skills/daily/scripts/journal.mjs';
 import { briefFolders, DEFAULT_SCHEDULES } from '../../skills/daily/scripts/worker.mjs';
 import { approveHere, definition, readSchedule, saveDefinition, send } from './app.mjs';
 import { RUN_FLOOR_MS } from '../runs.mjs';
-import { canonical, scheduleVersion } from '../../skills/schedule/scripts/lib/version.mjs';
+import { canonical, scheduleVersion } from '../../skills/daily/skills/schedule/scripts/lib/version.mjs';
 
 const MINUTE = 60_000;
 // A timed job's `at` time counted this long after it in the worker's old loop, so its schedule may be this late.

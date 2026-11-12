@@ -4,9 +4,9 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
-import { ending, linkOf, shapeOf, strokes, tabsShow, tabToOpen, watchEnding, watchShows } from '../../.agents/skills/hand-over/scripts/view-page.mjs';
+import { ending, linkOf, shapeOf, strokes, tabsShow, tabToOpen, watchEnding, watchShows } from '../../.agents/skills/browser/skills/hand-over/scripts/view-page.mjs';
 
-const scripts = new URL('../../.agents/skills/hand-over/scripts/', import.meta.url);
+const scripts = new URL('../../.agents/skills/browser/skills/hand-over/scripts/', import.meta.url);
 const sourcePath = fileURLToPath(new URL('view-page.mjs', scripts));
 // Keep byte offsets and the real filename so V8 records coverage for the browser code exercised.
 const source = readFileSync(sourcePath, 'utf8').replace(/^export /gm, '       ');

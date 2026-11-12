@@ -8,7 +8,7 @@
 - **Memory search uses words only.** Meaning-based search (QMD) is gone, with its setup, status, and refresh commands. A search finds a page when your question shares words with the page ([recall facts and documents](wiki/development/document-retrieval.md)). Search needs no setup on any computer, and it keeps no index.
 - **A search answer is shorter.** It is now version 2, and no longer says which search mode ran or how much the meaning search covered. A request for the `semantic` or `deep` mode stops and says that meaning-based search was removed; `keyword` and `auto` still work and change nothing.
 - **Old schedules no longer move into the app by themselves.** A routine in a daily settings file, a timed job in your own daily list, and a `schedules/` file in the repo stay where they are and do not run. You ask the assistant to save each one as a schedule in the app ([existing schedules](wiki/stack/host-schedules.md#existing-schedules)). While a routine or a timed job is left, the daily journal says so once a day. A `schedules/` file gets no journal line.
-- **The commands for the older Cloudflare runner are gone**: the ones that list, pause, move, and remove its jobs, and their page. The runner itself, its jobs, and its keys are not touched. `/schedule move`, which moved one old schedule on request, goes too.
+- **The commands for the older Cloudflare runner are gone**: the ones that list, pause, move, and remove its jobs, and their page. The runner itself, its jobs, and its keys are not touched. `/daily:schedule move`, which moved one old schedule on request, goes too.
 - **The list of retired names has no dead exceptions**, and its check now fails on one. Each retired name stays.
 
 **Updating.** Search needs no step. Three things can need you:
@@ -16,6 +16,16 @@
 - **Before the update, let any schedule move finish.** If the assistant still says that a routine or schedule waits to move to the app, open a chat and let it finish first, because this update removes the mover. After the update, ask the assistant to save any routine or schedule file that is left as a schedule.
 - **If this install still has the older Cloudflare runner** (set up before version 40), pause its jobs and remove it before the update, because the commands that do this go. After the update, you remove its Worker, its AI Gateway, and its keys by hand in the Cloudflare dashboard.
 - **A computer that ran the QMD setup can delete one folder**: `wongstack/documents` in your user data folder (on Linux, `~/.local/share/wongstack/documents`), about 1 GB. Nothing reads it now. The update does not delete it, because it is outside the repo.
+## 57.0.0 — The browser and Daily each come in one folder
+
+- **The browser and Daily each install as one folder** in your skills folder: `.claude/skills/browser/` and `.claude/skills/daily/`. Their other commands sit inside it, in `skills/` ([adding a module](wiki/maintaining/adding-a-module.md)). Before, each one came in two or three folders.
+- **`/schedule` is now `/daily:schedule`.** It does the same work. Its scripts are in `.claude/skills/daily/skills/schedule/scripts/`. In Claude Code, a typed `/schedule` now opens Claude Code's own cloud schedules, not yours. To make a schedule, type `/daily:schedule` or ask in plain words.
+- **A module links no file in another module.** Each one asks you in one sentence, with your assistant's question tool or a short numbered list ([the browser](.agents/plugins/browser/README.md), [Daily](.agents/plugins/daily/README.md)).
+- **Access no longer sets up memory.** Its setup has ten steps, not eleven, and changes no other tool's files ([Access](.agents/plugins/access/README.md)).
+- **Each module's version is in its two `plugin.json` files.** The `module.json` files are gone.
+
+**Updating.** `/wong-sync` moves the folders. Nothing to do by hand. If you type `/schedule` to make a schedule, type `/daily:schedule` from now on. A repo with only the browser or Daily copies the update message from that module's README on GitHub, because the old link to its update steps no longer opens.
+
 ## 56.0.0 — The build loop stands on its own
 
 - **`/continue` is gone: type `/apply <name>` to pick up saved work**, or `/apply` alone to choose from a list. It switches to the change's branch first, and still shows work new to this computer and asks before it runs it ([pick up saved work](.agents/plugins/loop/skills/apply/references/pick-up.md)). The loop now has seven commands. `/save` stays.

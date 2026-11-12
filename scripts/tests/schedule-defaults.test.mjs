@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { main } from '../../.agents/skills/schedule/scripts/schedule.mjs';
+import { main } from '../../.agents/skills/daily/skills/schedule/scripts/schedule.mjs';
 import { approvedVersion } from '../../.agents/inbox/lib/approvals.mjs';
 import { addDefaults, sweepTimings } from '../../.agents/inbox/lib/defaults.mjs';
 import { localDay, validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';

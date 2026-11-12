@@ -208,12 +208,12 @@ test('readArgs takes each command with its flags, chief-service as serve, and re
   }
 });
 
-test('commands wire the settings: remind points to /schedule, and a handoff outside a background run is refused', async () => {
+test('commands wire the settings: remind points to /daily:schedule, and a handoff outside a background run is refused', async () => {
   const stateDir = temp('state');
   const config = validateConfig(settings());
   const run = (command, values, env = {}) => commands({ config, project: '/w/main', stateDir, values, call: async () => [], env })[command]();
   assert.deepEqual(await run('remind', { day: '2026-10-23', text: 'Call the bank' }), { status: 'refused', reason: 'schedule', error: REMIND });
-  assert.match(REMIND, /one-time chat schedule.*\/schedule/);
+  assert.match(REMIND, /one-time chat schedule.*\/daily:schedule/);
   const found = join(stateDir, 'found.md');
   writeFileSync(found, '3 invoices are late.\n');
   assert.equal((await run('handoff', { file: found })).reason, 'run');
@@ -338,7 +338,7 @@ test('ensure starts the worker only when the person has a job, none runs, check-
 /** A checkout with the schedule skill, a shipped list, and `startDefaults` with a fake start. */
 function defaultsCheckout() {
   const root = temp('defaults'), stateDir = temp('state'), runs = [], list = join(temp('list'), 'schedules.json');
-  const dir = join(root, '.agents/skills/daily/scripts'), script = join(root, '.agents/skills/schedule/scripts/schedule.mjs');
+  const dir = join(root, '.agents/skills/daily/scripts'), script = join(root, '.agents/skills/daily/skills/schedule/scripts/schedule.mjs');
   mkdirSync(join(script, '..'), { recursive: true });
   writeFileSync(script, '');
   writeFileSync(list, '{"schedules":[]}');
@@ -414,9 +414,9 @@ test('a running try does not hold back a changed stamp, and a try marks done the
 test("a try's stamp comes from the list of the copy whose schedule skill it starts, not this chat's own", () => {
   const root = temp('defaults'), stateDir = temp('state'), runs = [];
   const dir = join(root, '.agents/skills/daily/scripts'), own = join(root, '.agents/skills/daily/references/schedules.json');
-  mkdirSync(join(root, '.agents/skills/schedule/scripts'), { recursive: true });
+  mkdirSync(join(root, '.agents/skills/daily/skills/schedule/scripts'), { recursive: true });
   mkdirSync(join(own, '..'), { recursive: true });
-  writeFileSync(join(root, '.agents/skills/schedule/scripts/schedule.mjs'), '');
+  writeFileSync(join(root, '.agents/skills/daily/skills/schedule/scripts/schedule.mjs'), '');
   writeFileSync(own, '{"schedules":[{"id":"main-only"}]}');
   const run = (...args) => { runs.push(args); return { on: () => {}, unref: () => {} }; };
   assert.equal(startDefaults({ home: { repo: root, dir }, stateDir, env: {}, now: NOW.getTime(), timezone: ZONE, run }), true);
@@ -545,7 +545,7 @@ test('checkins off and on still answer when the start of the defaults throws', a
 test("each tool's plugin hooks run mark at start, message and stop; mark writes the card but the stop's, and keeps Paseo's stop mark", () => {
   const read = path => JSON.parse(readFileSync(fileURLToPath(new URL(`../../.agents/${path}`, import.meta.url)), 'utf8')).hooks;
   for (const tool of ['claude', 'codex']) {
-    const hooks = read(`plugins/daily/daily/hooks/${tool}.json`);
+    const hooks = read(`plugins/daily/hooks/${tool}.json`);
     const runs = (event, script) => hooks[event].flatMap(group => group.hooks).filter(hook => hook.command.includes(`/scripts/${script}`)
       && hook.command.endsWith(`--agent ${tool}`));
     assert.equal(runs('SessionStart', 'session-start.mjs"').length, 1, `${tool} SessionStart marks through session-start.mjs`);

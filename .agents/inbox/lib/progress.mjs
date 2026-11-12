@@ -1,5 +1,5 @@
 // A schedule's progress: in the app for every run, one run holding it at a time.
-import { credentialFree } from '../../skills/schedule/scripts/lib/records.mjs';
+import { credentialFree } from '../../skills/daily/skills/schedule/scripts/lib/records.mjs';
 import { send } from './app.mjs';
 
 /** One schedule's progress in the app: read it, claim it for a run, write it while claimed, give it back. */

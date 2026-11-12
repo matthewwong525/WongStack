@@ -24,7 +24,7 @@
 
 ### Requirement: An update leaves old schedule data in place
 
-An update SHALL NOT delete or change an install's old schedule data: the schedule files in the repo, the routines in a daily settings file, the timed jobs in an install's own daily list, a Paseo schedule, and a deployed cloud runner with its keys. WongStack SHALL run none of the old files, routines or timed jobs, and SHALL move none of them. `/schedule` SHALL save any of them as a schedule in the app when the person asks.
+An update SHALL NOT delete or change an install's old schedule data: the schedule files in the repo, the routines in a daily settings file, the timed jobs in an install's own daily list, a Paseo schedule, and a deployed cloud runner with its keys. WongStack SHALL run none of the old files, routines or timed jobs, and SHALL move none of them. `/daily:schedule` SHALL save any of them as a schedule in the app when the person asks.
 
 #### Scenario: An install updates with an old schedule file
 

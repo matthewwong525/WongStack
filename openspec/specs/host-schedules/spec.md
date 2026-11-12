@@ -8,7 +8,7 @@ Let a person schedule future assistant sessions through an available host, follo
 
 ### Requirement: Predictable scheduled work prefers a script
 
-Before selecting an assistant scheduler, `/schedule` SHALL assess whether the requested work can reliably run as deterministic steps and SHALL prefer a script on an available clock when it can. A completion condition or a narrowly scoped model call SHALL not alone make the task require an assistant session. Required script implementation SHALL use the ordinary code change loop and publishing gate. Assistant scheduling SHALL be used for work requiring judgment, or an explicit informed choice by the person.
+Before selecting an assistant scheduler, `/daily:schedule` SHALL assess whether the requested work can reliably run as deterministic steps and SHALL prefer a script on an available clock when it can. A completion condition or a narrowly scoped model call SHALL not alone make the task require an assistant session. Required script implementation SHALL use the ordinary code change loop and publishing gate. Assistant scheduling SHALL be used for work requiring judgment, or an explicit informed choice by the person.
 
 #### Scenario: A fixed invoice reminder
 
@@ -22,7 +22,7 @@ Before selecting an assistant scheduler, `/schedule` SHALL assess whether the re
 
 ### Requirement: Scheduling uses a verified available host
 
-For work selected to run as assistant sessions, `/schedule` SHALL use the company app's clock when the owner's computer has the background helper and a chat app that can open a session, and otherwise the person's chosen or available host scheduler, distinguishing the host from the assistant model and verifying the capabilities needed in the future execution environment. It SHALL add no container or cloud runner. Before activation it SHALL show the task, destination, absolute next time and timezone, required uptime, and material capability limits.
+For work selected to run as assistant sessions, `/daily:schedule` SHALL use the company app's clock when the owner's computer has the background helper and a chat app that can open a session, and otherwise the person's chosen or available host scheduler, distinguishing the host from the assistant model and verifying the capabilities needed in the future execution environment. It SHALL add no container or cloud runner. Before activation it SHALL show the task, destination, absolute next time and timezone, required uptime, and material capability limits.
 
 #### Scenario: The app's clock is available
 
@@ -271,7 +271,7 @@ A schedule SHALL be able to run as a background job, with no chat: an optional c
 
 ### Requirement: One schedule list shows every schedule
 
-`/schedule`, any chat asked *what's scheduled?*, and the Inbox SHALL show the person's schedules from the app, each with what it does, its state, where it runs, its next run and its last result. A schedule that still runs on another host, such as Paseo, SHALL show in the same list, marked as running there. Changing a recurring schedule into one with an end SHALL be an explicit change of that same schedule, never a second schedule.
+`/daily:schedule`, any chat asked *what's scheduled?*, and the Inbox SHALL show the person's schedules from the app, each with what it does, its state, where it runs, its next run and its last result. A schedule that still runs on another host, such as Paseo, SHALL show in the same list, marked as running there. Changing a recurring schedule into one with an end SHALL be an explicit change of that same schedule, never a second schedule.
 
 #### Scenario: List all scheduled work
 
@@ -299,7 +299,7 @@ Listing and managing a schedule — pause, resume, run now, change, cancel and r
 
 ### Requirement: An update leaves old schedule data in place
 
-An update SHALL NOT delete or change an install's old schedule data: the schedule files in the repo, the routines in a daily settings file, the timed jobs in an install's own daily list, a Paseo schedule, and a deployed cloud runner with its keys. WongStack SHALL run none of the old files, routines or timed jobs, and SHALL move none of them. `/schedule` SHALL save any of them as a schedule in the app when the person asks.
+An update SHALL NOT delete or change an install's old schedule data: the schedule files in the repo, the routines in a daily settings file, the timed jobs in an install's own daily list, a Paseo schedule, and a deployed cloud runner with its keys. WongStack SHALL run none of the old files, routines or timed jobs, and SHALL move none of them. `/daily:schedule` SHALL save any of them as a schedule in the app when the person asks.
 
 #### Scenario: An install updates with an old schedule file
 

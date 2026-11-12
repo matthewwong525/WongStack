@@ -1,4 +1,4 @@
-// WongStack's schedule store for Daily's `/schedule`: the person's schedules in the company app, each approved per
+// WongStack's schedule store for Daily's `/daily:schedule`: the person's schedules in the company app, each approved per
 // computer. Daily calls it through the profile's `schedules` part. wiki/stack/host-schedules.md
 import { existsSync, readFileSync } from 'node:fs';
 import { computerId, helperService } from '../skills/reply-link/scripts/lib/computer.mjs';
@@ -7,9 +7,9 @@ import { approveHere, approvalState, approver, appHost, definition, heldDefiniti
 import { addDefaults } from './lib/defaults.mjs';
 import { appProgress } from './lib/progress.mjs';
 import { checkHandedRun, mirrorRound, scheduleApp } from './runs.mjs';
-import { paseoAdapter, selectHost, validateReceipt } from '../skills/schedule/scripts/lib/hosts.mjs';
-import { listRecords, loadRecord, requireValue, ScheduleError } from '../skills/schedule/scripts/lib/records.mjs';
-import { scheduleVersion } from '../skills/schedule/scripts/lib/version.mjs';
+import { paseoAdapter, selectHost, validateReceipt } from '../skills/daily/skills/schedule/scripts/lib/hosts.mjs';
+import { listRecords, loadRecord, requireValue, ScheduleError } from '../skills/daily/skills/schedule/scripts/lib/records.mjs';
+import { scheduleVersion } from '../skills/daily/skills/schedule/scripts/lib/version.mjs';
 
 const UNREACHABLE = 'The app can not be reached; no times are shown.';
 const SIGN_IN = 'Default schedules wait: sign in to the company app (`D who` gives the link).';
