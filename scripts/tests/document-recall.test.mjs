@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,7 +34,8 @@ test('shared text and JSON budgets preserve whole Unicode facts, source balance,
     assert.ok(result.packet.omitted.facts > 0 || result.packet.omitted.documents > 0);
     for (const fact of result.packet.facts) assert.equal(fact.body, facts.find(source => source.id === fact.id).body);
     for (const doc of result.packet.documents) { assert.equal(doc.freshness, 'verified'); assert.ok(doc.reference); }
-    if (json) assert.equal(JSON.parse(result.text).version, 1);
+    if (json) assert.equal(JSON.parse(result.text).version, 2);
+    else assert.ok(result.text.startsWith('Recall v2 · scope current\n\nFacts: ok; documents: ok\n\n'));
   }
 });
 test('unused source budget is reclaimed, oversized entries are omitted and line excerpts marked truncated', () => {
@@ -71,7 +72,7 @@ test('company CLI writes near-budget document packets compactly without enlargin
     env: { ...process.env, XDG_DATA_HOME: join(target, 'data'), CLOUDFLARE_MEMORY_TOKEN: '' },
   });
   assert.ok(Buffer.byteLength(stdout) > 5300); assert.ok(Buffer.byteLength(stdout) <= 6144);
-  const packet = JSON.parse(stdout); assert.equal(packet.version, 1); assert.ok(packet.documents.length > 0);
+  const packet = JSON.parse(stdout); assert.equal(packet.version, 2); assert.ok(packet.documents.length > 0);
   assert.equal(stdout, `${JSON.stringify(packet)}\n`);
   assert.ok(Buffer.byteLength(`${JSON.stringify(packet, null, 2)}\n`) > 6144);
 });
@@ -81,7 +82,10 @@ test('document CLI requires no memory configuration or secret and invalid input 
   const cli = join(root, '.agents/plugins/memory/scripts/memory.mjs');
   const run = args => execFileSync(process.execPath, [cli, ...args], { cwd: target, encoding: 'utf8', env: { ...process.env, XDG_DATA_HOME: join(target, 'data'), CLOUDFLARE_MEMORY_TOKEN: '' } });
   const packet = JSON.parse(run(['documents', 'delivery', '--mode', 'keyword', '--json']));
-  assert.equal(packet.documents[0].path, 'wiki/guide.md'); assert.equal(packet.facts.length, 0); assert.equal(packet.backend, 'lexical-fallback');
+  assert.equal(packet.documents[0].path, 'wiki/guide.md'); assert.equal(packet.facts.length, 0); assert.equal(packet.version, 2);
+  for (const gone of ['mode', 'backend', 'coverage', 'requestedModeState']) assert.equal(gone in packet, false, gone);
+  assert.throws(() => run(['documents', 'delivery', '--mode', 'semantic']), error => error.status === 2 && /Meaning-based search was removed/.test(error.stderr));
+  for (const gone of ['status', 'setup', 'refresh']) assert.throws(() => run([`documents-${gone}`]), error => error.status === 2 && /unknown command/.test(error.stderr));
   assert.throws(() => run(['documents', 'delivery', '--everyone']), error => error.status === 2);
   assert.throws(() => run(['documents', 'delivery', '--scope', 'private']), error => error.status === 2);
 });
@@ -124,7 +128,7 @@ test('member installed recall keeps personal facts private and never expands adm
   const result = await node(repo, fake, OPERATIONS, ['call', 'memory.recall', '--file', '-'],
     { input: JSON.stringify({ question: 'delivery', mode: 'keyword' }) });
   assert.equal(result.code, 0, result.stderr); const packet = JSON.parse(result.stdout);
-  assert.equal(packet.version, 1); assert.deepEqual(packet.facts.map(fact => fact.body), ['Delivery shared evidence.']);
+  assert.equal(packet.version, 2); assert.deepEqual(packet.facts.map(fact => fact.body), ['Delivery shared evidence.']);
   assert.ok(!result.stdout.includes('private evidence')); assert.ok(packet.documents.length > 0);
 });
 test('recall total deadline bounds even adapters that ignore cancellation', async t => {
@@ -146,8 +150,12 @@ test('installed local operation validates before loading credentials and returns
   assert.equal(memoryOperations.find(action => action.operationId === 'memory.documents').authentication, 'local-checkout');
   await assert.rejects(callMemory('memory.recall', { question: 'x', everyone: true }, { cwd: '/absent' }), /Invalid/);
   await assert.rejects(callMemory('memory.documents', { question: 'lex: injection' }, { cwd: '/absent' }), /Question/);
+  for (const mode of ['semantic', 'deep']) await assert.rejects(callMemory('memory.recall', { question: 'x', mode }, { cwd: '/absent' }), /Meaning-based search was removed/);
+  const described = memoryOperations.find(action => action.operationId === 'memory.recall');
+  assert.deepEqual(described.inputSchema.properties.mode.enum, ['auto', 'keyword']); assert.equal(described.outputSchema.properties.version.const, 2);
+  assert.doesNotMatch(JSON.stringify(described), /qmd|semantic|backend|coverage|requestedModeState/i);
 });
-test('payload carries every retrieval module and runbook but no installed models', t => {
+test('payload carries every retrieval module and runbook, and no runtime, index or model code', t => {
   const target = tempDir(t, 'retrieval-payload-');
   cpSync(join(root, '.agents/plugins/memory'), join(target, '.agents/skills/memory'), { recursive: true });
   cpSync(join(root, '.agents/memory'), join(target, '.agents/memory'), { recursive: true });
@@ -155,8 +163,8 @@ test('payload carries every retrieval module and runbook but no installed models
   cpSync(join(root, '.agents/plugins/access'), join(target, '.agents/skills/access'), { recursive: true });
   const inventory = JSON.parse(readFileSync(join(root, '.agents/skills/wong-sync/references/payload-files.json')));
   assert.ok(inventory.core.files.includes('wiki/development/document-retrieval.md'));
-  for (const file of ['commands.mjs', 'corpus.mjs', 'state.mjs', 'qmd.mjs', 'setup.mjs', 'retrieve.mjs', 'lexical.mjs', 'packet.mjs', 'runtime.json', 'runtime/package-lock.json'])
-    assert.ok(existsSync(join(target, '.agents/skills/memory/scripts/lib/documents', file)));
+  assert.deepEqual(readdirSync(join(target, '.agents/skills/memory/scripts/lib/documents')).sort(),
+    ['commands.mjs', 'corpus.mjs', 'input.mjs', 'lexical.mjs', 'packet.mjs', 'retrieve.mjs']);
   const description = JSON.parse(execFileSync(process.execPath, [join(target, '.agents/memory/operations.mjs'), 'describe', 'memory.documents'], { cwd: target, encoding: 'utf8' }));
   assert.equal(description.transport, 'installed-client'); assert.equal(description.authentication, 'local-checkout');
   assert.equal(existsSync(join(target, 'models')), false); assert.equal(existsSync(join(target, 'node_modules')), false);
@@ -166,7 +174,7 @@ test('agent guidance recalls then reads originals while startup and first-edit h
   assert.match(digest, /recall <question>/); assert.match(digest, /search <terms> --everyone/);
   assert.doesNotMatch(digest, /recall <question> --everyone/);
   for (const path of ['.agents/plugins/memory/scripts/session-start.mjs', '.agents/plugins/memory/scripts/before-edit.mjs']) {
-    const source = readFileSync(join(root, path), 'utf8'); assert.doesNotMatch(source, /documents\/|runQmd|documents-setup/);
+    const source = readFileSync(join(root, path), 'utf8'); assert.doesNotMatch(source, /documents\//);
   }
   const explore = readFileSync(join(root, '.agents/skills/explore/SKILL.md'), 'utf8');
   assert.match(explore, /recall <question>/); assert.match(explore, /pull <path-or-topic>/);
@@ -182,7 +190,7 @@ test('recall ends with a labeled files list of admitted facts only, in text and 
   assert.doesNotMatch(text.text, /only-dropped|; files:/);
   const json = renderPacket({ question: 'delivery', facts, documents: [fakeDoc(1)], files, factSource: { state: 'ok' }, documentSource: { state: 'ok' } }, { json: true });
   const packet = JSON.parse(json.text);
-  assert.equal(packet.version, 1); assert.deepEqual(packet.sources.files, { state: 'ok' });
+  assert.equal(packet.version, 2); assert.deepEqual(packet.sources.files, { state: 'ok' });
   assert.deepEqual(packet.files, [fileEntry('src/shared.mjs', [1, 2]), fileEntry('wiki/page.md', [2], 'named')]);
   const many = Array.from({ length: 12 }, (_, n) => fileEntry(`src/${'deep/'.repeat(10)}file-${n}.mjs`, [1, 2]));
   for (const json of [false, true]) {

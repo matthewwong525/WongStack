@@ -5,9 +5,7 @@ import { computerId, helperService } from '../skills/reply-link/scripts/lib/comp
 import { companyFor } from '../skills/reply-link/scripts/lib/inbox.mjs';
 import { approveHere, approvalState, approver, appHost, definition, heldDefinition, readSchedule, saveDefinition, send, shownText } from './lib/app.mjs';
 import { addDefaults } from './lib/defaults.mjs';
-import { legacyAdapter, legacyContext, teardownLegacy } from './lib/legacy.mjs';
 import { appProgress } from './lib/progress.mjs';
-import { moveIn } from './move-in.mjs';
 import { checkHandedRun, mirrorRound, scheduleApp } from './runs.mjs';
 import { paseoAdapter, selectHost, validateReceipt } from '../skills/schedule/scripts/lib/hosts.mjs';
 import { listRecords, loadRecord, requireValue, ScheduleError } from '../skills/schedule/scripts/lib/records.mjs';
@@ -166,33 +164,9 @@ export const report = (id, result, { project }) => scheduleApp(project).report(i
 /** `{schedule}` when a run the helper handed to the worker may start here, else `{reason}`. */
 export const check = (event, { project, env }) => checkHandedRun(event, { app: scheduleApp(project), project, env });
 
-async function moveCommand(command, values, key, world) {
-  requireValue(command === 'move-in' || key, 'Name the schedule record to move.');
-  const { root, env } = world, { computer, email } = here(world), { who, stateOf } = await daily();
-  const me = (world.who ?? who)({ repo: root });
-  const config = me.file ? (world.settings ?? (await import('../skills/daily/scripts/config.mjs')).loadSettings)(me.file, root) : null;
-  const client = values['dry-run'] ? null : await connect(world);
-  const note = world.note ?? (async line => {
-    const { addLine } = await import('../skills/daily/scripts/journal.mjs');
-    if (config) addLine({ stateDir: stateOf(config, root), timezone: config.timezone, line, kind: 'move-in' });
-  });
-  return moveIn({ root, primary: world.primary, me, config, records: listRecords(root), client, computer, env, email, paseo: world.paseo ?? paseoAdapter({ env }),
-    note, unattended: values.unattended, dryRun: values['dry-run'], keep: values.keep, drop: values.drop, only: command === 'move' ? `record:${key}` : null });
-}
-
-async function legacy(values, [action, nativeId], world) {
-  const context = world.legacyContext ?? legacyContext(world.root, world.env);
-  if (action === 'teardown') return teardownLegacy(context, values.resources?.split(','), world);
-  const host = legacyAdapter(context, world);
-  requireValue(['list', 'inspect', 'pause', 'resume', 'cancel'].includes(action), 'Legacy supports only list/inspect/pause/resume/cancel/explicit teardown.');
-  return action === 'list' ? host.list() : host[action](nativeId);
-}
-
-/** WongStack-only commands: `hosts`, `mirror`, `move-in`, `move`, and `legacy`. */
+/** WongStack-only commands: `hosts` and `mirror`. */
 export async function extra(command, values, args, world) {
   const { root, env } = world;
-  if (command === 'legacy') return legacy(values, args, world);
-  if (command === 'move-in' || command === 'move') return moveCommand(command, values, values.key ?? args[0], world);
   if (command === 'hosts') {
     const app = await (world.appHost ?? appHost)({ service: () => helperService(env), client: () => connect(world) });
     return { preferred: selectHost({ enclosing: 'paseo', available: [app, { name: 'paseo', supported: true }] }).name, app };

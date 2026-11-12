@@ -27,10 +27,10 @@ test('scheduling owns no cloud provisioning and setup keeps its independent chec
   assert.match(shared, /export async function installRunner/, 'Artifacts check-runner installation still exists');
 });
 
-test('both owner guides are reachable and the manifest explains preserved installations', () => {
+test('the owner guide is reachable, says what an update leaves, and the manifest explains preserved installations', () => {
   const hub = read('wiki/stack/README.md');
   assert.match(hub, /\]\(host-schedules\.md\)/);
-  assert.match(hub, /\]\(legacy-cloud-schedules\.md\)/);
+  assert.match(read('wiki/stack/host-schedules.md'), /^## Existing schedules\n\nAn update leaves your old schedule data in place and runs none of it\./m);
   const manifest = read('.agents/skills/wong-sync/references/payload-manifest.md');
   assert.match(manifest, /Never add those live records to this inventory/);
   assert.match(manifest, /Updates preserve deployed cloud resources and native host jobs/);

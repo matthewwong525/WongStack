@@ -86,8 +86,10 @@ WongStack ships one background schedule in [its list](../../.agents/plugins/dail
 
 ## Existing schedules
 
-At the update that moves schedules into the app, the assistant moves your old ones right after the update is live: the routines in your daily settings file, the team's routines, timed background jobs, and the `schedules/` files in the repo. It approves each one on your computer, because you approved it when you saved it in the repo. It shows two that look like the same job and asks which to keep. Then it removes the old lists in a small save. Run twice, it moves nothing twice. A teammate's routines move on their own computer, at their next chat.
+An update leaves your old schedule data in place and runs none of it. Nothing moves to the app by itself: you ask the assistant to save what you want to keep.
 
-A Paseo schedule stays in Paseo until you ask to move it. `/schedule move` pauses the Paseo copy and reads it back, saves the app's copy and reads it back, then deletes the Paseo copy. A failure in between leaves Paseo paused and the move pending, never both running. Updates do not move a cloud job, rewrite its prompt, delete secrets, or remove cloud resources. [Legacy migration and teardown](legacy-cloud-schedules.md) explains how to inspect older jobs and move one without duplicate follow-ups.
+- **A `schedules/` file in the repo, a routine in your daily settings file, or a timed job in [your own jobs](../development/daily.md#your-own-jobs)** stays where it is and does not run. While a routine or a timed job is left, [the journal](../development/daily.md#the-journal) says so once a day. Ask the assistant to save each one as a schedule: it shows you the text, saves it in the app after your OK, and then removes the old entry.
+- **A Paseo schedule** stays in Paseo and runs there. Ask to keep it in the app: the assistant pauses the Paseo copy, saves the app's copy and reads it back, then deletes the Paseo copy. The job never runs from both.
+- **An old cloud runner** on Cloudflare stays as it is, with its jobs and its keys. WongStack has no command for it now. Remove its Worker, its AI Gateway, and its keys by hand in the Cloudflare dashboard.
 
 Back to [the Cloudflare stack](README.md), or [development](../development/README.md).

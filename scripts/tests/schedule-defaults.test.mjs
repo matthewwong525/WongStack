@@ -2,11 +2,11 @@
 // the person's own stays; an install's `off` adds it paused; a retired one ends. A test-only second default is beside.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { main } from '../../.agents/skills/schedule/scripts/schedule.mjs';
 import { approvedVersion } from '../../.agents/inbox/lib/approvals.mjs';
-import { addDefaults } from '../../.agents/inbox/lib/defaults.mjs';
+import { addDefaults, sweepTimings } from '../../.agents/inbox/lib/defaults.mjs';
 import { localDay, validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { DEFAULT_SCHEDULES } from '../../.agents/skills/daily/scripts/worker.mjs';
@@ -89,6 +89,30 @@ test("an install's off entry adds that default paused, and its own entry with th
   assert.deepEqual([app.schedules.get('line-up').name, app.schedules.get('line-up').timing.cron], ['Our line-up', '*/15 * * * *']);
   assert.equal(app.schedules.get('tidy-up').state, 'paused');
   assert.equal(app.schedules.get('line-up').run.cwd, root);
+});
+
+test('a timed job keeps its days, hours and times; one it can not say in cron is reported', () => {
+  const every = sweepTimings({ every: '15m', hours: '9-17', days: [5, 1, 2, 3, 4] }, 'UTC').timings[0];
+  assert.deepEqual(every.timing, { mode: 'recurring', cron: '*/15 9-16 * * 1,2,3,4,5', timezone: 'UTC', allowedLatenessMs: 15 * 60e3 });
+  assert.equal(sweepTimings({ every: '120m' }, 'UTC').timings[0].timing.cron, '0 */2 * * *');
+  assert.match(sweepTimings({ every: '7m' }, 'UTC').reason, /no cron/);
+  assert.deepEqual(sweepTimings({ at: ['09:00', '13:00'] }, 'UTC').timings.map(each => [each.suffix, each.timing.cron, each.timing.allowedLatenessMs]),
+    [['', '0 9,13 * * *', 15 * 60e3]]);
+  assert.deepEqual(sweepTimings({ at: ['09:00', '16:30'], days: [1] }, 'UTC').timings.map(each => [each.suffix, each.timing.cron]),
+    [['-0900', '0 9 * * 1'], ['-1630', '30 16 * * 1']]);
+});
+
+test("an install's own brief is read; an entry with no cron or no brief is reported, not added", async t => {
+  const { root, call } = install(t, { sweeps: [{ id: 'line-up', title: 'Our line-up', every: '15m', hours: '9-17', days: [1, 2, 3, 4, 5], brief: 'ours.md' },
+    { id: 'tidy-up', every: '7m', brief: 'line-up.md' }] });
+  const brief = path.join(root, '.agents/daily/briefs/ours.md');
+  mkdirSync(path.dirname(brief), { recursive: true });
+  writeFileSync(brief, 'Sort the inbox into the board.\n');
+  const [ours, odd] = (await call(['--dry-run'])).schedules;
+  assert.deepEqual([ours.instructions, ours.timing.cron, ours.kind], ['Sort the inbox into the board.', '*/15 9-16 * * 1,2,3,4,5', 'background']);
+  assert.deepEqual(odd, { id: 'sweep:tidy-up', reason: 'every 7m has no cron' });
+  rmSync(brief);
+  assert.deepEqual((await call(['--dry-run'])).schedules[0], { id: 'sweep:line-up', reason: 'no brief ours.md' });
 });
 
 test('a dry run calls no app; unattended with no sign-in it adds nothing and writes one journal line', async t => {

@@ -7,7 +7,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { parseOperationInput } from './lib/operations.mjs';
 import { READ_INPUTS, readArguments } from '../skills/memory/scripts/lib/read-options.mjs';
-import { validateRetrieval } from '../skills/memory/scripts/lib/documents/input.mjs';
+import { refuseRemovedMode, validateRetrieval } from '../skills/memory/scripts/lib/documents/input.mjs';
 import { PACKET_BYTES } from '../skills/memory/scripts/lib/documents/packet.mjs';
 import { redact, secretValues } from '../skills/memory/scripts/lib/scan.mjs';
 import { loadEnv, repoContext } from '../skills/memory/scripts/lib/store.mjs';
@@ -40,16 +40,16 @@ const descriptions = Object.entries(READ_INPUTS).filter(([command]) => ['search'
 }));
 for (const command of ['documents', 'recall']) descriptions.push({
   operationId: `memory.${command}`, summary: command === 'documents' ? 'Find original wiki and OpenSpec passages' : 'Recall permitted facts and original document evidence',
-  description: 'Search current checkout guidance by default; history and proposed work require explicit scope. Read cited originals before acting. Optional prepared QMD improves ranking; live keyword fallback remains available.',
+  description: 'Search current checkout guidance by default; history and proposed work require explicit scope. Read cited originals before acting. Search is by the words of the question and needs no setup.',
   source: 'memory', transport: 'installed-client', authentication: command === 'documents' ? 'local-checkout' : 'local-checkout-and-company-sign-in-for-facts',
   sourceAuthentication: { documents: 'local-checkout', ...(command === 'recall' ? { facts: 'company-sign-in' } : {}) },
-  effect: 'read', cacheEffects: 'May maintain checkout-specific derived document index; never installs or downloads on a read.',
+  effect: 'read',
   readiness: 'not_checked', app: 'memory',
   inputSchema: { type: 'object', properties: READ_INPUTS[command], additionalProperties: false, required: ['question'] },
-  outputSchema: { type: 'object', required: ['version', 'scope', 'mode', 'change', 'documentLimit', 'backend', 'coverage', 'requestedModeState', 'sources', 'facts', 'documents', 'omitted'],
-    properties: { version: { const: 1 }, question: { type: 'string' }, scope: { type: 'string' }, mode: { type: 'string' }, backend: { type: 'string' },
+  outputSchema: { type: 'object', required: ['version', 'scope', 'change', 'documentLimit', 'sources', 'facts', 'documents', 'omitted'],
+    properties: { version: { const: 2 }, question: { type: 'string' }, scope: { type: 'string' },
       change: { type: ['string', 'null'] }, documentLimit: { type: 'integer', minimum: 1, maximum: 5 },
-      coverage: { enum: ['complete', 'partial', 'unavailable'] }, requestedModeState: { enum: ['ok', 'partial', 'unavailable'] }, filters: { type: 'object' },
+      filters: { type: 'object' },
       sources: { type: 'object', required: ['facts', 'documents'], additionalProperties: false, properties: { facts: statusSchema, documents: statusSchema, files: statusSchema } },
       facts: { type: 'array', maxItems: 8, items: factSchema }, documents: { type: 'array', maxItems: 5, items: documentSchema },
       files: { type: 'array', maxItems: 8, items: fileSchema },
@@ -57,9 +57,8 @@ for (const command of ['documents', 'recall']) descriptions.push({
         properties: { facts: { type: 'integer', minimum: 0 }, documents: { type: 'integer', minimum: 0 } } } },
     additionalProperties: false, maxBytes: PACKET_BYTES },
   errors: { invalid_input: 'Invalid retrieval input', unavailable: 'No usable retrieval source', output_limit: 'Evidence packet exceeds its bound' },
-  examples: [{ input: { question: 'How do we publish a finished change?', mode: 'keyword' },
-    output: { version: 1, question: 'Synthetic task question', scope: 'current', mode: 'keyword', change: null, documentLimit: 5, backend: 'lexical-fallback',
-      coverage: 'unavailable', requestedModeState: 'ok', filters: {}, sources: { facts: { state: 'unavailable' }, documents: { state: 'empty' } },
+  examples: [{ input: { question: 'How do we publish a finished change?' },
+    output: { version: 2, question: 'Synthetic task question', scope: 'current', change: null, documentLimit: 5, filters: {}, sources: { facts: { state: 'unavailable' }, documents: { state: 'empty' } },
       facts: [], documents: [], omitted: { facts: 0, documents: 0 } } }],
 });
 // Why memory has no sign-in to use, or null: a schedule's sign-in, an old key or a live sign-in all count.
@@ -77,8 +76,9 @@ export const memoryOperations = descriptions.map(operation => ({ ...operation, r
 
 export async function callMemory(operationId, input, { cwd = process.cwd(), execute = runFile } = {}) {
   if (!memoryOperations.some(operation => operation.operationId === operationId)) throw new Error('Unknown installed memory operation');
-  const args = readArguments(operationId.slice('memory.'.length), input);
   const command = operationId.slice(7), structured = ['documents', 'recall'].includes(command);
+  if (structured) refuseRemovedMode(input?.mode);
+  const args = readArguments(command, input);
   if (structured) validateRetrieval(input.question, Object.fromEntries(Object.entries(input).filter(([key]) => key !== 'question')), { recall: command === 'recall' });
   // Validate before context, credential loading or any store access.
   const ctx = repoContext(cwd);
@@ -90,7 +90,7 @@ export async function callMemory(operationId, input, { cwd = process.cwd(), exec
     if (structured) {
       if (Buffer.byteLength(stdout) > PACKET_BYTES) return { error: { code: 'output_limit', message: 'Evidence packet exceeds its bound' } };
       const packet = JSON.parse(text);
-      if (packet.version !== 1 || !packet.sources || !Array.isArray(packet.facts) || !Array.isArray(packet.documents)) throw new Error('Invalid evidence packet');
+      if (packet.version !== 2 || !packet.sources || !Array.isArray(packet.facts) || !Array.isArray(packet.documents)) throw new Error('Invalid evidence packet');
       return packet;
     }
     return { text: text.slice(0, MAX_TEXT), truncated: text.length > MAX_TEXT };

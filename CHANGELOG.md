@@ -3,6 +3,20 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — Search by words only, and the old schedule paths go
+
+- **Memory search uses words only.** Meaning-based search (QMD) is gone, with its setup, status, and refresh commands. A search finds a page when your question shares words with the page ([recall facts and documents](wiki/development/document-retrieval.md)). Search needs no setup on any computer, and it keeps no index.
+- **A search answer is shorter.** It is now version 2, and no longer says which search mode ran or how much the meaning search covered. A request for the `semantic` or `deep` mode stops and says that meaning-based search was removed; `keyword` and `auto` still work and change nothing.
+- **Old schedules no longer move into the app by themselves.** A routine in a daily settings file, a timed job in your own daily list, and a `schedules/` file in the repo stay where they are and do not run. You ask the assistant to save each one as a schedule in the app ([existing schedules](wiki/stack/host-schedules.md#existing-schedules)). While a routine or a timed job is left, the daily journal says so once a day. A `schedules/` file gets no journal line.
+- **The commands for the older Cloudflare runner are gone**: the ones that list, pause, move, and remove its jobs, and their page. The runner itself, its jobs, and its keys are not touched. `/schedule move`, which moved one old schedule on request, goes too.
+- **The list of retired names has no dead exceptions**, and its check now fails on one. Each retired name stays.
+
+**Updating.** Search needs no step. Three things can need you:
+
+- **Before the update, let any schedule move finish.** If the assistant still says that a routine or schedule waits to move to the app, open a chat and let it finish first, because this update removes the mover. After the update, ask the assistant to save any routine or schedule file that is left as a schedule.
+- **If this install still has the older Cloudflare runner** (set up before version 40), pause its jobs and remove it before the update, because the commands that do this go. After the update, you remove its Worker, its AI Gateway, and its keys by hand in the Cloudflare dashboard.
+- **A computer that ran the QMD setup can delete one folder**: `wongstack/documents` in your user data folder (on Linux, `~/.local/share/wongstack/documents`), about 1 GB. Nothing reads it now. The update does not delete it, because it is outside the repo.
+
 ## 55.2.1 — The password manager's page fits a phone in a live view
 
 - **On a phone, the password manager's own page narrows to the phone's width**, as a site's page does. The whole sign-in form shows, its right side included ([password manager](.agents/plugins/browser/browser/references/password-manager.md)). Before, the page stayed as wide as the computer's screen, and the view showed only a narrow strip at its left.

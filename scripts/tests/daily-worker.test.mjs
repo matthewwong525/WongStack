@@ -488,7 +488,7 @@ test('a second serve prints one line and returns, starting nothing', async () =>
   assert.equal(existsSync(join(stateDir, 'serve.json')), false);
 });
 
-test("without Paseo the worker's pass still runs, and an own timed job waits to move; a default schedule's id does not", async () => {
+test("without Paseo the worker's pass still runs, and an own timed job does not run; a default schedule's id is not named", async () => {
   const project = folder();
   mkdirSync(join(project, '.agents/daily'), { recursive: true });
   writeFileSync(join(project, '.agents/daily/jobs.json'), JSON.stringify({ sweeps: [{ id: 'pay', every: '15m', brief: 'pay.md' },
@@ -501,10 +501,10 @@ test("without Paseo the worker's pass still runs, and an own timed job waits to 
     watching: {}, started: () => ({}), watcher: () => ({ close() {} }),
     launch: run => { spawned.push(run.command); return { pid: process.pid, on: () => {} }; } });
   assert.deepEqual([logs, spawned], [[], []]);
-  assert.deepEqual(lines(stateDir), ['Timed jobs wait to move to the app, and do not run: pay']);
+  assert.deepEqual(lines(stateDir), ['Timed jobs in the old list do not run. Ask to save each as a schedule: pay']);
 });
 
-test("an install's timed job waits to move, unless it names a default schedule, shipped or retired, or is off; the merged list runs no timed job", () => {
+test("an install's timed job waits to be saved as a schedule, unless it names a default schedule, shipped or retired, or is off; the merged list runs no timed job", () => {
   const project = folder();
   const own = sweeps => {
     writeFileSync(join(project, 'jobs.json'), JSON.stringify({ sweeps }));
@@ -523,7 +523,7 @@ test('timed jobs that wait get one journal line a day, and a dry run writes none
   await worker.sweep();
   at('2026-10-31T20:00:00Z');
   await worker.sweep();
-  assert.deepEqual(lines(stateDir), ['Timed jobs wait to move to the app, and do not run: pay, nap']);
+  assert.deepEqual(lines(stateDir), ['Timed jobs in the old list do not run. Ask to save each as a schedule: pay, nap']);
   at('2026-11-01T14:00:00Z');
   await make({ dryRun: true }).sweep();
   assert.equal(lines(stateDir).length, 1);
@@ -665,7 +665,7 @@ test('the morning runs nothing before 8:00, and at 8:00 runs the add-ons once; a
   assert.deepEqual([r.ran, lines(r.stateDir)], [[], []]);
   await r.serve('2026-11-03T13:00:00Z');
   assert.deepEqual(r.ran, ['morning']);
-  assert.deepEqual(lines(r.stateDir), ['Routines wait to move to the app, and do not start: Morning news', 'Two new orders',
+  assert.deepEqual(lines(r.stateDir), ['Routines in your settings file do not start. Ask to save each as a schedule: Morning news', 'Two new orders',
     'Not read: add-on bank.mjs — down']);
   // A second pass, and a second worker over the same state after a restart, run nothing again.
   await r.serve('2026-11-03T15:30:00Z');

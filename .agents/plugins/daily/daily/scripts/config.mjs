@@ -1,5 +1,5 @@
 // A person's daily settings, `.agents/daily/<name>.json`. Routines (`checks`) left in it, or in the team file, start
-// nothing: they wait for their move to the app. The contract: wiki/development/daily.md#your-settings-file.
+// nothing: the person saves each as a schedule. The contract: wiki/development/daily.md#your-settings-file.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -28,7 +28,7 @@ const inputItem = item => typeof item === 'boolean' || (typeof item === 'number'
   || (typeof item === 'string' && item.length <= 240 && !TOKENISH.test(item));
 const safeInputs = value => plain(value) && Object.keys(value).length <= 10
   && Object.entries(value).every(([key, item]) => idPattern.test(key) && !SECRETISH.test(key) && inputItem(item));
-// An install may have kept a routine's `thinking`; the move to the app carries it over.
+// An install may have kept a routine's `thinking`, so a file with it still loads.
 const CHECK_KEYS = ['id', 'enabled', 'title', 'place', 'scope', 'inputs', 'result', 'procedure', 'cadence', 'effects', 'activeFrom', 'start',
   'missed', 'prompt', 'thinking'];
 

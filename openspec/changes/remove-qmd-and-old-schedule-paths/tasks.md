@@ -1,0 +1,38 @@
+# Tasks
+
+## 1. Document search without QMD (memory module)
+
+- [x] 1.1 Move each case in `scripts/tests/document-runtime.test.mjs` that tests `corpus.mjs`, `input.mjs`, or `lexical.mjs` alone into `document-corpus.test.mjs` or `document-recall.test.mjs`; add, where missing, temp-page tests for: current scope leaves an archived proposal out, history scope returns it as `archive`, and no match reports `empty` (design decision 4). Verify: `node --test scripts/tests/document-corpus.test.mjs scripts/tests/document-recall.test.mjs` passes before any delete.
+- [x] 1.2 In `.agents/plugins/memory/scripts/lib/documents/`, reduce `retrieve.mjs` to the one keyword path and delete `qmd.mjs`, `setup.mjs`, `refresh-worker.mjs`, `state.mjs`, `runtime.json`, and `runtime/` (decision 1). Verify: `git grep -n -E "qmd\.mjs|setup\.mjs|state\.mjs|refresh-worker" -- .agents scripts` finds nothing.
+- [x] 1.3 In `commands.mjs`, drop `documentPaths`, the `paths` argument, and the `documents-status`, `documents-setup`, and `documents-refresh` commands; in `packet.mjs`, write version 2 without `mode`, `backend`, `coverage`, and `requestedModeState` (decision 2); in `input.mjs`, accept `keyword` and `auto`, and refuse `semantic` and `deep` with exit 2 and a removal message (decision 3). Verify: `memory.mjs documents "publish a change" --json` prints `"version":2` with documents, and `--mode semantic` exits 2.
+- [x] 1.4 In `scripts/memory.mjs`, remove `--mode`, `--deep`, `--cpu`, and the three `documents-*` lines from the usage text and unused option names from `parseArgs`; in `.agents/memory/operations.mjs`, update `memory.recall` and `memory.documents` (description, `outputSchema`, example) to version 2. Verify: `node scripts/company-api.mjs list --scope memory --q recall --limit 5` shows no QMD words, and the operations tests pass.
+- [x] 1.5 Update `scripts/tests/document-recall.test.mjs`, `document-corpus.test.mjs`, and `document-portable.test.mjs` for version 2, the refused modes, and no `wongstack/documents` folder; delete `document-runtime.test.mjs`, `document-evaluation.test.mjs`, `scripts/evaluate-document-retrieval.mjs`, and `scripts/tests/fixtures/document-retrieval/`. Verify: `node --test scripts/tests/document-*.test.mjs` passes.
+- [x] 1.6 Replace `.github/workflows/qmd-retrieval.yml` with `.github/workflows/document-search.yml`, the Windows job only (decision 5). Verify: the file parses, its path filters name the memory plugin, the test, and itself, and any test that lists workflows passes.
+- [x] 1.7 Rewrite `wiki/development/document-retrieval.md` (drop the meaning-based section and the index text, keep each heading an installed page links) and the QMD sentence in `wiki/development/required-tools.md`; fix the `document-retrieval` text in `.agents/memory/areas.json` if it names QMD. Verify: `git grep -n -i -E "qmd|semantic|documents-(setup|status|refresh)" -- wiki .agents ':!.agents/verification'` finds nothing but unrelated uses of "semantic".
+
+## 2. Old schedule paths (inbox store and daily module)
+
+- [x] 2.1 Move `fromSweep`, `readBrief`, `sweepTimings`, and their private helpers from `.agents/inbox/move-in.mjs` into `.agents/inbox/lib/defaults.mjs`, and their cases from `scripts/tests/schedule-move-in.test.mjs` into `scripts/tests/schedule-defaults.test.mjs` (decision 6). Verify: `node --test scripts/tests/schedule-defaults.test.mjs` passes with no import of `move-in.mjs`.
+- [x] 2.2 Delete `.agents/inbox/move-in.mjs`, `.agents/inbox/lib/legacy.mjs`, `scripts/tests/schedule-move-in.test.mjs`, and `scripts/tests/schedule-legacy.test.mjs`; in `.agents/inbox/schedules.mjs`, remove `moveCommand`, `legacy`, their imports, and the `move-in`, `move`, and `legacy` branches of `extra`. Verify: `schedule.mjs move-in --dry-run` and `schedule.mjs legacy list` each end with the unknown-command error, and `hosts` still answers.
+- [x] 2.3 In `.agents/plugins/daily/daily/scripts/daily.mjs`, remove `startMoveIn` and the `moveIn` parameter and call in `ensure`; in `worker.mjs`, change the two `waiting` journal lines (decision 7); update `scripts/tests/daily.test.mjs`, `daily-worker.test.mjs`, and `daily-module.test.mjs`. Verify: those three test files pass, and a settings file with a routine writes the new journal line once.
+- [x] 2.4 List the exports in `.agents/inbox/` and `.agents/plugins/daily/schedule/scripts/lib/` that nothing imports after 2.2 and 2.3, and remove those only the deleted code used (decision 6). Verify: the list is in the change's Decision log, and `node --test scripts/tests/schedule-*.test.mjs` passes.
+- [x] 2.5 In `.agents/plugins/daily/schedule/`, delete `references/migration.md`, remove its link and the `move-in`, `move`, and `legacy` words from `SKILL.md`, and remove them from `scripts/schedule.mjs`'s usage text. Verify: `git grep -n -E "move-in|legacy" -- .agents/plugins/daily` finds nothing.
+- [x] 2.6 Rewrite `## Existing schedules` in `wiki/stack/host-schedules.md` (decision 8); delete `wiki/stack/legacy-cloud-schedules.md`; remove its links and words from `wiki/stack/README.md`, `wiki/stack/getting-started.md`, `wiki/development/secrets.md`, `.agents/skills/wong-sync/references/payload-manifest.md`, `payload-files.json`, `.agents/memory/areas.json`, and the old runner's key lines from `.env.example`; update `scripts/tests/schedule-payload.test.mjs` and `schedule-retirement.test.mjs`. Verify: `git grep -n -E "legacy-cloud-schedules|WONG_ROUTINES_KEY" -- . ':!CHANGELOG.md' ':!openspec/changes' ':!scripts/retired-names.json'` finds nothing.
+
+## 3. Retired names (source repo only)
+
+- [x] 3.1 In `scripts/check-retired-names.mjs`, fail on an `allow` path that is not a tracked file or whose text does not hold the entry's name, and name the entry and the path (decision 10); add test cases for a missing file, a file without the name, and a live exception. Verify: the test passes, and the check fails on today's list with the 20 dead paths before 3.2.
+- [x] 3.2 Remove each dead `allow` path from `scripts/retired-names.json`; drop `allow` and `why` from an entry left with none; add the new retired names with their replacements, each checked against live files first (decision 10). Verify: `node scripts/check-retired-names.mjs` passes and reports 290 names plus the new ones.
+
+## 4. Release
+
+- [x] 4.1 Add the `## Next (major) — Search by words only, and the old schedule paths go` entry at the top of `CHANGELOG.md` with the **Updating.** note of design decision 11. Verify: the entry is the first one and names no hand step without its reason.
+- [ ] 4.2 Run `node scripts/check-module-versions.mjs` and raise the version of each module it names. Verify: it passes.
+- [x] 4.3 Update `scripts/fixtures/context-baseline.json` only where `node scripts/measure-context.mjs --check` requires it. Verify: the check passes.
+
+## 5. Checks
+
+- [x] 5.1 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`; fix each broken link or anchor, keeping a linked heading's exact text. Verify: both pass.
+- [ ] 5.2 Run `node .github/scripts/checks.mjs --worktree` and fix what fails. Verify: it passes.
+- [x] 5.3 Run `memory.mjs recall "How do we publish a finished change?"` in this checkout. Verify: the answer starts with `Recall v2 · scope current`, holds facts and wiki passages, fits 6,144 bytes, and no `wongstack/documents` folder was created in the user's data folder.
+- [ ] 5.4 Run `/save`; in that save, after the deltas reconcile, edit the Purpose line of `openspec/specs/document-retrieval/spec.md` (decision 9). Verify: the gate passes, `openspec validate --specs --strict` passes, and the `document-search` Windows check passed on the branch.

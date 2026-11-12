@@ -27,7 +27,7 @@ Say *use Codex for my background runs*: the assistant edits your file, shows you
 
 ## Routines and timed jobs
 
-A routine, such as *check the orders every Monday*, and a timed job are [schedules in the app](../stack/host-schedules.md), not entries here. Ask any chat to make or change one. An old `checks` list, in your file or in `.agents/daily/team.json`, starts nothing: the journal says once a day that it waits, and `D ensure` moves it to the app. A timed job in your [`sweeps`](#your-own-jobs) file does not run either, with one journal line a day.
+A routine, such as *check the orders every Monday*, and a timed job are [schedules in the app](../stack/host-schedules.md), not entries here. Ask any chat to make or change one. An old `checks` list, in your file or in `.agents/daily/team.json`, starts nothing: the journal says so once a day, and you ask a chat to [save each routine as a schedule](../stack/host-schedules.md#existing-schedules). A timed job in your [`sweeps`](#your-own-jobs) file does not run either, with one journal line a day.
 
 ## The chief of staff
 

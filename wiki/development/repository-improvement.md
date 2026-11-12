@@ -79,7 +79,7 @@ Every run ends one of three ways, named in its report:
 
 ## Run it on a cadence
 
-Run [`/schedule every Monday at 9am: /improve-code`](../../.agents/plugins/daily/schedule/SKILL.md): it verifies an existing host clock and future-session access before activation ([host schedules](../stack/host-schedules.md)). Each run plans and waits; the schedule grants no permission to build or publish its improvement. [Legacy migration](../stack/legacy-cloud-schedules.md#move-one-job) covers prompts under older skill names.
+Run [`/schedule every Monday at 9am: /improve-code`](../../.agents/plugins/daily/schedule/SKILL.md): it verifies an existing host clock and future-session access before activation ([host schedules](../stack/host-schedules.md)). Each run plans and waits; the schedule grants no permission to build or publish its improvement.
 
 A scheduled run has nobody to answer, and its copy of the project is thrown away when it ends. So it saves the plan on its own branch and leaves a note in memory that starts `Improve plan:` and names it; your next chat shows the note. Nothing is built or published until you say yes.
 

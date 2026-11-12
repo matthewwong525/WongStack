@@ -119,7 +119,7 @@ test('schedule.mjs sends each command to the store it finds; with none it says s
   await cli(['save', '--file', file, '--approve'], { store });
   await cli(['show', '--file', file], { store });
   await cli(['pause', 'tidy'], { store });
-  await cli(['move-in', '--dry-run'], { store });
+  await cli(['hosts'], { store });
   assert.deepEqual(calls.map(([name]) => name), ['list', 'save', 'show', 'control', 'extra']);
   assert.equal(calls[1][1].key, 'tidy');
   assert.deepEqual([calls[3][1], calls[3][2]], ['pause', 'tidy']);
