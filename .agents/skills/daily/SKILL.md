@@ -15,7 +15,7 @@ user-invocable: false
 - *Remind me Friday to …*: a one-time `chat` schedule through [`/schedule`](../schedule/SKILL.md), its instructions the reminder.
 - *Watch flashy-crab*: `D hand --agent flashy-crab`. Never send to a chat the watch does not have.
 - *Tell flashy-crab …*: by [the person's answers](references/chief.md#the-persons-answers).
-- *What's going on?*: `D journal --new` gives what the background runs did since this chat last asked. In Paseo, `D status` adds one line per chat; [ask](../explore/references/asking-the-user.md) which `finished` or `covered` chats to close, and send each pick `/close` by `D reply --bucket person --label "Closed: <title>"`.
+- *What's going on?*: `D journal --new` gives what the background runs did since this chat last asked. In Paseo, `D status` adds one line per chat; [ask](../../plugins/loop/skills/explore/references/asking-the-user.md) which `finished` or `covered` chats to close, and send each pick `/close` by `D reply --bucket person --label "Closed: <title>"`.
 - *Stop check-ins* or *start check-ins*: `D checkins off` or `D checkins on`.
 
 ## Changing settings

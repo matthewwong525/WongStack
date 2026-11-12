@@ -20,7 +20,7 @@ export const pageHtml = (page, api) => `<!doctype html>
   <body>
     <main id="access" data-api="${api}"></main>
     <script type="module">
-      import { mount } from "./main.mjs";
+      const { mount } = await import(new URL("main.mjs", document.baseURI));
 
       const element = document.getElementById("access");
       mount(element, { base: element.dataset.api, home: new URL(".", document.baseURI).pathname });

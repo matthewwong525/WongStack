@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from './test-dom.mjs'
-import { PROJECT_REQUEST } from './status'
+import { PROJECT_REQUEST } from './status.mjs'
 
 // A shop with three apps: Hello changes things with Stripe, Payroll with Bank, and the tip calculator uses no key.
 const key = (id, title, changes = {}) => ({ id, title, levels: ['read', 'write'], saved: true, setup: false, alone: false, ...changes })

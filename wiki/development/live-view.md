@@ -69,7 +69,7 @@ The [watch link](watch-link.md) is the one live view the agent drives: for conne
 ## How the agent runs one
 
 1. **Read the page once more.** A check that clears by itself in a few seconds needs no view.
-2. **Ask first**, as a multiple choice, [the shared way](../../.agents/skills/explore/references/asking-the-user.md): *Netflix wants you to sign in. I'll send a link that shows my browser.* `Ready, send it / Not now`. At a robot check: *Messenger wants to know you're a person. I'll send a link that shows my browser, for you to tap through.* A payment asks [the pay question](#pay-or-type-a-code) instead. A puzzle goes stale and the link can use your accounts, so it's sent only once you're there.
+2. **Ask first**, as a multiple choice, [the shared way](../../.agents/plugins/loop/skills/explore/references/asking-the-user.md): *Netflix wants you to sign in. I'll send a link that shows my browser.* `Ready, send it / Not now`. At a robot check: *Messenger wants to know you're a person. I'll send a link that shows my browser, for you to tap through.* A payment asks [the pay question](#pay-or-type-a-code) instead. A puzzle goes stale and the link can use your accounts, so it's sent only once you're there.
 3. **Open it with the line**, run `wait` in the background, and then [end your turn with the `HANDOVER_LINK` it prints](browsing.md#how-private-links-work):
 
    ```bash

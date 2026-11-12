@@ -6,9 +6,9 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   clauseOf, codexRename, commandStep, copiedName, cutWords, folderOf, goodTask, hookTurn, nextState, removeChat, setStep, verbOf, writeState,
-} from '../../.agents/skills/explore/scripts/step-title.mjs';
+} from '../../.agents/loop/step-title.mjs';
 
-const cli = new URL('../../.agents/skills/explore/scripts/step-title.mjs', import.meta.url).pathname;
+const cli = new URL('../../.agents/loop/step-title.mjs', import.meta.url).pathname;
 const unix = { skip: process.platform === 'win32' && 'the fake paseo is a shell script' };
 
 // A main checkout and one linked worktree, a fake `paseo` that logs its arguments, and an empty Codex home.
@@ -339,9 +339,9 @@ test('Claude Code runs the hook on each message and at start; Codex on each mess
   const commands = entries => (entries ?? []).flatMap(entry => entry.hooks.map(hook => hook.command));
   const claude = read('settings.json');
   const startup = claude.SessionStart.filter(entry => entry.matcher === 'startup|resume');
-  assert.ok(commands(claude.UserPromptSubmit).some(c => c.endsWith('/explore/scripts/step-title.mjs" hook --agent claude')));
-  assert.ok(commands(startup).some(c => c.endsWith('/explore/scripts/step-title.mjs" hook --agent claude --event session-start')));
-  assert.ok(commands(read('hooks.json').UserPromptSubmit).some(c => c.endsWith('/explore/scripts/step-title.mjs" hook --agent codex')));
+  assert.ok(commands(claude.UserPromptSubmit).some(c => c.endsWith('/.claude/loop/step-title.mjs" hook --agent claude')));
+  assert.ok(commands(startup).some(c => c.endsWith('/.claude/loop/step-title.mjs" hook --agent claude --event session-start')));
+  assert.ok(commands(read('hooks.json').UserPromptSubmit).some(c => c.endsWith('/.claude/loop/step-title.mjs" hook --agent codex')));
 });
 
 test('each loop skill still sets its own step, and each step it starts gives its words', () => {
@@ -349,11 +349,11 @@ test('each loop skill still sets its own step, and each step it starts gives its
   // Ship names the script once, then `set DONE` in the same sentence.
   const calls = { explore: ['EXPLORE'], plan: ['PLAN'], apply: ['APPLY', 'DONE'], ship: ['SHIP'] };
   for (const [name, steps] of Object.entries(calls)) {
-    for (const step of steps) assert.match(skill(name), new RegExp(`step-title\\.mjs set ${step}\\b`), `${name} sets ${step}`);
+    for (const step of steps) assert.match(skill(name), new RegExp(`slot\\.mjs stepTitle set ${step}\\b`), `${name} sets ${step}`);
   }
   assert.match(skill('ship'), /`set DONE`/, 'ship sets DONE');
   for (const name of Object.keys(calls)) {
-    for (const [line, step] of skill(name).matchAll(/step-title\.mjs set (EXPLORE|PLAN|APPLY|SHIP)\b.{0,9}/g)) {
+    for (const [line, step] of skill(name).matchAll(/slot\.mjs stepTitle set (EXPLORE|PLAN|APPLY|SHIP)\b.{0,9}/g)) {
       assert.match(line, new RegExp(`set ${step} --task "`), `${name}: ${line}`);
     }
   }
@@ -422,5 +422,7 @@ test('/close takes the chat off the list; a failed remove is one line', async ()
   await removeChat({ id: 'agent-1', calls: { remove: async () => { throw new Error('unavailable: no app'); } }, warn: line => warned.push(line) });
   assert.deepEqual(warned, ['STEP_TITLE_CHAT=not removed: unavailable: no app']);
   const close = readFileSync(new URL('../../.agents/skills/close/SKILL.md', import.meta.url), 'utf8');
-  assert.ok(close.indexOf('step-title.mjs" remove') < close.indexOf('tidy.mjs" close'), '/close removes the row before the workspace closes');
+  assert.match(close, /slot\.mjs" closeWorkspace/);
+  const profile = readFileSync(new URL('../../.agents/loop/profile.mjs', import.meta.url), 'utf8');
+  assert.ok(profile.indexOf("step-title.mjs'), 'remove'") < profile.indexOf("tidy.mjs'), 'close'"), '/close removes the row before the workspace closes');
 });

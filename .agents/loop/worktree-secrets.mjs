@@ -1,0 +1,232 @@
+#!/usr/bin/env node
+// Keep a linked worktree's copies of the live secrets files in step with the primary checkout: `seed`, `status`,
+// `promote`; `seed` also copies the chat settings. JSON output never shows a value. See wiki/development/secrets.md
+
+import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { chmodSync, copyFileSync, existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { dirname, join, relative } from "node:path";
+import { linkCopy, place } from "../memory/knowledge.mjs";
+import { isMain } from "../skills/memory/scripts/lib/cli.mjs";
+import { primaryRoot } from "../skills/memory/scripts/lib/primary-root.mjs";
+
+const LIVE_FILE = /^(\.env|\.dev\.vars)(\..+)?$/;
+/** One `KEY=value` line of a live file; the key link (hand-over's keys.mjs) reads lines by it too. */
+export const ENTRY = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
+const BASE_FILE = "wongstack-secrets-base.json";
+const KINDS = ["add", "remove", "change", "conflict", "unresolved"];
+const SETTINGS = ".claude/settings.local.json";
+
+export function isIgnored(root, rel) {
+  try {
+    execFileSync("git", ["check-ignore", "-q", rel], { cwd: root, stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const context = () => primaryRoot();
+
+/** Repo-relative live secrets files at the root and in each immediate subfolder. */
+export function liveFiles(root) {
+  const found = [];
+  const scan = (rel) => {
+    for (const entry of readdirSync(join(root, rel), { withFileTypes: true })) {
+      if (entry.isFile() && LIVE_FILE.test(entry.name) && !entry.name.endsWith(".example")) {
+        found.push(rel ? `${rel}/${entry.name}` : entry.name);
+      }
+    }
+  };
+  scan("");
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (entry.isDirectory() && entry.name !== "node_modules" && !entry.name.startsWith(".")) scan(entry.name);
+  }
+  return found;
+}
+
+const hash = (value) => createHash("sha256").update(value).digest("hex");
+
+/** key -> { value, line } for one file, or null when the file does not exist. */
+function readEntries(path) {
+  if (!existsSync(path)) return null;
+  const entries = new Map();
+  for (const line of readFileSync(path, "utf8").split(/\r?\n/)) {
+    const match = line.match(ENTRY);
+    if (match) entries.set(match[1], { value: match[2].trimEnd(), line });
+  }
+  return entries;
+}
+
+const hashes = (entries) => Object.fromEntries([...(entries ?? [])].map(([key, { value }]) => [key, hash(value)]));
+
+/** The baseline `seed` recorded, `{files: {rel: {KEY: hash}}}`, or null; a file in it is a seeded branch copy. */
+export function loadBase(ctx) {
+  const path = join(ctx.gitDir, BASE_FILE);
+  return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null;
+}
+
+function saveBase(ctx, base) {
+  writeFileSync(join(ctx.gitDir, BASE_FILE), `${JSON.stringify(base, null, 2)}\n`, { mode: 0o600 });
+}
+
+/** Copies the primary's local chat settings into a worktree that has none: copied, kept, none, or not git-ignored. */
+function seedSettings(ctx) {
+  const source = join(ctx.primary, SETTINGS);
+  const target = join(ctx.root, SETTINGS);
+  if (!existsSync(source) || !existsSync(dirname(target))) return "none";
+  if (existsSync(target)) return "kept";
+  // `.claude` is often a link to `.agents`, and git checks the ignore rules only on the real path.
+  const rel = relative(realpathSync(ctx.root), join(realpathSync(dirname(target)), "settings.local.json"));
+  if (!isIgnored(ctx.root, rel)) return "not git-ignored";
+  copyFileSync(source, target);
+  chmodSync(target, 0o600);
+  return "copied";
+}
+
+// Company knowledge is one copy per computer, in the primary checkout; a workspace links to it, never copies it.
+function knowledgeLink(ctx) {
+  try { return linkCopy(place(ctx.root)); } catch (error) { return `not linked: ${error.message}`; }
+}
+
+function seed(ctx) {
+  const base = loadBase(ctx) ?? { files: {} };
+  const result = { seeded: [], adopted: [], unseeded: [], skipped: [], settings: seedSettings(ctx), knowledge: knowledgeLink(ctx) };
+
+  for (const rel of liveFiles(ctx.primary)) {
+    if (base.files[rel]) continue;
+    const source = join(ctx.primary, rel);
+    const target = join(ctx.root, rel);
+    let outcome;
+    if (!existsSync(dirname(target))) {
+      result.skipped.push({ path: rel, reason: "folder does not exist in this worktree" });
+    } else if (!isIgnored(ctx.root, rel)) {
+      result.skipped.push({ path: rel, reason: "not git-ignored in this worktree" });
+    } else if (!existsSync(target)) {
+      copyFileSync(source, target);
+      chmodSync(target, 0o600);
+      outcome = "seeded";
+    } else if (readFileSync(source, "utf8") === readFileSync(target, "utf8")) {
+      outcome = "adopted";
+    } else {
+      result.unseeded.push(rel);
+    }
+    if (outcome) {
+      base.files[rel] = hashes(readEntries(source));
+      result[outcome].push(rel);
+    }
+  }
+  saveBase(ctx, base);
+  return result;
+}
+
+// Classify one key from the worktree (hw), primary (hp), and baseline (hb) hashes. `undefined` means the key is
+// absent there.
+function classify(hw, hp, hb, seeded) {
+  if (hw === hp) return null;
+  if (!seeded) return hw !== undefined && hp === undefined ? "add" : "unresolved";
+  if (hp === hb) {
+    if (hw === undefined) return "remove";
+    return hp === undefined ? "add" : "change";
+  }
+  if (hw === hb) return null; // only the primary moved: keep it
+  return "conflict";
+}
+
+/** A file is seeded when `seed` recorded a baseline for it; any other file is report-only. */
+function diffFile(ctx, base, rel) {
+  const mine = readEntries(join(ctx.root, rel));
+  const hw = hashes(mine);
+  const hp = hashes(readEntries(join(ctx.primary, rel)));
+  const baseline = base?.files[rel];
+  const diff = { path: rel, ...Object.fromEntries(KINDS.map((kind) => [kind, []])) };
+  for (const key of [...new Set([...Object.keys(hw), ...Object.keys(hp)])].sort()) {
+    const kind = classify(hw[key], hp[key], baseline?.[key], Boolean(baseline));
+    if (kind) diff[kind].push(key);
+  }
+  return { diff, mine };
+}
+
+function allFiles(ctx, base) {
+  return [...new Set([...liveFiles(ctx.root), ...liveFiles(ctx.primary), ...Object.keys(base?.files ?? {})])].sort();
+}
+
+const hasChanges = (diff) => KINDS.some((kind) => diff[kind].length);
+
+function status(ctx) {
+  const base = loadBase(ctx);
+  const files = allFiles(ctx, base)
+    .map((rel) => diffFile(ctx, base, rel).diff)
+    .filter(hasChanges);
+  return { seeded: Object.keys(base?.files ?? {}).sort(), files };
+}
+
+/** Remove, replace, or append only the named lines; keep every other line. */
+function applyLines(text, diff, mine) {
+  const drop = new Set(diff.remove);
+  const replace = new Set(diff.change);
+  const lines = [];
+  for (const line of text.split("\n")) {
+    const key = line.match(ENTRY)?.[1];
+    if (key && drop.has(key)) continue;
+    lines.push(key && replace.has(key) ? mine.get(key).line : line);
+  }
+  if (diff.add.length) {
+    if (lines.length && lines[lines.length - 1] === "") lines.pop();
+    lines.push(...diff.add.map((key) => mine.get(key).line), "");
+  }
+  return lines.join("\n");
+}
+
+function promote(ctx) {
+  const base = loadBase(ctx);
+  const result = { promoted: [], skipped: [], unresolved: [] };
+
+  for (const rel of allFiles(ctx, base)) {
+    const { diff, mine } = diffFile(ctx, base, rel);
+    const keys = [...diff.add, ...diff.remove, ...diff.change];
+    if (diff.conflict.length) result.skipped.push({ path: rel, keys: diff.conflict, reason: "both sides changed" });
+    if (diff.unresolved.length) result.unresolved.push({ path: rel, keys: diff.unresolved });
+    if (!keys.length) continue;
+
+    const target = join(ctx.primary, rel);
+    if (!existsSync(dirname(target)) || !isIgnored(ctx.primary, rel)) {
+      result.skipped.push({ path: rel, keys, reason: "not git-ignored in the primary checkout" });
+      continue;
+    }
+    const text = existsSync(target) ? readFileSync(target, "utf8") : "";
+    writeFileSync(target, applyLines(text, diff, mine), { mode: 0o600 });
+    result.promoted.push({ path: rel, keys });
+
+    const baseline = base?.files[rel];
+    if (baseline) {
+      for (const key of diff.remove) delete baseline[key];
+      for (const key of [...diff.add, ...diff.change]) baseline[key] = hash(mine.get(key).value);
+    }
+  }
+  if (base) saveBase(ctx, base);
+  return result;
+}
+
+const COMMANDS = { seed, status, promote };
+
+function main() {
+  const command = COMMANDS[process.argv[2]];
+  if (!command) {
+    console.error("usage: worktree-secrets.mjs seed|status|promote");
+    process.exit(2);
+  }
+
+  let ctx;
+  try {
+    ctx = context();
+  } catch (error) {
+    console.error(`worktree-secrets: ${error.stderr ? "not inside a Git checkout" : error.message}`);
+    process.exit(1);
+  }
+
+  const output = ctx.linked ? command(ctx) : { primary: true, message: "primary checkout; nothing to do" };
+  console.log(JSON.stringify(output, null, 2));
+}
+
+if (isMain(import.meta.url)) main();

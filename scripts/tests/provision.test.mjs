@@ -13,7 +13,7 @@ import {
   ACCESS_KEY, ACCESS_KEY_TODO, ARTIFACTS_PROVISION, KNOWLEDGE_PROVISION, PAID_PLAN, CLOUDFLARE_READ_KEY, CLOUDFLARE_READ_KEY_TODO, CODE_KEY, CloudflareError, DEPLOY_TOKEN, NAMESPACE, NORMAL_PROVISION, PROPAGATION, R2_OFF, SNAPSHOT_DAYS, STORAGE_TOKEN, USER_GRANTS,
   KEY_OFF_TODO, LINE_TODO, accounts, lineClashTodo, artifactNamesFor, bindingTypes, cli, cloudflare, githubRepo, lineConfig, names, plan, provision, readEnv, run, runnerConfig, safeName, widen, widenBy, wranglerConfig, wranglerFragment,
 } from '../../.agents/skills/wong-setup/scripts/provision.mjs';
-import { helperConfig } from '../../.agents/skills/save/scripts/artifacts-credential.mjs';
+import { helperConfig } from '../../.agents/loop/routes/artifacts-credential.mjs';
 import { databaseName, lineProblem, parseConfig, stripJsonc, workerName } from '../lib-wrangler-config.mjs';
 import { ACCOUNT, GROUPS, TOKEN, fakeCloudflare, fakeGh, groupId, startingPolicies } from './fixtures/cloudflare.mjs';
 import { humanEmails } from '../../.agents/skills/wong-setup/scripts/private-access.mjs';
@@ -1734,7 +1734,7 @@ async function artifactsSetup(t, setupOptions) {
   execFileSync('git', ['-C', env.dir, 'config', 'user.name', 'Ada']);
   mkdirSync(join(env.dir, 'scripts/check-runner'), { recursive: true });
   for (const file of RUNNER_FILES) cpSync(join(repoRoot, 'scripts/check-runner', file), join(env.dir, 'scripts/check-runner', file));
-  cpSync(join(repoRoot, '.agents/skills/save'), join(env.dir, '.agents/skills/save'), { recursive: true });
+  for (const dir of ['.agents/loop', '.agents/plugins/loop/scripts']) cpSync(join(repoRoot, dir), join(env.dir, dir), { recursive: true });
   const tools = fakeTools(env.fake);
   return {
     ...env, tools,
@@ -1941,7 +1941,7 @@ test('a fresh Artifacts install makes the repository, the check runner and its k
   const helper = helperConfig(ACCOUNT);
   assert.equal(helper.length, 2);
   for (const [key, value] of helper) assert.equal(env.git('config', '--get', key), value, key);
-  assert.ok(existsSync(join(env.dir, '.claude/skills/save/scripts/artifacts-credential.mjs')), 'the helper the config names is in the target');
+  assert.ok(existsSync(join(env.dir, '.claude/loop/routes/artifacts-credential.mjs')), 'the helper the config names is in the target');
 
   // The runner's config, filled from the template; its tools installed and deployed from its own folder.
   const folder = join(env.dir, 'scripts/check-runner');

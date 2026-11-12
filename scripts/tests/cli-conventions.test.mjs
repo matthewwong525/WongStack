@@ -40,17 +40,17 @@ const scripts = {
   'scripts/payload-checks.mjs': [],
   'scripts/measure-sessions.mjs': [],
   '.agents/skills/verify/scripts/verify-receipts.mjs': ['check'],
-  '.agents/skills/verify/scripts/verify-journeys.mjs': ['check'],
-  '.agents/skills/verify/scripts/own-site.mjs': [],
+  '.agents/loop/staging/verify-journeys.mjs': ['check'],
+  '.agents/loop/staging/own-site.mjs': [],
   '.agents/skills/memory/scripts/lib/primary-root.mjs': [],
   '.github/scripts/loosened-checks.mjs': [],
   '.github/scripts/checks.mjs': [],
   '.agents/skills/plan/scripts/build-review.mjs': [],
   '.agents/skills/save/scripts/checkpoint-evidence.mjs': [],
   '.agents/skills/save/scripts/render-pr-body.mjs': [],
-  '.agents/skills/explore/scripts/other-work.mjs': [],
+  '.agents/loop/other-work.mjs': [],
   '.agents/skills/continue/scripts/pickup.mjs': [],
-  '.agents/skills/explore/scripts/ask-check.mjs': ['stop'],
+  '.agents/loop/ask-check.mjs': ['stop'],
   '.agents/plugins/memory/skills/dream-memory/scripts/dream.mjs': ['since'],
   '.agents/skills/hand-over/scripts/hand-over.mjs': [],
   '.agents/skills/hand-over/scripts/reply-link.mjs': [],
@@ -71,9 +71,11 @@ const scripts = {
   '.agents/skills/memory/scripts/session-start.mjs': [],
   '.agents/skills/memory/scripts/session-end.mjs': [],
   '.agents/skills/memory/scripts/topic-match.mjs': [],
-  '.agents/skills/apply/scripts/helper-stop-check.mjs': [],
+  '.agents/loop/helper-stop-check.mjs': [],
   '.agents/skills/apply/scripts/preview-review.mjs': [],
   '.agents/skills/plan/scripts/prototype.mjs': ['start', 'demo'],
+  '.agents/plugins/loop/scripts/slot.mjs': [],
+  '.agents/plugins/loop/scripts/lib/primary-root.mjs': [],
 };
 
 // Run from an empty temp dir, with npx, wrangler, and gh stubs first on PATH that record any call
@@ -125,5 +127,17 @@ test('apply and ship link review-note handling', () => {
   for (const verb of ['apply', 'ship']) {
     const skill = readFileSync(join(repo, `.agents/skills/${verb}/SKILL.md`), 'utf8');
     assert.match(skill, /plan\/SKILL\.md#review-notes/);
+  }
+});
+
+// The loop module keeps its own copies of memory's helpers, so it imports nothing outside its folder.
+test('the loop module\'s helper copies match memory\'s', async () => {
+  const load = path => import(pathToFileURL(join(repo, path)).href);
+  const pairs = [['scripts/lib/cli.mjs', 'scripts/lib/cli.mjs', ['isMain', 'usageError', 'parseCli']],
+    ['scripts/lib/primary-root.mjs', 'scripts/lib/primary-root.mjs', ['primaryRoot', 'PrimaryRootError']],
+    ['scripts/lib/env.mjs', 'scripts/lib/store.mjs', ['parseEnv']]];
+  for (const [copy, original, names] of pairs) {
+    const [mine, theirs] = await Promise.all([load(`.agents/plugins/loop/${copy}`), load(`.agents/plugins/memory/${original}`)]);
+    for (const name of names) assert.equal(String(mine[name]), String(theirs[name]), `${copy}: ${name}`);
   }
 });

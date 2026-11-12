@@ -6,9 +6,9 @@ import path from 'node:path';
 import test from 'node:test';
 import {
   archivedIn, changesIn, foldPullRequests, inside, isBot, isLive, parseWorktrees, savedBranches,
-} from '../../.agents/skills/explore/scripts/other-work.mjs';
+} from '../../.agents/loop/other-work.mjs';
 
-const cli = new URL('../../.agents/skills/explore/scripts/other-work.mjs', import.meta.url).pathname;
+const cli = new URL('../../.agents/loop/other-work.mjs', import.meta.url).pathname;
 
 function tmp(t) {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), 'wong-test-other-work-')));

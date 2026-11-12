@@ -6,10 +6,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { handleWalkPictures } from '../../.agents/skills/verify/worker/walk-pictures.mjs';
+import { handleWalkPictures } from '../../.agents/loop/staging/walk-pictures.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const script = join(repo, '.agents/skills/verify/scripts/verify-staging.sh');
+const script = join(repo, '.agents/loop/staging/verify-staging.sh');
 const SECRET = 'sec"ret\\x=y';
 const STAGING_ID = 'staging-id.access';
 const STAGING_SECRET = 'stag"ing\\x=z';

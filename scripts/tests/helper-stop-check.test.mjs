@@ -7,9 +7,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { REASON, REVIEW_REASON, stopCheck } from '../../.agents/skills/apply/scripts/helper-stop-check.mjs';
+import { REASON, REVIEW_REASON, stopCheck } from '../../.agents/loop/helper-stop-check.mjs';
 
-const SCRIPT = resolve(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/apply/scripts/helper-stop-check.mjs');
+const SCRIPT = resolve(dirname(fileURLToPath(import.meta.url)), '../../.agents/loop/helper-stop-check.mjs');
 const BRIEF_PROMPT = 'hooks-for-repeat-mistakes\n\nRead `$(git rev-parse --show-toplevel)/.claude/skills/apply/references/build-helper.md`, then build.';
 const BLOCK = `${JSON.stringify({ decision: 'block', reason: REASON })}\n`;
 

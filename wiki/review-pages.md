@@ -1,6 +1,6 @@
 # Review pages
 
-A review page is one HTML page that shows a person what an agent plans or made, and takes their OK, their notes, and their go. It asks no questions: the chat asks every choice and typed answer first, as a question card ([choices go in the chat](../.agents/skills/explore/references/asking-the-user.md#choices-go-in-the-chat)). A plan, a finished build, and work that changes no repo file, such as ads to approve, all use the same page. This page owns the standard; [UX principles](ux-principles.md#the-review-file) adds what only a plan's page needs. Part of [the WongStack wiki](README.md).
+A review page is one HTML page that shows a person what an agent plans or made, and takes their OK, their notes, and their go. It asks no questions: the chat asks every choice and typed answer first, as a question card ([choices go in the chat](../.agents/plugins/loop/skills/explore/references/asking-the-user.md#choices-go-in-the-chat)). A plan, a finished build, and work that changes no repo file, such as ads to approve, all use the same page. This page owns the standard; [UX principles](ux-principles.md#the-review-file) adds what only a plan's page needs. Part of [the WongStack wiki](README.md).
 
 ## The frame
 
@@ -11,16 +11,16 @@ Every review page shows the same parts, in this order:
 3. **The cards**: the things to review, numbered, each with its picture or words.
 4. **What the build needs**, on a plan: [each key, login, file, or answer](#what-the-build-needs), *Ready* or *Needs you*. An answer is asked in the chat first, so it is *Ready*.
 5. **Decisions**, only when there are some. A page with none shows no Decisions section and no link to one.
-6. **The bar** at the bottom: *Send notes*, and only the buttons the page's link offers. Opened from a file, *Send notes* is *Copy notes*.
+6. **The bar** at the bottom: *Send notes*, and only the buttons the page's link offers. Opened from a file, *Send notes* is *Copy notes*. A project with only [the build loop](../.agents/plugins/loop/README.md) has no reply link, so its pages open so, and the person replies in the chat. A shipped plan's link is its saved file too: a live page would wait for an answer again, with build buttons.
 
 On a screen 900 px or wider, every part and the bar's buttons share one width, with or without pictures: two widths make the edge jump as you scroll.
 
-[`build-review.mjs`](../.agents/skills/plan/scripts/build-review.mjs) builds each page into [the fixed kit](../.agents/skills/plan/references/review-kit.html). One builder and one kit make all three kinds, so a fix to one page fixes them all:
+[`build-review.mjs`](../.agents/plugins/loop/skills/plan/scripts/build-review.mjs) builds each page into [the fixed kit](../.agents/plugins/loop/skills/plan/references/review-kit.html). One builder and one kit make all three kinds, so a fix to one page fixes them all:
 
 | Kind | Source | Made by |
 |---|---|---|
-| A plan | `openspec/changes/<name>/proposal.md` | [`/plan`](../.agents/skills/plan/SKILL.md#draw-in-the-proposal-then-build-the-page) |
-| A finished build | `.scratch/<change>-preview/proposal.md` | [`/apply`](../.agents/skills/apply/SKILL.md#finish-with-a-preview), through `preview-review.mjs` |
+| A plan | `openspec/changes/<name>/proposal.md` | [`/plan`](../.agents/plugins/loop/skills/plan/SKILL.md#draw-in-the-proposal-then-build-the-page) |
+| A finished build | `.scratch/<change>-preview/proposal.md` | [`/apply`](../.agents/plugins/loop/skills/apply/SKILL.md#finish-with-a-preview), through `preview-review.mjs` |
 | Other work | `review.md` in a folder outside tracked files | [a page for other work](#a-page-for-other-work) |
 
 ## A card shows the closest real result
@@ -39,7 +39,7 @@ A card shows what the go makes, as close to the real thing as you can make it. A
 | Words to send, such as an email or a post | the real words, as the card's text |
 | Rows of data | a Markdown table |
 
-[The drawing guide](../.agents/skills/plan/references/drawings.md) says how to write each fence.
+[The drawing guide](../.agents/plugins/loop/skills/plan/references/drawings.md) says how to write each fence.
 
 ## The card view
 
@@ -62,7 +62,7 @@ A plan for a website this app doesn't run, such as a shop's theme or a landing p
 1. Write the site in `openspec/changes/<change>/prototypes/<site>/`, with `index.html` first. Copy each font and picture into the folder: the card loads nothing from the web.
 2. Show it in the bullet's `live` fence, with `folder: prototypes/<site>`.
 3. Notes on the plan change the same files; rebuild the page.
-4. On the go, [the build](../.agents/skills/apply/references/build-helper.md) starts from those approved files, not from a new start.
+4. On the go, [the build](../.agents/plugins/loop/skills/apply/references/build-helper.md) starts from those approved files, not from a new start.
 5. After the build, take pictures of the approved card and the built page at 390 and 1280 px wide, and pass each pair to `preview-review.mjs --approved`, so the check shows *Approved* beside *Built*.
 
 ## The live card
@@ -200,4 +200,4 @@ B: email/b.html
 1. Add the fence to `build-review.mjs`: draw it as escaped HTML from the look's parts, with no link, and read any picture through the same check as a `picture` fence.
 2. Style it in the kit's one `<style>`, with the look's colors only, so it follows the light and dark switch.
 3. Test it beside the picture tests (`review-pictures.test.mjs`): what it draws, and each input that stops the build.
-4. Add one line to [the drawing guide](../.agents/skills/plan/references/drawings.md) and a row to [the table above](#a-card-shows-the-closest-real-result).
+4. Add one line to [the drawing guide](../.agents/plugins/loop/skills/plan/references/drawings.md) and a row to [the table above](#a-card-shows-the-closest-real-result).

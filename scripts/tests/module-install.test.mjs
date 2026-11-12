@@ -1,43 +1,106 @@
-// Each module installed alone: its folder copied into an empty repo, a minimal profile, a chat start, and its check.
+// Each module installed alone: its files placed by the manifest's mapped entries in an empty repo, and its own check.
 // wiki/maintaining/adding-a-module.md
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { INVENTORY, installPath, installsAsText, installText, mappedDirs } from '../../.agents/skills/wong-sync/scripts/install-path.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const STAND_IN = pathToFileURL(join(repo, 'scripts/tests/fixtures/memory/stand-in-store.mjs')).href;
 const load = (folder, path) => import(pathToFileURL(join(folder, path)).href);
-// Each module's own check, loaded from its installed copy; the function it returns registers the check's tests.
-const CHECKS = {
-  memory: async folder => {
-    const { checkStore } = await load(folder, 'store/contract.mjs');
-    const { standInStore } = await import(STAND_IN);
-    return () => checkStore(standInStore, 'memory installed alone');
-  },
-  access: async folder => {
-    const { checkStore } = await load(folder, 'store/contract.mjs');
-    const { standInStore } = await load(folder, 'store/stand-in.mjs');
-    return () => checkStore(standInStore, 'access installed alone');
-  },
-};
-// What each module's chat start prints in a repo that has nothing else.
-const STARTS = {
-  memory: { input: '{"session_id":"alone-1"}', expect: out => {
-    assert.match(out, /^# Memory digest\n[\s\S]*Code: billing/);
-    assert.doesNotMatch(out, /skipped/);
-  } },
-  access: { input: '{"session_id":"alone-1","source":"startup"}',
-    expect: out => assert.match(out, /^Access is not set up in this repo\. Ask the person "Access isn't set up yet\. Set it up now\?"/) },
-};
+const mapped = mappedDirs(JSON.parse(readFileSync(join(repo, INVENTORY), 'utf8')));
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|new URL\(\s*)['"](\.{1,2}(?:\/[^'"]*)?)['"]/g;
 
 const scratch = mkdtempSync(join(tmpdir(), 'wong-test-module-install-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
 const modules = readdirSync(join(repo, '.agents/plugins'), { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name);
+
+// A chat's own folders, so no test reads the machine's real memory, chats, or saves.
+function sandbox(name) {
+  const home = join(scratch, `${name}-home`);
+  const env = { ...process.env, HOME: home, XDG_DATA_HOME: join(home, 'data'), WONG_MEMORY_STATE_DIR: join(home, 'state'),
+    WONG_MEMORY_CLAUDE_HOME: join(home, 'claude'), WONG_MEMORY_CODEX_HOME: join(home, 'codex'), WONG_MEMORY_NO_HEADLESS: '1',
+    WONG_SAVE_STATE_DIR: join(home, 'saves'), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
+    GIT_AUTHOR_NAME: 'Dev', GIT_AUTHOR_EMAIL: 'dev@example.com', GIT_COMMITTER_NAME: 'Dev', GIT_COMMITTER_EMAIL: 'dev@example.com' };
+  delete env.WONG_MEMORY_PROFILE;
+  delete env.WONG_LOOP_PROFILE;
+  return { home, env };
+}
+
+// Each module's own check, loaded from its installed copy; the function it returns registers the check's tests.
+const CHECKS = {
+  memory: async ({ folder, root }) => {
+    const { checkStore } = await import(pathToFileURL(join(folder, 'store/contract.mjs')).href);
+    const { standInStore } = await import(STAND_IN);
+    return () => {
+      checkStore(standInStore, 'memory installed alone');
+      test('memory starts a chat in a repo that has nothing else', () => {
+        const { env } = sandbox('memory');
+        const start = spawnSync(process.execPath, [join(folder, 'scripts/session-start.mjs')], { cwd: root, env, encoding: 'utf8', input: '{"session_id":"alone-1"}' });
+        assert.equal(start.status, 0, start.stderr);
+        assert.match(start.stdout, /^# Memory digest\n[\s\S]*Code: billing/);
+        assert.doesNotMatch(start.stdout, /skipped/);
+      });
+    };
+  },
+  access: async ({ folder, root }) => {
+    const { checkStore } = await load(folder, 'store/contract.mjs');
+    const { standInStore } = await load(folder, 'store/stand-in.mjs');
+    return () => {
+      checkStore(standInStore, 'access installed alone');
+      test('access asks once at chat start in a repo that has nothing else', () => {
+        const { env } = sandbox('access');
+        const start = spawnSync(process.execPath, [join(folder, 'scripts/session-start.mjs')], { cwd: root, env, encoding: 'utf8', input: '{"session_id":"alone-1","source":"startup"}' });
+        assert.equal(start.status, 0, start.stderr);
+        assert.match(start.stdout, /^Access is not set up in this repo\. Ask the person "Access isn't set up yet\. Set it up now\?"/);
+      });
+    };
+  },
+  // The loop with no profile, so every slot is empty, and a gh that can not run: the local route.
+  loop: async ({ root, files }) => () => {
+    const { home, env } = sandbox('loop');
+    mkdirSync(join(home, 'bin'), { recursive: true });
+    writeFileSync(join(home, 'bin/gh'), '#!/bin/sh\nexit 1\n');
+    chmodSync(join(home, 'bin/gh'), 0o755);
+    env.PATH = `${join(home, 'bin')}:${process.env.PATH}`;
+    const run = (script, args) => spawnSync(process.execPath, [join(root, '.claude/skills', script), ...args], { cwd: root, env, encoding: 'utf8' });
+
+    test('loop names no source module path once installed', () => {
+      const left = files.filter(file => installsAsText(file) && readFileSync(join(root, file), 'utf8').includes('.claude/plugins/'));
+      assert.deepEqual(left, [], 'a path the install rewrite missed: use $(git rev-parse --show-toplevel)/ or node before it');
+    });
+
+    test('loop builds a plan page whose link is its own file', () => {
+      const change = join(root, 'openspec/changes/sample');
+      mkdirSync(change, { recursive: true });
+      writeFileSync(join(change, 'proposal.md'), '# Sample\n\n## Why\n\nA reason.\n\n## What Changes\n\n- **One thing** changes.\n');
+      const out = run('plan/scripts/build-review.mjs', [change, '--require-current', '--link']);
+      assert.equal(out.status, 0, out.stderr);
+      assert.match(out.stdout, new RegExp(`\\]\\(${join(change, 'review.html').replace(/[.*+?^${}()|[\]\\/]/g, '\\$&')}\\)`));
+      assert.doesNotMatch(out.stdout, /https:/);
+    });
+
+    test('loop saves a commit on this computer and pushes nothing', () => {
+      const git = (...args) => execFileSync('git', args, { cwd: root, env, encoding: 'utf8' }).trim();
+      git('add', '-A');
+      git('commit', '-q', '-m', 'base');
+      git('switch', '-q', '-c', 'work');
+      writeFileSync(join(root, 'note.txt'), 'one\n');
+      git('add', 'note.txt');
+      writeFileSync(join(home, 'message.txt'), 'feat: a note\n');
+      writeFileSync(join(home, 'summary.md'), 'A note.\n');
+      const out = run('save/scripts/checkpoint.mjs', ['--message-file', join(home, 'message.txt'), '--summary-file', join(home, 'summary.md')]);
+      assert.equal(out.status, 0, `${out.stdout}${out.stderr}`);
+      assert.match(out.stdout, /^SAVE_GATE_RESULT=LOCAL$/m);
+      assert.equal(git('log', '-1', '--format=%s'), 'feat: a note');
+      assert.equal(git('remote'), '', 'nothing to push to');
+    });
+  },
+};
 
 /** Every relative import or file URL in the folder's scripts that resolves outside the folder. */
 function outsideImports(folder) {
@@ -48,11 +111,29 @@ function outsideImports(folder) {
     .map(([path, specifier]) => `${path} → ${specifier}`));
 }
 
-// An empty git repo holding only the module folder and a profile on the stand-in store.
+/** Every relative import or file URL in the installed files that names no file there. */
+function brokenImports(root, files) {
+  return files.flatMap(file => [...readFileSync(join(root, file), 'utf8').matchAll(SPECIFIER)]
+    .filter(match => !existsSync(resolve(root, dirname(file), match[1])))
+    .map(match => `${file} → ${match[1]}`));
+}
+
+// An empty git repo holding only the module, each file where the manifest maps it, and a profile on the stand-in store.
 function installAlone(name) {
   const root = join(scratch, name);
   execFileSync('git', ['init', '-q', '-b', 'main', root]);
-  cpSync(join(repo, '.agents/plugins', name), join(root, '.agents/skills', name), { recursive: true });
+  symlinkSync('.agents', join(root, '.claude'));
+  const source = join(repo, '.agents/plugins', name);
+  const files = readdirSync(source, { recursive: true }).map(path => `.agents/plugins/${name}/${path}`)
+    .filter(path => statSync(join(repo, path)).isFile())
+    .map(path => {
+      const to = installPath(path.replace(/^\.agents/, '.claude'), mapped).replace(/^\.claude/, '.agents');
+      mkdirSync(dirname(join(root, to)), { recursive: true });
+      const raw = readFileSync(join(repo, path));
+      writeFileSync(join(root, to), installsAsText(path) ? installText(path, raw.toString('utf8'), mapped) : raw);
+      chmodSync(join(root, to), statSync(join(repo, path)).mode);
+      return to;
+    });
   mkdirSync(join(root, '.agents/memory'), { recursive: true });
   writeFileSync(join(root, '.agents/memory/profile.mjs'), `import { standInStore } from '${STAND_IN}';
 const store = standInStore();
@@ -62,33 +143,26 @@ export default {
   sessionStart: () => {}, // returns nothing: the chat start still prints the digest
 };
 `);
-  return root;
+  return { root, files };
 }
 
 // Loaded before any test is registered, so every test joins the run.
 const installs = await Promise.all(modules.map(async name => {
-  const root = installAlone(name);
+  const { root, files } = installAlone(name);
   const folder = join(root, '.agents/skills', name);
-  return { name, root, folder, check: await CHECKS[name]?.(folder) };
+  return { name, root, folder, files, check: await CHECKS[name]?.({ folder, root, files }) };
 }));
 
-for (const { name, root, folder, check } of installs) {
+for (const { name, root, files, check } of installs) {
   test(`${name} has its own check here`, () => assert.ok(check, `add ${name}'s check to CHECKS`));
   check?.();
 
   test(`${name} imports nothing outside its own folder`, () => {
-    assert.deepEqual(outsideImports(folder), []);
+    assert.deepEqual(outsideImports(join(repo, '.agents/plugins', name)), []);
   });
 
-  test(`${name} starts a chat in a repo that has nothing else`, () => {
-    assert.ok(STARTS[name], `add ${name}'s chat start to STARTS`);
-    const home = join(scratch, `${name}-home`);
-    const env = { ...process.env, HOME: home, XDG_DATA_HOME: join(home, 'data'), WONG_MEMORY_STATE_DIR: join(home, 'state'),
-      WONG_MEMORY_CLAUDE_HOME: join(home, 'claude'), WONG_MEMORY_CODEX_HOME: join(home, 'codex'), WONG_MEMORY_NO_HEADLESS: '1' };
-    delete env.WONG_MEMORY_PROFILE;
-    const start = spawnSync(process.execPath, [join(folder, 'scripts/session-start.mjs')], { cwd: root, env, encoding: 'utf8', input: STARTS[name].input });
-    assert.equal(start.status, 0, start.stderr);
-    STARTS[name].expect(start.stdout);
+  test(`${name} installed by the mapped entries still finds every file it imports`, () => {
+    assert.deepEqual(brokenImports(root, files.filter(file => /\.m?js$/.test(file))), []);
   });
 }
 

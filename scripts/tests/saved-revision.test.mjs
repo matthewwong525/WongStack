@@ -7,6 +7,9 @@ import { join } from 'node:path';
 import { gateSnapshot, savedRevision } from '../../.agents/skills/save/scripts/saved-revision.mjs';
 
 import { HEAD, OLD, githubFixture } from '../fixtures/saved-revision.mjs';
+
+// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
+process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
 const receipt = { repository: 'team/repo', branch: 'work', headSha: HEAD, gateResult: 'SUCCESS', gateIdentity: gateSnapshot(
   [{ __typename: 'CheckRun', name: 'payload', detailsUrl: 'https://github.com/team/repo/actions/runs/10/job/1', status: 'COMPLETED', conclusion: 'SUCCESS' }],
   [{ id: 10, run_attempt: 1, workflow_id: 2, event: 'push', status: 'completed', conclusion: 'success' }],
@@ -105,14 +108,15 @@ test('an Artifacts install reads its gate from the check run for the exact commi
     assert.equal(result.repository, ARTIFACTS);
     assert.equal(result.reused, false);
     assert.ok(fixture.calls.every(([command]) => command !== 'gh'), 'gh was asked on an install with no GitHub');
-    assert.match(fixture.calls.at(-1)[1], new RegExp(`artifacts-run\\.mjs result ${HEAD} refs/heads/work$`));
+    assert.match(fixture.calls.at(-1)[1], new RegExp(`delivery-route\\.mjs run artifacts result ${HEAD} refs/heads/work$`));
   }
 });
 test('an Artifacts install with unsaved or unpushed work still asks for a save, before any check run is read', async () => {
   for (const overrides of [{ dirty: ' M source.mjs' }, { refs: '' }, { refs: `${OLD}\trefs/heads/work` }]) {
     const fixture = githubFixture({ remote: ARTIFACTS, ...overrides });
     assert.equal((await savedRevision(fixture)).state, 'NEEDS_SAVE');
-    assert.ok(fixture.calls.every(([command]) => command === 'git'));
+    // The branch's remote head is read through the route; its check run never is.
+    assert.ok(fixture.calls.every(([command, args]) => command === 'git' || / run artifacts heads /.test(args)));
   }
 });
 test('a remote that is neither GitHub nor Artifacts is still refused', async () => {
@@ -121,14 +125,14 @@ test('a remote that is neither GitHub nor Artifacts is still refused', async () 
 });
 
 const APP = 'https://app.example.com/api/access/code/git/';
-test('a copy installed through the app reads its remote head and its gate through app-change.mjs, and never asks gh', async () => {
+test('a copy installed through the app reads its remote head and its gate through the app route, and never asks gh', async () => {
   for (const [word, gateResult] of [['SUCCESS', 'SUCCESS'], ['NONE', 'NONE'], ['FAILURE', 'FAILURE'], ['PENDING', 'UNKNOWN'], ['UNKNOWN', 'UNKNOWN']]) {
     const fixture = githubFixture({ remote: APP, runResult: word });
     const result = await savedRevision(fixture);
     assert.deepEqual([result.state, result.gateResult, result.repository, result.reused, result.reason], ['SAVED', gateResult, APP, false, 'Read through the app for this exact commit'], word);
     // Git reads only this checkout: the project's own address needs the app sign-in, which app-change.mjs holds.
     assert.ok(fixture.calls.every(([command, args]) => command === 'node' || (command === 'git' && !args.startsWith('ls-remote'))), 'gh or a bare ls-remote was asked');
-    assert.deepEqual(fixture.calls.slice(-2).map(([, args]) => args.replace(/^.*\/app-change\.mjs /, '')), ['heads refs/heads/work', `result ${HEAD} refs/heads/work`]);
+    assert.deepEqual(fixture.calls.slice(-2).map(([, args]) => args.replace(/^.*\/delivery-route\.mjs run app /, '')), ['heads refs/heads/work', `result ${HEAD} refs/heads/work`]);
   }
 });
 test('a copy installed through the app with unsaved or unpushed work asks for a save, and a refused read is UNKNOWN', async () => {

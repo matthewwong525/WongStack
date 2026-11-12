@@ -7,7 +7,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stopDecision } from '../../explore/scripts/ask-check.mjs';
+import { stopDecision } from '../../../loop/ask-check.mjs';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { headlessCommand } from '../../memory/scripts/lib/headless.mjs';
 import { BUCKETS, HOLD_MS, STREAK, paseoRecord, readJson, writeJson } from './chief.mjs';

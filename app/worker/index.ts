@@ -1,6 +1,6 @@
 // Verify signed Access identity before all business content; memory and git check the same sign-in themselves.
 import { handleMemory, MEMORY_PREFIX } from "../../.agents/memory/d1/store.mjs";
-import { handleWalkPictures, WALK_PREFIX } from "../../.agents/skills/verify/worker/walk-pictures.mjs";
+import { handleWalkPictures, WALK_PREFIX } from "../../.agents/loop/staging/walk-pictures.mjs";
 import { discovery } from "./api/discovery.ts";
 import { API_PREFIX, handleApi } from "./api/router.ts";
 import { APP_API, handleApp } from "./apps/index.ts";
