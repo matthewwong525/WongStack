@@ -1,0 +1,8 @@
+{
+  "name": "access",
+  "version": "1.0.0",
+  "description": "Who signs in to your app, what each person may open, and what their assistant may do with the app's keys.",
+  "author": { "name": "WongStack" },
+  "skills": "./skills/",
+  "hooks": "./hooks/codex.json"
+}

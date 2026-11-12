@@ -1,18 +1,14 @@
-// Finite core operations keep people management and setup readback out of discovery.
-import type { AccessIdentity } from "../access.ts";
+// Finite Access operations keep people management and setup readback out of discovery.
+import { accessFor, checkerOwns, currentPolicy, humanEmail, policyDenied, registryOf, withRegistry, type AccessIdentity,
+  type ConnectionEnv, type Level } from "../access-slots.ts";
+import { holds } from "../../../.agents/skills/access/server/levels.mjs";
 import { appAccess } from "./apps.ts";
 import { CODE_CHANGE, codeChange } from "./change.ts";
 import { CODE_GIT, codeGit, codeState, codeUnavailable } from "./code.ts";
-import { holds, type Level } from "./key-levels.ts";
 import { KNOWLEDGE_GIT, knowledgeGit, knowledgeSource } from "./knowledge.ts";
-import { checkerOwns, currentPolicy, humanEmail, policyDenied } from "./policy.ts";
+import { keyUse } from "./key-use.ts";
 import { setupStatus } from "./setup.ts";
-import { management } from "./management.ts";
 import { CODE_PUBLISH, codePublish } from "./publish.ts";
-import { PUSHERS, pushersRoute } from "./pushers.ts";
-import { KEYS, keysRoute } from "./keys-route.ts";
-import { TOOLS, toolsRoute } from "./tools-route.ts";
-import type { ConnectionEnv } from "./core.ts";
 
 /** `wait` keeps work running after the answer: the Worker's `waitUntil`. */
 export async function handleAccess(request: Request, env: ConnectionEnv,
@@ -25,11 +21,13 @@ export async function handleAccess(request: Request, env: ConnectionEnv,
   // Project code at Read reads and saves company knowledge, a push included, even when the code is on GitHub.
   if (path.startsWith(KNOWLEDGE_GIT)) return (await codeDenied(env, identity, "read", knowledgeSource(env) !== null)) ?? knowledgeGit(request, env, humanEmail(identity));
   if (path.startsWith(CODE_CHANGE)) return (await codeDenied(env, identity)) ?? codeChange(request, env, humanEmail(identity) ?? "the preview check");
-  if (path === PUSHERS || path.startsWith(`${PUSHERS}/`)) return pushersRoute(request, env, identity, wait);
-  if (path.startsWith(TOOLS)) return toolsRoute(request, env, identity);
-  if (path.startsWith(KEYS)) return keysRoute(request, env, identity);
-  return management(request, env, identity);
+  // People, roles, keys sent sealed, tools, and GitHub pushers: the Access module's own routes.
+  return (await accessFor(routeUse(env), identity).serve(request, { wait }))!;
 }
+
+/** Access shows each key a route uses with no app: the routes are read here, where no route reads this file. */
+const routeUse = (env: ConnectionEnv) => withRegistry(env, Object.fromEntries(Object.entries(registryOf(env)).map(([id, key]) =>
+  [id, { ...key, routeAlone: keyUse.some(use => !use.apps.length && !use.direct && use.keys.includes(id)) }])));
 
 /** Project code at `need` now (`write` publishes), judged before any upstream call; `available` overrides whether
  *  the project can be handed out. A machine is no person; on a preview the checker stands in for the owner. */

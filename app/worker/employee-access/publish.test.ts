@@ -3,7 +3,7 @@ import { inflateSync } from "node:zlib";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { employee, fixture, owner, site } from "../../tests/employee-access/connections";
 import { body } from "../../tests/body";
-import type { AccessIdentity } from "../access";
+import type { AccessIdentity } from "../access-slots";
 import { runId } from "../../../scripts/check-runner/run-id.mjs";
 import { NOT_SET_UP, pkt } from "./code";
 import { CODE_PUBLISH, codePublish } from "./publish";

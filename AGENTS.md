@@ -21,7 +21,7 @@ Before a change, **read the owning doc**: start at [`wiki/README.md`](wiki/READM
 
 Before substantial work, `memory.mjs recall <question>` finds [evidence](wiki/development/document-retrieval.md); read originals. Keep `areas <path>` for warnings and `openspec list` for plans.
 
-Credentials for this computer's own tools sit in the git-ignored `.env` at the primary worktree, mapped by the committed, values-blank `.env.example`. The app holds each business service's key: use it through the [services skill](.agents/skills/services/SKILL.md). Don't stub a call or ask for a key in chat: declare a missing one, then [send the key link](wiki/development/secrets.md#receive-a-key-through-a-private-link).
+Credentials for this computer's own tools sit in the git-ignored `.env` at the primary worktree, mapped by the committed, values-blank `.env.example`. The app holds each business service's key: use it through the [services skill](.agents/plugins/access/skills/services/SKILL.md). Don't stub a call or ask for a key in chat: declare a missing one, then [send the key link](wiki/development/secrets.md#receive-a-key-through-a-private-link).
 
 ## Rules
 
@@ -39,7 +39,7 @@ Credentials for this computer's own tools sit in the git-ignored `.env` at the p
 - **Send an improvement upstream by hand**: [contributing](wiki/contributing.md).
 - **A scheduled `/improve-code` writes a plan and waits**: [code improvement](wiki/development/repository-improvement.md).
 - **Write repeatable knowledge when you learn it**: what will help a different, future task, placed by [the wiki rules](wiki/wiki-style.md#repeatable-knowledge); a `knowledge/` page is [saved at once](wiki/stack/company-knowledge.md#save-a-page). A change's specifics stay in its proposal.
-- **Company actions and memory reads:** [discover only what you need](wiki/stack/service-catalogue.md) through the shared helper; company calls use employee login, memory keeps its installed access; [skills call actions](wiki/stack/company-api.md#build-a-skill-on-actions). An MCP server [goes through the app](wiki/stack/company-api.md#use-an-mcp-server-through-the-app), never in a chat's settings.
+- **Company actions and memory reads:** [discover only what you need](wiki/stack/service-catalogue.md) through the shared helper; company calls use employee login, memory keeps its installed access; [skills call actions](wiki/stack/company-api.md#build-a-skill-on-actions).
 - **API keys/tokens:** [human steps](wiki/development/secrets.md#api-token-website-steps), or a browser [while connecting](wiki/stack/connect-your-tools.md).
 - **Browse as the person; show key moments; ask for what needs them**: [logins](wiki/development/browsing.md#saved-browser-logins), [live view](wiki/development/live-view.md), [pictures](wiki/development/browsing.md#show-what-the-browser-is-doing), [asking](wiki/development/browsing.md#when-a-step-needs-you), [buying](wiki/development/shopping.md).
 - **Path-scoped conventions load from [`.claude/rules/`](.agents/rules/)**; an agent that doesn't auto-load them reads those whose `paths:` match its files.

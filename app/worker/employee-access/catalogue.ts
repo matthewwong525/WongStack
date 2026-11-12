@@ -1,6 +1,6 @@
 // The built screen folders are the whole catalogue: an app is a folder with a screen (src/apps/<name>/app.json).
 // A server folder with no screen is no app: its routes belong to the saved keys they list. wiki/stack/mini-apps.md
-import type { RouteAccess } from "./policy.ts";
+import type { RouteAccess } from "../access-slots.ts";
 
 type Named = { title?: unknown; description?: unknown };
 /** One app a person can be given, whole. */

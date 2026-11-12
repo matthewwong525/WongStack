@@ -1,6 +1,5 @@
 // Memory's role for a company sign-in, read from Access on every call: wiki/development/memory.md#who-sees-what
-import { getAccessIdentity, type AccessIdentity } from "./access.ts";
-import { currentPolicy, humanEmail, type CurrentPolicy, type PolicyEnv } from "./employee-access/policy.ts";
+import { currentPolicy, getAccessIdentity, humanEmail, type AccessIdentity, type CurrentPolicy, type PolicyEnv } from "./access-slots.ts";
 
 export interface MemoryCaller {
   role: "admin" | "member" | "reader";

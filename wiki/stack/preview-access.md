@@ -1,6 +1,6 @@
 # Access on previews
 
-A preview has its own sign-in list and its own practice people: this page says who signs in to previews and what they can open there. [Employee access](employee-access.md) owns the live app's people, apps and key levels.
+A preview has its own sign-in list and its own practice people: this page says who signs in to previews and what they can open there. [Employee access](employee-access.md) owns the live app's people, apps and key levels. The [Access module](../../.agents/plugins/access/README.md) knows a preview from its `environment` slot, and its `checker` slot names the verification service token.
 
 ## People who can push on GitHub
 

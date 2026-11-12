@@ -225,5 +225,14 @@
   {"name": "briefs/wiki-tidy.md", "replacement": "`/memory:dream-memory --daily`", "allow": [".agents/verification/journeys/agent-api-discovery/one-word-matches-nothing.json", ".agents/verification/journeys/agent-api-discovery/the-words-are-not-one-phrase.json", ".agents/verification/journeys/mini-apps/reading-down-a-long-page.json", "scripts/fixtures/context-baseline.json", "scripts/tests/schedule-retirement.test.mjs"], "why": "a kept check lists the source files of the run that recorded it; the next record rewrites the list; the baseline fixture is a measured before-state; the test checks the file is gone"},
   {"name": "#the-small-wiki-tidy", "replacement": "`wiki/development/wiki-dream.md#the-daily-tidy`"},
   {"name": "consolidated.json", "replacement": "the store's daily claim"},
-  {"name": "dream-memory --small", "replacement": "`/memory:dream-memory --daily`", "allow": ["scripts/tests/schedule-legacy.test.mjs"], "why": "the test checks that a renamed saved prompt keeps its words"}
+  {"name": "dream-memory --small", "replacement": "`/memory:dream-memory --daily`", "allow": ["scripts/tests/schedule-legacy.test.mjs"], "why": "the test checks that a renamed saved prompt keeps its words"},
+  {"name": "scripts/lib-services.mjs", "replacement": "`.agents/plugins/access/scripts/lib/services.mjs`"},
+  {"name": "scripts/lib-openapi.mjs", "replacement": "`.agents/plugins/access/scripts/lib/openapi.mjs`"},
+  {"name": "scripts/lib-scrub.mjs", "replacement": "`.agents/plugins/access/scripts/lib/scrub.mjs`"},
+  {"name": "check-service-definitions.mjs", "replacement": "`.agents/plugins/access/scripts/check-definitions.mjs`"},
+  {"name": "mcp-session.mjs", "replacement": "a tool added through its API; MCP through the app is gone"},
+  {"name": "company-api.mjs mcp", "replacement": "a tool added through its API; MCP through the app is gone"},
+  {"name": ".agents/skills/services/", "replacement": "`.agents/plugins/access/skills/services/SKILL.md`"},
+  {"name": "app/worker/key-rules.ts", "replacement": "`.agents/plugins/access/server/key-rules.mjs`"},
+  {"name": "app/worker/api/mcp.ts", "replacement": "a tool added through its API; MCP through the app is gone"}
 ]

@@ -1,6 +1,6 @@
 # The services list
 
-The services list is where a chat starts for any outside service: one short list of the saved keys you can use, then a search, one opened entry, and a call through the app. The [services skill](../../.agents/skills/services/SKILL.md) gives a chat these steps. The app holds every business key, so a chat never reads one from a file. [Company actions](company-api.md) owns how an action is built and how the helper signs in.
+The services list is where a chat starts for any outside service: one short list of the saved keys you can use, then a search, one opened entry, and a call through the app. The [services skill](../../.agents/plugins/access/skills/services/SKILL.md) gives a chat these steps; it comes with the [Access module](../../.agents/plugins/access/README.md). The app holds every business key, so a chat never reads one from a file. [Company actions](company-api.md) owns how an action is built and how the helper signs in.
 
 When no action or key can do a task on a website, the agent does it in [the browser](../development/browsing.md), as you.
 
@@ -26,7 +26,7 @@ Notion   Team notes and docs    not saved yet: ask the owner
 2 more keys need access: ask the owner
 ```
 
-- **A key shows when you hold a level for it**, with its purpose line, whether it is saved, your [level](employee-access.md#key-levels), and for a key used directly the link to the service's API guide and the number of [calls we saved](#each-services-definition). An MCP server's row adds the command that lists its tools: [use an MCP server through the app](company-api.md#use-an-mcp-server-through-the-app). The other keys are one count. `--all` lists them too, each with no level.
+- **A key shows when you hold a level for it**, with its purpose line, whether it is saved, your [level](employee-access.md#key-levels), and for a key used directly the link to the service's API guide and the number of [calls we saved](#each-services-definition). The other keys are one count. `--all` lists them too, each with no level.
 - **Each row names its [notes page](#notes-on-each-key-based-service)**, and whether it exists yet.
 - **Project code is left out**: it is the stack's own key, reached through [the project's route](employee-project.md#who-gets-what).
 - **The list stays short.** One row per service, however many actions each has, at most 200 rows, and never a key value. `--json` prints the whole answer.
@@ -106,7 +106,7 @@ Each outside service you call directly has a definition: `schema/services/<key>/
 - **Save each new call with `record`.** After a direct call the definition lacks, the helper prints the command on standard error. `record <key> <name> --file -` sends a look-up through `<key>.read` and saves it; `record <key> <name> --last` saves the last change you made, and never sends it again. The answer's private values become made-up ones first: an email becomes `person1@example.com`, an ID a run of zeros, free text `Sample text 1`. The call's shape grows from each example, and the words you wrote stay.
 - **Write the call's `summary` and `description`.** The summary says what we use it for, the description how we use it and its quirks. A quirk you learn later goes there too: the description is its one place.
 - **Check that it still fits with `record --refresh [<key>]`.** It asks each saved look-up again, names each field of the new answer that doesn't fit its call, then saves the new answer. It never sends a saved change, or a look-up whose request holds a made-up value such as a page ID: those show as *not checked*. Then the check below runs on the saved files.
-- **The check runs with the app's tests**: `node scripts/check-service-definitions.mjs`. It fails when a folder is named for no key, a call has no `operationId`, `x-effect`, summary or description, an example fits no call or does not fit its answer, an example holds a value that looks private, or the types file is out of date. `--types` rebuilds the types.
+- **The check runs with the app's tests**: `node .claude/skills/access/scripts/check-definitions.mjs`. It fails when a folder is named for no key, a call has no `operationId`, `x-effect`, summary or description, an example fits no call or does not fit its answer, an example holds a value that looks private, or the types file is out of date. `--types` rebuilds the types.
 
 Code that calls a service types its answer from the definition, and tests on its examples: [service examples](testing.md#service-examples).
 

@@ -1,18 +1,15 @@
 // Every saved business-service key the owner sees in Access (wiki/stack/api-keys.md): an id, a title, the secrets
 // it covers (in ../.dev.vars.example) and its levels. A route reaches only the keys it lists: wiki/stack/company-api.md
-export type Level = "read" | "write";
+
 /** How the app passes one request on to the key's service: wiki/stack/company-api.md#use-a-key-directly. `lookups`
  *  are documented non-GET reads, as `METHOD path`, `*` for one part. With no secrets, name no `secret` or `header`. */
-export type Forward = {
+type Forward = {
   base: string;
   secret?: string;
   header?: string;
   prefix?: string;
   headers?: Readonly<Record<string, string>>;
   lookups?: readonly string[];
-  /** An MCP server at `path` under `base`, the one path passed on; `reads` names the tools that only look things up.
-   *  wiki/stack/company-api.md#use-an-mcp-server-through-the-app */
-  mcp?: { path: string; reads: readonly string[] };
   /** A token address on base's host: the app trades the ID (`<secret>_ID`) and the secret there for a short token,
    *  by the client-credentials grant, and sends that. wiki/stack/connect-your-tools.md */
   exchange?: { url: string };
@@ -45,11 +42,8 @@ export const keys = {
   // saves a change and saves knowledge, Write also publishes. ARTIFACTS stands in for the secrets on Cloudflare.
   code: { title: "Project code", purpose: "This project's own code and company knowledge, to install, read and save them", secrets: ["WONG_CODE_READ", "WONG_CODE_WRITE"], levels: ["read", "write"], alone: true, bindings: ["ARTIFACTS", "CODE_CHECKS"],
     liveOnly: true },
-  // Add a key as: stripe: { title: "Stripe", purpose: "Payments and refunds", secrets: ["STRIPE_SECRET_KEY"] },
-  // Direct use adds `forward` and `docs: "https://docs.stripe.com/api"`: wiki/stack/company-api.md#use-a-key-directly
-
-  // An MCP server adds `mcp` to `forward`, and a public one has no secrets, `secret` or `header`:
-  // wiki/stack/company-api.md#use-an-mcp-server-through-the-app
+  // Add a key as: stripe: { title: "Stripe", purpose: "Payments and refunds", secrets: ["STRIPE_SECRET_KEY"] }, and
+  // `forward` and `docs` for direct use (a public service: no secrets): wiki/stack/company-api.md#use-a-key-directly
 } as const satisfies Record<string, Key>;
 
 /** A registered key's id, for a route's `keys` list. @public */

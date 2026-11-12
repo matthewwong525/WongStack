@@ -28,7 +28,7 @@ Only explicitly reviewed harmless infrastructure uses `{ kind: "infrastructure" 
 
 Each business call reads installation, membership, apps and key levels together from a D1 session beginning at the primary. The server retains no positive permission cache between requests. A request admitted before a removal may finish; the next request observes the committed removal, including with the same unexpired app login. Missing or unavailable authority returns a safe unavailable response. Preserve this mapping and every existing custom handler during updates.
 
-[Access](employee-access.md) knows its owner by the recorded sign-in email. Its people-management routes are administration, absent from action discovery. Before permissions start, every signed-in person keeps their existing access. Repository authentication stays manual through its provider.
+[Access](employee-access.md) knows its owner by the recorded sign-in email. The [Access module](../../.agents/plugins/access/README.md) answers its routes, and its `gate` makes the app check above. Its people-management routes are administration, absent from action discovery. Before permissions start, every signed-in person keeps their existing access. Repository authentication stays manual through its provider.
 
 ## List the keys a route uses
 
@@ -71,20 +71,6 @@ Before a direct call, read the service's [notes page](service-catalogue.md#notes
 **Set a service up when you save its key.** This opens the service to the owner and to everyone with a level for that key. A chat [adds a new tool](connect-your-tools.md#add-a-new-tool-with-no-publish) live, [even with an ID and a secret](connect-your-tools.md#a-tool-with-an-id-and-a-secret). A [registry](../../app/worker/keys.ts) key adds `forward` and `docs`, the guide's HTTPS link. `lookups` names, as `METHOD path` with `*` for one path part, only requests the guide documents as read-only: a wrong entry lets Read change things. A service that works through one `POST`, such as GraphQL, gets none, so it needs Read & write. A key renewed through a sign-in, such as Google's, can't be set up: build an action. The tests and `tool add` refuse an entry that breaks a rule.
 
 **A tool added in a chat moves into the code when an app first uses it**: that change copies its entry into the key registry and declares `TOOL_<ID>` in `app/.dev.vars.example`. The saved key keeps working, and the code's entry wins.
-
-## Use an MCP server through the app
-
-An outside MCP server goes through the app, never into a chat's own server settings such as `.mcp.json`. A server connected to a chat loads every one of its tool descriptions into every chat, even one that never uses it; through the app, a chat sees them only when a task asks.
-
-- **Set it up as a key used directly**, [as above](#use-a-key-directly), with `mcp: { path, reads }` in its `forward`: `path` is the server's address under `base`, and only that path is passed on. A public server names no secret, `secret` or `header`:
-  ```ts
-  deepwiki: { title: "DeepWiki", purpose: "Questions about public code", secrets: [], docs: "https://docs.devin.ai/work-with-devin/deepwiki-mcp",
-    forward: { base: "https://mcp.deepwiki.com/", mcp: { path: "mcp", reads: ["read_wiki_structure", "ask_wiki_question"] } } },
-  ```
-- **`reads` names the tools that only look things up.** List only tools the server marks read-only, each checked by hand. Opening the session and listing tools also need only Read; any other tool, including one the service adds later, needs Read & write.
-- **Call it with the helper:** `node scripts/company-api.mjs mcp <key> tools` lists the tools, `tools <name>` shows one tool's arguments, and `mcp <key> tool <name> --file -` runs one with its arguments as JSON. It keeps the server's session across calls and tries Read first.
-
-A service-specific helper may wrap [`scripts/mcp-session.mjs`](../../scripts/mcp-session.mjs) for friendlier commands.
 
 ## Connect and call
 

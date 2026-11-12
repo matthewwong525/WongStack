@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import type { AccessIdentity } from "../access";
+import type { AccessIdentity } from "../access-slots";
 import type { Route } from "../api/contract";
 import { appActions, appKeyUse, handleApp, keysAlone } from "./index";
 import { body } from "../../tests/body";

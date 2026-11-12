@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import type { AccessIdentity } from "../../access";
+import type { AccessIdentity } from "../../access-slots";
 import { handleApp } from "../index";
 import { fakeEnv } from "../../../tests/env";
 import { database } from "../../../tests/employee-access/connections";

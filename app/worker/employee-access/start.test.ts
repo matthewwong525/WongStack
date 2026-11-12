@@ -1,14 +1,35 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type { ConnectionEnv } from "../access-slots";
+import { d1Store } from "../access-store/index";
 import { cloudflare, fixture, owner, req, site } from "../../tests/employee-access/connections";
-import { ownerCore, type Core } from "./core";
-import { accessStatus, changeMember } from "./members";
-import { startKeyLevels, startPermissions } from "./start";
+import { handleAccess } from "./router";
 
 vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtApps(["access", "orders", "payroll"]));
 let f: ReturnType<typeof fixture>;
 let cf: ReturnType<typeof cloudflare>["state"];
 let fetch: ReturnType<typeof vi.fn>;
+/** Who opens Access: the bindings, and whether this is the live app. */
+type Core = { env: ConnectionEnv; live: boolean };
 let core: Core;
+const bindings = ({ env, live }: Core) => live ? env : { ...env, WONG_ENVIRONMENT: "staging" };
+/** The owner's read of Access: it lists every app, then starts permissions and key levels, and answers why a start
+ *  failed. A read that could not run throws. */
+async function startPermissions(reading: Core): Promise<string | null> {
+  const answer = await handleAccess(req("status", "GET"), bindings(reading), owner);
+  if (answer.status !== 200) throw Object.assign(new Error("refused"), { status: answer.status });
+  return ((await answer.json()) as { startError: string | null }).startError;
+}
+const startKeyLevels = (_core: Core) => d1Store(f.env.DB!).startKeys();
+const accessStatus = async (reading: Core) => (await handleAccess(req("status", "GET"), bindings(reading), owner)).json();
+/** The owner's people save, while the test holds the lease, so the save runs no sign-in list step of its own. */
+async function changeMember(saving: Core, value: object): Promise<void> {
+  const store = d1Store(f.env.DB!);
+  const holder = await store.lease();
+  try {
+    const answer = await handleAccess(req("people", "POST", value), bindings(saving), owner);
+    if (answer.status !== 200) throw Object.assign(new Error("refused"), { status: answer.status });
+  } finally { if (holder) await store.release(holder); }
+}
 const admit = (...emails: string[]) => { cf.policy.include = [site.ownerEmail, ...emails].map(email => ({ email: { email } })); };
 const people = () => f.sql.prepare(`SELECT m.email, m.status, m.revision,
   (SELECT json_group_object(g.app_id, g.level) FROM wong_access_grants g WHERE g.email = m.email) apps
@@ -19,7 +40,8 @@ beforeEach(async () => {
   f = fixture({ started: false });
   const fake = cloudflare(); cf = fake.state; fetch = vi.fn(fake.fetch);
   vi.stubGlobal("fetch", fetch);
-  core = await ownerCore(req("status", "GET"), f.env, owner);
+  core = { env: f.env, live: true };
+  await d1Store(f.env.DB!).open({ origin: site.origin, owner: site.ownerEmail, subject: site.ownerSubject });
   admit("ana@example.com", "Bo@Example.com");
 });
 afterEach(() => { f.sql.close(); vi.unstubAllGlobals(); });
@@ -72,7 +94,7 @@ it("starts key levels on an install with people by turning the switch on alone: 
   await startKeyLevels(core);
   expect(switches()).toEqual({ policy_enabled: 0, keys_enabled: 0, revision: 1 });
   await startPermissions(core);
-  f.sql.prepare("INSERT INTO wong_access_key_grants VALUES (?, 'ana@example.com', 'cloudflare', 'read', 2)").run(core.installationId);
+  f.sql.prepare("INSERT INTO wong_access_key_grants VALUES (?, 'ana@example.com', 'cloudflare', 'read', 2)").run(await d1Store(f.env.DB!).installation());
   const before = { people: people(), audit: f.sql.prepare("SELECT COUNT(*) count FROM wong_access_audit").get() };
   await startKeyLevels(core);
   // Two people hold every app, and neither is given a level for it; Ana's own level stays. The revision does not move.
@@ -111,6 +133,8 @@ it("changes nothing when the key is missing or the sign-in list cannot be read",
   expect(people()).toEqual([]);
   expect(installation()).toEqual({ policy_enabled: 0, revision: 1 });
   expect(await accessStatus({ ...core, env: { ...f.env, WONG_ACCESS_LOGIN_MANAGEMENT: undefined } })).toMatchObject({ started: false, key: "missing", imported: 0 });
+  // Each read tries the start again: one that still can not read the list leaves permissions off.
+  cf.policy.reusable = true;
   expect(await accessStatus(core)).toMatchObject({ started: false, key: "ready" });
 });
 

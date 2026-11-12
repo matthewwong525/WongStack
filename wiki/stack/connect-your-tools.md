@@ -66,8 +66,8 @@ Most tools are new to the app, so this is the main step. For each tool with no r
 |---|---|---|
 | A fixed API key or personal access token | [A key used directly](company-api.md#use-a-key-directly): `forward`, `docs`, `lookups` | Stripe restricted key, Figma personal token |
 | An ID and a secret that trade for a short token (the client-credentials grant) | The same, with `forward.exchange`: [an ID and a secret](#a-tool-with-an-id-and-a-secret) | Shopify's Dev Dashboard app |
-| A remote MCP server that takes a fixed key | [An MCP server through the app](company-api.md#use-an-mcp-server-through-the-app): `forward.mcp`, with `reads` checked by hand | a server with a bearer key |
 | Only a sign-in that renews (OAuth) | Nothing yet: *not connected yet: it needs a sign-in, which the app can't keep yet* | Google mail and calendar |
+| Only an MCP server | Nothing yet: *not connected yet: the app does not use MCP servers* | a tool with no public API but its MCP server |
 
 Write what you found on the tool's notes page: the kind of key, the page that makes it, the permissions, and one look-up. It goes in the next wiki save, like [any notes page](service-catalogue.md#notes-on-each-key-based-service). The next chat then reads it, and does not work it out again.
 
@@ -108,7 +108,7 @@ Every command reads who holds the browser first:
 A key goes to the company app locked, and only the next publish can open it. Even the app can't read a key while it waits.
 
 1. **The lock.** Each install has one pair of locks, made once by [`node scripts/seal-keys.mjs pair`](../../scripts/seal-keys.mjs) at setup. The public half, `WONG_KEY_SEAL_PUBLIC`, is in `app/wrangler.jsonc`, and the app hands it out. The private half, `WONG_KEY_SEAL_PRIVATE`, is only where publishing runs: a GitHub secret, or the check runner's secret on [the Artifacts route](artifacts-route.md).
-2. **Sealed before it leaves.** [`take-key`](#use-the-assistants-browser) seals the key on the computer, through `company-api.mjs key send <NAME> --value-stdin`, under the person's company sign-in. [Access](#paste-a-key-in-access) seals it in the browser. The app keeps only the sealed key, its last four characters, who sent it and when. A newer key for the same name replaces a waiting one.
+2. **Sealed before it leaves.** [`take-key`](#use-the-assistants-browser) seals the key on the computer, through `company-api.mjs key send <NAME> --value-stdin`, under the person's company sign-in. [Access](#paste-a-key-in-access) seals it in the browser. The [Access module](../../.agents/plugins/access/README.md) keeps only the sealed key, its last four characters, who sent it and when. A newer key for the same name replaces a waiting one.
 3. **The next publish puts it in.** After each deploy of the live app, `seal-keys.mjs put` opens every waiting key, puts them all in the live app's Cloudflare secrets at once, and deletes them from the app's database. A key it can't open stays waiting, named in the run's log without its value. A preview never opens one.
 4. **Offer a keys-only publish.** A key goes live at the next publish, not at once. When no other change waits, ask: *Publish the waiting keys now?* On a yes, run `gh workflow run deploy.yml --ref main` on GitHub, or `node .claude/skills/save/scripts/artifacts-run.mjs keys "$(git rev-parse origin/main)"` on the Artifacts route. Either deploys `main` again, with no code change, then puts the keys. Then run each tool's look-up.
 
@@ -145,7 +145,7 @@ Some tools, such as Shopify's Dev Dashboard, give an ID and a secret, which trad
   "exchange": { "url": "https://<store>.myshopify.com/admin/oauth/access_token" } }
 ```
 
-The tool then needs two keys: the secret as `TOOL_<ID>`, and the ID as `TOOL_<ID>_ID` (`take-key --id`). The app trades them by the standard client-credentials grant, keeps the token until a minute before it runs out, and gets a new one when the service refuses the old one. No token, ID, or secret goes back to the caller. A token address on another host, or with an MCP server, is refused.
+The tool then needs two keys: the secret as `TOOL_<ID>`, and the ID as `TOOL_<ID>_ID` (`take-key --id`). The app trades them by the standard client-credentials grant, keeps the token until a minute before it runs out, and gets a new one when the service refuses the old one. No token, ID, or secret goes back to the caller. A token address on another host is refused.
 
 ## A teammate's computer
 

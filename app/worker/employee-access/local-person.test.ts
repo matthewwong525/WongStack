@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
-import { getAccessIdentity } from "../access";
-import { humanEmail } from "./policy";
+import { getAccessIdentity } from "../access-slots";
+import { humanEmail } from "../access-slots";
 
 // The local stand-in reaches person-only routes, the inbox and its line, only where all three local conditions hold.
 it("takes the local stand-in as a person only on a local run with sign-in skipped, from this computer", async () => {

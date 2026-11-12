@@ -1,6 +1,6 @@
 import { readdirSync } from "node:fs";
 import { expect, it } from "vitest";
-import type { AccessIdentity } from "../../access";
+import type { AccessIdentity } from "../../access-slots";
 import { handleApp } from "../index";
 import { fakeEnv } from "../../../tests/env";
 import { database } from "../../../tests/employee-access/connections";

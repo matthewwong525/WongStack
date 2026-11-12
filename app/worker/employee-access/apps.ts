@@ -1,9 +1,9 @@
 // What a signed-in person can open and reach: their apps, and their level for each saved key used by itself.
-import { hasSignIn, type AccessIdentity } from "../access.ts";
+import { keyIds, keyTitle } from "../../../.agents/skills/access/server/levels.mjs";
+import { authorizeRequest, checkerOwns, currentPolicy, hasSignIn, humanEmail, policyAllows, policyDenied, registryOf,
+  type AccessIdentity, type PolicyEnv } from "../access-slots.ts";
 import { catalogue } from "./catalogue.ts";
-import { keyIds, keyTitle, registryOf } from "./key-levels.ts";
 import { codeState } from "./code.ts";
-import { authorizeRequest, checkerOwns, currentPolicy, humanEmail, policyAllows, policyDenied, type PolicyEnv } from "./policy.ts";
 
 export async function appAccess(request: Request, env: PolicyEnv, identity: AccessIdentity | null): Promise<Response> {
   if (request.method !== "GET") return Response.json({ error: "Not found" }, { status: 404 });

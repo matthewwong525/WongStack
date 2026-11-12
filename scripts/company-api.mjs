@@ -1,27 +1,41 @@
 #!/usr/bin/env node
-// Installed memory remains independent of standalone employee company transport.
+// Installed memory remains independent of standalone employee company transport. Memory and Access are modules:
+// each loads only where it is added, so this helper runs in a project with neither.
 import { randomBytes } from 'node:crypto';
-import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir, userInfo } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { primaryRoot } from '../.agents/skills/memory/scripts/lib/primary-root.mjs';
-import { isMain, parseCli } from './lib-cli.mjs';
-import { memoryOperations, callMemory } from '../.agents/memory/operations.mjs';
-import { selectOperations, parseOperationInput } from '../.agents/memory/lib/operations.mjs';
+import { parseArgs } from 'node:util';
 import { companyClient as transport, signInNotice } from './employee-bootstrap.mjs';
-import { directSend, mcpSession, toolText } from './mcp-session.mjs';
-import { apiCommand, callCount, keepLast, notAddedHint, record, refresh } from './lib-services.mjs';
 export { companyOrigin, cloudflared, loginUrl } from './employee-bootstrap.mjs';
-export function companyClient(options = {}) { return transport({ root: options.root || primaryRoot().root, onboarding: false, ...options }); }
 const CHECKOUT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const added = path => existsSync(join(CHECKOUT, path));
+const memory = added('.agents/memory/operations.mjs') ? {
+  ...await import('../.agents/memory/operations.mjs'), ...await import('../.agents/memory/lib/operations.mjs'),
+  ...await import('../.agents/skills/memory/scripts/lib/primary-root.mjs') } : null;
+const access = added('.agents/skills/access/scripts/services.mjs')
+  ? { ...await import('../.agents/skills/access/scripts/services.mjs'), ...await import('../.agents/skills/access/scripts/lib/services.mjs') } : null;
+const NO_MEMORY = 'Memory is not added to this project.';
+const NO_ACCESS = 'Access is not added to this project, so it has no services, api, record, tool or key commands.';
+export function companyClient(options = {}) { return transport({ root: options.root || (memory ? memory.primaryRoot().root : CHECKOUT), onboarding: false, ...options }); }
+
+/** Memory's own filter check, or the same bounds where memory is not added. */
+function selectOperations(operations, filters) {
+  if (memory) return memory.selectOperations(operations, filters);
+  const { q = '', limit = 20, offset = 0 } = filters;
+  if (!Number.isInteger(limit) || limit < 1 || limit > 50 || !Number.isInteger(offset) || offset < 0 || q.length > 200) throw new Error('Invalid catalogue filter');
+  return { actions: [], total: 0 };
+}
+const addedMemory = () => { if (!memory) throw new Error(NO_MEMORY); return memory; };
 
 export async function combinedList(client, { scope = 'all', ...filters } = {}) {
   // An option nobody gave is left out, never sent as the word "undefined".
   filters = Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined));
   if (!['all', 'company', 'memory'].includes(scope)) throw new Error('Use company, memory or all scope');
+  if (scope === 'memory') addedMemory();
   const { limit = 20, offset = 0 } = filters;
-  const memory = selectOperations(memoryOperations, { ...filters, limit: 50, offset: 0 });
+  const memoryList = selectOperations(memory?.memoryOperations ?? [], { ...filters, limit: 50, offset: 0 });
   // Validate requested bounds even when a company connection is absent.
   selectOperations([], { ...filters, limit, offset });
   if (scope === 'company') return client.list(filters);
@@ -31,12 +45,12 @@ export async function combinedList(client, { scope = 'all', ...filters } = {}) {
     companyStatus = 'available';
   } catch { companyStatus = 'unavailable; use company login'; }
   const memoryOffset = Math.max(0, offset - company.total);
-  const actions = [...company.actions, ...memory.actions.slice(memoryOffset, memoryOffset + Math.max(0, limit - company.actions.length))];
-  const total = company.total + memory.total;
+  const actions = [...company.actions, ...memoryList.actions.slice(memoryOffset, memoryOffset + Math.max(0, limit - company.actions.length))];
+  const total = company.total + memoryList.total;
   const ids = new Set();
   for (const item of actions) { if (ids.has(item.operationId)) throw new Error('Operation ID collision'); ids.add(item.operationId); }
   return { total, offset, next: offset + limit < total ? offset + limit : null, actions, companyStatus,
-    revisions: { company: company.revision, memory: memoryOperations[0].revision } };
+    revisions: { company: company.revision, memory: memory?.memoryOperations[0].revision ?? null } };
 }
 
 /** One line per match, then where the next page starts. */
@@ -45,34 +59,10 @@ export function listLines({ actions, next }) {
   return [...(lines.length ? lines : ['No matches.']), ...(next === null || next === undefined ? [] : [`next: --offset ${next}`])];
 }
 
-/** A key gains its notes page in this checkout, whether written yet or not; the app can't see the checkout. */
-const noted = (key, root) => (/^[a-z0-9][a-z0-9-]*$/.test(key.id)
-  ? { ...key, notes: { path: `wiki/services/${key.id}.md`, exists: existsSync(join(root, 'wiki', 'services', `${key.id}.md`)) } } : key);
-/** Each service gains its notes page, and one used directly the number of calls its definition holds. */
-export function withNotes(answer, root = CHECKOUT) {
-  return { ...answer, services: answer.services.map(service => ({ ...noted(service, root),
-    ...(service.direct && !service.mcp && /^[a-z][a-z0-9-]*$/.test(service.id) && { calls: callCount(root, service.id) }) })) };
-}
-/** Each key a described action uses gains its notes page. A memory operation lists no keys and is left as it is. */
+/** Each key a described action uses gains its notes page, where Access is added. A memory operation lists no keys. */
 export function withKeyNotes(operation, root = CHECKOUT) {
-  return Array.isArray(operation?.keys) ? { ...operation, keys: operation.keys.map(key => noted(key, root)) } : operation;
-}
-const LEVELS = { read: 'Read', write: 'Read & write' };
-function serviceState(service) {
-  if (!service.level) return 'needs access: ask the owner';
-  return service.ready ? `ready  ${LEVELS[service.level] ?? service.level}` : 'not saved yet: ask the owner';
-}
-const callsLine = ({ id, calls }) => `  calls: ${calls} · node scripts/company-api.mjs api ${id}`;
-const toolsLine = ({ id }) => `  tools: node scripts/company-api.mjs mcp ${id} tools`;
-const notesLine = ({ notes, docs }) => `  notes: ${notes.exists ? notes.path : `none yet; start ${notes.path}`}${docs ? `  guide: ${docs}` : ''}`;
-/** The services list as a chat reads it: one line per service, its notes page, and the keys left out. */
-export function serviceLines({ services, needAccess = 0 }) {
-  const width = key => Math.max(0, ...services.map(service => String(service[key] ?? '').length));
-  const lines = services.flatMap(service => [
-    [service.name.padEnd(width('name')), String(service.purpose ?? '').padEnd(width('purpose')), serviceState(service)].join('  '),
-    ...(service.notes ? [notesLine(service)] : []), ...(service.calls === undefined ? [] : [callsLine(service)]), ...(service.mcp ? [toolsLine(service)] : [])]);
-  if (needAccess && !services.some(service => !service.level)) lines.push(`${needAccess} more key${needAccess === 1 ? ' needs' : 's need'} access: ask the owner`);
-  return lines.length ? lines : ['No services yet.'];
+  if (!access || !Array.isArray(operation?.keys)) return operation;
+  return { ...operation, keys: operation.keys.map(key => { const notes = access.notesPage(root, key.id); return notes ? { ...key, notes } : key; }) };
 }
 
 // A long answer goes whole to a private file and the chat sees its start, so one call can't fill the chat.
@@ -98,88 +88,17 @@ export function shortAnswer(text, dir) {
   return JSON.stringify({ truncated: true, bytes, file: saveAnswer(text, dir), preview }, null, 2);
 }
 
-/** One line per MCP tool: its name and the first sentence of what it does. */
-export function toolLines(tools) {
-  const width = Math.max(0, ...tools.map(tool => tool.name.length));
-  const first = text => String(text ?? '').replace(/\s+/g, ' ').trim().split(/(?<=[.!?]) /)[0].slice(0, 160);
-  return tools.length ? tools.map(tool => `${tool.name.padEnd(width)}  ${first(tool.description)}`.trimEnd()) : ['No tools.'];
-}
-
-/** `mcp <key> tools [<name>]` and `mcp <key> tool <name>`, through the app: the text to print. */
-export async function mcpCommand(client, key, [verb, name, ...extra], input) {
-  if (!key || extra.length || !(verb === 'tools' || (verb === 'tool' && name))) throw new Error(USAGE);
-  const args = verb === 'tool' ? input() : undefined;
-  if (verb === 'tool' && (!args || typeof args !== 'object' || Array.isArray(args))) throw new Error('Supply the tool\'s arguments as a JSON object');
-  const { value } = await client.http('/api/services?all=1');
-  const row = Array.isArray(value?.services) ? value.services.find(service => service.id === key) : undefined;
-  if (!row?.mcp?.path) throw new Error(row ? `${row.name} is not an MCP server; use call ${key}.read` : `No service named ${key}: run services`);
-  const session = mcpSession({ send: directSend((id, body) => client.call(id, body), key), path: row.mcp.path, name: row.name });
-  if (verb === 'tool') return toolText(await session.tool(name, args), row.name);
-  const tools = await session.tools();
-  if (!name) return toolLines(tools).join('\n');
-  const tool = tools.find(found => found.name === name);
-  if (!tool) throw new Error(`${row.name} has no tool named ${name}`);
-  return JSON.stringify({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema }, null, 2);
-}
-
 // An ended or refused sign-in names the one step that gets a new one: login prints the link to show the person.
 const SIGNED_OUT = /session (?:is absent or )?expired|access was denied/i;
 export const SIGN_IN_AGAIN = 'Sign in again: run `node scripts/company-api.mjs login`, which prints a link to show the person.';
 const USAGE = `usage: company-api.mjs <command> [--state <private directory>]
   login [--origin <HTTPS origin>]
-  services [--all] [--json]          the services you can use, and how ready each is
   list [--scope all|company|memory] [--q words] [--app name] [--limit 1..50] [--offset n] [--json]
   describe <id> [--json]
   call <id> --file <JSON file or -> [--full]
-  api <key> [<call>]                 a service's calls, or how we use one; api company: the app's own
-  record <key> <name> --file -       save a look-up through <key>.read as an example, and add its call
-  record <key> <name> --last         save the last change made, never sending it again
-  record --refresh [<key>]           ask each saved look-up again; the check names what no longer fits
-  mcp <key> tools [<name>]           an MCP service's tools, or one tool's arguments
-  mcp <key> tool <name> --file <JSON arguments or -> [--full]
-  tool add <id> --file <JSON or ->   add a tool to the live app, owner or Admin: wiki/stack/connect-your-tools.md
-  tool remove <id>
-  key send <NAME> --value-stdin      seal a key read from stdin with the app's public key, here, and send it to the
-                                     live app, owner or Admin; it goes live at the next publish
-  key send <NAME> --sealed-file <file or ->   send a key sealed already, as {"sealed":{...},"ends":"abcd"}
-call and mcp print at most 20 KB; a longer answer is saved to a private file it names. --full prints it all.`;
-
-async function services(client, values) {
-  const { value } = await client.http(`/api/services${values.all ? '?all=1' : ''}`);
-  if (value.error) throw new Error(value.error.message || 'The app could not list its services; it may need an update.');
-  if (!Array.isArray(value.services)) throw new Error('Invalid services list');
-  const answer = withNotes(value);
-  console.log(values.json ? JSON.stringify(answer, null, 2) : serviceLines(answer).join('\n'));
-}
-
-/** Adds or removes a tool kept in the app's data, with no publish. The app checks the entry and who asks. */
-async function toolCommand(client, action, [id, ...rest], input) {
-  if (!['add', 'remove'].includes(action) || !/^[a-z][a-z0-9-]*$/.test(id ?? '') || rest.length) throw new Error(USAGE);
-  const origin = client.target();
-  const init = action === 'add' ? { method: 'PUT', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(input()) }
-    : { method: 'DELETE', headers: { Origin: origin } };
-  const { value } = await client.http(`/api/access/tools/${id}`, init, origin, undefined, { check: ' Check with `services --all` before repeating.' });
-  return value;
-}
-
-/** Sends one key to the live app, sealed in this process with the app's public key, or sealed already: the plain value
- *  is in no argument, output or request. The app checks the name and who asks. wiki/stack/connect-your-tools.md */
-async function keyCommand(client, action, [name, ...rest], values) {
-  if (action !== 'send' || !/^[A-Z][A-Z0-9_]*$/.test(name ?? '') || rest.length || Boolean(values['value-stdin']) === (values['sealed-file'] !== undefined)) throw new Error(USAGE);
-  let body;
-  if (values['value-stdin']) {
-    const value = readFileSync(0, 'utf8').replace(/\r?\n$/, '');
-    if (!value.trim()) throw new Error(`No key on stdin for ${name}.`);
-    const { value: lock } = await client.http('/api/access/keys/seal');
-    if (lock.error) return lock;
-    const { seal } = await import('../app/src/lib/seal.ts');
-    body = { sealed: JSON.parse(await seal(value, lock.publicKey)), ends: value.slice(-4) };
-  } else body = JSON.parse(readFileSync(values['sealed-file'] === '-' ? 0 : values['sealed-file'], 'utf8'));
-  const origin = client.target();
-  const { value } = await client.http(`/api/access/keys/${name}`, { method: 'PUT', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
-    origin, undefined, { check: ' Check with `services --all` before repeating.' });
-  return value;
-}
+${access ? access.usage('').split('\n').slice(1).join('\n') : `  ${NO_ACCESS}`}
+call prints at most 20 KB; a longer answer is saved to a private file it names. --full prints it all.`;
+const SERVICES = ['services', 'api', 'record', 'tool', 'key'];
 
 function printCall(id, result, values) {
   const packet = ['memory.documents', 'memory.recall'].includes(id);
@@ -200,56 +119,46 @@ function printAnswer(text, values) {
   console.log(output);
 }
 
-/** `record`: one example, the last change, or every saved look-up again. */
-async function recordCommand(client, key, extra, values, input) {
-  if (values.refresh) {
-    if (extra.length) throw new Error(USAGE);
-    const { text, ok } = await refresh(client, CHECKOUT, key);
-    console.log(text);
-    if (!ok) process.exitCode = 1;
-    return;
-  }
-  if (extra.length !== 1 || values.last === (values.file !== undefined)) throw new Error(USAGE);
-  console.log(await record(client, CHECKOUT, key, extra[0], { input: values.last ? undefined : input(), last: values.last }));
-}
-
 /** After a direct call: keep a change for `record --last`, and say when its call isn't in the definition yet. */
 function afterCall(id, input, result) {
+  if (!access) return;
   const sent = input();
-  keepLast(CHECKOUT, id, sent, result);
-  const hint = notAddedHint(CHECKOUT, id, sent, result);
+  access.keepLast(CHECKOUT, id, sent, result);
+  const hint = access.notAddedHint(CHECKOUT, id, sent, result);
   if (hint) console.error(hint);
 }
 const once = value => () => value;
+const parseInput = text => { try { return JSON.parse(text); } catch { throw new Error('Invalid JSON input; use a JSON file or stdin'); } };
 
-if (isMain(import.meta.url)) {
-  const { positionals: [command, id, ...extra], values } = parseCli({ usage: USAGE, allowPositionals: true, options: {
+// lib-cli.mjs's convention, written here: it lives in memory, which a project may not have added.
+const isMain = () => { try { return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url)); } catch { return false; } };
+function parseCli(options) {
+  let parsed;
+  try { parsed = parseArgs({ allowPositionals: true, options: { ...options, help: { type: 'boolean' } } }); }
+  catch (error) { console.error(`${error.message}\n${USAGE}`); process.exit(2); }
+  if (parsed.values.help) { console.log(USAGE); process.exit(0); }
+  return parsed;
+}
+
+if (isMain()) {
+  const { positionals: [command, id, ...extra], values } = parseCli({
     ...Object.fromEntries(['origin', 'state', 'scope', 'q', 'app', 'limit', 'offset', 'file'].map(name => [name, { type: 'string' }])),
-    'sealed-file': { type: 'string' }, ...Object.fromEntries(['all', 'json', 'full', 'last', 'refresh', 'value-stdin'].map(name => [name, { type: 'boolean' }])) } });
+    'sealed-file': { type: 'string' }, ...Object.fromEntries(['all', 'json', 'full', 'last', 'refresh', 'value-stdin'].map(name => [name, { type: 'boolean' }])) });
   try {
-    if (extra.length && !['mcp', 'tool', 'key', 'api', 'record'].includes(command)) throw new Error(USAGE);
+    if (extra.length && !SERVICES.includes(command)) throw new Error(USAGE);
+    if (SERVICES.includes(command) && !access) throw new Error(NO_ACCESS);
     const client = companyClient({ stateDir: values.state, onLoginUrl: link => console.error(signInNotice(link)) });
-    let input = () => parseOperationInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8'));
-    if (command === 'services') await services(client, values);
-    else if (command === 'mcp') {
-      printAnswer(await mcpCommand(client, id, extra, input), values);
-    }
-    else if (command === 'tool') printCall(command, await toolCommand(client, id, extra, input), values);
-    else if (command === 'key') printCall(command, await keyCommand(client, id, extra, values), values);
-    else if (command === 'api') {
-      if (extra.length > 1) throw new Error(USAGE);
-      console.log(await apiCommand(client, CHECKOUT, id, extra[0]));
-    }
-    else if (command === 'record') await recordCommand(client, id, extra, values, input);
+    let input = () => parseInput(readFileSync(values.file === '-' ? 0 : values.file, 'utf8'));
+    if (SERVICES.includes(command)) await access.runServices({ command, args: id === undefined ? [] : [id, ...extra], values }, { client, root: CHECKOUT, input });
     else {
       let result;
       if (command === 'login') result = await client.login(values.origin);
       else if (command === 'list') result = await combinedList(client, { scope: values.scope, q: values.q, app: values.app, limit: values.limit === undefined ? 20 : Number(values.limit), offset: values.offset === undefined ? 0 : Number(values.offset) });
-      else if (command === 'describe') result = id?.startsWith('memory.') ? memoryOperations.find(operation => operation.operationId === id) : withKeyNotes(await client.describe(id));
+      else if (command === 'describe') result = id?.startsWith('memory.') ? addedMemory().memoryOperations.find(operation => operation.operationId === id) : withKeyNotes(await client.describe(id));
       else if (command === 'call') {
         const sent = input();
         input = once(sent);
-        result = id?.startsWith('memory.') ? await callMemory(id, sent) : await client.call(id, sent);
+        result = id?.startsWith('memory.') ? await addedMemory().callMemory(id, sent) : await client.call(id, sent);
       }
       else throw new Error(USAGE);
       if (!result) throw new Error('Unknown operation');

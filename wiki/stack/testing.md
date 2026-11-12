@@ -78,9 +78,9 @@ An app that reads from a service the local runtime does not have tests only what
 
 ## Service examples
 
-An app whose server code calls an outside service tests on that service's saved examples, never the live service. The examples are the files `record` saves in `schema/services/<key>/examples/`: [each service's definition](service-catalogue.md#each-services-definition) says how to save one. The [services skill](../../.agents/skills/services/SKILL.md) walks a chat through it.
+An app whose server code calls an outside service tests on that service's saved examples, never the live service. The examples are the files `record` saves in `schema/services/<key>/examples/`: [each service's definition](service-catalogue.md#each-services-definition) says how to save one. The [services skill](../../.agents/plugins/access/skills/services/SKILL.md) walks a chat through it.
 
-- **Type the answer from the definition.** `app/worker/services/<key>.ts` is built from `openapi.json`, one type per call: `const answer = body as NotionSearchAnswer`. Never edit it: `node scripts/check-service-definitions.mjs --types` rebuilds it, and `npm test` fails on a stale one.
+- **Type the answer from the definition.** `app/worker/services/<key>.ts` is built from `openapi.json`, one type per call: `const answer = body as NotionSearchAnswer`. Never edit it: `node .claude/skills/access/scripts/check-definitions.mjs --types` rebuilds it, and `npm test` fails on a stale one.
 - **Play the examples back in a real-database test.** In the app's file, call `context().services.serve("<key>")` first. Each request the Worker sends to that service's address then gets the saved answer whose method, path, query and body match. A request no example matches fails the test, and names the closest example: `No example for GET notion/serch (closest: notion/search)`. A request to any other outside address fails too.
 - **A tool added in the app, not in `app/worker/keys.ts`,** loads only on the live app, and the shared test runtime runs as staging. Start a second runtime as production, insert the tool's `tools` row in its database, then pass that database: `serve("<key>", { db: live.env.DB })`. [`access.ts`](../../app/tests/runtime/apps/access.ts) shows each step.
 

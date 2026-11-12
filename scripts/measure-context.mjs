@@ -13,6 +13,9 @@ const vendored = new Set(['agent-browser']);
 export const callOnly = text => /^disable-model-invocation:\s*true\s*$/m.test(text.match(/^---\r?\n([\s\S]*?)\r?\n---/)?.[1] ?? '');
 // Every other skill's `description:`, joined: what each session reads before the first message.
 export const DESCRIPTIONS = 'skill-descriptions';
+// A module's setup guide runs only in a project without WongStack: in an install it stops at its first step, so no
+// WongStack session reads it. It counts as `on-call`, as a typed-only skill does.
+const setupGuide = path => /^\.agents\/skills\/[^/]+\/references\/setup\.md$/.test(path);
 const canonical = path => path.replace(/^\.claude\//, '.agents/');
 export const countText = text => ({ words: text.trim() ? text.trim().split(/\s+/u).length : 0, bytes: Buffer.byteLength(text) });
 const total = records => records.reduce((sum, value) => ({ words: sum.words + value.words, bytes: sum.bytes + value.bytes }), { words: 0, bytes: 0 });
@@ -72,7 +75,7 @@ export function measureContext(root, baseline) {
   }
   const after = Object.fromEntries([...paths].sort().map(path => [path, countText(readFileSync(join(root, path), 'utf8'))]));
   after[DESCRIPTIONS] = countText(descriptions.filter(Boolean).join('\n'));
-  const kind = path => path === DESCRIPTIONS ? 'descriptions' : owners.has(path) ? 'owners' : path.endsWith('.md') ? (onCall.some(dir => path.startsWith(dir)) ? 'on-call' : 'instructions') : path.endsWith('.html') ? 'html' : 'helpers';
+  const kind = path => path === DESCRIPTIONS ? 'descriptions' : owners.has(path) ? 'owners' : path.endsWith('.md') ? (setupGuide(path) || onCall.some(dir => path.startsWith(dir)) ? 'on-call' : 'instructions') : path.endsWith('.html') ? 'html' : 'helpers';
   const inventory = [...new Set([...Object.keys(before), ...Object.keys(after)])].sort().map(path => ({ path, kind: kind(path), before: before[path] ?? { words: 0, bytes: 0 }, after: after[path] ?? { words: 0, bytes: 0 } }));
   const categories = Object.fromEntries(['instructions', 'on-call', 'owners', 'descriptions', 'html', 'helpers'].map(category => {
     const files = inventory.filter(row => row.kind === category);

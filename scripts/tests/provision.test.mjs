@@ -511,8 +511,9 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain, ...cloudflareOpti
   execFileSync('git', ['init', '-q', '-b', 'main', dir]);
   writeFileSync(join(dir, '.git/info/exclude'), '.env*\n');
   if (email) execFileSync('git', ['-C', dir, 'config', 'user.email', email]);
-  for (const part of ['.agents/plugins/memory', '.agents/memory']) cpSync(join(repoRoot, part), join(dir, part), { recursive: true });
-  symlinkSync('../plugins/memory', join(dir, '.agents/skills/memory'));
+  // WongStack's memory connection signs in through Access, so an install carries both modules.
+  for (const part of ['.agents/plugins/memory', '.agents/plugins/access', '.agents/memory']) cpSync(join(repoRoot, part), join(dir, part), { recursive: true });
+  for (const module of ['memory', 'access']) symlinkSync(`../plugins/${module}`, join(dir, '.agents/skills', module));
   symlinkSync('.agents', join(dir, '.claude'));
   mkdirSync(join(dir, 'app'));
   cpSync(join(repoRoot, 'app/package.json'), join(dir, 'app/package.json'));
