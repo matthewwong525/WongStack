@@ -1,6 +1,6 @@
 # Steps for you to finish
 
-When a login or check stops the agent, it gives you steps for the rest of the job. Signing in on your phone doesn't sign its browser in. This page owns how those steps read; [when a step needs you](../../.agents/plugins/browser/browser/references/browsing.md#when-a-step-needs-you) owns when they come.
+When a login or check stops the agent, it gives you steps for the rest of the job. Signing in on your phone doesn't sign its browser in. This page owns how those steps read; [when a step needs you](../../.agents/plugins/browser/references/browsing.md#when-a-step-needs-you) owns when they come.
 
 - **One line on what stopped it.** *The shop wants a passkey, which only your phone can give.*
 - **Numbered steps, one action each**, in the order you'll do them on your own phone or computer.
@@ -20,4 +20,4 @@ The shop wants a passkey, which only your phone can give. To finish the order:
 5. Tap Place order, and tell me the order number. I'll put the pickup in your calendar.
 ```
 
-Back to [browsing](../../.agents/plugins/browser/browser/references/browsing.md) and [development](README.md).
+Back to [browsing](../../.agents/plugins/browser/references/browsing.md) and [development](README.md).

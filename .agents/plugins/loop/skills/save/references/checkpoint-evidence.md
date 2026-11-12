@@ -17,6 +17,6 @@ A verb walks the rungs in order; the first with exactly one candidate selects it
 - `sole-active` — the only `openspec list` entry, when the session names no other work. `/apply` only: no save, walk, or publish takes a plan merely because it is the only one open.
 - `changed-archive` — the one `archive` candidate, from the same paths. `/save` (before `recorded-branch`) and `/verify` only.
 
-`/ship`'s `prepare`, and `/continue` on a pull request's head branch, walk only `changed-active`, then `recorded-branch`.
+`/ship`'s `prepare`, and `/apply`'s pick-up on a pull request's head branch, walk only `changed-active`, then `recorded-branch`.
 
 A branch name alone never selects a change: a proposal with no Branch line needs an earlier rung.

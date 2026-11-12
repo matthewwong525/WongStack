@@ -6,7 +6,7 @@ import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { acceptFor, frame, SCREEN_PATH, screenBridge, takeFrames } from '../../.agents/skills/hand-over/scripts/lib/ws-bridge.mjs';
+import { acceptFor, frame, SCREEN_PATH, screenBridge, takeFrames } from '../../.agents/skills/browser/skills/hand-over/scripts/lib/ws-bridge.mjs';
 import { clientFrame, upgrade, WS_ACCEPT, WS_KEY } from './fixtures/fake-view-tools.mjs';
 
 const KEY = 'ab'.repeat(32);

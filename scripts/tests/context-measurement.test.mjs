@@ -14,7 +14,7 @@ test('inventory includes extracted references and rejects missing route inputs a
   const root = mkdtempSync(join(tmpdir(), 'wong-context-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const files = {};
-  for (const verb of ['explore', 'plan', 'apply', 'save', 'continue', 'ship', 'verify']) {
+  for (const verb of ['explore', 'plan', 'apply', 'save', 'ship', 'verify']) {
     const path = `.agents/skills/${verb}/SKILL.md`;
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), 'short');
@@ -61,18 +61,19 @@ test('inventory covers every authored skill folder, skips the vendored browser s
   const root = skillTree(t, {
     '.agents/skills/memory/SKILL.md': '---\ndescription: Search facts.\n---\nmemory body',
     '.agents/skills/memory/references/writing-facts.md': 'fact rules',
-    '.agents/skills/schedule/SKILL.md': '---\ndescription: Schedule a prompt.\n---\nroutine body',
+    '.agents/skills/daily/SKILL.md': '---\ndescription: Daily asks.\n---\ndaily body',
+    '.agents/skills/daily/skills/schedule/SKILL.md': '---\ndescription: Schedule a prompt.\n---\nroutine body',
     '.agents/skills/agent-browser/SKILL.md': '---\ndescription: Drive a browser.\n---\nvendored body',
   });
   const report = measureContext(root, { revision: 'fixture', owners: [], files: {}, routes: {} });
   const paths = report.inventory.map(row => row.path);
   assert(paths.includes('.agents/skills/memory/SKILL.md'));
   assert(paths.includes('.agents/skills/memory/references/writing-facts.md'));
-  assert(paths.includes('.agents/skills/schedule/SKILL.md'));
+  assert(paths.includes('.agents/skills/daily/skills/schedule/SKILL.md'));
   assert(!paths.some(path => path.includes('agent-browser')));
   const descriptions = report.inventory.find(row => row.path === DESCRIPTIONS);
   assert.equal(descriptions.kind, 'descriptions');
-  assert.deepEqual(descriptions.after, countText('Search facts.\nSchedule a prompt.\nDrive a browser.'));
+  assert.deepEqual(descriptions.after, countText('Drive a browser.\nDaily asks.\nSchedule a prompt.\nSearch facts.'));
   assert.deepEqual(report.categories.descriptions.after, descriptions.after);
 });
 

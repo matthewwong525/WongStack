@@ -64,8 +64,8 @@ const set = (w, step, opts = {}) => setStep({ step, env: w.env, cwd: opts.cwd ??
 const renames = w => w.calls().filter(args => args[1] === 'update' || args[1] === 'rename');
 
 test('each loop verb is a loop verb, another skill is other, and Codex\'s $ form the same', () => {
-  const loops = ['/explore', '/plan', '/improve-code', '/apply', '/continue', '/ship', '$plan x'].map(p => verbOf(p).loop);
-  assert.deepEqual(loops, Array(7).fill(true));
+  const loops = ['/explore', '/plan', '/improve-code', '/apply', '/ship', '$plan x'].map(p => verbOf(p).loop);
+  assert.deepEqual(loops, Array(6).fill(true));
   assert.deepEqual(verbOf('/daily'), { other: true });
   assert.deepEqual(verbOf('fix the invoice total'), {});
 });
@@ -276,6 +276,20 @@ test('a typed command names the chat at once: a repo skill in capitals, /explore
   assert.equal(commandStep('$verify x', w.main), 'VERIFY');
   assert.equal(commandStep('/a:verify', w.main), null);
   assert.equal(commandStep('/daily', w.main), null);
+});
+
+test('a typed module command, /daily:schedule, names the chat SCHEDULE', unix, t => {
+  const w = world(t);
+  mkdirSync(path.join(w.main, '.claude', 'skills', 'daily', 'skills', 'schedule'), { recursive: true });
+  writeFileSync(path.join(w.main, '.claude', 'skills', 'daily', 'SKILL.md'), '# daily\n');
+  writeFileSync(path.join(w.main, '.claude', 'skills', 'daily', 'skills', 'schedule', 'SKILL.md'), '# schedule\n');
+  assert.equal(commandStep('/daily:schedule every Monday at 9', w.main), 'SCHEDULE');
+  assert.equal(commandStep('/daily:shop', w.main), null, 'no such command in the module');
+  assert.equal(commandStep('/daily:schedule:x', w.main), null);
+  assert.equal(commandStep('/:schedule', w.main), null);
+  const env = { PATH: w.env.PATH, HOME: w.home };
+  const turn = hookTurn({ input: { prompt: '/daily:schedule a weekly sales summary', session_id: 's1', cwd: w.main }, agent: 'claude', env, home: w.home });
+  assert.equal(turn.out?.hookSpecificOutput.sessionTitle, 'SCHEDULE: A weekly sales summary');
 });
 
 test('a first plain message shows and writes nothing; a set then names it, shown at the next message', unix, async t => {

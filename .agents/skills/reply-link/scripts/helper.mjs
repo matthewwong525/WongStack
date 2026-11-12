@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { computerId, helperFiles, pointCurrent, primaryScript, rememberApp, unitPath, wongDir } from './lib/computer.mjs';
-import { alive, signal } from '../../hand-over/scripts/lib/tunnel.mjs';
+import { alive, signal } from '../../browser/skills/hand-over/scripts/lib/tunnel.mjs';
 
 const USAGE = `usage: helper.mjs install [--dry-run] | uninstall [--dry-run] | status | start
   install    make the helper start with this computer, and start it now: a systemd service on Linux,

@@ -5,9 +5,9 @@ import { hostname } from 'node:os';
 import path from 'node:path';
 import { rememberApp } from '../../skills/reply-link/scripts/lib/computer.mjs';
 import { approve, approvedVersion, signedInAs } from './approvals.mjs';
-import { credentialFree, requireValue, ScheduleError, validateTiming } from '../../skills/schedule/scripts/lib/records.mjs';
-import { scheduleVersion } from '../../skills/schedule/scripts/lib/version.mjs';
-import { mayDo } from '../../skills/schedule/scripts/lib/hosts.mjs';
+import { credentialFree, requireValue, ScheduleError, validateTiming } from '../../skills/daily/skills/schedule/scripts/lib/records.mjs';
+import { scheduleVersion } from '../../skills/daily/skills/schedule/scripts/lib/version.mjs';
+import { mayDo } from '../../skills/daily/skills/schedule/scripts/lib/hosts.mjs';
 
 const APP = '/apps/inbox/api/';
 const KEY = /^[a-z0-9][a-z0-9-]{0,63}$/;

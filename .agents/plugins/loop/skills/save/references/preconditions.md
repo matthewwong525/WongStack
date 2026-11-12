@@ -1,6 +1,6 @@
 # Git preconditions
 
-`/save`, `/continue`, `/ship`: [`delivery-route.mjs`](../scripts/delivery-route.mjs) prints `artifacts` → no `gh`: [that route](../../../../../../wiki/stack/artifacts-route.md#how-the-verbs-differ). `app` → no `gh`, app sign-in only: [its route](../../../../../../wiki/stack/employee-project.md#how-the-verbs-differ). `local` → check only `openspec`. Otherwise check GitHub once:
+`/save`, `/apply`'s [pick-up](../../apply/references/pick-up.md), `/ship`: [`delivery-route.mjs`](../scripts/delivery-route.mjs) prints `artifacts` → no `gh`: [that route](../../../../../../wiki/stack/artifacts-route.md#how-the-verbs-differ). `app` → no `gh`, app sign-in only: [its route](../../../../../../wiki/stack/employee-project.md#how-the-verbs-differ). `local` → check only `openspec`. Otherwise check GitHub once:
 
 | Check | Fails when | Fix |
 |---|---|---|

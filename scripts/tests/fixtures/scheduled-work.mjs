@@ -2,8 +2,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { routineRevision } from '../../../.agents/skills/schedule/scripts/lib/records.mjs';
-import { scheduleVersion } from '../../../.agents/skills/schedule/scripts/lib/version.mjs';
+import { routineRevision } from '../../../.agents/skills/daily/skills/schedule/scripts/lib/records.mjs';
+import { scheduleVersion } from '../../../.agents/skills/daily/skills/schedule/scripts/lib/version.mjs';
 
 export const NOW = Date.parse('2026-10-09T10:00:00Z');
 export const COMPUTER = 'c'.repeat(32);

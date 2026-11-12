@@ -12,7 +12,7 @@ Each part of a request after the first gets its own [Paseo](https://paseo.sh) wo
 Ask at three points, in [the shared format](../../explore/references/asking-the-user.md):
 
 - **`/explore`'s [exit round](../../explore/SKILL.md#the-exit-round)**: the request holds several parts, or a new change is asked for in a workspace that holds another.
-- **[`/continue`](../../continue/SKILL.md#3-check-out-the-branch)**: checking out the change would leave other unpublished work here ([pick up saved work](#pick-up-saved-work)).
+- **[`/apply`'s pick-up](../../apply/references/pick-up.md#2-check-out-the-branch)**: checking out the change would leave other unpublished work here ([pick up saved work](#pick-up-saved-work)).
 - **[`/explore`'s check for other work](../../explore/SKILL.md#check-for-other-work)**: other work in this repo overlaps the request.
 
 List the parts by short titles in the person's words, then ask:
@@ -50,7 +50,7 @@ When [the check for other work](../../explore/SKILL.md#check-for-other-work) fin
 
 On option 2, name the workspace to open in Paseo, or the pull request's link, and stop, drafting nothing here.
 
-Check `command -v paseo` first. Without it, drop option 1 from the first two lists and say in one line that new workspaces need Paseo; the busy-workspace ask keeps one option plus the person's own answer. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and record each other part as a memory `thread` fact through [the write gate](../../../../memory/SKILL.md#write).
+Check `command -v paseo` first. Without it, drop option 1 from the first two lists and say in one line that new workspaces need Paseo; the busy-workspace ask keeps one option plus the person's own answer. **Never open a workspace when nobody can answer** (an unattended run, a routine): do the first part and name each other part in its report.
 
 ## New task in this chat
 
@@ -92,16 +92,16 @@ Before your plan, give one line per workspace: *Opened a new workspace, "<title>
 
 ## Pick up saved work
 
-When `/continue` would switch this workspace away from other unpublished work, recommend a new workspace on the change's branch:
+When `/apply`'s pick-up would switch this workspace away from other unpublished work, recommend a new workspace on the change's branch:
 
 ```bash
 node "$W" open --title '<plan title>' --brief <file> --checkout '<branch>' [--reviewed <tip>]
 ```
 
-Its title is the proposal's `#` heading, minus `'` and backticks, else the change name. The brief is `/continue <change name>`, plus the person's instruction if any. After [the review](../../continue/SKILL.md#3-check-out-the-branch)'s yes, `--reviewed` opens exactly that commit; the brief adds *ask before building*. Exit 2 with `review`: newer work. When another workspace has the branch checked out, Paseo refuses: say so and name that workspace.
+Its title is the proposal's `#` heading, minus `'` and backticks, else the change name. The brief is `/apply <change name>`, plus the person's instruction if any. After [the review](../../apply/references/pick-up.md#2-check-out-the-branch)'s yes, `--reviewed` opens exactly that commit; the brief adds *ask before building*. Exit 2 with `review`: newer work. When another workspace has the branch checked out, Paseo refuses: say so and name that workspace.
 
 ## Next work
 
-When `/ship` finishes, look for more asked-for work in this conversation, then, with `.claude/skills/memory/`, with `node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" search --type thread <the change's key terms>`. Name a part already open elsewhere; never open it twice.
+When `/ship` finishes, look for more asked-for work in this conversation. Name a part already open elsewhere; never open it twice.
 
 In a Paseo worktree, [open](#open-each-workspace) and [report](#report) each part with no workspace, then [ask *Close this chat?*](../../explore/references/asking-the-user.md#end-every-reply-with-the-next-step). Elsewhere ask: the next part *(Recommended)*, a [`/verify`](../../verify/SKILL.md) walk, or stop.

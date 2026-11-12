@@ -14,6 +14,41 @@
 
 **Updating.** Nothing to do by hand, with one exception: if you made a schedule that runs the old `/dream-memory` command, delete it. The daily tidy does that work now.
 
+## 57.0.0 — The browser and Daily each come in one folder
+
+- **The browser and Daily each install as one folder** in your skills folder: `.claude/skills/browser/` and `.claude/skills/daily/`. Their other commands sit inside it, in `skills/` ([adding a module](wiki/maintaining/adding-a-module.md)). Before, each one came in two or three folders.
+- **`/schedule` is now `/daily:schedule`.** It does the same work. Its scripts are in `.claude/skills/daily/skills/schedule/scripts/`. In Claude Code, a typed `/schedule` now opens Claude Code's own cloud schedules, not yours. To make a schedule, type `/daily:schedule` or ask in plain words.
+- **A module links no file in another module.** Each one asks you in one sentence, with your assistant's question tool or a short numbered list ([the browser](.agents/plugins/browser/README.md), [Daily](.agents/plugins/daily/README.md)).
+- **Access no longer sets up memory.** Its setup has ten steps, not eleven, and changes no other tool's files ([Access](.agents/plugins/access/README.md)).
+- **Each module's version is in its two `plugin.json` files.** The `module.json` files are gone.
+
+**Updating.** `/wong-sync` moves the folders. Nothing to do by hand. If you type `/schedule` to make a schedule, type `/daily:schedule` from now on. A repo with only the browser or Daily copies the update message from that module's README on GitHub, because the old link to its update steps no longer opens.
+
+## 56.0.0 — The build loop stands on its own
+
+- **`/continue` is gone: type `/apply <name>` to pick up saved work**, or `/apply` alone to choose from a list. It switches to the change's branch first, and still shows work new to this computer and asks before it runs it ([pick up saved work](.agents/plugins/loop/skills/apply/references/pick-up.md)). The loop now has seven commands. `/save` stays.
+- **`/close` keeps unfinished work and closes the workspace, and that is all.** It no longer reads the chat for lessons or edits the wiki. With memory installed, its [daily tidy](wiki/development/wiki-dream.md#the-daily-tidy) puts lasting lessons on the wiki, as it already did for chats closed another way.
+- **No build command reads or writes memory**, so the loop works the same in a project without it. With memory installed, memory still brings what it knows at the start of each chat and when a message names a topic, and it records each chat when it ends.
+- **A half-done errand is memory's to pick up.** Its start-of-chat note lists open errands; say *pick up the supplier email* and the assistant carries on.
+
+**Updating.** `/continue` no longer exists: to pick up saved work, type `/apply` and the work's name. If the update leaves a `.claude/skills/continue` folder, delete it, so the old command stops showing in the command list.
+
+## 55.3.1 — A chat's live-view link opens its own tab
+
+- **Each chat's live-view link now opens that chat's tab.** When two chats need you at once, you open the second chat's link and its tab shows at once. Before, both chats sent the same link, and the view opened on the first chat's tab ([one live view, a tab for each chat](.agents/plugins/browser/hand-over/references/live-view.md#what-the-link-can-do)).
+- **A link whose tab has ended opens the view as it is**, and a reload keeps the tab you chose. The inbox link still opens the tab shown now.
+
+**Updating.** Nothing to do by hand.
+
+## 55.3.0 — The agent signs in with your unlocked 1Password, after your yes
+
+- **1Password comes with the agent's browser.** A new browser adds it, and an older one gets it once, at its next start, by the same checks as an add you ask for. It is not added when you removed it, said no to a password manager before, or when the agent already added another one. A failed download never stops a start; a start a day later tries again ([your password manager](.agents/plugins/browser/browser/references/password-manager.md)).
+- **The agent signs in with a login from your unlocked 1Password, after your yes.** At a login page it reads only the names of the logins 1Password offers there, and asks you every time: the login, the site, and the steps it will take once signed in. On your yes it picks that one login, does only those steps, and names them at the end. It never unlocks 1Password and never reads a password. Locked, or no login for the site: you sign in yourself, as before ([use it at a sign-in](.agents/plugins/browser/browser/references/password-manager.md#use-it-at-a-sign-in)).
+- **New advice: set your password manager to lock after 8 hours**, so one unlock lasts the workday. The old advice, a separate vault and a 5-minute lock, ends.
+- **New commands:** `browse.mjs addon logins` and `addon pick <n>`. Every other step aimed at an add-on is still refused, and so is a key that could pick from 1Password's open list.
+
+**Updating.** Nothing to do by hand. The browser adds 1Password at its next start. Sign in to it once, in the browser the agent sends you, and set its auto-lock to 8 hours. If you don't want it, ask the agent to *remove my password manager*: it stays removed.
+
 ## 55.2.1 — The password manager's page fits a phone in a live view
 
 - **On a phone, the password manager's own page narrows to the phone's width**, as a site's page does. The whole sign-in form shows, its right side included ([password manager](.agents/plugins/browser/browser/references/password-manager.md)). Before, the page stayed as wide as the computer's screen, and the view showed only a narrow strip at its left.

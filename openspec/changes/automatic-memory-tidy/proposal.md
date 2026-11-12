@@ -118,6 +118,7 @@ Memory has two clean-ups. The daily tidy starts by itself, but it checks only a 
 - **2026-11-12** — Built and saved: the script, the use counts, the run, the brief, the wiki, and the release note are written and their tests pass; the real tidy (tasks 6.1 and 6.2) and the full checks (6.3) are next.
 - **2026-11-12** — Assumed: the real tidy of task 6.1 runs before the change is published, from a throwaway clone of the saved branch with publishing off, because the tidy's copy of the main branch does not hold the new brief until this change is live; its page edits are read and then join this change.
 - **2026-11-12** — Assumed: task 6.1's *use memory for a day* is done as real look-ups made now with the new code, because the change is being published in this chat and the task needs real rows, not a day.
+- **2026-11-12** — Assumed: the `knowledge-center` spec gets a small delta, because its catch-up requirement named the removed command beside the daily tidy.
 
 ## Capabilities
 
@@ -129,6 +130,7 @@ None.
 
 - `wiki-dream`: one daily tidy does the full job, working from a map of where memory is weak and from how memory was used, with no fixed steps or counts; it brings no decision to a person and no longer audits specs or plans; it shows what got better; the typed command and its dry run are removed; a tidy stopped at its time limit keeps the parts it finished.
 - `memory`: each look-up by a chat is counted on the computer, and a person can see the counts.
+- `knowledge-center`: the daily tidy alone is the catch-up that moves lasting facts into company knowledge.
 
 ## Impact
 

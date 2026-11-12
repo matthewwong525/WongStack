@@ -10,13 +10,13 @@ import { isMain, parseCli, usageError } from '../skills/memory/scripts/lib/cli.m
 import { LOOP_STEPS, STEPS, skillStep, withoutStep } from '../skills/daily/scripts/chats.mjs';
 import { paseoRecord } from '../skills/daily/scripts/chief.mjs';
 import { findPaseo, runPaseo } from '../skills/daily/scripts/lib/paseo.mjs';
-import { PLACEHOLDERS, renameArgs } from '../skills/schedule/scripts/workspace.mjs';
+import { PLACEHOLDERS, renameArgs } from '../skills/daily/skills/schedule/scripts/workspace.mjs';
 
 const USAGE = `usage: step-title.mjs set <STEP> [--task <words>]   a skill moves this chat to STEP
 --task words, cut at a word to 60 characters, replace the earlier ones unless the person renamed the chat in Paseo.
        step-title.mjs hook --agent claude|codex [--event session-start]   a hook; reads the hook JSON on stdin
 STEP is one of EXPLORE, PLAN, APPLY, SHIP, DONE. The hook gives a step only for a typed command: /explore EXPLORE,
-/plan or /improve-code PLAN, another repo skill its name in capitals (/verify VERIFY); /apply, /continue, /ship none.
+/plan or /improve-code PLAN, another repo skill its name in capitals (/verify VERIFY, /daily:schedule SCHEDULE); /apply, /ship none.
 Always exits 0 and prints STEP_TITLE=<title> or STEP_TITLE=skipped <reason>.`;
 
 export { STEPS, withoutStep };
@@ -34,13 +34,16 @@ export function verbOf(prompt) {
   return VERBS.has(name) ? { loop: true } : { other: true };
 }
 
-/** A typed command's step: a loop verb's own, or another repo skill's name in capitals minus `wong-`; else null. */
+/** A typed command's step: a loop verb's own, or another repo skill's name in capitals minus `wong-`; else null. A
+ *  module's nested command, such as `/daily:schedule`, is its command's name: `SCHEDULE`. */
 export function commandStep(prompt, top) {
   const name = SKILL.exec(String(prompt ?? '').trim())?.[1];
   if (!name) return null;
   if (VERBS.has(name)) return LOOP_STEPS[name];
-  if (name.includes(':') || !top || !existsSync(join(top, '.claude', 'skills', name, 'SKILL.md'))) return null;
-  return skillStep(name);
+  const parts = name.split(':');
+  if (parts.length > 2 || parts.some(part => !part) || !top) return null;
+  const folder = parts.length === 2 ? [parts[0], 'skills', parts[1]] : parts;
+  return existsSync(join(top, '.claude', 'skills', ...folder, 'SKILL.md')) ? skillStep(parts.at(-1)) : null;
 }
 
 const squash = text => String(text ?? '').replace(/\s+/g, ' ').trim().toLowerCase();

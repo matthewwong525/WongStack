@@ -3,8 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { primaryRoot } from '../../skills/memory/scripts/lib/primary-root.mjs';
 import { parseEnv } from '../../skills/memory/scripts/lib/store.mjs';
-import { requireValue, ScheduleError } from '../../skills/schedule/scripts/lib/records.mjs';
-import { normalizedReceipt } from '../../skills/schedule/scripts/lib/hosts.mjs';
+import { requireValue, ScheduleError } from '../../skills/daily/skills/schedule/scripts/lib/records.mjs';
+import { normalizedReceipt } from '../../skills/daily/skills/schedule/scripts/lib/hosts.mjs';
 
 export function legacyContext(cwd, env = process.env) {
   const roots = primaryRoot(cwd);

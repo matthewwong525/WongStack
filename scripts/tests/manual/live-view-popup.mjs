@@ -25,7 +25,7 @@ if (!process.env.LIVE_VIEW_POPUP_HOME) {
 
 const { FILES, launchConfig } = await import('../../../.agents/skills/browser/scripts/browse.mjs');
 const { persistentOptions } = await import('../../../.agents/skills/browser/scripts/browser-server.mjs');
-const { liveView, popupOpen } = await import('../../../.agents/skills/hand-over/scripts/view.mjs');
+const { liveView, popupOpen } = await import('../../../.agents/skills/browser/skills/hand-over/scripts/view.mjs');
 
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 const check = (name, ok, detail = '') => {

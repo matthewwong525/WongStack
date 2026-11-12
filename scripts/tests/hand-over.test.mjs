@@ -8,9 +8,9 @@ import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { FRAMES_SCRIPT, SECRETS_SCRIPT, sessionName } from '../../.agents/skills/browser/scripts/browse.mjs';
-import { keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
-import { appendTiming, KEEP, linkOf } from '../../.agents/skills/hand-over/scripts/lib/timings.mjs';
-import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
+import { keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs';
+import { appendTiming, KEEP, linkOf } from '../../.agents/skills/browser/skills/hand-over/scripts/lib/timings.mjs';
+import { VIEWER } from '../../.agents/skills/browser/skills/hand-over/scripts/view.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { inboxCalls, inboxEnv } from './fixtures/fake-inbox.mjs';
 import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
@@ -19,9 +19,9 @@ import { fakeViewer, fakeViewTools, GREETING, SCREEN, upgrade } from './fixtures
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
+const script = join(repo, '.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs');
 const browse = join(repo, '.agents/skills/browser/scripts/browse.mjs');
-const KEY = /#key=([0-9a-f]{64})$/m;
+const KEY = /#key=([0-9a-f]{64})(?:&|$)/m;
 const PAGE = 'https://pay.example.com/card';
 const RECEIPT = 'https://pay.example.com/receipt/81';
 
@@ -331,11 +331,11 @@ test('each private page gets the app\'s look and the switch from its own site, u
 });
 
 test('the key page loads the switch in its head, from its own site, and the live view and closed page get none', () => {
-  const html = readFileSync(join(repo, '.agents/skills/hand-over/scripts/keys-page.html'), 'utf8');
+  const html = readFileSync(join(repo, '.agents/skills/browser/skills/hand-over/scripts/keys-page.html'), 'utf8');
   const head = html.slice(0, html.indexOf('</head>'));
   assert.ok(head.indexOf('<script src="theme.js"></script>') > head.indexOf('href="page.css"'), 'keys-page: theme.js after page.css, in <head>');
   assert.doesNotMatch(html, /color-scheme:\s*light/, 'keys-page: no fixed light');
-  assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/hand-over/scripts/view-page.html'), 'utf8'), /theme\.js|data-theme-toggle/, 'the live view has no switch');
+  assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/browser/skills/hand-over/scripts/view-page.html'), 'utf8'), /theme\.js|data-theme-toggle/, 'the live view has no switch');
   assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/reply-link/scripts/reply-link.mjs'), 'utf8'), /theme\.js|theme-toggle/, 'the closed page has no switch');
 });
 
@@ -445,7 +445,7 @@ test('--view needs a note and takes no finish; its flags go with --view only', t
   const help = f.run('--help').stdout;
   assert.match(help, /open --view --note <line> \[--session <name>\] \[--minutes N\]/);
   assert.match(help, /never on a page\s+change/);
-  assert.match(help, /joins it as a tab and prints the same link/);
+  assert.match(help, /joins it as a tab and prints the view's link, opening on its tab/);
   assert.match(help, /wait \| close \[--stopped\] \| install-view/);
   assert.match(help, /HANDOVER_NEEDS=live-view/);
   assert.match(help, /HANDOVER_VIEW=window/);
@@ -532,7 +532,7 @@ test('open --view starts the screen source on a private socket, fits the page, a
   const f = fixture(t, { view: true });
   const before = Date.now();
   const { link, port, key } = openedView(f);
-  assert.match(link, new RegExp(`^${ORIGIN}/#key=[0-9a-f]{64}$`));
+  assert.match(link, new RegExp(`^${ORIGIN}/#key=[0-9a-f]{64}&chat=${basename(f.state)}$`), 'the link names its chat\'s tab');
   const state = stateOf(f);
   const { view } = state;
   assert.deepEqual({ ...view, dir: null, sourcePid: null }, { note: NOTE, size: FIRST, display: DISPLAY, dir: null, sourcePid: null });
@@ -952,7 +952,7 @@ test('a second chat\'s turn joins the open view as a tab behind the one shown: t
   const me = basename(f.state);
   const { other, out } = joined(f);
   assert.equal(out.status, 0, out.stderr);
-  assert.equal(/^HANDOVER_LINK=(.+)$/m.exec(out.stdout)?.[1], link.link, 'the same link');
+  assert.equal(/^HANDOVER_LINK=(.+)$/m.exec(out.stdout)?.[1], `${ORIGIN}/#key=${link.key}&chat=flights`, 'the same view, naming its own tab');
   assert.match(out.stdout, /^HANDOVER_LINK=[^\n]*\nHANDOVER_SEND=[^\n]+$/m);
   assert.equal(f.calls().filter(line => line.startsWith('cloudflared tunnel')).length, 1, 'one tunnel');
   assert.equal(f.tools.calls('x11vnc').length, 1, 'one screen source');
@@ -1303,7 +1303,7 @@ test('a live view is listed by what it asks, never its note, and leaves the inbo
   const calls = fakeInbox(f);
   const link = openedView(f, '--note', 'Tap the box that says you are human');
   const state = stateOf(f);
-  assert.deepEqual(await listing(calls, state), { id: state.completionId, title: 'Your turn in the browser', workspace: basename(process.cwd()), what: 'view', url: link.link });
+  assert.deepEqual(await listing(calls, state), { id: state.completionId, title: 'Your turn in the browser', workspace: basename(process.cwd()), what: 'view', url: `${ORIGIN}/#key=${link.key}` }, 'the inbox names no tab');
   await handBack(link);
   assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=handed-back\n');
   assert.deepEqual(closedIn(calls), [state.completionId]);
@@ -1351,7 +1351,7 @@ test('with no profile, a private page has the plain look and no switch, and noth
   f.env.WONG_BROWSER_PROFILE = '';
   const { port, key } = opened(f, ...KEYS);
   const sheet = await (await fetch(`http://127.0.0.1:${port}/page.css`)).text();
-  assert.ok(sheet.startsWith(readFileSync(join(repo, '.agents/skills/hand-over/scripts/plain-look.css'), 'utf8')), 'the plain look');
+  assert.ok(sheet.startsWith(readFileSync(join(repo, '.agents/skills/browser/skills/hand-over/scripts/plain-look.css'), 'utf8')), 'the plain look');
   assert.match(sheet, /--primary: #171717;[\s\S]*\.steps > li::before/, 'its tokens, then the page\'s rules');
   assert.equal(await (await fetch(`http://127.0.0.1:${port}/theme.js`)).text(), '');
   await route(port, key, 'save', { keys: { MAPS_API_KEY: SLOT_KEY } });
