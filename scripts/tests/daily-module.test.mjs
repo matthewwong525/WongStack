@@ -83,7 +83,10 @@ test('a profile with a syntax error crashes no entry point: the stop hook exits 
   assert.equal(stop.status, 0, stop.stderr);
   assert.equal(stop.stdout, '');
   assert.equal(stop.stderr.match(/Daily's profile part failed/g)?.length, 1, 'one line, once');
-  const checked = spawnSync(process.execPath, [join(scripts, 'daily.mjs'), 'check'], { encoding: 'utf8', env });
+  // Its own settings file: a CI runner's git email names no person.
+  const config = join(temp(), 'jo.json');
+  writeFileSync(config, JSON.stringify({ version: 1, person: 'jo', emails: ['jo@example.com'], timezone: 'UTC', morning: '08:00', sources: {}, places: { home: '.' }, addons: { morning: [], pass: [] } }));
+  const checked = spawnSync(process.execPath, [join(scripts, 'daily.mjs'), 'check', '--config', config], { encoding: 'utf8', env });
   assert.doesNotMatch(checked.stderr, /\n\s+at /, 'no stack trace');
   const report = JSON.parse(checked.stdout);
   assert.equal(report.status, 'failed', 'a broken profile is never ready');
