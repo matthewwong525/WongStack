@@ -1,6 +1,6 @@
 # Access, with its keys and services, becomes a module any app can add
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** hulking-dragonfly
 **Open questions:** none
 
@@ -146,3 +146,5 @@ Non-goals: Project code (install and publish through the app) and GitHub people 
 - **2026-11-12** — Check: `app/worker/api/forward-mcp.test.ts`, `app/worker/api/mcp.test.ts` and `scripts/tests/mcp-session.test.mjs` are removed, because MCP through the app is removed with the code they tested.
 - **2026-11-12** — Check: `app/tsconfig.worker.json` drops `tests/employee-access/unchecked-caller.ts`, because the guard that file fed moved into the module's tests. `app/vitest.config.ts` adds the module's tests and lets the test server read the repo root, where they sit. `app/package.json` runs the same service-records check from its new path. `app/.oxlintrc.json` lets the Access app import the module's page alone. `app/knip.jsonc` ignores `src/lib/utils.ts`, the ready-made parts' helper, which no moved screen imports now.
 - **2026-11-12** — Checkpoint: built and reviewed (13 findings fixed, then 1 more); every task but the preview walk (9.3) is done; saving for that walk.
+- **2026-11-12** — Asked: on the preview the checker opens every app and Matthew's own email is the owner, so no walk could show a person without an app being refused; Matthew chose the automatic tests (`403`, *App access denied*) as that check's evidence. The walk showed the rest: the Access page's pictures match today's at 390 and 1280 px, a practice-list save and its undo work as the checker, and `company-api.mjs services` and a Notion `users/me` look-up through the app answer.
+- **2026-11-12** — Archive checkpoint: every task done, archived as release 54.0.0, and saved for the merge.

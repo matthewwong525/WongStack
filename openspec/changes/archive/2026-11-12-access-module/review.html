@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · access-module</title>
+<title>Review · 2026-11-12-access-module</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="access-module" data-own-back>
+<body data-change="2026-11-12-access-module" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>access-module</h1>
+  <h1>2026-11-12-access-module</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -525,6 +525,8 @@
 <li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-12</p>Check: <code>app/worker/api/forward-mcp.test.ts</code>, <code>app/worker/api/mcp.test.ts</code> and <code>scripts/tests/mcp-session.test.mjs</code> are removed, because MCP through the app is removed with the code they tested.</li>
 <li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-12</p>Check: <code>app/tsconfig.worker.json</code> drops <code>tests/employee-access/unchecked-caller.ts</code>, because the guard that file fed moved into the module's tests. <code>app/vitest.config.ts</code> adds the module's tests and lets the test server read the repo root, where they sit. <code>app/package.json</code> runs the same service-records check from its new path. <code>app/.oxlintrc.json</code> lets the Access app import the module's page alone. <code>app/knip.jsonc</code> ignores <code>src/lib/utils.ts</code>, the ready-made parts' helper, which no moved screen imports now.</li>
 <li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Checkpoint: built and reviewed (13 findings fixed, then 1 more); every task but the preview walk (9.3) is done; saving for that walk.</li>
+<li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-12</p>Asked: on the preview the checker opens every app and Matthew's own email is the owner, so no walk could show a person without an app being refused; Matthew chose the automatic tests (<code>403</code>, <i>App access denied</i>) as that check's evidence. The walk showed the rest: the Access page's pictures match today's at 390 and 1280 px, a practice-list save and its undo work as the checker, and <code>company-api.mjs services</code> and a Notion <code>users/me</code> look-up through the app answer.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Archive checkpoint: every task done, archived as release 54.0.0, and saved for the merge.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

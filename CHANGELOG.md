@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Access is a module any app can add
+## 54.0.0 — Access is a module any app can add
 
 - **Access is now one module, the same for any app.** It lives in [`.agents/plugins/access/`](.agents/plugins/access/README.md), and your project gets it at `.claude/skills/access/`. Your app gives it one object, its slots: who is signed in, where people are stored, and who the owner is. An app with no WongStack adds Access by one message pasted into a chat; [its setup guide](.agents/plugins/access/references/setup.md) connects the app's sign-in and database. The Access page, people, roles, apps and key levels stay the same ([employee access](wiki/stack/employee-access.md)).
 - **Services come with it.** The services list, direct calls, keys sent sealed, tools added from a chat, and the services skill are now in the same folder. `company-api.mjs services`, `api`, `record`, `key` and `tool` work as before ([the services list](wiki/stack/service-catalogue.md)).

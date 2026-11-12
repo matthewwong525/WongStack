@@ -55,4 +55,4 @@
 
 - [x] 9.1 Run the app's tests, the module's tests, `module-install.test.mjs`, and the payload checks; fix what fails.
 - [x] 9.2 Install Access alone into a scratch Node app with its own login by following `references/setup.md` from the branch; the check passes, a listed and an unlisted person get the right answers, and `services` says the keys are not set up.
-- [ ] 9.3 `/save`, then walk the preview: the Access page's pictures match today's, a save on the practice list works as the checker, a person without an app is refused, and `company-api.mjs services` and one look-up answer.
+- [x] 9.3 `/save`, then walk the preview: the Access page's pictures match today's, a save on the practice list works as the checker, a person without an app is refused, and `company-api.mjs services` and one look-up answer.
