@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — The build loop stands on its own
+## 56.0.0 — The build loop stands on its own
 
 - **`/continue` is gone: type `/apply <name>` to pick up saved work**, or `/apply` alone to choose from a list. It switches to the change's branch first, and still shows work new to this computer and asks before it runs it ([pick up saved work](.agents/plugins/loop/skills/apply/references/pick-up.md)). The loop now has seven commands. `/save` stays.
 - **`/close` keeps unfinished work and closes the workspace, and that is all.** It no longer reads the chat for lessons or edits the wiki. With memory installed, its [daily tidy](wiki/development/wiki-dream.md#the-daily-tidy) puts lasting lessons on the wiki, as it already did for chats closed another way.

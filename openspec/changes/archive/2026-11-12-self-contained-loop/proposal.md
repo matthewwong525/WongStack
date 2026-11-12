@@ -1,7 +1,7 @@
 # The build loop stands on its own: no memory inside it, and no /continue
 
-**Status:** in-progress
-**Branch:** unbiased-racoon
+**Status:** ready-to-ship
+**Branch:** make-plugins-self-contained
 **Open questions:** none
 
 ## Why
@@ -74,3 +74,4 @@ None.
 - **2026-11-12** — Assumed: the loop module goes to 2.0.0 and memory to 2.1.1 (its `writing-facts.md` line), by the module version rule; Daily's `LOOP_STEPS` keeps its `continue` key, left to the Daily workspace, as a typed `/continue` there still names no step.
 - **2026-11-12** — Assumed: `wiki/development/wiki-dream.md`, `first-day/use-skills.md`, and the `close` area's definition drop `/close`'s wiki step too; `document-recall.test.mjs` now checks that `/explore` calls no memory.
 - **2026-11-12** — Assumed: task 5.2 checked by running the moved `pickup.mjs` in a test repo with no memory, where it held back a branch new to that computer and asked first, and by reading `/close` and `/apply` for memory, finding none. A real `/close` was not run, because it would close this workspace.
+- **2026-11-12** — Assumed: archived and numbered 56.0.0 inside `/ship` after a second look found five issues, all fixed and rechecked; the local pre-check did not run because another chat held it, so the online checks are the gate.
