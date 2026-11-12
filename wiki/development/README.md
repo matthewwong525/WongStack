@@ -4,7 +4,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 
 ## Processes
 
-- [The change loop](the-change-loop.md) — how work moves from idea to shipped, archived spec: `/explore → /plan → /apply → /save → /ship`, with `/continue` to pick saved work back up, each a thin verb over an OpenSpec step, with the change as a living handoff (Status header + append-only Decision log + PR-body mirror).
+- [The change loop](the-change-loop.md) — how work moves from idea to shipped, archived spec: `/explore → /plan → /apply → /save → /ship`, with `/apply <name>` to pick saved work back up, each a thin verb over an OpenSpec step, with the change as a living handoff (Status header + append-only Decision log + PR-body mirror).
   - [Loosened checks](loosened-checks.md) — what the loosened-check guard flags, when a kept check needs a reason, and the copy of the guard a pull request can not edit.
 - [Reply links](reply-links.md) — a plan's page opens at a link whose *Send notes* button puts your notes straight into the chat, and whose *Build it* and *Build and publish* start the build: the inbox, the 24 hours, *new link*, the fallback to copying, and how another page opens the same way.
 - [Staging walkthrough](staging-walkthrough.md) — why `/verify` probes the deployed preview, what you need for it, and what it deliberately is not.
@@ -26,7 +26,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
   - [Browser proxies](../../.agents/plugins/browser/browser/references/browser-proxy.md) — with the proxy on, the browser goes through your home proxy, then a backup, then this computer's network; how to save them, check the route, and turn them off.
   - [Live view](../../.agents/plugins/browser/hand-over/references/live-view.md) — the one place you type something sensitive: a private link shows the agent's browser for your turn to sign in, pay, type a backup code, pass a robot check, or tap through a stuck step, then *Hand back*; where the browser has a window, your turn happens there.
     - [Watch link](watch-link.md) — the live view the agent drives while it connects your tools on a server: *Take over*, *Hand back*, and a turn to sign in.
-  - [Your password manager in the browser](../../.agents/plugins/browser/browser/references/password-manager.md) — a password manager or any other add-on the agent adds with checks when you ask, side by side; the agent never uses it.
+  - [Your password manager in the browser](../../.agents/plugins/browser/browser/references/password-manager.md) — 1Password by default, and any other add-on the agent adds with checks when you ask; the agent asks before each sign-in with a login from it.
 - [Memory dream](wiki-dream.md) — the daily tidy your first chat each day starts, and `/memory:dream-memory`, which checks the wiki, saved facts, specs, and plans against each other and the code: what it fixes, what it only lists, the dry run, and how to undo one.
 - [Session memory](memory.md) — the private fact store: its three layers and the profile, the two installs, who sees what, the company sign-in and its expiry, the start-of-session digest, topics, capture, and consolidation.
   - [Memory search](memory-search.md) — which read to use for facts, with evidence; the pull, related topics, the memory helper, and when to add embeddings.

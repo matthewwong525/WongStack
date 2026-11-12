@@ -41,6 +41,18 @@ export function tabsShow({ tabs = [], shown = null, note = null } = {}) {
   return { row, line: turn?.note ?? note ?? '', id: turn?.id ?? shown ?? '' };
 }
 
+/** What a link's `#` part holds: its key, and the chat whose tab it opens, or null. */
+export function linkOf(hash) {
+  const part = new URLSearchParams(hash.replace(/^#/, ''));
+  return { key: part.get('key') ?? '', chat: part.get('chat') || null };
+}
+
+/** The tab a link for `chat` opens on a turn view's first load: that chat's, if open and not shown; else null. */
+export function tabToOpen(view, chat) {
+  const open = !view?.watch && view?.tabs?.some(tab => tab.chat === chat);
+  return chat && open && chat !== view.shown ? chat : null;
+}
+
 /** A watch link's closing line for a `receipt`. */
 export const watchEnding = receipt => WATCH_ENDINGS[receipt?.result] ?? ENDINGS.closed;
 
@@ -67,7 +79,7 @@ export function ending(receipt) {
 
 function start(RFB = globalThis.RFB) {
   const $ = selector => document.querySelector(selector);
-  const key = new URLSearchParams(location.hash.slice(1)).get('key') ?? '';
+  const { key, chat } = linkOf(location.hash);
   if (RFB) history.replaceState(null, '', location.pathname);
   let viewer = null;
   let fit = null;
@@ -279,7 +291,9 @@ function start(RFB = globalThis.RFB) {
       mayType = false;
       await follow();
     } else {
-      renderTabs(view);
+      // The link's own chat shows first, as a tap on its tab would; a tab that ended leaves the view as it is.
+      const asked = tabToOpen(view, chat) ? await call('show', { chat }) : null;
+      renderTabs((asked?.ok && (await asked.json().catch(() => null))) || view);
       setTimeout(followTabs, POLL_MS);
     }
     await report();

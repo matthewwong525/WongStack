@@ -120,7 +120,7 @@ test('PR renderer preserves tasks and text and encodes active links', t => {
   const body = renderPrBody({ ...options, previewUrl: 'https://preview.example.test' });
   assert(body.includes(`## Tasks\n\n${tasks}\n## Review`));
   assert(body.includes('feature%2Freview%23one/openspec/changes/review%20work/review.html'));
-  assert(body.includes('/continue review work'));
+  assert(body.includes('/apply review work'));
   assert(body.includes('## Preview'));
   assert(body.includes('Concrete problem and behavior.\n\nSecond paragraph.'));
   const output = join(root, 'body.md');
@@ -137,7 +137,7 @@ test('PR renderer preserves tasks and text and encodes active links', t => {
 test('archive bodies omit unavailable links and rendering errors preserve output', t => {
   const { root, options } = bodyFixture(t, true);
   const body = renderPrBody(options);
-  assert(!body.includes('/continue'));
+  assert(!body.includes('pick it up'));
   assert(!body.includes('## Review'));
   assert(!body.includes('## Preview'));
   assert(body.includes('/archive/2026-09-22-review%20work'));

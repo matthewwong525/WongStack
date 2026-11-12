@@ -299,5 +299,7 @@
   {"name": "WONG_ROUTINES_KEY", "replacement": "nothing: the old cloud runner's commands were removed; remove the runner and its keys at Cloudflare by hand"},
   {"name": "startMoveIn", "replacement": "nothing: old schedules no longer move by themselves"},
   {"name": "schedule.mjs move-in", "replacement": "`/schedule`, which saves an old routine or schedule file as a schedule on request"},
-  {"name": "schedule/references/migration.md", "replacement": "`wiki/stack/host-schedules.md#existing-schedules`", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is a measured before-state"}
+  {"name": "schedule/references/migration.md", "replacement": "`wiki/stack/host-schedules.md#existing-schedules`", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the fixture is a measured before-state"},
+  {"name": "`/continue", "replacement": "`/apply <name>`, which picks up saved work"},
+  {"name": "skills/continue/", "replacement": "`skills/apply/`: `apply/scripts/pickup.mjs` and `apply/references/pick-up.md`", "allow": [".agents/verification/journeys/mini-apps/reading-down-a-long-page.json", ".agents/verification/journeys/agent-api-discovery/the-words-are-not-one-phrase.json", ".agents/verification/journeys/agent-api-discovery/one-word-matches-nothing.json", "scripts/fixtures/context-baseline.json"], "why": "each frozen retrieval fixture keeps its original words; each kept check records the files it was made against; the context fixture is a measured before-state"}
 ]

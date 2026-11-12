@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 
@@ -49,7 +49,7 @@ const scripts = {
   '.agents/skills/save/scripts/checkpoint-evidence.mjs': [],
   '.agents/skills/save/scripts/render-pr-body.mjs': [],
   '.agents/loop/other-work.mjs': [],
-  '.agents/skills/continue/scripts/pickup.mjs': [],
+  '.agents/skills/apply/scripts/pickup.mjs': [],
   '.agents/loop/ask-check.mjs': ['stop'],
   '.agents/plugins/memory/skills/dream-memory/scripts/dream.mjs': ['since'],
   '.agents/skills/hand-over/scripts/hand-over.mjs': [],
@@ -153,4 +153,17 @@ test('the loop module\'s helper copies match memory\'s', async () => {
     const [mine, theirs] = await Promise.all([load(`.agents/plugins/loop/${copy}`), load(`.agents/plugins/memory/${original}`)]);
     for (const name of names) assert.equal(String(mine[name]), String(theirs[name]), `${copy}: ${name}`);
   }
+});
+
+// The loop works the same with or without memory, so no loop file names memory's store, skill, or plugin.
+test('the loop module reaches no part of memory', () => {
+  const loop = join(repo, '.agents/plugins/loop');
+  const memory = /memory\.mjs|skills\/memory|plugins\/memory|\.\.\/memory\//;
+  const hits = readdirSync(loop, { recursive: true, withFileTypes: true }).filter(entry => entry.isFile()).flatMap(entry => {
+    const file = relative(loop, join(entry.parentPath, entry.name));
+    const keptEqualNote = line => file.startsWith('scripts/lib/') && line.trimStart().startsWith('//');
+    return readFileSync(join(loop, file), 'utf8').split('\n')
+      .flatMap((line, i) => (memory.test(line) && !keptEqualNote(line) ? [`${file}:${i + 1}`] : []));
+  });
+  assert.deepEqual(hits, []);
 });

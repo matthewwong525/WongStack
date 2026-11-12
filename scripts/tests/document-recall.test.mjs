@@ -176,8 +176,9 @@ test('agent guidance recalls then reads originals while startup and first-edit h
   for (const path of ['.agents/plugins/memory/scripts/session-start.mjs', '.agents/plugins/memory/scripts/before-edit.mjs']) {
     const source = readFileSync(join(root, path), 'utf8'); assert.doesNotMatch(source, /documents\//);
   }
+  // The digest, not a loop command, tells the agent to recall: the loop works without memory.
   const explore = readFileSync(join(root, '.agents/skills/explore/SKILL.md'), 'utf8');
-  assert.match(explore, /recall <question>/); assert.match(explore, /pull <path-or-topic>/);
+  assert.doesNotMatch(explore, /memory\.mjs|recall <question>/);
 });
 
 const fileEntry = (path, facts, via = 'change') => ({ path, facts, via });

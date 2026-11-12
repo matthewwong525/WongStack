@@ -14,7 +14,7 @@ test('inventory includes extracted references and rejects missing route inputs a
   const root = mkdtempSync(join(tmpdir(), 'wong-context-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const files = {};
-  for (const verb of ['explore', 'plan', 'apply', 'save', 'continue', 'ship', 'verify']) {
+  for (const verb of ['explore', 'plan', 'apply', 'save', 'ship', 'verify']) {
     const path = `.agents/skills/${verb}/SKILL.md`;
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), 'short');
