@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import { dailyBlocker, readDaily, startDaily, today } from '../../.agents/plugins/memory/scripts/lib/daily.mjs';
@@ -79,6 +79,7 @@ case "$*" in
         echo '# Two' > wiki/two.md; keep --sorted 3 --checked tag:loose
         echo '# Three' > wiki/three.md; echo 'Not finished.' >> wiki/one.md; kill -KILL $$ ;;
       answer) mkdir -p wiki; echo "$STUB_PAGE" > wiki/answers.md; keep --checked wiki/answers.md ;;
+      company) echo 'More.' >> knowledge/refunds.md; mkdir -p wiki; echo '# One' > wiki/one.md; keep --checked knowledge/refunds.md ;;
     esac ;;
   *) echo capture >> "${log}" ;;
 esac
@@ -111,13 +112,15 @@ async function dailyRepo(t, extra = {}, prepare = () => {}) {
   return { env, origin, agent, run, left };
 }
 
-// A profile that changes WongStack's tidy settings, for one run's WONG_MEMORY_PROFILE.
-function profileWith(env, tidy) {
+// A profile for one run's WONG_MEMORY_PROFILE: `source` is its default export, with WongStack's own as `base`.
+function profileFile(env, source) {
   const file = join(env.repo.home, 'tidy-profile.mjs');
-  writeFileSync(file, `import base from ${JSON.stringify(pathToFileURL(PROFILE).href)};
-export default { ...base, tidy: { ...base.tidy, ...${JSON.stringify(tidy)} } };\n`);
+  writeFileSync(file, `import { mkdirSync, writeFileSync } from 'node:fs';\nimport { join } from 'node:path';
+import base from ${JSON.stringify(pathToFileURL(PROFILE).href)};\nexport default ${source};\n`);
   return file;
 }
+// One that changes WongStack's tidy settings.
+const profileWith = (env, tidy) => profileFile(env, `{ ...base, tidy: { ...base.tidy, ...${JSON.stringify(tidy)} } }`);
 
 const dailyRows = env => rows(env, "SELECT day, status, reason, counts FROM runs WHERE kind = 'daily'");
 // Live records only: upkeep states a record that names a page again, to add the page's topic.
@@ -125,14 +128,19 @@ const records = env => rows(env, "SELECT body FROM facts WHERE body LIKE 'Daily 
 const recorded = env => records(env).length;
 // The store has written 400 facts before the tidy, so a record that names fact #5 comes after it.
 const manyFacts = env => env.fake.db.exec("DELETE FROM sqlite_sequence WHERE name = 'facts'; INSERT INTO sqlite_sequence (name, seq) VALUES ('facts', 400)");
-// The default branch holds one page last changed in January, so it is due.
-function oldPage(env) {
-  mkdirSync(join(env.repo.root, 'wiki'), { recursive: true });
-  writeFileSync(join(env.repo.root, 'wiki/old.md'), '# Old\n\nAn old page.\n');
+// Commits `path` in the checkout at `root` with a January date, so a page there is due.
+function commitOld(root, path, text) {
+  mkdirSync(dirname(join(root, path)), { recursive: true });
+  writeFileSync(join(root, path), text);
   const dated = { ...process.env, GIT_AUTHOR_DATE: '2026-01-01T00:00:00Z', GIT_COMMITTER_DATE: '2026-01-01T00:00:00Z' };
-  execFileSync('git', ['-C', env.repo.root, 'add', 'wiki/old.md'], { env: dated });
-  execFileSync('git', ['-C', env.repo.root, 'commit', '-q', '-m', 'old page'], { env: dated });
+  execFileSync('git', ['-C', root, 'add', path], { env: dated });
+  execFileSync('git', ['-C', root, 'commit', '-q', '-m', path], { env: dated });
 }
+const oldPage = env => commitOld(env.repo.root, 'wiki/old.md', '# Old\n\nAn old page.\n');
+// One missed look-up in the use counts, asked now.
+const missRow = (command, words) => `${JSON.stringify({ at: new Date().toISOString(), command, node: null, topics: [], facts: [], workspace: 'w', miss: true, words })}\n`;
+// The map's own read of the store: the tidy's records and every live fact with its tags, in one request.
+const mapRead = body => body.includes('"slug":"wiki-dream"') && body.includes('"withTags":true');
 
 test('a day with no page edits records the tidy and publishes nothing; a second run the same day loses the claim and writes nothing', async t => {
   const { env, agent, run, left } = await dailyRepo(t);
@@ -198,7 +206,45 @@ test('a tidy killed after two kept parts publishes what it staged, drops the res
   const branch = `daily-tidy-${DAY}`;
   assert.deepEqual(git(env.repo.root, 'show', '--name-only', '--format=', branch).split('\n'), ['wiki/one.md', 'wiki/two.md'], 'the page no keep staged is dropped');
   assert.equal(git(env.repo.root, 'show', `${branch}:wiki/one.md`), '# One', 'so is an edit made after the keep');
-  assert.deepEqual(records(env), [`Daily tidy ${DAY}: read facts up to #5. Sorted facts up to #3. Checked: wiki/one.md, tag:loose. Linked: none. Map: no change.`]);
+  assert.deepEqual(records(env), [`Daily tidy ${DAY}: read facts up to #5. Sorted facts up to #3. Checked: wiki/one.md, tag:loose. Linked: none. Map: no change. Stopped at its time limit.`],
+    'the record says the run was cut short, so the next map keeps the questions it did not reach');
+  assert.deepEqual(left(), { temp: [], worktrees: 1 });
+});
+
+test('the profile readies the copy before the first map: a page its prepare adds is counted, and a missing or failed prepare fails no run', async t => {
+  const { env, agent, run } = await dailyRepo(t, {}, env => commitOld(env.repo.root, '.gitignore', '/extra\n'));
+  const topic = "{ tag: 'refunds', kind: 'company', page: 'extra/refunds.md', summary: 'How refunds are approved.', aliases: [], paths: [], docs: [], hub: null }";
+  const withPrepare = prepare => ({ WONG_MEMORY_PROFILE: profileFile(env,
+    `{ ...base, topics: async ctx => [...await base.topics(ctx), ${topic}], tidy: { ...base.tidy, prepare: ${prepare} } }`) });
+  const made = await run([], withPrepare("({ root }) => { mkdirSync(join(root, 'extra')); writeFileSync(join(root, 'extra/refunds.md'), '# Refunds\\n'); }"));
+  assert.equal(made.code, 0, made.stderr);
+  assert.match(agent.prompt(), /^due pages: 1; extra\/refunds\.md$/m, 'the first map counts the page prepare added');
+  assert.equal(existsSync(join(env.repo.root, 'extra')), false, 'prepare got the copy, not the checkout');
+  assert.deepEqual(agent.calls(), ['capture', 'tidy'], 'a page git ignores is not published');
+  for (const prepare of ['undefined', "() => { throw new Error('no link'); }"]) {
+    const result = await run(['--force'], withPrepare(prepare));
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(agent.prompt(), /^due pages: 0$/m);
+    assert.equal(dailyRows(env)[0].status, 'ok', prepare);
+  }
+});
+
+test("WongStack's profile links the copy to company knowledge: its pages are on the map, and the link is not kept, published, or followed when the copy goes", async t => {
+  const { env, agent, run, left } = await dailyRepo(t, { STUB_TIDY: 'company' }, env => {
+    commitOld(env.repo.root, '.gitignore', '/knowledge\n');
+    const copy = join(env.repo.root, 'knowledge');
+    mkdirSync(copy);
+    git(copy, 'init', '-q', '-b', 'main');
+    git(copy, 'config', 'user.email', 'dev@example.com');
+    git(copy, 'config', 'user.name', 'Dev');
+    commitOld(copy, 'refunds.md', '# Refunds\n\nHow refunds are approved.\n');
+  });
+  const result = await run([], { WONG_MEMORY_PROFILE: profileWith(env, { publish: null }) });
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(agent.prompt(), /^due pages: 1; knowledge\/refunds\.md$/m, 'a company page is due on the first map');
+  assert.deepEqual(records(env), [`Daily tidy ${DAY}: read facts up to #0. Sorted facts up to #0. Checked: knowledge/refunds.md. Linked: none. Map: due pages 1 to 0.`]);
+  assert.deepEqual(git(env.repo.root, 'show', '--name-only', '--format=', `daily-tidy-${DAY}`).split('\n'), ['wiki/one.md'], 'keep and the publish leave the link out');
+  assert.match(readFileSync(join(env.repo.root, 'knowledge/refunds.md'), 'utf8'), /approved\.\nMore\.\n$/, "the edit is in the computer's one copy, which outlives the run's copy");
   assert.deepEqual(left(), { temp: [], worktrees: 1 });
 });
 
@@ -226,7 +272,7 @@ test('missed questions are asked again: six of which five now find a page read 6
   const page = '# Answers\n\nThe courier pickup is on Friday. A refund approval needs the owner. The invoice numbering scheme starts at 1000. The warehouse opening hours are 9 to 5. The supplier contact sheet is in the office.';
   const { env, run } = await dailyRepo(t, { STUB_TIDY: 'answer', STUB_PAGE: page });
   const questions = ['courier pickup friday', 'refund approval owner', 'invoice numbering scheme', 'warehouse opening hours', 'supplier contact sheet', 'zebra migration quota'];
-  writeFileSync(join(env.repo.stateDir, 'usage.jsonl'), questions.map(words => `${JSON.stringify({ at: new Date().toISOString(), command: 'recall', node: null, topics: [], facts: [], workspace: 'w', miss: true, words })}\n`).join(''));
+  writeFileSync(join(env.repo.stateDir, 'usage.jsonl'), questions.map(words => missRow('recall', words)).join(''));
   const result = await run();
   assert.equal(result.code, 0, result.stderr);
   assert.deepEqual(dailyRows(env).map(row => [row.status, row.reason]), [['ok', 'questions with no answer 6 -> 1']]);
@@ -242,12 +288,45 @@ test('a second ask that gets only unrelated facts and passages is still missed',
     facts: [{ action: 'add', type: 'project', body: 'The office opens at 9.', tags: ['memory'] }] })]);
   assert.equal(stored.code, 0, stored.stderr);
   const questions = ['courier pickup friday', 'espresso machine office'];
-  writeFileSync(join(env.repo.stateDir, 'usage.jsonl'), questions.map(words => `${JSON.stringify({ at: new Date().toISOString(), command: 'recall', node: null, topics: [], facts: [], workspace: 'w', miss: true, words })}\n`).join(''));
+  writeFileSync(join(env.repo.stateDir, 'usage.jsonl'), questions.map(words => missRow('recall', words)).join(''));
   const asked = JSON.parse((await memory(env.repo, env.fake, ['recall', 'espresso machine office', '--mode', 'keyword', '--json'], { env: { WONG_MEMORY_RUN: '1' } })).stdout);
   assert.deepEqual(asked.facts.map(fact => fact.body), ['The office opens at 9.'], 'the question does get a fact');
   const result = await run();
   assert.equal(result.code, 0, result.stderr);
   assert.deepEqual(dailyRows(env).map(row => [row.status, row.reason.split('\n')[0]]), [['ok', 'questions with no answer 2 -> 1']]);
+});
+
+test('a missed pull is asked again as a pull: a name with facts and no page is still missed, and a page the tidy made is found', async t => {
+  const { env, run } = await dailyRepo(t, { STUB_TIDY: 'answer', STUB_PAGE: '# Answers\n\nRefunds over 100 dollars need the owner.' });
+  const stored = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'in.json', { source: 'save', slug: 'office',
+    newTags: [{ name: 'refunds', definition: 'How refunds are approved.' }], facts: [{ action: 'add', type: 'project', body: 'Refunds over 100 dollars need the owner.', tags: ['refunds'] }] })]);
+  assert.equal(stored.code, 0, stored.stderr);
+  writeFileSync(join(env.repo.stateDir, 'usage.jsonl'), ['refunds', 'wiki/answers.md'].map(name => missRow('pull', name)).join(''));
+  const recalled = JSON.parse((await memory(env.repo, env.fake, ['recall', 'refunds', '--mode', 'keyword', '--json'], { env: { WONG_MEMORY_RUN: '1' } })).stdout);
+  assert.equal(recalled.facts.length, 1, 'a recall of the name does get the fact, so it would read as answered');
+  const result = await run();
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(dailyRows(env).map(row => [row.status, row.reason.split('\n')[0]]), [['ok', 'questions with no answer 2 -> 1']]);
+});
+
+test('a second map the store fails once is made again; one it never gives is recorded as not read, never as no change', async t => {
+  const { env, run } = await dailyRepo(t, { STUB_TIDY: 'keep', WONG_MEMORY_DAILY_MAP_WAIT_MS: '20' }, oldPage);
+  manyFacts(env);
+  let reads = 0;
+  env.fake.setOffline(body => mapRead(body) && ++reads === 2);
+  const once = await run();
+  assert.equal(once.code, 0, once.stderr);
+  assert.equal(reads, 3, 'the map before the tidy, the read that failed, and the one that answered');
+  assert.match(records(env).at(-1), /Map: due pages 1 to 0\.$/);
+  assert.deepEqual(dailyRows(env).map(row => [row.status, row.reason]), [['ok', 'pages to check 1 -> 0']]);
+
+  reads = 0;
+  env.fake.setOffline(body => mapRead(body) && ++reads > 1);
+  const never = await run(['--force']);
+  assert.equal(never.code, 0, never.stderr);
+  assert.equal(reads, 4, 'three tries after the tidy');
+  assert.equal(records(env).at(-1), `Daily tidy ${DAY}: read facts up to #5. Sorted facts up to #3. Checked: wiki/old.md. Linked: one and old. Map: not read.`);
+  assert.deepEqual(dailyRows(env).map(row => [row.status, row.reason]), [['ok', 'the map could not be read after the tidy']]);
 });
 
 test('a failed publish sends no record, so the next tidy reads the same facts again', async t => {
@@ -269,6 +348,7 @@ test('the note names each changed map number in plain words, the stop at the lim
   assert.equal(runNote({ changes, cut: true, unread: 4 }), ['facts with no topic 40 -> 12', 'topics too big to read 2 -> 1', 'facts that name a gone file 1 -> 0',
     'pages to check 12 -> 5', 'questions with no answer 6 -> 1', CUT_SHORT, 'new facts left unread 4'].join('\n'));
   assert.equal(runNote({}), '');
+  assert.equal(runNote({ changes: null, cut: true }), `the map could not be read after the tidy\n${CUT_SHORT}`, 'a map not read is said, never left as no change');
   assert.ok(runNote({ changes: Array.from({ length: 30 }, () => ['no topic', 1234567, 7654321]), cut: true }).length <= 300, 'inside what the store keeps of a reason');
 });
 

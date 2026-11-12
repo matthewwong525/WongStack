@@ -4,7 +4,7 @@ The memory tidy keeps what your project remembers true and easy to find: once a 
 
 ## The daily tidy
 
-Your first chat each day starts one tidy in the background, and the chat never waits for it. It runs with your own AI plan, in its own copy of the repo, so no checkout you work in changes. With two computers, only one tidies each day. The tidy's own chat is never saved to memory.
+Your first chat each day starts one tidy in the background, and the chat never waits for it. It runs with your own AI plan, in its own copy of the repo, so no checkout you work in changes. The copy links this computer's [company knowledge](../stack/company-knowledge.md), so the map counts company pages too. With two computers, only one tidies each day. The tidy's own chat is never saved to memory.
 
 Each tidy does three things:
 
@@ -45,11 +45,11 @@ Plain code makes the map, not the AI, so each number is true. One line is one we
 
 `node .claude/skills/memory/scripts/daily-tidy.mjs survey` prints the map. `pages` lists every due page, and `pages --all` lists each page as `own` or `shipped` with the date of its last check. `drift` lists the facts that name a gone file. A fact is listed only when the project once held the file and the fact does not itself say it was removed, so a note about planned work, or a record of a removal, is never flagged.
 
-A thing the tidy checked and left alone stays off the map for 7 days, as a checked page does. A tidy that brings you no decision must not look at the same thing each day.
+A thing the tidy checked and left alone stays off the map for 7 days, as a checked page does, from the moment the tidy marks it. A tidy that brings you no decision must not look at the same thing each day.
 
 ## How it shows its work
 
-When the tidy ends, code makes the map again and asks each missed question again. The numbers that changed go in two places:
+When the tidy ends, code makes the map again and asks each missed question again, with the command the chat used. The numbers that changed go in two places:
 
 - **The tidy's record**, a saved fact: the highest fact it read, the highest fact it sorted, what it checked and linked, and each changed number. The next tidy starts after the facts this one read. Code writes the record, never the AI.
 - **Each chat start**, which shows the last tidy:
@@ -61,11 +61,13 @@ When the tidy ends, code makes the map again and asks each missed question again
     questions with no answer 6 -> 1
   ```
 
+When the store does not give the second map in three tries, the record says `Map: not read.` and the chat start says `the map could not be read after the tidy`. Neither says that nothing changed.
+
 The tidy also tests its own work: before it ends, it asks memory a few questions about what it changed, in a stranger's words.
 
 ## The time limit
 
-The tidy's own work stops after 60 minutes. The tidy marks each part it finishes, so a stop at the limit publishes the finished parts and drops the rest. The chat start then says `stopped at its time limit; the rest is on tomorrow's map`. A tidy stopped before it finished any part publishes nothing, and the next day's tidy reads the same facts again. The wait for the project's checks can add up to an hour.
+The tidy's own work stops after 60 minutes. The tidy marks each part it finishes, so a stop at the limit publishes the finished parts and drops the rest. The chat start then says `stopped at its time limit; the rest is on tomorrow's map`. The record of that tidy ends with `Stopped at its time limit.`, so the questions it did not reach stay on the next map. A tidy stopped before it finished any part publishes nothing, and the next day's tidy reads the same facts again. The wait for the project's checks can add up to an hour.
 
 ## How use is counted
 
@@ -116,7 +118,7 @@ The tidy reads old chats, saved facts, and missed questions to learn what happen
 
 ## Your pages and shipped pages
 
-The tidy edits only the pages your project owns: people, the company, customers, the product, and any page you added. It saves a `knowledge/` page [at once](../stack/company-knowledge.md#save-a-page), and any other through a pull request. It never rewrites a page WongStack ships, because the next [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) would overwrite the edit.
+The tidy edits only the pages your project owns: people, the company, customers, the product, and any page you added. It saves a `knowledge/` page [at once](../stack/company-knowledge.md#save-a-page), right after the edit: the computer has one company copy, so no later step can hold the edit. A tidy stopped in the middle of one company edit leaves that edit unsaved, and the next chat start names the page. Any other page goes through a pull request. It never rewrites a page WongStack ships, because the next [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) would overwrite the edit.
 
 ## Undo one
 

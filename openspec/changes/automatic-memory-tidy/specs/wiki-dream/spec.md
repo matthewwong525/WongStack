@@ -46,7 +46,7 @@ A tidy SHALL read every fact saved since the last tidy's record, however many th
 
 ### Requirement: A tidy shows whether memory got easier to search
 
-Plain code SHALL make the map again when a tidy ends, and SHALL ask again each question that found nothing since the last tidy. The tidy's record SHALL hold the numbers from before and after, and each chat start SHALL show the numbers that changed. Before it ends, a tidy SHALL test its own changes by asking memory as a new chat would, and SHALL fix what a question could not find.
+Plain code SHALL make the map again when a tidy ends, and SHALL ask again, the way the chat asked it, each question that found nothing since the last tidy. The tidy's record SHALL hold the numbers from before and after, and each chat start SHALL show the numbers that changed. When the map can not be made again, the record and the chat start SHALL say so, and SHALL NOT say that nothing changed. Before it ends, a tidy SHALL test its own changes by asking memory as a new chat would, and SHALL fix what a question could not find.
 
 #### Scenario: A tidy that gave topics to facts
 
@@ -120,7 +120,7 @@ A tidy SHALL NOT edit a page WongStack ships, a spec, a plan, or an archive, and
 
 ### Requirement: The tidy publishes alone, from its own copy
 
-A tidy SHALL work in a copy of the repository made for the run, so no checkout a person works in is touched. It SHALL save a company-knowledge edit at once and publish any other edit apart from all other work through the project's checks, with no question; where the install names no way to publish, its edits SHALL wait on a branch. A second tidy on the same day SHALL publish as its own change. A person SHALL be able to undo one tidy as one change.
+A tidy SHALL work in a copy of the repository made for the run, with the computer's company knowledge in reach, so no checkout a person works in is touched and the map counts company pages. It SHALL save a company-knowledge edit at once and publish any other edit apart from all other work through the project's checks, with no question; where the install names no way to publish, its edits SHALL wait on a branch. A second tidy on the same day SHALL publish as its own change. A person SHALL be able to undo one tidy as one change.
 
 #### Scenario: Nothing worth keeping
 
@@ -134,12 +134,17 @@ A tidy SHALL work in a copy of the repository made for the run, so no checkout a
 
 ### Requirement: A tidy stopped at its time limit keeps what it finished
 
-A tidy SHALL stop its own work at a stated time limit. A tidy stopped there SHALL publish the parts it finished and record them, SHALL publish no half-made page, and SHALL NOT record a fact or page it did not finish, so the next tidy starts with them. The next chat start SHALL say the tidy was cut short.
+A tidy SHALL stop its own work at a stated time limit. A tidy stopped there SHALL publish the parts it finished and record them, SHALL publish no half-made page, and SHALL NOT record a fact or page it did not finish, so the next tidy starts with them. A question that found nothing, and that the stopped tidy did not reach, SHALL stay on the next map. The next chat start SHALL say the tidy was cut short.
 
 #### Scenario: The limit ends the tidy between pages
 
 - **WHEN** the time limit ends a tidy after it finished four pages and while it edits a fifth
 - **THEN** the four pages publish and count as checked, the fifth is unchanged, and the next tidy checks the fifth first
+
+#### Scenario: The limit ends the tidy before a question
+
+- **WHEN** a chat asked a question that found nothing, and the time limit ends that day's tidy before it works on the question
+- **THEN** the next day's map still shows the question
 
 ### Requirement: Trouble with memory is checked first
 

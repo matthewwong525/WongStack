@@ -22,7 +22,7 @@ Memory has three parts, so another repo can use it with its own database.
 | `currentSlug`, `slugState` | the change on this branch, and whether a slug is active, shipped, or a conversation |
 | `person` | the current person's page, for the digest |
 | `lookup` | what `pull` adds: docs, past changes, links, code users, and each change's files |
-| `tidy` | more pages for [the tidy](wiki-dream.md) to check, how its edits publish, and its deny list |
+| `tidy` | more pages for [the tidy](wiki-dream.md) to check, what its copy needs first, how its edits publish, and its deny list |
 | `sessionStart` | a job at chat start: the company knowledge refresh |
 | `commands` | admin commands on WongStack's own store: `migrate`, `migrate-people`, `assign`, `member` |
 

@@ -42,6 +42,9 @@ const RECORD = /^(?:Dream|Daily tidy|Wiki tidy) \d{4}-\d{2}-\d{2}:/;
 const SORTED = /^[^.]*\. Sorted facts up to #(\d+)\./;
 const newestFirst = (a, b) => String(b.created_at).localeCompare(String(a.created_at)) || b.id - a.id;
 const sortedOf = body => Number(SORTED.exec(String(body))?.[1] ?? 0);
+// Each fact of a record whose run stopped at its limit ends with this: that run did not reach every missed question.
+const STOPPED = ' Stopped at its time limit.';
+const cutShort = fact => String(fact.body).endsWith(STOPPED);
 
 // A tidy's record: upkeep tags `dream` any fact naming this folder, so the tag alone is not enough. A date ahead or
 // not plain UTC, or a `#N` at or above its own id, marks a forgery. One argument: `facts.filter` passes an index.
@@ -125,9 +128,11 @@ export const saysGone = body => /\b(removed|deleted|retired|gone|no longer|renam
 
 const oneLine = (text, max = ITEM) => String(text).replace(/\s+/g, ' ').trim().slice(0, max);
 
-/** One tidy's record as fact bodies of 400 characters at most, each starting the same way. `units` are `keep`'s
- *  lines, `last` the record before this tidy, `map` the changed map numbers as `<name> <before> to <after>`. */
-export function recordBodies({ day: date, units = [], last, map = [] }) {
+/** One tidy's record as fact bodies of 400 characters at most, each starting the same way. `units` are `keep`'s lines,
+ *  `last` the record before, `map` the changed numbers as `<name> <before> to <after>`, `cut` a stop at the limit. */
+export function recordBodies({ day: date, units = [], last, map = [], cut = false }) {
+  const tail = cut ? STOPPED : '';
+  const max = MAX_BODY - tail.length;
   const highest = (key, floor) => Math.max(Number(floor) || 0, ...units.map(unit => Number(unit[key]) || 0));
   const head = `Daily tidy ${date}: read facts up to #${highest('read', last?.afterFact)}. Sorted facts up to #${highest('sorted', last?.sorted)}.`;
   const named = key => [...new Set(units.flatMap(unit => unit[key] || []).map(text => oneLine(text)).filter(Boolean))];
@@ -138,7 +143,7 @@ export function recordBodies({ day: date, units = [], last, map = [] }) {
     let started = false;
     for (const item of items.length ? items : [empty]) {
       let piece = started ? `${joiner}${item}` : ` ${label}: ${item}`;
-      if (body !== head && body.length + piece.length + 1 > MAX_BODY) {
+      if (body !== head && body.length + piece.length + 1 > max) {
         bodies.push(started ? `${body}.` : body);
         body = head;
         piece = ` ${label}: ${item}`;
@@ -148,12 +153,12 @@ export function recordBodies({ day: date, units = [], last, map = [] }) {
     }
     body += '.';
   }
-  return [...bodies, body];
+  return [...bodies, body].map(each => `${each}${tail}`);
 }
 
 const byCount = (a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]));
 
-/** The map, from what was read: `{ last, lines: [{ name, count, names }], questions, newFacts }`. `facts` are the
+/** The map: `{ last, lines: [{ name, count, names }], questions: [{ command, words }], newFacts }`. `facts` are the
  *  live facts with tags, `records` the tidy's records, `pages` and `gone` what `pages` and `drift` compute. */
 export function mapLines({ facts = [], records = [], topicOf = () => null, steps = [], usage = {}, pages = [], pageUses = new Map(), gone = [], checked = [], now = new Date() }) {
   const last = lastDream(records.filter(fact => !fact.superseded_by), now);
@@ -161,14 +166,16 @@ export function mapLines({ facts = [], records = [], topicOf = () => null, steps
   for (const name of checked) checks.set(name, day(now.toISOString()));
   const cutoff = daysBefore(now, DUE_DAYS);
   const left = name => (checks.get(name) ?? '') > cutoff;
-  const recordAt = records.find(fact => fact.id === last.dream)?.created_at ?? last.since;
+  // A run cut short did not reach every question, so the misses are read since the newest record of a full run.
+  const full = records.filter(fact => !fact.superseded_by && isDreamFact(fact) && !cutShort(fact)).sort(newestFirst)[0];
+  const missedSince = full?.created_at ?? daysBefore(now, FIRST_DREAM_DAYS);
   const own = facts.filter(fact => !isDreamFact(fact)).sort((a, b) => a.id - b.id);
   const topicsOf = fact => [...new Set((fact.tags || []).map(topicOf).filter(Boolean))];
   const ids = list => list.map(fact => `#${fact.id}`);
 
   const fresh = own.filter(fact => (last.dream ? fact.id > last.afterFact : day(fact.created_at) >= last.since));
   const trouble = own.filter(fact => fact.type === 'thread' && (fact.tags || []).some(tag => TROUBLE.includes(tag)));
-  const missed = (usage.misses || []).filter(miss => miss.at >= recordAt);
+  const missed = (usage.misses || []).filter(miss => miss.at >= missedSince);
   const loose = own.filter(fact => !topicsOf(fact).length);
   const pageless = new Map(), byTopic = new Map();
   for (const fact of own) {
@@ -183,7 +190,7 @@ export function mapLines({ facts = [], records = [], topicOf = () => null, steps
   const line = (name, list, names = list, shown = NAMES) => ({ name, count: list.length, names: names.slice(0, shown) });
   // A count is the true total, so a thing a tidy looked at and left never reads as fixed; only its name goes.
   const open = (kind, list) => list.filter(([name]) => !left(`${kind}:${name}`));
-  return { last, questions: missed.map(miss => miss.words), newFacts: fresh.map(fact => fact.id), lines: [
+  return { last, questions: missed.map(({ command, words }) => ({ command, words })), newFacts: fresh.map(fact => fact.id), lines: [
     line('new facts', fresh, ids(fresh)),
     line('trouble notes', trouble, ids(trouble)),
     line('missed questions', missed, missed.map(miss => JSON.stringify(miss.words))),
@@ -279,6 +286,12 @@ export async function surveyMap(ctx, { root = ctx.root, checked = [], now = new 
     gone: goneFacts(root, facts), checked, now });
 }
 
+/** `keep`'s lines in `file`, one for each part the tidy finished; a line a kill cut short is dropped. */
+export const progressLines = file => (file && existsSync(file) ? readFileSync(file, 'utf8').split('\n') : [])
+  .flatMap(line => { try { return line ? [JSON.parse(line)] : []; } catch { return []; } });
+// Inside a run, what `keep` marked as checked: no record holds it yet, so the tidy's own map would still list it.
+const keptToday = () => progressLines(process.env.WONG_MEMORY_TIDY_PROGRESS).flatMap(unit => unit.checked || []);
+
 const storeFailed = (error, then) => console.error(`daily-tidy.mjs: the memory store could not be read${then}: ${error.message}`);
 
 async function since({ json }) {
@@ -309,6 +322,7 @@ async function pages({ json, all }) {
   } catch (error) {
     storeFailed(error, ', so commit dates alone are used');
   }
+  for (const name of keptToday()) checks.set(name, day(new Date().toISOString()));
   const { found, topics } = await repoPages(ctx, profile, all ? {} : { only: 'own' });
   const usage = usageSummary(ctx, { topicOf: topicNamer(await loadAreas(ctx, profile)) });
   const list = duePages(pageList(found, checks), { uses: pageUses(topics, usage), all });
@@ -335,7 +349,7 @@ async function drift({ json }) {
 async function survey({ json }) {
   let map;
   try {
-    map = await surveyMap(repoContext(repoRoot()));
+    map = await surveyMap(repoContext(repoRoot()), { checked: keptToday() });
   } catch (error) {
     storeFailed(error, ', so no map was made');
     process.exitCode = 1;

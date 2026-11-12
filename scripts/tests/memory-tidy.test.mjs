@@ -400,6 +400,33 @@ test('a record over 400 characters splits into facts the next tidy reads as one'
   assert.equal(dreamChecks(facts).get('topic:big'), '2026-11-10');
 });
 
+test('the record of a run cut short ends with its sentence in every part, and reads as the last record', () => {
+  const stopped = ' Stopped at its time limit.';
+  const last = { afterFact: 480, sorted: 300 };
+  assert.deepEqual(recordBodies({ day: '2026-11-12', last, cut: true }),
+    [`Daily tidy 2026-11-12: read facts up to #480. Sorted facts up to #300. Checked: none. Linked: none. Map: no change.${stopped}`]);
+  const pages = Array.from({ length: 30 }, (_, n) => `wiki/people/person-${String(n).padStart(2, '0')}.md`);
+  const bodies = recordBodies({ day: '2026-11-10', units: [{ read: 510, sorted: 320, checked: pages, linked: ['x'.repeat(300)] }], last, map: ['not read'], cut: true });
+  assert.ok(bodies.length > 2, `${bodies.length} facts`);
+  for (const body of bodies) assert.ok(body.length <= 400 && body.endsWith(`.${stopped}`), body);
+  assert.ok(bodies.at(-1).endsWith(`Map: not read.${stopped}`), bodies.at(-1));
+  const facts = bodies.map((body, index) => ({ id: 600 + index, created_at: `2026-11-10T08:00:0${index}Z`, body }));
+  assert.deepEqual(lastDream(facts), { since: '2026-11-10', afterFact: 510, sorted: 320, pages, dream: 600 + bodies.length - 1 });
+});
+
+test('a question missed before a run cut short stays on the map; one missed before a full run does not', () => {
+  const input = mapInput();
+  const later = end => ({ id: 600, type: 'project', tags: ['dream'], created_at: ago(0.5), superseded_by: null,
+    body: `Daily tidy ${dayAgo(0.5)}: read facts up to #490. Sorted facts up to #300. Checked: none. Linked: none. Map: no change.${end}` });
+  const mapWith = record => mapLines({ ...input, facts: [...input.facts, record], records: [...input.records, record] });
+  const cut = mapWith(later(' Stopped at its time limit.'));
+  assert.deepEqual(cut.questions, [{ command: 'recall', words: 'where is the refund rule' }], 'asked since the last full record, 2 days ago');
+  assert.deepEqual([cut.last.dream, cut.last.afterFact, cut.newFacts], [600, 490, []], 'the cut-short record still says how far the facts were read');
+  assert.deepEqual(mapWith(later('')).questions, [], 'a full run reached every question asked before it');
+  const onlyCut = mapLines({ ...input, facts: [...input.facts.filter(fact => fact.id !== 500), later(' Stopped at its time limit.')], records: [later(' Stopped at its time limit.')] });
+  assert.equal(onlyCut.questions.length, 2, 'with no full record, every kept question');
+});
+
 // The map's input: a record two days old, 101 facts in each of two topics, and facts with no topic.
 function mapInput() {
   const topicOf = tag => ({ big: 'big', 'fresh-big': 'fresh-big', small: 'small', alias: 'small' })[tag] ?? null;
@@ -450,7 +477,7 @@ test('the map has one line for each weakness, with its count and names to pull',
     { name: 'used together', count: 1, names: ['big + small (3 days)'] },
   ]);
   assert.deepEqual([map.last.dream, map.last.afterFact, map.last.sorted], [500, 480, 300]);
-  assert.deepEqual(map.questions, ['where is the refund rule'], 'only a question asked since the last record');
+  assert.deepEqual(map.questions, [{ command: 'recall', words: 'where is the refund rule' }], 'only a question asked since the last record, with its command');
   assert.deepEqual(map.newFacts, [481, 490]);
   assert.equal(mapText(map).split('\n')[3], 'no topic: 4; #350 · #360');
 });
@@ -490,6 +517,22 @@ test('survey prints zeros for an empty store with no counts, and the map of a st
   assert.equal(map[4], 'tags with no page: 1; refund-rules (1)');
 });
 
+test('inside a run, survey and pages leave off the page and the tag that keep marked as checked', async t => {
+  const env = await setup(t);
+  write(env.repo.root, 'wiki/a.md', '# A\n\nOne.\n');
+  commit(env.repo.root, 'wiki/a.md', '2026-01-01T00:00:00Z');
+  assert.equal((await note(env, 'A fact with a label and no page.', ['loose'])).code, 0);
+  const progress = join(env.repo.home, 'progress.jsonl');
+  const inRun = (...args) => node(env.repo, env.fake, DREAM, args, { env: { ...profile(env).env, WONG_MEMORY_TIDY_PROGRESS: progress } });
+  const shown = async run => { const lines = (await run('survey')).stdout.split('\n'); return [lines[4], lines[7], (await run('pages')).stdout]; };
+  const listed = ['tags with no page: 1; loose (1)', 'due pages: 1; wiki/a.md', 'own\t3\t2026-01-01\twiki/a.md\n'];
+  assert.deepEqual(await shown(inRun), listed, 'before any keep, the map lists both');
+
+  assert.equal((await inRun('keep', '--checked', 'wiki/a.md', '--checked', 'tag:loose')).code, 0);
+  assert.deepEqual(await shown(inRun), ['tags with no page: 1', 'due pages: 0', ''], 'the count of a label looked at stays true; its name goes');
+  assert.deepEqual(await shown((...args) => dream(env, ...args)), listed, 'outside the run, nothing reads the progress file');
+});
+
 test('keep stages every change and adds one line for the part; outside a tidy it exits 2 and stages nothing', async t => {
   const env = await setup(t);
   const { root } = env.repo;
@@ -526,6 +569,8 @@ test('the brief gives a goal, limits and tools, and no fixed steps', () => {
   assert.equal(nevers.length, 8);
   for (const line of nevers) assert.match(line, /^- Never /);
   for (const tool of ['`T survey`', '`T keep ', '`M recall`']) assert.ok(brief.includes(tool), tool);
+  assert.match(brief, /saves at once has no staging, and the `publish:` line of `T pages` names such pages: save it yourself/);
+  assert.match(brief, /\*\*large topics\*\*:.* A topic your own sorting made large is yours to split\./);
   assert.doesNotMatch(brief, /^\s*\d+\. /m, 'no numbered step');
   assert.doesNotMatch(brief, /--daily|--dry-run|openspec|needs you|for the person/i, 'no old flag, no spec check, and no list for a person');
   assert.equal(existsSync(new URL('../../.agents/plugins/memory/skills', import.meta.url)), false, 'the command is gone');
