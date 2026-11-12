@@ -10,7 +10,7 @@ A prototype is a throwaway copy of the app that a plan changes and draws, so the
 
 ## A web app
 
-[The plan's prototype rules](../.agents/plugins/loop/skills/plan/references/prototypes.md#a-web-app) own the route. *Before* is a screenshot of today's screen, taken as the person with [the browser](../.agents/plugins/browser/browser/references/browsing.md).
+[The plan's prototype rules](../.agents/plugins/loop/skills/plan/references/prototypes.md#a-web-app) own the route. *Before* is a screenshot of today's screen, taken as the person with [the browser](../.agents/plugins/browser/references/browsing.md).
 
 ## An app the preview can't serve
 

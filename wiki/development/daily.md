@@ -4,13 +4,13 @@ The daily routine runs your day with no chat to open: each morning the worker ru
 
 ## What it does
 
-1. **Starts your morning.** At `morning` in [your settings file](#your-settings-file), [the worker](#the-daily-on-a-computer) runs your [morning add-ons](#add-ons) one time per day, by [Daily's README](../../.agents/plugins/daily/daily/README.md#your-morning). Your routines are [schedules in the app](#routines-and-timed-jobs).
+1. **Starts your morning.** At `morning` in [your settings file](#your-settings-file), [the worker](#the-daily-on-a-computer) runs your [morning add-ons](#add-ons) one time per day, by [Daily's README](../../.agents/plugins/daily/README.md#your-morning). Your routines are [schedules in the app](#routines-and-timed-jobs).
 2. **Writes what it did** to [the journal](#the-journal): each add-on line, and each source it could not read. It sends you no message and makes no morning list: the plans waiting for you are in [the Inbox](#your-chat-list).
 3. **Does your asks in any chat**, by [ask in any chat](#ask-in-any-chat). It checks who you are from [the profile's](#the-profile) `person`, such as your company sign-in, else your git email. Signed out, it shows you the sign-in link and waits. It runs nothing under a guessed name.
 
 ## Your settings file
 
-Your settings live in `.agents/daily/<name>.json`, one file per person: your id, your emails, your time zone, when your [morning](#what-it-does) starts, your own `guide`, and your [add-ons](#add-ons). [Check-ins](#check-ins) need no file. [Daily's README](../../.agents/plugins/daily/daily/README.md#your-settings) owns each setting.
+Your settings live in `.agents/daily/<name>.json`, one file per person: your id, your emails, your time zone, when your [morning](#what-it-does) starts, your own `guide`, and your [add-ons](#add-ons). [Check-ins](#check-ins) need no file. [Daily's README](../../.agents/plugins/daily/README.md#your-settings) owns each setting.
 
 Say *use Codex for my background runs*: the assistant edits your file, shows you the change, and saves it through [the change loop](the-change-loop.md). Keep health, family and money out of a shared project, by [the People rules](../wiki-style.md#people). A [*Needs you* chat](#the-journal) reads your `guide` first: write your own fix for a problem there, such as how to sign in to the app again.
 
@@ -72,7 +72,7 @@ It also marks a stopped chat as covered when [the line-up](#your-chats-in-line) 
 
 ## Add-ons
 
-An add-on is a Node script in your repo that the daily runs each morning or each watch pass. [Daily's README](../../.agents/plugins/daily/daily/README.md#add-ons) owns what it gets and prints.
+An add-on is a Node script in your repo that the daily runs each morning or each watch pass. [Daily's README](../../.agents/plugins/daily/README.md#add-ons) owns what it gets and prints.
 
 ## The daily on a computer
 
@@ -80,7 +80,7 @@ An add-on is a Node script in your repo that the daily runs each morning or each
 
 Each chat start runs `D ensure`. It adds the [default schedules](../stack/host-schedules.md#default-schedules) you lack, once a day and after an update that changes them. It starts the worker in the background when it has a job: a default schedule it added, a background schedule run, [the line-up](#with-no-app) with no schedule store, an add-on, or your own jobs. It starts none when check-ins are off, when one already runs, or in a background run. One worker runs per person and checkout: a second `serve` sees the first one's lock and exits. The worker runs the main checkout's code and reads its settings there, from any chat in any copy of the repo. When that code changes, as after an update, the worker is stopped and started again, with one line in [the journal](#the-journal). A copy with its own edits to the daily scripts does not restart it.
 
-`runs` picks the AI tool for background runs, and `sweeps` names [your own jobs](#your-own-jobs), by [your settings](../../.agents/plugins/daily/daily/README.md#your-settings).
+`runs` picks the AI tool for background runs, and `sweeps` names [your own jobs](#your-own-jobs), by [your settings](../../.agents/plugins/daily/README.md#your-settings).
 
 Its own timed work is one default schedule: [the line-up](#your-chats-in-line). Memory tidies itself: [the daily tidy](wiki-dream.md#the-daily-tidy) starts at your first chat of each day, with no schedule.
 
@@ -108,14 +108,14 @@ When the same thing fails two times in a row, the worker opens one chat named `N
 
 ### Your own jobs
 
-Your `sweeps` file adds event jobs, changes the default schedules, and lists tools no background run may use. [Daily's README](../../.agents/plugins/daily/daily/README.md#your-own-jobs) owns each entry.
+Your `sweeps` file adds event jobs, changes the default schedules, and lists tools no background run may use. [Daily's README](../../.agents/plugins/daily/README.md#your-own-jobs) owns each entry.
 
 ## The module
 
-Daily is two folders, [`daily`](../../.agents/plugins/daily/daily/README.md) and [`schedule`](../../.agents/plugins/daily/schedule/SKILL.md), in `.agents/plugins/daily/`. It imports no file outside them, and it reaches the repo only through [the profile](#the-profile). It has two installs:
+Daily is one folder, [`.agents/plugins/daily/`](../../.agents/plugins/daily/README.md), with [`/daily:schedule`](../../.agents/plugins/daily/skills/schedule/SKILL.md) inside it in `skills/schedule/`. It imports no file outside the folder, links no file of another module, and reaches the repo only through [the profile](#the-profile). It has two installs:
 
 - **WongStack ships it** with each update, and fills every part of the profile.
-- **Any repo adds it alone** by [its README](../../.agents/plugins/daily/daily/README.md): one pasted message copies both folders in and runs `D check`. That prints `ok` when the profile loads, one worker pass runs, a sample stop sorts, and it names the schedule store: `app`, `paseo` or `off`.
+- **Any repo adds it alone** by [its README](../../.agents/plugins/daily/README.md): one pasted message copies the folder in and runs `D check`. That prints `ok` when the profile loads, one worker pass runs, a sample stop sorts, and it names the schedule store: `app`, `paseo` or `off`.
 
 ### The profile
 
@@ -123,7 +123,7 @@ Daily is two folders, [`daily`](../../.agents/plugins/daily/daily/README.md) and
 
 | Part | Gives | Without it |
 |---|---|---|
-| `schedules` | the schedule store, such as the company app | Paseo's, else `/schedule` is off |
+| `schedules` | the schedule store, such as the company app | Paseo's, else `/daily:schedule` is off |
 | `person` | who is signed in, and the sign-in step | your git email |
 | `chatName` | a chat's step and task, for the line-up | the chat app's title, else the folder |
 | `offeredChoices` | a stop that ended in typed choices the repo sends back | every stop goes to the check-in |
@@ -134,7 +134,7 @@ A part that fails or answers late counts as empty, with one line a day in [the j
 
 ### With no app
 
-- **Schedules go to Paseo.** Each is a chat schedule on this computer, saved after your OK. Paseo can not run a background run, a check, a time limit, a deny list, a team copy, or an end goal, so `/schedule` refuses each with its reason. With no Paseo either, `/schedule` is off and says what it needs.
+- **Schedules go to Paseo.** Each is a chat schedule on this computer, saved after your OK. Paseo can not run a background run, a check, a time limit, a deny list, a team copy, or an end goal, so `/daily:schedule` refuses each with its reason. With no Paseo either, `/daily:schedule` is off and says what it needs.
 - **The worker keeps your chats in line** every 5 minutes, with the same check and brief as [the default schedule](#your-chats-in-line). `D lineup off` stops it; `D lineup on` starts it again. *Stop check-ins* stops it too.
 - **No default schedules** are added.
 

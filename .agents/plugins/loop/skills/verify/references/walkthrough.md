@@ -96,7 +96,7 @@ Read evidence beside each verbatim `then`: screenshots and `evidence/<id>.result
 
 **Partly shown**: some claims observed, others inherently unobservable through available routes (delivery, screen-reader speech). Name every missing claim and why; neither failure nor plain pass, verdict unchanged.
 
-**Show screenshots while grading, before the verdict**: open numbered images in order, with one plain description above each. [The picture convention](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/browser/browser/references/browsing.md#show-what-the-browser-is-doing) applies; skip recapturing them.
+**Show screenshots while grading, before the verdict**: open numbered images in order, with one plain description above each. [The picture convention](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/browser/references/browsing.md#show-what-the-browser-is-doing) applies; skip recapturing them.
 
 - **A clean exit, green suite or `200` is not a pass.** A clean batch whose screenshot lacks the message the `THEN` requires **fails**, as does exit zero or `200` with contradictory output.
 - A failing command is evidence, not a crash. `--bail` stops a browser journey there, so earlier evidence shows how far it got.
@@ -124,7 +124,7 @@ Before handoff, try safe simulations through deployed interfaces, disposable syn
 
 After independent checks/simulations, make **one handoff**, including human-checkable partial claims: text in the comment, the question tool in chat. Each remaining check names its reason, needed action/permission, expected observation and dependents. Offer help or selected/all skips in [the shared ask format](../../explore/references/asking-the-user.md). Skips stay **skipped, unverified**, grant no permission/pass and erase no failure; ask again only if reopened.
 
-Use [key links](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/secrets.md#receive-a-key-through-a-private-link) for credentials or [a live view](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/browser/hand-over/references/live-view.md#sign-in) for login. Waiting grants no permission. Resume pending checks after help; repeat completed checks only on changed conditions. Retain observations, pending/skipped ledger and owned IDs before cleanup.
+Use [key links](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/secrets.md#receive-a-key-through-a-private-link) for credentials or [a live view](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/browser/skills/hand-over/references/live-view.md#sign-in) for login. Waiting grants no permission. Resume pending checks after help; repeat completed checks only on changed conditions. Retain observations, pending/skipped ledger and owned IDs before cleanup.
 
 Publish pictures, post, clean up:
 

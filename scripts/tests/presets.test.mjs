@@ -8,10 +8,10 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { loadPresets, plan, withPresets } from '../../.agents/skills/schedule/scripts/presets.mjs';
+import { loadPresets, plan, withPresets } from '../../.agents/skills/daily/skills/schedule/scripts/presets.mjs';
 
 const repo = new URL('../..', import.meta.url).pathname;
-const cli = path.join(repo, '.agents/skills/schedule/scripts/presets.mjs');
+const cli = path.join(repo, '.agents/skills/daily/skills/schedule/scripts/presets.mjs');
 const PRESETS = loadPresets();
 const names = provider => PRESETS.filter(p => p.provider === provider).map(p => p.name);
 

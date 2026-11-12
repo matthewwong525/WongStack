@@ -53,10 +53,10 @@ const scripts = {
   '.agents/skills/apply/scripts/pickup.mjs': [],
   '.agents/loop/ask-check.mjs': ['stop'],
   '.agents/plugins/memory/skills/dream-memory/scripts/dream.mjs': ['since'],
-  '.agents/skills/hand-over/scripts/hand-over.mjs': [],
+  '.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs': [],
   '.agents/skills/reply-link/scripts/reply-link.mjs': [],
   '.agents/skills/browser/scripts/browse.mjs': [],
-  '.agents/skills/shop/scripts/shop.mjs': [],
+  '.agents/skills/browser/skills/shop/scripts/shop.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],
   '.agents/skills/wong-sync/scripts/preflight.mjs': [],
   '.agents/skills/wong-sync/scripts/merge-check.mjs': [],
@@ -64,9 +64,9 @@ const scripts = {
   '.agents/skills/wong-sync/scripts/install-path.mjs': [],
   '.agents/skills/wong-setup/scripts/provision.mjs': [],
   '.agents/skills/update-dependencies/scripts/update.mjs': [],
-  '.agents/skills/schedule/scripts/schedule.mjs': ['ls'],
-  '.agents/skills/schedule/scripts/tidy.mjs': ['sweep'],
-  '.agents/skills/schedule/scripts/presets.mjs': ['add'],
+  '.agents/skills/daily/skills/schedule/scripts/schedule.mjs': ['ls'],
+  '.agents/skills/daily/skills/schedule/scripts/tidy.mjs': ['sweep'],
+  '.agents/skills/daily/skills/schedule/scripts/presets.mjs': ['add'],
   '.agents/skills/memory/scripts/memory.mjs': ['search'],
   '.agents/skills/memory/scripts/run.mjs': [],
   '.agents/skills/memory/scripts/session-start.mjs': [],
@@ -122,7 +122,7 @@ test('isMain is true through a symlinked path and false for an imported module',
   }
 });
 
-// The browser module keeps its own copies, so it imports nothing outside its folders; each must stay memory's.
+// The browser module keeps its own copies, so it imports nothing outside its folder; each must stay memory's.
 test("the browser module's cli, primary-root, and env copies equal memory's", async () => {
   const lib = (skill, file) => import(pathToFileURL(join(repo, `.agents/skills/${skill}/scripts/lib/${file}`)).href);
   for (const file of ['cli.mjs', 'primary-root.mjs']) {

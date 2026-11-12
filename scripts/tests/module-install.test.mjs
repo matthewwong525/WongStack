@@ -2,7 +2,7 @@
 // wiki/maintaining/adding-a-module.md
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { after, test } from 'node:test';
@@ -104,7 +104,7 @@ const CHECKS = {
       assert.equal(git('remote'), '', 'nothing to push to');
     });
   },
-  // Daily with no profile: both its folders, the start-of-chat ask, and its check; a PATH with node and git only,
+  // Daily with no profile: its one folder, the start-of-chat ask, and its check; a PATH with node and git only,
   // so no `paseo` is found unless a test adds one.
   daily: async ({ folder, root }) => () => {
     const home = join(scratch, 'daily-home'), bin = join(scratch, 'daily-bin');
@@ -152,12 +152,12 @@ const CHECKS = {
       }
     });
   },
-  // The browser's three folders with no profile, so every slot is empty, then with one that fills each.
+  // The browser's one folder with no profile, so every slot is empty, then with one that fills each.
   browser: async ({ root }) => () => {
     const node = (env, script, ...args) => spawnSync(process.execPath, [join(root, '.agents/skills', script), ...args], { cwd: root, env, encoding: 'utf8' });
     test('browser: the setup guide\'s check passes with no profile, and every slot is empty', () => {
       const { env } = sandbox('browser');
-      for (const args of [['browser/scripts/browse.mjs', 'status'], ['hand-over/scripts/details.mjs', 'list'], ['hand-over/scripts/hand-over.mjs', '--help']]) {
+      for (const args of [['browser/scripts/browse.mjs', 'status'], ['browser/skills/hand-over/scripts/details.mjs', 'list'], ['browser/skills/hand-over/scripts/hand-over.mjs', '--help']]) {
         const out = node(env, ...args);
         assert.equal(out.status, 0, `${args.join(' ')}: ${out.stderr}`);
       }
@@ -184,7 +184,7 @@ const CHECKS = {
 /** Each browser slot's type as the installed module loads it, and the key files it routes to. */
 function slots(root, env) {
   const lib = pathToFileURL(join(root, '.agents/skills/browser/scripts/lib/profile.mjs')).href;
-  const keys = pathToFileURL(join(root, '.agents/skills/hand-over/scripts/keys.mjs')).href;
+  const keys = pathToFileURL(join(root, '.agents/skills/browser/skills/hand-over/scripts/keys.mjs')).href;
   const probe = `const { slot } = await import('${lib}'); const { keyFiles } = await import('${keys}');
 const out = {};
 for (const name of ${JSON.stringify(SLOTS)}) { const part = await slot(name); out[name] = part === null ? null : typeof part; }
@@ -195,7 +195,7 @@ console.log(JSON.stringify(out));`;
   return out.stdout;
 }
 
-/** Every relative import or file URL in the module's scripts that resolves outside it; Daily's two folders are one. */
+/** Every relative import or file URL in the module's scripts that resolves outside it. */
 function outsideImports(folder) {
   const files = readdirSync(folder, { recursive: true }).filter(path => /\.m?js$/.test(path));
   return files.flatMap(file => [...readFileSync(join(folder, file), 'utf8').matchAll(SPECIFIER)]
@@ -221,6 +221,28 @@ function brokenImports(root, files) {
   return files.flatMap(file => [...readFileSync(join(root, file), 'utf8').matchAll(SPECIFIER)]
     .filter(match => !existsSync(resolve(root, dirname(file), match[1])))
     .map(match => `${file} → ${match[1]}`));
+}
+
+/** Every Markdown link and WongStack GitHub address in the module's files that reaches another module's folder. A
+ *  link through a skills-folder link, such as `.agents/skills/explore/`, counts as the folder it points at. */
+const STANDALONE = ['browser', 'daily', 'access'];
+const GITHUB = /https:\/\/github\.com\/[\w.-]+\/WongStack\/(?:blob|tree)\/main\/([^\s)#>"'`]+)/g;
+const LINKED = /\]\(([^)\s#]+)|^ {0,3}\[[^\]]+\]:[ \t]*<?([^\s>#]+)/gm;
+function otherModuleLinks(name) {
+  const own = join(repo, '.agents/plugins', name);
+  const plugins = realpathSync(join(repo, '.agents/plugins'));
+  const real = path => { for (let at = path; at !== repo; at = dirname(at)) if (existsSync(at)) return join(realpathSync(at), relative(at, path)); return path; };
+  const files = readdirSync(own, { recursive: true }).filter(path => statSync(join(own, path)).isFile() && /\.(md|mjs|js|json|html)$/.test(path));
+  return files.flatMap(file => {
+    const text = readFileSync(join(own, file), 'utf8');
+    const local = file.endsWith('.md') ? [...text.matchAll(LINKED)].map(m => m[1] ?? m[2]).filter(link => !/^([a-z][a-z0-9+.-]*:|\/)/i.test(link))
+      .map(link => [link, resolve(own, dirname(file), link)]) : [];
+    const remote = [...text.matchAll(GITHUB)].map(m => [m[0], join(repo, m[1])]);
+    return [...local, ...remote].filter(([, target]) => {
+      const at = relative(plugins, real(target));
+      return !at.startsWith('..') && at.split('/')[0] !== name;
+    }).map(([link]) => `${file} → ${link}`);
+  });
 }
 
 // An empty git repo holding only the module, each file where the manifest maps it, and a profile on the stand-in store.
@@ -273,6 +295,14 @@ for (const { name, root, files, check } of installs) {
   test(`${name} installed by the mapped entries still finds every file it imports`, () => {
     assert.deepEqual(brokenImports(root, files.filter(file => /\.m?js$/.test(file))), []);
   });
+
+  if (STANDALONE.includes(name)) {
+    test(`${name} links no file in another module's folder`, () => assert.deepEqual(otherModuleLinks(name), []));
+
+    test(`${name} installs as one folder in the skills folder`, () => {
+      assert.deepEqual(files.filter(file => !file.startsWith(`.agents/skills/${name}/`)), []);
+    });
+  }
 }
 
 // Access with the stand-in store: the owner's first look starts permissions, then the gate lets in only listed people.

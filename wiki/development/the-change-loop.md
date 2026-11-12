@@ -52,7 +52,7 @@ A [Paseo](https://paseo.sh) workspace holds one task. Done, the agent asks *Clos
 
 A request with parts each publishable alone gets one workspace a part, after one question: [the loop's rules](../../.agents/plugins/loop/references/rules.md#several-parts-several-workspaces) own it, and the check for other work before a plan.
 
-Scratch files go in the git-ignored `.scratch/` at the checkout root, which [`tidy.mjs scratch`](../../.agents/plugins/daily/schedule/scripts/tidy.mjs) makes and prints. In the main checkout, each session's tidy-up deletes day-old scratch files.
+Scratch files go in the git-ignored `.scratch/` at the checkout root, which [`tidy.mjs scratch`](../../.agents/plugins/daily/skills/schedule/scripts/tidy.mjs) makes and prints. In the main checkout, each session's tidy-up deletes day-old scratch files.
 
 ### Asking before drafting
 

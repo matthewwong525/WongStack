@@ -83,7 +83,7 @@ file: Logo | image, pdf | 2
 
 Every plan lists what its build needs from you, so a build never stops halfway to ask. [The plan's review page rules](../.agents/plugins/loop/skills/plan/references/review-page.md#what-the-build-needs) own how a plan writes it. In WongStack:
 
-- **A business service's key** is checked by `node scripts/company-api.mjs services`, then the computer's own `.env` ([secrets](development/secrets.md)). A website sign-in is checked by opening the site with `browse.mjs` ([saved browser logins](../.agents/plugins/browser/browser/references/browsing.md#saved-browser-logins)).
+- **A business service's key** is checked by `node scripts/company-api.mjs services`, then the computer's own `.env` ([secrets](development/secrets.md)). A website sign-in is checked by opening the site with `browse.mjs` ([saved browser logins](../.agents/plugins/browser/references/browsing.md#saved-browser-logins)).
 - **A key goes through [its private link](development/secrets.md#receive-a-key-through-a-private-link)**, which the page shows as *Open the link*.
 - **The bar waits for it.** An item counts as open until you send its files on the page. While any item is open, each button but *Send notes* reads *2 things need you*, and a tap shows the first open item. A key saved on its private link turns *Ready* when the chat builds the page again.
 
