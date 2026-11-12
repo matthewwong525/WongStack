@@ -42,9 +42,12 @@ const sha = data => `sha256:${createHash('sha256').update(data).digest('hex')}`;
 const records = new Map();
 const files = new Map();
 let siteDown = false;
+// `siteSilent` keeps each request open with no answer, as a dead network does.
+let siteSilent = false;
 const server = createServer((request, response) => {
   const url = new URL(request.url, 'http://site.test');
   const send = (status, body) => response.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body));
+  if (siteSilent) return undefined;
   if (siteDown) return send(503, {});
   if (url.pathname.startsWith('/files/')) return files.has(url.pathname) ? response.end(files.get(url.pathname)) : send(404, {});
   if (url.pathname === '/api/v5/addons/search/') {
@@ -82,7 +85,7 @@ const LOOKALIKE = { slug: 'vaultt-manager', guid: 'vaultt@someone.example', name
 for (const addon of [FEATURED, POPULAR, LOOKALIKE, BLOCKER]) publish(addon);
 
 const addons = await import('../../.agents/skills/browser/scripts/addons.mjs');
-const { addAddon, addedList, addonStatus, findAddons, folderOf, foundLines, pageUrl, pinnedLayout, removeAddon, startArgs, unzip, UPDATE_MS } = addons;
+const { addAddon, addDefault, addedList, addonStatus, DEFAULT_RETRY_MS, DEFAULT_SITE_MS, defaultState, findAddons, folderOf, foundLines, pageUrl, pinnedLayout, removeAddon, startArgs, unzip, UPDATE_MS } = addons;
 const saved = guid => addedList().find(added => added.guid === guid);
 
 /** Runs browse.mjs without blocking, since the stand-in site answers from this process. */
@@ -273,8 +276,8 @@ test('status names each added add-on or none, an old answer is ignored, and an a
   const out = await run('addon', 'add', FEATURED.slug);
   assert.equal(out.status, 0, out.stderr);
   assert.equal(out.stdout, `BROWSE_ADDON_ADDED=${FEATURED.name}\nBROWSE_ADDON_TELL=${addons.ADVICE}\nBROWSE_SERVER=stopped\n`);
-  assert.match(addons.ADVICE, /only the logins my errands need/);
-  assert.match(addons.ADVICE, /lock after 5 minutes/);
+  assert.match(addons.ADVICE, /lock after 8 hours/);
+  assert.match(addons.ADVICE, /never unlock it, and I ask you before I use a login/);
   const blocker = await run('addon', 'add', BLOCKER.slug);
   assert.equal(blocker.stdout, `BROWSE_ADDON_ADDED=${BLOCKER.name}\nBROWSE_ADDON_TELL=${BLOCKER.name} loads from the browser's next start.\nBROWSE_SERVER=stopped\n`, 'no vault advice for an add-on that is not a password manager');
   assert.equal((await run('addon', 'status')).stdout, `BROWSE_ADDON=${FEATURED.name}\nBROWSE_ADDON=${BLOCKER.name}\n`);
@@ -387,10 +390,73 @@ test('1Password signs in on its own page; addon open shows the newest password m
   assert.equal(pageUrl(), 'moz-extension://op-uuid/app/app.html#/page/welcome');
 });
 
+test('1Password comes once by default: at a new install or an older browser\'s next start, never back after a remove, nor beside another password manager', async () => {
+  const one = publish({ ...addons.ONE_PASSWORD, name: '1Password', users: 2_000_000, promoted: [{ category: 'recommended' }], tags: ['password manager'] });
+  try {
+    reset();
+    assert.equal((await addDefault({ now: 1 })).name, '1Password', 'a new install adds it, by the same checks');
+    assert.equal(defaultState(), 'added');
+    assert.equal(await addDefault(), null, 'once');
+    assert.deepEqual(addonStatus(), ['1Password']);
+
+    reset();
+    await addAddon(BLOCKER.slug, { now: 1 });
+    assert.equal(defaultState(), undefined, 'a browser from before has no default state');
+    assert.deepEqual(await startArgs({ now: 2 }), ['--addon', folderOf(BLOCKER.guid), '--addon', folderOf(one.guid)], 'and gets it at its next start');
+    assert.equal(defaultState(), 'added');
+    assert.equal(await removeAddon('1Password'), '1Password');
+    assert.equal(defaultState(), 'removed');
+    assert.deepEqual(await startArgs({ now: 3 }), ['--addon', folderOf(BLOCKER.guid)], 'removed stays removed');
+    await addAddon(one.slug, { now: 4 });
+    assert.equal(defaultState(), 'added', 'asked for again, it comes back');
+
+    reset();
+    await addAddon(POPULAR.slug, { now: 1 });
+    assert.equal(await addDefault(), null);
+    assert.equal(defaultState(), 'skipped');
+    assert.deepEqual(addonStatus(), [POPULAR.name], 'nothing beside another password manager');
+    await removeAddon(POPULAR.slug);
+    assert.deepEqual(await startArgs({ now: 2 }), [], 'nor after it goes');
+
+    // A v50.1 to v50.6 browser whose person said no to a password manager, or removed one, kept only `declined`.
+    for (const state of ['declined', 'asked']) {
+      reset();
+      mkdirSync(DIR, { recursive: true });
+      writeFileSync(OLD_CHOICE, JSON.stringify({ state }));
+      await startArgs({ now: 1 });
+      if (state === 'declined') assert.deepEqual([defaultState(), addonStatus(), existsSync(OLD_CHOICE)], ['removed', [], false], 'an old no is a remove');
+      else assert.deepEqual(addonStatus(), ['1Password'], 'an old offer with no answer is no no');
+    }
+
+    reset();
+    siteDown = true;
+    assert.deepEqual(await startArgs({ now: 1 }), [], 'a failed download keeps the start going');
+    assert.deepEqual(defaultState(), { failedAt: 1 }, 'and saves when it failed');
+    siteDown = false;
+    await startArgs({ now: DEFAULT_RETRY_MS });
+    assert.deepEqual(addonStatus(), [], 'so a start within a day does not try again');
+    await startArgs({ now: DEFAULT_RETRY_MS + 1 });
+    assert.deepEqual(addonStatus(), ['1Password'], 'and the next start after it does');
+
+    reset();
+    siteSilent = true;
+    const started = Date.now();
+    await assert.rejects(addDefault({ now: 1, wait: 50 }), /did not answer/);
+    assert.ok(Date.now() - started < 2000, 'the default add gives up on a site that never answers by its own short limit');
+    assert.ok(DEFAULT_SITE_MS <= 10_000, `a dead network costs a start ${DEFAULT_SITE_MS} ms at most`);
+    assert.deepEqual(defaultState(), { failedAt: 1 });
+  } finally {
+    siteSilent = false;
+    for (const id of [one.slug, one.guid]) records.delete(id);
+  }
+});
+
 test('the addon verbs are in the usage, and bad words are a usage error', async () => {
   assert.match((await run('--help')).stdout, /addon find <name>/);
   assert.match((await run('--help')).stdout, /addon remove \[<name>\]/);
-  for (const args of [['addon'], ['addon', 'install'], ['addon', 'find'], ['addon', 'status', 'x'], ['addon', 'remove', 'a', 'b']]) {
+  assert.match((await run('--help')).stdout, /addon logins/);
+  assert.match((await run('--help')).stdout, /addon pick <n>/);
+  for (const args of [['addon'], ['addon', 'install'], ['addon', 'find'], ['addon', 'status', 'x'], ['addon', 'remove', 'a', 'b'], ['addon', 'logins', 'x'], ['addon', 'pick']]) {
     const out = await run(...args);
     assert.equal(out.status, 2, args.join(' '));
     assert.match(out.stderr, /usage: browse\.mjs/);

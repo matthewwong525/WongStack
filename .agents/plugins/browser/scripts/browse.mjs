@@ -53,6 +53,10 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
                                 browser ships
   addon open                    open the newest password manager's page, else the newest add-on's, in this
                                 task's tab, for the person in a live view
+  addon logins                  the logins the password manager's fill list offers for this page, by name only:
+                                BROWSE_ADDON_LOGIN=<n> | <name> each, or BROWSE_ADDON_LOGIN=locked|none
+  addon pick <n>                after the person's yes, pick login <n> from the list addon logins read on this
+                                page in the last 2 minutes, once; prints BROWSE_ADDON_PICKED=filled
   addon status                  BROWSE_ADDON=<name> for each added add-on, or BROWSE_ADDON=none
   addon remove [<name>]         take out the add-on its slug or name names, with its stored data; no name
                                 takes out the only one`;
@@ -443,6 +447,8 @@ async function install() {
   run(PYTHON, ['-m', 'camoufox', 'fetch'], 'the Camoufox build');
   const check = await launchConfig(['--check']);
   if (check.error) throw new BrowseError(`the install finished, but ${check.error}`);
+  // A running browser may be another chat's: its next start makes the default add instead.
+  if (!(await liveServer())) await (await import('./addons.mjs')).addDefault().catch(() => null);
   console.log(`BROWSE_INSTALLED=${installedLine(check)}`);
 }
 
@@ -748,6 +754,10 @@ export function client(given, { retry = true, start = true } = {}) {
     ready: async () => { await connect(); },
     /** Opens the password manager's own page in this tab; the tab file keeps the site, for a reopen. */
     openAddon: url => onTab(tabId => json('POST', `/tabs/${tabId}/navigate`, { userId: USER, url }, { wait: COMMAND_MS + SETTLE_MS })),
+    /** The login names the password manager's fill list offers for this page: `{state, names}`. */
+    logins: () => onTab(tabId => json('POST', `/tabs/${tabId}/logins`, { userId: USER })),
+    /** Picks login `n` from the list `logins` read last; the server refuses any other order. */
+    pick: n => onTab(tabId => json('POST', `/tabs/${tabId}/pick`, { userId: USER, n })),
     /** A use the server counts, so it keeps an idle page open; it reads and changes nothing on the page. */
     keepAlive: () => evaluate('1'),
     async value(target) {
@@ -842,7 +852,7 @@ const QUIET = new Set(['click', 'type', 'press', 'select']);
 function addonRunner([verb, ...words], usage) {
   return async (page, _, flags) => {
     const { ADDON_VERBS } = await import('./addons.mjs');
-    if (!Object.hasOwn(ADDON_VERBS, verb)) usage('addon takes find, add, open, status, or remove');
+    if (!Object.hasOwn(ADDON_VERBS, verb)) usage('addon takes find, add, open, logins, pick, status, or remove');
     const [count, runner] = ADDON_VERBS[verb];
     const [least, most = least] = [count].flat();
     const counted = least === most ? least : `${least} or ${most}`;

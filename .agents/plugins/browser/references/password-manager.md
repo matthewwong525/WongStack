@@ -1,10 +1,12 @@
 # Your password manager in the browser
 
-The agent's browser can hold a password manager add-on, such as 1Password or Bitwarden, and any other add-on, such as Dark Reader. You ask the agent to add it, sign in to it, and fill a login from your vault. The agent never uses it.
+The agent's browser comes with the 1Password add-on, and can hold any other add-on, such as Bitwarden or Dark Reader. You sign in to 1Password once and keep it unlocked; the agent then asks you before each sign-in with a login from it, and never unlocks it.
 
 ## Ask the agent
 
-The agent asks nothing about a password manager. When you want an add-on, say so: *add my password manager*, or *add Dark Reader*. The agent adds a well-known one at once, with [the checks](#the-checks), and opens a password manager's sign-in page, so you only sign in. An add-on the browser already has, such as uBlock Origin, is built in: the agent says so and adds nothing.
+The agent asks nothing about a password manager: a new browser adds 1Password with [the checks](#the-checks), and an older one gets it once, at its next start. It is not added when you removed it, said no to a password manager before, or when the agent already added another one. A failed download keeps the start going, and a start a day later tries again.
+
+When you want an add-on, say so: *add my password manager*, or *add Dark Reader*. The agent adds a well-known one at once, with [the checks](#the-checks), and opens a password manager's sign-in page, so you only sign in. An add-on the browser already has, such as uBlock Origin, is built in: the agent says so and adds nothing.
 
 Ask the agent, not the add-on site in the browser. 1Password added from [Firefox's add-on site](https://addons.mozilla.org) in Camoufox 158.0.1-beta.41 opened no setup page, and its button did nothing; the copy the agent added worked. When you ask the agent for an add-on you already added yourself, its add removes your copy and its stored data, so only the working copy loads.
 
@@ -26,6 +28,15 @@ Right after it adds a password manager, the agent opens its own page and [sends 
 
 ## Use it at a sign-in
 
+When a site needs a login and 1Password is unlocked, the agent signs in with it, after your yes:
+
+1. `addon logins` reads only the names of the logins 1Password offers for the site.
+2. The agent asks you, every time: the login, the site, and the numbered steps it will take once signed in.
+3. On your yes, `addon pick <n>` picks that login, once. 1Password fills the page, and the agent clicks the site's sign-in. It sees the password box only as filled.
+4. The agent does only the steps you said yes to. Another step asks again, and an action that sends, pays, or posts keeps its own yes. Its end report names the steps it did.
+
+A pick needs a fresh `addon logins` on the same page, within 2 minutes; the code refuses any other order. When 1Password is locked, has no login for the site, or you say no, you sign in yourself in a sign-in turn, as below.
+
 In [the browser window](browser-window.md#your-turn-in-the-window), use it as in your own Firefox. In a live view, with the one the agent added:
 
 1. The agent runs `addon open` right after it adds a password manager, and before [a sign-in turn](../skills/hand-over/references/live-view.md#sign-in). The password manager's own page opens in the task's tab: the newest one added, else the newest add-on.
@@ -36,14 +47,13 @@ On the password manager's page, the page fits your phone or laptop, as a site do
 
 Each add-on's button is on the toolbar, from the second start of a new browser. Its small pop-up also works in a live view: it stays open until you pick from it or tap outside it. Tap its box, then type, such as your password to unlock it ([a pop-up stays open](../skills/hand-over/references/live-view.md#what-the-link-can-do)).
 
-The agent's own steps skip the password manager, and every other add-on. `snapshot` leaves out their frames, and a click, typing, a key, or a choice aimed at one stops with `BROWSE_ERROR=that is the password manager's own; the person uses it in the live view`. While its page shows in the tab, every step but a new address stops the same way, and the agent can not see that page.
+Apart from that one pick, the agent's own steps skip the password manager, and every other add-on. `snapshot` leaves out their frames, and a click, typing, a key, or a choice aimed at one stops with `BROWSE_ERROR=that is the password manager's own; the person uses it in the live view`. While its page shows in the tab, every step but a new address stops the same way, and the agent can not see that page.
 
 ## Keep it safe
 
-When it adds an add-on that Firefox's add-on site tags as a password manager, the agent tells you these two steps: `addon add` prints them as `BROWSE_ADDON_TELL=`. For any other add-on, it says only that the add-on loads from the next start.
+When it adds an add-on that Firefox's add-on site tags as a password manager, the agent tells you this step: `addon add` prints it as `BROWSE_ADDON_TELL=`. For any other add-on, it says only that the add-on loads from the next start.
 
-- **Use a separate vault** that holds only the logins the agent's errands need.
-- **Set auto-lock to 5 minutes.** The guard stops the agent's routine reading and clicks, not a script it runs in a page. A locked vault gives a script nothing.
+- **Set auto-lock to 8 hours**, so one unlock lasts the workday. The agent never unlocks it: a locked vault gives it nothing, so you get a sign-in turn instead. Your yes before each pick is the guard; the agent never reads a password.
 
 ## Updates
 
@@ -51,7 +61,7 @@ At a browser start, once a week, each add-on the agent added is checked for a ne
 
 ## Remove or change it
 
-Name the add-on: *remove my password manager*, or *remove Dark Reader*. `addon remove <name>` deletes that add-on and its stored data, so no signed-in session stays, and leaves the others. To change to another password manager, ask for the new one, then remove the old one.
+Name the add-on: *remove my password manager*, or *remove Dark Reader*. `addon remove <name>` deletes that add-on and its stored data, so no signed-in session stays, and leaves the others. A removed 1Password stays removed: no later start adds it back, until you ask for it. To change to another password manager, ask for the new one, then remove the old one.
 
 An add-on you added yourself, you remove in the browser's own add-ons page (`about:addons`). The agent's ones, by hand: delete `~/.wong-stack/camoufox/addons/` and `addons.json` with the browser stopped. An answer saved by an older version, *None* included, is ignored.
 
