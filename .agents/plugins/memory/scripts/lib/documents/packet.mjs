@@ -13,10 +13,9 @@ const clipped = (value, max = 240) => {
 const cleanStatus = status => ({ state: status?.state || 'unavailable', ...(status?.reason ? { reason: clipped(status.reason, 180) } : {}) });
 
 export function packetText(packet) {
-  const lines = [`Recall v1 · scope ${packet.scope} · mode ${packet.mode} · backend ${packet.backend}`,
+  const lines = [`Recall v2 · scope ${packet.scope}`,
     `Facts: ${packet.sources.facts.state}${packet.sources.facts.reason ? ` (${packet.sources.facts.reason})` : ''}; documents: ${packet.sources.documents.state}${packet.sources.documents.reason ? ` (${packet.sources.documents.reason})` : ''}${
-      packet.sources.files?.state === 'unavailable' ? `; files: unavailable${packet.sources.files.reason ? ` (${packet.sources.files.reason})` : ''}` : ''}`,
-    `Semantic coverage: ${packet.coverage}; requested mode: ${packet.requestedModeState}`];
+      packet.sources.files?.state === 'unavailable' ? `; files: unavailable${packet.sources.files.reason ? ` (${packet.sources.files.reason})` : ''}` : ''}`];
   if (Object.keys(packet.filters).length) lines.push(`Fact filters: ${JSON.stringify(packet.filters)}`);
   if (packet.change) lines.push(`Change documents: ${packet.change}`);
   for (const fact of packet.facts) lines.push(`Fact #${fact.id} · ${fact.type} · ${fact.created_at} · author ${fact.author || 'unknown'} · session ${fact.session_id || 'none'} · slug ${fact.slug}\n${fact.body}\nSource: source ${fact.id}`);
@@ -44,11 +43,11 @@ function minimumDocument(document) {
     truncated: document.truncated || index + 1 < lines.length };
 }
 
-export function renderPacket({ question, scope = 'current', mode = 'auto', change = null, limit = 5, backend = 'lexical-fallback', coverage = 'unavailable',
-  requestedModeState = 'ok', filters = {}, factSource, documentSource, facts = [], documents = [], files, fileSource },
+export function renderPacket({ question, scope = 'current', change = null, limit = 5, filters = {}, factSource, documentSource,
+  facts = [], documents = [], files, fileSource },
   { json = false, budget = PACKET_BYTES } = {}) {
   // `files` undefined means no list was asked for, as on `documents`: the packet then carries no files fields.
-  const packet = { version: 1, question: clipped(question), scope, mode, change, documentLimit: limit, backend, coverage, requestedModeState,
+  const packet = { version: 2, question: clipped(question), scope, change, documentLimit: limit,
     filters, sources: { facts: cleanStatus(factSource), documents: cleanStatus(documentSource),
       ...(files ? { files: cleanStatus(fileSource ?? { state: 'empty' }) } : {}) },
     facts: [], documents: [], ...(files ? { files: [] } : {}), omitted: { facts: facts.length, documents: documents.length } };

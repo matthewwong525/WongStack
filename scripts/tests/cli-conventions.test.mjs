@@ -12,7 +12,6 @@ const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const scripts = {
   'scripts/company-api.mjs': [],
   'scripts/employee-bootstrap.mjs': [],
-  'scripts/evaluate-document-retrieval.mjs': [],
   '.agents/skills/browser/scripts/connect-browser.mjs': [],
   '.agents/memory/operations.mjs': [],
   'scripts/measure-context.mjs': [],

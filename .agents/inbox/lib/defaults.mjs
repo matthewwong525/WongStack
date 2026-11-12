@@ -1,16 +1,60 @@
 // WongStack's default schedules, approved here because they come with this checkout's code; one the person never
 // changed follows updates and check-ins. wiki/stack/host-schedules.md
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { readJson, writeJson } from '../../skills/daily/scripts/chief.mjs';
 import { defaultsFile } from '../../skills/daily/scripts/daily.mjs';
 import { addLine } from '../../skills/daily/scripts/journal.mjs';
-import { DEFAULT_SCHEDULES } from '../../skills/daily/scripts/worker.mjs';
+import { briefFolders, DEFAULT_SCHEDULES } from '../../skills/daily/scripts/worker.mjs';
 import { approveHere, definition, readSchedule, saveDefinition, send } from './app.mjs';
-import { fromSweep, readBrief } from '../move-in.mjs';
+import { RUN_FLOOR_MS } from '../runs.mjs';
 import { canonical, scheduleVersion } from '../../skills/daily/skills/schedule/scripts/lib/version.mjs';
 
+const MINUTE = 60_000;
+// A timed job's `at` time counted this long after it in the worker's old loop, so its schedule may be this late.
+const AT_GRACE_MIN = 15;
+const keyOf = id => id.slice(0, 64).replace(/-+$/, '');
+const clock = text => String(text).split(':').map(Number);
 const same = (one, two) => JSON.stringify(canonical(one)) === JSON.stringify(canonical(two));
+
+/** The schedules one timed job becomes: one cron when its times share a minute, else one per time; or why it can't. */
+export function sweepTimings(sweep, timezone) {
+  const days = Array.isArray(sweep.days) ? [...sweep.days].sort((a, b) => a - b).join(',') : '*';
+  const [from, to] = sweep.hours ? String(sweep.hours).split('-').map(Number) : [null, null];
+  const hours = from === null ? '*' : `${from}-${to - 1}`;
+  const every = Number(/^(\d+)m$/.exec(sweep.every ?? '')?.[1]);
+  if (every) {
+    const ms = every * MINUTE;
+    const cron = every < 60 && 60 % every === 0 ? `*/${every} ${hours} * * ${days}`
+      : every % 60 === 0 && 24 % (every / 60) === 0 ? `0 ${hours}/${every / 60} * * ${days}` : null;
+    if (!cron) return { reason: `every ${sweep.every} has no cron` };
+    return { timings: [{ suffix: '', timing: { mode: 'recurring', cron, timezone, allowedLatenessMs: ms }, gap: ms }] };
+  }
+  const times = (sweep.at ?? []).map(clock);
+  if (!times.length) return { reason: 'no time' };
+  const lateness = AT_GRACE_MIN * MINUTE;
+  const once = (list, suffix) => ({ suffix, timing: { mode: 'recurring', cron: `${list[0][1]} ${list.map(([hour]) => hour).join(',')} * * ${days}`, timezone,
+    allowedLatenessMs: lateness } });
+  if (new Set(times.map(([, minute]) => minute)).size === 1) return { timings: [once(times, '')] };
+  return { timings: times.map(time => once([time], `-${time.map(part => String(part).padStart(2, '0')).join('')}`)) };
+}
+
+/** The schedules one timed job becomes, each with its definition, or why it can not be one. */
+function fromSweep(sweep, { brief, primary, timezone }) {
+  const found = sweepTimings(sweep, timezone);
+  if (!found.timings) return [{ id: `sweep:${sweep.id}`, reason: found.reason }];
+  if (brief === null) return [{ id: `sweep:${sweep.id}`, reason: `no brief ${sweep.brief}` }];
+  const run = { cwd: primary, ...(sweep.check ? { check: sweep.check } : {}), ...(sweep.minutes ? { minutes: sweep.minutes } : {}),
+    ...(sweep.place ? { place: sweep.place } : {}) };
+  return found.timings.map(({ suffix, timing, gap }) => ({ id: `sweep:${sweep.id}${suffix}`,
+    def: { key: keyOf(sweep.id.slice(0, 64 - suffix.length) + suffix), name: sweep.title ?? sweep.id, summary: sweep.title ?? sweep.id, kind: 'background',
+      instructions: brief, run, timing, ...(gap && gap <= RUN_FLOOR_MS ? { authority: { minIntervalMs: gap / 2 } } : {}) } }));
+}
+
+const readBrief = (root, name) => {
+  const file = briefFolders(root).map(folder => join(folder, name)).find(path => existsSync(path));
+  return file ? readFileSync(file, 'utf8').trim() : null;
+};
 
 /** Each default as a checked definition, or why it can not be one; an install's own entry with its id replaces it, and
  *  its `off` entry adds it paused. */

@@ -9,7 +9,7 @@ import { slotResult } from '../../../scripts/lib/slot.mjs';
 import { paseoStore } from './lib/paseo-store.mjs';
 import { requireValue, ScheduleError } from './lib/records.mjs';
 
-const USAGE = 'usage: schedule.mjs list | inspect|show <key> | show --file <json> | save --file <json> [--approve [--version <sha>]] [--team <emails>] | approve <key> --version <sha> | pause|resume|run <key> | cancel <key> [--run <id>] | end <key> --evidence <text> | finish --key <key> --run <id> [--progress <json file>] [--done <proof>] | defaults [--unattended] [--dry-run] | store | a command the store adds, such as move-in, move, hosts, mirror or legacy';
+const USAGE = 'usage: schedule.mjs list | inspect|show <key> | show --file <json> | save --file <json> [--approve [--version <sha>]] [--team <emails>] | approve <key> --version <sha> | pause|resume|run <key> | cancel <key> [--run <id>] | end <key> --evidence <text> | finish --key <key> --run <id> [--progress <json file>] [--done <proof>] | defaults [--unattended] [--dry-run] | store | a command the store adds, such as hosts or mirror';
 const CORE = ['list', 'ls', 'inspect', 'show', 'save', 'approve', 'pause', 'resume', 'run', 'cancel', 'end', 'finish', 'defaults', 'store'];
 const shellQuote = text => `'${String(text).replace(/'/g, "'\\''")}'`;
 
@@ -67,8 +67,7 @@ export async function main(argv = process.argv.slice(2), world = {}) {
   try {
     const { values, positionals } = parseArgs({ args: argv, allowPositionals: true, options: {
       key: { type: 'string' }, file: { type: 'string' }, root: { type: 'string' }, version: { type: 'string' }, run: { type: 'string' }, evidence: { type: 'string' }, progress: { type: 'string' }, done: { type: 'string' },
-      team: { type: 'string' }, approve: { type: 'boolean' }, unattended: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, keep: { type: 'string', multiple: true },
-      drop: { type: 'string', multiple: true }, resources: { type: 'string' }, help: { type: 'boolean' },
+      team: { type: 'string' }, approve: { type: 'boolean' }, unattended: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, help: { type: 'boolean' },
     } });
     if (values.help) { world.out(`${USAGE}\n`); return 0; }
     const [command = 'list', ...args] = positionals;

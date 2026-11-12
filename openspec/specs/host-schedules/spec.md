@@ -161,20 +161,6 @@ Each schedule SHALL retain the user's agreed recipients, channels, action scope,
 - **WHEN** an invoice follow-up receives a request to issue a refund
 - **THEN** it seeks the user's authority and does not treat the customer's request as permission to pay
 
-### Requirement: Existing schedules survive the update
-
-Renaming the skill SHALL preserve existing cloud and host schedules, and SHALL provide an explicit path to inspect, pause, migrate, and remove legacy cloud scheduling resources. New installs SHALL not install the old runner. Migration SHALL prevent old and replacement jobs from performing the same follow-up, and teardown SHALL affect only the explicitly selected old resources.
-
-#### Scenario: Updating an install with cloud jobs
-
-- **WHEN** an install with an existing cloud routine updates to the schedule skill
-- **THEN** that job continues to exist, legacy management remains available, and no new cloud runner is installed
-
-#### Scenario: Moving one follow-up
-
-- **WHEN** the person explicitly moves a legacy follow-up to a host scheduler
-- **THEN** its original is paused before the replacement can act, and unrelated jobs and cloud resources are untouched
-
 ### Requirement: An app-clock run starts at most once, on the owner's computer
 
 At a schedule's due time the app SHALL wake the owner's computer the schedule is bound to, and that computer SHALL open the schedule's session from its approved instructions. A run SHALL start at most once. A run that comes due while the computer is away SHALL start once on its return when still within the schedule's allowed lateness, and SHALL otherwise show as missed. A run asked for now while the computer is away SHALL wait and offer *Cancel* until the computer takes it.
@@ -188,15 +174,6 @@ At a schedule's due time the app SHALL wake the owner's computer the schedule is
 
 - **WHEN** the computer takes a run and its result never comes back
 - **THEN** the run shows as not started, and it is never handed out again
-
-### Requirement: Moving a schedule to the app's clock never runs it twice
-
-An existing schedule on another host SHALL stay there until the owner asks to move it. Moving SHALL pause the original before the app's copy can run, and SHALL remove the original only after the app's copy is registered and read back.
-
-#### Scenario: Moving the weekly research
-
-- **WHEN** the owner asks to move a Paseo schedule to the app
-- **THEN** the Paseo schedule is paused first, the app's copy takes the next due time, and the work runs once
 
 ### Requirement: Every schedule lives in the company app
 
@@ -320,16 +297,16 @@ Listing and managing a schedule — pause, resume, run now, change, cancel and r
 - **WHEN** the person lists schedules while the app can not be reached
 - **THEN** the list says the app can not be reached, and shows no invented times
 
-### Requirement: Existing routines move to the app at the update
+### Requirement: An update leaves old schedule data in place
 
-The update that brings this change SHALL move each install's existing routines into the app: the routines in each person's daily settings file, the team file's routines, the install's own timed jobs, and each repo schedule file. Each SHALL keep its name, instructions, folder, days and time, and SHALL be approved on the computer that ran it, since the person approved it by saving it in the repo. No routine SHALL run twice, and none SHALL run from both places. When two moved schedules look like the same job, the move SHALL ask which to keep. The old lists and files SHALL be removed only after every moved schedule is read back from the app.
+An update SHALL NOT delete or change an install's old schedule data: the schedule files in the repo, the routines in a daily settings file, the timed jobs in an install's own daily list, a Paseo schedule, and a deployed cloud runner with its keys. WongStack SHALL run none of the old files, routines or timed jobs, and SHALL move none of them. `/daily:schedule` SHALL save any of them as a schedule in the app when the person asks.
 
-#### Scenario: Moving the morning routines
+#### Scenario: An install updates with an old schedule file
 
-- **WHEN** an install with four morning routines in a settings file takes the update
-- **THEN** after it goes live, the four are in the app with the same days and time, the next morning starts each one once, and the settings file no longer lists them
+- **WHEN** an install that still has a schedule file in the repo takes the update
+- **THEN** the file is unchanged, nothing runs from it, and no copy of it appears in the app
 
-#### Scenario: Two jobs look the same
+#### Scenario: The person asks to keep an old routine
 
-- **WHEN** a monthly *Reconcile the books* routine and a repo schedule *Monthly books close* both move
-- **THEN** the move shows both and asks which to keep, and moves neither twice
+- **WHEN** the person asks to keep a routine that is still in their daily settings file
+- **THEN** the assistant saves it as a schedule in the app after the person's OK, and the routine runs from the app only

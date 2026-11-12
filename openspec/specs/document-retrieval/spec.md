@@ -2,23 +2,9 @@
 
 ## Purpose
 
-Let assistants find relevant original passages in the current checkout's wiki and OpenSpec records, with meaning-based search, clear source roles, fresh evidence and a usable fallback.
+Let assistants find relevant original passages in the current checkout's wiki and OpenSpec records, by the words of a question, with clear source roles and fresh evidence.
 
 ## Requirements
-
-### Requirement: Document search finds local knowledge by words or meaning
-
-The installed retrieval interface SHALL search eligible wiki and OpenSpec Markdown by keywords and, on a prepared supported host, by meaning using QMD. It SHALL return original passages with paths, headings or line ranges, source roles and freshness information, and SHALL support text and structured formats without generated summaries.
-
-#### Scenario: A question uses different words
-
-- **WHEN** a prepared host receives a question whose meaning matches a document without sharing its exact wording
-- **THEN** semantic search can return the relevant original passage with a reference the assistant can open
-
-#### Scenario: A keyword search is requested
-
-- **WHEN** the assistant explicitly chooses keyword lookup
-- **THEN** it receives original matching evidence without launching semantic models
 
 ### Requirement: Current guidance and historical evidence have distinct scopes
 
@@ -34,53 +20,6 @@ Document retrieval SHALL search reusable guidance and current recorded requireme
 - **WHEN** historical scope is requested
 - **THEN** relevant archived evidence is eligible and identified as historical alongside any current guidance
 
-### Requirement: Indexing stays within the current checkout
-
-The index SHALL derive from allowlisted wiki and OpenSpec paths in the current checkout, including eligible unsaved documents, and from the pages in the computer's knowledge copy, labeled as company knowledge. It SHALL respect ignored paths, reject links escaping the checkout other than the knowledge copy itself, and exclude private store data, transcripts, credentials and people pages, in `wiki/` and in `knowledge/`. Separate worktrees SHALL retain separate indexes outside version control.
-
-#### Scenario: A new plan is not yet saved
-
-- **WHEN** an eligible new active-change document exists and active scope is requested
-- **THEN** lookup can find it as proposed evidence
-
-#### Scenario: Linked worktrees contain different plans
-
-- **WHEN** two linked worktrees contain different documents
-- **THEN** each lookup returns only its own checkout's evidence without combining indexes
-
-#### Scenario: A knowledge page answers the question
-
-- **WHEN** a question matches `knowledge/ops/shipping.md`
-- **THEN** lookup returns its passage labeled as company knowledge, and no `knowledge/people/` page appears
-
-### Requirement: Returned passages agree with original files
-
-Retrieval SHALL verify source existence and content before returning indexed passages. Changed, moved or deleted evidence SHALL NOT appear as current unchanged text. Document changes SHALL trigger index reconciliation; concurrent or interrupted refresh SHALL preserve a valid generation. Incomplete semantic coverage SHALL be visible and SHALL allow fresh keyword evidence.
-
-#### Scenario: A source changes before retrieval
-
-- **WHEN** an indexed document changes or disappears
-- **THEN** its old passage is withheld, fresh eligible evidence may be returned, and incomplete index coverage is reported until refresh completes
-
-#### Scenario: Refresh is interrupted
-
-- **WHEN** refresh fails before publishing a complete generation
-- **THEN** lookup retains its valid state, checks sources and supplies fallback rather than exposing partial index state as complete
-
-### Requirement: Setup and failure have truthful readiness
-
-The interface SHALL provide explicit host setup, refresh and status for pinned QMD dependencies and required models. Reads SHALL NOT install dependencies or download models. Missing, unsupported, failed or timed-out semantics SHALL produce bounded keyword fallback with a visible reason; requested semantic modes SHALL NOT be reported as successful when only fallback ran.
-
-#### Scenario: QMD is not prepared
-
-- **WHEN** ordinary document recall is requested before host setup
-- **THEN** it returns useful keyword evidence, fallback status and setup guidance
-
-#### Scenario: Semantic setup succeeds
-
-- **WHEN** setup reports semantic readiness
-- **THEN** the required dependency, models, index and a real query have been checked and reads can use semantic retrieval
-
 ### Requirement: Document evidence is bounded and traceable
 
 Document search SHALL return at most five excerpts and 6,144 UTF-8 bytes including status and metadata. It SHALL identify omitted or truncated selected evidence, distinguish empty from partial or unavailable retrieval, and provide references to originals for further reading.
@@ -92,5 +31,66 @@ Document search SHALL return at most five excerpts and 6,144 UTF-8 bytes includi
 
 #### Scenario: No document matches
 
-- **WHEN** available scoped backends complete without matching evidence
-- **THEN** the response reports empty successful lookup rather than a backend failure
+- **WHEN** a lookup completes without matching evidence
+- **THEN** the response reports an empty successful lookup, not a failure
+
+### Requirement: Document search finds local knowledge by its words
+
+The installed retrieval interface SHALL search eligible wiki and OpenSpec Markdown by the words of the question. It SHALL return original passages with paths, headings or line ranges, source roles and freshness information, and SHALL support text and structured formats without generated summaries. A request for meaning-based search SHALL stop with a message that it was removed, and SHALL never fall back to keyword search without saying so.
+
+#### Scenario: A question shares words with a page
+
+- **WHEN** a question uses words that a wiki page uses
+- **THEN** search returns that page's original passage with a reference the assistant can open
+
+#### Scenario: Meaning-based search is asked for
+
+- **WHEN** a caller asks for the removed semantic or deep search
+- **THEN** the call stops as invalid input, says meaning-based search was removed, and returns no result
+
+### Requirement: Returned passages match the files as they are now
+
+Retrieval SHALL read each source at lookup time, and SHALL verify that a source exists and holds the passage before it returns the passage. Changed, moved or deleted text SHALL NOT appear as current text. Retrieval SHALL keep no stored index of document content between lookups.
+
+#### Scenario: A source changes before retrieval
+
+- **WHEN** a page changes or is deleted, and a lookup follows
+- **THEN** the lookup returns the page's new text or leaves the page out, and never its old text
+
+#### Scenario: A source changes during a lookup
+
+- **WHEN** a page changes after it was ranked and before it is returned
+- **THEN** its stale passage is withheld, and the response reports partial coverage with its reason
+
+### Requirement: Document search needs no setup
+
+Document search SHALL work in a fresh checkout with only git and the Node version the repo names, on Linux, macOS and Windows. It SHALL install no dependency, download no model, and write nothing outside the checkout. A lookup that cannot finish within its time SHALL return the evidence it has, marked partial with a visible reason.
+
+#### Scenario: A fresh clone on Windows
+
+- **WHEN** document search runs in a new checkout on a Windows computer with nothing installed but git and Node
+- **THEN** it returns original matching passages, and no folder is created outside the checkout
+
+#### Scenario: The scan runs out of time
+
+- **WHEN** the document scan cannot finish within the lookup's deadline
+- **THEN** the response holds the verified passages found so far and says that coverage is partial
+
+### Requirement: Document search reads only the current checkout
+
+Each lookup SHALL read only allowlisted wiki and OpenSpec paths in the current checkout, including eligible unsaved documents, and the pages in the computer's knowledge copy, labeled as company knowledge. It SHALL respect ignored paths, reject links escaping the checkout other than the knowledge copy itself, and exclude private store data, transcripts, credentials and people pages, in `wiki/` and in `knowledge/`. A lookup in one worktree SHALL NOT read the documents of a different worktree.
+
+#### Scenario: A new plan is not yet saved
+
+- **WHEN** an eligible new active-change document exists and active scope is requested
+- **THEN** lookup can find it as proposed evidence
+
+#### Scenario: Linked worktrees contain different plans
+
+- **WHEN** two linked worktrees contain different documents
+- **THEN** each lookup returns only its own checkout's evidence
+
+#### Scenario: A knowledge page answers the question
+
+- **WHEN** a question matches `knowledge/ops/shipping.md`
+- **THEN** lookup returns its passage labeled as company knowledge, and no `knowledge/people/` page appears

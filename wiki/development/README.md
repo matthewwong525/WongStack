@@ -30,7 +30,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 - [Memory dream](wiki-dream.md) — the daily tidy your first chat each day starts, and `/memory:dream-memory`, which checks the wiki, saved facts, specs, and plans against each other and the code: what it fixes, what it only lists, the dry run, and how to undo one.
 - [Session memory](memory.md) — the private fact store: its three layers and the profile, the two installs, who sees what, the company sign-in and its expiry, the start-of-session digest, topics, capture, and consolidation.
   - [Memory search](memory-search.md) — which read to use for facts, with evidence; the pull, related topics, the memory helper, and when to add embeddings.
-  - [Document retrieval](document-retrieval.md) — task recall with cited wiki/OpenSpec passages, optional local semantic setup, scopes, freshness and fallback.
+  - [Document retrieval](document-retrieval.md) — task recall with cited wiki/OpenSpec passages found by their words, scopes and freshness.
 - [Secrets and environment variables](secrets.md) — the `.env.example`-as-source-of-truth convention: blank declarations stay on the active branch, while real values persist outside git in the primary worktree across linked checkouts.
 - [Contributing upstream](../contributing.md) — the other side of the payload: how a target repo sends an improvement back by hand, and the generality bar it has to clear before you'd merge it here.
 - [Maintaining WongStack](../maintaining/README.md) — editing the toolkit itself: adding a skill, the folder links, and cutting a release.

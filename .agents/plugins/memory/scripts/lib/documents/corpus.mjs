@@ -1,4 +1,4 @@
-// Only public knowledge documents in this checkout enter the derived index.
+// Only public knowledge documents in this checkout are searched.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
@@ -77,7 +77,7 @@ export function scopedEntries(corpus, { scope = 'current', change } = {}) {
     && (!change || CURRENT.includes(entry.role) || sourceChange(entry.path) === change));
 }
 
-// Final validation reopens originals: an index hit is only a candidate.
+// Final validation reopens originals: a ranked hit is only a candidate.
 export function verifyPassage(ctx, candidate, { beforeRead = () => {} } = {}) {
   beforeRead(candidate);
   const file = safeSource(ctx.root, candidate.path);
