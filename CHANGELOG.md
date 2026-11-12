@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Every question for you comes on a card
+
+- **A chat that ends its turn on a typed question asks it again on a card, at once.** Before, only a typed list of choices came back as a card. Now any question for you does, such as *Close this chat?*: the chat gets one short message to ask it on a card, with a few short answers and its recommended one first. A question that needs no answer ends the turn with no new words. This works in Claude Code chats ([which tool carries it](.agents/plugins/loop/skills/explore/references/asking-the-user.md#which-tool-carries-it)).
+- **Daily catches the rest when you ask *what's going on?*** A chat that still waits on a typed question, such as a Codex chat, gets one message to ask it again on a card, with the new `D reask`. That chat then waits in its own chat, so Daily leaves it out of its *which to close?* question ([close finished chats](wiki/development/daily.md#close-finished-chats)).
+- **Daily never answers a close card.** Its check-ins and helpers leave *Close it* / *Keep it open* for you, even when *Close it* is recommended.
+- **A new profile part, `askedInText`**, tells Daily whether a chat's last words ask you something. Without it, Daily asks no chat again.
+
+**Updating.** Nothing to do by hand.
+
 ## 55.3.0 — The agent signs in with your unlocked 1Password, after your yes
 
 - **1Password comes with the agent's browser.** A new browser adds it, and an older one gets it once, at its next start, by the same checks as an add you ask for. It is not added when you removed it, said no to a password manager before, or when the agent already added another one. A failed download never stops a start; a start a day later tries again ([your password manager](.agents/plugins/browser/browser/references/password-manager.md)).

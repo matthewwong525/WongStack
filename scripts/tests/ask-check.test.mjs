@@ -4,7 +4,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { endsWithChoices, LINKS_REASON, linksDecision, readTurn, REASON, REMINDER, stopDecision, turnLinks, waitForCall } from '../../.agents/loop/ask-check.mjs';
+import { endsWithChoices, endsWithQuestion, LINKS_REASON, linksDecision, readTurn, REASON, REMINDER, stopDecision, turnLinks, waitForCall } from '../../.agents/loop/ask-check.mjs';
 
 const cli = new URL('../../.agents/loop/ask-check.mjs', import.meta.url).pathname;
 
@@ -29,6 +29,27 @@ for (const [name, text] of Object.entries(SLIPS)) {
 }
 for (const [name, text] of Object.entries(REPORTS)) {
   test(`spares ${name}`, () => assert.equal(endsWithChoices(text), false));
+}
+
+// A lone typed question, and endings that ask nothing.
+const QUESTIONS = {
+  'Close this chat?': `${REPORT}\n\n**Close this chat?**`,
+  'a question mid-paragraph': `${REPORT}\n\nShould I keep the old page? I can also remove it.`,
+  'a question above a tap-link line': 'The plan changed.\n\nOpen it and say if the new order works?\n[👉 Tap here to see the plan](https://example.invalid/plan)',
+};
+const PLAN_END = '[👉 Tap here to see the plan](https://example.invalid/plan)\n\nThe sign-up page checks the email first.\n\nReview the plan, then tap Build it or Build and publish on its page.';
+const NO_QUESTION = {
+  'a report with no question': REPORTS['a What changed report'],
+  'a finished plan\'s ending': PLAN_END,
+  'a question earlier in the reply': 'Why did it fail? The key was old.\n\nI replaced it, and the checks pass.',
+  'a link with a query': 'It is live at https://example.invalid/page?tab=1',
+};
+
+for (const [name, value] of Object.entries(QUESTIONS)) {
+  test(`flags ${name} as a question`, () => assert.equal(endsWithQuestion(value), true));
+}
+for (const [name, value] of Object.entries(NO_QUESTION)) {
+  test(`spares ${name} as a question`, () => assert.equal(endsWithQuestion(value), false));
 }
 
 const human = text => ({ type: 'user', message: { role: 'user', content: text } });
@@ -70,6 +91,18 @@ function stop(input, env = {}) {
 test('stop sends a typed list back once with the reason', t => {
   const file = transcript(t, [human('build it'), said(text(slip))]);
   assert.deepEqual(JSON.parse(stop({ transcript_path: file, stop_hook_active: false })), { decision: 'block', reason: REASON });
+});
+
+test('stop sends a lone typed question back once with the reason', t => {
+  const file = transcript(t, [human('build it'), said(text(QUESTIONS['Close this chat?']))]);
+  assert.deepEqual(JSON.parse(stop({ transcript_path: file })), { decision: 'block', reason: REASON });
+  assert.equal(stop({ transcript_path: file, stop_hook_active: true }), '');
+  const asked = transcript(t, [human('go'), said(tool('AskUserQuestion')), result, said(text(QUESTIONS['Close this chat?']))]);
+  assert.equal(stop({ transcript_path: asked }), '');
+});
+
+test('stop lets a finished plan end', t => {
+  assert.equal(stop({ transcript_path: transcript(t, [human('plan it'), said(text(PLAN_END))]) }), '');
 });
 
 test('stop prefers the host\'s last message over the transcript', t => {

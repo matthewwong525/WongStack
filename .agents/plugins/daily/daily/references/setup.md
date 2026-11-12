@@ -33,7 +33,8 @@ export default {
   schedules: { name, list, get, show, save, approve, control, defaults, report }, // the repo's schedule store
   person: cwd => ({ email, state, login, help }),   // who is signed in
   chatName: (cwd, agent) => ({ step, task }),        // the chat's name
-  offeredChoices: async (input, agent) => false,     // true when the repo sends typed choices back
+  offeredChoices: async (input, agent) => false,     // true when the repo sends a typed question back
+  askedInText: async text => false,                  // true when a chat's last words ask the person in text
   prepareRun: async dir => {},                       // set up a background run's copy of the repo
   checkout: (branch, cwd) => ({ commit }),           // check a saved branch before a chat opens on it; a throw refuses
 };
