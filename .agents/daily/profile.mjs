@@ -35,9 +35,9 @@ function chatName(cwd, agent) {
   return (folder && readState(folder, agent)) || undefined;
 }
 
-/** `/continue`'s review of a saved branch: `{commit}` pinned to open at, or `{refused, extra}` for work never seen here. */
+/** `/apply`'s pick-up review of a saved branch: `{commit}` pinned to open at, or `{refused, extra}` for work never seen here. */
 async function checkout(branch, cwd, { reviewed = null, dryRun = false } = {}) {
-  const { PickupError, pinBranch, reviewBranch } = await import('../skills/continue/scripts/pickup.mjs');
+  const { PickupError, pinBranch, reviewBranch } = await import('../skills/apply/scripts/pickup.mjs');
   try {
     const review = reviewBranch({ cwd, branch, reviewed, fetch: !dryRun });
     if (review.commits.length) {

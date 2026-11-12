@@ -2,7 +2,7 @@
 // read, for the move to the app.
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { credentialFree, requireValue } from '../../skills/schedule/scripts/lib/records.mjs';
+import { credentialFree, requireValue } from '../../skills/daily/skills/schedule/scripts/lib/records.mjs';
 import { send } from './app.mjs';
 
 /** An old record's progress file, read only. */

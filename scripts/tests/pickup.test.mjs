@@ -7,10 +7,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { labelFiles, reviewBranch } from '../../.agents/skills/continue/scripts/pickup.mjs';
+import { labelFiles, reviewBranch } from '../../.agents/skills/apply/scripts/pickup.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const cli = path.join(root, '.agents/skills/continue/scripts/pickup.mjs');
+const cli = path.join(root, '.agents/skills/apply/scripts/pickup.mjs');
 const OWNER = 'owner@example.invalid';
 
 function tmp(t, prefix) {
@@ -328,18 +328,27 @@ test('a teammate branch that edits the hooks\' shared library runs nothing on pi
   assert.deepEqual(runHooks(), node, 'the plain checkout is the control: every node hook runs the branch\'s code');
 });
 
-test('/continue switches only through pickup.mjs', () => {
+test('/apply picks up saved work only through pickup.mjs', () => {
   const switching = [/\bgit\s+(?:-\S+(?:\s+[^-\s]\S*)?\s+)*(?:checkout|switch)\b/, /\bgh\s+pr\s+checkout\b/];
   const caught = text => switching.some(pattern => pattern.test(text));
   for (const text of ['git checkout "$BRANCH"', 'git -C "$dir" checkout "$BRANCH"', 'git -c a.b=c switch -q x', 'gh pr checkout 12']) {
     assert.ok(caught(text), text);
   }
   assert.ok(!caught('git cat-file -e "$ref:x", checking out nothing'));
-  const skill = readFileSync(path.join(root, '.agents/skills/continue/SKILL.md'), 'utf8');
-  assert.match(skill, /continue\/scripts\/pickup\.mjs/);
-  assert.ok(!caught(skill), 'the skill switches a branch outside pickup.mjs');
+  const skill = readFileSync(path.join(root, '.agents/skills/apply/references/pick-up.md'), 'utf8');
+  assert.match(skill, /apply\/scripts\/pickup\.mjs/);
+  assert.ok(!caught(skill), 'the pick-up switches a branch outside pickup.mjs');
+  const apply = readFileSync(path.join(root, '.agents/skills/apply/SKILL.md'), 'utf8');
+  assert.match(apply, /\(references\/pick-up\.md\)/);
+  assert.ok(!caught(apply), '/apply switches a branch outside pickup.mjs');
   // Reviewed work builds nothing unasked, here or in the new workspace its brief opens.
   assert.match(skill, /told \*ask before building\*/);
   const brief = readFileSync(path.join(root, '.agents/skills/plan/references/new-workspace.md'), 'utf8');
   assert.match(brief, /the brief adds \*ask before building\*/);
+  // That workspace already has the branch checked out, so the pick-up must still run there and skip only its switch.
+  const rung = apply.match(/`\/apply \[name-or-PR\][^\n]*/)[0];
+  assert.doesNotMatch(rung, /not checked out|isn't checked out/, 'a checked-out branch skips the pick-up and its stop');
+  assert.match(skill, /Already on `BRANCH` here → skip to the recap/);
+  // A name only on a remote branch, as in a fresh clone, is that saved change, never a new plan.
+  assert.match(rung, /neither here nor on \[a remote branch\]\(references\/pick-up\.md#1-resolve-the-change-and-the-branch\) is intent for a new plan/);
 });

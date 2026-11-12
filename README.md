@@ -37,7 +37,7 @@ You end with a working assistant, a starter site online, and memory that carries
 - **Tools and a site you own.** Build a [mini app](wiki/stack/mini-apps.md) around your process. Review a plan and try a separate preview before publishing at `/apps/<name>/`.
 - **Knowledge between tasks.** [Memory](wiki/development/memory.md) carries what earlier chats learned; [your wiki](wiki/README.md) keeps reusable business knowledge. Both stay in your own accounts.
 - **Team access.** Each person uses their own assistant. Choose who can see and change what through [employee access](wiki/stack/employee-access.md).
-- **Work beyond apps.** Ask for research, drafts, and errands. Your assistant can [use websites](.agents/plugins/browser/browser/references/browsing.md), asking when a step needs you. A [schedule](wiki/stack/host-schedules.md) starts agreed work on an existing clock, after checking what needs to stay on.
+- **Work beyond apps.** Ask for research, drafts, and errands. Your assistant can [use websites](.agents/plugins/browser/references/browsing.md), asking when a step needs you. A [schedule](wiki/stack/host-schedules.md) starts agreed work on an existing clock, after checking what needs to stay on.
 - **Freedom to change.** Your tools and knowledge stay yours. Switch assistants and take the context with you.
 
 ## What I use

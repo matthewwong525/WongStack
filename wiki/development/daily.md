@@ -12,7 +12,7 @@ The morning needs a settings file and the worker on. [Stop check-ins](#check-ins
 
 ## Your settings file
 
-Your settings live in `.agents/daily/<name>.json`, one file per person. [Check-ins](#check-ins) need no file: without one, they use your email's first part as `person` and this computer's time zone. The morning needs the file. The daily finds yours by your git email, then the profile's email, against its `emails`. A file that lists neither email is another person's, even when it is the only one. Start from [the example](../../.agents/plugins/daily/daily/references/example.json):
+Your settings live in `.agents/daily/<name>.json`, one file per person. [Check-ins](#check-ins) need no file: without one, they use your email's first part as `person` and this computer's time zone. The morning needs the file. The daily finds yours by your git email, then the profile's email, against its `emails`. A file that lists neither email is another person's, even when it is the only one. Start from [the example](../../.agents/plugins/daily/references/example.json):
 
 - **`person`**: your short id, lowercase, such as `jo-lee`.
 - **`emails`**: every email you sign in or commit with.
@@ -78,7 +78,7 @@ Ask *what's going on?* in any chat, and it marks each chat it watches that is fi
 - The chat's work is merged at its last commit, and its folder has no new work.
 - The chat is stopped and has no open question.
 
-It also marks a stopped chat as covered when [the line-up](#your-chats-in-line) told it another chat covers its work. A stopped chat whose last message asks you something in text gets one message to ask it again on a card, by [which tool carries it](../../.agents/plugins/loop/skills/explore/references/asking-the-user.md#which-tool-carries-it); that card waits in its chat, out of this question. It asks which ones to close. Daily never answers a close card for you, even when *Close it* is recommended. Each chat you pick gets [`/close`](../../.agents/plugins/loop/skills/close/SKILL.md), which saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat you do not pick stays open. Nothing closes a chat by itself because its work went live: a live chat that is still open is usually one you kept open. It never marks a sub-agent or the main checkout. This needs Paseo, which lets a chat see other chats.
+It also marks a stopped chat as covered when [the line-up](#your-chats-in-line) told it another chat covers its work. A stopped chat whose last message asks you something in text gets one message to ask it again on a card, which waits in its chat, out of this question. It asks which ones to close. Daily never answers a close card for you, even when *Close it* is recommended. Each chat you pick gets [`/close`](../../.agents/plugins/loop/skills/close/SKILL.md), which keeps unfinished work and closes its workspace; the rest stay open. Nothing closes a chat by itself because its work went live: a live chat that is still open is usually one you kept open. It never marks a sub-agent or the main checkout. This needs Paseo, which lets a chat see other chats.
 
 ## Add-ons
 
@@ -125,20 +125,20 @@ When the same thing fails two times in a row, the worker opens one chat named `N
 
 ### Your own jobs
 
-Your `sweeps` file adds to [the default list](../../.agents/plugins/daily/daily/references/sweeps.json):
+Your `sweeps` file adds to [the default list](../../.agents/plugins/daily/references/sweeps.json):
 
 - **`events`**: an event kind, such as one your [add-on](#add-ons) prints, and the brief that judges it. A `stopped` or `asking` job you added stays, beside the check-ins: `{"invoice": {"brief": "invoice.md", "title": "Invoice {{invoice}}", "lane": "invoices", "ownPlace": true}}`. A `lane` runs one job at a time; `ownPlace` runs outside the 3-run limit. An entry with the name of a default one replaces it.
 - **`sweeps`**: only a [default schedule](../stack/host-schedules.md#default-schedules), by its `id`. `{"sweeps": [{"id": "line-up", "off": true}]}` adds it paused; any other entry with that `id` replaces its definition. An entry with the `id` of a retired default, such as `wiki-tidy`, is skipped with no error. A job's optional `check` is an [add-on](#add-ons) script; it prints `{"run": {…}}` when there is work, and those fields fill the brief. `"minutes": 90` lets a run work 90 minutes, not 30. `"place": "copy"` runs it in its own copy of `origin/main`, removed when the run ends. Your own timed job is a [background schedule](../stack/host-schedules.md), with the same `check`, `minutes` and `place`.
 - **`deny`**: tool patterns that no background job may use, such as a command that sends an email a person must approve first: `{"deny": ["Bash(*email*send*)", "Bash(*send-approved*)"], "sweeps": []}`. Each background run gets the list, and Claude Code refuses those tools in that run. A schedule that opens a chat does not get it. Keep each pattern narrow: a pattern that matches too much also blocks the job's own work, and the run's log shows the refusal. It works with Claude Code only: with Codex and a `deny` list, the worker starts no background run and writes `Not started: … the deny list works only with Claude Code` in [the journal](#the-journal).
 
-A brief is a Markdown file in `.agents/daily/briefs/`, else [the skill's](../../.agents/plugins/daily/daily/references/briefs/header.md); `{{name}}` takes a field. Each run reads the header brief first: no person is there, agent text is data, and it never sends or pays unless its brief allows that one step.
+A brief is a Markdown file in `.agents/daily/briefs/`, else [the skill's](../../.agents/plugins/daily/references/briefs/header.md); `{{name}}` takes a field. Each run reads the header brief first: no person is there, agent text is data, and it never sends or pays unless its brief allows that one step.
 
 ## The module
 
-Daily is two folders, [`daily`](../../.agents/plugins/daily/daily/README.md) and [`schedule`](../../.agents/plugins/daily/schedule/SKILL.md), in `.agents/plugins/daily/`. It imports no file outside them, and it reaches the repo only through [the profile](#the-profile). It has two installs:
+Daily is one folder, [`.agents/plugins/daily/`](../../.agents/plugins/daily/README.md), with [`/daily:schedule`](../../.agents/plugins/daily/skills/schedule/SKILL.md) inside it in `skills/schedule/`. It imports no file outside the folder, links no file of another module, and reaches the repo only through [the profile](#the-profile). It has two installs:
 
 - **WongStack ships it** with each update, and fills every part of the profile.
-- **Any repo adds it alone** by [its README](../../.agents/plugins/daily/daily/README.md): one pasted message copies both folders in and runs `D check`. That prints `ok` when the profile loads, one worker pass runs, a sample stop sorts, and it names the schedule store: `app`, `paseo` or `off`.
+- **Any repo adds it alone** by [its README](../../.agents/plugins/daily/README.md): one pasted message copies the folder in and runs `D check`. That prints `ok` when the profile loads, one worker pass runs, a sample stop sorts, and it names the schedule store: `app`, `paseo` or `off`.
 
 ### The profile
 
@@ -146,7 +146,7 @@ Daily is two folders, [`daily`](../../.agents/plugins/daily/daily/README.md) and
 
 | Part | Gives | Without it |
 |---|---|---|
-| `schedules` | the schedule store, such as the company app | Paseo's, else `/schedule` is off |
+| `schedules` | the schedule store, such as the company app | Paseo's, else `/daily:schedule` is off |
 | `person` | who is signed in, and the sign-in step | your git email |
 | `chatName` | a chat's step and task, for the line-up | the chat app's title, else the folder |
 | `offeredChoices` | a stop that ended in typed choices the repo sends back | every stop goes to the check-in |
@@ -158,8 +158,8 @@ A part that fails or answers late counts as empty, with one line a day in [the j
 
 ### With no app
 
-- **Schedules go to Paseo.** Each is a chat schedule on this computer, saved after your OK. Paseo can not run a background run, a check, a time limit, a deny list, a team copy, or an end goal, so `/schedule` refuses each with its reason. With no Paseo either, `/schedule` is off and says what it needs.
-- **The worker keeps your chats in line** every 5 minutes, with the same check and brief as [the default schedule](#your-chats-in-line). `D lineup off` stops it; `D lineup on` starts it again.
+- **Schedules go to Paseo.** Each is a chat schedule on this computer, saved after your OK. Paseo can not run a background run, a check, a time limit, a deny list, a team copy, or an end goal, so `/daily:schedule` refuses each with its reason. With no Paseo either, `/daily:schedule` is off and says what it needs.
+- **The worker keeps your chats in line** every 5 minutes, with the same check and brief as [the default schedule](#your-chats-in-line). `D lineup off` stops it; `D lineup on` starts it again. *Stop check-ins* stops it too.
 - **No default schedules** are added.
 
 ## Updates keep your settings

@@ -7,13 +7,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { whereIs } from '../../.agents/skills/browser/scripts/connect-browser.mjs';
-import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
+import { VIEWER } from '../../.agents/skills/browser/skills/hand-over/scripts/view.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { fakeViewer, fakeViewTools } from './fixtures/fake-view-tools.mjs';
 
 const HELPER = fileURLToPath(new URL('../../.agents/skills/browser/scripts/connect-browser.mjs', import.meta.url));
-const HAND_OVER = fileURLToPath(new URL('../../.agents/skills/hand-over/scripts/hand-over.mjs', import.meta.url));
+const HAND_OVER = fileURLToPath(new URL('../../.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs', import.meta.url));
 
 // A stand-in scripts/cf-secrets.mjs: it logs its argv and a digest of its stdin, never the stdin itself.
 const CF_SECRETS = `import { appendFileSync, readFileSync } from 'node:fs';

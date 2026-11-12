@@ -1,6 +1,6 @@
 # Test a live view on a real browser
 
-Test a change to [the live view](../../.agents/plugins/browser/hand-over/references/live-view.md) in a throwaway browser on this server, never in the shared one: the shared browser may hold a real person's open turn, and a test tab brought to the front takes their screen.
+Test a change to [the live view](../../.agents/plugins/browser/skills/hand-over/references/live-view.md) in a throwaway browser on this server, never in the shared one: the shared browser may hold a real person's open turn, and a test tab brought to the front takes their screen.
 
 ## Set up a throwaway home
 
@@ -25,6 +25,8 @@ A chat's name is its folder's name, so `cd $T/a` and `cd $T/b` are two chats. Op
 Give each chat's page a different title, such as `example.com` and `iana.org/help/example-domains`. The shown tab is the window's title (`DISPLAY=<the view's display> xdotool search --onlyvisible --classname Navigator getwindowname %@`), and `example.com` and `example.org` share one.
 
 Press the view's buttons through its own routes on `127.0.0.1:<port>`, with the `x-hand-over-key` header. Both values are in `$T/.wong-stack/hand-over/view/state.json`. Never print the key.
+
+To test what the view's page does when a person opens a link, load `http://127.0.0.1:<port>/#key=<key>&chat=<name>` in a separate headless browser, such as Playwright's Chromium, never in the agent's browser: that browser is the screen under test. Then read `/view` to see which tab shows.
 
 ## Expect the wake-up in your own chat
 

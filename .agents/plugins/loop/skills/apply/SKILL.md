@@ -12,7 +12,7 @@ Build [the chosen plan](../../../../../wiki/development/the-change-loop.md). Run
 
 ## Resolve the plan first
 
-Build the change this chat is about, found by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). An argument naming no existing change is intent for a new plan. In `/ship`, an archive path is that change: skip status, add the failures as a task, and build.
+Build the change this chat is about, found by [the rungs](../save/references/checkpoint-evidence.md#selection-rungs). `/apply [name-or-PR] [instruction]`: a saved change or PR this chat hasn't loaded → [pick it up](references/pick-up.md) first. No change named and none in this chat → offer `openspec list` and `otherWork`'s saved branches in [an ask](../explore/references/asking-the-user.md), each with task progress and `Status:` line; don't guess. A name found neither here nor on [a remote branch](references/pick-up.md#1-resolve-the-change-and-the-branch) is intent for a new plan. In `/ship`, an archive path is that change: skip status, add the failures as a task, and build.
 
 Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep building.
 
@@ -61,5 +61,5 @@ Work the conversation's numbered to-do in order, writing one if missing ([verbs 
 
 ## Boundaries
 
-- **Git stays with `/save`**, on [either route](../../../../../wiki/stack/artifacts-route.md); the preview upload is not git and gates nothing.
+- **Git stays with `/save`**, on [either route](../../../../../wiki/stack/artifacts-route.md), but for [pick-up's switch](references/pick-up.md#2-check-out-the-branch); the preview upload is not git and gates nothing.
 - **Never save to stop or between parts** ([why](../../../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)), but for final acceptance.

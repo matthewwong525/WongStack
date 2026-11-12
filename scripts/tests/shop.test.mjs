@@ -6,10 +6,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { SHOP, ShopError, install, mask, nodeFits, refusal, scrub, shopEnv } from '../../.agents/skills/shop/scripts/shop.mjs';
+import { SHOP, ShopError, install, mask, nodeFits, refusal, scrub, shopEnv } from '../../.agents/skills/browser/skills/shop/scripts/shop.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const script = join(repo, '.agents/skills/shop/scripts/shop.mjs');
+const script = join(repo, '.agents/skills/browser/skills/shop/scripts/shop.mjs');
 const STORE = 'store.example.com';
 const CHECKOUT = 'gid://shopify/Checkout/abc?key=opaque';
 const LINK = 'https://store.example.com/checkouts/abc';

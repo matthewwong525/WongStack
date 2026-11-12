@@ -8,7 +8,7 @@ import { addLine } from '../../skills/daily/scripts/journal.mjs';
 import { DEFAULT_SCHEDULES } from '../../skills/daily/scripts/worker.mjs';
 import { approveHere, definition, readSchedule, saveDefinition, send } from './app.mjs';
 import { fromSweep, readBrief } from '../move-in.mjs';
-import { canonical, scheduleVersion } from '../../skills/schedule/scripts/lib/version.mjs';
+import { canonical, scheduleVersion } from '../../skills/daily/skills/schedule/scripts/lib/version.mjs';
 
 const same = (one, two) => JSON.stringify(canonical(one)) === JSON.stringify(canonical(two));
 

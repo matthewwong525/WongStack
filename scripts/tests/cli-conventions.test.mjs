@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import test from 'node:test';
 
@@ -50,13 +50,13 @@ const scripts = {
   '.agents/skills/save/scripts/checkpoint-evidence.mjs': [],
   '.agents/skills/save/scripts/render-pr-body.mjs': [],
   '.agents/loop/other-work.mjs': [],
-  '.agents/skills/continue/scripts/pickup.mjs': [],
+  '.agents/skills/apply/scripts/pickup.mjs': [],
   '.agents/loop/ask-check.mjs': ['stop'],
   '.agents/plugins/memory/skills/dream-memory/scripts/dream.mjs': ['since'],
-  '.agents/skills/hand-over/scripts/hand-over.mjs': [],
+  '.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs': [],
   '.agents/skills/reply-link/scripts/reply-link.mjs': [],
   '.agents/skills/browser/scripts/browse.mjs': [],
-  '.agents/skills/shop/scripts/shop.mjs': [],
+  '.agents/skills/browser/skills/shop/scripts/shop.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],
   '.agents/skills/wong-sync/scripts/preflight.mjs': [],
   '.agents/skills/wong-sync/scripts/merge-check.mjs': [],
@@ -64,9 +64,9 @@ const scripts = {
   '.agents/skills/wong-sync/scripts/install-path.mjs': [],
   '.agents/skills/wong-setup/scripts/provision.mjs': [],
   '.agents/skills/update-dependencies/scripts/update.mjs': [],
-  '.agents/skills/schedule/scripts/schedule.mjs': ['ls'],
-  '.agents/skills/schedule/scripts/tidy.mjs': ['sweep'],
-  '.agents/skills/schedule/scripts/presets.mjs': ['add'],
+  '.agents/skills/daily/skills/schedule/scripts/schedule.mjs': ['ls'],
+  '.agents/skills/daily/skills/schedule/scripts/tidy.mjs': ['sweep'],
+  '.agents/skills/daily/skills/schedule/scripts/presets.mjs': ['add'],
   '.agents/skills/memory/scripts/memory.mjs': ['search'],
   '.agents/skills/memory/scripts/run.mjs': [],
   '.agents/skills/memory/scripts/session-start.mjs': [],
@@ -122,7 +122,7 @@ test('isMain is true through a symlinked path and false for an imported module',
   }
 });
 
-// The browser module keeps its own copies, so it imports nothing outside its folders; each must stay memory's.
+// The browser module keeps its own copies, so it imports nothing outside its folder; each must stay memory's.
 test("the browser module's cli, primary-root, and env copies equal memory's", async () => {
   const lib = (skill, file) => import(pathToFileURL(join(repo, `.agents/skills/${skill}/scripts/lib/${file}`)).href);
   for (const file of ['cli.mjs', 'primary-root.mjs']) {
@@ -154,4 +154,17 @@ test('the loop module\'s helper copies match memory\'s', async () => {
     const [mine, theirs] = await Promise.all([load(`.agents/plugins/loop/${copy}`), load(`.agents/plugins/memory/${original}`)]);
     for (const name of names) assert.equal(String(mine[name]), String(theirs[name]), `${copy}: ${name}`);
   }
+});
+
+// The loop works the same with or without memory, so no loop file names memory's store, skill, or plugin.
+test('the loop module reaches no part of memory', () => {
+  const loop = join(repo, '.agents/plugins/loop');
+  const memory = /memory\.mjs|skills\/memory|plugins\/memory|\.\.\/memory\//;
+  const hits = readdirSync(loop, { recursive: true, withFileTypes: true }).filter(entry => entry.isFile()).flatMap(entry => {
+    const file = relative(loop, join(entry.parentPath, entry.name));
+    const keptEqualNote = line => file.startsWith('scripts/lib/') && line.trimStart().startsWith('//');
+    return readFileSync(join(loop, file), 'utf8').split('\n')
+      .flatMap((line, i) => (memory.test(line) && !keptEqualNote(line) ? [`${file}:${i + 1}`] : []));
+  });
+  assert.deepEqual(hits, []);
 });

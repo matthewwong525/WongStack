@@ -8,8 +8,8 @@ import { dirname, join } from 'node:path';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { forgetProfile, loadProfile, slot, slotNow, slotResult } from '../../.agents/skills/daily/scripts/lib/slot.mjs';
 import { LINE_UP, lineUpOffFile, loadSweeps, makeWorker } from '../../.agents/skills/daily/scripts/worker.mjs';
-import { paseoStore } from '../../.agents/skills/schedule/scripts/lib/paseo-store.mjs';
-import { main } from '../../.agents/skills/schedule/scripts/schedule.mjs';
+import { paseoStore } from '../../.agents/skills/daily/skills/schedule/scripts/lib/paseo-store.mjs';
+import { main } from '../../.agents/skills/daily/skills/schedule/scripts/schedule.mjs';
 
 const roots = [];
 afterEach(() => { forgetProfile(); for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true }); });

@@ -4,7 +4,7 @@ An installed cloud runner keeps serving its existing jobs after a WongStack upda
 
 ## Inspect and manage
 
-Use the [schedule skill's legacy path](../../.agents/plugins/daily/schedule/SKILL.md) with the existing `components.routines` install record, Worker endpoint, and `WONG_ROUTINES_KEY`. The key remains in the ignored `.env`; neither records nor output contain its value. An unavailable endpoint changes nothing. Inspect an uncertain mutation by stable identity before retrying. Keeping local runner files out of new payloads does not remove the deployed Worker or its stored secrets.
+Use the [schedule skill's legacy path](../../.agents/plugins/daily/skills/schedule/SKILL.md) with the existing `components.routines` install record, Worker endpoint, and `WONG_ROUTINES_KEY`. The key remains in the ignored `.env`; neither records nor output contain its value. An unavailable endpoint changes nothing. Inspect an uncertain mutation by stable identity before retrying. Keeping local runner files out of new payloads does not remove the deployed Worker or its stored secrets.
 
 ## Move one job
 
