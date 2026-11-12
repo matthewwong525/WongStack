@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 57.1.1 — Closing a chat works again
+## 57.1.3 — Closing a chat works again
 
 - **Closing a chat works again**, and so does opening a new workspace. Since 57.0.0 both stopped with an error, because the build loop still looked for the browser's and Daily's helpers in their old folders. Closing a chat also closes its live-view link again.
 

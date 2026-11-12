@@ -39,3 +39,4 @@ None: this restores the behavior the specs already promise.
 - **2026-11-12** — Assumed: the test runs the profile's parts with a stand-in `node` and checks each script it gets exists, because that tests the real calls, not a copy of their paths.
 - **2026-11-12** — Assumed: the build ran in this chat, not a helper, because it is three paths and one test, already found while closing.
 - **2026-11-12** — Assumed: archive checkpoint for release 57.1.1; the local pre-check did not run because another chat held the check slot, so CI is the only check before merge.
+- **2026-11-12** — Assumed: two releases took 57.1.1 and 57.1.2 first, so this release is 57.1.3, after main came in and the local pre-check passed.
