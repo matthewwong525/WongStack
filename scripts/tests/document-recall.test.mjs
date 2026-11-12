@@ -169,3 +169,64 @@ test('agent guidance recalls then reads originals while startup and first-edit h
   const explore = readFileSync(join(root, '.agents/skills/explore/SKILL.md'), 'utf8');
   assert.match(explore, /recall <question>/); assert.match(explore, /pull <path-or-topic>/);
 });
+
+const fileEntry = (path, facts, via = 'change') => ({ path, facts, via });
+const admitted = result => [result.packet.facts.map(fact => fact.id), result.packet.documents.map(doc => `${doc.path}:${doc.endLine > 0}`)];
+test('recall ends with a labeled files list of admitted facts only, in text and JSON, within 600 bytes', () => {
+  const facts = [fakeFact(1), fakeFact(2), fakeFact(3, 'x'.repeat(20000))];
+  const files = [fileEntry('src/shared.mjs', [1, 2]), fileEntry('src/only-dropped.mjs', [3]), fileEntry('wiki/page.md', [2, 3], 'named')];
+  const text = renderPacket({ question: 'delivery', facts, documents: [fakeDoc(1)], files, factSource: { state: 'ok' }, documentSource: { state: 'ok' } });
+  assert.match(text.text, /\n\nFiles \(from the facts above; a place to start, not a full list\):\n- src\/shared\.mjs \(#1, #2\)\n- wiki\/page\.md \(#2\)\n\nOmitted selected entries/);
+  assert.doesNotMatch(text.text, /only-dropped|; files:/);
+  const json = renderPacket({ question: 'delivery', facts, documents: [fakeDoc(1)], files, factSource: { state: 'ok' }, documentSource: { state: 'ok' } }, { json: true });
+  const packet = JSON.parse(json.text);
+  assert.equal(packet.version, 1); assert.deepEqual(packet.sources.files, { state: 'ok' });
+  assert.deepEqual(packet.files, [fileEntry('src/shared.mjs', [1, 2]), fileEntry('wiki/page.md', [2], 'named')]);
+  const many = Array.from({ length: 12 }, (_, n) => fileEntry(`src/${'deep/'.repeat(10)}file-${n}.mjs`, [1, 2]));
+  for (const json of [false, true]) {
+    const without = renderPacket({ question: 'delivery', facts, documents: [fakeDoc(1)], files: [], factSource: { state: 'ok' }, documentSource: { state: 'ok' } }, { json });
+    const capped = renderPacket({ question: 'delivery', facts, documents: [fakeDoc(1)], files: many, factSource: { state: 'ok' }, documentSource: { state: 'ok' } }, { json });
+    assert.ok(capped.packet.files.length > 0 && capped.packet.files.length < 8);
+    const grown = capped.bytes - without.bytes;
+    assert.ok(grown <= 600, `${grown} bytes`); assert.ok(capped.bytes <= 6144);
+  }
+});
+test('the files source says empty, not ok, when no entry is admitted', () => {
+  const input = { question: 'delivery', facts: [fakeFact(1), fakeFact(3, 'x'.repeat(20000))], files: [fileEntry('a.mjs', [3])],
+    factSource: { state: 'ok' }, documentSource: { state: 'ok' } };
+  const packet = JSON.parse(renderPacket(input, { json: true }).text);
+  assert.deepEqual(packet.files, []); assert.deepEqual(packet.sources.files, { state: 'empty' });
+  const late = renderPacket({ ...input, fileSource: { state: 'unavailable' } }, { json: true }).packet;
+  assert.equal(late.sources.files.state, 'unavailable');
+});
+test('the files list never pushes out a fact or a passage, and documents print no list', async t => {
+  for (const json of [false, true]) {
+    const facts = Array.from({ length: 8 }, (_, index) => fakeFact(index + 1, `Fact ${index}: ${'evidence '.repeat(55 + index * 3)}`));
+    const documents = Array.from({ length: 5 }, (_, index) => fakeDoc(index, Array.from({ length: 12 }, () => 'Retrieved original line.').join('\n')));
+    const files = Array.from({ length: 8 }, (_, n) => fileEntry(`src/area-${n}/file-${n}.mjs`, [1 + n]));
+    const input = { question: 'delivery', facts, documents, factSource: { state: 'ok' }, documentSource: { state: 'ok' } };
+    const without = renderPacket(input, { json }), withFiles = renderPacket({ ...input, files }, { json });
+    assert.deepEqual(admitted(withFiles), admitted(without)); assert.ok(withFiles.bytes <= 6144);
+  }
+  const target = tempDir(t, 'recall-files-'); execFileSync('git', ['init', '-q'], { cwd: target }); document({ root: target });
+  const ctx = { root: target, commonDir: join(target, '.git') };
+  const options = validateRetrieval('delivery', { json: true }, { recall: false });
+  const documentsOnly = await recallPacket(ctx, options, { includeFacts: false, profile: { lookup: { files: async () => { throw new Error('not asked'); } } } });
+  assert.equal(documentsOnly.packet.files, undefined); assert.equal(documentsOnly.packet.sources.files, undefined);
+  assert.doesNotMatch(documentsOnly.text, /"files"/);
+});
+test('a files lookup that never settles leaves recall its facts, passages, and exit code, with files unavailable', async t => {
+  const target = tempDir(t, 'recall-files-late-'); execFileSync('git', ['init', '-q'], { cwd: target }); document({ root: target });
+  const ctx = { root: target, commonDir: join(target, '.git') };
+  const options = validateRetrieval('delivery', { json: true }, { recall: true });
+  const factsRead = async () => ({ facts: [fakeFact(1)], filters: {} });
+  const started = Date.now();
+  const late = await recallPacket(ctx, options, { factsRead, profile: { lookup: { files: () => new Promise(() => {}) } } });
+  assert.ok(Date.now() - started < 4000);
+  const plain = await recallPacket(ctx, options, { factsRead, profile: null });
+  assert.equal(late.code, plain.code); assert.equal(late.packet.sources.files.state, 'unavailable');
+  assert.deepEqual(late.packet.facts.map(fact => fact.id), [1]); assert.ok(late.packet.documents.length > 0);
+  assert.match(renderPacket({ question: 'q', files: [], fileSource: late.packet.sources.files, factSource: { state: 'ok' }, documentSource: { state: 'ok' } }).text,
+    /; files: unavailable \(file history unavailable/);
+  assert.deepEqual(plain.packet.sources.files, { state: 'empty' });
+});

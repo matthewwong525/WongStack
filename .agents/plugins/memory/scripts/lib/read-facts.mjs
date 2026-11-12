@@ -13,7 +13,7 @@ export async function readFacts(ctx, { values = {}, positionals = [], ids }, giv
   // The state comes from this checkout's change folders, not the store, so it filters before the limit here.
   const [found] = await store.facts([{ terms, ids, type: values.type, slug: values.slug, since: values.since, until: values.until,
     author: values.author, branch: values.branch, change: values.change, tags: values.tag ? [values.tag] : undefined,
-    all: Boolean(values.all), everyone: Boolean(values.everyone), limit: values.state ? undefined : limit }]);
+    all: Boolean(values.all), everyone: Boolean(values.everyone), withTags: Boolean(values.withTags), limit: values.state ? undefined : limit }]);
   const state = (await store.profile?.slugState?.(ctx)) ?? (() => undefined);
   const facts = found.map(fact => ({ ...fact, state: state(fact.slug) })).filter(fact => !values.state || fact.state === values.state).slice(0, limit);
   const filters = Object.fromEntries(FILTERS.filter(key => values[key]).map(key => [key, values[key]]));

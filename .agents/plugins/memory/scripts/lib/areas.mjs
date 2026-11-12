@@ -1,6 +1,6 @@
 // Areas: the profile's topics as tag -> { definition, paths, docs, aliases, kind, page }; which tags a repo path
 // falls in; and the docs an area names.
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { isAbsolute, join, relative } from 'node:path';
 import { loadProfile } from './store.mjs';
 
@@ -21,6 +21,14 @@ export function normalizePath(path, root) {
     if (rel.startsWith('..') || isAbsolute(rel)) return null;
   }
   return rel.replace(/^\.(?:claude|codex)\//, '.agents/');
+}
+
+// The repo path a path really is, through any symlinked folder, so one file has one name; null when it is missing.
+export function realPath(path, root) {
+  try {
+    const rel = relative(realpathSync(root), realpathSync(join(root, path)));
+    return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : null;
+  } catch { return null; }
 }
 
 // The tags of a path's longest matching prefix, and that prefix's length; equal-length matches all count.

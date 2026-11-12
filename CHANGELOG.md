@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Memory shows the files behind each fact
+
+- **A memory answer ends with a short list of files.** After its facts and passages, `recall` lists up to eight files and docs those facts are about, each with the facts that led to it, so the AI opens the right place first ([files behind the facts](wiki/development/document-retrieval.md#files-behind-the-facts)). The list says it is a place to start, not a full list.
+- **The files come from the past change behind each fact**, read fresh from the repo's history, plus any path a fact names and, for a fact with neither, its topic's docs. A file that moved shows at its new place.
+- **A look at one fact or one past change lists its files too**: `memory.mjs pull #<id>` and `pull <change>`.
+
+**Updating.** Nothing to do by hand.
+
 ## 53.3.0 — The browser is a module any project can add
 
 - **The browser, private links, and shopping are one module** that any project can add with one pasted message, in any AI tool ([the browser module](.agents/plugins/browser/browser/README.md)). Your project still gets the same three skills, `browser`, `hand-over`, and `shop`, as real folders at `.agents/skills/`.

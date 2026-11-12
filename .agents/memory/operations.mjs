@@ -25,6 +25,8 @@ const documentSchema = { type: 'object', required: ['path', 'role', 'hash', 'hea
   properties: { path: { type: 'string' }, role: { enum: ['wiki', 'knowledge', 'specs', 'active', 'archive'] }, hash: { type: 'string', pattern: '^[a-f0-9]{64}$' },
     heading: { type: 'string' }, startLine: { type: 'integer', minimum: 1 }, endLine: { type: 'integer', minimum: 1 },
     text: { type: 'string' }, truncated: { type: 'boolean' }, freshness: { const: 'verified' }, reference: { type: 'string' }, score: { type: 'number' } }, additionalProperties: false };
+const fileSchema = { type: 'object', required: ['path', 'facts', 'via'], additionalProperties: false,
+  properties: { path: { type: 'string' }, facts: { type: 'array', items: { type: 'integer' } }, via: { enum: ['named', 'change', 'topic'] } } };
 const descriptions = Object.entries(READ_INPUTS).filter(([command]) => ['search', 'show'].includes(command)).map(([command, properties]) => ({
   operationId: `memory.${command}`, summary: command === 'search' ? 'Search remembered facts' : 'Read a memory topic',
   description: command === 'search' ? 'Use the existing memory search and permitted filters.' : 'Read existing topic facts and open threads.',
@@ -48,8 +50,9 @@ for (const command of ['documents', 'recall']) descriptions.push({
     properties: { version: { const: 1 }, question: { type: 'string' }, scope: { type: 'string' }, mode: { type: 'string' }, backend: { type: 'string' },
       change: { type: ['string', 'null'] }, documentLimit: { type: 'integer', minimum: 1, maximum: 5 },
       coverage: { enum: ['complete', 'partial', 'unavailable'] }, requestedModeState: { enum: ['ok', 'partial', 'unavailable'] }, filters: { type: 'object' },
-      sources: { type: 'object', required: ['facts', 'documents'], additionalProperties: false, properties: { facts: statusSchema, documents: statusSchema } },
+      sources: { type: 'object', required: ['facts', 'documents'], additionalProperties: false, properties: { facts: statusSchema, documents: statusSchema, files: statusSchema } },
       facts: { type: 'array', maxItems: 8, items: factSchema }, documents: { type: 'array', maxItems: 5, items: documentSchema },
+      files: { type: 'array', maxItems: 8, items: fileSchema },
       omitted: { type: 'object', required: ['facts', 'documents'], additionalProperties: false,
         properties: { facts: { type: 'integer', minimum: 0 }, documents: { type: 'integer', minimum: 0 } } } },
     additionalProperties: false, maxBytes: PACKET_BYTES },
