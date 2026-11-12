@@ -1,6 +1,6 @@
 # Memory shows the files behind each fact
 
-**Status:** proposed
+**Status:** ready-to-ship
 **Branch:** memory-link-repo-files
 **Open questions:** none
 
@@ -86,3 +86,4 @@ When the AI asks memory about a task, it gets facts and wiki passages, but no fi
 - **2026-11-12** — Assumed: the `memory.recall` action's output description gains the optional `files` and `sources.files`, and `documents` carries neither, because that description refuses unknown fields.
 - **2026-11-12** — Assumed: the memory plugin's version goes from 2.0.1 to 2.1.0, and the two site attachments that cite `wiki/development/memory.md` get today's check date, because their fix is unchanged; the local checks asked for both.
 - **2026-11-12** — Assumed: a path through a linked folder shows at its real place (`.claude/skills/memory/…` as `.agents/plugins/memory/…`), so one file never shows twice; it lifted the replay from 39 to 42 of 56.
+- **2026-11-12** — Archive checkpoint at `/ship` as 55.1.0: every task done, the second look's two findings fixed and reread clean, local pre-check passed, and the spec delta synced into `openspec/specs/memory/spec.md`; CI decides.

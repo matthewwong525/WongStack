@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · files-behind-facts</title>
+<title>Review · 2026-11-12-files-behind-facts</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="files-behind-facts" data-own-back>
+<body data-change="2026-11-12-files-behind-facts" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>files-behind-facts</h1>
+  <h1>2026-11-12-files-behind-facts</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -490,6 +490,15 @@
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: test files stay on the list, because dropping them cut the right files per answer from 2.3 to 2.0.</li>
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the list takes at most 600 bytes of the answer's fixed size, given back when unused, because facts and passages are the main evidence and must keep their room.</li>
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: when the repo history can not be read, the list falls back to the files a change's plan names, then to the fact's own words and its topic, and the read never fails for it, because a repo copied without history must still get an answer.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Measured after the build with <code>node scripts/tests/manual/files-line-replay.mjs 60</code> and the real code: a right file for 42 of 56 changes (75%, the bar is 60%), 2.8 right files per answer of 8, and a median of 306 ms added to a recall (the bar is 700 ms).</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: <code>filesBehind</code> returns the list with a state (<code>ok</code>, <code>empty</code>, <code>unavailable</code>), so recall can say when the history read timed out while it still shows named paths and topic docs.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: recall asks for 16 ranked files and shows the first 8 whose facts made it into the answer, so a fact cut for space does not leave the list short.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: when holding back room for the list would cost a fact or a passage, recall fills facts and passages first and the list gets what is left, because the spec says the list never pushes one out.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: recall now reads its facts with their topic tags, for the topic fallback; the tags do not print.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the <code>memory.recall</code> action's output description gains the optional <code>files</code> and <code>sources.files</code>, and <code>documents</code> carries neither, because that description refuses unknown fields.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the memory plugin's version goes from 2.0.1 to 2.1.0, and the two site attachments that cite <code>wiki/development/memory.md</code> get today's check date, because their fix is unchanged; the local checks asked for both.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: a path through a linked folder shows at its real place (<code>.claude/skills/memory/…</code> as <code>.agents/plugins/memory/…</code>), so one file never shows twice; it lifted the replay from 39 to 42 of 56.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Archive checkpoint at <code>/ship</code> as 55.1.0: every task done, the second look's two findings fixed and reread clean, local pre-check passed, and the spec delta synced into <code>openspec/specs/memory/spec.md</code>; CI decides.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
