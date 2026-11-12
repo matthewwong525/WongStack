@@ -11,6 +11,22 @@
 
 **Updating.** Nothing to do by hand.
 
+## 56.0.0 — The build loop stands on its own
+
+- **`/continue` is gone: type `/apply <name>` to pick up saved work**, or `/apply` alone to choose from a list. It switches to the change's branch first, and still shows work new to this computer and asks before it runs it ([pick up saved work](.agents/plugins/loop/skills/apply/references/pick-up.md)). The loop now has seven commands. `/save` stays.
+- **`/close` keeps unfinished work and closes the workspace, and that is all.** It no longer reads the chat for lessons or edits the wiki. With memory installed, its [daily tidy](wiki/development/wiki-dream.md#the-daily-tidy) puts lasting lessons on the wiki, as it already did for chats closed another way.
+- **No build command reads or writes memory**, so the loop works the same in a project without it. With memory installed, memory still brings what it knows at the start of each chat and when a message names a topic, and it records each chat when it ends.
+- **A half-done errand is memory's to pick up.** Its start-of-chat note lists open errands; say *pick up the supplier email* and the assistant carries on.
+
+**Updating.** `/continue` no longer exists: to pick up saved work, type `/apply` and the work's name. If the update leaves a `.claude/skills/continue` folder, delete it, so the old command stops showing in the command list.
+
+## 55.3.1 — A chat's live-view link opens its own tab
+
+- **Each chat's live-view link now opens that chat's tab.** When two chats need you at once, you open the second chat's link and its tab shows at once. Before, both chats sent the same link, and the view opened on the first chat's tab ([one live view, a tab for each chat](.agents/plugins/browser/hand-over/references/live-view.md#what-the-link-can-do)).
+- **A link whose tab has ended opens the view as it is**, and a reload keeps the tab you chose. The inbox link still opens the tab shown now.
+
+**Updating.** Nothing to do by hand.
+
 ## 55.3.0 — The agent signs in with your unlocked 1Password, after your yes
 
 - **1Password comes with the agent's browser.** A new browser adds it, and an older one gets it once, at its next start, by the same checks as an add you ask for. It is not added when you removed it, said no to a password manager before, or when the agent already added another one. A failed download never stops a start; a start a day later tries again ([your password manager](.agents/plugins/browser/browser/references/password-manager.md)).

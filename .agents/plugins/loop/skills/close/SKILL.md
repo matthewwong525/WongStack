@@ -1,26 +1,20 @@
 ---
 name: close
-description: Wrap up a chat: put what it learned in the wiki, keep unfinished work, close the workspace.
+description: Wrap up a chat: keep unfinished work, close the workspace.
 user-invocable: true
 ---
 
 # /close
 
-`/close` authorizes these steps, including save/ship. Discard only when explicitly requested.
+`/close` authorizes these steps, including a save. Discard only when explicitly requested.
 
 ## 1. Pick a route
 
 Read `git status --porcelain`, `git log origin/main..HEAD`, `gh pr view --json state,headRefOid,url`. Paseo worktrees have `PASEO_AGENT_ID` and are outside the main checkout.
 
-- **discard**: explicit request in a Paseo worktree. Skip wiki. Elsewhere, keep; never discard the main checkout.
-- **keep**: edits or unmerged HEAD commits. Run `/save` verbatim; stop for failed push, otherwise name any red checks and continue. Update wiki when closing after shipment.
-- **wrap**: otherwise update wiki.
-
-## Update the wiki
-
-Read this chat for what it learned; [place the repeatable facts](../../../../../wiki/development/wiki-dream.md#placing-a-fact-on-a-page). Memory and its daily tidy keep the rest.
-
-[Save](../../../../../wiki/stack/company-knowledge.md#save-a-page) `knowledge/` pages at once; report the undo line. Publish other edits alone. After a merge, first `git fetch origin main`, `git switch -c "$BRANCH-wiki" origin/main`, and `git branch -D "$BRANCH"`. Then invoke `/ship`, minus its closing step. No edit → report `no repeatable fact`.
+- **discard**: explicit request in a Paseo worktree. Elsewhere, keep; never discard the main checkout.
+- **keep**: edits or unmerged HEAD commits. Run `/save` verbatim; stop for failed push, otherwise name any red checks and continue.
+- **wrap**: otherwise, nothing to keep.
 
 ## 2. Close
 
@@ -36,4 +30,4 @@ After the reply, archiving stops workspace processes, not shared services.
 
 ## 3. Report
 
-Report [plainly](../explore/references/asking-the-user.md#write-in-plain-words): wiki edits, saved-work link or discard, then close result. Ask no next step; failed closes end with repair options.
+Report [plainly](../explore/references/asking-the-user.md#write-in-plain-words): saved-work link or discard, then close result. Ask no next step; failed closes end with repair options.

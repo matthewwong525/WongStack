@@ -33,7 +33,7 @@ bash "$(git rev-parse --show-toplevel)/.claude/skills/save/scripts/change-candid
 
 Save the change this work touched, found by [the rungs](references/checkpoint-evidence.md#selection-rungs), never a plan merely because it is the only one open. Keep `BRANCH`, `NAME`, `CHANGE_ROOT` separate; never rename or duplicate a change to match its branch.
 
-Work that changed no repo file → say the chat's memory capture keeps its progress, and stop. Nothing learned, decided, or changed → report and stop.
+Work that changed no repo file → there is nothing to save in the repo; say so and stop. Nothing learned, decided, or changed → report and stop.
 
 ## 2. Maintain the handoff and capture context
 
