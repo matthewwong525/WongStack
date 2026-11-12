@@ -1,6 +1,6 @@
 # Search by words only, and the old schedule paths go
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** remove-unused-qmd-cleanup
 **Open questions:** none
 
@@ -119,3 +119,4 @@ Three parts of WongStack cost upkeep and almost nothing uses them. Meaning-based
 - **2026-11-12** — Assumed: the memory spec's *Recall and pull name the files behind facts* gets the same fix, because it still named the document index and a semantic backend.
 - **2026-11-12** — Second review fix: *Document search needs no setup* now names git with Node, because search lists its pages through git. The save applied the spec changes to the four main specs and changed the Purpose of the document search spec by hand; the retired-names check and the spec check pass.
 - **2026-11-12** — Releases 56.0.0 and 57.0.0 landed during the build and were brought in. Daily is now one folder and the command is `/daily:schedule`, so the edits of this change sit at the new paths and its texts use the new command name. Daily goes to version 3.0.0, because 57.0.0 took 2.0.0. The retired-names list was rebuilt on the new list: the 11 new names, the three changed replacement texts, and 64 dead exceptions removed there (316 names).
+- **2026-11-12** — Archive checkpoint: all tasks are done and the remote checks passed, the Windows search check included. Releases 57.1.0, 57.1.1 and 57.1.2 landed during the publish and were brought in; this change is release 58.0.0.

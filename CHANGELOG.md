@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Search by words only, and the old schedule paths go
+## 58.0.0 — Search by words only, and the old schedule paths go
 
 - **Memory search uses words only.** Meaning-based search (QMD) is gone, with its setup, status, and refresh commands. A search finds a page when your question shares words with the page ([recall facts and documents](wiki/development/document-retrieval.md)). Search needs no setup on any computer, and it keeps no index.
 - **A search answer is shorter.** It is now version 2, and no longer says which search mode ran or how much the meaning search covered. A request for the `semantic` or `deep` mode stops and says that meaning-based search was removed; `keyword` and `auto` still work and change nothing.
@@ -16,6 +16,7 @@
 - **Before the update, let any schedule move finish.** If the assistant still says that a routine or schedule waits to move to the app, open a chat and let it finish first, because this update removes the mover. After the update, ask the assistant to save any routine or schedule file that is left as a schedule.
 - **If this install still has the older Cloudflare runner** (set up before version 40), pause its jobs and remove it before the update, because the commands that do this go. After the update, you remove its Worker, its AI Gateway, and its keys by hand in the Cloudflare dashboard.
 - **A computer that ran the QMD setup can delete one folder**: `wongstack/documents` in your user data folder (on Linux, `~/.local/share/wongstack/documents`), about 1 GB. Nothing reads it now. The update does not delete it, because it is outside the repo.
+
 ## 57.1.1 — A retired server part opens no Needs-you chat
 
 - **When the server has retired a part your computer still uses, the daily no longer opens a *Needs you* chat.** It writes one line a day in its journal: your computer runs older code and updates itself. Before, two of these answers in a row opened a chat with steps that did not fit, such as *sign in*. A real fault still opens its chat as before.

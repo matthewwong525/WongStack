@@ -33,6 +33,6 @@
 ## 5. Checks
 
 - [x] 5.1 Run `node scripts/check-payload-links.mjs` and `node scripts/check-openspec-config.mjs`; fix each broken link or anchor, keeping a linked heading's exact text. Verify: both pass.
-- [ ] 5.2 Run `node .github/scripts/checks.mjs --worktree` and fix what fails. Verify: it passes.
+- [x] 5.2 Run `node .github/scripts/checks.mjs --worktree` and fix what fails. Verify: it passes.
 - [x] 5.3 Run `memory.mjs recall "How do we publish a finished change?"` in this checkout. Verify: the answer starts with `Recall v2 · scope current`, holds facts and wiki passages, fits 6,144 bytes, and no `wongstack/documents` folder was created in the user's data folder.
-- [ ] 5.4 Run `/save`; in that save, after the deltas reconcile, edit the Purpose line of `openspec/specs/document-retrieval/spec.md` (decision 9). Verify: the gate passes, `openspec validate --specs --strict` passes, and the `document-search` Windows check passed on the branch.
+- [x] 5.4 Run `/save`; in that save, after the deltas reconcile, edit the Purpose line of `openspec/specs/document-retrieval/spec.md` (decision 9). Verify: the gate passes, `openspec validate --specs --strict` passes, and the `document-search` Windows check passed on the branch.
