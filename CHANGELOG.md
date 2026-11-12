@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — The browser is a module any project can add
+## 53.3.0 — The browser is a module any project can add
 
 - **The browser, private links, and shopping are one module** that any project can add with one pasted message, in any AI tool ([the browser module](.agents/plugins/browser/browser/README.md)). Your project still gets the same three skills, `browser`, `hand-over`, and `shop`, as real folders at `.agents/skills/`.
 - **Their guides moved into the module.** Browsing, login codes, your password manager, the browser window, proxies, the live view, saved details, and shopping are now in each skill's `references/` folder. [The key link](.agents/plugins/browser/hand-over/references/key-link.md) has its own page; the secrets page links it.
