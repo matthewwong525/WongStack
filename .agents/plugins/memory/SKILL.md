@@ -6,7 +6,7 @@ user-invocable: true
 
 # /memory
 
-The [memory convention](../../../wiki/development/memory.md) owns storage/access; [writing facts](references/writing-facts.md) owns writing.
+The [README](README.md#who-sees-what) owns access; [writing facts](references/writing-facts.md) owns writing.
 
 From the repo root:
 
@@ -18,7 +18,7 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 
 | You want | Command |
 |---|---|
-| Facts and document evidence | `recall <question>`; read originals. [Scopes, modes, setup](../../../wiki/development/document-retrieval.md) |
+| Facts and document evidence | `recall <question>`; read originals. [Scopes, modes, setup](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/document-retrieval.md) |
 | Documents only | `documents <question>`; `--json` |
 | Direct facts | `search <terms>`; `--tag`, `--type`, `--slug`, `--since`, `--until`, `--author`, `--branch`, `--change`, `--state`, `--all`, `--everyone` |
 | Programs | `search <terms> --json` (version 1) |
@@ -30,13 +30,13 @@ node .claude/skills/memory/scripts/memory.mjs <command>
 | Tags; fix one, or merge a look-alike (admin) | `tags`; `tag <name> --definition <text>` or `--alias-of <tag>` |
 | Counts, embeddings trigger | `stats` |
 | Close stale threads, add path tags (`put-facts` runs it) | `upkeep` |
-| What the person typed in this computer's Claude Code and Codex chats, keys hidden, no store; ask first outside [setup](../../../wiki/stack/learning-from-chats.md) | `recent-chats [--days 30 \| --all] [--parts \| --part <k>]` |
+| What the person typed in this computer's Claude Code and Codex chats, keys hidden, no store; ask first outside [setup](https://github.com/matthewwong525/WongStack/blob/main/wiki/stack/learning-from-chats.md) | `recent-chats [--days 30 \| --all] [--parts \| --part <k>]` |
 
-One format per query; fetch sources on demand. Obey [visibility](../../../wiki/development/memory.md#who-sees-what); `--everyone` widens only admins' direct reads. The repo wins over dated facts.
+One format per query; fetch sources on demand. Obey [visibility](README.md#who-sees-what); `--everyone` widens only admins' direct reads. The repo wins over dated facts.
 
 **Store unavailable: say facts were not loaded; continue.**
 
-[Read adapter](../../../wiki/stack/company-api.md#memory-uses-the-same-sign-in).
+[Read adapter](https://github.com/matthewwong525/WongStack/blob/main/wiki/stack/company-api.md#memory-uses-the-same-sign-in).
 
 ## Write
 
@@ -69,11 +69,11 @@ The **write gate**:
 
 ## Daily tidy
 
-The first chat each day starts [it](../../../wiki/development/wiki-dream.md#the-daily-tidy). Last tidy: `daily`. Stop or start it here: `daily off`, `daily on`. Tidy now: `daily now`.
+The first chat each day starts it. Last tidy: `daily`. Stop or start it here: `daily off`, `daily on`. Tidy now: `daily now`.
 
 ## Team access
 
-Memory uses the company sign-in; [Access](../../../wiki/development/memory.md#who-sees-what) sets each role. A failure saying the sign-in ended: run the `cloudflared access login` it names and show the person the link. After the update, the admin runs `migrate-people`, then `assign <machine-id> <email>` for waiting notes.
+Memory uses the company sign-in; the store sets [each role](README.md#who-sees-what). A failure saying the sign-in ended: run the `cloudflared access login` it names and show the person the link. After the update, the admin runs `migrate-people`, then `assign <machine-id> <email>` for waiting notes.
 
 ## Background run
 

@@ -16,6 +16,14 @@
 - **Before the update, let any schedule move finish.** If the assistant still says that a routine or schedule waits to move to the app, open a chat and let it finish first, because this update removes the mover. After the update, ask the assistant to save any routine or schedule file that is left as a schedule.
 - **If this install still has the older Cloudflare runner** (set up before version 40), pause its jobs and remove it before the update, because the commands that do this go. After the update, you remove its Worker, its AI Gateway, and its keys by hand in the Cloudflare dashboard.
 - **A computer that ran the QMD setup can delete one folder**: `wongstack/documents` in your user data folder (on Linux, `~/.local/share/wongstack/documents`), about 1 GB. Nothing reads it now. The update does not delete it, because it is outside the repo.
+## 57.1.2 — Each plugin's guide stands on its own
+
+- **The build loop, memory, and Daily carry the rules they follow.** Before, their steps sent the assistant to WongStack's own guide pages, which a project with only the plugin does not have. Now the loop's shared rules are in [its own page](.agents/plugins/loop/references/rules.md), the plan's review page and prototype steps are in [the plan's](.agents/plugins/loop/skills/plan/references/review-page.md) [own pages](.agents/plugins/loop/skills/plan/references/prototypes.md), memory's [who sees what](.agents/plugins/memory/README.md#who-sees-what) and its [fact placing](.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) are in memory, and [your Daily settings](.agents/plugins/daily/README.md#your-settings), add-ons and own jobs are in Daily.
+- **WongStack's guide points down to the plugin.** Each moved heading stays, with a short line and a link, so older links still open.
+- **A WongStack-only page is linked by its full web address**, so it opens from any project. Links that only explained why are gone.
+- **A check keeps it so**: the plugin test fails on a link that leaves the plugin's own folder by a short path ([adding a module](wiki/maintaining/adding-a-module.md#what-it-may-reach)).
+
+**Updating.** Nothing to do by hand.
 
 ## 57.1.1 — A retired server part opens no Needs-you chat
 
