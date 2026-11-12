@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — The browser and Daily each come in one folder
+## 57.0.0 — The browser and Daily each come in one folder
 
 - **The browser and Daily each install as one folder** in your skills folder: `.claude/skills/browser/` and `.claude/skills/daily/`. Their other commands sit inside it, in `skills/` ([adding a module](wiki/maintaining/adding-a-module.md)). Before, each one came in two or three folders.
 - **`/schedule` is now `/daily:schedule`.** It does the same work. Its scripts are in `.claude/skills/daily/skills/schedule/scripts/`. In Claude Code, a typed `/schedule` now opens Claude Code's own cloud schedules, not yours. To make a schedule, type `/daily:schedule` or ask in plain words.
