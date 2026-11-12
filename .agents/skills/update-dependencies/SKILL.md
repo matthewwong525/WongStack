@@ -15,7 +15,7 @@ Run `node .claude/skills/update-dependencies/scripts/update.mjs` and watch its l
 - **`FAIL`:** fix what it names, then rerun; finished stages report current.
 - **`needs you:`:** ask first, per [required tools](../../../wiki/development/required-tools.md).
 - **`major:`:** read the linked notes and migrate. One you can't: restore its old range and rerun with `--hold <package>`; name it in the report.
-- **`openspec:`:** the contract test ran. Check the release notes against [the shared contract](../plan/references/openspec-cli.md) and adapt the owning WongStack skill; never accept a missing field silently. [No generated layer](../plan/references/openspec-cli.md) exists: never run `openspec update` or regenerate `openspec-*` skills.
+- **`openspec:`:** the contract test ran. Check the release notes against [the shared contract](../../plugins/loop/skills/plan/references/openspec-cli.md) and adapt the owning WongStack skill; never accept a missing field silently. [No generated layer](../../plugins/loop/skills/plan/references/openspec-cli.md) exists: never run `openspec update` or regenerate `openspec-*` skills.
 - **`status: current`:** say so and stop without `/save`.
 
 Payload files changed → follow [the release rule](../../rules/payload.md); otherwise say why no release is due.

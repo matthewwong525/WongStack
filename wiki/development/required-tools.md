@@ -16,7 +16,7 @@ Core reads remain dependency-free: **no `jq`, no `python` (only [Camoufox](#inst
 
 | Tool | Why |
 |---|---|
-| `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
+| `agent-browser` | The browser [`/verify`](../../.agents/plugins/loop/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
 | `cloudflared` | Cloudflare's free tunnel tool, which gives every [private link](../../.agents/plugins/browser/browser/references/browsing.md#how-private-links-work) (the key link and a live view) an address your phone or another computer can open. Setup offers it up front, in the same question. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time a private link needs it. A link opened at the agent's own computer needs it too: there is no local link. |
 | Camoufox | The browser the agent [uses websites in as you](../../.agents/plugins/browser/browser/references/browsing.md#saved-browser-logins), which more sites let in. Setup never offers it. The first errand asks, then [installs it](#installing-camoufox) into your home folder. |
 | Shop's command | What [shopping](../../.agents/plugins/browser/shop/references/shopping.md) runs to search Shop's catalog and pay at its checkout. Setup never offers it. The first shopping request asks, then [installs it](#installing-shops-command) into your home folder. |
@@ -179,6 +179,6 @@ Reach for a shell pipeline only when you need determinism or volume — parsing 
 
 ## Adding a dependency
 
-Don't, unless the payload genuinely can't work without it. If a change seems to need a new tool, the first question is whether `gh`, `git`, or the agent itself can already do the job. If a new tool is truly required, it belongs in this page, in [the preconditions](../../.agents/skills/save/references/preconditions.md) when a verb must check it, and in the `CHANGELOG.md` entry for that change — a downstream repo shouldn't discover it by failing.
+Don't, unless the payload genuinely can't work without it. If a change seems to need a new tool, the first question is whether `gh`, `git`, or the agent itself can already do the job. If a new tool is truly required, it belongs in this page, in [the preconditions](../../.agents/plugins/loop/skills/save/references/preconditions.md) when a verb must check it, and in the `CHANGELOG.md` entry for that change — a downstream repo shouldn't discover it by failing.
 
 Other development processes live in [Development](README.md).

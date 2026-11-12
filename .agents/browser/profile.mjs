@@ -11,8 +11,8 @@ const TOOL_KEY = /^TOOL_[A-Z][A-Z0-9_]*$/;
 
 /** The app's look and the light and dark switch, as the plan's review page has them. */
 async function look() {
-  const { lookCss } = await import('../skills/plan/scripts/look.mjs');
-  return { css: lookCss(), themeJs: readFileSync(new URL('../skills/plan/references/theme.js', import.meta.url), 'utf8') };
+  const { lookCss } = await import('../plugins/loop/skills/plan/scripts/look.mjs');
+  return { css: lookCss(), themeJs: readFileSync(new URL('../plugins/loop/skills/plan/references/theme.js', import.meta.url), 'utf8') };
 }
 
 /** Wakes the chat that opened the link: the link's watcher runs in that chat's environment, so it names the chat. */
@@ -25,7 +25,7 @@ async function wakeChat(state, message) {
  * which reaches the live app through `npm run secrets:push`. A seeded branch copy of either is written too. */
 async function keyFiles(ctx) {
   const { declarations } = await import('../skills/hand-over/scripts/keys.mjs');
-  const { loadBase } = await import('../skills/ship/scripts/worktree-secrets.mjs');
+  const { loadBase } = await import('../loop/worktree-secrets.mjs');
   const declared = example => { try { return declarations(readFileSync(join(ctx.root, example), 'utf8')); } catch { return new Map(); } };
   const copy = rel => { try { return ctx.linked && loadBase(ctx)?.files?.[rel] ? join(ctx.root, rel) : null; } catch { return null; } };
   const env = declared('.env.example');

@@ -23,7 +23,7 @@ The agent searches, compares, and fills a cart without an account. For a store S
 
 ## The first request installs Shop's command
 
-A command that prints `SHOP_NEEDS=install` found no install. The agent asks once, [the shared way](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/explore/references/asking-the-user.md), naming the size (about 2 MB, in your home folder, no admin password). On a yes it runs `shop.mjs install` and carries on. [Installing Shop's command](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/required-tools.md#installing-shops-command) says what lands where.
+A command that prints `SHOP_NEEDS=install` found no install. The agent asks once, [the shared way](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/loop/skills/explore/references/asking-the-user.md), naming the size (about 2 MB, in your home folder, no admin password). On a yes it runs `shop.mjs install` and carries on. [Installing Shop's command](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/required-tools.md#installing-shops-command) says what lands where.
 
 - **A no installs nothing.** The agent does the errand by [browsing as you](../../browser/references/browsing.md).
 - **`SHOP_NEEDS=node` means this computer's Node is not one Shop's command runs on.** The agent says so and browses instead; it never installs Node for this.
@@ -31,7 +31,7 @@ A command that prints `SHOP_NEEDS=install` found no install. The agent asks once
 
 ## Connecting your Shop account
 
-**The agent asks before it connects your Shop account, and only when the task needs it**: to pay, to use a saved address, or to look up an order. It asks [the shared way](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/explore/references/asking-the-user.md), saying what the connection lets it do.
+**The agent asks before it connects your Shop account, and only when the task needs it**: to pay, to use a saved address, or to look up an order. It asks [the shared way](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/loop/skills/explore/references/asking-the-user.md), saying what the connection lets it do.
 
 1. On a yes, it runs `shop.mjs account login --wait 0 --device-name "WongStack"`, which answers with Shop's link and a short code.
 2. It sends you both in the chat. The code is public: you open the link and approve in Shop yourself.
@@ -43,7 +43,7 @@ A command that prints `SHOP_NEEDS=install` found no install. The agent asks once
 
 ## The pay question
 
-**The agent pays only on a yes that names the purchase.** It reads the checkout, then asks [the shared way](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/explore/references/asking-the-user.md), naming:
+**The agent pays only on a yes that names the purchase.** It reads the checkout, then asks [the shared way](https://github.com/matthewwong525/WongStack/blob/main/.agents/plugins/loop/skills/explore/references/asking-the-user.md), naming:
 
 - the store;
 - each item, with its options and quantity;

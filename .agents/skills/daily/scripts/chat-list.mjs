@@ -4,7 +4,7 @@ import { readdirSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
 import { codexDayDir } from '../../memory/scripts/lib/transcripts.mjs';
-import { folderOf, readState, titleOf } from '../../explore/scripts/step-title.mjs';
+import { folderOf, readState, titleOf } from '../../../loop/step-title.mjs';
 import { paseoRecord, readJson, sameRepo, writeJson } from './chief.mjs';
 import { RUN_FLAGS } from './daily.mjs';
 

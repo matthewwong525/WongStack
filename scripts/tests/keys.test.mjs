@@ -16,7 +16,7 @@ const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
-const seedScript = join(repo, '.agents/skills/ship/scripts/worktree-secrets.mjs');
+const seedScript = join(repo, '.agents/loop/worktree-secrets.mjs');
 const KEY = /#key=([0-9a-f]{64})$/m;
 const SECRET = 'sk_live_Secret123';
 const SPACED = 'pa ss #word';

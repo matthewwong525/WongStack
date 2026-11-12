@@ -11,7 +11,7 @@ Each kind of behavior has one owner, so no check is done twice and nothing falls
 | Rules, edge cases and failures | Unit and screen tests | Every check; blocks publishing |
 | Database reads and saves | [The real-database tests](#the-real-database-tests) | Every check; blocks publishing |
 | Outside services | Local tests | Every check; blocks publishing |
-| Screens and real sign-in | [`/verify`](../../.agents/skills/verify/SKILL.md) and [kept checks](../development/kept-checks.md) | On the preview |
+| Screens and real sign-in | [`/verify`](../../.agents/plugins/loop/skills/verify/SKILL.md) and [kept checks](../development/kept-checks.md) | On the preview |
 | A bug `/verify` finds | A new failing local test | Before the fix |
 
 Local tests block a mistake before it is published: the automatic checks are [the publishing gate](../development/the-change-loop.md#the-gate). Local runs can not show the hosted sign-in policy, a live provider, or a screen in a real browser, so the [preview walk](../development/staging-walkthrough.md) keeps those. When the walk finds a bug, first write a local test that fails on it, then fix the bug: the test keeps the bug from coming back.

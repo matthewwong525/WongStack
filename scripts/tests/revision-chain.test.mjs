@@ -8,6 +8,9 @@ import { observeRevisionChain } from '../fixtures/verify-receipts/revision-chain
 import { captureRevisionChain } from '../verify-revision-chain.mjs';
 import { HEAD, githubFixture } from '../fixtures/saved-revision.mjs';
 import { savedRevision } from '../../.agents/skills/save/scripts/saved-revision.mjs';
+
+// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
+process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
 const earlier = 'da9e789563b0fcaa5a2c174e0fb86bb5bf2de35c';
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 test('retained instruction comparison and actual helper reject former repeated-checkpoint path', async () => {

@@ -130,9 +130,12 @@ for (const line of s.lines ?? ['LOCAL_CHECKS=pass']) console.log(line);
 process.exit(s.code ?? 0);
 `;
 
+// WongStack's own profile names the route; without it the fake gh fails `gh --version`, and the route is local.
+const PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
+
 // A real repository with a bare origin: main holds a first release, and `work` is checked out.
 // `checks` gives the repo a local-checks script that answers with those settings.
-function fixture(t, { gh = {}, openspec = {}, artifacts = false, checks = null } = {}) {
+function fixture(t, { gh = {}, openspec = {}, artifacts = false, checks = null, profile = PROFILE } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-ship-commands-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const work = join(dir, 'work');
@@ -150,6 +153,7 @@ function fixture(t, { gh = {}, openspec = {}, artifacts = false, checks = null }
     ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}`, HOME: dir, FAKE_DIR: dir,
     GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_AUTHOR_NAME: 'Fixture', GIT_AUTHOR_EMAIL: 'fixture@example.test', GIT_COMMITTER_NAME: 'Fixture', GIT_COMMITTER_EMAIL: 'fixture@example.test',
+    WONG_LOOP_PROFILE: profile,
     ...(artifacts ? { FAKE_REMOTE: ARTIFACTS_REMOTE, REAL_GIT, REAL_NODE: process.execPath } : {}),
   };
   // The fixture's own git calls go to the real git, so only the command's calls are logged.
@@ -194,7 +198,7 @@ function fixture(t, { gh = {}, openspec = {}, artifacts = false, checks = null }
 const behindMain = f => f.git('merge-base', '--is-ancestor', 'origin/main', 'HEAD');
 const SAVE_NEXT = `invoke ordinary /save once, with change demo and archive path ${ARCHIVE} (mode archive). Go on to /verify only on SUCCESS or NONE.`;
 const checkCalls = f => f.calls().match(/^checks .*$/gm) ?? [];
-const NO_SCRIPT = 'not run (this repo has no .github/scripts/checks.mjs)';
+const NO_SCRIPT = 'not run (the project names no pre-check)';
 
 test('a prepare that merges nothing runs no local check, and prints the same lines as before', t => {
   const f = fixture(t, { checks: { code: 1, lines: ['LOCAL_CHECKS=fail (suite)'] } });
@@ -254,7 +258,7 @@ test('local checks that could not run after a merge say so in one line and keep 
   silent.commit({ ...silent.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY) });
   const none = silent.run(['prepare', '--change', 'demo']);
   assert.equal(none.status, 0, `${none.stdout}${none.stderr}`);
-  assert.ok(none.stdout.endsWith(`LOCAL_CHECKS=not run (checks.mjs exited 2 with no LOCAL_CHECKS line)\nNEXT: ${SAVE_NEXT}\n`), none.stdout);
+  assert.ok(none.stdout.endsWith(`LOCAL_CHECKS=not run (the pre-check exited 2 with no LOCAL_CHECKS line)\nNEXT: ${SAVE_NEXT}\n`), none.stdout);
 });
 
 test('a merge resolved by hand is checked once, on the rerun that concludes it', t => {
@@ -715,7 +719,7 @@ test('an Artifacts install: a red or unread main stops prepare before any change
   const cut = f.run(['prepare', '--change', 'demo'], { MAIN_RESULT: 'INTERRUPTED', MAIN_AFTER: 'INTERRUPTED' });
   assert.equal(cut.status, 6);
   assert.match(cut.stdout, /^DEFAULT_CHECKS=restarted\nDEFAULT_CHECKS=interrupted$/m);
-  const again = 'node .claude/skills/save/scripts/artifacts-run.mjs';
+  const again = 'node .claude/skills/save/scripts/delivery-route.mjs run artifacts';
   assert.ok(cut.stdout.includes(`NEXT: main's check run was cut off, not failed. Start it again with \`${again} restart ${moved} refs/heads/main\`, then wait for it with \`${again} live ${moved}\`. Rerun this command when that prints an address or none; on anything else, report it and stop.\n`), cut.stdout);
   assert.doesNotMatch(cut.stdout, /checks are failing|could not be read/);
   assert.equal(f.has('openspec/changes/demo'), true);
@@ -741,7 +745,7 @@ test('an Artifacts install: a cut-off main is restarted and waited for once; a p
   assert.equal(passed.status, 0, `${passed.stdout}${passed.stderr}`);
   assert.match(passed.stdout, /^DEFAULT_CHECKS=restarted\nDEFAULT_CHECKS=ok$/m);
   assert.equal(passed.value('ARCHIVE'), ARCHIVE);
-  assert.match(f.calls(), new RegExp(`^node artifacts-run\\.mjs restart ${main} refs/heads/main\nnode artifacts-run\\.mjs live ${main}$`, 'm'));
+  assert.match(f.calls(), new RegExp(`^node artifacts-run\\.mjs restart ${main} refs/heads/main\n(?:git rev-parse --show-toplevel\n)?node artifacts-run\\.mjs live ${main}$`, 'm'));
   noGh(f);
 });
 
@@ -818,7 +822,7 @@ test('an Artifacts install: a main cut off after the publish gets the restart as
   assert.equal(r.status, 3, `${r.stdout}${r.stderr}`);
   assert.match(r.stdout, /^merged=yes\ncommit=[0-9a-f]{40}\nmain=INTERRUPTED\n/);
   const commit = r.value('commit');
-  const again = 'node .claude/skills/save/scripts/artifacts-run.mjs';
+  const again = 'node .claude/skills/save/scripts/delivery-route.mjs run artifacts';
   assert.ok(r.stdout.endsWith(`LIVE_LOOK=unknown\nREASON=main's check run was cut off, so this change is on main but not live yet\nNEXT: it is on main, and its check run was cut off, not failed. Start it again with \`${again} restart ${commit} refs/heads/main\`, then wait for it with \`${again} live ${commit}\`. Report it live at the address that prints; on anything else, report REASON and stop. Never push again to make main pass.\n`), r.stdout);
   assert.doesNotMatch(r.stdout, /checks or deploy failed|invoke apply/);
   const calls = f.calls();
@@ -885,3 +889,68 @@ test('a teammate with the publish tick ships through the app: archive, save, the
   assert.doesNotMatch(f.calls(), /^(gh|git push|git merge|node artifacts-run) /m);
 });
 
+// The loop alone, with no gh: a profile whose pre-check passes while ok.txt says ok, and no other part.
+function localFixture(t) {
+  const profile = join(mkdtempSync(join(tmpdir(), 'wong-test-ship-profile-')), 'profile.mjs');
+  t.after(() => rmSync(dirname(profile), { recursive: true, force: true }));
+  writeFileSync(profile, "export default { precheck: 'grep -qx ok ok.txt' };\n");
+  return fixture(t, { profile });
+}
+
+test('a local route prepares against the local default branch, with no fetch and no default checks', t => {
+  const f = localFixture(t);
+  f.commit({ ...f.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY), 'ok.txt': 'ok\n' });
+  const r = f.run(['prepare']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.deepEqual(['BRANCH', 'AHEAD', 'CHANGE', 'ARCHIVE', 'RELEASE', 'SYNC'].map(r.value), ['work', '1', 'demo', ARCHIVE, '1.1.0 from 1.0.0', 'none']);
+  assert.match(r.value('DEFAULT_CHECKS'), /^not read \(a local route/);
+  assert.match(r.stdout, /^NEXT: invoke ordinary \/save once, [^\n]*\. On LOCAL, skip \/verify and run finish\.$/m);
+  assert.equal(f.read('VERSION'), '1.1.0\n');
+  assert.doesNotMatch(f.calls(), /^gh (?!--version)/m);
+  // main moved on this computer only: prepare merges the local branch in, then runs the pre-check.
+  const moved = localFixture(t);
+  moved.git('checkout', '-q', 'main');
+  moved.commit({ 'other.txt': 'theirs\n' }, 'main moved');
+  moved.git('checkout', '-q', 'work');
+  moved.commit({ 'ok.txt': 'ok\n' });
+  const synced = moved.run(['prepare', '--no-change', '--sync']);
+  assert.equal(synced.status, 0, `${synced.stdout}${synced.stderr}`);
+  assert.equal(synced.value('SYNC'), 'merged main');
+  assert.equal(synced.value('LOCAL_CHECKS'), 'pass');
+});
+
+test('a local finish runs the pre-check, then squash-merges into the default branch and pushes nothing', t => {
+  const f = localFixture(t);
+  f.commit({ 'ok.txt': 'not yet\n' }, 'feat: a local thing');
+  const failed = f.run(['finish']);
+  assert.equal(failed.status, 6, `${failed.stdout}${failed.stderr}`);
+  assert.match(failed.stdout, /^PRECHECK=fail \(exit 1\)\nmerged=no\n/m);
+  assert.equal(f.git('rev-parse', 'main'), f.git('rev-parse', 'origin/main'), 'nothing merged');
+  f.commit({ 'ok.txt': 'ok\n' }, 'feat: a local thing');
+  const r = f.run(['finish']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.match(r.stdout, /^PRECHECK=pass\nmerged=yes\ncommit=[0-9a-f]{40}\n/m);
+  assert.match(r.stdout, /^NEXT: it merged into main on this computer, and nothing was pushed\./m);
+  assert.equal(f.git('branch', '--show-current'), 'main');
+  assert.equal(f.git('log', '-1', '--format=%s', 'main'), 'feat: a local thing');
+  assert.equal(f.git('rev-list', '--count', 'origin/main..main'), '1', 'one squash commit');
+  assert.equal(f.read('ok.txt'), 'ok\n');
+  assert.equal(f.git('ls-remote', '--heads', 'origin', 'work'), '', 'nothing was pushed');
+  assert.doesNotMatch(f.calls(), /^gh (?!--version)/m);
+});
+
+test('a local finish refuses unsaved work, and a checkout of main elsewhere takes the merge', t => {
+  const f = localFixture(t);
+  f.commit({ 'ok.txt': 'ok\n' }, 'feat: elsewhere');
+  f.write('loose.txt', 'unsaved\n');
+  const dirty = f.run(['finish']);
+  assert.equal(dirty.status, 1);
+  assert.match(dirty.stdout, /^merged=no$/m);
+  rmSync(join(f.work, 'loose.txt'));
+  const primary = join(f.dir, 'primary');
+  f.git('worktree', 'add', '-q', primary, 'main');
+  const r = f.run(['finish']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(f.git('branch', '--show-current'), 'work', 'this checkout stays on its branch');
+  assert.equal(execFileSync(REAL_GIT, ['-C', primary, 'log', '-1', '--format=%s'], { encoding: 'utf8' }).trim(), 'feat: elsewhere');
+});

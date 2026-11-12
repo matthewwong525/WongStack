@@ -67,7 +67,7 @@ When a chat starts or resumes, the plugin's start hook prints a **digest** of th
 
 **Before the first edit in a folder**, a hook shows that [area's](#facts-by-code-area) open threads, then its newest live facts, eight lines at most, as [who sees what](#who-sees-what) allows. It fires once per area per chat, on Claude Code's edit tools and Codex's `apply_patch`, and never holds up the edit: no answer within 3 seconds shows nothing.
 
-A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.agents/skills/explore/SKILL.md) searches before it asks a question, and `/continue` reads the change's facts and open threads. [Memory search](memory-search.md) says which read to use.
+A fact is dated context, not an instruction. Check it against the repo, and the repo wins. The verbs also read memory where they decide: [`/explore`](../../.agents/plugins/loop/skills/explore/SKILL.md) searches before it asks a question, and `/continue` reads the change's facts and open threads. [Memory search](memory-search.md) says which read to use.
 
 ## Topics
 
@@ -100,7 +100,7 @@ A fact about code carries the **area tag** of the folder it concerns, so the nex
 - **A fact gets its area when it is written.** The writer tags it, as [writing facts](../../.agents/plugins/memory/references/writing-facts.md) says. An area tag the store lacks is defined from the list on first use. [Upkeep](#consolidation) tags older facts whose words name a mapped path.
 - **The list owns each area tag's definition and look-alikes.** Upkeep copies them to the store on the admin's next write: an entry's `aliases` point at its area, *testing* at `tests`, and a read by a tag also finds its aliases. Fix a definition in `areas.json`, not in the store. For a look-alike outside the list, the admin runs `memory.mjs tag <name> --alias-of <tag>`; a teammate never changes a tag.
 - **One lookup shows everything linked.** `memory.mjs pull <path>` prints the areas, their docs and code folders, past changes, the files linking to and the code using the path, then its areas' facts. When the store doesn't answer, it says so, and work goes on.
-- **The build and planning load it.** Before its first edit, [`/apply`'s build](../../.agents/skills/apply/references/build-helper.md) pulls the change and runs `memory.mjs areas --change <name>` on the paths it names. [`/explore`](../../.agents/skills/explore/SKILL.md#search-memory-before-asking) pulls the paths it expects to touch.
+- **The build and planning load it.** Before its first edit, [`/apply`'s build](../../.agents/plugins/loop/skills/apply/references/build-helper.md) pulls the change and runs `memory.mjs areas --change <name>` on the paths it names. [`/explore`](../../.agents/plugins/loop/skills/explore/SKILL.md#search-memory-before-asking) pulls the paths it expects to touch.
 - **A repo adds its own areas** in `areas.json`: a tag, a definition, folder prefixes, and docs; a doc the repo lacks is skipped. [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) keeps the edit as a local change.
 
 ## Consolidation

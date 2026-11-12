@@ -4,9 +4,9 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { CHECK_FILES, cli, NEVER_PUBLISHES, NO_PUBLISH, NOT_SET_UP, refusal, waitRows } from '../../.agents/skills/save/scripts/app-change.mjs';
+import { CHECK_FILES, cli, NEVER_PUBLISHES, NO_PUBLISH, NOT_SET_UP, refusal, waitRows } from '../../.agents/loop/routes/app-change.mjs';
 
-const script = new URL('../../.agents/skills/save/scripts/app-change.mjs', import.meta.url).pathname;
+const script = new URL('../../.agents/loop/routes/app-change.mjs', import.meta.url).pathname;
 const APP = 'https://app.example.com/api/access/code/git/';
 const NEW = 'b'.repeat(40);
 const OLD = 'a'.repeat(40);

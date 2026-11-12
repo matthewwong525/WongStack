@@ -2,12 +2,12 @@
 // Puts WongStack's files into an empty folder the same way on every install: payload, links, hubs, ignore rules,
 // rules file and install record. Source-only, like provision.mjs. Doc: ../SKILL.md#install-through-the-normal-workflow
 import { execFileSync, spawnSync } from 'node:child_process';
-import { constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
-import { installPath, installText, mappedDirs } from '../../wong-sync/scripts/install-path.mjs';
+import { installPath, installsAsText, installText, mappedDirs } from '../../wong-sync/scripts/install-path.mjs';
 
 const USAGE = `usage: install.mjs --source <source checkout> --target <empty folder> [--repo <upstream url>]
 
@@ -20,6 +20,8 @@ export const INVENTORY = '.agents/skills/wong-sync/references/payload-files.json
 export const CATEGORIES = ['core', 'ui', 'pack', 'scaffold'];
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SEED = join(HERE, '..', 'references', 'seed');
+// The plans folder's rules ship with the build loop module; setup writes them from this checkout's copy.
+const OPENSPEC_CONFIG = join(HERE, '../../../plugins/loop/references/openspec-config.yaml');
 /** Each path the manifest's `seededBySetup` lists, and the template in `references/seed/` that writes it. */
 export const SEEDS = { 'wiki/README.md': 'wiki-README.md', 'wiki/development/README.md': 'wiki-development-README.md', '.gitignore': 'gitignore' };
 const LINK_FIX = 'on Windows, turn on Developer Mode, reopen the assistant, and run setup again (references/failure-map.md#getting-the-computer-ready)';
@@ -115,8 +117,10 @@ function writeAll({ source, target, repo, today, openspec }) {
   for (const path of [...files, '.env.example']) {
     if (!existsSync(join(source, path))) throw new InstallError(`the source has no ${path}`);
     const to = installedAt(path, manifest);
-    if (path.endsWith('.md')) put(target, to, installText(logical(path), readFileSync(join(source, path), 'utf8'), mapped));
-    else {
+    if (installsAsText(path)) {
+      put(target, to, installText(logical(path), readFileSync(join(source, path), 'utf8'), mapped));
+      chmodSync(join(target, to), statSync(join(source, path)).mode);
+    } else {
       mkdirSync(dirname(join(target, to)), { recursive: true });
       copyFileSync(join(source, path), join(target, to), constants.COPYFILE_EXCL);
     }
@@ -134,7 +138,7 @@ function writeAll({ source, target, repo, today, openspec }) {
   put(target, '.agents/.wong-stack.json', `${JSON.stringify(record, null, 2)}\n`);
   openspec(target);
   mkdirSync(join(target, 'openspec'), { recursive: true });
-  writeFileSync(join(target, 'openspec', 'config.yaml'), readFileSync(join(SEED, 'openspec-config.yaml'), 'utf8'));
+  writeFileSync(join(target, 'openspec', 'config.yaml'), readFileSync(OPENSPEC_CONFIG, 'utf8'));
   return { version, commit, repo, files: files.length + 1, links: ['.claude', '.codex', 'CLAUDE.md'] };
 }
 

@@ -69,7 +69,7 @@ console.log('{"ok":true}');
 
 test('paseo.json seeds secrets on worktree setup and carries the four naming instructions', () => {
   const config = JSON.parse(readFileSync(path.join(repo, 'paseo.json'), 'utf8'));
-  assert.equal(config.worktree.setup, 'node .claude/skills/ship/scripts/worktree-secrets.mjs seed');
+  assert.equal(config.worktree.setup, 'node .claude/loop/worktree-secrets.mjs seed');
   for (const key of ['title', 'branchName', 'commitMessage', 'pullRequest']) {
     assert.ok(config.metadataGeneration[key]?.instructions?.trim(), `metadataGeneration.${key} has instructions`);
   }

@@ -5,15 +5,18 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-const script = new URL('../../.agents/skills/ship/scripts/publish-artifacts.sh', import.meta.url).pathname;
+// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
+process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
+
+const script = new URL('../../.agents/loop/routes/publish-artifacts.sh', import.meta.url).pathname;
 const merge = new URL('../../.agents/skills/ship/scripts/merge.sh', import.meta.url).pathname;
 const HEAD = 'c'.repeat(40);
 const TREE = 'f'.repeat(40);
 const COMMIT = 'e'.repeat(40);
 const LIVE = 'https://demo.example.workers.dev';
 
-// Fake git, node and gh answer from env and log every call. Fake node stands in for delivery-route.mjs (always
-// `artifacts`) and artifacts-run.mjs: `result` prints RUN_RESULT for the branch's run, `live` RUN_LIVE for main's.
+// Fake git, node and gh log every call. Fake node is delivery-route.mjs (`artifacts`; `run artifacts publish` runs the
+// real publish-artifacts.sh) and artifacts-run.mjs: `result` prints RUN_RESULT, `live` RUN_LIVE for main's run.
 const FAKE_GIT = `#!/usr/bin/env bash
 echo "git $*" >> "$FAKE_DIR/calls"
 case "$*" in
@@ -47,7 +50,9 @@ esac
 const FAKE_NODE = `#!/usr/bin/env bash
 echo "node $*" >> "$FAKE_DIR/calls"
 case "$1" in
-  */delivery-route.mjs) [ -n "\${ROUTE_RC:-}" ] && exit "$ROUTE_RC"; echo artifacts; exit 0 ;;
+  */delivery-route.mjs)
+    [ "\${2:-} \${3:-} \${4:-}" = "run artifacts publish" ] && exec bash "${script}" "\${@:5}"
+    [ -n "\${ROUTE_RC:-}" ] && exit "$ROUTE_RC"; echo artifacts; exit 0 ;;
 esac
 case "\${2:-}" in
   result) [ -n "\${RESULT_RC:-}" ] && exit "$RESULT_RC"; echo "\${RUN_RESULT-SUCCESS}" ;;
@@ -95,8 +100,8 @@ test('a clean publish moves main forward by one commit, without force, and repor
   assert.deepEqual(r.pushes, [TO_MAIN, 'git push origin --delete feature']);
   assert.doesNotMatch(r.calls, /--force|\s-f\s|\s\+\S/, 'nothing may be forced');
   assert.match(r.calls, /^git -C \/work\/primary merge --ff-only origin\/main$/m);
-  assert.match(r.calls, new RegExp(`^node .+/save/scripts/artifacts-run\\.mjs result ${HEAD} refs/heads/feature$`, 'm'));
-  assert.match(r.calls, new RegExp(`^node .+/save/scripts/artifacts-run\\.mjs live ${COMMIT}$`, 'm'), 'main\'s run is read for the new commit');
+  assert.match(r.calls, new RegExp(`^node .+/loop/routes/artifacts-run\\.mjs result ${HEAD} refs/heads/feature$`, 'm'));
+  assert.match(r.calls, new RegExp(`^node .+/loop/routes/artifacts-run\\.mjs live ${COMMIT}$`, 'm'), 'main\'s run is read for the new commit');
   const at = text => r.calls.indexOf(text);
   assert.ok(at('git fetch origin main feature') > -1 && at('git fetch origin main feature') < at(' result '), 'main is fetched before the gate is read');
   assert.ok(at(' result ') < at(TO_MAIN) && at(TO_MAIN) < at(' live ') && at(' live ') < at('git push origin --delete'), 'gate, push, main\'s run, then the delete');
@@ -160,7 +165,7 @@ test('a main run that was cut off is reported as interrupted with the restart, n
   assert.match(r.stdout, /^merged=yes$/m);
   assert.match(r.stdout, /^main=INTERRUPTED$/m);
   assert.doesNotMatch(r.stdout, /^main=FAILURE$|^live=/m);
-  assert.match(r.stderr, new RegExp(`^error=main's check run was cut off, not failed; start it again: node \\.claude/skills/save/scripts/artifacts-run\\.mjs restart ${COMMIT} refs/heads/main$`, 'm'));
+  assert.match(r.stderr, new RegExp(`^error=main's check run was cut off, not failed; start it again: node \\.claude/loop/routes/artifacts-run\\.mjs restart ${COMMIT} refs/heads/main$`, 'm'));
   assert.deepEqual(r.pushes.filter(push => push.includes('refs/heads/main')), [TO_MAIN]);
   assert.match(r.stdout, /^branch=deleted$/m, 'the change is on main, so its branch is done');
 });
@@ -279,7 +284,7 @@ test('merge.sh tells the route and hands an Artifacts install over before its fi
   const first = pattern => code.findIndex(line => pattern.test(line));
   const route = first(/delivery-route\.mjs/);
   const check = first(/"\$ROUTE" = artifacts/);
-  const handOver = first(/exec bash "\$HERE\/publish-artifacts\.sh"/);
+  const handOver = first(/exec node "\$HERE\/[^"]*delivery-route\.mjs" run artifacts publish/);
   const gh = first(/(^|[\s(])gh\s/);
   assert.ok(route > -1 && check >= route && handOver >= check, 'the route is told, checked, and then handed over');
   assert.ok(gh > handOver, 'gh is asked something before the hand-over');

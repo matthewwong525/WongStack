@@ -1,6 +1,6 @@
 # Staging walkthrough
 
-[`/verify`](../../.agents/skills/verify/SKILL.md) checks a saved change against its written scenarios, using the deployed preview or behavior captured by existing automated checks. One pull-request comment holds the evidence, verdict and remaining gaps.
+[`/verify`](../../.agents/plugins/loop/skills/verify/SKILL.md) checks a saved change against its written scenarios, using the deployed preview or behavior captured by existing automated checks. One pull-request comment holds the evidence, verdict and remaining gaps.
 
 The promise is already written down: each scenario has a `WHEN` and a `THEN`. The walkthrough puts observed behavior beside that promise. A green automated check, successful command or `200` response alone cannot show that the promised result happened.
 
@@ -8,11 +8,11 @@ The promise is already written down: each scenario has a `WHEN` and a `THEN`. Th
 
 **Preview checks need no setup, on any stack.** The browser is a standalone CLI on your machine ([required tools](required-tools.md)); request probes use `curl`. CI behavior checks use a project-owned capture recipe and an existing workflow that keeps its observations.
 
-This page owns the reasons. [The walkthrough reference](../../.agents/skills/verify/references/walkthrough.md) owns how a walk runs.
+This page owns the reasons. [The walkthrough reference](../../.agents/plugins/loop/skills/verify/references/walkthrough.md) owns how a walk runs.
 
 ## The probe ladder
 
-[The scout](../../.agents/skills/verify/references/walkthrough.md#a--scout-the-scenarios) selects the strongest existing browser, request, deployed-state or CI capture route for each scenario. An API-only or command-line change can therefore get evidence too.
+[The scout](../../.agents/plugins/loop/skills/verify/references/walkthrough.md#a--scout-the-scenarios) selects the strongest existing browser, request, deployed-state or CI capture route for each scenario. An API-only or command-line change can therefore get evidence too.
 
 A scenario **no probe reaches** is **listed by name as unverified**. Missing access or evidence for a known route holds up that check alone; independent checks still finish. Repository code never runs locally to fill a gap.
 
@@ -20,9 +20,9 @@ A scenario **no probe reaches** is **listed by name as unverified**. Missing acc
 
 Prove one real capture before making it reusable. Exercise the feature through its actual entry point in the existing automated checks, inspect raw results against the written scenario, and confirm evidence survives fixture cleanup. Start with what that working example needs.
 
-The small [recipe contract](../../.agents/skills/verify/references/ci-evidence.md) names source paths, current scenarios, one owning capture guide and the workflow artifact. The guide owns commands, prerequisites, isolation and cleanup; the scenarios own expectations. Projects keep their recipes in `.agents/verification/`, outside copied skills. `/verify` reads them without edits. Missing references or prerequisites leave the affected check unverified; ordinary preview checks still work without a recipe.
+The small [recipe contract](../../.agents/plugins/loop/skills/verify/references/ci-evidence.md) names source paths, current scenarios, one owning capture guide and the workflow artifact. The guide owns commands, prerequisites, isolation and cleanup; the scenarios own expectations. Projects keep their recipes in `.agents/verification/`, outside copied skills. `/verify` reads them without edits. Missing references or prerequisites leave the affected check unverified; ordinary preview checks still work without a recipe.
 
-Captured observations identify the repository, actual source revision, run and attempt, command and raw output. Collection checks their identity and integrity against the newest matching run. An old passing attempt cannot replace missing current evidence. Downloads are read as observations, never executed. [The CI reference](../../.agents/skills/verify/references/ci-evidence.md) owns collection commands and artifact-expiry limits; project-specific capture knowledge stays in that project's guide.
+Captured observations identify the repository, actual source revision, run and attempt, command and raw output. Collection checks their identity and integrity against the newest matching run. An old passing attempt cannot replace missing current evidence. Downloads are read as observations, never executed. [The CI reference](../../.agents/plugins/loop/skills/verify/references/ci-evidence.md) owns collection commands and artifact-expiry limits; project-specific capture knowledge stays in that project's guide.
 
 ## Follow the promised result
 
@@ -60,7 +60,7 @@ When a promise says a result lasts, observe it freshly through its real consumer
 - **Evidence is scrubbed before it leaves the machine.** The driver adds the Access token to the preview's requests, so a journey that lists requests copies it into evidence; one did. Every `.env` value and token-shaped string in the run folder's text is replaced before the comment is posted. Pictures can't be read, so a journey never captures request headers.
 - **The comment links each picture and shows none inline,** because GitHub fetches a picture without the reader's login and would get nothing. Only a public bucket's pictures can sit in the comment.
 - **A plain check posts nothing unless you ask.** A screenshot or a click-through with no change behind it has no promise to grade, and a pull-request comment reports a change's verdict.
-- **A check only the published change can pass is a thread, not a task.** An unticked task stops [`/ship`](../../.agents/skills/ship/SKILL.md)'s archive, and this one can't be ticked before the merge: *a kept picture opens on the live site*. Record it as an open `verify` thread in [memory](memory.md), run it right after the merge, and write the result on the thread.
+- **A check only the published change can pass is a thread, not a task.** An unticked task stops [`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md)'s archive, and this one can't be ticked before the merge: *a kept picture opens on the live site*. Record it as an open `verify` thread in [memory](memory.md), run it right after the merge, and write the result on the thread.
 
 ### Walk the app the way a person does
 
@@ -77,21 +77,21 @@ That is why request probes work: a non-navigation request reaches your applicati
 
 ## The verdicts
 
-[The skill's verdict table](../../.agents/skills/verify/SKILL.md#verdicts) owns the five verdicts. None of them gates anything on `/verify`'s own run; [`/ship`'s walk step](../../.agents/skills/ship/SKILL.md#step-4--verify-the-preview-evidence-not-a-gate) owns what a failed walk does there. A reachable check blocked by access, safety, or ambiguous evidence makes the walk `UNKNOWN`, unless another check failed or the budget expired. A claim no probe can observe stays partly shown. An un-runnable walk is `UNKNOWN`, never `NONE`, [the same rule as the git gate](../../.agents/skills/save/references/git-gate.md): a comment that reads like a pass because a login page rendered is the outcome worth preventing.
+[The skill's verdict table](../../.agents/plugins/loop/skills/verify/SKILL.md#verdicts) owns the five verdicts. None of them gates anything on `/verify`'s own run; [`/ship`'s walk step](../../.agents/plugins/loop/skills/ship/SKILL.md#step-4--verify-the-preview-evidence-not-a-gate) owns what a failed walk does there. A reachable check blocked by access, safety, or ambiguous evidence makes the walk `UNKNOWN`, unless another check failed or the budget expired. A claim no probe can observe stays partly shown. An un-runnable walk is `UNKNOWN`, never `NONE`, [the same rule as the git gate](../../.agents/plugins/loop/skills/save/references/git-gate.md): a comment that reads like a pass because a login page rendered is the outcome worth preventing.
 
 ## When the walk can't get in
 
-An [Access](../stack/cloudflare-access.md) login wall stops a walk before it sees the app. Where a Cloudflare API token exists, `/verify` [heals it itself](../../.agents/skills/verify/SKILL.md#when-a-block-stops-the-walk) rather than sending you on an errand. The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized). With no token, or on a wall off your own site, which gets no new token, the affected checks stay unverified and join the final help list. Other safe checks still run; a login page never counts as the app working.
+An [Access](../stack/cloudflare-access.md) login wall stops a walk before it sees the app. Where a Cloudflare API token exists, `/verify` [heals it itself](../../.agents/plugins/loop/skills/verify/SKILL.md#when-a-block-stops-the-walk) rather than sending you on an errand. The repair is already authorized: pasting a token *is* [the authorization to widen it](../stack/cloudflare-credentials.md#the-widen-is-pre-authorized). With no token, or on a wall off your own site, which gets no new token, the affected checks stay unverified and join the final help list. Other safe checks still run; a login page never counts as the app working.
 
 **One heal and one retry**, never a loop. A surviving block names the attempt in the help list. Completed writes are not replayed because another check needed repair.
 
 ## When a walk fails
 
-[`/verify`](../../.agents/skills/verify/SKILL.md#order) finishes independent safe checks and preserves their evidence through repairs and retries. It posts one final report after any bounded repairs. Otherwise the first failure could hide every other result.
+[`/verify`](../../.agents/plugins/loop/skills/verify/SKILL.md#order) finishes independent safe checks and preserves their evidence through repairs and retries. It posts one final report after any bounded repairs. Otherwise the first failure could hide every other result.
 
 A failed walk cleans up nothing in a staging it may write freely: the walk after a fix rebuilds staging from the seed, under the same turn, so a retry never debugs leftovers from its own earlier checks. Elsewhere, cleanup restores only the walk's own disposable data, and shared data stays intact.
 
-It fixes only an [in-scope](../../.agents/skills/verify/references/walkthrough.md#e--after-a-failure) failure, and says which way it judged, so you can disagree. Two attempts keep the loop from becoming a grinder: a walk that can't fix its own change in two tries has found something worth a human reading, and chasing an unrelated bug turns a walk into a different change.
+It fixes only an [in-scope](../../.agents/plugins/loop/skills/verify/references/walkthrough.md#e--after-a-failure) failure, and says which way it judged, so you can disagree. Two attempts keep the loop from becoming a grinder: a walk that can't fix its own change in two tries has found something worth a human reading, and chasing an unrelated bug turns a walk into a different change.
 
 When existing CI can cheaply reproduce an in-scope defect, keep a focused regression check. Inspect that same check failing for the observed defect on the exact earlier source and passing on the repaired head; the head's complete checks must still pass. If a lasting check is impractical, retain the available reproduction and name missing proof and setup limits. This calls for no new framework or weaker check.
 
@@ -100,9 +100,9 @@ When existing CI can cheaply reproduce an in-scope defect, keep a focused regres
 - **Not a test suite.** The walk gathers and grades observations; a kept check only records a pass. Practical checks retained during repairs belong in the project's CI suite.
 - **Not automatic on `/save`.** Staging redeploys on every push, so a walk there would fire many times per change while the surface still changes. You choose the moments. [Kept checks](kept-checks.md#when-it-replays) replay only before publishing, for the same reason.
 - **Not a gate.** A gate would force an unrunnable walk to block, and you could only see your app when you were done with it. `/ship` runs one walk for evidence; a `FAILURE` gets one fix, then you decide.
-- **No second judging agent.** An agent that grades its own walk has every reason to see success, so the check is *provenance*: [`/plan`](../../.agents/skills/plan/SKILL.md) wrote the `THEN` before the walk existed, and ambiguous evidence goes to a human. Measured on 2026-10-03: fresh agents walked 20 past journeys again and disagreed with none, and the walk passed none of 30 mistakes planted on a practice site. A second judge would have changed no verdict.
+- **No second judging agent.** An agent that grades its own walk has every reason to see success, so the check is *provenance*: [`/plan`](../../.agents/plugins/loop/skills/plan/SKILL.md) wrote the `THEN` before the walk existed, and ambiguous evidence goes to a human. Measured on 2026-10-03: fresh agents walked 20 past journeys again and disagreed with none, and the walk passed none of 30 mistakes planted on a practice site. A second judge would have changed no verdict.
 - **Not a fresh walk of all of `openspec/specs/`.** The walk selects change scenarios and narrowly connected consumers; a full-surface walk grows with the app forever. Older promises replay from kept checks instead.
-- **Not a check of the live app.** A walk writes, so it stays in staging. After publishing, [`/ship`](../../.agents/skills/ship/SKILL.md#look-at-the-live-app) takes one look at the live app instead: it waits for the release, opens the app, and saves, sends, or buys nothing. A failed release is said in the same chat, with one fix built and offered. A look that cannot run is one report line.
+- **Not a check of the live app.** A walk writes, so it stays in staging. After publishing, [`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md#look-at-the-live-app) takes one look at the live app instead: it waits for the release, opens the app, and saves, sends, or buys nothing. A failed release is said in the same chat, with one fix built and offered. A look that cannot run is one report line.
 - **No local execution, and no invented tooling.** A scenario that only local code or new tooling could observe is reported as unverified, by name, rather than counted as passing.
 
 **Why this engine.** [`agent-browser`](https://github.com/vercel-labs/agent-browser) beats Playwright and Playwright MCP because those are *repo* dependencies, which would force a Node toolchain into repos that have none. The agent's own browser is desktop-only and plan-gated, and it grades its own work. The engine is pre-1.0; the exit is that journeys are declarative command arrays, the driver is one shell script, and `agent-browser get cdp-url` keeps a plain CDP path open. For a browser somewhere else, `agent-browser` supports remote providers (Browserless, Browserbase, Browser Use) through its own settings; WongStack adds no variable for it.
