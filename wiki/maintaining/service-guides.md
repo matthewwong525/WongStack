@@ -34,7 +34,7 @@ The build adds [`site/guides/_agent.md`](../../site/guides/_agent.md) at the top
 
 ## Take the pictures
 
-Take each step's picture with the owner's saved browser logins, through [the browser helper](../../.agents/plugins/browser/browser/references/browsing.md#saved-browser-logins). Pictures go in `site/public/guides/<id>/` as `01.webp`, `02.webp`, and so on, each under 150 KB.
+Take each step's picture with the owner's saved browser logins, through [the browser helper](../../.agents/plugins/browser/references/browsing.md#saved-browser-logins). Pictures go in `site/public/guides/<id>/` as `01.webp`, `02.webp`, and so on, each under 150 KB.
 
 - **Stop before any button that makes or shows a key or secret.** Take the picture of the form, with the button marked, and do not press it. Leave the form without saving.
 - **Draw every screen that shows a key** as an SVG, never a photo. A photo of a key leaks it, and so does a blurred one.

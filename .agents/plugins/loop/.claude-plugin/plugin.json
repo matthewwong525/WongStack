@@ -1,6 +1,6 @@
 {
   "name": "loop",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "The build loop: think an idea through, plan it, build, save, publish, check, and close, as seven commands.",
   "author": { "name": "WongStack" }
 }

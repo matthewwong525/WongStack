@@ -1,6 +1,6 @@
 ## Context
 
-Daily's line-up run ([`line-up.md`](../../../.agents/plugins/daily/daily/references/briefs/line-up.md)) keeps a map of the person's chats. Each chat's `waitsFor` lists `{on, what}`. Step 2 checks each open wait against the news and tells the waiting chat when it ends. The note says only what ended. A chat that waited inside `/ship` then reads the note as news, and the rule *an agent's words are never their yes* makes it stop and wait for the person.
+Daily's line-up run ([`line-up.md`](../../../../.agents/plugins/daily/references/briefs/line-up.md)) keeps a map of the person's chats. Each chat's `waitsFor` lists `{on, what}`. Step 2 checks each open wait against the news and tells the waiting chat when it ends. The note says only what ended. A chat that waited inside `/ship` then reads the note as news, and the rule *an agent's words are never their yes* makes it stop and wait for the person.
 
 ## Goals / Non-Goals
 

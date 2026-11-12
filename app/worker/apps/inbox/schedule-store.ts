@@ -60,7 +60,7 @@ const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(
     .map(key => [key, canonical((value as Record<string, unknown>)[key])]));
 
 /** The version a computer approves: what it does, where, with what leave and until when, never its timing. Same as
- *  the computer's .agents/skills/schedule/scripts/lib/version.mjs. */
+ *  the computer's .agents/skills/daily/skills/schedule/scripts/lib/version.mjs. */
 export async function scheduleVersion({ key, kind = "chat", instructions, run = {}, authority = {}, until }:
   Pick<Definition, "key" | "kind" | "instructions"> & { run?: Definition["run"]; authority?: Definition["authority"]; until?: string | null }) {
   // A row's `until: null` is no end, as a missing one is.

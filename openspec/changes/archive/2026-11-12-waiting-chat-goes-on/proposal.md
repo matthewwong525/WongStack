@@ -40,7 +40,7 @@ None.
 
 ## Impact
 
-- `.agents/plugins/daily/daily/references/briefs/line-up.md`: the map keeps each wait's typed command; an ended wait's note tells the chat to go on with it.
+- `.agents/plugins/daily/references/briefs/line-up.md`: the map keeps each wait's typed command; an ended wait's note tells the chat to go on with it.
 - `wiki/development/chats-in-line.md`: the *Waits* line.
 - `CHANGELOG.md`: a `## Next` entry.
 
@@ -53,3 +53,4 @@ None.
 - **2026-11-12** — Assumed: CI runs the full checks, because another chat held the shared local check turn for over 10 minutes twice, and CI is the gate.
 - **2026-11-12** — Assumed: `command` is `{at, text}`, like `choices`, because the note must give the time the person typed it (review finding).
 - **2026-11-12** — Archived and saved for release 56.1.0 on branch `snobbish-blobfish`.
+- **2026-11-12** — Merged main 57.0.0, which moved Daily into one folder; the brief moved with it, and this release takes the next number.

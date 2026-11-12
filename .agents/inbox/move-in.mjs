@@ -7,10 +7,10 @@ import { firstMessage } from '../skills/daily/scripts/daily.mjs';
 import { briefFolders, DEFAULT_SCHEDULES } from '../skills/daily/scripts/worker.mjs';
 import { appTiming, approveHere, approver, definition, readSchedule, saveDefinition, send } from './lib/app.mjs';
 import { approvedVersion } from './lib/approvals.mjs';
-import { validateReceipt } from '../skills/schedule/scripts/lib/hosts.mjs';
+import { validateReceipt } from '../skills/daily/skills/schedule/scripts/lib/hosts.mjs';
 import { localProgress } from './lib/progress.mjs';
-import { listRecords } from '../skills/schedule/scripts/lib/records.mjs';
-import { scheduleVersion } from '../skills/schedule/scripts/lib/version.mjs';
+import { listRecords } from '../skills/daily/skills/schedule/scripts/lib/records.mjs';
+import { scheduleVersion } from '../skills/daily/skills/schedule/scripts/lib/version.mjs';
 
 const MINUTE = 60_000, HOUR = 60 * MINUTE, DAY = 24 * HOUR;
 const RUN_FLOOR_MS = 10 * MINUTE;

@@ -3,13 +3,23 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 56.1.0 — A waiting chat goes on with your command
+## Next (minor) — A waiting chat goes on with your command
 
 - **A chat that waited in the middle of a command you typed goes on with it.** You type `/ship`, and the chat stops to wait for another chat's work, a merge, or your answer elsewhere. When that wait ends, Daily's note tells the chat to go on with your `/ship` from where it stopped. Before, the note gave only the news, and the chat waited for you to say *go on* ([your chats in line](wiki/development/chats-in-line.md)).
 - **Your typed command is your yes for its own steps only.** The chat starts no new risky step of its own, such as a merge you never asked for: that still waits for you.
 - **A wait outside a command you typed gets the news only**, as before.
 
 **Updating.** Nothing to do by hand.
+
+## 57.0.0 — The browser and Daily each come in one folder
+
+- **The browser and Daily each install as one folder** in your skills folder: `.claude/skills/browser/` and `.claude/skills/daily/`. Their other commands sit inside it, in `skills/` ([adding a module](wiki/maintaining/adding-a-module.md)). Before, each one came in two or three folders.
+- **`/schedule` is now `/daily:schedule`.** It does the same work. Its scripts are in `.claude/skills/daily/skills/schedule/scripts/`. In Claude Code, a typed `/schedule` now opens Claude Code's own cloud schedules, not yours. To make a schedule, type `/daily:schedule` or ask in plain words.
+- **A module links no file in another module.** Each one asks you in one sentence, with your assistant's question tool or a short numbered list ([the browser](.agents/plugins/browser/README.md), [Daily](.agents/plugins/daily/README.md)).
+- **Access no longer sets up memory.** Its setup has ten steps, not eleven, and changes no other tool's files ([Access](.agents/plugins/access/README.md)).
+- **Each module's version is in its two `plugin.json` files.** The `module.json` files are gone.
+
+**Updating.** `/wong-sync` moves the folders. Nothing to do by hand. If you type `/schedule` to make a schedule, type `/daily:schedule` from now on. A repo with only the browser or Daily copies the update message from that module's README on GitHub, because the old link to its update steps no longer opens.
 
 ## 56.0.0 — The build loop stands on its own
 

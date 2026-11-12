@@ -8,16 +8,16 @@ const inventory = JSON.parse(read('.agents/skills/wong-sync/references/payload-f
 const listed = Object.values(inventory).filter(value => value && typeof value === 'object').flatMap(value => [...(value.files || []), ...(value.dirs || [])]);
 
 test('all installs receive schedule helpers without live definitions or the retired goal schema', () => {
-  assert.equal(inventory.core.mapped['.claude/plugins/daily/schedule'], '.claude/skills/schedule', 'schedule ships in the Daily module');
+  assert.equal(inventory.core.mapped['.claude/plugins/daily'], '.claude/skills/daily', 'schedule ships inside the Daily module, at skills/schedule/');
   assert.ok(!inventory.core.skillDirs.includes('routine'));
   assert.deepEqual(listed.filter(path => path.startsWith('openspec/schemas/')), [], 'a goal is a schedule with an end, not an OpenSpec change');
-  assert.ok(existsSync(new URL('../../.agents/skills/schedule/scripts/schedule.mjs', import.meta.url)));
+  assert.ok(existsSync(new URL('../../.agents/skills/daily/skills/schedule/scripts/schedule.mjs', import.meta.url)));
   assert.deepEqual(listed.filter(path => /^schedules(?:\/|$)|^openspec\/changes\//.test(path)), [], 'definitions and business goal plans belong to the target');
   assert.deepEqual(listed.filter(path => path.startsWith('scripts/routine-runner/')), [], 'an update must not distribute a cloud runner again');
 });
 
 test('scheduling owns no cloud provisioning and setup keeps its independent check-runner library', () => {
-  const client = read('.agents/skills/schedule/scripts/schedule.mjs');
+  const client = read('.agents/skills/daily/skills/schedule/scripts/schedule.mjs');
   assert.doesNotMatch(client, /wong-setup|installRunner|ROUTINES_PROVISION|AI_RUN_TOKEN/);
   const setup = read('.agents/skills/wong-setup/scripts/provision.mjs');
   assert.match(setup, /from '\.\/lib\/cloudflare\.mjs'/);
