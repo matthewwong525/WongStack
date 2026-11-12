@@ -1,6 +1,6 @@
 {
   "name": "daily",
-  "version": "2.1.0",
+  "version": "2.1.2",
   "description": "Daily check-ins for a repo: a background worker, a check at each chat's stop, keeping open chats in line, and schedules.",
   "author": { "name": "WongStack" },
   "hooks": "./hooks/claude.json"

@@ -15,6 +15,8 @@ const load = (folder, path) => import(pathToFileURL(join(folder, path)).href);
 const mapped = mappedDirs(JSON.parse(readFileSync(join(repo, INVENTORY), 'utf8')));
 const SLOTS = ['look', 'wakeChat', 'inbox', 'keyFiles', 'sendKey'];
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|new URL\(\s*)['"](\.{1,2}(?:\/[^'"]*)?)['"]/g;
+// A Markdown link or reference definition; fenced code and code spans are blanked first, as examples are not links.
+const DOC_LINK = /\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)|^ {0,3}\[[^\]]+\]:[ \t]*<?([^\s>]+)>?/gm;
 
 const scratch = mkdtempSync(join(tmpdir(), 'wong-test-module-install-'));
 after(() => rmSync(scratch, { recursive: true, force: true }));
@@ -202,6 +204,18 @@ function outsideImports(folder) {
     .map(([path, specifier]) => `${path} → ${specifier}`));
 }
 
+/** Every relative Markdown link in the module's docs that leaves it; web, mail, and in-page links pass. */
+function outsideDocLinks(folder) {
+  const blank = text => text.replace(/[^\n]/g, ' ');
+  const files = readdirSync(folder, { recursive: true }).filter(path => path.endsWith('.md'));
+  return files.flatMap(file => [...readFileSync(join(folder, file), 'utf8').replace(/(`{3,}|~{3,})[\s\S]*?\1/g, blank)
+    .replace(/`[^`\n]*`/g, blank).matchAll(DOC_LINK)]
+    .map(match => match[1] ?? match[2])
+    .filter(link => !/^([a-z][a-z0-9+.-]*:|#)/i.test(link))
+    .filter(link => relative(folder, resolve(folder, dirname(file), decodeURI(link.split('#')[0]))).startsWith('..'))
+    .map(link => `${file} → ${link}`));
+}
+
 /** Every relative import or file URL in the installed files that names no file there. */
 function brokenImports(root, files) {
   return files.flatMap(file => [...readFileSync(join(root, file), 'utf8').matchAll(SPECIFIER)]
@@ -272,6 +286,10 @@ for (const { name, root, files, check } of installs) {
 
   test(`${name} imports nothing outside its own folder`, () => {
     assert.deepEqual(outsideImports(join(repo, '.agents/plugins', name)), []);
+  });
+
+  test(`${name}'s docs link nothing outside its own folder`, () => {
+    assert.deepEqual(outsideDocLinks(join(repo, '.agents/plugins', name)), [], 'link a WongStack-only page by its full https address');
   });
 
   test(`${name} installed by the mapped entries still finds every file it imports`, () => {
