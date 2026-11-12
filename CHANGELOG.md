@@ -18,6 +18,13 @@
 
 Do the same in any other page of your own that links one of these guides. Everything else changes by itself.
 
+## 53.2.1 — Two small notes on new chats and shipped plans
+
+- **Opening a new chat for another part names the right folder.** The scratch command prints JSON; the brief goes in its `path` ([open each workspace](.agents/plugins/loop/skills/plan/references/new-workspace.md#open-each-workspace)).
+- **A shipped plan's link is its saved file, on purpose** ([review pages](wiki/review-pages.md#the-frame)). A live page would wait for an answer again.
+
+**Updating.** Nothing to do by hand.
+
 ## 53.2.0 — Another chat's click goes on behind your turn
 
 - **A chat's click no longer stops during your turn.** While you use the browser in one chat's tab, another chat clicks a button, a link, or a tick box in its own tab by its key, as you would press Tab and Enter. The page acts as on a mouse click, and your tab stays in front. Before, the click waited 20 seconds, then gave up with *the person is using the browser* ([your turn keeps its tab in front](wiki/development/browser-window.md#a-tab-for-each-chat)).

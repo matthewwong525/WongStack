@@ -11,7 +11,7 @@ Every review page shows the same parts, in this order:
 3. **The cards**: the things to review, numbered, each with its picture or words.
 4. **What the build needs**, on a plan: [each key, login, file, or answer](#what-the-build-needs), *Ready* or *Needs you*. An answer is asked in the chat first, so it is *Ready*.
 5. **Decisions**, only when there are some. A page with none shows no Decisions section and no link to one.
-6. **The bar** at the bottom: *Send notes*, and only the buttons the page's link offers. Opened from a file, *Send notes* is *Copy notes*. A project with only [the build loop](../.agents/plugins/loop/README.md) has no reply link, so its pages open so, and the person replies in the chat.
+6. **The bar** at the bottom: *Send notes*, and only the buttons the page's link offers. Opened from a file, *Send notes* is *Copy notes*. A project with only [the build loop](../.agents/plugins/loop/README.md) has no reply link, so its pages open so, and the person replies in the chat. A shipped plan's link is its saved file too: a live page would wait for an answer again, with build buttons.
 
 On a screen 900 px or wider, every part and the bar's buttons share one width, with or without pictures: two widths make the edge jump as you scroll.
 
