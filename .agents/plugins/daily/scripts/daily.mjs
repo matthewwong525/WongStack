@@ -14,7 +14,7 @@ import { repoContext } from './lib/env.mjs';
 import { loadProfile, moduleRepo, readProfile, slotNow, slotResult } from './lib/slot.mjs';
 import { runAddons } from './addons.mjs';
 import { SCHEDULE_LABEL } from './chats.mjs';
-import { BUCKETS, allow, answer, chiefDay, chiefEnv, doneAgent, mark, noteEnd, paseoCli, readBeat, readJson, reply,
+import { BUCKETS, allow, answer, chiefDay, chiefEnv, doneAgent, mark, noteEnd, paseoCli, readBeat, readJson, reask, reply,
   serviceAlive, status, writeJson } from './chief.mjs';
 import { RUN_AGENTS, SETTINGS_DOC, SettingsError, defaultSettings, loadSettings, localDay, settingsFor } from './config.mjs';
 import { addLine, format, newLines, readLines } from './journal.mjs';
@@ -199,6 +199,7 @@ const USAGE = `usage: daily.mjs who | start [--dry-run] [--report] | handoff --f
        daily.mjs checkins off | checkins on | lineup off | lineup on
        daily.mjs journal [--new] | journal --line <words> [--run <id>]
        daily.mjs reply --agent <a> --file <text file> --bucket keep-going|pick|person --label <line> [--mark <mark>]
+       daily.mjs reask --agent <a> --mark <mark>
        daily.mjs answer --agent <a> --request <id> --file <text file> --bucket keep-going|pick --label <line>
        daily.mjs allow --agent <a> --request <id> --bucket keep-going --label <line>
        daily.mjs done-agent --agent <a> --proof <text> | note-end --line <words>
@@ -208,10 +209,10 @@ const USAGE = `usage: daily.mjs who | start [--dry-run] [--report] | handoff --f
 const FLAGS = { who: [], start: ['dry-run', 'report'], handoff: ['file'], remind: ['day', 'text'],
   serve: ['agent', 'seconds', 'once', 'dry-run'], ensure: ['agent'], 'checkins off': [], 'checkins on': [], 'lineup off': [], 'lineup on': [],
   journal: ['new', 'line', 'run'], status: [], check: [],
-  reply: ['agent', 'file', 'bucket', 'label', 'mark'], answer: ['agent', 'request', 'file', 'bucket', 'label'], allow: ['agent', 'request', 'bucket', 'label'],
-  'done-agent': ['agent', 'proof'], 'note-end': ['line'], 'line-up': [], map: ['file'],
+  reply: ['agent', 'file', 'bucket', 'label', 'mark'], reask: ['agent', 'mark'], answer: ['agent', 'request', 'file', 'bucket', 'label'],
+  allow: ['agent', 'request', 'bucket', 'label'], 'done-agent': ['agent', 'proof'], 'note-end': ['line'], 'line-up': [], map: ['file'],
   tell: ['agent', 'file', 'now', 'covered-by', 'drop'] };
-const NEEDS = { handoff: ['file'], reply: ['agent', 'file', 'bucket', 'label'],
+const NEEDS = { handoff: ['file'], reply: ['agent', 'file', 'bucket', 'label'], reask: ['agent', 'mark'],
   answer: ['agent', 'request', 'file', 'bucket', 'label'], allow: ['agent', 'request', 'bucket', 'label'], 'done-agent': ['agent', 'proof'],
   'note-end': ['line'], map: ['file'] };
 /** An answer that changed nothing it was asked to change. */
@@ -325,6 +326,7 @@ export function commands({ config, project, stateDir, values, call, env = proces
     },
     status: async () => status({ ...(await chief()), project }),
     reply: async () => reply({ ...(await chief()), ...said(), mark: values.mark }),
+    reask: async () => reask({ ...(await chief()), agent: values.agent, mark: values.mark }),
     answer: async () => answer({ ...(await chief()), ...said(), request: values.request }),
     allow: async () => allow({ ...(await chief()), agent: values.agent, request: values.request, bucket: values.bucket, label: values.label }),
     'done-agent': async () => doneAgent({ ...(await chief()), agent: values.agent, proof: values.proof }),
