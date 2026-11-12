@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Daily becomes a module any project can add
+## 55.0.0 — Daily becomes a module any project can add
 
 - **Daily is now one module, the same for any repo.** It lives in [`.agents/plugins/daily/`](.agents/plugins/daily/daily/README.md), in two folders, `daily` and `schedule`, and brings its own hooks. A project without WongStack adds Daily alone with one pasted message ([the module](wiki/development/daily.md#the-module)).
 - **A repo fills Daily's parts in one profile**, `.agents/daily/profile.mjs`: where schedules live, who you are, the chat names, and more ([the profile](wiki/development/daily.md#the-profile)). A part that fails counts as empty and writes one journal line a day.

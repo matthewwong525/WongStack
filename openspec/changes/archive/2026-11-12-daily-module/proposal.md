@@ -137,3 +137,4 @@ Non-goals: an Inbox, a live line, or a schedule store for projects that are not 
 - **2026-11-12** — Assumed: with no store, the timer line names the plan's timezone beside it, because the computer's timer reads the time in its own timezone.
 - **2026-11-12** — Saved for the preview check: the build, the review's fixes, and the setup test in a plain repo pass; the Inbox preview check is next.
 - **2026-11-12** — Archive checkpoint: the preview Inbox, signed in as the person, opened on *Needs you* with two pages and the Archive below, and no chat list; archived as 54.0.0.
+- **2026-11-12** — Archive checkpoint: `main` shipped Access as 54.0.0 and 54.0.1 meanwhile, so this release is renumbered 55.0.0; `main`'s own rule now counts every module's setup guide as on-call, so this change drops its copy of that rule.
