@@ -564,7 +564,7 @@ async function joinView(turn, page) {
     rmSync(turnFile(CHAT), { force: true });
     return turnFailed('The live view did not take this chat\'s tab; try again.');
   }
-  console.log(`HANDOVER_LINK=${addressOf(origin, key)}`);
+  console.log(`HANDOVER_LINK=${addressOf(origin, key, CHAT)}`);
   console.log(`HANDOVER_SEND=${SEND_REMINDER}`);
   return 0;
 }
@@ -620,7 +620,7 @@ async function startView(turn, page) {
   for (const file of [SHARED.pid, FILES.pid]) writeFileSync(file, `${watcher}\n`);
   if (!(await pageAnswers(port, watcher))) return fail('The link\'s page did not start; try again.');
   if (!(await linkAnswers(tunnel.origin, port, tunnelPid, tunnelDeadline))) return fail(tunnelDown);
-  console.log(`HANDOVER_LINK=${addressOf(tunnel.origin, key)}`);
+  console.log(`HANDOVER_LINK=${addressOf(tunnel.origin, key, CHAT)}`);
   console.log(`HANDOVER_SEND=${SEND_REMINDER}`);
   // The watcher lists the link in the inbox once the chat has it, so open returns at once.
   writeFileSync(SHARED.shown, '');
@@ -698,8 +698,9 @@ async function startLink(values, keys) {
   return 0;
 }
 
-/** The link's address: the page, with its key in the `#` part, which no request carries. */
-const addressOf = (origin, key) => `${origin}/#key=${key}`;
+/** The link's address: the page, with its key, and a turn's chat whose tab it opens, in the `#` part, which no
+ * request carries. */
+const addressOf = (origin, key, chat) => `${origin}/#key=${key}${chat ? `&chat=${encodeURIComponent(chat)}` : ''}`;
 
 /** What the inbox lists for a link: its address and a title from what the opener has, never a value or a note. */
 export function listingOf({ completionId, key, keys, view, deadline }, origin, cwd = process.cwd()) {

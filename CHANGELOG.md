@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (patch) — A chat's live-view link opens its own tab
+
+- **Each chat's live-view link now opens that chat's tab.** When two chats need you at once, you open the second chat's link and its tab shows at once. Before, both chats sent the same link, and the view opened on the first chat's tab ([one live view, a tab for each chat](.agents/plugins/browser/hand-over/references/live-view.md#what-the-link-can-do)).
+- **A link whose tab has ended opens the view as it is**, and a reload keeps the tab you chose. The inbox link still opens the tab shown now.
+
+**Updating.** Nothing to do by hand.
+
 ## 55.2.1 — The password manager's page fits a phone in a live view
 
 - **On a phone, the password manager's own page narrows to the phone's width**, as a site's page does. The whole sign-in form shows, its right side included ([password manager](.agents/plugins/browser/browser/references/password-manager.md)). Before, the page stayed as wide as the computer's screen, and the view showed only a narrow strip at its left.
