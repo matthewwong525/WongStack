@@ -78,3 +78,4 @@ None.
 - **2026-11-12** — Assumed: links between modules (loop to memory, the browser, and Daily; Daily and memory to loop) take a web address, by the design's fallback, until the "Same shape for browser and daily" part reshapes them.
 - **2026-11-12** — Assumed: task 7.3's full local check runs in /ship's prepare after `main` comes in, because before the merge it failed only on browser's version (raised on `main` by #579 and #580, a folder this change does not touch), and another chat held the check lock.
 - **2026-11-12** — Archive checkpoint: built, reviewed (four fixes, reread clean), archived, numbered 55.3.2 after `main` came in; all local checks pass.
+- **2026-11-12** — Archive checkpoint: caught up with the published "Build loop without memory" part (v56.0.0, #582) by merge, its shape kept and this change's link treatment applied to it, `/continue`'s links gone with it; renumbered 56.0.1; memory raised to 2.1.2 since both sides had taken 2.1.1.
