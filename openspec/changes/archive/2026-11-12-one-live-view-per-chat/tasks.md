@@ -21,4 +21,4 @@
 ## 4. Checks
 
 - [x] 4.1 Run `node scripts/check-payload-links.mjs`, `node scripts/measure-context.mjs --check`, and `node .github/scripts/checks.mjs --worktree`.
-- [ ] 4.2 `/save`, then on this server open a sign-in turn from one chat and a second turn from another, switch between them on a phone, and hand back each in either order.
+- [x] 4.2 `/save`, then on this server open a sign-in turn from one chat and a second turn from another, switch between them on a phone, and hand back each in either order.

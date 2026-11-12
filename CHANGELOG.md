@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — One live view, a tab for each chat
+## 55.2.0 — One live view, a tab for each chat
 
 - **Several chats share one live view link.** When a second chat needs you while a view is open, its step joins that view as a tab in a row above the page, and the chat sends you the same link. Before, its view could not open until the first one closed ([one live view, a tab for each chat](.agents/plugins/browser/hand-over/references/live-view.md#what-the-link-can-do)).
 - **A new tab waits for your tap.** It shows a dot and never takes the page from you while you type. You tap a tab to show its page.

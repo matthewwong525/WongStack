@@ -1,6 +1,6 @@
 # One live view, a tab for each chat that needs you
 
-**Status:** built; checking it live
+**Status:** ready-to-ship
 **Branch:** share-live-view-across-chats
 **Open questions:** none
 
@@ -60,3 +60,5 @@ None.
 - **2026-11-12** — Assumed: *Hand back* ends only the tab on screen, because the person can only hand back what they see; a press from a page that showed another tab ends nothing.
 - **2026-11-12** — Assumed: the inbox lists the shared link once, for the first chat, because it is one link; a joining chat sends the same link in its own chat.
 - **2026-11-12** — Assumed: save for the final live check inside `/ship`, after two review rounds fixed a stuck *Hand back* on a chat's second turn and two weak tests.
+- **2026-11-12** — Assumed: run the two-chat walk in a throwaway browser on this server, driving the link's own tab and *Hand back* requests, not on a phone, because a real live view was open on the shared browser for another chat. Both chats got one link, a tab switch changed the page shown, each *Hand back* woke only its own chat, and the link closed after the last tab. The tab row's look on a phone is covered by the view page's tests only.
+- **2026-11-12** — Assumed: archive and number it 55.2.0 inside `/ship`, as the live check passed.

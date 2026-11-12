@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · one-live-view-per-chat</title>
+<title>Review · 2026-11-12-one-live-view-per-chat</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="one-live-view-per-chat" data-own-back>
+<body data-change="2026-11-12-one-live-view-per-chat" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>one-live-view-per-chat</h1>
+  <h1>2026-11-12-one-live-view-per-chat</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -485,6 +485,8 @@
 <li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: <i>Hand back</i> ends only the tab on screen, because the person can only hand back what they see; a press from a page that showed another tab ends nothing.</li>
 <li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the inbox lists the shared link once, for the first chat, because it is one link; a joining chat sends the same link in its own chat.</li>
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: save for the final live check inside <code>/ship</code>, after two review rounds fixed a stuck <i>Hand back</i> on a chat's second turn and two weak tests.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: run the two-chat walk in a throwaway browser on this server, driving the link's own tab and <i>Hand back</i> requests, not on a phone, because a real live view was open on the shared browser for another chat. Both chats got one link, a tab switch changed the page shown, each <i>Hand back</i> woke only its own chat, and the link closed after the last tab. The tab row's look on a phone is covered by the view page's tests only.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: archive and number it 55.2.0 inside <code>/ship</code>, as the live check passed.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
