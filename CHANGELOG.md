@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 55.1.1 — A note on checking the inbox on a preview
+
+- **Clear the browser's cookies before you check the inbox on a preview as yourself.** A browser that opened the preview as the checker keeps that sign-in, and the inbox refuses it ([an app that serves only the signed-in person](wiki/stack/cloudflare-access.md#setup)).
+
+**Updating.** Nothing to do by hand.
+
 ## 55.1.0 — Memory shows the files behind each fact
 
 - **A memory answer ends with a short list of files.** After its facts and passages, `recall` lists up to eight files and docs those facts are about, each with the facts that led to it, so the AI opens the right place first ([files behind the facts](wiki/development/document-retrieval.md#files-behind-the-facts)). The list says it is a place to start, not a full list.
