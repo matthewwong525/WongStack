@@ -123,6 +123,7 @@ Memory has two clean-ups. The daily tidy starts by itself, but it checks only a 
 - **2026-11-12** — Assumed: a question also counts as finding nothing when no fact or page that came back holds at least half of its main words, because a real look-up here for an espresso machine returned five unrelated facts, so a count of empty answers alone would stay at zero.
 - **2026-11-12** — Assumed: a look-up that counts as finding nothing keeps none of the facts or topics that came back, because unrelated facts would fill the map's *often returned* and *most used* lines.
 - **2026-11-12** — Assumed: a short word matches its longer form, so *rule* finds *rules*, because the search matches word forms and plurals of four-letter words are common here.
+- **2026-11-12** — Assumed: a run's lock is free at once when the process it names is gone, because the first real tidy here waited 30 minutes behind the lock of a run killed hours before and then gave up with no word; the longer 3-hour lock made that worse.
 
 ## Capabilities
 

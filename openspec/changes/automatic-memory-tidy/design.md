@@ -127,7 +127,7 @@ The brief asks for it after each finished thing: the placed facts, one page, one
 
 ### The time limit is 60 minutes, measured before it is fixed
 
-`DAILY_WORK_MS` defaults to 60 minutes and still covers capture and the tidy. `STALE_MS` for `run.lock` rises to 3 hours: 60 minutes of work and a 60-minute publish must end before the lock looks stale. The build runs one real full tidy here, times it, and writes the time in this file. A run far over or under 60 minutes changes the default in the same change.
+`DAILY_WORK_MS` defaults to 60 minutes and still covers capture and the tidy. `STALE_MS` for `run.lock` rises to 3 hours: 60 minutes of work and a 60-minute publish must end before the lock looks stale. The lock holds its run's process id, and `takeLock` takes over a lock whose process is gone, so a killed run does not block the next one for those 3 hours. The build runs one real full tidy here, times it, and writes the time in this file. A run far over or under 60 minutes changes the default in the same change.
 
 ### An `ok` run carries a note
 

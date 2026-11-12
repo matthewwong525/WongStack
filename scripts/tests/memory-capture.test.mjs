@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { execFile, execFileSync } from 'node:child_process';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -334,6 +334,14 @@ test('the run lock admits one run, and a stale lock is taken over', t => {
   const vanished = join(tempDir(t, 'lock-'), 'run.lock');
   symlinkSync(join(tmpdir(), 'no-such-lock-target'), vanished);
   assert.equal(takeLock(vanished), true, 'a lock that is gone when it is checked is free');
+});
+
+test('a fresh run lock whose process is gone is taken over at once', t => {
+  const lock = join(tempDir(t, 'lock-'), 'run.lock');
+  writeFileSync(lock, String(spawnSync(process.execPath, ['-e', '']).pid));
+  assert.equal(takeLock(lock), true, 'a killed run does not block the next one');
+  assert.equal(readFileSync(lock, 'utf8'), String(process.pid));
+  assert.equal(takeLock(lock), false, 'a live holder keeps its lock');
 });
 
 test('the hook gives up on a store that never answers and uses the cached digest', async t => {

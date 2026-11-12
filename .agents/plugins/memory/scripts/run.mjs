@@ -18,6 +18,14 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const STALE_MS = 3 * 60 * 60 * 1000;
 const RUN_TIMEOUT_MS = 30 * 60 * 1000;
 
+// False when the lock names a process that is gone: a killed run must not block the next one for hours.
+function holderAlive(file) {
+  let pid;
+  try { pid = Number(readFileSync(file, 'utf8')); } catch { return true; }
+  if (!Number.isInteger(pid) || pid <= 0) return true;
+  try { process.kill(pid, 0); return true; } catch (error) { return error.code === 'EPERM'; }
+}
+
 export function takeLock(file, now = Date.now()) {
   try {
     const fd = openSync(file, 'wx');
@@ -28,7 +36,7 @@ export function takeLock(file, now = Date.now()) {
     if (error.code !== 'EEXIST') return false;
     // The lock may vanish between open and stat: then it is free, and the retry takes it.
     const info = statSync(file, { throwIfNoEntry: false });
-    if (info && now - info.mtimeMs < STALE_MS) return false;
+    if (info && now - info.mtimeMs < STALE_MS && holderAlive(file)) return false;
     rmSync(file, { force: true });
     return takeLock(file, now);
   }
