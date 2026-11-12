@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · clicks-behind-your-turn</title>
+<title>Review · 2026-11-12-clicks-behind-your-turn</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="clicks-behind-your-turn" data-own-back>
+<body data-change="2026-11-12-clicks-behind-your-turn" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>clicks-behind-your-turn</h1>
+  <h1>2026-11-12-clicks-behind-your-turn</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -488,6 +488,7 @@
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-11</p>Assumed: the server tests add a case for two waiting clicks running oldest first and one for a ran but unclaimed click refusing its tab's steps until claimed, because review found both paths untested.</li>
 <li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the connect flow's <code>click</code> answers at once when its click waits, and connect's own <code>wait-click</code>, run in the background, reports it, replacing the wait inside <code>click</code>; the server's refusal names <code>wait-click</code> alone, because the host stops a foreground command after about 2 minutes while a turn can last 8 hours, and a stopped wait left the tab refusing every step with a <code>browse.mjs</code> command the connect rules forbid.</li>
 <li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Saved for CI as final acceptance inside <code>/ship</code>: every build task done; the three browser test files pass locally (114 tests); the full local script-test pre-check timed out while another chat held the check turn, so CI decides.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Archive checkpoint at <code>/ship</code> as 53.2.0: every task done, CI passed on PR #566, and the spec delta already in the main spec; the Mac check stays an open thread.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

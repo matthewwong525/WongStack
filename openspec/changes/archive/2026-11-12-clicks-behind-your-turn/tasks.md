@@ -24,5 +24,5 @@
 ## 4. Checks and release
 
 - [x] 4.1 Run `node .github/scripts/checks.mjs --worktree` and verify it passes.
-- [ ] 4.2 `/save`, and verify CI passes on the pull request.
+- [x] 4.2 `/save`, and verify CI passes on the pull request.
 - [x] 4.3 At `/ship`, record an open thread: run `node scripts/tests/manual/browser-tabs-real.mjs` on a Mac, and confirm the key click leaves the person's tab in front there. Verify the thread shows in `memory.mjs search --type thread --tag browser`.

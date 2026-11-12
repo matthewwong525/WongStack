@@ -1,6 +1,6 @@
 # Another chat's click goes on behind your turn
 
-**Status:** ready-to-ship
+**Status:** archived
 **Branch:** quick-goat
 **Open questions:** none
 
@@ -79,3 +79,4 @@ While you use the agent's browser in one chat's tab, every other chat that wants
 - **2026-11-11** — Assumed: the server tests add a case for two waiting clicks running oldest first and one for a ran but unclaimed click refusing its tab's steps until claimed, because review found both paths untested.
 - **2026-11-12** — Assumed: the connect flow's `click` answers at once when its click waits, and connect's own `wait-click`, run in the background, reports it, replacing the wait inside `click`; the server's refusal names `wait-click` alone, because the host stops a foreground command after about 2 minutes while a turn can last 8 hours, and a stopped wait left the tab refusing every step with a `browse.mjs` command the connect rules forbid.
 - **2026-11-12** — Saved for CI as final acceptance inside `/ship`: every build task done; the three browser test files pass locally (114 tests); the full local script-test pre-check timed out while another chat held the check turn, so CI decides.
+- **2026-11-12** — Archive checkpoint at `/ship` as 53.2.0: every task done, CI passed on PR #566, and the spec delta already in the main spec; the Mac check stays an open thread.
