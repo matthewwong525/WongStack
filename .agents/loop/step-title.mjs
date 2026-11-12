@@ -4,22 +4,19 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, join } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../skills/memory/scripts/lib/cli.mjs';
-import { LOOP_STEPS, STEPS, chatCalls, chatClient, scheduleRun, skillStep, sourceOf, withoutStep } from '../skills/daily/scripts/chats.mjs';
+import { LOOP_STEPS, STEPS, skillStep, withoutStep } from '../skills/daily/scripts/chats.mjs';
 import { paseoRecord } from '../skills/daily/scripts/chief.mjs';
-import { computerId } from '../skills/reply-link/scripts/lib/computer.mjs';
-import { findPaseo, runPaseo } from '../skills/schedule/scripts/lib/paseo.mjs';
+import { findPaseo, runPaseo } from '../skills/daily/scripts/lib/paseo.mjs';
 import { PLACEHOLDERS, renameArgs } from '../skills/schedule/scripts/workspace.mjs';
 
 const USAGE = `usage: step-title.mjs set <STEP> [--task <words>]   a skill moves this chat to STEP
 --task words, cut at a word to 60 characters, replace the earlier ones unless the person renamed the chat in Paseo.
        step-title.mjs hook --agent claude|codex [--event session-start]   a hook; reads the hook JSON on stdin
-       step-title.mjs remove   /close takes this chat off the Inbox's chat list
 STEP is one of EXPLORE, PLAN, APPLY, SHIP, DONE. The hook gives a step only for a typed command: /explore EXPLORE,
 /plan or /improve-code PLAN, another repo skill its name in capitals (/verify VERIFY); /apply, /continue, /ship none.
-Each set and session start also puts the chat's row in the Inbox's chat list; a failed put warns in one stderr line.
 Always exits 0 and prints STEP_TITLE=<title> or STEP_TITLE=skipped <reason>.`;
 
 export { STEPS, withoutStep };
@@ -28,7 +25,6 @@ const SKILL = /^[/$]([a-z][a-z0-9:-]*)(?=\s|$)/;
 const BRANCH = /^[a-z0-9]+(-[a-z0-9]+)+$/;
 const RUN_FLAGS = ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK'];
 const TASK_MAX = 60;
-const PUT_MS = 5000;
 const SELF = fileURLToPath(import.meta.url);
 
 /** What a message starts with: `{ loop: true }` for a loop verb, `{ other: true }` for another skill, else `{}`. */
@@ -188,32 +184,9 @@ export async function writeHosts({ env, title, top, codexId }) {
 }
 
 const chatId = env => env.PASEO_AGENT_ID || env.CLAUDE_CODE_SESSION_ID || env.CODEX_THREAD_ID || null;
-/** Memory's id for this chat's session, so the app's row joins memory's with no second copy. */
-const sessionOf = env => (env.CLAUDE_CODE_SESSION_ID ? `claude:${env.CLAUDE_CODE_SESSION_ID}`
-  : env.CODEX_THREAD_ID ? `codex:${env.CODEX_THREAD_ID}` : null);
-
-/** The chat's row in the Inbox's chat list: its task words, step and folder; the folder's name when it has no words.
- *  A chat a schedule's run opened carries that schedule as its source, from its Paseo label. */
-export function chatRow({ env, id, sessionId, state, top, record }) {
-  const folder = basename(top).slice(0, 100);
-  return { agentId: id, sessionId, computer: computerId(env), name: (state?.task || folder).slice(0, 200), step: state?.step ?? null, folder,
-    source: sourceOf(record?.labels) };
-}
-
-/** A chat-list call's outcome: null, or why it failed, in one line. It waits PUT_MS at most. */
-async function sent(call) {
-  let timer;
-  const late = new Promise((_, fail) => { timer = setTimeout(() => fail(new Error('the app did not answer in 5 s')), PUT_MS); });
-  try { await Promise.race([call, late]); return null; } catch (error) { return String(error.message).split('\n')[0]; } finally { clearTimeout(timer); }
-}
-
-export const putChat = (row, calls) => sent(calls.put(row));
-
-const appCalls = cwd => chatCalls(chatClient(cwd));
 
 /** `set`: a skill moves the chat. Returns the line to print. */
-export async function setStep({ step, task, env = process.env, cwd = process.cwd(), home = homedir(), chats = null,
-  warn = line => console.error(line) }) {
+export async function setStep({ step, task, env = process.env, cwd = process.cwd(), home = homedir() }) {
   const folder = folderOf(cwd);
   const record = paseoRecord(env.PASEO_AGENT_ID, home);
   const skip = skipReason({ env, folder, record });
@@ -225,11 +198,8 @@ export async function setStep({ step, task, env = process.env, cwd = process.cwd
   if (!before && !next.task && hostTask(record)) Object.assign(next, { task: hostTask(record), taskFrom: 'name' });
   const title = titleOf(next);
   writeState(folder, id, withSeen(next, record, title));
-  const put = scheduleRun(record?.labels, record) ? Promise.resolve()
-    : putChat(chatRow({ env, id, sessionId: sessionOf(env), state: next, top: folder.top, record }), chats ?? appCalls(folder.top))
-      .then(reason => reason && warn(`STEP_TITLE_CHAT=not put: ${reason}`));
-  if (!title) { await put; return 'STEP_TITLE=skipped no task words'; }
-  const [failed] = await Promise.all([writeHosts({ env, title, top: folder.top, codexId: env.CODEX_THREAD_ID }), put]);
+  if (!title) return 'STEP_TITLE=skipped no task words';
+  const failed = await writeHosts({ env, title, top: folder.top, codexId: env.CODEX_THREAD_ID });
   const reached = Boolean(env.PASEO_AGENT_ID) + Boolean(env.CODEX_THREAD_ID);
   if (reached && failed.length === reached) return `STEP_TITLE=skipped ${failed.join('; ')}`;
   return [`STEP_TITLE=${title}`, ...failed.map(reason => `STEP_TITLE_WARNING=${reason}`)].join('\n');
@@ -259,7 +229,6 @@ export function hookTurn({ input, agent, event, env = process.env, home = homedi
   const id = env.PASEO_AGENT_ID || input?.session_id;
   const start = event === 'session-start' || input?.hook_event_name === 'SessionStart';
   if (skipReason({ env, folder, record }) || !id || (!start && typeof input?.prompt !== 'string')) return none;
-  const session = input?.session_id ? `${agent}:${input.session_id}` : sessionOf(env);
   const before = readState(folder, id);
   const adopted = adoptRename(before, record);
   let state = adopted;
@@ -275,37 +244,20 @@ export function hookTurn({ input, agent, event, env = process.env, home = homedi
   const show = agent === 'claude' && title && ((start && adopted === before) || title !== state.shown);
   if (state !== before || show) writeState(folder, id, { ...state, shown: show ? title : state.shown });
   const hookEventName = start ? 'SessionStart' : 'UserPromptSubmit';
-  // A start, or a typed command's new step, puts the chat's row; a plain message changes nothing there. A schedule's
-  // run puts none: the worker adds its row once it stops. One the person wrote in puts like any chat.
-  const put = (start || write) && !scheduleRun(record?.labels, record) ? { id, session } : null;
-  return { out: show ? { hookSpecificOutput: { hookEventName, sessionTitle: title } } : null, write, put, top: folder.top };
+  return { out: show ? { hookSpecificOutput: { hookEventName, sessionTitle: title } } : null, write, top: folder.top };
 }
 
-/** Starts the Paseo and Codex writes and the chat's row in their own process, so the hook returns at once. */
-function writeLater({ title, top, codexId, put, env }) {
-  const args = [SELF, 'write', '--top', top, ...(title ? ['--title', title] : []), ...(codexId ? ['--codex', codexId] : []),
-    ...(put ? ['--put', put.id, ...(put.session ? ['--session', put.session] : [])] : [])];
+/** Starts the Paseo and Codex writes in their own process, so the hook returns at once. */
+function writeLater({ title, top, codexId, env }) {
+  const args = [SELF, 'write', '--top', top, '--title', title, ...(codexId ? ['--codex', codexId] : [])];
   spawn(process.execPath, args, { env, detached: true, stdio: 'ignore' }).unref();
-}
-
-/** The detached process's put: the row from the state the hook just wrote. */
-async function putRow({ id, sessionId, top, env = process.env, calls = appCalls(top) }) {
-  const folder = folderOf(top);
-  const record = paseoRecord(env.PASEO_AGENT_ID);
-  if (folder) await putChat(chatRow({ env, id, sessionId, state: readState(folder, id), top: folder.top, record }), calls);
-}
-
-/** `remove`: takes the chat off the chat list, as /close's last step; a failure is one stderr line, never an exit. */
-export async function removeChat({ id, calls, warn = line => console.error(line) }) {
-  const reason = await sent(calls.remove({ agentId: id }));
-  if (reason) warn(`STEP_TITLE_CHAT=not removed: ${reason}`);
 }
 
 async function main() {
   const { values, positionals } = parseCli({
     usage: USAGE, allowPositionals: true,
     options: { task: { type: 'string' }, agent: { type: 'string' }, event: { type: 'string' },
-      title: { type: 'string' }, top: { type: 'string' }, codex: { type: 'string' }, put: { type: 'string' }, session: { type: 'string' } },
+      title: { type: 'string' }, top: { type: 'string' }, codex: { type: 'string' } },
   });
   const [command, step] = positionals;
   if (command === 'set') {
@@ -321,15 +273,11 @@ async function main() {
       if (turn.out) console.log(JSON.stringify(turn.out));
       const codexId = values.agent === 'codex' ? input?.session_id || process.env.CODEX_THREAD_ID : process.env.CODEX_THREAD_ID;
       const title = turn.write && (process.env.PASEO_AGENT_ID || codexId) ? turn.write : null;
-      if (title || turn.put) writeLater({ title, top: turn.top, codexId: title && codexId, put: turn.put, env: process.env });
+      if (title) writeLater({ title, top: turn.top, codexId, env: process.env });
     } catch { /* fail open: the message goes on with the name it has */ }
   } else if (command === 'write') {
     if (values.title) await writeHosts({ env: process.env, title: values.title, top: values.top, codexId: values.codex }).catch(() => {});
-    if (values.put) await putRow({ id: values.put, sessionId: values.session ?? null, top: values.top }).catch(() => {});
-  } else if (command === 'remove') {
-    const id = chatId(process.env);
-    if (id) await removeChat({ id, calls: appCalls(process.cwd()) });
-  } else usageError(USAGE, 'expected set, hook or remove');
+  } else usageError(USAGE, 'expected set or hook');
 }
 
 if (isMain(import.meta.url)) await main();

@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "matcher": "startup|resume", "hooks": [{ "type": "command", "command": "node \"$PLUGIN_ROOT/scripts/session-start.mjs\" --agent codex", "timeout": 5 }] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [{ "type": "command", "command": "node \"$PLUGIN_ROOT/scripts/daily.mjs\" mark --agent codex", "timeout": 3 }] }
+    ],
+    "Stop": [
+      { "hooks": [
+        { "type": "command", "command": "node \"$PLUGIN_ROOT/scripts/daily.mjs\" mark --agent codex", "timeout": 3 },
+        { "type": "command", "command": "node \"$PLUGIN_ROOT/scripts/stop-check.mjs\" stop --agent codex", "timeout": 300 }
+      ] }
+    ]
+  }
+}

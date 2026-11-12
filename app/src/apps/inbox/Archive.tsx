@@ -33,7 +33,7 @@ export function Archive() {
     setList(current => current?.q === from.q ? { ...current, archived: [...current.archived, ...next.archived], more: next.more } : current)
   }, () => setMoreFailed(true))
   const shown = failed ? null : list
-  // The chat rows show the waiting pages; a search finds them here too.
+  // Needs you shows the waiting pages; a search finds them here too.
   const rows = shown ? [...(shown.q.trim() ? shown.waiting : []), ...shown.archived] : []
   return <section className="grid gap-1" aria-labelledby="archive">
     <h2 id="archive" className="mb-1 text-sm font-semibold">Archive</h2>

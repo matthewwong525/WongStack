@@ -149,20 +149,6 @@ A person SHALL be able to turn their check-ins off and on again by asking in any
 - **WHEN** Jo says *stop check-ins*, then leaves three chats that stop
 - **THEN** each of the three stops and waits for Jo
 
-### Requirement: Opening a chat keeps the daily's jobs running
-
-When a person who has daily background jobs opens any chat in a repo, the daily SHALL make sure one worker runs for that person and repo, and start it in the background when none does, without holding up the chat. Background jobs are the person's chat list, add-ons, event jobs, and the background schedule runs the computer hands it. They SHALL run with or without Paseo. A chat that a background run opened SHALL start no worker, and a second start SHALL never make a second worker for the same person and repo. A worker SHALL handle only its own repo's chats, and the chats its daily started or was handed.
-
-#### Scenario: Two days later
-
-- **WHEN** Jo's worker started on Monday morning and Jo's weekly background schedule is due on Wednesday while the computer stayed on
-- **THEN** the run happens, and opening another chat starts no second worker
-
-#### Scenario: Two repos on one computer
-
-- **WHEN** Jo has chats open in two repos, each with its own worker
-- **THEN** each chat shows one time in Jo's Inbox, from its own repo's worker
-
 ### Requirement: Finished chats close only when the person picks them
 
 The helper SHALL NOT send `/close` to a chat by itself. Where the host lets a chat watch other chats, the answer to *what's going on?* in any chat SHALL mark each watched chat whose work is published, with nothing new on its branch or in its folder since, that is not working and has no open question. It SHALL also mark, as covered, each watched chat that was told another chat covers its work and that is not working. When it marks one or more, it SHALL ask which to close, and SHALL send `/close` only to the chats the person picks. It SHALL NOT mark the chat that asks, a sub-agent, or a chat in the main checkout.
@@ -181,20 +167,6 @@ The helper SHALL NOT send `/close` to a chat by itself. Where the host lets a ch
 
 - **WHEN** `calm-otter` was told `flashy-crab` covers its work and stopped, and the person asks *what's going on?*
 - **THEN** `calm-otter` is marked covered by `flashy-crab` and offered for closing, and closes only if the person picks it
-
-### Requirement: Any chat does the daily's asks
-
-In any chat in the repo, the person SHALL be able to ask for a reminder at a time, to watch a chat, to tell a watched chat an answer, to turn check-ins off or on, and *what's going on?*. A reminder SHALL be a one-time schedule that opens a chat at that time with the reminder, saved after the person's OK like any schedule. *What's going on?* SHALL answer from the journal and, where the host can watch other chats, from where each watched chat stands. No chat SHALL get journal lines the person did not ask for.
-
-#### Scenario: A reminder from a work chat
-
-- **WHEN** Jo, in a chat fixing the store page, says "remind me Friday to call Kim back" and says OK
-- **THEN** a one-time schedule opens a chat *call Kim back* on Friday morning, and the first chat goes on with its work
-
-#### Scenario: What happened while away
-
-- **WHEN** three check-ins kept chats going during the morning and Jo opens a new chat and asks *what's going on?*
-- **THEN** the answer names those three check-ins and each watched chat's state, and no chat got a message about them before
 
 ### Requirement: An install can deny tools to its background jobs
 
@@ -281,29 +253,6 @@ The daily SHALL work toward one goal for the person's watched chats in one proje
 - **WHEN** Jo works in chat A in Paseo and in chat B in a plain terminal, and chat B is building the export button chat A already has
 - **THEN** chat B gets the note at its next stop, or with Jo's next message if it is idle, and the journal has one line for it
 
-### Requirement: The background's work is kept in a journal
-
-What the daily's helper and the check-ins do SHALL go to a private journal on that computer, outside git, kept 14 days, one line for each thing: a check-in, a background run's start and end, a closed chat, a source it could not read, a note between chats. A schedule's runs SHALL show in the app, not only in the journal. The helper SHALL send no other chat a message about it; a note that keeps chats in line SHALL be the one message it sends to a chat the note concerns. When the app can not take the person's chat list, the journal SHALL say so one time for each run of failures, not one time each minute.
-
-#### Scenario: The app can not take the chat list
-
-- **WHEN** the helper can not send the chat list one time, and the next send works
-- **THEN** the journal has one line saying so, and no chat opens or gets a message about it
-
-### Requirement: A failure two times in a row opens one Needs-you chat
-
-When the daily's helper fails the same way two times in a row, at sending the person's chat list to the app, at starting their morning, at one of their jobs, or at reaching Paseo, it SHALL open one new chat named `Needs you: <what broke>`. Its first message SHALL say what failed, the reason, and the steps to fix it; when the person's daily guide gives its own fix, the chat SHALL follow that. The helper SHALL open at most one such chat for each kind of problem each local day, and a success SHALL start the count again. The watch SHALL not watch that chat and no check-in SHALL judge its stops, so it waits for the person. When Paseo can not open the chat, the journal SHALL say so with the reason.
-
-#### Scenario: The chat list stays unsent
-
-- **WHEN** the app's sign-in ends at 14:00 and the helper can not send the chat list at 14:00, 14:01 and all afternoon
-- **THEN** the journal has one line at 14:00, one chat *Needs you: the chat list* opens at 14:01 with the sign-in steps, and no second chat opens that day
-
-#### Scenario: Paseo can not open the chat
-
-- **WHEN** the morning fails two times in a row and Paseo refuses to open a chat
-- **THEN** the journal says the chat did not open, with Paseo's reason, and the helper goes on
-
 ### Requirement: WongStack's timed jobs are default schedules
 
 WongStack SHALL ship the daily's built-in timed jobs as default schedules. Each SHALL be added to the person's schedules in the company app the first time a chat starts after install or update, approved on that computer, without a question. A default the person never changed SHALL take WongStack's newer version at an update; one they changed, paused or ended SHALL be left as it is, and an ended one SHALL never be added again. A default that WongStack retires SHALL end for the person at the update, changed or not, and SHALL never be added again. A schedule's run list SHALL leave out runs that found nothing to do, and show how many there were.
@@ -336,3 +285,54 @@ A day SHALL count as set up only after a try sets up every default. A try that f
 
 - **WHEN** a chat start's background setup of the defaults fails, or stops with no result
 - **THEN** the journal holds one line with the reason, and a chat start an hour or more later the same day tries again and, once it works, adds the missing defaults
+
+### Requirement: Any chat does the daily's few asks
+
+In any chat in the repo, the person SHALL be able to turn check-ins off or on, ask *what's going on?*, and make or change a schedule by asking. *What's going on?* SHALL answer from the journal and, where the host can watch other chats, from where each watched chat stands. The daily SHALL have no reminder ask apart from a one-time schedule, and SHALL relay no answer from one chat to another: the person answers a chat in that chat. No chat SHALL get journal lines the person did not ask for.
+
+#### Scenario: What happened while away
+
+- **WHEN** three check-ins kept chats going during the morning and Jo opens a new chat and asks *what's going on?*
+- **THEN** the answer names those three check-ins and each watched chat's state, and no chat got a message about them before
+
+#### Scenario: A reminder
+
+- **WHEN** Jo says "remind me Friday to call Kim back"
+- **THEN** the chat offers a one-time schedule that opens a chat *call Kim back* on Friday, saved only after Jo's OK
+
+### Requirement: Opening a chat starts the daily's worker
+
+When a person who has daily background jobs opens any chat in a repo, the daily SHALL make sure one worker runs for that person and repo, and start it in the background when none does, without holding up the chat. Background jobs are add-ons, event jobs, the line-up when it runs from the worker, and the background schedule runs the computer hands it. They SHALL run with or without Paseo. A chat that a background run opened SHALL start no worker, and a second start SHALL never make a second worker for the same person and repo. A worker SHALL handle only its own repo's chats.
+
+#### Scenario: Two days later
+
+- **WHEN** Jo's worker started on Monday morning and Jo's weekly background schedule is due on Wednesday while the computer stayed on
+- **THEN** the run happens, and opening another chat starts no second worker
+
+#### Scenario: Two repos on one computer
+
+- **WHEN** Jo has chats open in two repos, each with its own worker
+- **THEN** each worker checks in and judges only its own repo's chats
+
+### Requirement: The daily keeps a journal of its background work
+
+What the daily's helper and the check-ins do SHALL go to a private journal on that computer, outside git, kept 14 days, one line for each thing: a check-in, a background run's start and end, a closed chat, a source it could not read, a note between chats. A schedule's runs SHALL show where the schedule lives, not only in the journal. The helper SHALL send no other chat a message about it; a note that keeps chats in line SHALL be the one message it sends to a chat the note concerns. A failure that goes on SHALL get one line for each run of failures, not one each minute.
+
+#### Scenario: A source that can not be read
+
+- **WHEN** an add-on fails at one pass and works at the next
+- **THEN** the journal has one line saying so, and no chat opens or gets a message about it
+
+### Requirement: Two failures in a row open one Needs-you chat
+
+When the daily's helper fails the same way two times in a row, at starting the person's morning, at one of their jobs, or at reaching Paseo, it SHALL open one new chat named `Needs you: <what broke>`. Its first message SHALL say what failed, the reason, and the steps to fix it; when the person's daily guide gives its own fix, the chat SHALL follow that. The helper SHALL open at most one such chat for each kind of problem each local day, and a success SHALL start the count again. The watch SHALL not watch that chat and no check-in SHALL judge its stops, so it waits for the person. When Paseo can not open the chat, the journal SHALL say so with the reason.
+
+#### Scenario: The morning fails all day
+
+- **WHEN** Jo's morning add-on fails at 08:00, at 08:01 and at each pass after
+- **THEN** the journal has one line at 08:00, one chat *Needs you: your morning start* opens at 08:01 with the steps to fix it, and no second chat opens that day
+
+#### Scenario: Paseo can not open the chat
+
+- **WHEN** the morning fails two times in a row and Paseo refuses to open a chat
+- **THEN** the journal says the chat did not open, with Paseo's reason, and the helper goes on

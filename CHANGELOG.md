@@ -11,6 +11,33 @@
 
 **Updating.** Nothing to do by hand.
 
+## 55.0.0 — Daily becomes a module any project can add
+
+- **Daily is now one module, the same for any repo.** It lives in [`.agents/plugins/daily/`](.agents/plugins/daily/daily/README.md), in two folders, `daily` and `schedule`, and brings its own hooks. A project without WongStack adds Daily alone with one pasted message ([the module](wiki/development/daily.md#the-module)).
+- **A repo fills Daily's parts in one profile**, `.agents/daily/profile.mjs`: where schedules live, who you are, the chat names, and more ([the profile](wiki/development/daily.md#the-profile)). A part that fails counts as empty and writes one journal line a day.
+- **Daily works with no company app.** Schedules then go to Paseo on this computer, and the line-up runs from Daily's worker. A Paseo schedule runs with full permissions, as the app's schedules do, unless it names its own. With no Paseo either, `/schedule` is off, says what it needs, and gives the line to add to the computer's own timer to run a script ([with no app](wiki/stack/host-schedules.md#with-no-app)).
+- **The Inbox opens on the plans waiting for you**, one row per review page, newest first. It keeps no list of your chats ([your chat list](wiki/development/daily.md#your-chat-list)).
+- **Removed:** *remind me* as its own feature, and the *tell* and *watch* asks. Ask *remind me* in any chat, and `/schedule` saves a one-time schedule. A `chats` entry in Daily's `sources` setting does nothing now.
+
+**Updating.** Daily moves into its own folders and keeps every schedule, OK and setting. The update also adds Daily to Codex on this computer, so its check-ins run there. On each other computer you use Codex on, the next chat names one command to run; until you run it, Daily's check-ins do not run in Codex there. The Inbox now opens on the plans waiting for you. To get a reminder, ask *remind me* in a chat: it becomes a one-time schedule through `/schedule`. The *tell* and *watch* asks are gone. The app deletes its saved list of your chats when it deploys.
+
+## 54.0.1 — Two notes on the company sign-in and preview walks
+
+- **The company sign-in link works for about two minutes.** Start it when the person can open it at once ([connect and call](wiki/stack/company-api.md#connect-and-call)).
+- **A preview walk can't show a refusal.** The checker and the owner open every app there, so the code tests show it ([the checker on a preview](wiki/stack/preview-access.md#the-checker-on-a-preview)).
+
+**Updating.** Nothing to do by hand.
+
+## 54.0.0 — Access is a module any app can add
+
+- **Access is now one module, the same for any app.** It lives in [`.agents/plugins/access/`](.agents/plugins/access/README.md), and your project gets it at `.claude/skills/access/`. Your app gives it one object, its slots: who is signed in, where people are stored, and who the owner is. An app with no WongStack adds Access by one message pasted into a chat; [its setup guide](.agents/plugins/access/references/setup.md) connects the app's sign-in and database. The Access page, people, roles, apps and key levels stay the same ([employee access](wiki/stack/employee-access.md)).
+- **Services come with it.** The services list, direct calls, keys sent sealed, tools added from a chat, and the services skill are now in the same folder. `company-api.mjs services`, `api`, `record`, `key` and `tool` work as before ([the services list](wiki/stack/service-catalogue.md)).
+- **`/access` reads and changes people from a chat.** It says who has what, and adds, changes or removes a person after you say yes.
+- **The app no longer uses MCP servers.** A tool that has only an MCP server shows *not connected yet* ([connect your tools](wiki/stack/connect-your-tools.md#work-out-how-to-add-a-new-tool)).
+- **Memory works without Access, and Access without memory.** The app helper loads each one only when it is there.
+
+**Updating.** Nothing to do by hand for most projects: no database change, and every person keeps what they have. If you added a tool through its MCP server, it stops working, and the change record names it once: add the tool again through its API, or ask its maker for one. If one of your own pages or skills links `.agents/skills/services/SKILL.md`, the update's link check names it: the skill is now `.claude/skills/access/skills/services/SKILL.md`. The service-records check moves too: `scripts/check-service-definitions.mjs` is now `.claude/skills/access/scripts/check-definitions.mjs`, and the app's `npm test` runs it there. If one of your own scripts runs the old file, point it at the new one.
+
 ## 53.3.0 — The browser is a module any project can add
 
 - **The browser, private links, and shopping are one module** that any project can add with one pasted message, in any AI tool ([the browser module](.agents/plugins/browser/browser/README.md)). Your project still gets the same three skills, `browser`, `hand-over`, and `shop`, as real folders at `.agents/skills/`.
@@ -519,7 +546,7 @@ Memory's list of areas gains one entry, for the address of the app the WongStack
 
 ## 47.1.0 — Chats opened for you think at medium or more and show their names
 
-- **A chat opened for you never thinks below medium.** The workspace launcher and a schedule on the app's clock pass `--thinking`. Low, off, or none becomes medium. High and above stay. An unset level stays unset when the model's own default is medium or more, so a model that defaults to high keeps high; when the default is lower or can not be read, it becomes medium ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)). A chat you start yourself keeps the level you pick.
+- **A chat opened for you never thinks below medium.** The workspace launcher and a schedule on the app's clock pass `--thinking`. Low, off, or none becomes medium. High and above stay. An unset level stays unset when the model's own default is medium or more, so a model that defaults to high keeps high; when the default is lower or can not be read, it becomes medium ([`workspace.mjs`](.agents/plugins/daily/schedule/scripts/workspace.mjs)). A chat you start yourself keeps the level you pick.
 - **Open a workspace only through the launcher.** A raw `paseo run --new-workspace` with `--new-branch`, or Paseo's Handoff skill, keeps a slug name such as `roadmap-week-bricks` and the caller's thinking level ([new workspaces](.agents/skills/plan/references/new-workspace.md)).
 - **Your day shows a chat's workspace name, not its folder.** The chat on a board to-do, the chats in *what's going on?*, and the journal show *Task: Call Kim*, not `potent-quail`. The folder name still finds the chat.
 
@@ -648,7 +675,7 @@ Memory's list of areas gains one entry, for the address of the app the WongStack
 
 ## 45.4.0 — Small fixes from WongOS
 
-- **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)).
+- **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/plugins/daily/schedule/scripts/workspace.mjs)).
 - **A new workspace keeps your chat settings.** The worktree setup now also copies your `.claude/settings.local.json`, such as the commands you allowed, into a new workspace that has none. So a new chat does not ask for them again ([worktrees and branch copies](wiki/development/secrets.md#worktrees-and-branch-copies)).
 - **The app opens like a real app from a phone's home screen.** Add it to the home screen, and it opens full screen with no browser bar.
 - **Two lessons for checks.** A kept check points at sample data, not at a record a check made: a fresh rebuild removes that record ([kept checks](wiki/development/kept-checks.md)). A check reads a date or time field again after it types in it, because the browser tool can say the typing worked while the field stays empty.

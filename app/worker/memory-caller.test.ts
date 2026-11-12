@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import * as access from "./access.ts";
+import * as access from "./access-slots";
 import { memoryCaller, memoryRole } from "./memory-caller.ts";
 
 const current = (manages: boolean, keys: ReadonlyMap<string, "read" | "write"> | null) =>

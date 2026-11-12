@@ -2,12 +2,12 @@ import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
-import { RUN_ID, actions, agentEvents, allow, answer, chiefDay, chiefEnv, doneAgent, hand, mark, messageMark, noteEnd,
-  reply, commonDir, sameRepo, status, streak, userAt, watch, watchStops, watched } from '../../.agents/skills/daily/scripts/chief.mjs';
+import { EXIT, PaseoError } from '../../.agents/skills/daily/scripts/lib/paseo.mjs';
+import { RUN_ID, actions, agentEvents, allow, answer, chiefDay, chiefEnv, doneAgent, mark, messageMark, noteEnd, reply, commonDir, sameRepo,
+  status, streak, userAt, watch, watchFile, watchStops, watched, writeJson } from '../../.agents/skills/daily/scripts/chief.mjs';
 
 const ZONE = 'America/New_York';
 const SELF = 'agent-self';
@@ -61,19 +61,12 @@ function day() {
     }
     throw new Error(`unexpected call ${args.join(' ')}`);
   };
-  // The Inbox's chat list: it keeps each list sent, answers `asked` as each chat's close time, and throws while `down`.
-  const app = { sent: [], asked: {}, down: false };
-  const chats = { computer: 'c'.repeat(32), sync: async body => {
-    app.sent.push(body);
-    if (app.down) throw new Error('502: app down');
-    return { chats: body.chats.map(chat => ({ agentId: chat.agentId, closeAskedAt: app.asked[chat.agentId] ?? null })) };
-  } };
   const started = () => record;
   const at = { stateDir, started, timezone: ZONE, call };
   const lines = [];
   // When the person last typed in each chat, as Paseo's agent record keeps it.
   const typed = {};
-  const once = (now, more = {}) => watch({ ...at, chats, env, once: true, now: () => now, print: line => lines.push(JSON.parse(line)),
+  const once = (now, more = {}) => watch({ ...at, env, once: true, now: () => now, print: line => lines.push(JSON.parse(line)),
     typedAt: id => typed[id] ?? null, ...more });
   const taken = () => lines.splice(0).map(({ event, agent, request, source, reason }) => [event, agent ?? source ?? reason, request?.id].filter(Boolean));
   // A chat of the person's own that worked `ago` before START.
@@ -81,17 +74,22 @@ function day() {
     paseo.list.push(agent(id, name, cwd, status));
     paseo.inspect[id] = { ParentAgentId: parent, UpdatedAt: new Date(START - ago).toISOString() };
   };
-  return { stateDir, record, paseo, call, at, app, down: value => { app.down = value; }, lines, once, taken, own, typed,
-    dayAt: now => chiefDay({ ...at, now: new Date(now) }) };
+  // Puts a listed chat on the day's watch, as the watch does when it admits one of the person's own chats.
+  const hand = (name, on = '2026-10-21') => {
+    const found = paseo.list.find(each => each.id === name || each.name === name), file = watchFile(stateDir, on);
+    const kept = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
+    writeJson(file, { ...kept, chats: [...(kept.chats ?? []), { agentId: found.id, title: found.name, workspace: basename(found.cwd), cwd: found.cwd,
+      source: 'own', at: new Date(START).toISOString() }] });
+  };
+  return { stateDir, record, paseo, call, at, lines, once, taken, own, typed, hand, dayAt: now => chiefDay({ ...at, now: new Date(now) }) };
 }
 
-test('the watch list is today\'s started rows, by id or by folder, and the hands; never yesterday\'s rows, this chat or a stranger', async () => {
-  const { at, paseo } = day();
+test('the watch list is today\'s started rows, by id or by folder, and admitted chats; never yesterday\'s rows, this chat or a stranger', async () => {
+  const { at, paseo, hand } = day();
   const today = '2026-10-21';
   assert.deepEqual(watched({ ...at, day: today, list: paseo.list, self: SELF }).map(row => [row.agentId, row.source]),
     [['agent-job', 'started'], ['agent-email', 'started']]);
-  assert.deepEqual(await hand({ ...at, day: today, agent: 'Team plan', env, now: new Date(START) }),
-    { status: 'handed', agent: 'agent-team', title: 'Team plan', workspace: 'team-yak', source: 'handed' });
+  hand('Team plan');
   assert.deepEqual(watched({ ...at, day: today, list: paseo.list, self: SELF }).map(row => row.agentId), ['agent-job', 'agent-email', 'agent-team']);
   // A stranger's chat is never sent anything.
   const refused = await reply({ ...at, day: today, agent: 'agent-stranger', text: 'Keep going.', bucket: 'keep-going', label: 'x', env });
@@ -99,26 +97,11 @@ test('the watch list is today\'s started rows, by id or by folder, and the hands
   assert.deepEqual(paseo.sent, []);
 });
 
-test('hand finds a chat by id, id prefix, title or workspace, and refuses this chat, an unknown name and a name for two chats', async () => {
-  const { at, paseo } = day();
-  const go = agent => hand({ ...at, day: '2026-10-21', agent, env, now: new Date(START) });
-  assert.equal((await go('agent-team')).status, 'handed');
-  assert.equal((await go('team plan')).status, 'already');
-  assert.deepEqual([(await go('agent-st')).agent, (await go('sly-fox')).status], ['agent-stranger', 'already']);
-  assert.equal((await go('agent-job')).status, 'already');
-  assert.equal((await go(SELF)).status, 'refused');
-  assert.equal((await go('Nobody')).status, 'unknown');
-  paseo.list.push({ ...paseo.list[3], id: 'agent-team-2' });
-  assert.equal((await go('Team plan')).status, 'ambiguous');
-  assert.equal((await hand({ ...at, day: '2026-10-21', agent: 'agent-team', env: {} })).status, 'unsupported');
-});
-
-test('a handed or admitted chat shows its workspace name, and its folder name still finds it', async () => {
+test('an admitted chat shows its workspace name, and its folder name still finds it', async () => {
   const t = day();
   t.paseo.workspaces = [{ workspaceId: 'ws-team', cwd: '/w/team-yak', name: 'Plan the team week' },
     { workspaceId: 'ws-mine', cwd: '/w/agent-mine', name: 'Fix the login page' }];
-  assert.deepEqual(await hand({ ...t.at, day: '2026-10-21', agent: 'Team plan', env, now: new Date(START) }),
-    { status: 'handed', agent: 'agent-team', title: 'Team plan', workspace: 'Plan the team week', source: 'handed' });
+  t.paseo.inspect['agent-team'] = { UpdatedAt: new Date(START - HOUR).toISOString() };
   t.own('agent-mine', 'My own chat');
   await t.once(START);
   const rows = watched({ ...t.at, day: '2026-10-21', list: t.paseo.list, self: SELF });
@@ -132,14 +115,14 @@ test('a handed or admitted chat shows its workspace name, and its folder name st
 
 test('watch says asking, stopped once per idle spell, gone and not read one time each, and a second watch repeats none of it', async () => {
   const t = day();
-  await hand({ ...t.at, day: '2026-10-21', agent: 'Team plan', env, now: new Date(START) });
+  t.hand('Team plan', '2026-10-21');
   t.paseo.pending.push({ id: 'req-1', agentId: 'agent-team', name: 'AskUserQuestion', description: 'Build it (Recommended) / Wait' });
   await t.once(START);
   assert.deepEqual(t.taken(), [['stopped', 'agent-job'], ['asking', 'agent-team', 'req-1']]);
   t.paseo.pending.push({ id: 'req-2', agentId: 'agent-team', name: 'AskUserQuestion', description: 'A / B' });
   await t.once(START + 60e3);
   // The asking line holds the card's choices and the agent's last message: the CLI lists no question text.
-  assert.deepEqual(t.lines.splice(0), [{ event: 'asking', agent: 'agent-team', title: 'Team plan', workspace: 'team-yak', source: 'handed',
+  assert.deepEqual(t.lines.splice(0), [{ event: 'asking', agent: 'agent-team', title: 'Team plan', workspace: 'team-yak', source: 'own',
     request: { id: 'req-2', name: 'AskUserQuestion', description: 'A / B' }, last: 'Which plan do you want?', mark: messageMark('Which plan do you want?') }]);
   // Nothing changed: nothing is said. A stranger's question is never said.
   await t.once(START + 120e3);
@@ -186,70 +169,6 @@ test('a short run between two looks shows as a new last message: the watch says 
   await t.once(START + 180e3, { call: failing });
   await t.once(START + 240e3);
   assert.deepEqual(t.taken(), []);
-});
-
-test('a chat list the app does not take is said one time, and a chat closed in the Inbox gets /close once the app answers', async () => {
-  const t = day();
-  t.down(true);
-  t.app.asked['agent-job'] = START;
-  await t.once(START);
-  await t.once(START + MIN);
-  assert.deepEqual(t.taken(), [['stopped', 'agent-job'], ['not-read', 'chats']]);
-  assert.deepEqual(t.paseo.sent, []);
-  t.down(false);
-  await t.once(START + 2 * MIN);
-  await t.once(START + 3 * MIN);
-  assert.deepEqual(t.taken(), [['close', 'agent-job']]);
-  assert.deepEqual(t.paseo.sent, [['agent-job', '/close\n']]);
-  // No chat list asked for: the pass sends none.
-  await t.once(START + 4 * MIN, { chats: null });
-  assert.equal(t.app.sent.length, 4);
-});
-
-test('the chat list holds the watched and top-level chats and the Needs-you chat, never a helper or this chat', async () => {
-  const t = day();
-  t.own('agent-helper', 'A helper', { parent: 'agent-job' });
-  t.own('agent-needs', 'Needs you: Paseo');
-  await t.once(START, { ignore: ['agent-needs'] });
-  assert.equal(t.app.sent[0].computer, 'c'.repeat(32));
-  assert.deepEqual(t.app.sent[0].chats.map(chat => chat.agentId),
-    ['agent-job', 'agent-email', 'agent-old', 'agent-team', 'agent-stranger', 'agent-needs']);
-  assert.deepEqual(t.app.sent[0].chats[0], { agentId: 'agent-job', name: 'Task: Post the editor job', step: null, folder: 'bold-otter',
-    source: null });
-});
-
-test("the chat list leaves out a running schedule's chat, its label read from Paseo's agent record", async () => {
-  const t = day();
-  t.own('agent-news', 'News', { status: 'running' });
-  const agentRecord = id => (id === 'agent-news' ? { labels: { 'wong-schedule': 'news' } } : {});
-  await t.once(START, { agentRecord });
-  const sent = t.app.sent[0].chats.map(chat => chat.agentId);
-  assert.ok(sent.includes('agent-job'));
-  assert.ok(!sent.includes('agent-news'));
-});
-
-test("the service watch says each repeat failure as again, and read once a source reads again; a chat's watch says neither", async () => {
-  const t = day();
-  const chatEvents = () => t.lines.splice(0).filter(line => line.source === 'chats')
-    .map(({ event, again }) => [event, ...(again ? ['again'] : [])]);
-  const service = now => t.once(now, { service: true, self: null });
-  await service(START);
-  assert.deepEqual(chatEvents(), [['read']]);
-  t.down(true);
-  await service(START + MIN);
-  await service(START + 2 * MIN);
-  assert.deepEqual(chatEvents(), [['not-read'], ['not-read', 'again']]);
-  t.down(false);
-  await service(START + 3 * MIN);
-  await service(START + 4 * MIN);
-  assert.deepEqual(chatEvents(), [['read']]);
-  const chat = day();
-  chat.down(true);
-  await chat.once(START);
-  await chat.once(START + MIN);
-  chat.down(false);
-  await chat.once(START + 2 * MIN);
-  assert.deepEqual(chat.lines.filter(line => line.source === 'chats').map(line => line.event), ['not-read']);
 });
 
 test('the watch keeps its day after midnight, and ends when the next daily starts', async () => {
@@ -304,7 +223,7 @@ test('reply sends one message to an idle watched agent, and refuses a working on
 
 test('answer passes the answer on the pending card, and refuses a card that is not pending', async () => {
   const t = day();
-  await hand({ ...t.at, day: '2026-10-21', agent: 'agent-team', env, now: new Date(START) });
+  t.hand('agent-team', '2026-10-21');
   t.paseo.pending.push({ id: 'req-1', agentId: 'agent-team', name: 'AskUserQuestion', description: 'Build it (Recommended) / Wait' });
   const go = request => answer({ ...t.at, day: '2026-10-21', agent: 'Team plan', request, text: 'Build it', bucket: 'pick', label: 'Picked "Build it": Team plan', env });
   assert.equal((await go('req-1')).status, 'answered');
@@ -516,10 +435,9 @@ test("a chief command keeps its chat's own id; a background run with none acts u
   assert.equal(chiefEnv({}).PASEO_AGENT_ID, undefined);
   const t = day();
   await t.once(START);
-  // The stand-in matches no chat: it watches every chat this chat would, and hands any of them.
+  // The stand-in matches no chat: it watches every chat this chat would.
   const run = await status({ ...t.at, day: DAY, env: chiefEnv({ WONG_DAILY_RUN: '1' }) });
   assert.deepEqual(run.agents.map(row => row.agent), ['agent-job', 'agent-email']);
-  assert.equal((await hand({ ...t.at, day: DAY, agent: 'agent-team', env: chiefEnv({ WONG_DAILY_RUN: '1' }), now: new Date(START) })).status, 'handed');
   assert.equal((await status({ ...t.at, day: DAY, env: chiefEnv({}) })).status, 'unsupported');
 });
 
@@ -637,9 +555,9 @@ test('with no record to read, the first-line mark still finds their word', async
   assert.deepEqual(actions({ stateDir: t.stateDir, day: DAY }).filter(entry => entry.kind === 'own-chat').map(entry => entry.agent), ['agent-job']);
 });
 
-test('allow lets a safe command card run, refuses an outward command unless the person approved it, and counts in the streak', async () => {
+test('allow lets a safe command card run, refuses an outward command and the person bucket, and counts in the streak', async () => {
   const t = day();
-  await hand({ ...t.at, day: DAY, agent: 'agent-team', env, now: new Date(START) });
+  t.hand('agent-team', DAY);
   const card = (id, name = 'Bash') => t.paseo.pending.push({ id, agentId: 'agent-team', name, description: '-' });
   const go = (request, bucket = 'keep-going', n = 0) => allow({ ...t.at, day: DAY, agent: 'Team plan', request, bucket, label: `Allowed: ${request}`, env,
     now: new Date(START + n * MIN), typedAt: () => null });
@@ -660,21 +578,21 @@ test('allow lets a safe command card run, refuses an outward command unless the 
   assert.equal((await go('req-long')).reason, 'outward');
   t.paseo.tools['agent-team'] = '[Read] notes.md';
   assert.equal((await go('req-long')).reason, 'outward');
-  // the person's Approve on an Inbox approval runs the push.
+  // The person approves an outward command in its own chat: allow never takes their choice.
   t.paseo.tools['agent-team'] = '[Shell] git push origin soggy-bird';
-  assert.equal((await go('req-long', 'person')).status, 'allowed');
+  assert.equal((await go('req-long', 'person')).reason, 'bucket');
   card('req-q', 'AskUserQuestion');
   assert.equal((await go('req-q')).reason, 'tool');
   assert.equal((await go('req-none')).reason, 'request');
   assert.equal((await go('req-q', 'pick')).reason, 'bucket');
   const log = actions({ stateDir: t.stateDir, day: DAY });
-  assert.deepEqual(log.map(entry => [entry.kind, entry.bucket, entry.request]), [['allow', 'keep-going', 'req-test'], ['allow', 'person', 'req-long']]);
+  assert.deepEqual(log.map(entry => [entry.kind, entry.bucket, entry.request]), [['allow', 'keep-going', 'req-test']]);
   assert.equal(streak(log.slice(0, 1), 'agent-team'), 1);
 });
 
 test('allow with keep-going refuses when two command cards wait, since the log\'s last command may be the other card\'s', async () => {
   const t = day();
-  await hand({ ...t.at, day: DAY, agent: 'agent-team', env, now: new Date(START) });
+  t.hand('agent-team', DAY);
   t.paseo.pending.push({ id: 'req-push', agentId: 'agent-team', name: 'Bash', description: '-' }, { id: 'req-test', agentId: 'agent-team', name: 'Bash', description: '-' });
   t.paseo.tools['agent-team'] = '[Shell] npm test';
   const go = (request, bucket = 'keep-going') => allow({ ...t.at, day: DAY, agent: 'Team plan', request, bucket, label: `Allowed: ${request}`, env, typedAt: () => null });
@@ -683,20 +601,20 @@ test('allow with keep-going refuses when two command cards wait, since the log\'
     assert.deepEqual([refused.status, refused.reason], ['refused', 'outward'], request);
   }
   assert.ok(!t.paseo.calls.some(([name, sub]) => name === 'permit' && sub === 'allow'));
-  // the person's Approve still allows; with one card left, keep-going reads the log again.
-  assert.equal((await go('req-push', 'person')).status, 'allowed');
+  // With one card left, keep-going reads the log again.
+  t.paseo.pending = t.paseo.pending.filter(ask => ask.id !== 'req-push');
   assert.equal((await go('req-test')).status, 'allowed');
 });
 
-test('answer refuses a command card, so the deny loop can not start; the person\'s Decline still declines it', async () => {
+test('answer refuses a command card, so the deny loop can not start', async () => {
   const t = day();
-  await hand({ ...t.at, day: DAY, agent: 'agent-team', env, now: new Date(START) });
+  t.hand('agent-team', DAY);
   t.paseo.pending.push({ id: 'req-cmd', agentId: 'agent-team', name: 'Bash', description: '-' });
   const go = (bucket, text) => answer({ ...t.at, day: DAY, agent: 'Team plan', request: 'req-cmd', text, bucket, label: 'x', env, typedAt: () => null });
   const refused = await go('keep-going', 'Go on.');
   assert.deepEqual([refused.status, refused.reason], ['refused', 'tool']);
   assert.ok(!t.paseo.calls.some(([name, sub]) => name === 'permit' && sub === 'deny'));
-  assert.equal((await go('person', 'Not approved; stop before that step.')).status, 'answered');
+  assert.equal((await go('person', 'Not approved; stop before that step.')).reason, 'tool');
 });
 
 test("status shows the watched chats and the chief's last 5 actions and end lines", async () => {
@@ -747,7 +665,6 @@ test('pass add-ons post lines, pass events through, skip chats, and a failed one
   const lines = t.lines.splice(0);
   assert.deepEqual(lines.slice(0, 2), [{ event: 'post', text: 'Two new orders' }, { event: 'email-round', round: 1, addon: 'a.mjs' }]);
   assert.ok(!lines.some(line => line.agent === 'agent-job'), 'a skipped chat is not watched');
-  assert.equal((await hand({ ...t.at, day: DAY, agent: 'agent-job', env, now: new Date(START) })).reason, 'skip');
   failed = true;
   await t.once(START + MIN, { addons });
   await t.once(START + 2 * MIN, { addons });

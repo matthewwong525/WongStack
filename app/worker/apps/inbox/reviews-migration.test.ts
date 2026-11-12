@@ -1,6 +1,6 @@
 import { readdirSync } from "node:fs";
 import { expect, it } from "vitest";
-import type { AccessIdentity } from "../../access";
+import type { AccessIdentity } from "../../access-slots";
 import { handleApp } from "../index";
 import { fakeEnv } from "../../../tests/env";
 import { database } from "../../../tests/employee-access/connections";
@@ -24,7 +24,6 @@ async function statements() {
   await call("PUT", "item", { id: PLAN, kind: "plan", title: "One inbox", workspace: "desk", body: "<p>Plan</p>", actions: ["build"],
     version: "v1", closesAt: Date.now() + 60_000, chat: "agent-1" });
   await call("GET", "items");
-  await call("GET", "chats");
   await call("GET", "item", { id: PLAN });
   await call("POST", "tap", { item: PLAN, action: "build", version: "v1" });
   await call("POST", "checkin", { items: [PLAN] });
@@ -39,16 +38,16 @@ it("applies every migration in the test database", () => {
   const { sql } = database();
   const files = readdirSync(folder).filter(file => file.endsWith(".sql"));
   expect(files).toContain("20261103120000_inbox_kept_reviews.sql");
-  expect(files).toContain("20261107120000_inbox_chats.sql");
-  expect(sql.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'index' AND name LIKE 'inbox_items_%'").get()).toEqual({ n: 4 });
+  expect(files).toContain("20261112120000_drop_inbox_chats.sql");
+  expect(sql.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'index' AND name LIKE 'inbox_items_%'").get()).toEqual({ n: 3 });
 });
 
 it("reads no inbox item row by row: each statement on inbox_items searches an index, or scans one holding all it needs", async () => {
   const { sql, sent } = await statements();
   const plans = sent.map(query => ({ query, plan: sql.prepare(`EXPLAIN QUERY PLAN ${query}`).all().map(row => String(row.detail)) }));
   const each = (part: string) => plans.filter(({ query }) => query.includes(part));
-  // items, item, chats, reviews (waiting, archived), settleTaps, prune (two kinds), item-close, item-put.
-  for (const part of ["AND hidden = 0 ORDER BY created_at DESC, rowid", "AND id = ?3", "closes_at > ?3 AND hidden = 0\n", "hidden = 0 AND closed_at IS NULL",
+  // items, item, reviews (waiting, archived), settleTaps, prune (two kinds), item-close, item-put.
+  for (const part of ["AND hidden = 0 ORDER BY created_at DESC, rowid", "AND id = ?3", "hidden = 0 AND closed_at IS NULL",
     "(closed_at IS NOT NULL OR closes_at <= ?3)", "state = 'waiting' AND item_id IN", "kind <> 'plan'", "kind = 'plan' AND body = ''",
     "UPDATE inbox_items SET closed_at", "INSERT INTO inbox_items"]) expect(each(part), part).not.toEqual([]);
   for (const { query, plan } of plans) {
@@ -56,10 +55,9 @@ it("reads no inbox item row by row: each statement on inbox_items searches an in
   }
   // The lists read their columns from the index alone; the clean-up of emptied pages uses the index of only those.
   const uses = (part: string) => each(part).flatMap(({ plan }) => plan).join("\n");
-  expect(uses("hidden = 0 AND closed_at IS NULL")).toMatch(/COVERING INDEX inbox_items_(reviews|open|chats)/);
+  expect(uses("hidden = 0 AND closed_at IS NULL")).toMatch(/COVERING INDEX inbox_items_(reviews|open)/);
   expect(uses("(closed_at IS NOT NULL OR closes_at <= ?3) AND title")).toMatch(/COVERING INDEX inbox_items_reviews/);
   expect(uses("state = 'waiting' AND item_id IN")).toMatch(/COVERING INDEX inbox_items_open/);
   expect(uses("kind = 'plan' AND body = ''")).toMatch(/INDEX inbox_items_emptied/);
-  expect(uses("closes_at > ?3 AND hidden = 0\n")).toMatch(/COVERING INDEX inbox_items_/);
   expect(uses("kind <> 'plan'")).toMatch(/INDEX inbox_items_open/);
 });

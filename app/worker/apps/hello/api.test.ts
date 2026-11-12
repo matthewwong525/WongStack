@@ -1,8 +1,9 @@
 import { expect, it } from "vitest";
 import { handleApp } from "../index";
+import { fakeEnv } from "../../../tests/env";
 
 const get = (path: string, method = "GET") =>
-  handleApp(new Request(`https://workspace.example.com${path}`, { method }), {} as Env, null);
+  handleApp(new Request(`https://workspace.example.com${path}`, { method }), fakeEnv({ WORKSPACE_LOGIN: "off" }), null);
 
 it("the greeting names the person", async () => {
   const response = await get("/apps/hello/api/greeting?name=Ada");

@@ -1,4 +1,4 @@
-// The Inbox on the seeded database: Fay's seeded items, an item and a schedule saved and read back, and her chat list.
+// The Inbox on the seeded database: Fay's items, an item and a schedule saved and read back, and her waiting pages.
 import { beforeAll, expect, it } from "vitest";
 import { call, type AppTests } from "../context.ts";
 import { resetToSeed } from "../setup.ts";
@@ -47,13 +47,13 @@ export const inbox: AppTests = context => {
       .toEqual({ host: "app", state: "on", computer_id: COMPUTER, name: "Runtime digest", due: 1 });
   });
 
-  it("lists Fay's seeded chats, those with a waiting page first, and keeps a put chat in the real database", async () => {
-    const before = await (await asFay("GET", "chats")).json() as { chats: { agentId: string | null; review: { id: string } | null }[] };
-    expect(before.chats.slice(0, 2).map(chat => [chat.agentId, chat.review?.id])).toEqual([
-      ["agent-weekly-profit", "a0000000000000000000000000000006"], ["agent-bfcm-launch-1", "a0000000000000000000000000000007"]]);
-    const put = await asFay("PUT", "chat", { agentId: "runtime-agent", computer: COMPUTER, name: "Runtime chat", step: "APPLY",
-      folder: "runtime" });
-    expect([put.status, await put.json()]).toEqual([200, { agentId: "runtime-agent" }]);
-    expect(await row("SELECT name, step FROM chats WHERE owner = ? AND agent_id = ?", "runtime-agent")).toEqual({ name: "Runtime chat", step: "APPLY" });
+  it("lists Fay's seeded waiting pages, and answers the chat list's old routes with retired, with no chats table left", async () => {
+    const { waiting } = await (await asFay("GET", "reviews")).json() as { waiting: { id: string }[] };
+    expect(waiting.map(({ id }) => id).sort()).toEqual(["a0000000000000000000000000000006", "a0000000000000000000000000000007"]);
+    for (const [method, route] of [["GET", "chats"], ["PUT", "chat"], ["POST", "chat-close"]]) {
+      const old = await asFay(method, route, method === "GET" ? undefined : { agentId: "runtime-agent" });
+      expect([old.status, await old.json()]).toEqual([404, { error: { code: "retired" } }]);
+    }
+    expect(await db().prepare("SELECT name FROM sqlite_master WHERE name IN ('chats', 'inbox_items_chats')").first()).toBeNull();
   });
 };

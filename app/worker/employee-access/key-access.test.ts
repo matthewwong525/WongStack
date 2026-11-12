@@ -1,13 +1,13 @@
 import { afterEach, beforeEach, expect, it, vi, type Mock } from "vitest";
 import { z } from "zod";
 import { employee, fixture, owner, site } from "../../tests/employee-access/connections";
-import type { AccessIdentity } from "../access";
+import type { AccessIdentity } from "../access-slots";
 import { defineAction, dispatch, keyUses, needFor, registrations, type Action, type Route } from "../api/contract";
 import { discovery } from "../api/discovery";
 import type { AppEnv, AppHandler } from "../apps/index";
 import type { KeyId } from "../keys";
 import { appAccess } from "./apps";
-import { authorizeRequest, currentPolicy, listedKeys, policyAllows, type PolicyEnv, type RouteAccess } from "./policy";
+import { authorizeRequest, currentPolicy, listedKeys, policyAllows, type PolicyEnv, type RouteAccess } from "../access-slots";
 import { body } from "../../tests/body";
 import { fakeEnv } from "../../tests/env";
 
@@ -146,7 +146,7 @@ it("gives the owner and the machine that checks previews every app and every key
   }
   expect(await currentPolicy(env, owner)).toMatchObject({ keys: new Map([["stripe", "write"], ["bank", "write"], ["cloudflare", "read"]]) });
   expect((await run(action(), { kind: "owner" }, machine)).status).toBe(403);
-  expect((await run(action(), orders, null)).status).toBe(403);
+  expect((await run(action(), orders, null)).status).toBe(401);
 });
 
 it("gives an Admin every app and each key at the highest level it offers, no key before key levels start, and no owner route", async () => {

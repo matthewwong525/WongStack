@@ -6,8 +6,12 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   // `@/` is app/src/, as in vite.config.ts.
   resolve: { alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) } },
+  // A browser-like test loads files through the dev server, which serves only app/ unless told: the module's screen
+  // tests sit in the repo root's .agents/.
+  server: { fs: { allow: [".."] } },
   test: {
-    include: ["worker/**/*.test.ts", "src/**/*.test.{ts,tsx}"],
+    // The Access module's own tests run here too, through its skill link: wiki/stack/employee-access.md
+    include: ["worker/**/*.test.ts", "src/**/*.test.{ts,tsx}", "../.agents/skills/access/**/*.test.mjs"],
     environment: "node",
     // What the ready-made parts ask of a browser that the test DOM lacks.
     setupFiles: ["src/dom.test.setup.ts"],

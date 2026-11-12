@@ -1,0 +1,116 @@
+/* The Access page's look where no Tailwind build styles it, such as the page served alone. Each colour reads the
+   app's CSS variable first and falls back to the app's own value. Every rule is wrapped in :where(), so it weighs
+   nothing: where the app's Tailwind classes apply, they win. The page and its popups carry the marks below. */
+
+:where([data-access-screen], [data-access-layer]) {
+  --access-bg: var(--background, oklch(1 0 0));
+  --access-fg: var(--foreground, oklch(0.145 0 0));
+  --access-card: var(--card, oklch(1 0 0));
+  --access-muted: var(--muted, oklch(0.97 0 0));
+  --access-muted-fg: var(--muted-foreground, oklch(0.556 0 0));
+  --access-accent: var(--accent, oklch(0.97 0 0));
+  --access-primary: var(--primary, oklch(0.205 0 0));
+  --access-primary-fg: var(--primary-foreground, oklch(0.985 0 0));
+  --access-secondary: var(--secondary, oklch(0.97 0 0));
+  --access-destructive: var(--destructive, oklch(0.577 0.245 27.325));
+  --access-border: var(--border, oklch(0.922 0 0));
+  --access-ring: var(--ring, oklch(0.708 0 0));
+  --access-radius: var(--radius, 0.625rem);
+  color: var(--access-fg);
+  font: 400 0.875rem/1.5 var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+}
+
+:where([data-access-screen], [data-access-layer]) :where(*) { box-sizing: border-box; border: 0 solid var(--access-border); }
+:where([data-access-screen]) { container-type: inline-size; display: block; max-width: 64rem; margin: 0 auto; padding: 1rem; }
+:where([data-access-screen]) :where(h1) { font-size: 1.5rem; font-weight: 600; margin: 0; }
+:where([data-access-screen], [data-access-layer]) :where(h2) { font-size: 1rem; font-weight: 600; margin: 0; }
+:where([data-access-screen], [data-access-layer]) :where(p) { margin: 0; }
+:where([data-access-screen], [data-access-layer]) :where(a) { color: inherit; text-underline-offset: 0.2em; }
+
+/* The handful of layout and text classes the parts lean on. */
+:where([data-access-screen], [data-access-layer]) :where(.grid) { display: grid; }
+:where([data-access-screen], [data-access-layer]) :where(.flex) { display: flex; }
+:where([data-access-screen], [data-access-layer]) :where(.flex-wrap) { flex-wrap: wrap; }
+:where([data-access-screen], [data-access-layer]) :where(.items-center) { align-items: center; }
+:where([data-access-screen], [data-access-layer]) :where(.gap-1) { gap: 0.25rem; }
+:where([data-access-screen], [data-access-layer]) :where(.gap-2) { gap: 0.5rem; }
+:where([data-access-screen], [data-access-layer]) :where(.gap-3) { gap: 0.75rem; }
+:where([data-access-screen], [data-access-layer]) :where(.gap-4) { gap: 1rem; }
+:where([data-access-screen], [data-access-layer]) :where(.gap-2\.5) { gap: 0.625rem; }
+:where([data-access-screen], [data-access-layer]) :where(.justify-between) { justify-content: space-between; }
+:where([data-access-screen], [data-access-layer]) :where(.min-w-0) { min-width: 0; }
+:where([data-access-screen], [data-access-layer]) :where(.flex-col) { flex-direction: column; }
+:where([data-access-screen], [data-access-layer]) :where(.block) { display: block; }
+:where([data-access-screen], [data-access-layer]) :where(.text-muted-foreground) { color: var(--access-muted-fg); }
+:where([data-access-screen], [data-access-layer]) :where(.text-destructive) { color: var(--access-destructive); }
+:where([data-access-screen], [data-access-layer]) :where(.font-semibold) { font-weight: 600; }
+:where([data-access-screen], [data-access-layer]) :where(.justify-self-start) { justify-self: start; }
+:where([data-access-screen], [data-access-layer]) :where(.sr-only) {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0;
+}
+
+/* The ready-made parts, by their data-slot. */
+:where([data-access-screen], [data-access-layer]) :where([data-slot="button"]) {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; height: 2.25rem; padding: 0 1rem;
+  border-radius: calc(var(--access-radius) - 2px); font: 500 0.875rem/1 inherit; white-space: nowrap; cursor: pointer; text-decoration: none;
+  background: var(--access-primary); color: var(--access-primary-fg);
+}
+:where([data-access-screen], [data-access-layer]) :where([data-slot="button"][data-variant="outline"]) { background: var(--access-bg); color: var(--access-fg); border-width: 1px; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="button"][data-variant="secondary"]) { background: var(--access-secondary); color: var(--access-fg); }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="button"][data-variant="ghost"]) { background: transparent; color: var(--access-fg); }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="button"][data-variant="destructive"]) { background: var(--access-destructive); color: #fff; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="button"][data-variant="link"]) { background: transparent; color: var(--access-primary); text-decoration: underline; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="button"][data-size="sm"]) { height: 2rem; padding: 0 0.75rem; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="button"][data-size="icon"]) { width: 2.25rem; padding: 0; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="button"]:disabled) { opacity: 0.5; pointer-events: none; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="button"]:focus-visible, [data-slot="input"]:focus-visible, [data-slot="native-select"]:focus-visible, [data-slot="textarea"]:focus-visible) {
+  outline: 3px solid color-mix(in oklab, var(--access-ring) 50%, transparent);
+}
+:where([data-access-screen], [data-access-layer]) :where([data-slot="input"], [data-slot="native-select"], [data-slot="textarea"]) {
+  width: 100%; min-height: 2.25rem; padding: 0.25rem 0.75rem; border-width: 1px; border-radius: calc(var(--access-radius) - 2px);
+  background: transparent; color: inherit; font: inherit;
+}
+:where([data-access-screen], [data-access-layer]) :where([data-slot="native-select-wrapper"]) { position: relative; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="native-select"]) { appearance: none; padding-right: 2rem; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="native-select-icon"]) { position: absolute; top: 50%; right: 0.75rem; width: 1rem; translate: 0 -50%; pointer-events: none; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="label"]) { display: flex; align-items: center; gap: 0.5rem; font-weight: 500; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="card"], [data-slot="alert"]) {
+  display: grid; gap: 0.5rem; padding: 1rem; border-width: 1px; border-radius: var(--access-radius); background: var(--access-card);
+}
+:where([data-access-screen], [data-access-layer]) :where([data-slot="badge"]) {
+  display: inline-flex; align-items: center; padding: 0.125rem 0.5rem; border-width: 1px; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500;
+}
+:where([data-access-screen], [data-access-layer]) :where([data-slot="skeleton"]) { min-height: 1.25rem; border-radius: 0.375rem; background: var(--access-accent); }
+:where([data-access-screen]) :where([data-slot="table"]) { width: 100%; border-collapse: collapse; }
+:where([data-access-screen]) :where([data-slot="table-row"]) { border-bottom-width: 1px; }
+:where([data-access-screen]) :where([data-slot="table-row"][aria-current="true"]) { background: var(--access-muted); box-shadow: inset 0.2rem 0 0 var(--access-primary); }
+:where([data-access-screen]) :where([data-slot="table-head"]) { height: 2.5rem; padding: 0 0.5rem; text-align: left; font-weight: 500; color: var(--access-muted-fg); }
+:where([data-access-screen]) :where([data-slot="table-cell"]) { height: 3.5rem; padding: 0.5rem; vertical-align: middle; }
+@container (max-width: 44rem) {
+  :where([data-access-screen]) :where([data-slot="table"], [data-slot="table-body"], [data-slot="table-cell"]) { display: block; height: auto; padding: 0; }
+  :where([data-access-screen]) :where([data-slot="table-header"]) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  :where([data-access-screen]) :where([data-slot="table-row"]) { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.25rem 0.625rem; padding: 0.75rem 0; }
+}
+
+/* The popups: a menu, a question over a dimmed page, and the panel an opened item shows in. */
+:where([data-access-screen], [data-access-layer]) :where([data-slot="dropdown-menu-content"]) {
+  position: absolute; right: 0; z-index: 50; min-width: 8rem; margin-top: 0.25rem; padding: 0.25rem; border-width: 1px;
+  border-radius: calc(var(--access-radius) - 2px); background: var(--popover, var(--access-bg)); box-shadow: 0 4px 12px rgb(0 0 0 / 0.1);
+}
+:where([data-access-screen], [data-access-layer]) :where([data-slot="dropdown-menu-item"]) { padding: 0.375rem 0.5rem; border-radius: 0.25rem; cursor: default; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="dropdown-menu-item"]:focus) { background: var(--access-accent); outline: none; }
+:where([data-access-screen], [data-access-layer]) :where([data-slot="dropdown-menu-item"][aria-disabled="true"]) { opacity: 0.5; pointer-events: none; }
+:where([data-access-layer]) :where([data-slot="alert-dialog-overlay"]) { position: fixed; inset: 0; z-index: 50; background: rgb(0 0 0 / 0.5); }
+:where([data-access-layer]) :where([data-slot="alert-dialog-content"]) {
+  position: fixed; top: 50%; left: 50%; z-index: 50; display: grid; gap: 1rem; width: calc(100% - 2rem); max-width: 32rem; padding: 1.5rem;
+  translate: -50% -50%; border-width: 1px; border-radius: var(--access-radius); background: var(--access-bg); box-shadow: 0 10px 30px rgb(0 0 0 / 0.2);
+}
+:where([data-access-layer]) :where([data-slot="alert-dialog-title"]) { font-size: 1.125rem; }
+:where([data-access-layer]) :where([data-slot="alert-dialog-footer"]) { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; }
+:where([data-access-screen]) :where([data-slot="sheet-content"]) {
+  position: fixed; inset: 0 0 0 auto; z-index: 50; display: flex; flex-direction: column; width: 100%; max-width: 28rem;
+  border-left-width: 1px; background: var(--access-bg); box-shadow: 0 10px 30px rgb(0 0 0 / 0.2); overflow-y: auto;
+}
+:where([data-access-screen]) :where([data-slot="sheet-header"], [data-slot="sheet-footer"]) { display: grid; gap: 0.5rem; padding: 1rem; }
+:where([data-access-screen]) :where([data-slot="sheet-title"]) { font-size: 1rem; font-weight: 600; }
+:where([data-access-screen]) :where([data-slot="sheet-close"]) { position: absolute; top: 1rem; right: 1rem; }

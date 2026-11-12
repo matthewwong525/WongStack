@@ -21,9 +21,9 @@ if (!existsSync(registry)) {
   process.exit(0);
 }
 const { keys } = await import(pathToFileURL(registry).href);
-// The direct-use, purpose and guide rules the app's tests and its tool save route hold a key to; an older app has none.
-const rules = join(worker, 'key-rules.ts');
-const ruled = existsSync(rules) ? (await import(pathToFileURL(rules).href)).keyProblems(keys).map(problem => `app/worker/keys.ts: ${problem}`) : [];
+// The direct-use, purpose and guide rules the Access module holds a key to; an older app keeps its own, or has none.
+const rules = [join(root, '.agents/skills/access/server/key-rules.mjs'), join(worker, 'key-rules.ts')].find(file => existsSync(file));
+const ruled = rules ? (await import(pathToFileURL(rules).href)).keyProblems(keys).map(problem => `app/worker/keys.ts: ${problem}`) : [];
 
 /** Every source file under `dir`, test files left out. */
 const sources = dir => (existsSync(dir) ? readdirSync(dir, { recursive: true, withFileTypes: true }) : [])

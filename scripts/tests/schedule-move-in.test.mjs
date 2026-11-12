@@ -5,8 +5,8 @@ import test from 'node:test';
 import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { main } from '../../.agents/skills/schedule/scripts/schedule.mjs';
-import { approvedVersion } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
-import { cadenceOf, checkTiming, duplicates, mainWords, settle, sweepTimings } from '../../.agents/skills/schedule/scripts/lib/move-in.mjs';
+import { approvedVersion } from '../../.agents/inbox/lib/approvals.mjs';
+import { cadenceOf, checkTiming, duplicates, mainWords, settle, sweepTimings } from '../../.agents/inbox/move-in.mjs';
 import { COMPUTER, ORIGIN, fakeApp, folder, writeRecord } from './fixtures/scheduled-work.mjs';
 
 const HOUR = 3600e3, DAY = 24 * HOUR, JO = 'jo@example.test';

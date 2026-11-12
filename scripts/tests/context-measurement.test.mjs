@@ -93,6 +93,19 @@ test('a call-only skill is counted as on-call: out of the instruction total and 
   assert.deepEqual(row(DESCRIPTIONS).after, countText('Search facts.'));
 });
 
+test("a module's setup guide is counted as on-call: it stops at once in a WongStack install", t => {
+  const root = skillTree(t, {
+    '.agents/skills/access/SKILL.md': '---\ndescription: See who can sign in.\n---\naccess body',
+    '.agents/skills/access/references/setup.md': 'setup steps',
+    '.agents/skills/access/references/other.md': 'other steps',
+  });
+  const report = measureContext(root, { revision: 'fixture', owners: [], files: {}, routes: {} });
+  const row = path => report.inventory.find(entry => entry.path === path);
+  assert.equal(row('.agents/skills/access/references/setup.md').kind, 'on-call');
+  assert.equal(row('.agents/skills/access/references/other.md').kind, 'instructions');
+  assert.equal(row('.agents/skills/access/SKILL.md').kind, 'instructions');
+});
+
 test('the startup ceiling names the load and the ceiling when exceeded, and is silent under it', t => {
   const root = skillTree(t, {
     'AGENTS.md': 'one two three four five',

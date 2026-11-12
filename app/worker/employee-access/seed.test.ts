@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest';
 import { owner, req, seeded } from '../../tests/employee-access/connections';
-import { management } from './management';
+import { handleAccess as management } from './router';
 import { catalogue } from './catalogue';
 import { codeState } from './code';
-import { authorizeRequest, currentPolicy, policyAllows } from './policy';
+import { authorizeRequest, currentPolicy, policyAllows } from '../access-slots';
 import { body } from '../../tests/body';
 it('staging starts with practice people, the Admin role and two more, one Admin and key levels on, names who could only look, and holds no provider work or key', async () => {
   const { sql, env, practice } = seeded();

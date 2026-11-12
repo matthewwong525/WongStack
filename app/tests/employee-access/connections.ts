@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import type { AccessIdentity } from "../../worker/access.ts";
-import type { ConnectionEnv, Core } from "../../worker/employee-access/core.ts";
+import type { AccessIdentity, ConnectionEnv } from "../../worker/access-slots.ts";
 // One synthetic installation: a live app whose owner is known only by the committed email.
 export const site = { installationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   origin: "https://business.example.com", accountId: "a".repeat(32), workerId: "worker",
@@ -14,11 +13,11 @@ export const employee: AccessIdentity = { ...owner, id: "employee@example.com", 
   email: "employee@example.com", sub: "employee-subject" } };
 export const key = JSON.stringify({ version: 2, token: "private-access-token", accountId: site.accountId,
   policyId: site.accessPolicyId });
-/** A database from the real migrations behind the D1 calls the core makes. */
+/** A database from the real migrations behind the D1 calls the Access store makes. */
 export function database() {
   const sql = new DatabaseSync(":memory:");
   sql.exec("PRAGMA foreign_keys = ON");
-  for (const file of ["0001_employee_access.sql", "0002_employee_connections.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql", "20261013205049_admin_role.sql", "20261022120000_inbox.sql", "20261023120000_inbox_link_items.sql", "20261024120000_inbox_agent_items.sql", "20261025120000_access_pushers.sql", "20261026120000_schedules.sql", "20261028120000_task_board.sql", "20261101120000_inbox_hidden_items.sql", "20261103120000_inbox_kept_reviews.sql", "20261104120000_inbox_files.sql", "20261105120000_tools.sql", "20261106120000_schedule_definitions.sql", "20261106130000_sealed_keys.sql", "20261107120000_inbox_chats.sql"]) {
+  for (const file of ["0001_employee_access.sql", "0002_employee_connections.sql", "0003_key_levels.sql", "20261005142459_access_managers.sql", "20261006031500_area_levels.sql", "20261007220000_key_direct_use.sql", "20261013205049_admin_role.sql", "20261022120000_inbox.sql", "20261023120000_inbox_link_items.sql", "20261024120000_inbox_agent_items.sql", "20261025120000_access_pushers.sql", "20261026120000_schedules.sql", "20261028120000_task_board.sql", "20261101120000_inbox_hidden_items.sql", "20261103120000_inbox_kept_reviews.sql", "20261104120000_inbox_files.sql", "20261105120000_tools.sql", "20261106120000_schedule_definitions.sql", "20261106130000_sealed_keys.sql", "20261107120000_inbox_chats.sql", "20261112120000_drop_inbox_chats.sql"]) {
     sql.exec(readFileSync(new URL(`../../../schema/migrations/${file}`, import.meta.url), "utf8"));
   }
   const statement = (query: string, values: SQLInputValue[] = []) => ({
@@ -52,7 +51,7 @@ export function seeded() {
 }
 /** `started` false leaves the installation row out, as on an app whose owner never opened Access. */
 export function fixture({ started = true } = {}) {
-  const { sql, session, DB } = database();
+  const { sql, DB } = database();
   const env: ConnectionEnv = { DB, WONG_ENVIRONMENT: "production", CF_ACCESS_TEAM_DOMAIN: "business.cloudflareaccess.com",
     CF_ACCESS_AUD: site.audience, CF_ACCESS_APP_ID: site.accessAppId, CF_ACCESS_WORKER_ID: site.workerId,
     WONG_OWNER_EMAIL: site.ownerEmail, WONG_ACCESS_LOGIN_MANAGEMENT: key };
@@ -66,14 +65,11 @@ export function fixture({ started = true } = {}) {
     sql.prepare("INSERT INTO wong_access_members VALUES (?, ?, 'active', 0, 1, 'now')").run(site.installationId, employee.id);
     sql.prepare("INSERT INTO wong_access_apps VALUES (?, 'orders')").run(site.installationId);
   }
-  // Tests need a pass without a request, so this one is asserted by hand: the only place outside `ownerCore()`.
-  const core = { db: session as unknown as D1DatabaseSession, env, installationId: site.installationId,
-    origin: site.origin, email: site.ownerEmail, actor: site.ownerEmail, owner: true, subject: site.ownerSubject, live: true } as Core;
-  return { sql, env, core };
+  return { sql, env };
 }
 export const req = (path: string, method = "POST", body?: unknown, headers = {}) => new Request(`${site.origin}/api/access/${path}`,
   { method, headers: { Origin: site.origin, ...headers }, ...(body !== undefined && { body: JSON.stringify(body) }) });
-/** A fake of the two Cloudflare resources the core reads and the one policy it writes. */
+/** A fake of the two Cloudflare resources the sign-in list reads and the one policy it writes. */
 export function cloudflare() {
   const state = {
     policy: { id: site.accessPolicyId, name: "Business people", decision: "allow", include: [{ email: { email: site.ownerEmail } }],

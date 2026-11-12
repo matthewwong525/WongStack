@@ -1,10 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { cloudflare, employee, fixture, owner, req, site } from "../../tests/employee-access/connections";
-import type { AccessIdentity } from "../access";
-import { ownerCore } from "./core";
-import { management } from "./management";
-import { startKeyLevels } from "./start";
-import { authorizeRequest, type RouteAccess } from "./policy";
+import { handleAccess as management } from "./router";
+import { authorizeRequest, type AccessIdentity, type RouteAccess } from "../access-slots";
 
 vi.mock("./catalogue.ts", async () => (await import("../../tests/employee-access/catalogue")).builtApps(["access", "orders", "payroll", "reports"]));
 vi.mock("../keys.ts", () => ({ keys: {
@@ -93,9 +90,6 @@ it("leaves levels off when the start can not be saved, and when permissions have
   expect([failed.status, await failed.json()]).toEqual([503, { code: "access_unavailable" }]);
   f.sql.exec("DROP TRIGGER fail_levels");
   expect([enabled(), count("wong_access_grants")]).toEqual([{ keys_enabled: 0 }, 1]);
-  // With no installation to read, the step changes nothing.
-  await startKeyLevels({ ...await ownerCore(req("status", "GET"), practice(), owner), installationId: "unknown" });
-  expect(enabled()).toEqual({ keys_enabled: 0 });
   // The live app has no key for its sign-in list yet: permissions wait, and so do key levels.
   f.sql.close(); f = fixture({ started: false });
   expect(await status({ ...f.env, WONG_ACCESS_LOGIN_MANAGEMENT: undefined } as ReturnType<typeof practice>)).toMatchObject({ started: false, keysStarted: false });

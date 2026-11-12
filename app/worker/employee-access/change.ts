@@ -4,9 +4,8 @@ import { z } from "zod";
 import { runId } from "../../../scripts/check-runner/run-id.mjs";
 import { joined } from "../api/body.ts";
 import { type ChecksBinding, type SaveSource, NOT_SET_UP, codeUnavailable, publishedBranch, saveSource, savedBranch } from "./code.ts";
-import { AccessError, reply } from "./core.ts";
 import { type Github, GithubError, github, githubFetch } from "./github.ts";
-import { boundedJson } from "./json.ts";
+import { AccessError, boundedJson, reply } from "../../../.agents/skills/access/server/errors.mjs";
 
 /** The saved change's own calls: read it, open it, read one check's log, start a cut-off check run again. */
 export const CODE_CHANGE = "/api/access/code/change";

@@ -22,7 +22,7 @@ const PRIVATE = 'WONG_KEY_SEAL_PRIVATE';
 const NAME = /^[A-Z][A-Z0-9_]{0,99}$/;
 const OWN = /^(?:WONG_|CLOUDFLARE_|CF_)/;
 
-const seal = () => import('../app/src/lib/seal.ts');
+const seal = () => import('../.agents/skills/access/screen/seal.mjs');
 
 /** One wrangler call in the app's folder, as the deploy scripts make it; `input` goes on stdin. Never production's
  *  environment by accident: CLOUDFLARE_ENV is dropped, so the top-level Worker is meant. */

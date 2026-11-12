@@ -151,6 +151,8 @@ test('payload carries every retrieval module and runbook but no installed models
   const target = tempDir(t, 'retrieval-payload-');
   cpSync(join(root, '.agents/plugins/memory'), join(target, '.agents/skills/memory'), { recursive: true });
   cpSync(join(root, '.agents/memory'), join(target, '.agents/memory'), { recursive: true });
+  // WongStack's memory connection signs in through Access, which every install carries.
+  cpSync(join(root, '.agents/plugins/access'), join(target, '.agents/skills/access'), { recursive: true });
   const inventory = JSON.parse(readFileSync(join(root, '.agents/skills/wong-sync/references/payload-files.json')));
   assert.ok(inventory.core.files.includes('wiki/development/document-retrieval.md'));
   for (const file of ['commands.mjs', 'corpus.mjs', 'state.mjs', 'qmd.mjs', 'setup.mjs', 'retrieve.mjs', 'lexical.mjs', 'packet.mjs', 'runtime.json', 'runtime/package-lock.json'])

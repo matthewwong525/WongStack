@@ -1,0 +1,151 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from './test-dom.mjs'
+
+// The page keeps the class names the app styles, so this reads the classes a phone and a screen reader rely on.
+// Kim could only look at Hello before an update, so the notice that names her shows on every view here.
+const status = { ownerEmail: 'owner@shop.com', viewer: { email: 'owner@shop.com', owner: true }, environment: 'practice', key: 'practice', started: true, imported: 0,
+  keysStarted: true, unticked: { people: [{ email: 'kim@shop.com', apps: ['Hello'] }], roles: [] }, apps: [{ id: 'hello', title: 'Hello', description: 'A small example.' }],
+  keys: [{ id: 'stripe', title: 'Stripe', levels: ['read', 'write'], saved: true, setup: false, alone: false, direct: true }],
+  roles: [{ id: 'sales', name: 'Sales', apps: ['hello'], keys: { stripe: 'read' } }],
+  people: [{ email: 'kim@shop.com', status: 'active', settled: true, role: null, apps: ['hello'], keys: { stripe: 'read' } },
+    { email: 'lee@shop.com', status: 'active', settled: true, role: 'sales', apps: ['hello'], keys: { stripe: 'read' } }], work: [], project: 'ready' }
+
+beforeEach(() => vi.stubGlobal('fetch', vi.fn(async (url) => {
+  if (url.endsWith('/apps')) return Response.json({ state: 'current', role: 'owner', manages: true, apps: ['access', 'hello'], revision: 1 })
+  return Response.json(status)
+})))
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+const open = (path = '') => render(`/apps/access/${path}`)
+// The classes on one element, and on every element drawn, the popup's included: it is drawn outside the page.
+const classes = (element) => (element.getAttribute('class') ?? '').split(/\s+/).filter(Boolean)
+const all = () => Array.from(document.body.querySelectorAll('*')).flatMap(classes)
+const has = (element, ...wanted) => expect(classes(element)).toEqual(expect.arrayContaining(wanted))
+const STACKED = '@max-[44rem]:'
+// A class that takes something off the screen.
+const GONE = /(^|:)(hidden|invisible|opacity-0|sr-only)$/
+
+// While a screen loads, a screen reader hears the words and everyone sees grey blocks shaped like what comes.
+it('loading shows blocks shaped like the screen, hidden from a screen reader, with the words still said', async () => {
+  const blocks = () => screen.getByRole('status').querySelectorAll('[aria-hidden="true"] [data-slot="skeleton"]')
+  // Access: the view tabs' height, then five rows of four cells.
+  await open(); expect(screen.getByRole('status').textContent).toBe('Loading people…'); expect(blocks()).toHaveLength(21)
+  await screen.findByRole('table', { name: 'People' })
+})
+
+it('fits a phone: the Access screens wrap, and fix no width in pixels', async () => {
+  await open(); await screen.findByRole('table', { name: 'People' })
+  const pixels = () => all().filter(name => /(^|:)(min-)?w-\[[\d.]+px\]/.test(name))
+  expect(pixels()).toEqual([])
+  // The views are the heading: the switch and the add button share one line, which wraps, and so does the switch.
+  // The add button is the one button there, and solid.
+  const views = screen.getByLabelText('Access views')
+  has(views, 'flex', 'flex-wrap'); has(views.parentElement, 'flex', 'flex-wrap', 'justify-between')
+  expect(Array.from(views.parentElement .children).slice(1).map(button => [button.textContent, button.getAttribute('data-variant')])).toEqual([['+ Add person', 'default']])
+  expect(document.querySelector('h2')).toBeNull()
+  // A notice breaks a long word.
+  has(screen.getByText(/Changes here stay on previews/).closest('[data-slot="alert-description"]'), 'wrap-anywhere')
+  cleanup()
+  // An opened item is a panel on the right: the screen's whole width on a phone, a readable one on a computer.
+  await open('people/new'); const save = await screen.findByRole('button', { name: 'Save access' })
+  const panel = screen.getByRole('dialog', { name: 'Add person' })
+  has(panel, 'fixed', 'inset-y-0', 'right-0', 'w-full', 'sm:max-w-md', 'sm:top-14', 'sm:h-auto'); expect(classes(panel)).not.toContain('w-3/4')
+  // Its fields scroll, with the buttons kept in view under them; the buttons and a level choice wrap; a field takes
+  // the panel's width.
+  has(save.parentElement, 'flex', 'flex-wrap', 'border-t'); has(save.parentElement .previousElementSibling, 'overflow-y-auto', 'flex-1')
+  has(within(panel).getByRole('heading', { name: 'Add person' }), 'wrap-anywhere')
+  has(screen.getByLabelText('Email'), 'w-full')
+  // An app is a tick with its words beside it, in bold.
+  const tick = screen.getByRole('checkbox', { name: 'Hello' }); has(tick.parentElement, 'font-semibold')
+  await fireEvent.click(tick)
+  // A key's level choice is named by the key, with whether it is saved beside it in quiet words.
+  const stripe = screen.getByRole('group', { name: 'Stripe · Saved' }); has(stripe, 'grid', 'min-w-0'); has(stripe.querySelector('legend span'), 'text-muted-foreground')
+  has(within(stripe).getByRole('radio', { name: 'Read' }).closest('div'), 'flex', 'flex-wrap')
+  // The line that says a change waits takes a row of its own above the buttons.
+  const waiting = screen.getByText('Not saved yet'); has(waiting, 'basis-full', 'font-semibold'); expect(waiting.parentElement).toBe(save.parentElement)
+  // No box goes round a group of ticks or of level choices: its bold name sets it apart.
+  for (const name of ['Apps', 'Keys']) {
+    const group = screen.getByRole('group', { name })
+    expect(classes(group).filter(part => /^(border|rounded)/.test(part)), name).toEqual([]); has(group.querySelector('legend'), 'font-bold')
+  }
+  expect(pixels()).toEqual([])
+})
+
+it('lists are tables in the shared frame whose rows are one line, and stack on a narrow screen with nothing scrolling sideways', async () => {
+  await open(); const table = await screen.findByRole('table', { name: 'People' })
+  // Access takes the frame every page shares, with no width or margin of its own, and measures itself so rows stack.
+  const page = table.closest('.\\@container')
+  has(page, '@container'); expect(page).toBe(screen.getByRole('heading', { name: 'Access' }).parentElement)
+  expect(classes(page).filter(name => /(^|:)-?(m[xselr]?|w|min-w|max-w)-/.test(name))).toEqual([])
+  // Each table is named by its view in the switch above it.
+  expect(table.getAttribute('aria-labelledby')).toBe(screen.getByLabelText('Access views').querySelector('[aria-current="page"] span') .id)
+  const [head, body] = [table.querySelector('thead'), table.querySelector('tbody')]
+  const row = within(table).getByText('kim@shop.com').closest('tr')
+  const cells = Array.from(row.querySelectorAll('td'))
+  has(table, `${STACKED}block`); has(body, `${STACKED}block`); has(row, `${STACKED}grid`, `${STACKED}grid-cols-[minmax(0,1fr)_auto]`)
+  // Every row is one height on a computer, the owner's with no control included; a stacked row takes what it needs.
+  for (const each of within(table).getAllByRole('row').slice(1)) has(each, 'h-14', `${STACKED}h-auto`)
+  // One line on a computer: no cell wraps there. Stacked, a line may wrap and a long word breaks.
+  for (const cell of cells) {
+    has(cell, 'whitespace-nowrap', 'align-middle', `${STACKED}block`, `${STACKED}whitespace-normal`, `${STACKED}wrap-anywhere`)
+    expect(classes(cell)).not.toContain('align-top')
+  }
+  // A long email gives way: it ends in "…" with the whole of it in its title, and its column takes a share of the row.
+  const email = within(row).getByRole('link', { name: 'kim@shop.com' })
+  has(email, 'truncate'); expect(email.title).toBe('kim@shop.com'); has(cells[0], 'max-w-0', `${STACKED}max-w-none`)
+  // The name with the row's menu beside it, then a line per cell.
+  has(cells[1], `${STACKED}not-first:col-span-full`); has(cells.at(-1), `${STACKED}col-start-2`, `${STACKED}row-start-1`)
+  // The header row stays for a screen reader: hidden from sight once rows stack, never removed.
+  has(head, `${STACKED}sr-only`); expect(classes(head).filter(name => GONE.test(name))).toEqual([`${STACKED}sr-only`])
+  expect(within(head).getAllByRole('columnheader')).toHaveLength(5)
+  has(within(head).getByText('Actions'), 'sr-only')
+  // No row is boxed: a line divides the rows.
+  has(row, 'border-b')
+  expect(all().filter(name => /overflow-x-(auto|scroll)$/.test(name))).toEqual([])
+  cleanup()
+  // A cell shows its column's name where its words don't say it.
+  await open('roles'); const people = within(await screen.findByRole('table', { name: 'Roles' })).getByText('1 person')
+  expect([people.tagName, people.getAttribute('data-label')]).toEqual(['TD', 'People'])
+  has(people, `${STACKED}data-label:before:content-[attr(data-label)_":_"]`)
+  expect(all().filter(name => /overflow-x-(auto|scroll)$/.test(name))).toEqual([])
+})
+
+it('marks the current view, the open row, a level, a notice and a label by more than colour', async () => {
+  await open('roles'); const table = await screen.findByRole('table', { name: 'Roles' })
+  // The current view is boxed, bold and underlined.
+  const views = within(screen.getByLabelText('Access views')).getAllByRole('link')
+  expect(views.filter(link => link.getAttribute('aria-current') === 'page').map(link => link.textContent)).toEqual(['Roles 1'])
+  for (const link of views) has(link, 'aria-[current=page]:border-border', 'aria-[current=page]:font-bold', 'aria-[current=page]:underline')
+  // The notice that names who an update unticked is headed in bold, and the "!" is in the text itself.
+  const unticked = screen.getByText('Unticked in this update')
+  expect([unticked.tagName, unticked.textContent, unticked.querySelector('[aria-hidden="true"]') .textContent]).toEqual(['STRONG', '! Unticked in this update', '! '])
+  // A row counts apps and keys in plain words, and marks nothing as missing.
+  expect([within(table).getByText('1 app, 1 key').tagName, table.querySelector('strong')]).toEqual(['TD', null])
+  // No row is marked until one is open.
+  expect(document.querySelector('tr[aria-current]')).toBeNull()
+  cleanup()
+  // The open row is told to a screen reader, filled, and has a bar on its leading edge.
+  await open('people/lee@shop.com'); const panel = await screen.findByRole('dialog', { name: 'lee@shop.com' })
+  const marked = Array.from(document.querySelectorAll('tr[aria-current="true"]'))
+  expect(marked).toEqual([screen.getByRole('link', { name: 'lee@shop.com' }).closest('tr')])
+  has(marked[0], 'aria-[current=true]:bg-muted', 'aria-[current=true]:[&>td:first-child]:shadow-[inset_0.2rem_0_0_var(--color-primary)]')
+  // Opened, what a role gives is named: a label has a border.
+  for (const name of ['Hello', 'Stripe Read']) {
+    const label = within(panel).getByText(name)
+    expect([label.getAttribute('data-slot'), label.getAttribute('data-variant')], name).toEqual(['badge', 'outline']); has(label, 'border', 'border-border')
+  }
+  cleanup()
+  // The radio buttons stay on screen: the dot shows the choice, its words are bold, and the keyboard can reach it.
+  await open('people/kim@shop.com'); await screen.findByRole('button', { name: 'Save access' })
+  const radios = screen.getAllByRole('radio')
+  expect(radios.map(radio => [radio.type, radio.parentElement .textContent, radio.checked])).toEqual([['radio', 'None', false], ['radio', 'Read', true], ['radio', 'Read & write', false]])
+  for (const radio of radios) {
+    expect(classes(radio).filter(name => GONE.test(name))).toEqual([])
+    has(radio.parentElement, 'has-checked:font-semibold')
+  }
+  // A tick stays on screen too: the device draws it, on or off.
+  const ticks = screen.getAllByRole('checkbox')
+  expect(ticks.map(tick => [tick.parentElement .textContent, tick.checked])).toEqual([['Hello', true]])
+  for (const tick of ticks) expect(classes(tick).filter(name => GONE.test(name))).toEqual([])
+})

@@ -5,7 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { headlessCommand } from '../../.agents/skills/memory/scripts/lib/headless.mjs';
-import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
+import { EXIT, PaseoError } from '../../.agents/skills/daily/scripts/lib/paseo.mjs';
 import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { validateConfig } from '../../.agents/skills/daily/scripts/config.mjs';
 import { commands, personSettings, start } from '../../.agents/skills/daily/scripts/daily.mjs';
@@ -541,69 +541,64 @@ function needsRig(answer = opened => ({ ok: true, agentId: `needs-${opened.lengt
   const openChat = async chat => { opened.push(chat); const out = answer(opened); if (out instanceof Error) throw out; return out; };
   return { ...r, opened, worker: r.make({ openChat, guide: () => '.agents/daily/guide.md' }) };
 }
-const chatsDown = (again = false) => ({ event: 'not-read', source: 'chats', error: 'unavailable: sign in again', ...(again && { again: true }) });
+const paseoDown = (again = false) => ({ event: 'not-read', source: 'workspaces', error: 'daemon stopped', ...(again && { again: true }) });
 const needs = stateDir => JSON.parse(readFileSync(join(stateDir, 'needs-you.json'), 'utf8'));
 
-test('one chat list failure writes one line and opens nothing; a second in a row opens one Needs you chat with the reason, steps and guide', async () => {
+test('one Paseo failure writes one line and opens nothing; a second in a row opens one Needs you chat with the reason, steps and guide', async () => {
   const { worker, stateDir, opened, world } = needsRig();
-  await worker.dispatch([chatsDown()]);
-  assert.deepEqual([lines(stateDir), opened], [['Not read: chats — unavailable: sign in again'], []]);
-  await worker.dispatch([chatsDown(true)]);
+  await worker.dispatch([paseoDown()]);
+  assert.deepEqual([lines(stateDir), opened], [['Not read: workspaces — daemon stopped'], []]);
+  await worker.dispatch([paseoDown(true)]);
   assert.equal(opened.length, 1);
-  assert.equal(opened[0].title, 'Needs you: the chat list');
-  assert.match(opened[0].message, /failed two times in a row at the chat list\.\nReason: unavailable: sign in again\n/);
+  assert.equal(opened[0].title, 'Needs you: Paseo');
+  assert.match(opened[0].message, /failed two times in a row at Paseo\.\nReason: daemon stopped\n/);
   assert.match(opened[0].message, /First read \.agents\/daily\/guide\.md\. When it gives its own fix for this problem, follow that/);
-  assert.match(opened[0].message, /1\. Run `node \.claude\/skills\/daily\/scripts\/daily\.mjs who`\. On `missing` or `expired`, run its `login` command/);
+  assert.match(opened[0].message, /1\. Run `paseo ls`\./);
   assert.match(opened[0].message, /Ask the person only for a step that needs them/);
-  assert.deepEqual(lines(stateDir), ['Not read: chats — unavailable: sign in again', 'Opened: Needs you: the chat list']);
+  assert.deepEqual(lines(stateDir), ['Not read: workspaces — daemon stopped', 'Opened: Needs you: Paseo']);
   assert.deepEqual([worker.ignored(), world.calls], [['needs-1'], []]);
   // A third failure, and a later run of failures that day, open none; the later run's first failure is one line.
-  await worker.dispatch([chatsDown(true)]);
-  await worker.dispatch([{ event: 'read', source: 'chats' }]);
-  await worker.dispatch([chatsDown()]);
-  await worker.dispatch([chatsDown(true)]);
+  await worker.dispatch([paseoDown(true)]);
+  await worker.dispatch([{ event: 'read', source: 'workspaces' }]);
+  await worker.dispatch([paseoDown()]);
+  await worker.dispatch([paseoDown(true)]);
   assert.equal(opened.length, 1);
   assert.equal(lines(stateDir).length, 3);
   // The next day opens one again.
   world.t = Date.parse('2026-11-01T14:00:00Z');
-  await worker.dispatch([chatsDown(true)]);
+  await worker.dispatch([paseoDown(true)]);
   assert.equal(opened.length, 2);
   assert.deepEqual(needs(stateDir).chats, ['needs-1', 'needs-2']);
 });
 
-test('a success between two failures opens none, and each kind counts alone', async () => {
+test('a success between two failures opens none, and other sources stay journal lines', async () => {
   const { worker, opened, stateDir } = needsRig();
-  const paseoDown = { event: 'not-read', source: 'workspaces', error: 'daemon stopped' };
-  await worker.dispatch([chatsDown(), paseoDown, { event: 'read', source: 'chats' }]);
-  await worker.dispatch([chatsDown(), { event: 'not-read', source: 'to-dos', error: 'git' }, { event: 'not-read', source: 'add-on a.mjs', again: true }]);
+  await worker.dispatch([paseoDown(), { event: 'read', source: 'workspaces' }]);
+  await worker.dispatch([paseoDown(), { event: 'not-read', source: 'to-dos', error: 'git' }, { event: 'not-read', source: 'add-on a.mjs', again: true }]);
   assert.deepEqual(opened, []);
-  assert.deepEqual(lines(stateDir), ['Not read: chats — unavailable: sign in again', 'Not read: workspaces — daemon stopped',
-    'Not read: chats — unavailable: sign in again', 'Not read: to-dos — git']);
-  await worker.dispatch([{ ...paseoDown, again: true }]);
-  assert.deepEqual(opened.map(chat => chat.title), ['Needs you: Paseo']);
-  assert.match(opened[0].message, /1\. Run `paseo ls`\./);
-  assert.deepEqual(needs(stateDir).counts, { chats: 1, paseo: 2 });
+  assert.deepEqual(lines(stateDir), ['Not read: workspaces — daemon stopped', 'Not read: workspaces — daemon stopped', 'Not read: to-dos — git']);
+  assert.deepEqual(needs(stateDir).counts, { paseo: 1 });
 });
 
 test('a chat Paseo can not open journals Not opened with the reason, and is not tried again that day', async () => {
   const { worker, opened, stateDir } = needsRig(() => new Error('Paseo daemon is not running'));
-  for (const again of [false, true, true]) await worker.dispatch([chatsDown(again)]);
+  for (const again of [false, true, true]) await worker.dispatch([paseoDown(again)]);
   assert.equal(opened.length, 1);
-  assert.deepEqual(lines(stateDir).slice(1), ['Not opened: Needs you: the chat list — Paseo daemon is not running']);
+  assert.deepEqual(lines(stateDir).slice(1), ['Not opened: Needs you: Paseo — Paseo daemon is not running']);
   assert.deepEqual(worker.ignored(), []);
   const none = needsRig(() => ({ ok: true }));
-  for (const again of [false, true]) await none.worker.dispatch([chatsDown(again)]);
-  assert.deepEqual(lines(none.stateDir).slice(1), ['Not opened: Needs you: the chat list — Paseo did not start the chat.']);
+  for (const again of [false, true]) await none.worker.dispatch([paseoDown(again)]);
+  assert.deepEqual(lines(none.stateDir).slice(1), ['Not opened: Needs you: Paseo — Paseo did not start the chat.']);
 });
 
 test('a dry run prints wouldOpen and opens nothing', async () => {
   const r = needsRig();
-  await r.worker.dispatch([chatsDown()]);
+  await r.worker.dispatch([paseoDown()]);
   const printed = [];
   const dry = r.make({ dryRun: true, print: item => printed.push(item), openChat: async () => assert.fail('opened') });
-  await dry.dispatch([chatsDown(true)]);
-  assert.deepEqual(printed.map(item => item.wouldOpen), ['Needs you: the chat list']);
-  assert.deepEqual(needs(r.stateDir), { counts: { chats: 1 }, opened: {}, chats: [] });
+  await dry.dispatch([paseoDown(true)]);
+  assert.deepEqual(printed.map(item => item.wouldOpen), ['Needs you: Paseo']);
+  assert.deepEqual(needs(r.stateDir), { counts: { paseo: 1 }, opened: {}, chats: [] });
 });
 
 test("the service watch leaves a Needs you chat alone", async () => {

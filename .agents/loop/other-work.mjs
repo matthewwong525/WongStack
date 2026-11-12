@@ -8,7 +8,7 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { isMain } from '../skills/memory/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../skills/memory/scripts/lib/primary-root.mjs';
-import { EXIT, findPaseo, paseo } from '../skills/schedule/scripts/lib/paseo.mjs';
+import { EXIT, findPaseo, paseo } from '../skills/daily/scripts/lib/paseo.mjs';
 import { wongDelivery as delivery } from './routes/route.mjs';
 
 const USAGE = 'usage: other-work.mjs  prints this repo\'s other active work (worktrees, their plans, open pull requests) as JSON';
