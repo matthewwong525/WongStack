@@ -125,9 +125,9 @@ function writeAll({ source, target, repo, today, openspec }) {
       copyFileSync(join(source, path), join(target, to), constants.COPYFILE_EXCL);
     }
   }
-  put(target, 'AGENTS.md', `${HEADER}${block}\n`);
+  put(target, 'AGENTS.md', `${HEADER}${installText('AGENTS.md', block, mapped)}\n`);
   link(target, 'AGENTS.md', 'CLAUDE.md', 'file');
-  for (const [path, template] of Object.entries(SEEDS)) put(target, path, readFileSync(join(SEED, template), 'utf8'));
+  for (const [path, template] of Object.entries(SEEDS)) put(target, path, installText(path, readFileSync(join(SEED, template), 'utf8'), mapped));
 
   const paseo = JSON.parse(readFileSync(join(target, 'paseo.json'), 'utf8'));
   const setup = paseo.worktree?.setup;

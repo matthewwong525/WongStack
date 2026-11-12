@@ -12,6 +12,7 @@ import { INVENTORY, installPath, installsAsText, installText, mappedDirs } from 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const STAND_IN = pathToFileURL(join(repo, 'scripts/tests/fixtures/memory/stand-in-store.mjs')).href;
 const mapped = mappedDirs(JSON.parse(readFileSync(join(repo, INVENTORY), 'utf8')));
+const SLOTS = ['look', 'wakeChat', 'inbox', 'keyFiles', 'sendKey'];
 const SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|new URL\(\s*)['"](\.{1,2}(?:\/[^'"]*)?)['"]/g;
 
 const scratch = mkdtempSync(join(tmpdir(), 'wong-test-module-install-'));
@@ -27,6 +28,7 @@ function sandbox(name) {
     GIT_AUTHOR_NAME: 'Dev', GIT_AUTHOR_EMAIL: 'dev@example.com', GIT_COMMITTER_NAME: 'Dev', GIT_COMMITTER_EMAIL: 'dev@example.com' };
   delete env.WONG_MEMORY_PROFILE;
   delete env.WONG_LOOP_PROFILE;
+  delete env.WONG_BROWSER_PROFILE;
   return { home, env };
 }
 
@@ -134,7 +136,48 @@ const CHECKS = {
       }
     });
   },
+  // The browser's three folders with no profile, so every slot is empty, then with one that fills each.
+  browser: async ({ root }) => () => {
+    const node = (env, script, ...args) => spawnSync(process.execPath, [join(root, '.agents/skills', script), ...args], { cwd: root, env, encoding: 'utf8' });
+    test('browser: the setup guide\'s check passes with no profile, and every slot is empty', () => {
+      const { env } = sandbox('browser');
+      for (const args of [['browser/scripts/browse.mjs', 'status'], ['hand-over/scripts/details.mjs', 'list'], ['hand-over/scripts/hand-over.mjs', '--help']]) {
+        const out = node(env, ...args);
+        assert.equal(out.status, 0, `${args.join(' ')}: ${out.stderr}`);
+      }
+      assert.deepEqual(JSON.parse(slots(root, env)), { look: null, wakeChat: null, inbox: null, keyFiles: [{ file: '.env' }], sendKey: null });
+    });
+
+    test('browser: a profile at .agents/browser/profile.mjs fills each slot', () => {
+      mkdirSync(join(root, '.agents/browser'), { recursive: true });
+      writeFileSync(join(root, '.agents/browser/profile.mjs'), `export default {
+  look: () => ({ css: 'stub', themeJs: '' }),
+  wakeChat: () => 'notified',
+  inbox: { companyFor: async () => null },
+  keyFiles: () => [{ file: 'keys.env', names: () => '' }],
+  sendKey: async () => null,
 };
+`);
+      const filled = JSON.parse(slots(root, sandbox('browser').env));
+      assert.deepEqual(filled, { look: 'function', wakeChat: 'function', inbox: 'object', keyFiles: [{ file: 'keys.env' }], sendKey: 'function' });
+      rmSync(join(root, '.agents/browser'), { recursive: true });
+    });
+  },
+};
+
+/** Each browser slot's type as the installed module loads it, and the key files it routes to. */
+function slots(root, env) {
+  const lib = pathToFileURL(join(root, '.agents/skills/browser/scripts/lib/profile.mjs')).href;
+  const keys = pathToFileURL(join(root, '.agents/skills/hand-over/scripts/keys.mjs')).href;
+  const probe = `const { slot } = await import('${lib}'); const { keyFiles } = await import('${keys}');
+const out = {};
+for (const name of ${JSON.stringify(SLOTS)}) { const part = await slot(name); out[name] = part === null ? null : typeof part; }
+out.keyFiles = (await keyFiles({ root: process.cwd() })).map(({ file }) => ({ file }));
+console.log(JSON.stringify(out));`;
+  const out = spawnSync(process.execPath, ['--input-type=module', '-e', probe], { cwd: root, env, encoding: 'utf8' });
+  assert.equal(out.status, 0, out.stderr);
+  return out.stdout;
+}
 
 /** Every relative import or file URL in the module's scripts that resolves outside it; Daily's two folders are one. */
 function outsideImports(folder) {

@@ -31,3 +31,23 @@ test('a module that differs from main needs a higher version, the same in both p
   manifest(root, '.codex-plugin', '1.1.0');
   assert.deepEqual(moduleProblems(root, 'main'), []);
 });
+
+test('a module of plain skill folders keeps one version in its module.json', t => {
+  const root = mkdtempSync(join(tmpdir(), 'wong-test-module-versions-'));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const folder = join(root, '.agents/plugins/browser');
+  const version = v => writeFileSync(join(folder, 'browser/module.json'), JSON.stringify({ name: 'browser', version: v }));
+  git(root, 'init', '-q', '-b', 'main');
+  mkdirSync(join(folder, 'browser'), { recursive: true });
+  mkdirSync(join(folder, 'shop'));
+  version('1.0.0');
+  writeFileSync(join(folder, 'shop/SKILL.md'), 'shop\n');
+  git(root, 'add', '-A');
+  git(root, 'commit', '-q', '-m', 'browser 1.0.0');
+  assert.deepEqual(moduleProblems(root, 'main'), []);
+
+  writeFileSync(join(folder, 'shop/SKILL.md'), 'shop, changed\n');
+  assert.deepEqual(moduleProblems(root, 'main'), ['.agents/plugins/browser differs from main, but its version is still 1.0.0; raise it in browser/module.json']);
+  version('1.1.0');
+  assert.deepEqual(moduleProblems(root, 'main'), []);
+});

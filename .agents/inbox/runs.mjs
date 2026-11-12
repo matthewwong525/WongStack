@@ -2,11 +2,11 @@
 // A run starts only on a version approved here; only that approved text reaches the prompt. wiki/stack/live-line.md
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { helperFiles } from '../skills/hand-over/scripts/lib/computer.mjs';
+import { helperFiles } from '../skills/reply-link/scripts/lib/computer.mjs';
 import { approvedVersion, signedInAs } from './lib/approvals.mjs';
 import { appCall, appTiming, heldDefinition, readSchedule, runnableFolder } from './lib/app.mjs';
 import { listRecords } from '../skills/schedule/scripts/lib/records.mjs';
-import { companyFor } from '../skills/hand-over/scripts/lib/inbox.mjs';
+import { companyFor } from '../skills/reply-link/scripts/lib/inbox.mjs';
 import { inProject } from '../skills/daily/scripts/schedule-runs.mjs';
 import { paseoAdapter } from '../skills/schedule/scripts/lib/hosts.mjs';
 import { startRun } from '../skills/schedule/scripts/lib/start-run.mjs';

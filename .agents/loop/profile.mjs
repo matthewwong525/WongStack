@@ -44,7 +44,7 @@ async function afterMerge({ root, change }) {
   try { promoted = JSON.stringify(JSON.parse(secrets.stdout)); } catch { promoted = `error (${secrets.stderr.trim().split('\n')[0] || `exit ${secrets.status}`})`; }
   let page = 'none';
   if (change) {
-    try { page = await (await import('../skills/hand-over/scripts/reply-link.mjs')).closePlanPages(root, change); }
+    try { page = await (await import('../skills/reply-link/scripts/reply-link.mjs')).closePlanPages(root, change); }
     catch (error) { page = `skipped (${error.message.split('\n')[0] || 'it failed'})`; }
   }
   return `SECRETS=${promoted}\nPLAN_PAGE=${page}`;
@@ -53,7 +53,7 @@ async function afterMerge({ root, change }) {
 export default {
   stepTitle: node('step-title.mjs'),
   otherWork: node('other-work.mjs'),
-  reviewLink: lazy('../skills/hand-over/scripts/reply-link.mjs', 'openReplyLink'),
+  reviewLink: lazy('../skills/reply-link/scripts/reply-link.mjs', 'openReplyLink'),
   newWorkspace,
   closeWorkspace,
   schedule: true,

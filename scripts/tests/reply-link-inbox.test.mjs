@@ -7,8 +7,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { checkin, closeItem, companyFor, listLink, probe, tapResult, upload } from '../../.agents/skills/hand-over/scripts/lib/inbox.mjs';
-import { closeInboxItem, closePlanPages, inboxTick, openInboxItem, openReplyLink, startInbox, unlist } from '../../.agents/skills/hand-over/scripts/reply-link.mjs';
+import { checkin, closeItem, companyFor, listLink, probe, tapResult, upload } from '../../.agents/skills/reply-link/scripts/lib/inbox.mjs';
+import { closeInboxItem, closePlanPages, inboxTick, openInboxItem, openReplyLink, startInbox, unlist } from '../../.agents/skills/reply-link/scripts/reply-link.mjs';
 
 const ORIGIN = 'https://app.example.com';
 const BUILD = 'Build it now: run /apply for the plan example.';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findKeys, maskKeys } from '../../.agents/skills/connect/scripts/mask-keys.mjs';
+import { findKeys, maskKeys } from '../../.agents/skills/browser/scripts/mask-keys.mjs';
 
 // Every value here is made up; none is a real key.
 test('known prefixes and random mixed runs are hidden to their last four characters', () => {

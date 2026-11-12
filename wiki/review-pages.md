@@ -11,7 +11,7 @@ Every review page shows the same parts, in this order:
 3. **The cards**: the things to review, numbered, each with its picture or words.
 4. **What the build needs**, on a plan: [each key, login, file, or answer](#what-the-build-needs), *Ready* or *Needs you*. An answer is asked in the chat first, so it is *Ready*.
 5. **Decisions**, only when there are some. A page with none shows no Decisions section and no link to one.
-6. **The bar** at the bottom: *Send notes*, and only the buttons the page's link offers. Opened from a file, *Send notes* is *Copy notes*. A project with only [the build loop](../.agents/plugins/loop/README.md) has no reply link, so its pages open so, and the person replies in the chat.
+6. **The bar** at the bottom: *Send notes*, and only the buttons the page's link offers. Opened from a file, *Send notes* is *Copy notes*. A project with only [the build loop](../.agents/plugins/loop/README.md) has no reply link, so its pages open so, and the person replies in the chat. A shipped plan's link is its saved file too: a live page would wait for an answer again, with build buttons.
 
 On a screen 900 px or wider, every part and the bar's buttons share one width, with or without pictures: two widths make the edge jump as you scroll.
 
@@ -114,7 +114,7 @@ Every plan lists what its build needs from you, so a build never stops halfway t
 - **Meta ads key**: Needs you. Get it: <https://key.example.dev/k>
 ````
 
-- **Check each thing before you mark it.** A business service's key: `node scripts/company-api.mjs services`, then the computer's own `.env` ([secrets](development/secrets.md)). A website sign-in: open the site with `browse.mjs` and read whether it is signed in ([saved browser logins](development/browsing.md#saved-browser-logins)). A thing that is there is *Ready*.
+- **Check each thing before you mark it.** A business service's key: `node scripts/company-api.mjs services`, then the computer's own `.env` ([secrets](development/secrets.md)). A website sign-in: open the site with `browse.mjs` and read whether it is signed in ([saved browser logins](../.agents/plugins/browser/browser/references/browsing.md#saved-browser-logins)). A thing that is there is *Ready*.
 - **A *Needs you* item holds its file question or its link**: a [`form` fence](#files), or one `https` link, such as a key's [private link](development/secrets.md#receive-a-key-through-a-private-link), which the page shows as *Open the link*. A plan that needs nothing has one bullet, `- **Nothing.**`
 - **The bar waits for it.** An item counts as open until you send its files on the page. While any item is open, each button but *Send notes* reads *2 things need you*, and a tap shows the first open item. A key saved on its private link turns *Ready* when the chat builds the page again.
 - **A need still open stops the build**, which says what is missing.

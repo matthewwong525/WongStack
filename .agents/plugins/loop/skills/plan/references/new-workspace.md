@@ -58,7 +58,7 @@ A chat's task is its first ask, change or to-do. Another task, not a quick quest
 
 ## Open each workspace
 
-Write each other part's [brief](#the-brief) to a file in the scratch folder that `node "$W" newWorkspace scratch` prints, then run:
+Write each other part's [brief](#the-brief) to a file in the `path` of the JSON that `node "$W" newWorkspace scratch` prints, then run:
 
 ```bash
 W="$(git rev-parse --show-toplevel)/.claude/plugins/loop/scripts/slot.mjs"

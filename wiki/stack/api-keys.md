@@ -27,7 +27,7 @@ The assistant then:
 2. **Sends it to your live site too**, when the site itself needs it. Your site's test copy gets it as well, so a preview works the same way.
 3. **Tells you which keys it saved**, by name, never by showing a key.
 
-The link is new each time and works only until it closes; see [how it stays safe](../development/browsing.md#how-private-links-work). You never type a command or edit a file.
+The link is new each time and works only until it closes; see [how it stays safe](../../.agents/plugins/browser/browser/references/browsing.md#how-private-links-work). You never type a command or edit a file.
 
 **Pasting into the chat still works.** Paste the key and say what it's for, for example: *here's my Stripe key for the shop page*. The assistant saves it the same way and says the link is safer next time: chats are stored, so a key pasted there sits in the chat's history. A pasted key with no word about what it's for is not saved.
 
@@ -55,6 +55,6 @@ If you shared a key by mistake (in a message, a screenshot, or a public page), r
 
 ## Keys are not logins
 
-A key is for a service your app talks to. Signing in to a website as yourself, like your email or bank, is different: you never paste a password into the chat. For ordinary website tasks, the assistant opens a browser and you sign in there once, on the site's own page, in [a live view](../development/live-view.md#sign-in). The browser stays signed in: [saved browser logins](../development/browsing.md#saved-browser-logins) explains how.
+A key is for a service your app talks to. Signing in to a website as yourself, like your email or bank, is different: you never paste a password into the chat. For ordinary website tasks, the assistant opens a browser and you sign in there once, on the site's own page, in [a live view](../../.agents/plugins/browser/hand-over/references/live-view.md#sign-in). The browser stays signed in: [saved browser logins](../../.agents/plugins/browser/browser/references/browsing.md#saved-browser-logins) explains how.
 
 The Cloudflare key you made during [getting started](getting-started.md) is a key like these; [Cloudflare credentials](cloudflare-credentials.md) covers it. Back to [the Cloudflare stack](README.md).

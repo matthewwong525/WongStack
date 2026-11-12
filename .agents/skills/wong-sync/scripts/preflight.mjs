@@ -315,14 +315,15 @@ function extractBlock(content, markers, label, { required }) {
   return Buffer.from(text.slice(start, nextLine < 0 ? text.length : nextLine + 1));
 }
 
-// A file's value is its text as an install gets it, by the current mapping on both commits alike.
+// A file's or block's value is its text as an install gets it, by the current mapping on both commits alike.
 function sourceValue(source, revision, tree, unit, mapped) {
   const found = blob(source, revision, unit.sourcePath, tree);
   if (unit.kind === 'file' && found && installsAsText(unit.sourcePath)) {
     return Buffer.from(installText(unit.sourcePath, found.content.toString('utf8'), mapped));
   }
   if (unit.kind === 'file') return found?.content ?? null;
-  return extractBlock(found?.content ?? null, unit.markers, `${unit.sourcePath} at ${revision}`, { required: true });
+  const block = extractBlock(found?.content ?? null, unit.markers, `${unit.sourcePath} at ${revision}`, { required: true });
+  return Buffer.from(installText(unit.sourcePath, block.toString('utf8'), mapped));
 }
 
 export function targetValue(target, unit) {

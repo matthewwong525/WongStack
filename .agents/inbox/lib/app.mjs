@@ -3,7 +3,7 @@
 import { existsSync, statSync } from 'node:fs';
 import { hostname } from 'node:os';
 import path from 'node:path';
-import { rememberApp } from '../../skills/hand-over/scripts/lib/computer.mjs';
+import { rememberApp } from '../../skills/reply-link/scripts/lib/computer.mjs';
 import { approve, approvedVersion, signedInAs } from './approvals.mjs';
 import { credentialFree, requireValue, ScheduleError, validateTiming } from '../../skills/schedule/scripts/lib/records.mjs';
 import { scheduleVersion } from '../../skills/schedule/scripts/lib/version.mjs';

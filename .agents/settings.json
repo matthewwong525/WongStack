@@ -11,7 +11,7 @@
           },
           {
             "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/hand-over/scripts/helper.mjs\" start",
+            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/reply-link/scripts/helper.mjs\" start",
             "timeout": 5
           },
           {

@@ -1,6 +1,6 @@
 # Adding a module
 
-A module is a part of WongStack that any repo can add alone, with one pasted message, such as [memory](../../.agents/plugins/memory/README.md). This page owns the rules a module follows; memory is the example for each. A module is still a payload part, so a change to it is [a release](../../.agents/rules/payload.md), and a skill inside it follows [adding a skill](adding-a-skill.md).
+A module is a part of WongStack that any repo can add alone, with one pasted message, such as [memory](../../.agents/plugins/memory/README.md) or [the browser](../../.agents/plugins/browser/browser/README.md). This page owns the rules a module follows; memory is the example for each, and the browser for skill folders under one version. A module is still a payload part, so a change to it is [a release](../../.agents/rules/payload.md), and a skill inside it follows [adding a skill](adding-a-skill.md).
 
 ## Where it lives
 
@@ -10,14 +10,15 @@ A module is a part of WongStack that any repo can add alone, with one pasted mes
 - **A command that must keep its bare name sits outside the plugin's own skills**, because a plugin's nested skill is named `/<module>:<command>`. Each such command installs as its own skill folder, `.agents/skills/<command>/`. The shape depends on hooks:
   - **A module with hooks** installs as a plugin, so its folder must hold no nested skills. Each command is a sibling folder in `.agents/plugins/<name>/`, listed in the first folder's `module.json`; the first holds the hooks and the version, and each folder has its own `mapped` entry and link. Daily's [`module.json`](../../.agents/plugins/daily/daily/module.json) names `daily` and `schedule`.
   - **A module with no hooks** keeps its commands in `skills/<command>/`, one `mapped` entry each; the longest entry wins over the module's. Only the commands link into `.agents/skills/`, never the module folder, or each command loads twice. [The build loop](../../.agents/plugins/loop/README.md) is the example: its eight commands keep their names, and its own files install at `.agents/skills/loop/`.
-- **The repo's own parts stay outside the folder:** its profile, its server part, and its settings. Memory's are in [`.agents/memory/`](../../.agents/memory/profile.mjs), and the loop's in [`.agents/loop/`](../../.agents/loop/profile.mjs). An update can then replace the folder and lose nothing.
+  - **A module with no hooks may instead be several plain skill folders** under `.agents/plugins/<name>/`, one version for all: the browser's `browser/`, `hand-over/`, and `shop/`. Each gets its own link and its own `mapped` entry, and the folder named for the module holds the README, the setup guide, and `module.json` (`{ name, version, folders }`).
+- **The repo's own parts stay outside the folder:** its profile, its server part, and its settings. Memory's are in [`.agents/memory/`](../../.agents/memory/profile.mjs), the loop's in [`.agents/loop/`](../../.agents/loop/profile.mjs), Daily's in [`.agents/daily/`](../../.agents/daily/profile.mjs), and the browser's in [`.agents/browser/`](../../.agents/browser/profile.mjs). An update can then replace the folder and lose nothing.
 
 ## What the folder holds
 
 - **Its hooks**, in `hooks/`, named by its `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`; never in the repo's shared settings files, so a copy of the folder brings them. Codex reads the module from the root `.claude-plugin/marketplace.json`, one entry per module at `./.agents/skills/<name>`, and [`codex-plugin.mjs`](../../.agents/skills/wong-sync/scripts/codex-plugin.mjs) installs each entry.
 - **A README that leads with the paste-in install message**, then the update message: one line a person pastes into any AI tool, naming the module's setup guide by its GitHub address. See [memory's README](../../.agents/plugins/memory/README.md).
 - **A setup guide that works from GitHub** in a repo with nothing installed. It stops in a full WongStack install, copies the folder in, looks at the repo and fills each gap, asks before each step that costs money or makes something public, ends with the module's check, commits, and asks before any push. Its `## Update` section three-way merges the folder from its recorded version. See [memory's setup guide](../../.agents/plugins/memory/references/setup.md).
-- **A start-of-chat check that asks first, once per chat.** When the repo lacks a part, the module's start hook has the AI ask whether to set it up, and never starts setup on its own. A resumed chat stays quiet. A module that works with every slot empty, such as the loop, needs no check.
+- **A start-of-chat check that asks first, once per chat.** When the repo lacks a part, the module's start hook has the AI ask whether to set it up, and never starts setup on its own. A resumed chat stays quiet. A module that works with every slot empty, such as the loop or the browser, needs no check.
 
 ## What it may reach
 
@@ -26,7 +27,7 @@ A module is a part of WongStack that any repo can add alone, with one pasted mes
 
 ## Versions and checks
 
-- **Each change to the folder raises the version** in both `plugin.json` files, and the two stay equal. The update finds its merge base by that version, so one version must mean one exact folder. [`check-module-versions.mjs`](../../scripts/check-module-versions.mjs), one of [the payload checks](../../scripts/payload-checks.mjs), reads each module's folders from its `module.json`, and fails when one differs from `main` and the version did not rise.
+- **Each change to the folder raises the version** in both `plugin.json` files, and the two stay equal; a module of plain skill folders raises it in its `module.json`. The update finds its merge base by that version, so one version must mean one exact folder. [`check-module-versions.mjs`](../../scripts/check-module-versions.mjs), one of [the payload checks](../../scripts/payload-checks.mjs), reads each module's folders from its `module.json`, and fails when one differs from `main` and the version did not rise.
 - **One test installs each module alone.** [`module-install.test.mjs`](../../scripts/tests/module-install.test.mjs) places each module's files in an empty repo by its `mapped` entries, writes a minimal profile, runs the module's check, and fails on an import from outside the folder.
 
 Part of [maintaining WongStack](README.md).

@@ -22,9 +22,7 @@
   ],
   "core": {
     "skillDirs": [
-      "hand-over",
-      "browser",
-      "shop",
+      "reply-link",
       "improve-code",
       "connect",
       "services",
@@ -63,17 +61,9 @@
       "wiki/development/memory-search.md",
       "wiki/development/wiki-dream.md",
       "wiki/development/document-retrieval.md",
-      "wiki/development/browsing.md",
-      "wiki/development/saved-details.md",
       "wiki/development/reply-links.md",
-      "wiki/development/login-codes.md",
       "wiki/development/finish-steps.md",
-      "wiki/development/browser-window.md",
-      "wiki/development/browser-proxy.md",
-      "wiki/development/live-view.md",
-      "wiki/development/password-manager.md",
       "wiki/development/watch-link.md",
-      "wiki/development/shopping.md",
       "wiki/development/daily.md",
       "wiki/development/chats-in-line.md",
       ".github/workflows/test.yml",
@@ -101,6 +91,7 @@
       "wiki/development/first-day",
       ".claude/memory",
       ".claude/inbox",
+      ".claude/browser",
       ".claude/loop"
     ],
     "mapped": {
@@ -115,7 +106,10 @@
       ".claude/plugins/loop/skills/ship": ".claude/skills/ship",
       ".claude/plugins/loop/skills/verify": ".claude/skills/verify",
       ".claude/plugins/loop/skills/continue": ".claude/skills/continue",
-      ".claude/plugins/loop/skills/close": ".claude/skills/close"
+      ".claude/plugins/loop/skills/close": ".claude/skills/close",
+      ".claude/plugins/browser/browser": ".claude/skills/browser",
+      ".claude/plugins/browser/hand-over": ".claude/skills/hand-over",
+      ".claude/plugins/browser/shop": ".claude/skills/shop"
     }
   },
   "ui": {

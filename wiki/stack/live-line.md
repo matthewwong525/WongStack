@@ -33,7 +33,7 @@ When the line drops, your computer goes back to checking every 10 seconds, and r
 
 ## The helper
 
-A small background program, the helper, holds the line. [`helper.mjs`](../../.agents/skills/hand-over/scripts/helper.mjs) installs it so it starts with the computer and runs as you, never with more rights than your chats:
+A small background program, the helper, holds the line. [`helper.mjs`](../../.agents/skills/reply-link/scripts/helper.mjs) installs it so it starts with the computer and runs as you, never with more rights than your chats:
 
 - **Linux:** a systemd user service, `wongstack-helper.service`, kept running after you log out. When your chats run as root, as on a server, it is a system service that runs as root.
 - **macOS:** a LaunchAgent, `com.wongstack.helper.plist`.
@@ -46,7 +46,7 @@ The helper warns when your computer's Node is older than [the minimum with curre
 ## Turn it off
 
 ```bash
-node .claude/skills/hand-over/scripts/helper.mjs uninstall
+node .claude/skills/reply-link/scripts/helper.mjs uninstall
 ```
 
 It no longer starts with the computer. Taps then arrive by checking while a chat runs, as before. Schedules on the app's clock wait until it is back: a run due meanwhile starts once then, or shows as *Missed* if it is too late. `helper.mjs status` says whether it is installed and running; `helper.mjs install` puts it back.

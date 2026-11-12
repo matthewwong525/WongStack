@@ -13,6 +13,28 @@
 
 **Updating.** Daily moves into its own folders and keeps every schedule, OK and setting. The update also adds Daily to Codex on this computer, so its check-ins run there. On each other computer you use Codex on, the next chat names one command to run; until you run it, Daily's check-ins do not run in Codex there. The Inbox now opens on the plans waiting for you. To get a reminder, ask *remind me* in a chat: it becomes a one-time schedule through `/schedule`. The *tell* and *watch* asks are gone. The app deletes its saved list of your chats when it deploys.
 
+## 53.3.0 — The browser is a module any project can add
+
+- **The browser, private links, and shopping are one module** that any project can add with one pasted message, in any AI tool ([the browser module](.agents/plugins/browser/browser/README.md)). Your project still gets the same three skills, `browser`, `hand-over`, and `shop`, as real folders at `.agents/skills/`.
+- **Their guides moved into the module.** Browsing, login codes, your password manager, the browser window, proxies, the live view, saved details, and shopping are now in each skill's `references/` folder. [The key link](.agents/plugins/browser/hand-over/references/key-link.md) has its own page; the secrets page links it.
+- **Your project's own parts sit in one profile**, `.agents/browser/profile.mjs`: the app's look on private pages, waking the chat, the inbox, which file takes each key, and sending a key to the app. A project with no profile gets a plain look, and every key goes to its git-ignored `.env`.
+- **Reply links and the live line's helper moved to a hidden `reply-link` skill.** The helper finds its new place at the next chat start.
+
+**Updating.** One step, done in the update's plan. Your project's own list of development guides, `wiki/development/README.md`, still links the eight browser guides at their old place, and the update removes those pages. Point each of those links at the guide's new place:
+
+- `browsing.md`, `login-codes.md`, `browser-window.md`, `browser-proxy.md`, and `password-manager.md` → `../../.agents/skills/browser/references/`
+- `live-view.md` and `saved-details.md` → `../../.agents/skills/hand-over/references/`
+- `shopping.md` → `../../.agents/skills/shop/references/`
+
+Do the same in any other page of your own that links one of these guides. Everything else changes by itself.
+
+## 53.2.1 — Two small notes on new chats and shipped plans
+
+- **Opening a new chat for another part names the right folder.** The scratch command prints JSON; the brief goes in its `path` ([open each workspace](.agents/plugins/loop/skills/plan/references/new-workspace.md#open-each-workspace)).
+- **A shipped plan's link is its saved file, on purpose** ([review pages](wiki/review-pages.md#the-frame)). A live page would wait for an answer again.
+
+**Updating.** Nothing to do by hand.
+
 ## 53.2.0 — Another chat's click goes on behind your turn
 
 - **A chat's click no longer stops during your turn.** While you use the browser in one chat's tab, another chat clicks a button, a link, or a tick box in its own tab by its key, as you would press Tab and Enter. The page acts as on a mouse click, and your tab stays in front. Before, the click waited 20 seconds, then gave up with *the person is using the browser* ([your turn keeps its tab in front](wiki/development/browser-window.md#a-tab-for-each-chat)).

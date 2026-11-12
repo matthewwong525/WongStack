@@ -1,8 +1,8 @@
 // WongStack's schedule store for Daily's `/schedule`: the person's schedules in the company app, each approved per
 // computer. Daily calls it through the profile's `schedules` part. wiki/stack/host-schedules.md
 import { existsSync, readFileSync } from 'node:fs';
-import { computerId, helperService } from '../skills/hand-over/scripts/lib/computer.mjs';
-import { companyFor } from '../skills/hand-over/scripts/lib/inbox.mjs';
+import { computerId, helperService } from '../skills/reply-link/scripts/lib/computer.mjs';
+import { companyFor } from '../skills/reply-link/scripts/lib/inbox.mjs';
 import { approveHere, approvalState, approver, appHost, definition, heldDefinition, readSchedule, saveDefinition, send, shownText } from './lib/app.mjs';
 import { addDefaults } from './lib/defaults.mjs';
 import { legacyAdapter, legacyContext, teardownLegacy } from './lib/legacy.mjs';
