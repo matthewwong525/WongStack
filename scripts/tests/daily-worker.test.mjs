@@ -580,6 +580,21 @@ test('a success between two failures opens none, and other sources stay journal 
   assert.deepEqual(needs(stateDir).counts, { paseo: 1 });
 });
 
+test('a retired answer from the server writes one line a day and opens no chat; a real failure still counts', async () => {
+  const { worker, stateDir, opened, world } = needsRig();
+  const retired = again => ({ ...paseoDown(again), error: '404: retired' });
+  for (const again of [false, true, true]) await worker.dispatch([retired(again)]);
+  assert.deepEqual(opened, []);
+  assert.deepEqual(lines(stateDir), ['Retired on the server: Paseo. This computer runs older code and updates itself.']);
+  assert.equal(needs(stateDir).counts.paseo, undefined);
+  await worker.dispatch([paseoDown()]);
+  await worker.dispatch([paseoDown(true)]);
+  assert.equal(opened.length, 1);
+  world.t = Date.parse('2026-11-01T14:00:00Z');
+  await worker.dispatch([retired(true)]);
+  assert.equal(lines(stateDir).filter(line => line.startsWith('Retired')).length, 2);
+});
+
 test('a chat Paseo can not open journals Not opened with the reason, and is not tried again that day', async () => {
   const { worker, opened, stateDir } = needsRig(() => new Error('Paseo daemon is not running'));
   for (const again of [false, true, true]) await worker.dispatch([paseoDown(again)]);

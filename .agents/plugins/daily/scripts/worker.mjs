@@ -227,8 +227,15 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
   const loadNeeds = () => ({ counts: {}, opened: {}, chats: [], ...readJson(needsFile, {}) });
 
   // The first failure in a row is `note`'s journal line; a later one opens one chat a kind a day, tried once.
+  // The server's `retired` answer means this computer runs older code, which updates itself: one line a day, no count.
   async function failed(kind, { note, reason }) {
     const needs = loadNeeds();
+    if (/^\d{3}: retired\b/.test(reason ?? '')) {
+      if (needs.retired?.[kind] === today()) return;
+      if (!dryRun) writeJson(needsFile, { ...needs, retired: { ...needs.retired, [kind]: today() } });
+      journal(`Retired on the server: ${NEEDS_YOU[kind].what}. This computer runs older code and updates itself.`, { kind: 'retired' });
+      return;
+    }
     needs.counts[kind] = (needs.counts[kind] ?? 0) + 1;
     if (!dryRun) writeJson(needsFile, needs);
     if (needs.counts[kind] === 1) { note(); return; }
