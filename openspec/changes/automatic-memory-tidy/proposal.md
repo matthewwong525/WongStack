@@ -124,6 +124,8 @@ Memory has two clean-ups. The daily tidy starts by itself, but it checks only a 
 - **2026-11-12** — Assumed: a look-up that counts as finding nothing keeps none of the facts or topics that came back, because unrelated facts would fill the map's *often returned* and *most used* lines.
 - **2026-11-12** — Assumed: a short word matches its longer form, so *rule* finds *rules*, because the search matches word forms and plurals of four-letter words are common here.
 - **2026-11-12** — Assumed: a run's lock is free at once when the process it names is gone, because the first real tidy here waited 30 minutes behind the lock of a run killed hours before and then gave up with no word; the longer 3-hour lock made that worse.
+- **2026-11-12** — Assumed: a label or topic the tidy looked at and left keeps its place in the map's count and loses only its name, because the first real tidy showed *topics too big to read 1 -> 0* for a topic it had only looked at.
+- **2026-11-12** — Assumed: the run tells the tidy how many minutes it has and not to end while the map shows work it may do, because the first real tidy ended after 6 minutes with 514 facts still without a topic.
 
 ## Capabilities
 

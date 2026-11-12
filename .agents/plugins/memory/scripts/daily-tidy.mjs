@@ -175,19 +175,21 @@ export function mapLines({ facts = [], records = [], topicOf = () => null, steps
     for (const tag of fact.tags || []) if (!topicOf(tag) && !steps.includes(tag)) pageless.set(tag, (pageless.get(tag) || 0) + 1);
     for (const topic of topicsOf(fact)) byTopic.set(topic, [...(byTopic.get(topic) ?? []), fact.id]);
   }
-  const noPage = [...pageless].filter(([tag]) => !left(`tag:${tag}`)).sort(byCount);
+  const noPage = [...pageless].sort(byCount);
   const returned = new Set((usage.facts || []).map(row => row.id));
   const large = [...byTopic].map(([topic, list]) => [topic, list.length, list.filter(id => returned.has(id)).length])
-    .filter(([topic, size]) => size > LARGE_TOPIC && !left(`topic:${topic}`)).sort(byCount);
+    .filter(([, size]) => size > LARGE_TOPIC).sort(byCount);
   const due = duePages(pageList(pages, checks), { uses: pageUses, now });
   const line = (name, list, names = list, shown = NAMES) => ({ name, count: list.length, names: names.slice(0, shown) });
+  // A count is the true total, so a thing a tidy looked at and left never reads as fixed; only its name goes.
+  const open = (kind, list) => list.filter(([name]) => !left(`${kind}:${name}`));
   return { last, questions: missed.map(miss => miss.words), newFacts: fresh.map(fact => fact.id), lines: [
     line('new facts', fresh, ids(fresh)),
     line('trouble notes', trouble, ids(trouble)),
     line('missed questions', missed, missed.map(miss => JSON.stringify(miss.words))),
     line('no topic', loose, ids(loose.filter(fact => fact.id > last.sorted))),
-    line('tags with no page', noPage, noPage.map(([tag, n]) => `${tag} (${n})`)),
-    line('large topics', large, large.map(([topic, size, used]) => `${topic} (${size} facts, ${Math.round(100 * used / size)}% used)`)),
+    line('tags with no page', noPage, open('tag', noPage).map(([tag, n]) => `${tag} (${n})`)),
+    line('large topics', large, open('topic', large).map(([topic, size, used]) => `${topic} (${size} facts, ${Math.round(100 * used / size)}% used)`)),
     line('gone files', gone, ids(gone)),
     line('due pages', due, due.map(page => page.path)),
     line('most used', (usage.topics || []).slice(0, USED), (usage.topics || []).map(row => `${row.topic} (${row.uses})`), USED),

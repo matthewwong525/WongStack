@@ -441,8 +441,8 @@ test('the map has one line for each weakness, with its count and names to pull',
     { name: 'trouble notes', count: 1, names: ['#481'] },
     { name: 'missed questions', count: 1, names: ['"where is the refund rule"'] },
     { name: 'no topic', count: 4, names: ['#350', '#360'] },
-    { name: 'tags with no page', count: 2, names: ['loose-tag (2)', 'improve (1)'] },
-    { name: 'large topics', count: 1, names: ['big (101 facts, 2% used)'] },
+    { name: 'tags with no page', count: 3, names: ['loose-tag (2)', 'improve (1)'] },
+    { name: 'large topics', count: 2, names: ['big (101 facts, 2% used)'] },
     { name: 'gone files', count: 1, names: ['#250'] },
     { name: 'due pages', count: 3, names: ['wiki/d.md', 'wiki/c.md', 'wiki/a.md'] },
     { name: 'most used', count: 2, names: ['small (7)', 'big (2)'] },
@@ -459,7 +459,8 @@ test('the map leaves off what a tidy checked today, and reads 30 days back with 
   const input = mapInput();
   const checked = mapLines({ ...input, checked: ['wiki/a.md', 'tag:loose-tag', 'topic:big'] });
   const line = name => checked.lines.find(each => each.name === name);
-  assert.deepEqual([line('due pages').names, line('tags with no page').names, line('large topics').count], [['wiki/d.md', 'wiki/c.md'], ['improve (1)'], 0]);
+  assert.deepEqual([line('due pages').names, line('tags with no page').names, line('large topics').names], [['wiki/d.md', 'wiki/c.md'], ['improve (1)'], []]);
+  assert.deepEqual([line('tags with no page').count, line('large topics').count], [3, 2], 'a thing looked at and left still counts');
 
   const first = mapLines({ ...input, records: [], facts: input.facts.filter(fact => fact.id !== 500) });
   assert.equal(first.last.dream, null);

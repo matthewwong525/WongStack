@@ -71,7 +71,7 @@ It links, and does not copy, the judgment the wiki page already owns: [placing a
 | `often returned` | the ten facts chats got most in 30 days |
 | `used together` | topic pairs used in one workspace on one day, three days or more |
 
-A tag or a topic that a record lists as checked in the last 7 days (`tag:<name>`, `topic:<name>`) is left off its line, as a page is. `drift` loses its plan lines, and `pages` its spec rows.
+A tag or a topic that a record lists as checked in the last 7 days (`tag:<name>`, `topic:<name>`) is left off its line's names; the line's count stays the true total, so a thing the tidy looked at and left never shows as a number that got better. `drift` loses its plan lines, and `pages` its spec rows.
 
 `pages` prints the due list whole, no caps, and `--all` adds what is not due and the shipped rows. `--daily` goes. The 7 days and the 100 facts are constants beside `IDLE_PLAN_DAYS`.
 
