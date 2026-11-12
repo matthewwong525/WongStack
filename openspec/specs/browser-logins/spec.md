@@ -8,7 +8,7 @@ Let the agent use the person's own web accounts in a personal browser, with each
 
 ### Requirement: The person does each login once
 
-The person SHALL sign in to a site once, in a live view or the browser's window, and the agent SHALL then reuse the browser's session. The agent SHALL NOT ask for a password in the chat, and SHALL NOT read, show, type, or store a password.
+The person SHALL sign in to a site once, in a live view or the browser's window, and the agent SHALL then reuse the browser's session. The agent SHALL NOT ask for a password in the chat, and SHALL NOT read, show, or store a password. It SHALL NOT type one, except a login picked from the person's unlocked password manager after their yes.
 
 #### Scenario: A later visit
 
@@ -322,7 +322,7 @@ A command given a selector the page can not read SHALL fail with a plain reason:
 
 ### Requirement: Sensitive input is typed only on the real site in a live view
 
-A payment card, a backup or recovery code, a password, and any other lasting secret a page asks for SHALL be typed by the person on the site's own page, in a live view of the agent's browser, never in the chat and never in a page of the agent's own. The agent SHALL first fill the page's ordinary answers and ask in the chat whether the person is ready, naming what the step is for. The live view SHALL show one short line saying what to do now. The agent SHALL NOT read, picture, or act on its browser from the moment the view opens until the person's turn ends. The turn SHALL end only when the person taps *Hand back*, when the chat closes it, or at its time limit. The agent SHALL learn only how the turn ended, then read the page afresh.
+A payment card, a backup or recovery code, a password, and any other lasting secret a page asks for SHALL be typed by the person, except a login picked from the person's unlocked password manager after their yes, on the site's own page, in a live view of the agent's browser, never in the chat and never in a page of the agent's own. The agent SHALL first fill the page's ordinary answers and ask in the chat whether the person is ready, naming what the step is for. The live view SHALL show one short line saying what to do now. The agent SHALL NOT read, picture, or act on its browser from the moment the view opens until the person's turn ends. The turn SHALL end only when the person taps *Hand back*, when the chat closes it, or at its time limit. The agent SHALL learn only how the turn ended, then read the page afresh.
 
 #### Scenario: A sign-in
 
@@ -333,6 +333,11 @@ A payment card, a backup or recovery code, a password, and any other lasting sec
 
 - **WHEN** a site asks for a backup code
 - **THEN** the agent does not ask for it in the chat, the person types it on the site in a live view, and the stored chat never holds it
+
+#### Scenario: A login from the unlocked password manager
+
+- **WHEN** a site needs a login, the person's unlocked 1Password offers one for it, and the person says yes to the agent's ask
+- **THEN** the agent picks it, 1Password fills the site's own page with no live view, and the password never reaches the chat
 
 ### Requirement: The person presses a payment's button
 
@@ -526,12 +531,22 @@ On a Mac or Windows computer, and on a Linux computer with a screen and the link
 
 ### Requirement: Chats that need the person share one live view, a tab each
 
-On a computer that shows the person's turn by a live-view link, a chat that needs a turn while a live view is open SHALL join that view as a tab of its own and send the same link, and SHALL NOT be refused because another chat's turn is open. The view SHALL show a row of tabs, one per chat with an open turn, each named for its chat. Tapping a tab SHALL show that chat's page and line; each page SHALL stay as the person left it. A newly joined tab SHALL NOT take the screen from the tab shown. *Hand back*, a close, or a time limit on one tab SHALL end only that chat's turn and SHALL tell only that chat; the view SHALL then show the oldest tab still open, and the link SHALL close when no tab is left. The watch link SHALL take no tab.
+On a computer that shows the person's turn by a live-view link, a chat that needs a turn while a live view is open SHALL join that view as a tab of its own and send the view's link, naming its own tab, and SHALL NOT be refused because another chat's turn is open. The view SHALL show a row of tabs, one per chat with an open turn, each named for its chat. Tapping a tab SHALL show that chat's page and line; each page SHALL stay as the person left it. Opening a chat's link SHALL show that chat's tab while its turn is open, and the view as it is otherwise. A newly joined tab SHALL NOT take the screen from the tab shown. *Hand back*, a close, or a time limit on one tab SHALL end only that chat's turn and SHALL tell only that chat; the view SHALL then show the oldest tab still open, and the link SHALL close when no tab is left. The watch link SHALL take no tab.
 
 #### Scenario: Two chats need the person at once
 
 - **WHEN** one chat's sign-in view is open and another chat needs the person to type a card
-- **THEN** the second chat's tab appears in the same view, marked new, its chat sends the same link, and the person's sign-in page stays shown until they tap the new tab
+- **THEN** the second chat's tab appears in the same view, marked new, its chat sends the view's link naming its tab, and the person's sign-in page stays shown until they tap the new tab or open its link
+
+#### Scenario: Opening the second chat's link
+
+- **WHEN** the sign-in tab is shown and the person opens the link the card's chat sent
+- **THEN** the view opens on the card tab, its line shows, and the sign-in tab stays open as the person left it
+
+#### Scenario: Opening a link whose tab has ended
+
+- **WHEN** the person opens a chat's link after they handed that chat's tab back, while another tab is still open
+- **THEN** the view opens on the tab shown now
 
 #### Scenario: Hand back on one tab
 

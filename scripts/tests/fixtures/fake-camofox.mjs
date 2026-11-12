@@ -6,7 +6,9 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const SERVER = join(dirname(fileURLToPath(import.meta.url)), 'fake-camofox-server.mjs');
-export const BROWSE_ENV = { BROWSE_SETTLE_MS: '15000', BROWSE_SETTLE_GAP_MS: '10', BROWSE_COMMAND_MS: '15000', BROWSE_START_MS: '15000', BROWSE_SERVER_SCRIPT: SERVER };
+// The add-on site is a closed port, so an install's default add fails at once and reaches no network.
+export const BROWSE_ENV = { BROWSE_SETTLE_MS: '15000', BROWSE_SETTLE_GAP_MS: '10', BROWSE_COMMAND_MS: '15000', BROWSE_START_MS: '15000', BROWSE_SERVER_SCRIPT: SERVER,
+  BROWSE_ADDON_SITE: 'http://127.0.0.1:9' };
 /** The versions browse.mjs pins, as the fake library answers its check. */
 export const PINNED = { library: '0.5.9', build: '158.0.1-beta.41' };
 
