@@ -12,6 +12,8 @@ const LIST = [
   { name: 'old-command', replacement: '`new-command`', allow: ['specs/stays-gone.md'], why: 'a spec says it must stay gone' },
 ];
 
+const ALLOWED = { 'specs/stays-gone.md': 'old-command SHALL NOT exist.\n' };
+
 // Runs the check in a throwaway git repo holding `files`.
 function check(t, files) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-retired-names-'));
@@ -28,18 +30,33 @@ function check(t, files) {
 }
 
 test('a live file naming a retired thing fails with file, line, and replacement', t => {
-  const result = check(t, { 'wiki/page.md': '# Page\n\nRun old-command first.\n' });
+  const result = check(t, { ...ALLOWED, 'wiki/page.md': '# Page\n\nRun old-command first.\n' });
   assert.equal(result.status, 1, result.out);
   assert.match(result.out, /wiki\/page\.md:3: old-command — retired; use `new-command`/);
 });
 
 test('an allowed file keeps its mention', t => {
-  const result = check(t, { 'specs/stays-gone.md': 'old-command SHALL NOT exist.\n' });
+  const result = check(t, ALLOWED);
   assert.equal(result.status, 0, result.out);
+  assert.doesNotMatch(result.out, /dead exception/);
+});
+
+test('an exception for a file that is gone fails, and names the entry and the path', t => {
+  const result = check(t, {});
+  assert.equal(result.status, 1, result.out);
+  assert.match(result.out, /scripts\/retired-names\.json: old-command — allows specs\/stays-gone\.md, which is not a tracked file/);
+  assert.match(result.out, /1 dead exception\(s\)/);
+});
+
+test('an exception for a file that no longer holds the name fails, and names the entry and the path', t => {
+  const result = check(t, { 'specs/stays-gone.md': 'The command SHALL NOT exist.\n' });
+  assert.equal(result.status, 1, result.out);
+  assert.match(result.out, /old-command — allows specs\/stays-gone\.md, which does not hold the name/);
 });
 
 test('history is exempt', t => {
   const result = check(t, {
+    ...ALLOWED,
     'CHANGELOG.md': '## 1.0.0\n\n- Removed old-command.\n',
     'openspec/changes/archive/2020-01-01-x/proposal.md': 'Removes old-command.\n',
   });

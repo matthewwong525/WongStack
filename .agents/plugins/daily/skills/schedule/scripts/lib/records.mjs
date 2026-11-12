@@ -1,4 +1,4 @@
-// The old repo schedule records, read only for the move to the app, and the checks every schedule shares.
+// The old repo schedule records, read only for the Paseo mirror, and the checks every schedule shares.
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync, realpathSync } from 'node:fs';
 import path from 'node:path';

@@ -91,7 +91,7 @@ Setup creates real resources on your Cloudflare account. To remove them, for exa
 3. **Delete** what this repo created, with the same user token: `DELETE /accounts/{account_id}/workers/scripts/<name>`, `DELETE /accounts/{account_id}/d1/database/<id>`, `DELETE /accounts/{account_id}/tokens/<id>` for the deploy token, `DELETE /user/tokens/<id>` for an old `<repo>-memory` token if one is left, and `gh secret delete` for each secret.
 4. **Report** what was removed *and what was skipped*: anything whose name does not match this repo, and anything you declined. Nothing is deleted by guess.
 
-An install with an older cloud runner keeps it until explicitly removed: [legacy teardown](legacy-cloud-schedules.md#tear-it-down) covers its Worker, AI Gateway, and dedicated keys. New schedules install no runner.
+An install with an older cloud runner keeps it until you remove its Worker, AI Gateway, and dedicated keys by hand at Cloudflare: [existing schedules](host-schedules.md#existing-schedules). New schedules install no runner.
 
 ## Next
 

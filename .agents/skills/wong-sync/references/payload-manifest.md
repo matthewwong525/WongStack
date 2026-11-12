@@ -90,9 +90,9 @@ The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide remo
 
 ## Schedules
 
-[Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `/daily:schedule` inside Daily's folder, its host and legacy references, and Node helpers; no cloud runner/bootstrap/model setup.
+[Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `/daily:schedule` inside Daily's folder, its host references, and Node helpers; no cloud runner/bootstrap/model setup.
 
-An install owns its `.agents/daily/`, except WongStack's [profile](../../../daily/profile.mjs), the one shipped file there; [`.claude/inbox/`](../../../inbox/schedules.mjs) ships WongStack's schedule store. It also owns old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records until the move at the update. Never add those live records to this inventory or overwrite them. A schedule's instructions, progress and runs live in the app, not in the repo. Updates preserve deployed cloud resources and native host jobs. [Migration/teardown](../../../../wiki/stack/legacy-cloud-schedules.md) is explicit: no action runs twice.
+An install owns its `.agents/daily/`, except WongStack's [profile](../../../daily/profile.mjs), the one shipped file there; [`.claude/inbox/`](../../../inbox/schedules.mjs) ships WongStack's schedule store. It also owns old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records. Never add those live records to this inventory or overwrite them. A schedule's instructions, progress and runs live in the app, not in the repo. Updates preserve deployed cloud resources and native host jobs, and [run and move none of the old data](../../../../wiki/stack/host-schedules.md#existing-schedules).
 
 ## OpenSpec integration and migration
 

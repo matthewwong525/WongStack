@@ -51,7 +51,7 @@ If an ordinary browsing task reaches a token step, stop before taking a picture 
 
 Other browsing, sign-ins, stored credentials, and token management through APIs are unchanged.
 
-**Scheduled credentials.** [Host schedules](../stack/host-schedules.md) use existing host connections. Verify future-session tool/memory scope; keep credentials out of prompts and schedule instructions. Preserve legacy keys until [explicit migration/teardown](../stack/legacy-cloud-schedules.md).
+**Scheduled credentials.** [Host schedules](../stack/host-schedules.md) use existing host connections. Verify future-session tool/memory scope; keep credentials out of prompts and schedule instructions. An old cloud runner's keys stay until you [remove the runner by hand](../stack/host-schedules.md#existing-schedules).
 
 ## Receive a key through a private link
 

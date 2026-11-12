@@ -152,7 +152,7 @@ async function launchWorkspace({ destination, title, message, schedule = null })
 // ---------------------------------------------------------------------------
 // start
 
-/** `.agents/skills/news/SKILL.md` is `/news`; a routine's `prompt` replaces it. The move to the app reads it. */
+/** `.agents/skills/news/SKILL.md` is `/news`; a routine's `prompt` replaces it. */
 export const firstMessage = task => task.prompt ?? `/${basename(dirname(task.procedure))}`;
 
 /** What each add-on gets on stdin. */
@@ -455,16 +455,6 @@ function runSchedule(command, { home, env, run }) {
   child.unref();
 }
 
-/** Once a day, while the person's file still holds routines, starts the schedule skill's unattended move to the app;
- * false when it did not, or the schedule skill is missing. */
-export function startMoveIn({ home, stateDir, env, now = Date.now(), timezone, run = spawn }) {
-  const marker = join(stateDir, 'move-in.json'), kept = readJson(marker, {}), day = localDay(new Date(now), timezone);
-  if (!existsSync(scheduleScript(home)) || kept.day === day) return false;
-  writeJson(marker, { ...kept, day });
-  runSchedule('move-in', { home, env, run });
-  return true;
-}
-
 /** Starts the unattended add of the default schedules until a try works today; a running or failed try waits an hour
  * unless the stamp changed. The stamp reads the started copy's list, so the child marks the same one. */
 export function startDefaults({ home, stateDir, env, now = Date.now(), timezone, run = spawn, list = join(home.dir, '..', 'references', 'schedules.json') }) {
@@ -486,14 +476,11 @@ export function startDefaults({ home, stateDir, env, now = Date.now(), timezone,
  * off, it refuses handed-over runs. With `schedules` false (no store): no defaults, and the worker runs the line-up. */
 export function ensure({ repo = REPO, home = workerHome(repo), env = process.env, agent = RUN_AGENTS[0], schedules = true,
   resolve: settings = () => personSettings({ repo: home.repo }), spawnServe = startServe, root, now = Date.now(), isAlive = alive, kill = stopGroup,
-  code = codeStamp(home.dir), stamped = stamps(home.dir), moveIn = startMoveIn, defaults = startDefaults } = {}) {
+  code = codeStamp(home.dir), stamped = stamps(home.dir), defaults = startDefaults } = {}) {
   if (RUN_FLAGS.some(name => env[name])) return { state: 'run' };
   const { config } = settings();
   if (!config) return { state: 'no-person' };
   const stateDir = stateOf(config, repo, root);
-  if (config.checks?.length) {
-    try { moveIn({ home, stateDir, env, now, timezone: config.timezone }); } catch { /* best effort */ }
-  }
   if (schedules) try { defaults({ home, stateDir, env, now, timezone: config.timezone }); } catch { /* best effort */ }
   if (existsSync(offFile(stateDir))) {
     const refused = waitingRuns(env).length ? takeRuns({ env, project: primaryRoot(repo).primary, emails: config.emails, stateDir, now }) : [];

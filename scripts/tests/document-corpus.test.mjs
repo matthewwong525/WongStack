@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, renameSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { mkdirSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { scanCorpus, scopedEntries, sourceRole, safeSource, verifyPassage } from '../../.agents/skills/memory/scripts/lib/documents/corpus.mjs';
-import { lexicalSearch, interleaveSources } from '../../.agents/skills/memory/scripts/lib/documents/lexical.mjs';
-import { acquireRefresh, atomicJson, diffCorpus, documentPaths, generation, pruneGenerations, refreshIndex } from '../../.agents/skills/memory/scripts/lib/documents/state.mjs';
+import { lexicalSearch, interleaveSources, passages } from '../../.agents/skills/memory/scripts/lib/documents/lexical.mjs';
+import { validateRetrieval } from '../../.agents/skills/memory/scripts/lib/documents/input.mjs';
+import { retrieveDocuments } from '../../.agents/skills/memory/scripts/lib/documents/retrieve.mjs';
 import { tempDir } from './fixtures/memory/harness.mjs';
 
 function fixture(t) {
@@ -14,7 +15,7 @@ function fixture(t) {
   const put = (path, text = '# Guide\nReliable retrieval evidence.\n') => {
     mkdirSync(join(root, path, '..'), { recursive: true }); writeFileSync(join(root, path), text); return path;
   };
-  return { ctx: { root, commonDir }, put, paths: documentPaths({ root, commonDir }, { dataDir: join(root, 'private-state') }) };
+  return { ctx: { root, commonDir }, put };
 }
 test('disjoint path roles, source scopes, unsaved docs and exclusions', t => {
   const { ctx, put } = fixture(t);
@@ -97,47 +98,63 @@ test('source hash, range and text validation withholds edited, moved and vanishe
   renameSync(join(ctx.root, 'wiki/guide.md'), join(ctx.root, 'wiki/moved.md'));
   assert.equal(verifyPassage(ctx, hit), null);
 });
-test('worktrees share runtime but isolate index state by real root', t => {
-  const { ctx } = fixture(t), other = tempDir(t, 'linked-documents-'), dataDir = tempDir(t, 'shared-documents-');
-  const one = documentPaths(ctx, { dataDir }), two = documentPaths({ ...ctx, root: other }, { dataDir });
-  assert.notEqual(one.state, two.state); assert.equal(one.runtime, two.runtime);
+test('strict input rejects scope, filter and field injection, and refuses the removed modes by name', () => {
+  for (const [question, values] of [['', {}], ['a'.repeat(4001), {}], ['a\nvec: injected', {}], ['about lex: unsafe', {}], ['bad\u0001input', {}],
+    ['question', { scope: 'private' }], ['question', { mode: 'remote' }], ['question', { change: '../escape' }],
+    ['question', { limit: 0 }], ['question', { limit: 1.5 }], ['question', { everyone: true }], ['question', { type: 'unknown' }], ['question', { tag: '\tbad' }]]) {
+    assert.throws(() => validateRetrieval(question, values, { recall: true }), error => error.code === 2);
+  }
+  for (const mode of ['keyword', 'auto']) assert.equal(validateRetrieval('$(unsafe); `touch never`', { mode }).mode, undefined, 'a kept mode changes nothing');
+  for (const mode of ['semantic', 'deep'])
+    assert.throws(() => validateRetrieval('question', { mode }), error => error.code === 2 && /Meaning-based search was removed/.test(error.message));
+  assert.throws(() => validateRetrieval('question', { tag: 'memory' }));
 });
-test('atomic incremental generations remove moved/deleted paths and preserve valid state on failure', async t => {
-  const { ctx, paths, put } = fixture(t); put('wiki/guide.md'); put('wiki/remove.md');
-  const deltas = [], prepare = async (_dir, delta) => { deltas.push(delta); return { embedded: false }; };
-  const first = await refreshIndex(ctx, scanCorpus(ctx), paths, { prepare });
-  assert.equal(first.changed, 2); assert.equal(generation(paths).manifest.complete, true);
-  const unchanged = await refreshIndex(ctx, scanCorpus(ctx), paths, { prepare });
-  assert.equal(unchanged.changed, 0); assert.equal(deltas.length, 1);
-  put('wiki/guide.md', '# Changed\nFresh knowledge.');
-  renameSync(join(ctx.root, 'wiki/remove.md'), join(ctx.root, 'wiki/moved.md'));
-  const second = await refreshIndex(ctx, scanCorpus(ctx), paths, { prepare });
-  assert.equal(second.changed, 2); assert.equal(second.removed, 1);
-  assert.equal(generation(paths).manifest.entries['wiki/remove.md'], undefined);
-  put('wiki/guide.md', 'broken refresh candidate');
-  await assert.rejects(refreshIndex(ctx, scanCorpus(ctx), paths, { prepare: async () => { throw new Error('interrupted'); } }), /interrupted/);
-  assert.equal(generation(paths).manifest.generation, second.generation);
-  assert.equal(diffCorpus(scanCorpus(ctx), generation(paths).manifest).changed.length, 1);
-  assert.equal(JSON.parse(readFileSync(join(paths.state, 'refresh.json'))).state, 'failed');
+test('exact original phrases late in a long section survive window selection and prefix truncation', () => {
+  const question = 'Private memory belongs to the installation';
+  const text = ['# Memory', ...Array.from({ length: 70 }, () => 'Private memory has general installation guidance.'),
+    question, 'Following original explanation.'].join('\n');
+  const entry = { path: 'wiki/memory.md', role: 'wiki', hash: 'a'.repeat(64), text };
+  const selected = passages(entry, question)[0];
+  assert.equal(selected.startLine, 72); assert.equal(selected.endLine, 73);
+  assert.equal(selected.text, `${question}\nFollowing original explanation.`);
+  assert.equal(selected.truncated, true);
 });
-test('refresh locks serialize and recover expired ownership without torn publication', async t => {
-  const { ctx, paths, put } = fixture(t); put('wiki/guide.md');
-  const lock = acquireRefresh(paths); assert.ok(lock);
-  assert.equal(acquireRefresh(paths), null);
-  assert.equal((await refreshIndex(ctx, scanCorpus(ctx), paths)).state, 'partial');
-  const replacement = acquireRefresh(paths, { now: Date.now() + 400000 }); assert.ok(replacement);
-  assert.equal(lock.owns(), false); lock.release(); assert.equal(replacement.owns(), true); replacement.release();
-  const signal = AbortSignal.abort();
-  await assert.rejects(refreshIndex(ctx, scanCorpus(ctx), paths, { signal }), /deadline/);
-  assert.equal(generation(paths), null);
-  atomicJson(join(paths.state, 'current.json'), { generation: '../escape' }); assert.equal(generation(paths), null);
+test('a lookup returns verified originals by words, and a question with no match reports empty', async t => {
+  const { ctx, put } = fixture(t);
+  put('wiki/guide.md', '# Release guidance\nSave waits for approved checks.\n');
+  const found = await retrieveDocuments(ctx, validateRetrieval('approved checks'));
+  assert.deepEqual(Object.keys(found), ['documents', 'documentSource']);
+  assert.deepEqual(found.documentSource, { state: 'ok' });
+  assert.equal(found.documents[0].path, 'wiki/guide.md'); assert.equal(found.documents[0].freshness, 'verified');
+  const none = await retrieveDocuments(ctx, validateRetrieval('zznonexistent'));
+  assert.deepEqual(none, { documents: [], documentSource: { state: 'empty' } });
 });
-test('obsolete generations honor current/previous and reader grace', t => {
-  const { paths } = fixture(t), dir = join(paths.state, 'generations');
-  for (const name of ['old', 'current', 'previous', 'young']) mkdirSync(join(dir, name), { recursive: true });
-  utimesSync(join(dir, 'old'), new Date(0), new Date(0));
-  pruneGenerations(paths, { keep: ['current', 'previous'] });
-  assert.equal(generation(paths), null);
-  assert.equal(existsSync(join(dir, 'old')), false);
-  for (const name of ['current', 'previous', 'young']) assert.equal(existsSync(join(dir, name)), true);
+test('current scope leaves an archived proposal out, and history scope returns it labeled archive', async t => {
+  const { ctx, put } = fixture(t);
+  put('wiki/guide.md', '# Release guidance\nSave waits for approved checks.\n');
+  const archived = put('openspec/changes/archive/2026-09-25-old-store/proposal.md', '# Old store\nThe ledger moved because approved checks were slow.\n');
+  const current = await retrieveDocuments(ctx, validateRetrieval('Why did the ledger move?'));
+  assert.equal(current.documents.some(doc => doc.role === 'archive'), false);
+  assert.deepEqual(current.documentSource, { state: 'empty' });
+  const history = await retrieveDocuments(ctx, validateRetrieval('Why did the ledger move?', { scope: 'history' }));
+  assert.deepEqual(history.documents.map(doc => [doc.path, doc.role]), [[archived, 'archive']]);
+  assert.match(history.documents[0].text, /ledger moved/);
+});
+test('a source edited after ranking is withheld, its new text returned, and coverage reported partial with a reason', async t => {
+  const { ctx, put } = fixture(t); let edited = false;
+  put('wiki/guide.md', '# Release guidance\nSave waits for approved checks.\n');
+  const result = await retrieveDocuments(ctx, validateRetrieval('approved checks'), { beforeVerify: candidate => {
+    if (candidate.path === 'wiki/guide.md' && !edited) { put('wiki/guide.md', '# Fresh\nApproved checks now require review.\n'); edited = true; }
+  } });
+  assert.equal(result.documentSource.state, 'partial'); assert.match(result.documentSource.reason, /changed during lookup/);
+  assert.deepEqual(result.documents.map(doc => doc.path), ['wiki/guide.md']);
+  assert.match(result.documents[0].text, /now require review/); assert.doesNotMatch(result.documents[0].text, /Save waits/);
+});
+test('a scan that runs out of time returns what it read, marked partial with a reason', async t => {
+  const { ctx, put } = fixture(t);
+  put('wiki/a.md', '# A\nApproved checks gate a release.\n'); put('wiki/b.md', '# B\nApproved checks again.\n');
+  const corpus = scanCorpus(ctx, { maxBytes: 40 });
+  const result = await retrieveDocuments(ctx, validateRetrieval('approved checks'), { corpus });
+  assert.deepEqual(result.documents.map(doc => doc.path), ['wiki/a.md']);
+  assert.equal(result.documentSource.state, 'partial'); assert.match(result.documentSource.reason, /scan incomplete/);
 });

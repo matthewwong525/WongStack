@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Release check: does any live file still name something WongStack removed? scripts/retired-names.json lists
-// each retired name and the files that may keep it. Owner: .claude/rules/payload.md
+// Release check: no live file names what scripts/retired-names.json retired, save the files an entry allows.
+// An exception for a file that is gone, or that lacks the name, fails too. Owner: .claude/rules/payload.md
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -19,17 +19,21 @@ if (listed.status !== 0) {
   console.error(`retired names: git ls-files failed: ${listed.stderr.trim()}`);
   process.exit(1);
 }
-const files = listed.stdout.split('\0').filter(file => file && !EXEMPT.some(re => re.test(file)));
+const tracked = listed.stdout.split('\0').filter(Boolean);
+const files = tracked.filter(file => !EXEMPT.some(re => re.test(file)));
+// null: a deleted-but-tracked file or a symlinked directory
+const read = file => {
+  try {
+    return readFileSync(join(root, file), 'utf8');
+  } catch {
+    return null;
+  }
+};
 
 const hits = [];
 for (const file of files) {
-  let text;
-  try {
-    text = readFileSync(join(root, file), 'utf8');
-  } catch {
-    continue; // a deleted-but-tracked file or a symlinked directory
-  }
-  if (text.includes('\0')) continue; // binary
+  const text = read(file);
+  if (text === null || text.includes('\0')) continue; // gone, or binary
   const lines = text.split('\n');
   for (const { name, replacement, allow = [] } of entries) {
     if (allow.includes(file) || !text.includes(name)) continue;
@@ -39,9 +43,19 @@ for (const file of files) {
   }
 }
 
-if (hits.length) {
-  for (const hit of hits) console.error(hit);
-  console.error(`\n${hits.length} mention(s) of a retired name. Reword, or add the file to that entry's "allow" in ${LIST} with a reason.`);
-  process.exit(1);
+// A dead exception hides nothing today, and would hide the name if the file took it again.
+const dead = [];
+const isTracked = new Set(tracked);
+for (const { name, allow = [] } of entries) {
+  for (const path of allow) {
+    const text = isTracked.has(path) ? read(path) : null;
+    if (text === null) dead.push(`${LIST}: ${name} — allows ${path}, which is not a tracked file`);
+    else if (!text.includes(name)) dead.push(`${LIST}: ${name} — allows ${path}, which does not hold the name`);
+  }
 }
+
+for (const line of [...hits, ...dead]) console.error(line);
+if (hits.length) console.error(`\n${hits.length} mention(s) of a retired name. Reword, or add the file to that entry's "allow" in ${LIST} with a reason.`);
+if (dead.length) console.error(`\n${dead.length} dead exception(s). Remove each path from its entry's "allow" in ${LIST}; keep the name.`);
+if (hits.length || dead.length) process.exit(1);
 console.log(`retired names: none of ${entries.length} retired names appear outside their allowed files`);
