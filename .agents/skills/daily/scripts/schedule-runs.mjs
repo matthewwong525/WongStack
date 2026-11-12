@@ -2,7 +2,7 @@
 // starts only when this computer approved the very version the app holds. wiki/stack/host-schedules.md
 import { mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { companyFor } from '../../hand-over/scripts/lib/inbox.mjs';
+import { companyFor } from '../../reply-link/scripts/lib/inbox.mjs';
 import { primaryRoot } from '../../memory/scripts/lib/primary-root.mjs';
 import { appCall, heldDefinition, readSchedule, runnableFolder } from '../../schedule/scripts/lib/app.mjs';
 import { approvedVersion, signedInAs } from '../../schedule/scripts/lib/approvals.mjs';

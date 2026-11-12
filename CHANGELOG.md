@@ -3,6 +3,21 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The browser is a module any project can add
+
+- **The browser, private links, and shopping are one module** that any project can add with one pasted message, in any AI tool ([the browser module](.agents/plugins/browser/browser/README.md)). Your project still gets the same three skills, `browser`, `hand-over`, and `shop`, as real folders at `.agents/skills/`.
+- **Their guides moved into the module.** Browsing, login codes, your password manager, the browser window, proxies, the live view, saved details, and shopping are now in each skill's `references/` folder. [The key link](.agents/plugins/browser/hand-over/references/key-link.md) has its own page; the secrets page links it.
+- **Your project's own parts sit in one profile**, `.agents/browser/profile.mjs`: the app's look on private pages, waking the chat, the inbox, which file takes each key, and sending a key to the app. A project with no profile gets a plain look, and every key goes to its git-ignored `.env`.
+- **Reply links and the live line's helper moved to a hidden `reply-link` skill.** The helper finds its new place at the next chat start.
+
+**Updating.** One step, done in the update's plan. Your project's own list of development guides, `wiki/development/README.md`, still links the eight browser guides at their old place, and the update removes those pages. Point each of those links at the guide's new place:
+
+- `browsing.md`, `login-codes.md`, `browser-window.md`, `browser-proxy.md`, and `password-manager.md` → `../../.agents/skills/browser/references/`
+- `live-view.md` and `saved-details.md` → `../../.agents/skills/hand-over/references/`
+- `shopping.md` → `../../.agents/skills/shop/references/`
+
+Do the same in any other page of your own that links one of these guides. Everything else changes by itself.
+
 ## 53.0.0 — Memory links its topics and tidies itself each day
 
 - **One daily tidy, started by your first chat of the day.** It runs in the background, and the chat never waits. It saves what your chats learned, merges facts that say the same thing, puts lasting facts on their topic's page, links topics that connect, and checks three old pages and one spec. It uses your own AI plan. Its own work stops after 30 minutes, and the wait for the project's checks can add up to an hour. With two computers, only one tidies each day ([the daily tidy](wiki/development/wiki-dream.md#the-daily-tidy)).

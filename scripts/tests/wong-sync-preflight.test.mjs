@@ -454,6 +454,19 @@ test('a module that moves from a skill folder to a mapped folder stays one unit,
   assert.equal(report.status, 'current');
 });
 
+test('the root block links a mapped module where an install keeps it, so a fresh install is current', t => {
+  const f = moduleFixture(t, { blocks: [{ file: 'CLAUDE.md', markers: ['WONG-STACK:BEGIN', 'WONG-STACK:END'] }] });
+  write(f.target, '.claude/skills/memory/scripts/memory.mjs', 'memory\n');
+  write(f.source, 'CLAUDE.md', 'header\n<!-- WONG-STACK:BEGIN -->\nSee [memory](.agents/plugins/memory/scripts/memory.mjs#use).\n<!-- WONG-STACK:END -->\n');
+  f.commit('block links the module');
+  const block = () => f.inspect().changes.find(change => change.kind === 'block');
+  const installed = 'header\n<!-- WONG-STACK:BEGIN -->\nSee [memory](.agents/skills/memory/scripts/memory.mjs#use).\n<!-- WONG-STACK:END -->\n';
+  write(f.target, 'CLAUDE.md', installed);
+  assert.equal(block().localState, 'latest-equivalent');
+  write(f.target, 'CLAUDE.md', installed.replace('skills/memory', 'plugins/memory'));
+  assert.equal(block().localState, 'locally-adapted');
+});
+
 test('WongStack as its own source reads its linked CLAUDE.md block', t => {
   const target = mkdtempSync(join(tmpdir(), 'wong-sync-self-'));
   t.after(() => rmSync(target, { recursive: true, force: true }));

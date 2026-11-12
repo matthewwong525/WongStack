@@ -69,7 +69,7 @@ if (isMain(import.meta.url)) {
     const page = join(dir, 'review.html');
     let link = page;
     if (values.link) {
-      const { openReplyLink } = await import('../../hand-over/scripts/reply-link.mjs');
+      const { openReplyLink } = await import('../../reply-link/scripts/reply-link.mjs');
       link = (await openReplyLink({ file: page, header: previewNotesHeader(change), actions: previewActions(change) })) ?? page;
     }
     console.log(`${planLink(link, 'the preview')}\n\n${link === page ? PREVIEW_IN_CHAT : PREVIEW_ON_PAGE}`);

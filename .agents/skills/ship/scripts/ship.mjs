@@ -404,7 +404,7 @@ function shippedChange(root, route) {
 async function closePlan(root, name) {
   if (!name) return 'none';
   try {
-    const { closePlanPages } = await import('../../hand-over/scripts/reply-link.mjs');
+    const { closePlanPages } = await import('../../reply-link/scripts/reply-link.mjs');
     return await closePlanPages(root, name);
   } catch (error) { return `skipped (${firstLine(error.message) || 'it failed'})`; }
 }

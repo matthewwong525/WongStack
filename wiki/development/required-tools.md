@@ -17,10 +17,10 @@ Core reads remain dependency-free: **no `jq`, no `python` (only [Camoufox](#inst
 | Tool | Why |
 |---|---|
 | `agent-browser` | The browser [`/verify`](../../.agents/skills/verify/SKILL.md) drives for UI journeys, carrying its own Chrome. Setup offers it up front, in its one install question. On any other machine, `/verify` installs it the first time a browser journey needs it, and says so. Its request and state probes ride on `curl` and existing commands, so a walk with no UI journeys needs no browser at all. |
-| `cloudflared` | Cloudflare's free tunnel tool, which gives every [private link](browsing.md#how-private-links-work) (the key link and a live view) an address your phone or another computer can open. Setup offers it up front, in the same question. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time a private link needs it. A link opened at the agent's own computer needs it too: there is no local link. |
-| Camoufox | The browser the agent [uses websites in as you](browsing.md#saved-browser-logins), which more sites let in. Setup never offers it. The first errand asks, then [installs it](#installing-camoufox) into your home folder. |
-| Shop's command | What [shopping](shopping.md) runs to search Shop's catalog and pay at its checkout. Setup never offers it. The first shopping request asks, then [installs it](#installing-shops-command) into your home folder. |
-| `x11vnc`, `xdotool`, noVNC | What [a live view](live-view.md) needs to show you the agent's browser for your turn, on Linux only. Setup never offers them. The first view asks, saying two need admin rights, then [installs them](#installing-the-live-views-tools). |
+| `cloudflared` | Cloudflare's free tunnel tool, which gives every [private link](../../.agents/plugins/browser/browser/references/browsing.md#how-private-links-work) (the key link and a live view) an address your phone or another computer can open. Setup offers it up front, in the same question. On any other machine, the agent asks, then [installs it](#installing-cloudflared) the first time a private link needs it. A link opened at the agent's own computer needs it too: there is no local link. |
+| Camoufox | The browser the agent [uses websites in as you](../../.agents/plugins/browser/browser/references/browsing.md#saved-browser-logins), which more sites let in. Setup never offers it. The first errand asks, then [installs it](#installing-camoufox) into your home folder. |
+| Shop's command | What [shopping](../../.agents/plugins/browser/shop/references/shopping.md) runs to search Shop's catalog and pay at its checkout. Setup never offers it. The first shopping request asks, then [installs it](#installing-shops-command) into your home folder. |
+| `x11vnc`, `xdotool`, noVNC | What [a live view](../../.agents/plugins/browser/hand-over/references/live-view.md) needs to show you the agent's browser for your turn, on Linux only. Setup never offers them. The first view asks, saying two need admin rights, then [installs them](#installing-the-live-views-tools). |
 
 Each is a **tool, not a toolchain**: nothing is added to your repository — no `package.json`, no dependency entry, no lockfile — which is what lets a Python, Rust, or Go repo walk its own app. A repo that never runs `/verify`, opens a private link, browses as you, meets a robot check, or shops acquires none of them, and every other core verb still needs only the five commands above. The browser is available for ordinary work too, not only inside a walk; `/verify` is just the surface that grades what it sees and posts the evidence.
 
@@ -94,32 +94,32 @@ Setup and a first private link install it from Cloudflare's own channel:
 
 ### Installing Camoufox
 
-The first errand on your accounts asks once, then runs [`browse.mjs install`](../../.agents/skills/browser/scripts/browse.mjs):
+The first errand on your accounts asks once, then runs [`browse.mjs install`](../../.agents/plugins/browser/browser/scripts/browse.mjs):
 
-- **What it needs.** Python 3.10 or newer with `venv` (else `BROWSE_NEEDS=python`), 3 GB of disk, 700 MB of memory, and no admin password. A Linux computer that sends [the link](browser-window.md#where-it-shows) also needs `Xvfb`.
+- **What it needs.** Python 3.10 or newer with `venv` (else `BROWSE_NEEDS=python`), 3 GB of disk, 700 MB of memory, and no admin password. A Linux computer that sends [the link](../../.agents/plugins/browser/browser/references/browser-window.md#where-it-shows) also needs `Xvfb`.
 - **What it installs.** The pinned [`camoufox`](https://pypi.org/project/camoufox/) Python library and the build it pins, whose disguise it makes. A start refuses a pair that disagrees.
 - **Where it goes.** `~/.wong-stack/camoufox/`: the library in `venv/`, the build in `cache/`, your site logins in `profile/`, and its own temp folder on disk.
 - **To remove it,** stop the browser, then delete `~/.wong-stack/camoufox/`. Delete an older install's `~/.wong-stack/camofox/` and `~/.cache/camoufox` once the new browser has your logins.
 
 ### Installing the live view's tools
 
-The first [live view](live-view.md) asks once, then runs [`hand-over.mjs`](../../.agents/skills/hand-over/scripts/hand-over.mjs) `install-view`. Only a Linux computer that sends the link needs it; [a window](browser-window.md#where-it-shows) needs nothing.
+The first [live view](../../.agents/plugins/browser/hand-over/references/live-view.md) asks once, then runs [`hand-over.mjs`](../../.agents/plugins/browser/hand-over/scripts/hand-over.mjs) `install-view`. Only a Linux computer that sends the link needs it; [a window](../../.agents/plugins/browser/browser/references/browser-window.md#where-it-shows) needs nothing.
 
 - **`x11vnc` shows the browser's screen** to the link's page. It is a system package, so it needs admin rights.
 - **`xdotool` keeps the page's window in front** and reads the screen's size. It is a system package, so it needs admin rights.
-- **Two gotchas, kept in [`view.mjs`](../../.agents/skills/hand-over/scripts/view.mjs).** `x11vnc` needs both `-rfbport 0` and `-rfbportv6 0`: either alone leaves a network port open with no password, and `-localhost` drops every client on the Unix socket. `xdotool search` finds the browser's window by `--classname Navigator`; `--class` finds none.
+- **Two gotchas, kept in [`view.mjs`](../../.agents/plugins/browser/hand-over/scripts/view.mjs).** `x11vnc` needs both `-rfbport 0` and `-rfbportv6 0`: either alone leaves a network port open with no password, and `-localhost` drops every client on the Unix socket. `xdotool search` finds the browser's window by `--classname Navigator`; `--class` finds none.
 - **noVNC draws the screen on the page you open.** It needs no admin rights: about 700 KB in `~/.wong-stack/live-view/`, in version 1.6.0, the one WongStack has tried, from [its own source release](https://github.com/novnc/noVNC/releases/tag/v1.6.0). Only its `core/` and `vendor/` folders and its licence are kept, and only when they match a recorded fingerprint: a changed file installs nothing.
 - **Admin rights without a password, or one command for you.** The two packages come from `apt-get`, run as root or through `sudo` when it asks no password. Otherwise nothing is installed, the viewer included, and the agent hands you the command to run yourself: `sudo apt-get install -y --no-install-recommends x11vnc xdotool`.
 - **To remove them,** delete `~/.wong-stack/live-view/` and run `sudo apt-get remove x11vnc xdotool`.
 
 ### Installing Shop's command
 
-The first [shopping](shopping.md) request asks once, then runs [`shop.mjs install`](../../.agents/skills/shop/scripts/shop.mjs):
+The first [shopping](../../.agents/plugins/browser/shop/references/shopping.md) request asks once, then runs [`shop.mjs install`](../../.agents/plugins/browser/shop/scripts/shop.mjs):
 
 - **What it needs.** About 2 MB of disk, no admin password, and Node 22.21 or newer in the 22 line, or 24.5 or newer in the 24 line. On another Node nothing is installed, and the agent browses instead.
 - **Where it goes.** `~/.wong-stack/shop/` holds [`@shopify/shop`](https://www.npmjs.com/package/@shopify/shop), Shopify's own command, in version 1.1.0, the one WongStack has tried, and no other. It has no dependencies, so npm is not run.
 - **Only a matching download is unpacked.** Most of the command is a sealed file no one can read, so the script compares the download with a fingerprint recorded beside the version: a changed file installs nothing. A newer version is tried by hand, then shipped as a release.
-- **To remove it,** delete `~/.wong-stack/shop/`. That removes your Shop sign-in too: [where things are kept](shopping.md#where-things-are-kept).
+- **To remove it,** delete `~/.wong-stack/shop/`. That removes your Shop sign-in too: [where things are kept](../../.agents/plugins/browser/shop/references/shopping.md#where-things-are-kept).
 
 ## Where an assistant finds its tools
 

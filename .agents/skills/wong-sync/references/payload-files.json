@@ -29,9 +29,7 @@
       "ship",
       "close",
       "verify",
-      "hand-over",
-      "browser",
-      "shop",
+      "reply-link",
       "improve-code",
       "schedule",
       "daily",
@@ -74,17 +72,9 @@
       "wiki/development/memory-search.md",
       "wiki/development/wiki-dream.md",
       "wiki/development/document-retrieval.md",
-      "wiki/development/browsing.md",
-      "wiki/development/saved-details.md",
       "wiki/development/reply-links.md",
-      "wiki/development/login-codes.md",
       "wiki/development/finish-steps.md",
-      "wiki/development/browser-window.md",
-      "wiki/development/browser-proxy.md",
-      "wiki/development/live-view.md",
-      "wiki/development/password-manager.md",
       "wiki/development/watch-link.md",
-      "wiki/development/shopping.md",
       "wiki/development/daily.md",
       "wiki/development/chats-in-line.md",
       ".github/workflows/test.yml",
@@ -110,10 +100,14 @@
     ],
     "dirs": [
       "wiki/development/first-day",
-      ".claude/memory"
+      ".claude/memory",
+      ".claude/browser"
     ],
     "mapped": {
-      ".claude/plugins/memory": ".claude/skills/memory"
+      ".claude/plugins/memory": ".claude/skills/memory",
+      ".claude/plugins/browser/browser": ".claude/skills/browser",
+      ".claude/plugins/browser/hand-over": ".claude/skills/hand-over",
+      ".claude/plugins/browser/shop": ".claude/skills/shop"
     }
   },
   "ui": {

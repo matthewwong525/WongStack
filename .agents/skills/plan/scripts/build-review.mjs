@@ -904,7 +904,7 @@ export function workActions(pairs = [], confirm = []) {
 
 // The page's reply link when one can open, else its file.
 async function linked(page, header, actions) {
-  const { openReplyLink } = await import('../../hand-over/scripts/reply-link.mjs');
+  const { openReplyLink } = await import('../../reply-link/scripts/reply-link.mjs');
   return (await openReplyLink({ file: page, header, ...(actions && { actions }) })) ?? page;
 }
 

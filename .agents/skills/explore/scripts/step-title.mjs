@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { LOOP_STEPS, STEPS, chatCalls, chatClient, scheduleRun, skillStep, sourceOf, withoutStep } from '../../daily/scripts/chats.mjs';
 import { paseoRecord } from '../../daily/scripts/chief.mjs';
-import { computerId } from '../../hand-over/scripts/lib/computer.mjs';
+import { computerId } from '../../reply-link/scripts/lib/computer.mjs';
 import { findPaseo, runPaseo } from '../../schedule/scripts/lib/paseo.mjs';
 import { PLACEHOLDERS, renameArgs } from '../../schedule/scripts/workspace.mjs';
 
