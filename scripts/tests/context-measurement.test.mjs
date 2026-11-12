@@ -107,6 +107,19 @@ test("a module's setup guide is counted as on-call: it stops at once in a WongSt
   assert.equal(row('.agents/skills/access/SKILL.md').kind, 'instructions');
 });
 
+test("the daily tidy's brief is counted as on-call: only the unattended tidy reads it", t => {
+  const root = skillTree(t, {
+    '.agents/skills/memory/SKILL.md': '---\ndescription: Search facts.\n---\nmemory body',
+    '.agents/skills/memory/references/tidy.md': 'the brief',
+    '.agents/skills/memory/references/placing-facts.md': 'placing',
+    '.agents/skills/memory/references/writing-facts.md': 'writing',
+  });
+  const report = measureContext(root, { revision: 'fixture', owners: [], files: {}, routes: {} });
+  const kind = path => report.inventory.find(entry => entry.path === path).kind;
+  assert.deepEqual(['memory/references/tidy.md', 'memory/references/placing-facts.md', 'memory/references/writing-facts.md', 'memory/SKILL.md'].map(path => kind(`.agents/skills/${path}`)),
+    ['on-call', 'on-call', 'instructions', 'instructions']);
+});
+
 test('the startup ceiling names the load and the ceiling when exceeded, and is silent under it', t => {
   const root = skillTree(t, {
     'AGENTS.md': 'one two three four five',

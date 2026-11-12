@@ -126,6 +126,8 @@ Memory has two clean-ups. The daily tidy starts by itself, but it checks only a 
 - **2026-11-12** — Assumed: a run's lock is free at once when the process it names is gone, because the first real tidy here waited 30 minutes behind the lock of a run killed hours before and then gave up with no word; the longer 3-hour lock made that worse.
 - **2026-11-12** — Assumed: a label or topic the tidy looked at and left keeps its place in the map's count and loses only its name, because the first real tidy showed *topics too big to read 1 -> 0* for a topic it had only looked at.
 - **2026-11-12** — Assumed: the run tells the tidy how many minutes it has and not to end while the map shows work it may do, because the first real tidy ended after 6 minutes with 514 facts still without a topic.
+- **2026-11-12** — Check: `scripts/measure-context.mjs` counts the tidy's brief and its fact-placing page (`references/tidy.md`, `references/placing-facts.md`) as on-call text, outside the instruction word limit, because only the unattended tidy reads them and the typed-only skill they replace was counted the same way.
+- **2026-11-12** — Assumed: the fact-placing page that main moved into the removed skill's folder now sits beside the brief, and the brief links no wiki page, because main's newer rule fails a plugin link that leaves the plugin's folder.
 
 ## Capabilities
 
