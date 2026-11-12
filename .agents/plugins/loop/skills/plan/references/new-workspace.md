@@ -1,6 +1,6 @@
 # Open a part in a new workspace
 
-Each part of a request after the first gets its own [Paseo](https://paseo.sh) workspace and agent; this chat keeps the first. So does [a new task](#new-task-in-this-chat). [The change loop](../../../../../../wiki/development/the-change-loop.md#several-parts-several-workspaces) owns the rule.
+Each part of a request after the first gets its own [Paseo](https://paseo.sh) workspace and agent ([why](../../../references/rules.md#several-parts-several-workspaces)); this chat keeps the first. So does [a new task](#new-task-in-this-chat).
 
 ## What counts as a part
 

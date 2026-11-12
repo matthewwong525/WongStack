@@ -6,9 +6,9 @@ user-invocable: true
 
 # /save
 
-`/save` authorizes branch creation, record upkeep, spec reconciliation, commit, push, PR updates and CI fixes; [ask](../explore/references/asking-the-user.md) for anything else. Never force push, bypass hooks, amend merged commits or merge: `/ship` owns archive/merge, and [the gate](../../../../../wiki/development/the-change-loop.md#the-gate) is never a local check.
+`/save` authorizes branch creation, record upkeep, spec reconciliation, commit, push, PR updates and CI fixes; [ask](../explore/references/asking-the-user.md) for anything else. Never force push, bypass hooks, amend merged commits or merge: `/ship` owns archive/merge, and [the gate](../../references/rules.md#the-gate) is never a local check.
 
-`/save [note]`: a [Status value](../../../../../wiki/development/the-change-loop.md#the-change-is-a-living-handoff-not-just-a-plan) sets Status; other notes seed the Decision log. Cold-resume context belongs in pushed files with repo-relative paths: another computer reads it.
+`/save [note]`: a [Status value](../../references/rules.md#the-change-is-a-living-handoff-not-just-a-plan) sets Status; other notes seed the Decision log. Cold-resume context belongs in pushed files with repo-relative paths: another computer reads it.
 
 ## 1. Protect credentials and select the route
 
