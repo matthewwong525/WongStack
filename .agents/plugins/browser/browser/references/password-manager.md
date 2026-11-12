@@ -32,7 +32,7 @@ In [the browser window](browser-window.md#your-turn-in-the-window), use it as in
 2. The agent sends the live view. You sign in to the password manager, or unlock it. The view opens over that page.
 3. You press *Back* until the site shows: each of the password manager's own steps takes one press. Then you fill the login from the list the password manager shows in the page. Back on the site, or at the view's end, the page gets its own size again.
 
-On the password manager's page, the browser keeps the page's own size, so the view sizes the browser's window to your screen instead: the whole toolbar shows.
+On the password manager's page, the page fits your phone or laptop, as a site does, and the view keeps the whole toolbar on the screen.
 
 Each add-on's button is on the toolbar, from the second start of a new browser. Its small pop-up also works in a live view: it stays open until you pick from it or tap outside it. Tap its box, then type, such as your password to unlock it ([a pop-up stays open](../../hand-over/references/live-view.md#what-the-link-can-do)).
 

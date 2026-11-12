@@ -85,7 +85,8 @@ function stubPage(calls, yaml, frames = []) {
       if (expression === 'window.opener = null') calls.push(['no opener']);
       return { 'document.URL': url, '[innerWidth, innerHeight, outerHeight]': [1100, 663, 748] }[expression] ?? (/activeElement/.test(expression) ? calls.focusInAddon === true : { expression });
     },
-    setViewportSize: async size => { calls.push(['viewport', size]); },
+    // On the password manager's page, a resize applies but never answers, as in the real browser.
+    setViewportSize: size => { calls.push(['viewport', size]); return url.startsWith('moz-extension:') ? new Promise(() => {}) : Promise.resolve(); },
     bringToFront: async () => { calls.push(['front']); },
     screenshot: async options => Buffer.from(`png full=${options.fullPage}`),
     close: async () => { closed = true; listeners.close?.(); },
@@ -413,13 +414,31 @@ test("the password manager's frames, page and keyboard are the person's: the age
     const read = await post('evaluate', { expression: '[innerWidth, innerHeight]' });
     await refused(read, true);
     assert.deepEqual((await read).body.size, [1100, 663], 'a size read gives the page\'s own size, so a view over it sets that back at its end');
-    assert.deepEqual((await post('viewport', { width: 480, height: 663 })).body, { ok: true, width: 1280, height: 635, addonPage: true }, 'a live view\'s fit goes on, and the page keeps its size');
-    assert.equal(page.calls.filter(([step]) => step === 'viewport').length, 1, 'only the first sizing reached the page');
+    const sized = () => page.calls.filter(([step]) => step === 'viewport');
+    assert.deepEqual((await post('viewport', { width: 480, height: 663 })).body, { ok: true, width: 480, height: 635, addonPage: true }, 'a phone fit answers at once, though the page never does');
+    assert.deepEqual(sized().at(-1), ['viewport', { width: 480, height: 635 }], 'the page takes the width and keeps its height under the bar');
+    await post('viewport', { width: 480, height: 663 });
+    assert.equal(sized().length, 2, 'the same size again, a view\'s keep-alive, reaches the page no more');
+    assert.deepEqual((await post('viewport', { width: 1280, height: 720 })).body, { ok: true, width: 1280, height: 635, addonPage: true });
+    assert.deepEqual(sized().at(-1), ['viewport', { width: 1280, height: 635 }], 'a new size does');
     assert.match((await post('viewport', { width: 50, height: 663 })).body.error, /100\.\.4000/);
     assert.deepEqual((await post('front')).body, { ok: true });
     assert.match((await post('navigate', { url: 'chrome://settings' })).body.error, /http\(s\)/);
 
-    assert.deepEqual((await post('viewport', { width: 1100, height: 663 })).body.addonPage, true, 'a view\'s end asks for the size it read');
+    // A tab closed under the waiting resize rejects it later, which must not end the server.
+    const unhandled = [];
+    const note = error => unhandled.push(error);
+    process.on('unhandledRejection', note);
+    const resize = page.setViewportSize;
+    page.setViewportSize = size => { page.calls.push(['viewport', size]); return new Promise((_, fail) => setTimeout(fail, 20, new Error('Target closed'))); };
+    try {
+      assert.deepEqual((await post('viewport', { width: 1100, height: 663 })).body, { ok: true, width: 1100, height: 635, addonPage: true }, 'a view\'s end asks for the size it read');
+      await new Promise(done => setTimeout(done, 60));
+      assert.deepEqual(unhandled, [], 'the late rejection is dropped');
+    } finally {
+      process.off('unhandledRejection', note);
+      page.setViewportSize = resize;
+    }
 
     await page.goto('https://shop.example.test/');
     assert.equal((await call('GET', `/tabs/${tabId}/snapshot?userId=me`)).status, 200, 'once the person is back on the site, the agent reads it again');

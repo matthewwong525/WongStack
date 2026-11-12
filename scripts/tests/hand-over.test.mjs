@@ -693,7 +693,7 @@ test('a view opens over the password manager\'s page that addon open showed, fit
 
   openedView(f, '--note', 'Sign in to your password manager, then to the shop');
   assert.deepEqual(stateOf(f).view.size, [2560, 1328], 'a size read on that page gives the page\'s own size, for the view\'s end');
-  assert.deepEqual(f.page().size, [1280, 663], 'the password manager\'s page keeps the size it opened at');
+  assert.deepEqual(f.page().size, [1280, 663], 'the password manager\'s page takes the wide fit\'s width and keeps its height under the bar');
   await pause(400);
   assert.deepEqual(f.page().size, [1280, 663], 'a few keep-alives on that page change no size');
 
@@ -714,7 +714,7 @@ test('a view that ends on the password manager\'s page leaves the page\'s own si
   openedView(f);
   await eventually(() => f.steps().includes('viewport 1280x720'));
   assert.equal(f.run('close').status, 0);
-  assert.deepEqual(f.page().size, [1280, 663], 'the password manager\'s page keeps its size');
+  assert.deepEqual(f.page().size, [2560, 663], 'the view\'s end reaches the password manager\'s page as a width only');
   f.set('addon-back');
   const url = spawnSync(process.execPath, [browse, 'get', 'url', '--session', SESSION], { cwd: f.cwd, env: f.env, encoding: 'utf8', timeout: 30_000 });
   assert.equal(url.status, 0, url.stdout + url.stderr);

@@ -421,11 +421,20 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
     if (own) await showAndSize(tab.page, own).catch(() => {});
     return false;
   };
-  /** A resize while the password manager's page shows: that page keeps its size, and the size asked for is the one
-   * the site gets back, so a live view's end sets it. */
-  const keepForSite = (tab, body) => {
-    tab.addon.own = viewportSize(body);
-    return { ok: true, ...tab.addon.size, addonPage: true };
+  /** A resize while the password manager's page shows: the page takes the width, keeps its height under the bar, and
+   * the size asked for is the one the site gets back, so a live view's end sets it. */
+  const keepForSite = async (tab, body) => {
+    const asked = tab.addon.own = viewportSize(body);
+    const size = { width: asked.width, height: tab.addon.size?.height ?? asked.height };
+    const shown = tab.addon.shown ?? tab.addon.size;
+    if (size.width !== shown?.width || size.height !== shown?.height) {
+      // The driver's resize reaches this page, but its answer never comes while the page shows (tried 2026-11-12);
+      // so it is sent once per size, unawaited, and a closed tab's late rejection is dropped.
+      tab.page.setViewportSize(size).catch(() => {});
+      tab.addon.shown = size;
+      await tab.page.waitForTimeout(150);
+    }
+    return { ok: true, ...size, addonPage: true };
   };
   const snapshot = (tab, offset) => queued(tab, async () => {
     if (await onAddon(tab)) throw onAddonPage(tab);

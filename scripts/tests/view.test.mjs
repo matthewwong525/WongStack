@@ -342,16 +342,15 @@ function fakePage(f, first = [2560, 1328]) {
     now: first,
     fails: false,
     hidden: false,
-    // While the password manager's page shows, the server keeps the page's size and says so.
+    // While the password manager's page shows, the server sets the asked width, keeps the page's height, and says so.
     addon: false,
     show() { f.set('tabs.json', page.hidden ? [] : [{ size: page.now }, { size: [2560, 1328] }]); },
     async resize(width, height) {
       page.calls.push([width, height]);
       if (page.fails) throw new Error('the browser refused the step');
-      if (page.addon) return { ok: true, width: page.now[0], height: page.now[1], addonPage: true };
-      page.now = [width, height];
+      page.now = page.addon ? [width, page.now[1]] : [width, height];
       page.show();
-      return { ok: true, width, height };
+      return { ok: true, width, height: page.now[1], ...(page.addon && { addonPage: true }) };
     },
   };
   page.show();
@@ -442,7 +441,7 @@ test('a first fit on the password manager\'s page reads no bar, and the first fi
   page.addon = true;
   const live = liveView({ size: null, display: ':97', ...standIn(t, f) }, page);
   await live.fit();
-  assert.deepEqual(page.now, [1280, 663], 'its page keeps the size it was given');
+  assert.deepEqual(page.now, [1280, 663], 'its page keeps the height it was given, under the bar');
   assert.deepEqual(raised(f), ['100'], 'and its window, as tall as the screen, comes to the front');
   assert.deepEqual(sizedWindows(f), ['101'], 'a window that already fits the screen is left alone; only the other, bigger one is sized');
   page.addon = false;
@@ -458,15 +457,31 @@ test('on the password manager\'s page, a window bigger than the screen is sized 
   page.addon = true;
   const live = liveView({ size: null, display: ':97', ...standIn(t, f) }, page);
   assert.deepEqual(await live.fit('phone'), { kind: 'phone', width: 480, screen: SCREEN });
-  assert.deepEqual(page.now, [1920, 979], 'the browser keeps that page\'s own size');
+  assert.deepEqual(page.now, [480, 979], 'that page takes the width, and the browser keeps its height');
   const calls = f.tools.calls('xdotool').map(args => args.join(' '));
   assert.deepEqual(calls.filter(line => line.startsWith('windowsize')), ['windowsize 100 1280 720 windowmove 100 0 0', 'windowsize 101 1280 720 windowmove 101 0 0'],
-    'the whole screen, even for a phone: the page can not be narrowed there');
+    'each window taller than the screen is sized to the screen');
   assert.ok(calls.findIndex(line => line.startsWith('windowraise')) > calls.findIndex(line => line.startsWith('windowsize')), 'sized first, then raised');
   assert.deepEqual(raised(f), ['100']);
   await live.fit();
   assert.equal(sizedWindows(f).length, 2, 'the keep-alive leaves a window that now fits alone');
   assert.deepEqual(raised(f), ['100', '100']);
+});
+
+test('on a phone, the password manager\'s page narrows to 480 under the bar, as a site does', async t => {
+  const f = setup(t);
+  const page = fakePage(f, [1280, 663]);
+  page.addon = true;
+  const live = liveView({ size: null, display: ':97', ...standIn(t, f) }, page);
+  assert.deepEqual(await live.fit('phone'), { kind: 'phone', width: 480, screen: SCREEN }, 'the 480 strip shows the whole page');
+  assert.deepEqual(page.now, [480, 663], 'the page takes the phone\'s width and keeps its height');
+  assert.deepEqual(sizedWindows(f), ['101'], 'its window already fits the screen, so only the other, bigger one is sized');
+  assert.deepEqual(raised(f), ['100'], 'and the page\'s window comes to the front');
+
+  const before = page.calls.length;
+  assert.deepEqual(await live.fit(), { kind: 'phone', width: 480, screen: SCREEN });
+  assert.deepEqual(page.calls.slice(before), [[480, 720]], 'the keep-alive sends only the fit\'s size: no reading of the bar widens the page');
+  assert.deepEqual(page.now, [480, 663], 'so the page stays 480 wide');
 });
 
 test('fits take turns, and a failed one does not stop the next', async t => {
