@@ -128,6 +128,9 @@ Memory has two clean-ups. The daily tidy starts by itself, but it checks only a 
 - **2026-11-12** — Assumed: the run tells the tidy how many minutes it has and not to end while the map shows work it may do, because the first real tidy ended after 6 minutes with 514 facts still without a topic.
 - **2026-11-12** — Check: `scripts/measure-context.mjs` counts the tidy's brief and its fact-placing page (`references/tidy.md`, `references/placing-facts.md`) as on-call text, outside the instruction word limit, because only the unattended tidy reads them and the typed-only skill they replace was counted the same way.
 - **2026-11-12** — Assumed: the fact-placing page that main moved into the removed skill's folder now sits beside the brief, and the brief links no wiki page, because main's newer rule fails a plugin link that leaves the plugin's folder.
+- **2026-11-12** — Assumed: the run links the company pages into its copy, and the tidy saves a company page at once by itself, because the plan promises that a fact lands on its topic's page and the copy had no company page; the computer has one company copy, so the run can not hold such an edit back.
+- **2026-11-12** — Assumed: a run that stops at its time limit keeps its missed questions on the next map, because the spec says what a run did not reach stays, and the design had dropped them.
+- **2026-11-12** — Assumed: a record says *Map: not read* when the second map fails, because the second real tidy changed 451 facts and its record said *no change*.
 
 ## Capabilities
 

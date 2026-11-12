@@ -125,6 +125,17 @@ The brief asks for it after each finished thing: the placed facts, one page, one
 
 *Alternative:* one agent call for each unit. Rejected: 25 cold starts a run, each re-reading the runbook.
 
+### What the real run and the second look found
+
+Five faults, each with its fix:
+
+- **The copy has no company pages.** `knowledge/` is git-ignored, so the run's copy of the default branch has none: the map counted a company label as a label with no page, and no company page was due. The run now calls the profile's `tidy.prepare`, when it has one, on the copy before the first map. WongStack's links the copy's `knowledge/` to the computer's one copy, as a chat start does (`linkCopy(place(copy))`). No copy on the computer → no link, and the map is as before.
+- **A company page is saved at once, by the tidy.** The computer has one company copy, with no staging, so `keep` and the run's publish step can not hold a company edit. The tidy saves such a page itself, right after the edit, by the `publish:` line of `T pages`, then `keep`s it. Every other page waits for the run. A kill in the middle of one company edit leaves that one edit unsaved in the copy; the run does not restore it, because a chat can edit the same copy at the same time and a restore would lose its words.
+- **The map inside a run knows what `keep` kept.** `survey` and `pages` read the names of the `WONG_MEMORY_TIDY_PROGRESS` file, when it is set, as checked today. Without this a kept page stayed on the tidy's own map.
+- **A run cut short keeps its missed questions.** The record of a run that stopped at its limit ends with `Stopped at its time limit.`. The map reads missed questions since the newest record that has no such sentence, so the questions that run did not reach are on the next map.
+- **A missed `pull` is asked again as a `pull`.** The map's questions keep their command. The second ask runs the same command, and counts a miss by the rule that command uses.
+- **The second map is made up to three times, 5 seconds apart.** When it still fails, the record says `Map: not read.` and the note says `the map could not be read after the tidy`. It never says `no change` for a map it did not read: the run of 2026-11-12 did.
+
 ### The time limit is 60 minutes, measured before it is fixed
 
 `DAILY_WORK_MS` defaults to 60 minutes and still covers capture and the tidy. `STALE_MS` for `run.lock` rises to 3 hours: 60 minutes of work and a 60-minute publish must end before the lock looks stale. The lock holds its run's process id, and `takeLock` takes over a lock whose process is gone, so a killed run does not block the next one for those 3 hours. The build runs one real full tidy here, times it, and writes the time in this file. A run far over or under 60 minutes changes the default in the same change.

@@ -20,6 +20,11 @@
 - [x] 3.3 Write the run's note (changed map numbers, a cut-short run): `run.mjs` passes it, `memory.mjs finish-run --kind daily` takes it, and `lib/digest.mjs` `formatTidy` and `memory.mjs daily` print an `ok` row's reason; verify `memory-daily.test.mjs` and `memory-capture.test.mjs` cover a chat start with the changed map numbers, the cut-short line, and no line that asks the person for anything
 - [x] 3.4 In `run.mjs`, let `takeLock` take over a lock whose process is gone, by design *The time limit is 60 minutes*; verify `memory-capture.test.mjs` covers a fresh lock that names an ended process (taken over) and a live holder (kept)
 - [x] 3.5 Keep the map's counts true for a checked label or topic (names only are left off), and give `tidyPrompt` the minutes left; verify `memory-tidy.test.mjs` covers a checked tag and topic that still count, and `memory-daily.test.mjs` still passes
+- [ ] 3.6 Give the run's copy the company pages by design *What the real run and the second look found*: `run.mjs` calls the profile's `tidy.prepare` on the copy before the first map, WongStack's `.agents/memory/` side links `knowledge/`, and the brief says a page saved at once is saved by the tidy; verify `memory-daily.test.mjs` covers a profile whose `prepare` adds a topic page that the first map then counts, and a profile with no `prepare`
+- [ ] 3.7 Let `survey` and `pages` read the progress file's names as checked today; verify `memory-tidy.test.mjs` covers a `keep --checked` page and tag that leave the next `survey` and `pages`
+- [ ] 3.8 Mark a cut-short run's record with `Stopped at its time limit.` and read missed questions since the newest record without it; verify `memory-tidy.test.mjs` covers a miss before a cut-short record that stays on the map and one before a full record that does not, and `memory-daily.test.mjs` covers the sentence in a cut-short run's record
+- [ ] 3.9 Ask a missed `pull` again as a `pull`; verify `memory-daily.test.mjs` covers a `pull` miss of a name with facts and no page that still counts as missed
+- [ ] 3.10 Make the second map up to three times and record `Map: not read.` when it fails; verify `memory-daily.test.mjs` covers a store that fails the second read (record and note say not read, never `no change`) and one that fails once and then answers
 
 ## 4. The brief, and the command removed
 
