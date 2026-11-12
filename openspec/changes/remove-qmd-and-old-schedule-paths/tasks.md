@@ -27,7 +27,7 @@
 ## 4. Release
 
 - [x] 4.1 Add the `## Next (major) — Search by words only, and the old schedule paths go` entry at the top of `CHANGELOG.md` with the **Updating.** note of design decision 11. Verify: the entry is the first one and names no hand step without its reason.
-- [ ] 4.2 Run `node scripts/check-module-versions.mjs` and raise the version of each module it names. Verify: it passes.
+- [x] 4.2 Run `node scripts/check-module-versions.mjs` and raise the version of each module it names. Verify: it passes.
 - [x] 4.3 Update `scripts/fixtures/context-baseline.json` only where `node scripts/measure-context.mjs --check` requires it. Verify: the check passes.
 
 ## 5. Checks
