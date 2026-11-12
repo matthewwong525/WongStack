@@ -23,7 +23,7 @@ Two delta shapes need a workaround:
 - **Dropping a scenario.** A MODIFIED block must keep every main-spec scenario, so REMOVE the requirement and ADD it under a new name.
 - **Retiring a capability.** Set `retire_capabilities: true` in the change's `.openspec.yaml`; archiving with validation on then deletes the emptied spec.
 
-OpenSpec never runs git; see [the change loop](../../../../../../wiki/development/the-change-loop.md).
+OpenSpec never runs git; see [the loop's rules](../../../references/rules.md).
 
 ## Reconcile deltas
 

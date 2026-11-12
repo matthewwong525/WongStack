@@ -5,13 +5,13 @@ Build the change named by the parent; its Decision log is the agreed context. Th
 ## Build
 
 1. Run `openspec instructions apply --change "<name>" --json` by [the CLI contract](../../plan/references/openspec-cli.md); pass a selected `--store <id>` where supported. An archive path: read its folder. Read every `contextFiles` path, proposal first, then the owning docs of the files you touch. A dated note that disagrees with the repo is stale: trust the repo. Build from `.scratch/<name>-prototype.diff`, or a site from its approved `prototypes/<site>/`, when present.
-2. **Write all source and its tests before you run any test or check** ([why](../../../../../../wiki/development/the-change-loop.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). Write tests beside source. A plan's test gate between parts moves to the end with its acceptance kept; log the timing change without asking. A missing prerequisite, such as a *Needs you* item, is a blocker, never a pass. Explicit early requests keep their reach through the parent.
+2. **Write all source and its tests before you run any test or check** ([why](../../../references/rules.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). Write tests beside source. A plan's test gate between parts moves to the end with its acceptance kept; log the timing change without asking. A missing prerequisite, such as a *Needs you* item, is a blocker, never a pass. Explicit early requests keep their reach through the parent.
 3. Then run the local checks once: `node "$(git rev-parse --show-toplevel)/.claude/plugins/loop/scripts/slot.mjs" --run precheck`. Repair what the change broke and rerun only that, by its last line, three rounds at most, then report what still fails. Exit 7, or `SLOT=precheck empty`, means nothing ran here: say so and go on. It is a pre-check, never the gate's result.
 4. Tick implementation tasks on source review. Do not tick live acceptance without evidence.
 
 ## Stop and hand back
 
-Return on a question ([fix it or ask](../../../../../../wiki/development/the-change-loop.md#fix-it-or-ask)), blocker, complete implementation, or final live acceptance after all source/tests are authored. Name its tasks for the parent; never run that gate. The parent holds the conversation, so never ask the person: return the exact question with two or three options, best first. Told *inside `/ship`*, log a [safe pick](../../../../../../wiki/development/the-change-loop.md#inside-ship) as `Assumed` instead.
+Return on a question ([fix it or ask](../../../references/rules.md#fix-it-or-ask)), blocker, complete implementation, or final live acceptance after all source/tests are authored. Name its tasks for the parent; never run that gate. The parent holds the conversation, so never ask the person: return the exact question with two or three options, best first. Told *inside `/ship`*, log a [safe pick](../../../references/rules.md#inside-ship) as `Assumed` instead.
 
 Don't end your turn while a sub-helper or a background check still runs: the parent reads a stop as done.
 

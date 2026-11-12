@@ -20,7 +20,7 @@ Every WongStack ask has one shape: **two or three real options, the recommended 
 
 ## Write in plain words
 
-Write every plan, question, and report in plain words, for everyone. Give more detail only when the person asks, for one reply or, [on their person page](../../../../../../wiki/wiki-style.md#people), from now on.
+Write every plan, question, and report in plain words, for everyone. Give more detail only when the person asks, for one reply or, on their person page, from now on.
 
 - **Name what the person will see, get, lose, or risk**: *what happens to the accounts that exist today?*, not *how should the migration handle the schema?* Use no file path, identifier, command, or engineering term they did not use first.
 - **Fix before you ask.** Never offer a choice that needs judgment the reader lacks. Where the skill allows, try the fix, then ask about the outcome: *the sign-up button does not work on the preview: fix it first, or publish anyway?*
@@ -30,7 +30,7 @@ Write every plan, question, and report in plain words, for everyone. Give more d
 
 ## Choices go in the chat
 
-**Ask every choice in the chat, never on [the review page](../../../../../../wiki/review-pages.md)**, which takes *OK*, notes, and files.
+**Ask every choice in the chat, never on [the review page](../../plan/references/review-page.md)**, which takes *OK*, notes, and files.
 
 ## Which tool carries it
 
@@ -41,7 +41,7 @@ Use the first callable tool:
 3. Another host's equivalent structured question tool
 4. **Numbered chat** with the same questions, options, recommendation, and custom-answer path, then wait.
 
-**Only where nobody can answer**, as in an unattended run, or [inside `/ship`](../../../../../../wiki/development/the-change-loop.md#inside-ship) for a pick it marks safe, take the recommended options, label each **assumed**, and continue. Otherwise **a question stays pending until answered**, however long it waits and whatever is preselected; meanwhile do only independent work.
+**Only where nobody can answer**, as in an unattended run, or [inside `/ship`](../../../references/rules.md#inside-ship) for a pick it marks safe, take the recommended options, label each **assumed**, and continue. Otherwise **a question stays pending until answered**, however long it waits and whatever is preselected; meanwhile do only independent work.
 
 ## Confirmations, offers, and menus are asks
 
@@ -60,13 +60,13 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 - Finished standalone `/explore`: *Plan it (Recommended)* / *Keep thinking* / *Stop*.
 - Blocked task: the ways to clear it, below the intact blocker report.
 - Report or audit: the one fix worth taking next.
-- Finished task that will clearly come back, when `node .claude/plugins/loop/scripts/slot.mjs schedule` prints `true`: one [routine or app offer](../../../../../../wiki/development/the-change-loop.md#offer-a-routine-or-an-app).
+- Finished task that will clearly come back, when `node .claude/plugins/loop/scripts/slot.mjs schedule` prints `true`: one [routine or app offer](../../../references/rules.md#offer-a-routine-or-an-app).
 - Asked-for work left after a publish, outside Paseo: the next part *(Recommended)* ([next work](../../plan/references/new-workspace.md#next-work)).
 - Finished work in a Paseo worktree: *Close this chat?*: *Close it (Recommended)*, any offer, *Keep it open*; only *Close it* runs [`/close`](../../close/SKILL.md).
 
 ## Print the plan's link
 
-When a reply makes or changes a plan or its checklist, print the link as [one chat line](#end-every-reply-with-the-next-step) near the top, even when the build goes on: it adds no stop. Copy the builder's `[👉 Tap here to see the plan](…)` line whole: [the reply link](../../../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file; on *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are not a change.
+When a reply makes or changes a plan or its checklist, print the link as [one chat line](#end-every-reply-with-the-next-step) near the top, even when the build goes on: it adds no stop. Copy the builder's `[👉 Tap here to see the plan](…)` line whole: [the reply link](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/reply-links.md) when one opens, else the `review.html` file; on *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are not a change.
 
 **A finished plan's reply asks nothing:** it prints the builder's output as is: link, copy, then the review line. **Any other closing question in a reply that made or changed a plan offers *Review the plan***, the link in its question. Picking it starts nothing and ends the same way. Leave the copy and the review line out of every other reply.
 
