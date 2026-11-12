@@ -37,7 +37,7 @@ const USAGE = `usage: hand-over.mjs open --view --note <line> [--session <name>]
           until the turn ends; the page shows --note as its one line (what to do now), with
           Hand back; the turn ends only on Hand back, close, or the time limit, never on a page
           change; open for 480 minutes; while another chat's view is open, this chat's turn
-          joins it as a tab and prints the same link
+          joins it as a tab and prints the view's link, opening on its tab
           HANDOVER_VIEW=window, with no link, where the browser shows in its own window: the
           task's tab is brought to the front and held there, the person does the step there
           and says done in the chat, and close ends the turn; while a turn is open, no other

@@ -17,6 +17,6 @@
 
 ## 4. Checks
 
-- [ ] 4.1 Run `openspec validate live-view-link-opens-its-tab --strict --no-interactive`, `node --test scripts/tests/hand-over.test.mjs scripts/tests/view-page.test.mjs`, `node scripts/check-payload-links.mjs`, and `node scripts/measure-context.mjs --check`.
+- [x] 4.1 Run `openspec validate live-view-link-opens-its-tab --strict --no-interactive`, `node --test scripts/tests/hand-over.test.mjs scripts/tests/view-page.test.mjs`, `node scripts/check-payload-links.mjs`, and `node scripts/measure-context.mjs --check`.
 - [x] 4.2 In a throwaway browser by `wiki/maintaining/test-a-live-view.md`, open views from two chats; open the second chat's link while the first tab shows. Verify: the second tab shows, and the first tab's page is as it was.
-- [ ] 4.3 `/save`, then confirm CI passes on the saved change.
+- [x] 4.3 `/save`, then confirm CI passes on the saved change.

@@ -445,7 +445,7 @@ test('--view needs a note and takes no finish; its flags go with --view only', t
   const help = f.run('--help').stdout;
   assert.match(help, /open --view --note <line> \[--session <name>\] \[--minutes N\]/);
   assert.match(help, /never on a page\s+change/);
-  assert.match(help, /joins it as a tab and prints the same link/);
+  assert.match(help, /joins it as a tab and prints the view's link, opening on its tab/);
   assert.match(help, /wait \| close \[--stopped\] \| install-view/);
   assert.match(help, /HANDOVER_NEEDS=live-view/);
   assert.match(help, /HANDOVER_VIEW=window/);

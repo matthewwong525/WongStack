@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — A chat's live-view link opens its own tab
+## 55.3.1 — A chat's live-view link opens its own tab
 
 - **Each chat's live-view link now opens that chat's tab.** When two chats need you at once, you open the second chat's link and its tab shows at once. Before, both chats sent the same link, and the view opened on the first chat's tab ([one live view, a tab for each chat](.agents/plugins/browser/hand-over/references/live-view.md#what-the-link-can-do)).
 - **A link whose tab has ended opens the view as it is**, and a reload keeps the tab you chose. The inbox link still opens the tab shown now.

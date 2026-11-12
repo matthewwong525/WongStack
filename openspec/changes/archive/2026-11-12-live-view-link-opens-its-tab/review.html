@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · live-view-link-opens-its-tab</title>
+<title>Review · 2026-11-12-live-view-link-opens-its-tab</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="live-view-link-opens-its-tab" data-own-back>
+<body data-change="2026-11-12-live-view-link-opens-its-tab" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>live-view-link-opens-its-tab</h1>
+  <h1>2026-11-12-live-view-link-opens-its-tab</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -480,6 +480,7 @@
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the page switches only on its first load, since it clears the <code>#</code> part then, so a reload or a poll never moves you again.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the browser module's version goes to 1.2.1, one patch above <code>main</code>'s 1.2.0 from the 1Password release, because the module-version check needs a raise for a changed module.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Built and checked live in a throwaway browser: with chat a's tab shown and chat b's tab new, opening chat b's link showed b's tab and line, a reload kept it, and chat a's page stayed on its site.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: archive checkpoint for publishing as 55.3.1 on branch <code>live-view-chat-link-tab</code>; the second look found one stale help line in <code>hand-over.mjs</code>, which now says each chat's link opens its tab, and the reviewer reread it.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

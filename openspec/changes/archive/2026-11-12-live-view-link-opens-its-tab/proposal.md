@@ -1,6 +1,6 @@
 # Each chat's live-view link opens that chat's tab
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** live-view-chat-link-tab
 **Open questions:** none.
 
@@ -60,3 +60,4 @@ None.
 - **2026-11-12** — Assumed: the page switches only on its first load, since it clears the `#` part then, so a reload or a poll never moves you again.
 - **2026-11-12** — Assumed: the browser module's version goes to 1.2.1, one patch above `main`'s 1.2.0 from the 1Password release, because the module-version check needs a raise for a changed module.
 - **2026-11-12** — Built and checked live in a throwaway browser: with chat a's tab shown and chat b's tab new, opening chat b's link showed b's tab and line, a reload kept it, and chat a's page stayed on its site.
+- **2026-11-12** — Assumed: archive checkpoint for publishing as 55.3.1 on branch `live-view-chat-link-tab`; the second look found one stale help line in `hand-over.mjs`, which now says each chat's link opens its tab, and the reviewer reread it.
