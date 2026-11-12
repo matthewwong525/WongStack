@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · self-contained-browser-daily-access</title>
+<title>Review · 2026-11-12-self-contained-browser-daily-access</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="self-contained-browser-daily-access" data-own-back>
+<body data-change="2026-11-12-self-contained-browser-daily-access" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>self-contained-browser-daily-access</h1>
+  <h1>2026-11-12-self-contained-browser-daily-access</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -492,7 +492,10 @@
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: each ask in the browser and Daily is stated in one sentence in place (a multiple choice in the chat, through the assistant's question tool when it has one), not a copied guide, because a sentence is all each place needs and a copy goes stale.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: Access's README keeps one general line that a project's own files may use its computer sign-in, naming no module, so a memory-and-Access project still knows how to connect them.</li>
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the release is major, because a command name and the installed folder paths change.</li>
-<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the build starts after <code>fill-logins-from-1password</code> ships, because it edits the same browser files and is at its last step.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the build starts before <code>fill-logins-from-1password</code> ships and brings <code>main</code> in before the save, because that change was still in its checks at <code>/ship</code> and every move is a <code>git mv</code>, so its edits follow the files.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: a typed <code>/&lt;module&gt;:&lt;command&gt;</code> names the chat by its command for every module (<code>/memory:dream-memory</code> gives DREAM-MEMORY), not only <code>/daily:schedule</code>, because the same rule for every module is simpler and names no chat wrongly.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the helper test keeps the real old path <code>.agents/skills/hand-over/scripts/reply-link.mjs</code>, allowed in <code>retired-names.json</code>, because the test proves that an old launcher on a real computer moves, and a made-up path proves less.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: archive checkpoint for release 56.0.0; the local pre-check did not run because another chat held the check slot, so CI is the only check before merge.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

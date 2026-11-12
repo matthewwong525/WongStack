@@ -1,6 +1,6 @@
 # The browser, Daily and Access each stand alone in one folder
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** shallow-armadillo
 **Open questions:** none
 
@@ -74,3 +74,4 @@ None.
 - **2026-11-12** — Assumed: the build starts before `fill-logins-from-1password` ships and brings `main` in before the save, because that change was still in its checks at `/ship` and every move is a `git mv`, so its edits follow the files.
 - **2026-11-12** — Assumed: a typed `/<module>:<command>` names the chat by its command for every module (`/memory:dream-memory` gives DREAM-MEMORY), not only `/daily:schedule`, because the same rule for every module is simpler and names no chat wrongly.
 - **2026-11-12** — Assumed: the helper test keeps the real old path `.agents/skills/hand-over/scripts/reply-link.mjs`, allowed in `retired-names.json`, because the test proves that an old launcher on a real computer moves, and a made-up path proves less.
+- **2026-11-12** — Assumed: archive checkpoint for release 56.0.0; the local pre-check did not run because another chat held the check slot, so CI is the only check before merge.
