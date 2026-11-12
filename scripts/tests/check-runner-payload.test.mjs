@@ -19,10 +19,12 @@ test('the pack lists exactly the check runner\'s own files', () => {
 });
 
 test('the scripts the verbs call on this route ship with their skills', () => {
-  for (const skill of ['save', 'ship', 'explore']) assert.ok(inventory.core.skillDirs.includes(skill), skill);
-  for (const file of ['.agents/skills/save/scripts/delivery-route.mjs', '.agents/skills/save/scripts/artifacts-credential.mjs', '.agents/skills/save/scripts/artifacts-run.mjs', '.agents/skills/ship/scripts/publish-artifacts.sh']) assert.ok(read(file).length > 0, file);
+  const mapped = Object.keys(inventory.core.mapped);
+  for (const skill of ['save', 'ship', 'explore']) assert.ok(mapped.includes(`.claude/plugins/loop/skills/${skill}`), skill);
+  assert.ok(inventory.core.dirs.includes('.claude/loop'), 'the route scripts ship in .claude/loop');
+  for (const file of ['.agents/skills/save/scripts/delivery-route.mjs', '.agents/loop/routes/artifacts-credential.mjs', '.agents/loop/routes/artifacts-run.mjs', '.agents/loop/routes/publish-artifacts.sh']) assert.ok(read(file).length > 0, file);
   // The run reader imports the runner's naming rule, so the pack file it needs is listed.
-  assert.match(read('.agents/skills/save/scripts/artifacts-run.mjs'), /scripts\/check-runner\/run-id\.mjs/);
+  assert.match(read('.agents/loop/routes/artifacts-run.mjs'), /scripts\/check-runner\/run-id\.mjs/);
 });
 
 test('the route page is in the stack hub, and the manifest names the runner in the pack', () => {

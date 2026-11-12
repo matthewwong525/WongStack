@@ -4,7 +4,7 @@
 
 **[The Artifacts route](../../../../wiki/stack/artifacts-route.md#setup)**, the default on Mac and Linux, has no GitHub: leave `gh` out of the tools and the ask, skip step 2, and ask the person for step 3's name and email. The GitHub route adds `gh` and step 2 when chosen.
 
-**The person types no command.** The agent runs every command below and asks in [the ask format](../../explore/references/asking-the-user.md), in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): *"I need a few free tools: Node.js and GitHub's app to set things up, a browser for me, a tool linking you to it, and one keeping your inbox instant. Install them (Recommended), or stop here?"* One yes covers every tool it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that rerunning setup picks up here. Only a failed [helper](#the-helpers-the-browser-and-the-link-tool) is skipped instead. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
+**The person types no command.** The agent runs every command below and asks in [the ask format](../../../plugins/loop/skills/explore/references/asking-the-user.md), in [plain words](../../../plugins/loop/skills/explore/references/asking-the-user.md#write-in-plain-words): *"I need a few free tools: Node.js and GitHub's app to set things up, a browser for me, a tool linking you to it, and one keeping your inbox instant. Install them (Recommended), or stop here?"* One yes covers every tool it names. A decline or failed install stops setup with nothing written: say what is missing, what it is for, and that rerunning setup picks up here. Only a failed [helper](#the-helpers-the-browser-and-the-link-tool) is skipped instead. [The failure map](failure-map.md#getting-the-computer-ready) owns each stop's fix.
 
 ## 1. The tools
 
@@ -39,7 +39,7 @@ curl -fsSL "$G" | tar -xz -C ~/.local --strip-components=1
 
 On macOS, Node's archive is `node-v…-darwin-<arch>.tar.gz` (unpack with `tar -xz`), and `gh`'s is `gh_…_macOS_<arch>.zip`: unzip it and copy `bin/gh` into `~/.local/bin`.
 
-**OpenSpec** installs with the command in [the preconditions](../../save/references/preconditions.md), which own the pinned version. When a global npm install needs `sudo`, add `--prefix ~/.local`.
+**OpenSpec** installs with the command in [the preconditions](../../../plugins/loop/skills/save/references/preconditions.md), which own the pinned version. When a global npm install needs `sudo`, add `--prefix ~/.local`.
 
 After a user-folder install, start every later command in this chat with `export PATH="$HOME/.local/bin:$PATH"; `: each command is a new shell. Then put that line first in the start-up file, above its early return for a non-interactive shell:
 

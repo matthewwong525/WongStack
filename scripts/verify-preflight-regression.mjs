@@ -11,7 +11,7 @@ import { isMain, parseCli, usageError } from './lib-cli.mjs';
 import { redact, secretValues } from '../.agents/skills/memory/scripts/lib/scan.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const SCRIPT_PATH = '.agents/skills/verify/scripts/verify-staging.sh';
+const SCRIPT_PATH = '.agents/loop/staging/verify-staging.sh';
 const TEST_PATH = 'scripts/tests/verify-scripts.test.mjs';
 const CHECK = 'default preflight still discovers the preview and checks its browser';
 const EARLIER = 'ab27e29989bbf4074b8949210d1c7cae2f64ae25';

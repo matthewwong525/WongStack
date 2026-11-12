@@ -316,7 +316,7 @@ test('the agent works outside the repo, with the promises and without the answer
     assert.deepEqual(seen.files.filter(file => file.endsWith('.md')), ['openspec/changes/practice-notes/specs/notes/spec.md']);
     assert.equal(seen.answer, 200);
     assert.ok(seen.prompt.includes(`reference at ${reference} `));
-    assert.ok(seen.prompt.includes(`bash ${join(repo, '.agents/skills/verify/scripts/verify-staging.sh')} run "${seen.runDir}"`));
+    assert.ok(seen.prompt.includes(`bash ${join(repo, '.agents/loop/staging/verify-staging.sh')} run "${seen.runDir}"`));
     assert.ok(seen.prompt.startsWith('You are checking a small notes site'));
     // The four verdicts are named and "partial" is never explained: the reference supplies its meaning.
     assert.ok(seen.prompt.includes('"verdict": "pass" | "fail" | "ask" | "partial",'));

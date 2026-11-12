@@ -12,7 +12,7 @@ import { machineId, machineIdFile } from '../../memory/scripts/lib/machine-id.mj
 import { keyMachine } from '../../../memory/d1/connect.mjs';
 import { parseEnv } from '../../memory/scripts/lib/store.mjs';
 import { AccessSetupError, CLOUDFLARE_READ_SECRET, accessOrganization, cloudflareReadKey, loginManagementKey, notePreviewKeys, ownerIdentity, provisionAccess, provisionAccessPolicies } from './private-access.mjs';
-import { helperConfig } from '../../save/scripts/artifacts-credential.mjs';
+import { helperConfig } from '../../../loop/routes/artifacts-credential.mjs';
 import {
   CloudflareError, PROPAGATION, ProvisionError, accountPolicy, cloudflare, durableEnv, fillConfig, grant, installRunner, orNull, paidPlan, pending,
   readJson, recordComponent, recordFile, recordedBase, retry, run, scopedToken, stateFile, step, wait, widenBy, workerSecrets, writeJson,

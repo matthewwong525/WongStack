@@ -4,7 +4,7 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { ENTRY, isIgnored, loadBase } from '../../ship/scripts/worktree-secrets.mjs';
+import { ENTRY, isIgnored, loadBase } from '../../../loop/worktree-secrets.mjs';
 
 export const LIMITS = { names: 20, body: 16 * 1024, value: 4096, hint: 200, title: 40, why: 140, steps: 6, step: 140 };
 const CHECK_TIMEOUT_MS = 8000;
