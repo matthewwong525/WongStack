@@ -27,10 +27,16 @@ function profile(body) {
 test('with no profile file every part is empty', async () => {
   const env = { WONG_DAILY_PROFILE: join(temp(), 'none.mjs') };
   assert.deepEqual(await loadProfile(env), {});
-  for (const part of ['person', 'chatName', 'schedules', 'offeredChoices', 'prepareRun', 'checkout']) {
+  for (const part of ['person', 'chatName', 'schedules', 'offeredChoices', 'askedInText', 'prepareRun', 'checkout']) {
     assert.equal(await slot(part, [], { env }), undefined, part);
     assert.equal(slotNow(part), undefined, part);
   }
+});
+
+test("the repo's own profile tells a typed question from a report with none", async () => {
+  const env = { WONG_DAILY_PROFILE: new URL('../../.agents/daily/profile.mjs', import.meta.url).pathname };
+  assert.equal(await slot('askedInText', ['The plan is ready. Close this chat?'], { env, journal: null }), true);
+  assert.equal(await slot('askedInText', ['Done: the tests pass and the page is live.'], { env, journal: null }), false);
 });
 
 test('a filled part answers: a function with its arguments, an object as it is; slotNow only for a sync answer', async () => {

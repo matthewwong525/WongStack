@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from './lib/cli.mjs';
 import { headlessCommand } from './lib/headless.mjs';
 import { readProfile, slot } from './lib/slot.mjs';
-import { BUCKETS, HOLD_MS, STREAK, paseoRecord, readJson, writeJson } from './chief.mjs';
+import { ASK_TOOLS, BUCKETS, HOLD_MS, STREAK, askText, paseoRecord, readJson, writeJson } from './chief.mjs';
 import { writeCard } from './chat-list.mjs';
 import { RUN_AGENTS, defaultSettings } from './config.mjs';
 import { RUN_FLAGS, hookInput, offFile, personSettings, stateOf } from './daily.mjs';
@@ -26,14 +26,8 @@ export const JUDGE_MS = 240e3;
 const TAIL_MESSAGES = 40, TAIL_CHARS = 60_000, TAIL_BYTES = 100_000, KEPT_REPLIES = 5;
 const MOVES = ['keep-going', 'pick'];
 const JUDGED = [...BUCKETS, 'ask'];
-const ASK_TOOLS = { claude: 'AskUserQuestion', codex: 'request_user_input' };
-
-/** The fixed send-back for an `ask`: the chat writes the question and options itself, with its own tool's name. */
-export function askText(agent) {
-  const tool = ASK_TOOLS[agent] ?? ASK_TOOLS[RUN_AGENTS[0]];
-  return `The person is away and answers by tap. Ask what you need from them now with ${tool}: 2 to 4 short options, `
-    + `your recommended one first, marked (Recommended). Don't repeat the report. If ${tool} isn't callable here, end the turn and say nothing more.`;
-}
+// The fixed send-back for an `ask` lives in chief.mjs, which `D reask` shares.
+export { askText };
 
 // Question-tool calls so far, from the raw file: a tap is a tool result, never the person's message.
 const askCalls = (file, agent) => readFileSync(file, 'utf8').split(`"name":"${ASK_TOOLS[agent]}"`).length - 1;

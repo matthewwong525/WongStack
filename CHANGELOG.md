@@ -16,6 +16,15 @@
 - **Before the update, let any schedule move finish.** If the assistant still says that a routine or schedule waits to move to the app, open a chat and let it finish first, because this update removes the mover. After the update, ask the assistant to save any routine or schedule file that is left as a schedule.
 - **If this install still has the older Cloudflare runner** (set up before version 40), pause its jobs and remove it before the update, because the commands that do this go. After the update, you remove its Worker, its AI Gateway, and its keys by hand in the Cloudflare dashboard.
 - **A computer that ran the QMD setup can delete one folder**: `wongstack/documents` in your user data folder (on Linux, `~/.local/share/wongstack/documents`), about 1 GB. Nothing reads it now. The update does not delete it, because it is outside the repo.
+## 57.1.0 — Every question for you comes on a card
+
+- **A chat that ends its turn on a typed question asks it again on a card, at once.** Before, only a typed list of choices came back as a card. Now any question for you does, such as *Close this chat?*: the chat gets one short message to ask it on a card, with a few short answers and its recommended one first. A question that needs no answer ends the turn with no new words. This works in Claude Code chats ([which tool carries it](.agents/plugins/loop/skills/explore/references/asking-the-user.md#which-tool-carries-it)).
+- **Daily catches the rest when you ask *what's going on?*** A chat that still waits on a typed question, such as a Codex chat, gets one message to ask it again on a card, with the new `D reask`. That chat then waits in its own chat, so Daily leaves it out of its *which to close?* question ([close finished chats](wiki/development/daily.md#close-finished-chats)).
+- **Daily never answers a close card.** Its check-ins and helpers leave *Close it* / *Keep it open* for you, even when *Close it* is recommended.
+- **A new profile part, `askedInText`**, tells Daily whether a chat's last words ask you something. Without it, Daily asks no chat again.
+
+**Updating.** Nothing to do by hand.
+
 ## 57.0.0 — The browser and Daily each come in one folder
 
 - **The browser and Daily each install as one folder** in your skills folder: `.claude/skills/browser/` and `.claude/skills/daily/`. Their other commands sit inside it, in `skills/` ([adding a module](wiki/maintaining/adding-a-module.md)). Before, each one came in two or three folders.
