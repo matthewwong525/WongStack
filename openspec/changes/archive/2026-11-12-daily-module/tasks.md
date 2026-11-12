@@ -45,4 +45,4 @@
 - [x] 7.1 Teach `scripts/check-module-versions.mjs` to read `module.json` folders (design §7), and `scripts/tests/module-install.test.mjs` to install Daily alone (design §7); assert the plugin's Stop hook timeout is at least 300 seconds.
 - [x] 7.2 Run `node .github/scripts/checks.mjs --worktree` (payload links, OpenSpec config, retired names, `measure-context.mjs --check` with offsetting cuts, script and app tests).
 - [x] 7.3 In `.scratch/`, follow `daily/references/setup.md` from its GitHub-shaped copy in a plain repo with Paseo: it copies both folders, writes the settings file, sets schedules to Paseo, and `daily.mjs check` prints `ok`; follow `## Update` with one local edit kept and one clash stopped; then in a WongStack checkout, setup stops and changes nothing.
-- [ ] 7.4 Run `/save` and check the preview: the Inbox opens on *Needs you* with waiting pages and the Archive, and no chat rows.
+- [x] 7.4 Run `/save` and check the preview: the Inbox opens on *Needs you* with waiting pages and the Archive, and no chat rows.

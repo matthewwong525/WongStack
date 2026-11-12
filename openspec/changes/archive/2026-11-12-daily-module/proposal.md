@@ -1,6 +1,6 @@
 # Daily becomes a module any project can add
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** durable-hamster
 **Open questions:** none
 
@@ -136,3 +136,4 @@ Non-goals: an Inbox, a live line, or a schedule store for projects that are not 
 - **2026-11-12** — Assumed: a profile that fails to load stops `/schedule` and keeps the worker's line-up off, with no move to Paseo, because a quiet move would hide the app's schedules and save new ones outside it with full permissions.
 - **2026-11-12** — Assumed: with no store, the timer line names the plan's timezone beside it, because the computer's timer reads the time in its own timezone.
 - **2026-11-12** — Saved for the preview check: the build, the review's fixes, and the setup test in a plain repo pass; the Inbox preview check is next.
+- **2026-11-12** — Archive checkpoint: the preview Inbox, signed in as the person, opened on *Needs you* with two pages and the Archive below, and no chat list; archived as 54.0.0.
