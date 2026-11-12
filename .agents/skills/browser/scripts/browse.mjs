@@ -16,7 +16,10 @@ import { INTERACTIVE_ROLES, MAX_REFS, SKIP_PATTERNS, parseLine } from './refs.mj
 const USAGE = `usage: browse.mjs <command> [--session <name>]
   open <url>                    open the page in this task's tab; prints BROWSE_URL=
   snapshot                      the page as text with refs (e1, e2…)
-  click <ref-or-selector>       prints BROWSE_CLICK=script when only the page's own script took it
+  click <ref-or-selector>       prints BROWSE_CLICK=script when only the page's own script took it; during the
+                                person's turn in another tab, key when pressed by its key, or queued when it waits
+                                for their turn to end
+  wait-click                    waits for this tab's queued click; prints BROWSE_CLICK=mouse|forced|script, or none
   type <ref-or-selector> <text>
   press <key>
   select <ref-or-selector> <option>
@@ -59,6 +62,7 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
 export const CAMOUFOX = { python: '0.5.9', build: 'v158.0.1-beta.41' };
 const CHECKS = ['checkbox', 'radio', 'switch', 'menuitemcheckbox'];
 const SCRIPT_CLICK_NOTE = 'The click reached the page only through its own script, which a site may ignore: read the page again, then offer the live view that stays open, not more clicks.';
+const QUEUED_NOTE = 'The person is using the browser in another chat\'s tab. This click runs when their turn ends. Run `browse.mjs wait-click` in the background, and take no other step on this page until it ends.';
 export const NO_REF_NOTE = '- note: some boxes have no ref; read the page again or use a selector';
 const NEEDS = 'the browser, Camoufox, is not installed. It needs Python 3.10 or newer, about 3 GB of disk, and about 700 MB of memory while it runs. Ask the person, then run `browse.mjs install`.';
 const PYTHON_NEEDS = 'the browser needs Python 3.10 or newer with its venv module, and this computer has none. Install it (Debian or Ubuntu: `sudo apt install python3 python3-venv`), then run `browse.mjs install`.';
@@ -688,17 +692,40 @@ export function client(given, { retry = true, start = true } = {}) {
       return seen;
     },
     /** Clicks; a tick box, radio, or switch that didn't change gets Space, as a person would press, then a stop.
-     * Resolves to how the click landed: `mouse`, `forced`, or `script`. */
+     * Resolves to how the click landed: `mouse`, `forced`, `script`, or `key`; `queued` while it waits for a turn. */
     async click(target) {
       const { ref, selector } = targetOf(target);
       const box = async () => (ref ? boxesIn((await page.snapshot()).snapshot)[ref] : await evaluate(`(${boxAt})(document, ${JSON.stringify(selector)}, ${JSON.stringify(CHECKS)})`)) ?? null;
       const before = ref ? readTab()?.refs?.[ref] : await box();
-      const { via } = await (await act('click', target)).json().catch(() => ({}));
+      const { via, queued } = await (await act('click', target)).json().catch(() => ({}));
+      if (queued) {
+        writeTab({ ...readTab(), clickQueued: true });
+        return 'queued';
+      }
       if (!before || boxChanged(before, await box())) return via;
       await act('type', target, { text: '', mode: 'keyboard' });
       await page.press('Space');
       if (!boxChanged(before, await box())) throw new BrowseError('the box did not change');
       return via;
+    },
+    /** Waits for this tab's queued click to run; resolves to how it landed, or `none` when no click waits. A gone tab
+     * is an error only when this session queued a click: the reaper also closes an idle tab with none. */
+    async waitClick() {
+      const tab = readTab();
+      server ??= await liveServer();
+      if (!tab || !server) return 'none';
+      const reported = () => { const now = readTab(); if (now?.clickQueued) writeTab({ ...now, clickQueued: undefined }); };
+      for (;;) {
+        const answer = await json('GET', `/tabs/${tab.tabId}/click?userId=${USER}`).catch(error => {
+          if (error.status) reported();
+          if (error.status !== 404) throw error;
+          if (tab.clickQueued) throw new BrowseError('this task\'s tab closed before its click ran');
+          return { none: true };
+        });
+        if (answer.waiting) continue;
+        reported();
+        return answer.via ?? 'none';
+      }
     },
     type: (target, text) => act('type', target, { text }, { quiet: true }),
     select: (target, option) => act('select', target, { option }),
@@ -777,15 +804,20 @@ function settingCommand(name, choice) {
   if (choice) console.log(NEXT_START);
 }
 
+/** The clicks `click` names, each with its note for the agent: a mouse or forced click is the plain one. */
+const CLICK_NOTES = { script: SCRIPT_CLICK_NOTE, key: '', queued: QUEUED_NOTE };
+
 /** Each command: how many words follow it, and what it runs. */
 const COMMANDS = {
   open: [1, async (page, [url]) => console.log(`BROWSE_URL=${await page.open(url)}`)],
   snapshot: [0, async page => { const { url, snapshot } = await page.snapshot(); console.log(`BROWSE_URL=${url}\n${snapshot}`); }],
   click: [1, async (page, [target]) => {
-    if ((await page.click(target)) !== 'script') return;
-    console.log('BROWSE_CLICK=script');
-    console.error(SCRIPT_CLICK_NOTE);
+    const via = await page.click(target);
+    if (!Object.hasOwn(CLICK_NOTES, via)) return;
+    console.log(`BROWSE_CLICK=${via}`);
+    if (CLICK_NOTES[via]) console.error(CLICK_NOTES[via]);
   }],
+  'wait-click': [0, async page => console.log(`BROWSE_CLICK=${await page.waitClick()}`)],
   type: [2, (page, [target, text]) => page.type(target, text)],
   press: [1, (page, [key]) => page.press(key)],
   select: [2, (page, [target, option]) => page.select(target, option)],

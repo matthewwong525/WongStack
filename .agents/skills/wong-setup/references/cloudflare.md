@@ -4,7 +4,7 @@ This runbook turns a fresh install into a running app with session memory. [`/wo
 
 **Idempotent.** Reuse existing owned resources; resume a stopped run from the top.
 
-**Write for someone who does not know what a database is**, in [plain words](../../explore/references/asking-the-user.md#write-in-plain-words): name outcomes and the one fix, and explain `D1`, `binding`, or `9109` instead of saying them.
+**Write for someone who does not know what a database is**, in [plain words](../../../plugins/loop/skills/explore/references/asking-the-user.md#write-in-plain-words): name outcomes and the one fix, and explain `D1`, `binding`, or `9109` instead of saying them.
 
 ## Boundaries
 
@@ -12,7 +12,7 @@ This runbook turns a fresh install into a running app with session memory. [`/wo
 - **One script does the Cloudflare work, not `wrangler`**, so no app dependency is needed: [`provision.mjs`](../scripts/provision.mjs), in the source checkout, needs only Node ([required tools](../../../../wiki/development/required-tools.md)). Each command prints one JSON report: created, reused, names, URLs. A stop exits 1 with `error.reason` (`token`, `cloudflare`, or `repo`) and a plain `error.cause`; translate it with the [failure map](failure-map.md).
 - **Never print a token value**: not in a summary, an error, or an echoed command.
 - **The user token stays on the host**, only in the primary worktree's `.env`. No step copies it or makes it a GitHub secret.
-- **Ask before creating or deleting anything billable**, as [a choice with a recommendation](../../explore/references/asking-the-user.md): say what you will make, then make it.
+- **Ask before creating or deleting anything billable**, as [a choice with a recommendation](../../../plugins/loop/skills/explore/references/asking-the-user.md): say what you will make, then make it.
 - **[The Artifacts route](../../../../wiki/stack/artifacts-route.md#setup)** owns its changes to Steps 1a, 2, 4 and 5, and its teardown.
 - **The widen and the mints are [pre-authorized](../../../../wiki/stack/cloudflare-credentials.md#the-widen-is-pre-authorized):** do them, then report them.
 
@@ -88,11 +88,11 @@ P accounts
 
 Write the chosen id to `CLOUDFLARE_ACCOUNT_ID` in `DURABLE_ENV` and export it.
 
-Then `P plan`. `"reason": "free-plan"` → **create nothing** and ask, as [a choice](../../explore/references/asking-the-user.md): *"Every install needs Cloudflare's paid plan, about $5 a month. Turn it on and I'll continue, or stop here."*
+Then `P plan`. `"reason": "free-plan"` → **create nothing** and ask, as [a choice](../../../plugins/loop/skills/explore/references/asking-the-user.md): *"Every install needs Cloudflare's paid plan, about $5 a month. Turn it on and I'll continue, or stop here."*
 
 ## Step 4 — provision
 
-Ask once before the billable parts, as [a two-option choice](../../explore/references/asking-the-user.md): *"Set it up (Recommended) — your private memory store, a real database and a practice one, and automatic publishing"* or *"Stop here — nothing is created on Cloudflare"*.
+Ask once before the billable parts, as [a two-option choice](../../../plugins/loop/skills/explore/references/asking-the-user.md): *"Set it up (Recommended) — your private memory store, a real database and a practice one, and automatic publishing"* or *"Stop here — nothing is created on Cloudflare"*.
 
 ### 4a. Name things; don't ask
 

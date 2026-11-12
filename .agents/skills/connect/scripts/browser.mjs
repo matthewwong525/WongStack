@@ -22,6 +22,8 @@ const USAGE = `usage: browser.mjs <command>
   open <url>                   a new page at an https address
   read                         the page, every key hidden
   click <ref> | fill <ref> <text> | select <ref> <value> | wait <ref|ms>
+  wait-click                   wait for a click held for the person's turn in another chat's tab: Done once it ran,
+                               or No click waits.
   take-key [<ref>] --tool <id> [--id]
                                send a tool's key, the page's one or the one at <ref>, sealed through the app as
                                TOOL_<ID>, or its ID as TOOL_<ID>_ID; prints only its last four characters
@@ -40,6 +42,7 @@ const SIGN_IN_PAGE = /password|passcode|sign.?in|log.?in/i;
 const HAND_OVER = join(dirname(fileURLToPath(import.meta.url)), '../../hand-over/scripts/hand-over.mjs');
 const WATCH_NOTE = 'The assistant is connecting your tools.';
 const WAIT_MS = 10_000;
+const CLICK_WAITS = 'The person is using the browser in another chat\'s tab, so this click runs when their turn ends. Run `browser.mjs wait-click` in the background with the host\'s longest limit, and take no other step until it ends.';
 const PAUSES = {
   person: ['CONNECT_PAUSED=taken-over', 'The person took over the browser. Run `hand-over.mjs wait` in the background and send the browser nothing until it prints handed-back.'],
   turn: ['CONNECT_PAUSED=your-turn', 'It is the person\'s turn to sign in. Run `hand-over.mjs wait` in the background until it prints handed-back; in a browser window, run `hand-over.mjs close` once they say done.'],
@@ -96,9 +99,12 @@ const camoufox = {
   },
   async act(kind, target, value) {
     if (kind === 'wait') return /^\d+$/.test(target) ? new Promise(done => setTimeout(done, Number(target), 'Done')) : shows(target);
-    await ({ fill: () => page().type(target, value), select: () => page().select(target, value), click: () => page().click(target) })[kind]();
+    if (kind === 'click') return await page().click(target) === 'queued' ? CLICK_WAITS : 'Done';
+    await ({ fill: () => page().type(target, value), select: () => page().select(target, value) })[kind]();
     return 'Done';
   },
+  /** A click that waited for the person's turn: `Done` once it ran, its error if it failed, or that none waits. */
+  waitClick: async () => await page().waitClick() === 'none' ? 'No click waits.' : 'Done',
   valueAt: (target) => page().valueOf(target).then(value => value.trim(), () => ''),
   async picture(path) {
     writeFileSync(path, await page().png(), { mode: 0o600 });
@@ -308,6 +314,7 @@ export async function run([command, ...args], { tool, server = false, stopped = 
     click: [1, () => act('click', ref(first))],
     fill: [2, () => fill(ref(first), second)],
     select: [2, () => act('select', ref(first), second)],
+    'wait-click': [0, () => camoufox.waitClick()],
     wait: [1, () => { const target = /^\d+$/.test(first ?? '') ? first : ref(first); camoufox.check(); return camoufox.act('wait', target); }],
     'take-key': [args.length <= 1 ? args.length : -1, () => takeKey(first === undefined ? null : ref(first), tool, id)],
     picture: [1, () => picture(first)],
@@ -318,7 +325,8 @@ export async function run([command, ...args], { tool, server = false, stopped = 
   const entry = Object.hasOwn(commands, command) ? commands[command] : null;
   const misplaced = (server && command !== 'attach') || (stopped && command !== 'done') || (id && command !== 'take-key');
   if (!entry || args.length !== entry[0] || misplaced) usageError(USAGE);
-  if (!['where', 'attach', 'watch', 'done'].includes(command)) holding();
+  // wait-click sends the page nothing: it only claims a click already sent, so a hold never leaves it unclaimed.
+  if (!['where', 'attach', 'watch', 'done', 'wait-click'].includes(command)) holding();
   return entry[1]();
 }
 

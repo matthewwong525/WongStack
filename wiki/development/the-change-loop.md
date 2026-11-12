@@ -14,7 +14,7 @@ A plain request — research, an errand, a reminder, a question — is not a cha
             resume saved work later, on any machine
 ```
 
-Each WongStack skill calls the OpenSpec CLI. **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, PRs, and merges.
+Each [loop](../../.agents/plugins/loop/README.md) skill calls the OpenSpec CLI. **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, PRs, and merges.
 
 **A verb whose precondition is missing invokes the verb before it**, nested, so you can enter anywhere:
 
@@ -22,7 +22,7 @@ Each WongStack skill calls the OpenSpec CLI. **OpenSpec owns plans; WongStack sk
 /ship ─▶ /apply ─▶ /plan ─▶ /explore
 ```
 
-`/plan` always invokes `/explore` for its [questions](#asking-before-drafting), except for [notes pasted from a review page](../../.agents/skills/plan/SKILL.md#review-notes). One `/ship` carries a task from idea to merge, whether you named the intent or the session established it; a **cold** `/ship`, with no intent and nothing in the session, never merges a lone entry in `openspec list` and reports the stop. The stages still run in order, the OpenSpec folder before any code. Invoke a verb yourself to stop and review its output.
+`/plan` always invokes `/explore` for its [questions](#asking-before-drafting), except for [notes pasted from a review page](../../.agents/plugins/loop/skills/plan/SKILL.md#review-notes). One `/ship` carries a task from idea to merge, whether you named the intent or the session established it; a **cold** `/ship`, with no intent and nothing in the session, never merges a lone entry in `openspec list` and reports the stop. The stages still run in order, the OpenSpec folder before any code. Invoke a verb yourself to stop and review its output.
 
 Entering late never skips a stop: **no verb merges as a way of stopping.** A paused `/plan`, an `/apply` with tasks pending, or a failing checkpoint in the chain reports the blocker and stops before the archive; a partial change is never archived or merged.
 
@@ -30,7 +30,7 @@ Entering late never skips a stop: **no verb merges as a way of stopping.** A pau
 
 A person need not know the verbs. *Go test X* is research, run and reported before any plan. Asked for a change to the repo's code or process with no verb, the agent starts at `/plan` and stops twice:
 
-1. **`/plan`** asks only what it must and ends on [the plan's link](../../.agents/skills/explore/references/asking-the-user.md#print-the-plans-link), never a question. Tap *Build it* on the page, or *Build and publish* to run `/ship` with no stop at the preview. A chat message asking to change the waiting plan updates it.
+1. **`/plan`** asks only what it must and ends on [the plan's link](../../.agents/plugins/loop/skills/explore/references/asking-the-user.md#print-the-plans-link), never a question. Tap *Build it* on the page, or *Build and publish* to run `/ship` with no stop at the preview. A chat message asking to change the waiting plan updates it.
 2. On yes, **`/apply`** builds, uploads a preview from the agent host, and asks *publish it?* A change that leaves the app untouched gets no preview; the agent says so and still asks.
 3. On yes, **`/ship`**: one save, CI, the walk, and the merge.
 
@@ -42,7 +42,7 @@ A skill whose page fixes a small change's shape, such as [connecting tools](../s
 
 ### Offer a routine or an app
 
-When a task done by hand — a plain request, or non-code work under a verb — will clearly come back, offer to make next time easier: one option in [the next-step question](../../.agents/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step), beside *stop here*, never a question of its own. Most tasks get none.
+When a task done by hand — a plain request, or non-code work under a verb — will clearly come back, offer to make next time easier: one option in [the next-step question](../../.agents/plugins/loop/skills/explore/references/asking-the-user.md#end-every-reply-with-the-next-step), beside *stop here*, never a question of its own. Most tasks get none.
 
 - **Only on a clear signal**: the person says it recurs ("every Monday", "again"), or memory shows they asked before. Never on a hunch: an offer after every task teaches people to skip it.
 - **Search memory once**: `memory.mjs search` on the task's key terms finds a past request or decline.
@@ -55,31 +55,31 @@ No offer after a code change you built, or in an unattended run.
 
 ### One task, one workspace
 
-A [Paseo](https://paseo.sh) workspace holds one task. Done, the agent asks *Close this chat?*, any [offer](#offer-a-routine-or-an-app) beside it; only a yes runs [`/close`](../../.agents/skills/close/SKILL.md); never at a plan's review, mid-build, or on a blocker, failed check, declined publish or open question. A new task opens [a new workspace](../../.agents/skills/plan/references/new-workspace.md#new-task-in-this-chat), unless it is a question on this task or the person says *do it here*. Any chat [closes a finished chat](daily.md#close-finished-chats) you pick.
+A [Paseo](https://paseo.sh) workspace holds one task. Done, the agent asks *Close this chat?*, any [offer](#offer-a-routine-or-an-app) beside it; only a yes runs [`/close`](../../.agents/plugins/loop/skills/close/SKILL.md); never at a plan's review, mid-build, or on a blocker, failed check, declined publish or open question. A new task opens [a new workspace](../../.agents/plugins/loop/skills/plan/references/new-workspace.md#new-task-in-this-chat), unless it is a question on this task or the person says *do it here*. Any chat [closes a finished chat](daily.md#close-finished-chats) you pick.
 
 ### Several parts, several workspaces
 
-When a request has parts each publishable alone, the agent [asks once](../../.agents/skills/plan/references/new-workspace.md#ask-once) how to split them; each new workspace plans its part and waits. [Open a part in a new workspace](../../.agents/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the fallbacks.
+When a request has parts each publishable alone, the agent [asks once](../../.agents/plugins/loop/skills/plan/references/new-workspace.md#ask-once) how to split them; each new workspace plans its part and waits. [Open a part in a new workspace](../../.agents/plugins/loop/skills/plan/references/new-workspace.md) owns when the ask returns, parts that build on each other, and the fallbacks.
 
-Before planning, the agent [checks for other work](../../.agents/skills/explore/SKILL.md#check-for-other-work): other workspaces, their plans, and open pull requests. It speaks only on an overlap, and asks [where to go on](../../.agents/skills/plan/references/new-workspace.md#ask-once).
+Before planning, the agent [checks for other work](../../.agents/plugins/loop/skills/explore/SKILL.md#check-for-other-work): other workspaces, their plans, and open pull requests. It speaks only on an overlap, and asks [where to go on](../../.agents/plugins/loop/skills/plan/references/new-workspace.md#ask-once).
 
 **Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/plugins/daily/schedule/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes with its workspace; in the main checkout, each session's tidy-up deletes day-old scratch files.
 
 ### Asking before drafting
 
-[`/explore`](../../.agents/skills/explore/SKILL.md) owns investigation and clarification: [ground the recommendation](../../.agents/skills/explore/SKILL.md#investigate-the-relevant-flow), then [resolve material choices before handoff](../../.agents/skills/explore/SKILL.md#the-exit-round). It changes no repo file; `/plan` records the answers and assumptions in the Decision log.
+[`/explore`](../../.agents/plugins/loop/skills/explore/SKILL.md) owns investigation and clarification: [ground the recommendation](../../.agents/plugins/loop/skills/explore/SKILL.md#investigate-the-relevant-flow), then [resolve material choices before handoff](../../.agents/plugins/loop/skills/explore/SKILL.md#the-exit-round). It changes no repo file; `/plan` records the answers and assumptions in the Decision log.
 
 ## The steps
 
 Each skill owns its procedure; this list says what each stage is for.
 
-- **[`/explore`](../../.agents/skills/explore/SKILL.md)** thinks a problem through, owns the [questions before a plan](#asking-before-drafting), and changes no repo file.
-- **[`/plan`](../../.agents/skills/plan/SKILL.md)** drafts the change folder and its `review.html` page. **A behavior change plans test authoring beside source**, and its checks at the end ([why](#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). `/save` never authors tests; coverage grows where the context is richest.
-- **[`/apply`](../../.agents/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/skills/apply/SKILL.md#build-in-a-helper), free of the planning talk, has [a second agent review it](../../.agents/skills/apply/SKILL.md#a-second-look), and ends with [the local pre-check](#the-gate) and a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload.
-- **[`/save`](../../.agents/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, and returns a preview URL. The chat's facts go to the [memory store](memory.md) through memory capture, not `/save`. With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so git, PR, and CI logic exists once.
-- **[`/continue`](../../.agents/skills/continue/SKILL.md)** resumes a change or an open non-code thread, cold, on any machine, and hands off to `/apply`. Work new to this computer is shown and asked about first.
-- **[`/ship`](../../.agents/skills/ship/SKILL.md)** archives the change, runs `/save` and [`/verify`](#verifying-the-app) once each, plus once more after a failed walk's one fix, squash-merges on [the gate](#the-gate), then [looks at the live app](staging-walkthrough.md#what-it-is-not). An unfinished change goes through `/apply` first. The walk replays [kept checks](kept-checks.md#when-it-replays) and saves new ones. A check only possible after publishing is a Decision-log line: it refuses unticked tasks.
-- **[`/close`](../../.agents/skills/close/SKILL.md)** wraps up a chat you chose to close, with no question. It keeps unfinished work saved, reads the chat for repeatable facts and moves them to the wiki in their own pull request, and closes the workspace. Memory capture keeps the rest. A workspace closed another way leaves its facts to [the daily tidy](wiki-dream.md#the-daily-tidy), which memory starts at the first chat of the next day.
+- **[`/explore`](../../.agents/plugins/loop/skills/explore/SKILL.md)** thinks a problem through, owns the [questions before a plan](#asking-before-drafting), and changes no repo file.
+- **[`/plan`](../../.agents/plugins/loop/skills/plan/SKILL.md)** drafts the change folder and its `review.html` page. **A behavior change plans test authoring beside source**, and its checks at the end ([why](#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). `/save` never authors tests; coverage grows where the context is richest.
+- **[`/apply`](../../.agents/plugins/loop/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/plugins/loop/skills/apply/SKILL.md#build-in-a-helper), free of the planning talk, has [a second agent review it](../../.agents/plugins/loop/skills/apply/SKILL.md#a-second-look), and ends with [the local pre-check](#the-gate) and a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload.
+- **[`/save`](../../.agents/plugins/loop/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, and returns a preview URL. The chat's facts go to the [memory store](memory.md) through memory capture, not `/save`. With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so git, PR, and CI logic exists once.
+- **[`/continue`](../../.agents/plugins/loop/skills/continue/SKILL.md)** resumes a change or an open non-code thread, cold, on any machine, and hands off to `/apply`. Work new to this computer is shown and asked about first.
+- **[`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md)** archives the change, runs `/save` and [`/verify`](#verifying-the-app) once each, plus once more after a failed walk's one fix, squash-merges on [the gate](#the-gate), then [looks at the live app](staging-walkthrough.md#what-it-is-not). An unfinished change goes through `/apply` first. The walk replays [kept checks](kept-checks.md#when-it-replays) and saves new ones. A check only possible after publishing is a Decision-log line: it refuses unticked tasks.
+- **[`/close`](../../.agents/plugins/loop/skills/close/SKILL.md)** wraps up a chat you chose to close, with no question. It keeps unfinished work saved, reads the chat for repeatable facts and moves them to the wiki in their own pull request, and closes the workspace. Memory capture keeps the rest. A workspace closed another way leaves its facts to [the daily tidy](wiki-dream.md#the-daily-tidy), which memory starts at the first chat of the next day.
 
 Loop back any time: re-`/plan` if the spec needs to change.
 
@@ -95,7 +95,7 @@ Every chat starts in plan; only you move it on. Each step may read, research, ru
 
 You move it on by typing a step, tapping *Build it* or *Build and publish* on a plan's page, or picking build or publish when asked. A step run inside another, such as `/plan` inside `/ship`, keeps the outer step's reach. Add your own step as `.agents/skills/<name>/SKILL.md`, linked from this page.
 
-**A chat's name starts with the step at work**: `EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `, then its task. It moves as each step starts; a chat that starts none, such as a question, keeps its name. A typed command shows at once: `/plan` as `PLAN`, `/verify` as `VERIFY`; `/apply`, `/continue` and `/ship` wait for their step. Each step names the work at that time, a plan's title once there is a plan: any name Paseo made gives way, and a name you give in Paseo stays. [`step-title.mjs`](../../.agents/skills/explore/scripts/step-title.mjs) writes it, at once in Paseo and Codex; in Claude Code alone, a later step shows at your next message. The Daily chat, routines and helpers keep theirs.
+**A chat's name starts with the step at work**: `EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `, then its task. It moves as each step starts; a chat that starts none, such as a question, keeps its name. A typed command shows at once: `/plan` as `PLAN`, `/verify` as `VERIFY`; `/apply`, `/continue` and `/ship` wait for their step. Each step names the work at that time, a plan's title once there is a plan: any name Paseo made gives way, and a name you give in Paseo stays. [`step-title.mjs`](../../.agents/loop/step-title.mjs) writes it, at once in Paseo and Codex; in Claude Code alone, a later step shows at your next message. The Daily chat, routines and helpers keep theirs.
 
 ### Fix it or ask
 
@@ -107,7 +107,7 @@ One test decides what an agent fixes alone: **does the plan already settle what 
 4. **still fails after two fixes**, or a step's own cap;
 5. **stays disputed**: builder and reviewer disagree after one exchange.
 
-`/apply`, [`/verify`](../../.agents/skills/verify/references/walkthrough.md#e--after-a-failure) and [`/save`](../../.agents/skills/save/references/git-gate.md#the-auto-fix-loop) link here: a copy goes stale.
+`/apply`, [`/verify`](../../.agents/plugins/loop/skills/verify/references/walkthrough.md#e--after-a-failure) and [`/save`](../../.agents/plugins/loop/skills/save/references/git-gate.md#the-auto-fix-loop) link here: a copy goes stale.
 
 #### Inside `/ship`
 
@@ -115,7 +115,7 @@ In `/ship` and its steps, rules 1 and 5 take a recommendation that stays in the 
 
 ### `/apply` never saves to stop, but may save to finish a task
 
-`/apply` writes the whole change, source and tests, before it checks any of it, and never saves to stop or between parts. Checking each part cost over three minutes, again for each repair, so the checks run once, at the end. [The helper brief](../../.agents/skills/apply/references/build-helper.md) owns how the build does it, and [`/plan`](../../.agents/skills/plan/SKILL.md#finish) lays the tasks out for it.
+`/apply` writes the whole change, source and tests, before it checks any of it, and never saves to stop or between parts. Checking each part cost over three minutes, again for each repair, so the checks run once, at the end. [The helper brief](../../.agents/plugins/loop/skills/apply/references/build-helper.md) owns how the build does it, and [`/plan`](../../.agents/plugins/loop/skills/plan/SKILL.md#finish) lays the tasks out for it.
 
 Nothing is checked less: deployed acceptance still needs evidence, and only acceptance seen to pass ticks its task. Final checks, fresh preview evidence and the one live look stay; batch repairs, and every pushed revision takes all required CI jobs.
 
@@ -134,7 +134,7 @@ A verb you invoke for work that changes no repo file, such as research, a messag
 
 ### Verifying the app
 
-**[`/verify`](../../.agents/skills/verify/SKILL.md)** sits *beside* the loop: it exercises the change's OpenSpec scenarios against the deployed preview and posts evidence and a verdict to the PR. It **gates nothing**, so run it early and often. [The staging walkthrough](staging-walkthrough.md) explains it.
+**[`/verify`](../../.agents/plugins/loop/skills/verify/SKILL.md)** sits *beside* the loop: it exercises the change's OpenSpec scenarios against the deployed preview and posts evidence and a verdict to the PR. It **gates nothing**, so run it early and often. [The staging walkthrough](staging-walkthrough.md) explains it.
 
 ## The gate
 
@@ -142,9 +142,9 @@ This page owns delivery; other surfaces link here.
 
 **The GitHub gate is CI when present, else PR review**: Where checks exist, push and let CI run; the skills wait and fix failures. Where they don't, a human reviews the PR. Either way, **no local run is the gate**; `/apply`'s host preview gates nothing and never reaches production. [Artifacts](../stack/artifacts-route.md) runs them in Cloudflare.
 
-**A finished build is checked on this computer first.** [`checks.mjs --worktree`](../../.github/scripts/checks.mjs) runs CI's checks for the changed files, before the first push and again after publishing brings the default branch in; the build repairs what fails. [The build brief](../../.agents/skills/apply/references/build-helper.md) reads its last line.
+**A finished build is checked on this computer first.** [`checks.mjs --worktree`](../../.github/scripts/checks.mjs) runs CI's checks for the changed files, before the first push and again after publishing brings the default branch in; the build repairs what fails. [The build brief](../../.agents/plugins/loop/skills/apply/references/build-helper.md) reads its last line.
 
-**Every file edit takes the gate**, through a branch and pull request. Plans and archives stay with the verbs. Only code needs a change record; [`/save`](../../.agents/skills/save/SKILL.md) decides.
+**Every file edit takes the gate**, through a branch and pull request. Plans and archives stay with the verbs. Only code needs a change record; [`/save`](../../.agents/plugins/loop/skills/save/SKILL.md) decides.
 
 **GitHub's ladder is CI-when-present → merge**; a skipped rung is never a failure. The app's suite runs inside CI as an ordinary check, found by an `npm test` script at the repo root **or any immediate subdirectory**; a repo without tests passes, and gets no package manifest.
 
@@ -176,7 +176,7 @@ Only a proposal the branch adds or edits counts, archived ones included, so an o
 
 The change folder on the feature branch *is* the plan, and `/continue <name>` finds it from a fresh clone. Its **archive** on the default branch, with the synced `openspec/specs/`, *is* the record; there are no GitHub planning issues.
 
-**The branch and change can have different names.** The folder and the session's facts use the change name; `/save` records the branch in the proposal's `**Branch:**` line. Each verb selects a change by [the selection rungs](../../.agents/skills/save/references/checkpoint-evidence.md#selection-rungs), and `/ship` moves another change the branch adds to its own branch first.
+**The branch and change can have different names.** The folder and the session's facts use the change name; `/save` records the branch in the proposal's `**Branch:**` line. Each verb selects a change by [the selection rungs](../../.agents/plugins/loop/skills/save/references/checkpoint-evidence.md#selection-rungs), and `/ship` moves another change the branch adds to its own branch first.
 
 ## Spec deltas are optional
 

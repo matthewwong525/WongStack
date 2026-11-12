@@ -6,7 +6,7 @@ user-invocable: true
 
 # /wong-sync
 
-Get the latest WongStack source, run its payload preflight, and invoke [`/plan`](../plan/SKILL.md) only for an update.
+Get the latest WongStack source, run its payload preflight, and invoke [`/plan`](../../plugins/loop/skills/plan/SKILL.md) only for an update.
 
 Read `.claude/.wong-stack.json` for the installed version, upstream, and local choices. No record, or a seed with null version and commit, means setup is incomplete: invoke `wong-setup` from the source checkout. Never sync the source repo with itself.
 
@@ -33,4 +33,4 @@ Invoke `/plan` with this description, filled in, plus any user instructions:
 
 Pass prior user decisions as context. Use installed skills by their recorded names, else the source's; resolve source resources in the source checkout while working in the target. Provision a missing part by setup's [provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) from the source checkout.
 
-`/plan` owns the artifacts and review; its bounded `/explore` owns investigation and questions. Ask in [the ask format](../explore/references/asking-the-user.md). A bare sync stops at the plan's `review.html` with the next step; a request to implement or ship continues through that verb ([just ask](../../../wiki/development/the-change-loop.md#just-ask)).
+`/plan` owns the artifacts and review; its bounded `/explore` owns investigation and questions. Ask in [the ask format](../../plugins/loop/skills/explore/references/asking-the-user.md). A bare sync stops at the plan's `review.html` with the next step; a request to implement or ship continues through that verb ([just ask](../../../wiki/development/the-change-loop.md#just-ask)).

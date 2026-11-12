@@ -41,7 +41,7 @@ A hub links *every one* of its children, and every page links onward, up at leas
 
 The wiki is long-term memory for **repeatable knowledge**: facts that stay true and apply again: how we work, people, the company, the product, customers. The test: **will this help with a future task that is not this one?** Yes → the wiki. No → the [memory store](development/memory.md) or the change's proposal; a single decision, a date, or one change's details fail it.
 
-- **Write it when you learn it**, in the same request. Cite the source by URL or path; don't copy it into git. A company page goes in `knowledge/`, [saved at once](stack/company-knowledge.md#save-a-page); a code page, or any page with no `knowledge/` copy, goes through a pull request ([the gate](development/the-change-loop.md#the-gate)), inside a change's own if one is open; [`/close`](../.agents/skills/close/SKILL.md) catches what a session missed.
+- **Write it when you learn it**, in the same request. Cite the source by URL or path; don't copy it into git. A company page goes in `knowledge/`, [saved at once](stack/company-knowledge.md#save-a-page); a code page, or any page with no `knowledge/` copy, goes through a pull request ([the gate](development/the-change-loop.md#the-gate)), inside a change's own if one is open; [`/close`](../.agents/plugins/loop/skills/close/SKILL.md) catches what a session missed.
 - **Let it grow from use.** Seed nothing: the first fact on a topic makes its page; the first about a person makes `people/`. No `index.md` (hubs index) and no `log.md` (git logs).
 - **One format everywhere**: one person is a team of one.
 
@@ -51,7 +51,7 @@ The wiki is long-term memory for **repeatable knowledge**: facts that stay true 
 
 Find the current person by `git config user.email`. When no page lists it, write a short one (name and email) in the next save, without asking; the first page also makes the hub and links it from its root `README.md`.
 
-When a person asks for more detail than [plain words](../.agents/skills/explore/references/asking-the-user.md#write-in-plain-words) from now on, such as branch names, write it on their page; never infer it from one message.
+When a person asks for more detail than [plain words](../.agents/plugins/loop/skills/explore/references/asking-the-user.md#write-in-plain-words) from now on, such as branch names, write it on their page, never from one message.
 
 ### Where a fact goes
 

@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { handleWalkPictures, WALK_PREFIX } from '../../.agents/skills/verify/worker/walk-pictures.mjs';
+import { handleWalkPictures, WALK_PREFIX } from '../../.agents/loop/staging/walk-pictures.mjs';
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 const OTHER_PNG = Buffer.concat([PNG, Buffer.from([9])]);
@@ -132,6 +132,6 @@ test('a transcript asked through the picture address is 404 and the bucket is ne
 });
 
 test('the route module stands alone: it imports nothing from the memory skill or the app', () => {
-  const source = readFileSync(new URL('../../.agents/skills/verify/worker/walk-pictures.mjs', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../../.agents/loop/staging/walk-pictures.mjs', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /^\s*import\b|\bimport\(|\brequire\(/m);
 });

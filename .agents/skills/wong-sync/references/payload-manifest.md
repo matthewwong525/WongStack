@@ -13,7 +13,7 @@ Every install starts empty and takes **every** category.
 
 ## The agent folder
 
-Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. `mapped` installs `.claude/plugins/memory` as a real `.claude/skills/memory/`, and Daily's two folders, `.claude/plugins/daily/daily` and `.claude/plugins/daily/schedule`, as real `.claude/skills/daily/` and `.claude/skills/schedule/`. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
+Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. `mapped` installs `.claude/plugins/memory` as a real `.claude/skills/memory/`, [the loop](../../../plugins/loop/README.md) as `.claude/skills/loop/` and its commands as `.claude/skills/<name>/`, and Daily's two folders, `.claude/plugins/daily/daily` and `.claude/plugins/daily/schedule`, as `.claude/skills/daily/` and `.claude/skills/schedule/`; the longest entry wins. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
 
 Real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex and Claude read their respective names; the inventory block remains `CLAUDE.md`. Sync preserves every target-owned line:
 
@@ -52,13 +52,13 @@ Before advancing the record, [`merge-check.mjs`](../scripts/merge-check.mjs) wit
 
 **improve-code** ships the [improvement brief](../../../../wiki/development/repository-improvement.md): optional focus/outcome, findings-only mode, and one supported improvement plan.
 
-**save/ship** ship [`checkpoint.mjs`](../../save/scripts/checkpoint.mjs) and [`ship.mjs`](../../ship/scripts/ship.mjs) for checkpoint/prepare/finish. Portable `--worktree` checks precede pushing. Source payload/session-measurement scripts stay meta-only.
+**save/ship** ship [`checkpoint.mjs`](../../../plugins/loop/skills/save/scripts/checkpoint.mjs) and [`ship.mjs`](../../../plugins/loop/skills/ship/scripts/ship.mjs) for checkpoint/prepare/finish. Source payload/session-measurement scripts stay meta-only.
 
-**plan** ships its builder, [kit](../../plan/references/review-kit.html), [CLI contract](../../plan/references/openspec-cli.md) and [drawing guide](../../plan/references/drawings.md). Build/rebuild standalone `review.html` from `proposal.md` alone, bundling the viewer. Cited owner pages must ship; the payload-link check enforces closure.
+**plan** ships its builder, [kit](../../../plugins/loop/skills/plan/references/review-kit.html), [CLI contract](../../../plugins/loop/skills/plan/references/openspec-cli.md) and [drawing guide](../../../plugins/loop/skills/plan/references/drawings.md). Build/rebuild standalone `review.html` from `proposal.md` alone, bundling the viewer. Cited owner pages must ship; the payload-link check enforces closure.
 
 ### Planning an update
 
-Every sync reads this source page. Add these report instructions to its explore/plan handoff, in order, verbatim:
+Add these report instructions to each sync's explore/plan handoff, in order, verbatim:
 
 - Go straight into `/plan`: run any `/explore` as its bounded pass, never stopping at *Plan it?*.
 - When `catchUp.needed`, plan each reported move by [catching up an older install](catch-up.md).

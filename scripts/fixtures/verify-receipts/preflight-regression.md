@@ -16,7 +16,7 @@ The complete head suite also keeps this default-preflight assertion passing. Bot
 
 ## Repair decision practice
 
-Use [the repair rule](../../../.agents/skills/verify/references/walkthrough.md#e--after-a-failure) on these two cases and retain the resulting scope judgement, action and report limitation in the change's evidence. These are decision simulations, separate from the exact-source preflight capture.
+Use [the repair rule](../../../.agents/plugins/loop/skills/verify/references/walkthrough.md#e--after-a-failure) on these two cases and retain the resulting scope judgement, action and report limitation in the change's evidence. These are decision simulations, separate from the exact-source preflight capture.
 
 - **Impractical harness:** this change owns a failed external delivery promise and touches its handler, but existing CI has no sandbox receiver or safe delivery readback. A disposable initiating request was captured; no practical lasting test can show actual delivery. Preserve that reproduction and name missing failing-before/delivery proof. Apply only the authorized in-scope bounded repair; require its ordinary checks, without adding infrastructure or weakening them. The initiating success cannot prove delivery.
 - **Out of scope:** a confirmed consumer in another capability returns a stale value, but its contradicted expectation is absent from this change's own scenarios and its handler is untouched by the branch. Preserve shared data, report the failed observation and why it is out of scope, finish independent safe checks, and make no consumer repair or regression-test change. Additional observation grants no repair authorization.

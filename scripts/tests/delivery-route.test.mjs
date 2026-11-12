@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { appOrigin, ARTIFACTS_HOST, delivery, originHost, routeOf, RouteError } from '../../.agents/skills/save/scripts/delivery-route.mjs';
+import { appOrigin, ARTIFACTS_HOST, routeOf, wongDelivery as delivery } from '../../.agents/loop/routes/route.mjs';
+import { delivery as moduleDelivery, originHost, RouteError } from '../../.agents/plugins/loop/skills/save/scripts/delivery-route.mjs';
 
-const script = new URL('../../.agents/skills/save/scripts/delivery-route.mjs', import.meta.url).pathname;
+const script = new URL('../../.agents/plugins/loop/skills/save/scripts/delivery-route.mjs', import.meta.url).pathname;
+// WongStack's own profile names the route; the module alone reads only origin and gh.
+const PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
 const ACCOUNT = '0123456789abcdef'.repeat(2);
 const HOST = `${ACCOUNT}.artifacts.cloudflare.net`;
 const ARTIFACTS = `https://${HOST}/git/wongstack/recipe-box.git`;
@@ -29,7 +32,17 @@ function checkout(t, { origin, record } = {}) {
   return dir;
 }
 
-const cli = (dir) => spawnSync(process.execPath, [script, dir], { encoding: 'utf8' });
+const cli = (dir, env = {}) => spawnSync(process.execPath, [script, ...(typeof dir === 'string' ? [dir] : dir)],
+  { encoding: 'utf8', env: { ...process.env, WONG_LOOP_PROFILE: PROFILE, ...env } });
+
+// A `gh` first on PATH that exits with `status`: 0 is a working one, 1 one that can not run.
+function gh(t, status) {
+  const bin = realpathSync(mkdtempSync(join(tmpdir(), 'wong-test-delivery-route-bin-')));
+  t.after(() => rmSync(bin, { recursive: true, force: true }));
+  writeFileSync(join(bin, 'gh'), `#!/bin/sh\nexit ${status}\n`);
+  chmodSync(join(bin, 'gh'), 0o755);
+  return { PATH: `${bin}:${process.env.PATH}` };
+}
 
 // The route is refused in the library and by the process: exit 1, the reason on stderr, and no
 // route on stdout for a verb to act on.
@@ -141,4 +154,34 @@ test('only https, that exact path, and nothing else in the address is the app', 
   assert.equal(routeOf({ origin: near[1], record: null }), 'github');
   assert.throws(() => routeOf({ origin: near[1], record: RECORDED }), RouteError);
   assert.throws(() => routeOf({ origin: `${APP}?x=1`, record: RECORDED }), /says artifacts, but origin is on app\.example\.com/);
+});
+
+test('with no profile, a GitHub origin and a working gh is github; no gh or another host is local', (t) => {
+  const alone = { WONG_LOOP_PROFILE: '/nonexistent/profile.mjs' };
+  const github = checkout(t, { origin: GITHUB });
+  assert.equal(cli(github, { ...alone, ...gh(t, 0) }).stdout, 'github\n');
+  assert.equal(cli(github, { ...alone, ...gh(t, 1) }).stdout, 'local\n');
+  for (const origin of [ARTIFACTS, 'https://git.example.com/someone/recipe-box.git', undefined]) {
+    const result = cli(checkout(t, { origin }), { ...alone, ...gh(t, 0) });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stdout, 'local\n', String(origin));
+  }
+});
+
+test('the profile route wins over the module\'s own guess', async (t) => {
+  const dir = checkout(t, { origin: ARTIFACTS, record: RECORDED });
+  const saved = process.env.WONG_LOOP_PROFILE;
+  process.env.WONG_LOOP_PROFILE = PROFILE;
+  t.after(() => { if (saved === undefined) delete process.env.WONG_LOOP_PROFILE; else process.env.WONG_LOOP_PROFILE = saved; });
+  assert.deepEqual(await moduleDelivery(dir), { route: 'artifacts', root: dir });
+});
+
+test('run hands a route the module does not own to the profile, and exits 2 when none runs it', (t) => {
+  const dir = checkout(t);
+  const profile = join(dir, 'profile.mjs');
+  writeFileSync(profile, "export default { routeRun: ({ args }) => (args[0] === 'company' && args[1] === 'wait' ? 5 : 0) };\n");
+  assert.equal(cli(['run', 'company', 'wait'], { WONG_LOOP_PROFILE: profile }).status, 5);
+  const none = cli(['run', 'company', 'wait'], { WONG_LOOP_PROFILE: '/nonexistent/profile.mjs' });
+  assert.equal(none.status, 2);
+  assert.match(none.stderr, /runs no company route/);
 });

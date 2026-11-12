@@ -32,9 +32,13 @@ const TAB_PREFS = { 'browser.tabs.loadDivertedInBackground': true };
 const TAB_MS = 15_000;
 // The person's turn holds its tab while the helper renews it; a helper that died lets go after this.
 const TURN_MS = 60_000;
-// How long a click or a resize on another tab waits for the person's turn to end: each shows its own tab.
+// How long a resize, or the password manager's page, on another tab waits for the person's turn: each shows its tab.
 const TURN_WAIT_MS = 20_000;
 const BUSY = 'the person is using the browser';
+// A click that waits for the person's turn: how often the server looks, and how long one ask for its result holds.
+const WATCH_MS = 250;
+const CLICK_POLL_MS = 25_000;
+const WAITING = 'a click on this page waits for the person\'s turn in another tab; run `wait-click`';
 // The screen a Linux desktop's window needs; the library hands the browser no variable of its own.
 const SCREEN_VARS = ['DISPLAY', 'WAYLAND_DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR'];
 
@@ -182,6 +186,34 @@ async function clickOn(locator) {
   }
 }
 
+/** The key that presses `element` as a click would: Enter or Space, or null for one the keyboard can not reach or
+ * press. It runs in the page, so it uses nothing outside. */
+const KEY_OF = element => {
+  if (element.matches(':disabled') || element.tabIndex < 0) return null;
+  const role = (element.getAttribute('role') ?? '').trim().split(/\s+/)[0].toLowerCase();
+  if (['checkbox', 'radio', 'switch', 'menuitemcheckbox', 'menuitemradio'].includes(role)) return 'Space';
+  if (['button', 'link', 'tab', 'menuitem', 'option', 'treeitem'].includes(role)) return 'Enter';
+  const tag = element.localName;
+  if (tag === 'input') return ['checkbox', 'radio'].includes(element.type) ? 'Space' : ['submit', 'button', 'reset', 'image'].includes(element.type) ? 'Enter' : null;
+  return tag === 'button' || tag === 'summary' || (['a', 'area'].includes(tag) && element.hasAttribute('href')) ? 'Enter' : null;
+};
+/** Whether `element` holds its document's keyboard, inside a shadow root or a frame too. */
+const HAS_FOCUS = element => element.getRootNode().activeElement === element;
+
+/** A click pressed by its key, which leaves the tab behind where a mouse click selects it (tried 2026-11-11); null
+ * when the target takes no key or the focus does not land. */
+async function keyClick(tab, { ref, selector }) {
+  if (!ref && !selector) throw refusal(400, 'ref or selector required');
+  const locator = ref ? await refLocator(tab, ref) : await clickTarget(tab.page, selector);
+  const key = await locator.evaluate(KEY_OF, undefined, { timeout: 3000 }).catch(() => null);
+  if (!key) return null;
+  const focused = await locator.focus({ timeout: 3000 }).then(() => locator.evaluate(HAS_FOCUS, undefined, { timeout: 3000 })).catch(() => false);
+  if (!focused) return null;
+  await tab.page.keyboard.press(key);
+  await tab.page.waitForTimeout(500);
+  return { ok: true, url: tab.page.url(), via: 'key' };
+}
+
 /** Each action on one tab, by its route name. */
 const ACTIONS = {
   async navigate(tab, { url }) {
@@ -239,9 +271,9 @@ const KEEPS_REFS = new Set(['type', 'select', 'evaluate', 'viewport', 'front']);
 // The agent's own steps, which never reach the password manager; only these run while its page shows.
 const GUARDED = new Set(['click', 'type', 'select', 'press']);
 const OPEN_ON_ADDON = new Set(['navigate', 'front']);
-// A click selects its tab (tried 2026-11-06), and a resize shows it first, so both wait for the person's turn; typing,
-// a key, a choice, reading, and a picture stay behind.
-const SHOWS_TAB = new Set(['click', 'viewport']);
+// A resize shows its tab first, so it waits for the person's turn; a click then goes by key or waits (`clickBehind`),
+// and typing, a key, a choice, reading, and a picture stay behind.
+const SHOWS_TAB = new Set(['viewport']);
 
 /** The request's JSON body, or {} with none. */
 async function readBody(request) {
@@ -265,7 +297,7 @@ function authorized(request, key) {
 
 /** The HTTP handler over one browser `context`: the camofox routes browse.mjs calls, each behind `key`, with one
  * tab per userId + sessionKey, all in the home tab's window. A tab unused for `idleMs` closes, as camofox's did. */
-export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnMs = TURN_MS, turnWaitMs = TURN_WAIT_MS } = {}) {
+export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnMs = TURN_MS, turnWaitMs = TURN_WAIT_MS, clickPollMs = CLICK_POLL_MS } = {}) {
   const tabs = new Map();
   let made = 0;
   let home = null;
@@ -283,7 +315,7 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
   };
   // One step at a time on a tab, so a click never lands while the page text is read.
   // A step past `stepMs` fails, and the next one runs, so one stuck page call can't hold the tab for good.
-  const queued = (tab, step) => {
+  const inQueue = (tab, step) => {
     const run = tab.queue.then(() => {
       let timer;
       const limit = new Promise((_, reject) => { timer = setTimeout(() => reject(refusal(504, `the page step timed out after ${stepMs / 1000} s`)), stepMs); });
@@ -292,15 +324,26 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
     tab.queue = run.catch(() => {});
     return run;
   };
+  // A tab's waiting click runs before any later step, so nothing acts on the page out of order.
+  const queued = (tab, step) => inQueue(tab, async () => {
+    if (tab.waiting) throw refusal(409, WAITING);
+    return step();
+  });
+  /** Ends a tab's waiting click that never ran: its tab closed. */
+  const drop = tab => {
+    if (tab?.waiting && !tab.waiting.done) tab.waiting.finish({ error: refusal(410, 'the tab closed before its click ran') });
+  };
   const closeTab = async id => {
     const tab = tabs.get(id);
     tabs.delete(id);
+    drop(tab);
     await tab?.page.close().catch(() => {});
   };
   const reaper = setInterval(() => {
-    for (const [id, tab] of tabs) if (Date.now() - tab.lastUse > idleMs) void closeTab(id);
+    for (const [id, tab] of tabs) if (!(tab.waiting && !tab.waiting.done) && Date.now() - tab.lastUse > idleMs) void closeTab(id);
   }, Math.min(60_000, idleMs));
   reaper.unref();
+  let watcher = null;
 
   /** The kept blank tab no task gets: the browser's first page, else a new window when the person closed it. */
   const homeTab = async () => {
@@ -352,7 +395,11 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
     try { if (url) await go(page, url); } catch (error) { await page.close().catch(() => {}); throw error; }
     const tabId = `tab-${Date.now().toString(36)}-${++made}`;
     tabs.set(tabId, { id: tabId, page, userId, sessionKey, refs: null, text: null, lastUse: Date.now(), queue: Promise.resolve() });
-    page.on('close', () => { if (tabs.get(tabId)?.page === page) tabs.delete(tabId); });
+    page.on('close', () => {
+      if (tabs.get(tabId)?.page !== page) return;
+      drop(tabs.get(tabId));
+      tabs.delete(tabId);
+    });
     return { tabId, url: page.url() };
   };
   const listTabs = async userId => ({
@@ -386,16 +433,58 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
     if (!offset || tab.text == null) Object.assign(tab, (({ refs, snapshot: text }) => ({ refs, text }))(await readPage(tab.page)));
     return { url: tab.page.url(), ...windowSnapshot(tab.text, offset), refsCount: tab.refs.size };
   });
-  const act = (tab, name, body) => queued(tab, async () => {
+  /** One step on a tab; a click during another tab's turn goes `behind` it. */
+  const step = async (tab, name, body, behind = otherTurn(tab)) => {
     const addonPage = name === 'navigate' && ADDON_PAGE.test(body.url ?? '');
     if (SHOWS_TAB.has(name) || addonPage) await awaitTurn(tab);
     if (name === 'viewport' && tab.addon && await onAddon(tab)) return keepForSite(tab, body);
     if (!OPEN_ON_ADDON.has(name) && await onAddon(tab)) throw onAddonPage(tab);
     if (GUARDED.has(name)) await guardAddon(tab.page, body);
-    const result = await ACTIONS[name](tab, body);
+    const result = name === 'click' && behind ? await clickBehind(tab, body) : await ACTIONS[name](tab, body);
     if (!KEEPS_REFS.has(name)) Object.assign(tab, { refs: null, text: null });
     return result;
-  });
+  };
+  const act = (tab, name, body) => queued(tab, () => step(tab, name, body));
+
+  /** A click during another tab's turn: by its key at once, else it waits for the turn to end, answering at once. */
+  const clickBehind = async (tab, body) => {
+    const pressed = await keyClick(tab, body);
+    if (pressed) return pressed;
+    const click = { body, since: Date.now(), done: null, running: false };
+    click.ended = new Promise(resolve => { click.finish = done => { click.done = done; resolve(done); }; });
+    tab.waiting = click;
+    watcher ??= setInterval(watch, WATCH_MS);
+    watcher.unref?.();
+    return { ok: true, queued: true };
+  };
+  /** Starts each waiting click whose turn ended, oldest first, through its tab's queue; stops when none waits. */
+  const watch = () => {
+    const waiting = [...tabs.values()].filter(tab => tab.waiting && !tab.waiting.running).sort((a, b) => a.waiting.since - b.waiting.since);
+    if (!waiting.length) {
+      clearInterval(watcher);
+      watcher = null;
+    }
+    for (const tab of waiting) {
+      if (otherTurn(tab)) continue;
+      const { waiting: click } = tab;
+      click.running = true;
+      inQueue(tab, () => step(tab, 'click', click.body, false)).then(result => ({ result }), error => ({ error })).then(done => {
+        tab.lastUse = Date.now();
+        if (!click.done) click.finish(done);
+      });
+    }
+  };
+  /** A waiting click's result once it ran, within `clickPollMs`; `{waiting: true}` before, `{none: true}` with none. */
+  const clickResult = async tab => {
+    const click = tab.waiting;
+    if (!click) return { ok: true, none: true };
+    let timer;
+    const done = await Promise.race([click.ended, new Promise(resolve => { timer = setTimeout(resolve, clickPollMs, null); timer.unref?.(); })]).finally(() => clearTimeout(timer));
+    if (!done) return { ok: true, waiting: true };
+    if (tab.waiting === click) tab.waiting = null;
+    if (done.error) throw done.error;
+    return done.result;
+  };
 
   /** Whether a page the person or a site opened during the turn is still open, such as a *Forgot password* tab or a
    * sign-in window. A page can not tell which tab shows, so the person may be on it. */
@@ -403,6 +492,7 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
   /** Brings the tab to the front, unless another tab holds the person's turn: `turn` holds or ends it, `raise: false`
    * only renews it, `reselect` leaves the person's own page shown. */
   const front = async (tab, { turn: hold, raise = true, reselect = false }) => {
+    if (tab.waiting) throw refusal(409, WAITING);
     if (hold === false) {
       if (turn?.id === tab.id) turn = null;
       return { ok: true };
@@ -436,6 +526,7 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
       });
     }
     if (top === 'tabs' && method === 'POST' && action === 'front') return front(tabOf(id, userId), body);
+    if (top === 'tabs' && method === 'GET' && action === 'click') return clickResult(tabOf(id, userId));
     if (top === 'tabs' && method === 'POST' && Object.hasOwn(ACTIONS, action)) return act(tabOf(id, userId), action, body);
     if (top === 'sessions' && id && !action && method === 'DELETE') {
       await Promise.all([...tabs].filter(([, tab]) => tab.userId === id).map(([tabId]) => closeTab(tabId)));
@@ -465,7 +556,10 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
       send(error.status ?? 500, { error: error.message, ...(error.addonPage && { addonPage: true, size: error.size }) });
     }
   };
-  handle.close = () => clearInterval(reaper);
+  handle.close = () => {
+    clearInterval(reaper);
+    clearInterval(watcher);
+  };
   return handle;
 }
 

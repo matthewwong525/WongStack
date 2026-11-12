@@ -13,6 +13,23 @@
 
 **Updating.** Nothing to do by hand. Daily moves into its own folders and keeps every schedule, OK and setting. The Inbox now opens on the plans waiting for you. To get a reminder, ask *remind me* in a chat: it becomes a one-time schedule through `/schedule`. The *tell* and *watch* asks are gone. The app deletes its saved list of your chats when it deploys.
 
+## 53.2.0 — Another chat's click goes on behind your turn
+
+- **A chat's click no longer stops during your turn.** While you use the browser in one chat's tab, another chat clicks a button, a link, or a tick box in its own tab by its key, as you would press Tab and Enter. The page acts as on a mouse click, and your tab stays in front. Before, the click waited 20 seconds, then gave up with *the person is using the browser* ([your turn keeps its tab in front](wiki/development/browser-window.md#a-tab-for-each-chat)).
+- **A part of a page that reacts only to a mouse waits for your turn to end.** The chat hears at once that its click waits. The click then runs by itself when you hand back or say *done*, and the chat hears that it ran. Until then, that chat takes no other step on its page, so nothing happens out of order.
+- **With no turn open, a click works as before.**
+
+**Updating.** Nothing to do by hand. A browser that is running keeps the old behavior until it next starts.
+
+## 53.1.0 — The build loop is a module any project can add
+
+- **Any project can add the build loop with one pasted message.** The eight commands, `/explore`, `/plan`, `/apply`, `/save`, `/ship`, `/verify`, `/continue`, and `/close`, are now one module in [`.agents/plugins/loop/`](.agents/plugins/loop/README.md). Its [setup guide](.agents/plugins/loop/references/setup.md) copies them in, installs OpenSpec after a yes, finds the project's test command, and builds a sample plan page. Each command keeps its name.
+- **It works alone, and does more where the project has more.** Each part that differs by project comes through one part of a profile file, `.agents/loop/profile.mjs`. A missing part turns off only its own feature: a review page then opens as a file, and you reply in the chat.
+- **A project with no GitHub still saves and publishes.** `/save` commits on the change's branch and pushes nothing. `/ship` merges into the main branch on this computer after the tests pass, and asks before any push.
+- **WongStack works as before.** Its own parts of the loop moved to `.claude/loop/`: chat names, the check for other work, company git, Artifacts, Cloudflare previews, and the staging walk. [WongStack's profile](.agents/loop/profile.mjs) connects each one to the loop.
+
+**Updating.** Nothing to do by hand for most projects: the eight commands stay at `.claude/skills/<name>/`, and the update moves WongStack's own scripts. If one of your project's own skills, hooks, or scripts runs a file that moved, change its path: `.claude/skills/explore/scripts/step-title.mjs` is now `.claude/loop/step-title.mjs`, the Artifacts and company-git scripts are in `.claude/loop/routes/`, and the staging scripts are in `.claude/loop/staging/`.
+
 ## 53.0.0 — Memory links its topics and tidies itself each day
 
 - **One daily tidy, started by your first chat of the day.** It runs in the background, and the chat never waits. It saves what your chats learned, merges facts that say the same thing, puts lasting facts on their topic's page, links topics that connect, and checks three old pages and one spec. It uses your own AI plan. Its own work stops after 30 minutes, and the wait for the project's checks can add up to an hour. With two computers, only one tidies each day ([the daily tidy](wiki/development/wiki-dream.md#the-daily-tidy)).

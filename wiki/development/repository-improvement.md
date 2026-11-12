@@ -47,7 +47,7 @@ Some mistakes happen in the chat, and no file shows them: a helper that stops wh
 - **A block with a reason**, so the agent learns the fix from the refusal.
 - **A check right after a write**, while the mistake is still cheap.
 
-Ship each hook for Claude Code and Codex, where the host fires the event, in [`.agents/settings.json`](../../.agents/settings.json) and [`.agents/hooks.json`](../../.agents/hooks.json). Let the second attempt through: a hook that traps the agent costs more than the mistake. [The build helper's stop check](../../.agents/skills/apply/scripts/helper-stop-check.mjs) is the example: it sends a helper back once when it stops without its report.
+Ship each hook for Claude Code and Codex, where the host fires the event, in [`.agents/settings.json`](../../.agents/settings.json) and [`.agents/hooks.json`](../../.agents/hooks.json). Let the second attempt through: a hook that traps the agent costs more than the mistake. [The build helper's stop check](../../.agents/loop/helper-stop-check.mjs) is the example: it sends a helper back once when it stops without its report.
 
 A written rule is for a judgment call no check or hook could make. `/improve-code` does not write one: its report names the note as one for a normal request.
 
@@ -69,7 +69,7 @@ An idea the run weighed and turned down for a reason that will still hold, a res
 
 ## It plans, then stops
 
-`/improve-code` hands [`/plan`](../../.agents/skills/plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and the note it answers. The run ends at the plan's link, as every finished plan does: you build it from its page, change it, or drop it. No code has changed.
+`/improve-code` hands [`/plan`](../../.agents/plugins/loop/skills/plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and the note it answers. The run ends at the plan's link, as every finished plan does: you build it from its page, change it, or drop it. No code has changed.
 
 Every run ends one of three ways, named in its report:
 
@@ -89,7 +89,7 @@ Any other scheduler must provide a clean, current checkout and serialize runs so
 
 ## Keep one delivery owner
 
-`/improve-code` owns choosing; [`/plan`](../../.agents/skills/plan/SKILL.md) owns the plan; [`/apply`](../../.agents/skills/apply/SKILL.md) and [`/ship`](../../.agents/skills/ship/SKILL.md) own building, Git, checks, and publishing, and run only after your yes. Normal gates and scope boundaries apply, including preserving unrelated unfinished work.
+`/improve-code` owns choosing; [`/plan`](../../.agents/plugins/loop/skills/plan/SKILL.md) owns the plan; [`/apply`](../../.agents/plugins/loop/skills/apply/SKILL.md) and [`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md) own building, Git, checks, and publishing, and run only after your yes. Normal gates and scope boundaries apply, including preserving unrelated unfinished work.
 
 ## Where the ideas come from
 

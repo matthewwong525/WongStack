@@ -3,8 +3,8 @@
 import { execFileSync } from 'node:child_process';
 import { loadConfig, memoryOrigin, signIn, signInHelp } from '../memory/d1/connect.mjs';
 import { repoContext } from '../skills/memory/scripts/lib/store.mjs';
-import { folderOf, readState } from '../skills/explore/scripts/step-title.mjs';
-import { delivery } from '../skills/save/scripts/delivery-route.mjs';
+import { folderOf, readState } from '../loop/step-title.mjs';
+import { wongDelivery } from '../loop/routes/route.mjs';
 
 const lazy = (file, name) => async (...args) => (await import(file))[name](...args);
 const app = name => lazy('../inbox/schedules.mjs', name);
@@ -12,7 +12,7 @@ const app = name => lazy('../inbox/schedules.mjs', name);
 /** The remote's address in a copy installed through the company app, else null. */
 function appRemote(cwd) {
   try {
-    if (delivery(cwd).route !== 'app') return null;
+    if (wongDelivery(cwd).route !== 'app') return null;
     return new URL(execFileSync('git', ['-C', cwd, 'remote', 'get-url', 'origin'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()).origin;
   } catch { return null; }
 }
@@ -59,7 +59,7 @@ export default {
   person,
   chatName,
   // A turn that ends in typed choices is the ask check's: Claude Code sends it back to use the question tool.
-  offeredChoices: async (input, agent) => agent === 'claude' && Boolean((await import('../skills/explore/scripts/ask-check.mjs')).stopDecision(input)),
+  offeredChoices: async (input, agent) => agent === 'claude' && Boolean((await import('../loop/ask-check.mjs')).stopDecision(input)),
   // A background run's own copy of the repo links this computer's company knowledge, so the run saves pages there.
   prepareRun: async dir => { const { linkCopy, place } = await import('../memory/knowledge.mjs'); linkCopy(place(dir)); },
   checkout,

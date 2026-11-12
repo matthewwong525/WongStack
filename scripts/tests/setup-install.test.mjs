@@ -69,9 +69,10 @@ test('an install into an empty folder holds the payload, the links, the hubs, th
 
 test('the program writes every path the manifest says setup seeds, from a template of its own', () => {
   assert.deepEqual(Object.keys(SEEDS).sort(), [...manifest.seededBySetup.files].sort());
-  for (const template of [...Object.values(SEEDS), 'openspec-config.yaml']) {
+  for (const template of Object.values(SEEDS)) {
     assert.ok(existsSync(join(repo, '.agents/skills/wong-setup/references/seed', template)), template);
   }
+  assert.ok(existsSync(join(repo, '.agents/plugins/loop/references/openspec-config.yaml')), 'the plans rules ship with the loop');
   assert.deepEqual(targetFiles(Object.keys(SEEDS), manifest), [], 'a seeded file is not payload');
 });
 

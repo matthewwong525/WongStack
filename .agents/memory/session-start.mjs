@@ -9,7 +9,7 @@ import { loadConfig, memoryOrigin, signIn, signInHelp } from './d1/connect.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TIDY = join(HERE, '../skills/schedule/scripts/tidy.mjs');
 // Moves a clean teammate's copy forward in the background: wiki/stack/employee-project.md#update-the-copy
-const UPDATE = join(HERE, '../skills/save/scripts/update-copy.mjs');
+const UPDATE = join(HERE, '../loop/routes/update-copy.mjs');
 const KNOWLEDGE = join(HERE, 'knowledge.mjs');
 // The last tidy-up's one line, read and cleared in-process, then the next tidy-up, detached; WONG_TIDY=0
 // skips starting it. The tidy-up runs at most every 6 hours on its own.

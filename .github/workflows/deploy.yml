@@ -394,7 +394,7 @@ jobs:
       # Record the release on the merged commit, with its outcome and the live
       # address `cf-deploy.sh` read from wrangler's own output. `/ship` waits
       # for this record, then opens the live app once
-      # (`.claude/skills/ship/scripts/live-look.sh`).
+      # (`.claude/loop/staging/live-look.sh`).
       #
       # `always()` so a failed migrate or deploy is recorded as a failure; a
       # failed build fails the run, which `/ship` reads too. A docs merge

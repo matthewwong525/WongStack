@@ -367,6 +367,20 @@ test('--link prints the file where no reply link can open', () => fixture(root =
   assert.equal(existsSync(join(home, '.wong-stack')), false, 'nothing was registered');
 }));
 
+// The module alone: a project with no reviewLink part gets the file, even where a reply link could open.
+test('--link prints the file when the profile has no reviewLink part', () => fixture(root => {
+  const home = join(dirname(root), 'home');
+  const bin = join(home, 'bin');
+  mkdirSync(bin, { recursive: true });
+  fakeTunnel(bin, join(home, 'calls.log'));
+  fakePaseo(bin, join(home, 'sent.jsonl'));
+  const env = { ...process.env, ...TUNNEL_ENV, REPLY_LINK: '', PASEO_AGENT_ID: 'a-chat', HOME: home, PATH: `${bin}:/usr/bin:/bin`, WONG_LOOP_PROFILE: join(home, 'none.mjs') };
+  const out = spawnSync(process.execPath, [builder, root, '--require-current', '--link'], { encoding: 'utf8', env, timeout: 30_000 });
+  assert.equal(out.status, 0, out.stderr);
+  assert.equal(out.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${copy}${REVIEW_IN_CHAT}\n`);
+  assert.equal(existsSync(join(home, '.wong-stack')), false, 'nothing was registered');
+}));
+
 // A fake tunnel and a fake way to wake the chat stand in for the real ones, as in reply-link.test.mjs.
 test('--link prints the reply link in the same line, with the plan\'s header and its two actions', () => fixture(root => {
   const home = join(dirname(root), 'home');
