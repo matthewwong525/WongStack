@@ -37,7 +37,7 @@ Write every plan, question, and report in plain words, for everyone. Give more d
 Use the first callable tool:
 
 1. Codex **`request_user_input`**
-2. Claude **`AskUserQuestion`**; Claude Code's stop hook returns typed choices
+2. Claude **`AskUserQuestion`**; Claude Code's stop hook returns a typed question once
 3. Another host's equivalent structured question tool
 4. **Numbered chat** with the same questions, options, recommendation, and custom-answer path, then wait.
 

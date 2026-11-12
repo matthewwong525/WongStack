@@ -1,6 +1,6 @@
 # The daily routine
 
-The daily routine runs your day with no chat to open: each morning the worker runs your add-ons, and you ask any chat for the rest. Your chats keep moving while you are away, by [check-ins](#check-ins), with or without Paseo and with or without a settings file. It is [a module](#the-module): any repo can add it alone.
+The daily routine runs your day with no chat to open: each morning the worker runs your add-ons, and you ask any chat for the rest. Your chats keep moving while you are away, by [check-ins](#check-ins). It is [a module](#the-module): any repo can add it alone.
 
 ## What it does
 
@@ -50,7 +50,6 @@ You keep no chat open for the daily: say these in any chat, and it does them thr
 
 - *What's going on?* gives what the background runs did since that chat last asked, and, in Paseo, one line per chat. It then offers to [close finished chats](#close-finished-chats).
 - *Remind me Friday to call Kim* makes a one-time [schedule](../stack/host-schedules.md) that opens a chat with your words on Friday.
-- *Stop check-ins* and *start check-ins* turn [check-ins](#check-ins) off and on.
 - *Check the orders every Monday* makes a [schedule in the app](../stack/host-schedules.md).
 
 ## Your chat list
@@ -68,7 +67,7 @@ Ask *what's going on?* in any chat, and it marks each chat it watches that is fi
 - The chat's work is merged at its last commit, and its folder has no new work.
 - The chat is stopped and has no open question.
 
-It also marks a stopped chat as covered when [the line-up](#your-chats-in-line) told it another chat covers its work. It asks which ones to close. Each chat you pick gets [`/close`](../../.agents/plugins/loop/skills/close/SKILL.md): it saves what it learned, adds what lasts to the wiki, and closes its workspace. A chat you do not pick stays open. Nothing closes a chat by itself because its work went live: a live chat that is still open is usually one you kept open. It never marks a sub-agent or the main checkout. This needs Paseo, which lets a chat see other chats.
+It also marks a stopped chat as covered when [the line-up](#your-chats-in-line) told it another chat covers its work. A stopped chat whose last message asks you something in text gets one message to ask it again on a card, which waits in its chat, out of this question. It asks which ones to close. Daily never answers a close card for you, even when *Close it* is recommended. Each chat you pick gets [`/close`](../../.agents/plugins/loop/skills/close/SKILL.md), which keeps unfinished work and closes its workspace; the rest stay open. Nothing closes a chat by itself because its work went live: a live chat that is still open is usually one you kept open. It never marks a sub-agent or the main checkout. This needs Paseo, which lets a chat see other chats.
 
 ## Add-ons
 
@@ -76,7 +75,7 @@ An add-on is a Node script in your repo that the daily runs each morning or each
 
 ## The daily on a computer
 
-`daily.mjs serve` is the worker. It starts [your morning](#what-it-does). Every minute, and sooner when a chat stops, it runs the watch over your Paseo chats in this repo, your [add-ons](#add-ons) and [your own jobs](#your-own-jobs). Without Paseo it still runs your background schedules. At most 3 runs work at one time, and one per chat. A run stops after 30 minutes. It sends no chat a message: everything goes to [the journal](#the-journal). A problem that fails two times in a row opens one *Needs you* chat for each kind a day, by [the journal](#the-journal).
+`daily.mjs serve` is the worker. It starts [your morning](#what-it-does). Every minute, and sooner when a chat stops, it runs the watch over your Paseo chats in this repo, your [add-ons](#add-ons) and [your own jobs](#your-own-jobs). Without Paseo it still runs your background schedules. At most 3 runs work at one time, and one per chat. A run stops after 30 minutes. It sends no chat a message: everything goes to [the journal](#the-journal).
 
 Each chat start runs `D ensure`. It adds the [default schedules](../stack/host-schedules.md#default-schedules) you lack, once a day and after an update that changes them. It starts the worker in the background when it has a job: a default schedule it added, a background schedule run, [the line-up](#with-no-app) with no schedule store, an add-on, or your own jobs. It starts none when check-ins are off, when one already runs, or in a background run. One worker runs per person and checkout: a second `serve` sees the first one's lock and exits. The worker runs the main checkout's code and reads its settings there, from any chat in any copy of the repo. When that code changes, as after an update, the worker is stopped and started again, with one line in [the journal](#the-journal). A copy with its own edits to the daily scripts does not restart it.
 
@@ -127,6 +126,7 @@ Daily is one folder, [`.agents/plugins/daily/`](../../.agents/plugins/daily/READ
 | `person` | who is signed in, and the sign-in step | your git email |
 | `chatName` | a chat's step and task, for the line-up | the chat app's title, else the folder |
 | `offeredChoices` | a stop that ended in typed choices the repo sends back | every stop goes to the check-in |
+| `askedInText` | whether a chat's last words ask you something | no chat is asked again on a card |
 | `prepareRun` | setup for a background run's copy of the repo | nothing |
 | `checkout` | a check of a saved branch before a chat opens on it | a plain checkout |
 

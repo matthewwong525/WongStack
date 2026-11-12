@@ -3,12 +3,21 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## 57.0.1 — Each plugin's guide stands on its own
+## Next (patch) — Each plugin's guide stands on its own
 
 - **The build loop, memory, and Daily carry the rules they follow.** Before, their steps sent the assistant to WongStack's own guide pages, which a project with only the plugin does not have. Now the loop's shared rules are in [its own page](.agents/plugins/loop/references/rules.md), the plan's review page and prototype steps are in [the plan's](.agents/plugins/loop/skills/plan/references/review-page.md) [own pages](.agents/plugins/loop/skills/plan/references/prototypes.md), memory's [who sees what](.agents/plugins/memory/README.md#who-sees-what) and its [fact placing](.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) are in memory, and [your Daily settings](.agents/plugins/daily/README.md#your-settings), add-ons and own jobs are in Daily.
 - **WongStack's guide points down to the plugin.** Each moved heading stays, with a short line and a link, so older links still open.
 - **A WongStack-only page is linked by its full web address**, so it opens from any project. Links that only explained why are gone.
 - **A check keeps it so**: the plugin test fails on a link that leaves the plugin's own folder by a short path ([adding a module](wiki/maintaining/adding-a-module.md#what-it-may-reach)).
+
+**Updating.** Nothing to do by hand.
+
+## 57.1.0 — Every question for you comes on a card
+
+- **A chat that ends its turn on a typed question asks it again on a card, at once.** Before, only a typed list of choices came back as a card. Now any question for you does, such as *Close this chat?*: the chat gets one short message to ask it on a card, with a few short answers and its recommended one first. A question that needs no answer ends the turn with no new words. This works in Claude Code chats ([which tool carries it](.agents/plugins/loop/skills/explore/references/asking-the-user.md#which-tool-carries-it)).
+- **Daily catches the rest when you ask *what's going on?*** A chat that still waits on a typed question, such as a Codex chat, gets one message to ask it again on a card, with the new `D reask`. That chat then waits in its own chat, so Daily leaves it out of its *which to close?* question ([close finished chats](wiki/development/daily.md#close-finished-chats)).
+- **Daily never answers a close card.** Its check-ins and helpers leave *Close it* / *Keep it open* for you, even when *Close it* is recommended.
+- **A new profile part, `askedInText`**, tells Daily whether a chat's last words ask you something. Without it, Daily asks no chat again.
 
 **Updating.** Nothing to do by hand.
 

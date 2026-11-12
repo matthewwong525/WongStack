@@ -6,7 +6,7 @@ import { basename, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { EXIT, PaseoError } from '../../.agents/skills/daily/scripts/lib/paseo.mjs';
-import { RUN_ID, actions, agentEvents, allow, answer, chiefDay, chiefEnv, doneAgent, mark, messageMark, noteEnd, reply, commonDir, sameRepo,
+import { RUN_ID, actions, agentEvents, allow, answer, askText, chiefDay, chiefEnv, doneAgent, mark, messageMark, noteEnd, reask, reply, commonDir, sameRepo,
   status, streak, userAt, watch, watchFile, watchStops, watched, writeJson } from '../../.agents/skills/daily/scripts/chief.mjs';
 
 const ZONE = 'America/New_York';
@@ -650,6 +650,61 @@ test('status marks a stopped chat the line-up told another chat covers, by that 
     'agent-email': { title: 'Answer email', covered: 'agent-job' } } }));
   const read = await status({ ...t.at, day: '2026-10-21', env, finishedOf: async () => false });
   assert.deepEqual(read.agents.map(row => [row.agent, row.covered ?? null]), [['agent-job', 'Answer email'], ['agent-email', null]]);
+});
+
+test('status marks typedAsk with its mark only on a stopped chat with no card whose last turn ends on a question, and drops its finished', async () => {
+  const t = day();
+  t.hand('agent-team', DAY);
+  t.paseo.logs['agent-team'] = '[User] Plan it.\nThe plan is ready.\n\nClose this chat?';
+  t.paseo.list.find(each => each.id === 'agent-job').status = 'error';
+  t.paseo.logs['agent-job'] = '[User] Go.\nShould I post it now?';
+  t.paseo.logs['agent-email'] = '[User] Go.\nSend it?';
+  const asked = text => /\?\s*$/.test(text);
+  const read = await status({ ...t.at, day: DAY, env, finishedOf: async () => true, askedOf: asked });
+  const rows = Object.fromEntries(read.agents.map(row => [row.agent, row]));
+  assert.deepEqual([rows['agent-team'].typedAsk, rows['agent-team'].mark, rows['agent-team'].finished],
+    [true, messageMark('The plan is ready.\n\nClose this chat?'), undefined]);
+  assert.equal(rows['agent-job'].typedAsk, true, 'an errored stop counts');
+  assert.deepEqual([rows['agent-email'].typedAsk, rows['agent-email'].finished], [undefined, true], 'a working chat is never marked');
+  t.paseo.pending.push({ id: 'req-t', agentId: 'agent-team', name: 'AskUserQuestion', description: 'Close it / Keep it open' });
+  const carded = await status({ ...t.at, day: DAY, env, finishedOf: async () => false, askedOf: asked });
+  assert.equal(carded.agents.find(row => row.agent === 'agent-team').typedAsk, undefined, 'a chat with a card is not marked');
+  t.paseo.pending = [];
+  t.paseo.logs['agent-team'] = '[User] Plan it.\nThe plan is ready.';
+  const done = await status({ ...t.at, day: DAY, env, finishedOf: async () => true, askedOf: asked });
+  assert.deepEqual([done.agents.find(row => row.agent === 'agent-team').typedAsk, done.agents.find(row => row.agent === 'agent-team').finished], [undefined, true]);
+});
+
+test('reask sends the Claude and the Codex text at the stop\'s mark, as the person bucket, and refuses a moved stop', async () => {
+  const t = day();
+  t.hand('agent-team', DAY);
+  const said = 'The plan is ready.\n\nClose this chat?';
+  t.paseo.logs['agent-team'] = `[User] Plan it.\n${said}`;
+  const go = mark => reask({ ...t.at, day: DAY, agent: 'Team plan', mark, env });
+  const sent = await go(messageMark(said));
+  assert.deepEqual([sent.status, sent.bucket, sent.label, sent.kind], ['sent', 'person', 'Asked again on a card: Team plan', 'reask']);
+  assert.deepEqual(t.paseo.sent.at(-1), ['agent-team', `${askText('claude')}\n`]);
+  assert.match(t.paseo.sent.at(-1)[1], /AskUserQuestion/);
+  t.paseo.list.find(each => each.id === 'agent-team').provider = 'codex';
+  await go(messageMark(said));
+  assert.match(t.paseo.sent.at(-1)[1], /request_user_input/);
+  t.paseo.logs['agent-team'] += '\nOne more thing?';
+  const moved = await go(messageMark(said));
+  assert.deepEqual([moved.status, moved.reason], ['refused', 'moved']);
+  assert.equal(t.paseo.sent.length, 2);
+});
+
+test('answer refuses a close answer, Recommended or not, and still sends another answer', async () => {
+  const t = day();
+  t.hand('agent-team', DAY);
+  t.paseo.pending.push({ id: 'req-c', agentId: 'agent-team', name: 'AskUserQuestion', description: 'Close it (Recommended) / Keep it open' });
+  const go = text => answer({ ...t.at, day: DAY, agent: 'Team plan', request: 'req-c', text, bucket: 'pick', label: 'x', env });
+  for (const text of ['Close it (Recommended)', ' keep it open ', 'Close it']) {
+    const refused = await go(text);
+    assert.deepEqual([refused.status, refused.reason], ['refused', 'close'], text);
+  }
+  assert.ok(!t.paseo.calls.some(([name, sub]) => name === 'permit' && sub === 'deny'));
+  assert.equal((await go('Build it')).status, 'answered');
 });
 
 test('pass add-ons post lines, pass events through, skip chats, and a failed one is one not-read', async () => {

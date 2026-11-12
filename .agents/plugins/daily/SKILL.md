@@ -12,7 +12,7 @@ user-invocable: false
 
 ## On request
 
-- *What's going on?*: `D journal --new` gives what the background runs did since this chat last asked. In Paseo, `D status` adds one line per chat; ask which `finished` or `covered` chats to close, as a multiple choice with your question tool, else a numbered list, and send each pick `/close` by `D reply --bucket person --label "Closed: <title>"`.
+- *What's going on?*: `D journal --new` gives what the background runs did since this chat last asked. In Paseo, `D status` adds one line per chat. Send each `typedAsk` chat `D reask --agent <agent> --mark <mark>`; it then waits on its own card. Ask which other `finished` or `covered` chats to close, as a multiple choice with your question tool, else a numbered list, and send each pick `/close` by `D reply --bucket person --label "Closed: <title>"`.
 - *Stop check-ins* or *start check-ins*: `D checkins off` or `D checkins on`. *Stop keeping my chats in line*: `D lineup off`, or `on`.
 
 ## Changing settings
