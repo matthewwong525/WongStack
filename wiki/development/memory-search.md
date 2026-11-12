@@ -38,7 +38,7 @@ For a task that spans topics, give the task to a helper of your AI tool with [th
 
 ## How use is counted
 
-Each look-up a chat makes adds one line to a file on your computer, outside git and outside the shared store: a `pull`, `recall`, `search`, `brief`, `related`, or `source`, and each topic the prompt hook adds to a message. A line holds the time, the command, the topics and fact numbers that came back, and the workspace's folder name. It holds a question's words only when the question found nothing, cut to 200 characters. Lines older than 30 days are dropped.
+Each look-up a chat makes adds one line to a file on your computer, outside git and outside the shared store: a `pull`, `recall`, `search`, `brief`, `related`, or `source`, and each topic the prompt hook adds to a message. A line holds the time, the command, the topics and fact numbers that came back, and the workspace's folder name. It holds a question's words only when the question found nothing, cut to 200 characters. A question also found nothing when no one fact or passage that came back holds half of its main words: a search always returns something, and unrelated facts are not an answer. Lines older than 30 days are dropped.
 
 - **Only a chat's look-ups count.** A background run and [the memory tidy](wiki-dream.md) add no line: only a chat's use says what people need.
 - **A count never fails a read.** When the file can not be written, the look-up answers as before.

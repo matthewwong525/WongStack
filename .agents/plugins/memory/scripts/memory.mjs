@@ -14,7 +14,7 @@ import { hasTerms, readFacts } from './lib/read-facts.mjs';
 import { READ_OPTIONS } from './lib/read-options.mjs';
 import { BRIEF_DEFAULT_LIMIT, BRIEF_LIMIT, renderBrief, SCOPE_FILTERS } from './lib/brief.mjs';
 import { areasCommand, pull, relatedCommand, showCommand } from './lib/pull.mjs';
-import { recordUse, USAGE_DAYS, usageSummary } from './lib/usage.mjs';
+import { recordUse, USAGE_DAYS, usageSummary, weakAnswer } from './lib/usage.mjs';
 import { closingBody, tagSync, upkeepPlan } from './lib/upkeep.mjs';
 import { findCredential, redact, secretValues } from './lib/scan.mjs';
 import { detached, isMain, loadEnv, loadProfile, openStore, readJson, repoContext, RUN_TALLY, spoolList, spoolRemove, spoolWrite, statePath, StoreError, writeJson } from './lib/store.mjs';
@@ -269,9 +269,12 @@ async function retagCommand(ctx, { values, tally }) {
   console.log([`retagged: ${result.written}`, ...result.skipped.map(({ id, why }) => `skipped #${id}: ${why}`)].join('\n'));
 }
 
-// A search or a brief as a use count: the tag or change it named, the facts it gave, or a miss with its words.
-const readUse = (command, { values, positionals }, facts) => ({ command, node: values.tag || values.slug || null, topics: values.tag ? [values.tag] : [],
-  facts: facts.map(fact => fact.id), miss: !facts.length, words: positionals.join(' ') });
+// A search or a brief as a use count: the tag or change it named, and the facts it gave or a miss with its words.
+function readUse(command, { values, positionals }, facts) {
+  const words = positionals.join(' ');
+  const miss = weakAnswer(words, facts.map(fact => fact.body));
+  return { command, node: values.tag || values.slug || null, topics: values.tag ? [values.tag] : [], facts: miss ? [] : facts.map(fact => fact.id), miss, words };
+}
 
 async function search(ctx, args) {
   const result = await readFacts(ctx, args);

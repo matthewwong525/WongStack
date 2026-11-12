@@ -21,6 +21,26 @@ export function recordUse(ctx, { command, node = null, topics = [], facts = [], 
   } catch { /* a count is never worth a failed read */ }
 }
 
+// A main word has four letters or more and is none of these. Two words are one when their first five letters agree.
+const STOP = new Set('what which when where does have with from that this these those about into should would could there their they them then than were been will your'.split(' '));
+const MAIN_LETTERS = 4;
+const STEM_LETTERS = 5;
+const stemsOf = text => [...new Set((String(text).toLowerCase().match(/[\p{L}\p{N}]+/gu) || [])
+  .filter(word => word.length >= MAIN_LETTERS && !STOP.has(word)).map(word => word.slice(0, STEM_LETTERS)))];
+const sameWord = (a, b) => a.startsWith(b) || b.startsWith(a);
+
+/** True when `texts`, the facts and passages a look-up gave, do not answer the question `words`: none came back,
+ *  or no one text holds half of the question's main words. With under two main words, any text is an answer. */
+export function weakAnswer(words, texts) {
+  if (!texts.length) return true;
+  const main = stemsOf(words);
+  if (main.length < 2) return false;
+  return !texts.some(text => {
+    const stems = stemsOf(text);
+    return main.filter(word => stems.some(stem => sameWord(word, stem))).length * 2 >= main.length;
+  });
+}
+
 // The rows of the last 30 days; older ones are dropped from the file first. A line that is no JSON is dropped too.
 function keptRows(ctx, now) {
   let file, lines;

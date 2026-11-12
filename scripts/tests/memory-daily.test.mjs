@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { dailyBlocker, readDaily, startDaily, today } from '../../.agents/plugins/memory/scripts/lib/daily.mjs';
 import { dailyCounts } from '../../.agents/plugins/memory/scripts/memory.mjs';
 import { diffCounts, mapChanges, runNote } from '../../.agents/plugins/memory/scripts/run.mjs';
-import { memory, node, PROFILE, rows, setup, tempDir } from './fixtures/memory/harness.mjs';
+import { memory, node, PROFILE, rows, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const DAY = today();
 const TIDY = fileURLToPath(new URL('../../.agents/plugins/memory/scripts/daily-tidy.mjs', import.meta.url));
@@ -233,6 +233,21 @@ test('missed questions are asked again: six of which five now find a page read 6
   assert.deepEqual(records(env), [`Daily tidy ${DAY}: read facts up to #0. Sorted facts up to #0. Checked: wiki/answers.md. Linked: none. Map: missed questions 6 to 1.`]);
   assert.doesNotMatch(records(env)[0], /courier|zebra/, "a missed question's words stay on this computer");
   assert.equal(readFileSync(join(env.repo.stateDir, 'usage.jsonl'), 'utf8').trim().split('\n').length, 6, 'asking again counts no use');
+});
+
+test('a second ask that gets only unrelated facts and passages is still missed', async t => {
+  const page = '# Answers\n\nThe courier pickup is on Friday. The washing machine is in the yard.';
+  const { env, run } = await dailyRepo(t, { STUB_TIDY: 'answer', STUB_PAGE: page });
+  const stored = await memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, 'in.json', { source: 'save', slug: 'office',
+    facts: [{ action: 'add', type: 'project', body: 'The office opens at 9.', tags: ['memory'] }] })]);
+  assert.equal(stored.code, 0, stored.stderr);
+  const questions = ['courier pickup friday', 'espresso machine office'];
+  writeFileSync(join(env.repo.stateDir, 'usage.jsonl'), questions.map(words => `${JSON.stringify({ at: new Date().toISOString(), command: 'recall', node: null, topics: [], facts: [], workspace: 'w', miss: true, words })}\n`).join(''));
+  const asked = JSON.parse((await memory(env.repo, env.fake, ['recall', 'espresso machine office', '--mode', 'keyword', '--json'], { env: { WONG_MEMORY_RUN: '1' } })).stdout);
+  assert.deepEqual(asked.facts.map(fact => fact.body), ['The office opens at 9.'], 'the question does get a fact');
+  const result = await run();
+  assert.equal(result.code, 0, result.stderr);
+  assert.deepEqual(dailyRows(env).map(row => [row.status, row.reason.split('\n')[0]]), [['ok', 'questions with no answer 2 -> 1']]);
 });
 
 test('a failed publish sends no record, so the next tidy reads the same facts again', async t => {

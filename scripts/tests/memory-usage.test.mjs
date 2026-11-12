@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { recordUse, usageSummary } from '../../.agents/plugins/memory/scripts/lib/usage.mjs';
+import { recordUse, usageSummary, weakAnswer } from '../../.agents/plugins/memory/scripts/lib/usage.mjs';
 import { memory, node, rows, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const usesIn = dir => (existsSync(join(dir, 'usage.jsonl')) ? readFileSync(join(dir, 'usage.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line)) : []);
@@ -19,6 +19,19 @@ test('each look-up adds one row: a hit keeps no words, a miss keeps its words cu
   assert.deepEqual(rest, { command: 'pull', node: 'memory', topics: ['memory'], facts: [3, 4], workspace: 'sales-chat' });
   assert.deepEqual([miss.miss, miss.words.length, miss.words.startsWith('where is the rule xxx')], [true, 200, true]);
   assert.equal(many.facts.length, 20, 'a row holds 20 fact ids at most');
+});
+
+test('an answer is weak when nothing came back, or no one fact holds half of the question\'s main words', () => {
+  const question = 'which espresso machine does the office use';
+  const unrelated = ['The washing machine is in the yard.', 'The office opens at 9.', 'A sewing machine was sold.'];
+  assert.equal(weakAnswer(question, unrelated), true, 'each fact shares one of three main words, and no two add up');
+  assert.equal(weakAnswer(question, [...unrelated, 'The office bought a new machine.']), false, 'two of three');
+  assert.equal(weakAnswer('refund approval owner', ['The owner approved it.']), false, 'approval matches approved');
+  assert.equal(weakAnswer('plan links rule', ['Each plan prints its link.']), false, 'a plural matches its singular');
+  assert.equal(weakAnswer('what about espresso', ['The washing machine is in the yard.']), false, 'one main word: any answer is a hit');
+  assert.equal(weakAnswer('', ['Any fact.']), false, 'a look-up by filter alone asks no words');
+  assert.equal(weakAnswer(question, []), true);
+  assert.equal(weakAnswer('espresso', []), true);
 });
 
 test('a background run adds no row, and a state folder that can not be written fails no read', t => {
@@ -116,6 +129,14 @@ test('a pull, a recall, a name that is no node and the prompt hook each add a ro
   const json = JSON.parse((await run(['usage', '--days', '7', '--json'])).stdout);
   assert.deepEqual([json.version, json.days, json.lookups, json.topics[0]], [1, 7, 4, { topic: 'memory', uses: 1 }]);
   assert.equal(usesIn(env.repo.stateDir).length, 4, 'reading the counts adds none');
+
+  for (const command of ['recall', 'search', 'brief']) {
+    const weak = await run([command, 'pull zebra migration quota', ...(command === 'recall' ? ['--mode', 'keyword'] : [])]);
+    assert.equal(weak.code, 0, weak.stderr);
+    assert.match(weak.stdout, /A pull shows three items a group\./, `${command} still gives the fact that shares one word`);
+    const row = usesIn(env.repo.stateDir).at(-1);
+    assert.deepEqual([row.command, row.miss, row.words, row.facts, row.topics], [command, true, 'pull zebra migration quota', [], []], 'and counts no answer');
+  }
 
   const found = await run(['recall', 'pull shows three items', '--mode', 'keyword']);
   assert.equal(found.code, 0, found.stderr);

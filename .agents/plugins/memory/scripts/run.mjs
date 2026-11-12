@@ -11,6 +11,7 @@ import { mapText, recordBodies, SLUG, surveyMap, TAG } from './daily-tidy.mjs';
 import { today } from './lib/daily.mjs';
 import { headlessCommand } from './lib/headless.mjs';
 import { isMain, loadProfile, openStore, repoContext, RUN_TALLY, SCRIPT, statePath } from './lib/store.mjs';
+import { weakAnswer } from './lib/usage.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // Longer than a daily tidy's 60 minutes of work and its 60-minute publish, so no second run takes a live lock.
@@ -170,13 +171,13 @@ const CODEX_DENY = 'the deny list works only with Claude Code';
 // `keep`'s lines, one for each part the tidy finished; a line the kill cut short is dropped.
 const progressLines = file => (existsSync(file) ? readFileSync(file, 'utf8').split('\n') : []).flatMap(line => { try { return line ? [JSON.parse(line)] : []; } catch { return []; } });
 
-// True when a recall in `copy`, which holds the tidy's page edits, still finds no fact and no document.
+// True when a recall in `copy`, which holds the tidy's page edits, still gives no fact or passage that answers.
 function stillMissing(copy, question) {
   const result = spawnSync(process.execPath, [join(HERE, 'memory.mjs'), 'recall', question, '--json'],
     { cwd: copy, encoding: 'utf8', timeout: RECALL_MS, env: { ...process.env, WONG_MEMORY_RUN: '1' } });
   try {
     const packet = JSON.parse(result.stdout);
-    return packet.sources.facts.state !== 'ok' && !packet.documents.length && !packet.omitted.documents;
+    return weakAnswer(question, [...packet.facts.map(fact => fact.body), ...packet.documents.map(doc => doc.text)]);
   } catch { return true; }
 }
 

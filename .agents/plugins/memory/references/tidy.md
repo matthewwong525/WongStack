@@ -25,7 +25,7 @@ What each line of the map asks:
 
 - **new facts**: read every one. When `M search --since <date> --limit 200` gives 200 rows, search again with `--until` set to the oldest row's date. Place each by [placing a fact on a page](../../../../wiki/development/wiki-dream.md#placing-a-fact-on-a-page).
 - **trouble notes**: read them first. Each says where memory misled a chat. Supersede a note you fixed.
-- **missed questions**: change the topic, the tag, or the page's words, so the question finds its answer. Memory holds no answer: leave it.
+- **missed questions**: no one fact or passage it got holds half of its main words. Change the topic, the tag, or the page's words, so the question finds its answer. Memory holds no answer: leave it.
 - **no topic**: oldest first. `M retag` a fact to its topic, or leave it.
 - **tags with no page**: make the page and its hub line, merge the tag into a topic, or leave it.
 - **large topics**: split one into smaller topics, the part chats use first.

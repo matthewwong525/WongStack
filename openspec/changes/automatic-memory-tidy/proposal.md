@@ -22,7 +22,7 @@ Memory has two clean-ups. The daily tidy starts by itself, but it checks only a 
   | Notes that say memory misled a chat | read first |
   | How memory was used | new, see the next part |
 
-- **Memory counts how it is used, and the tidy reads the counts.** Each time a chat looks something up, plain code counts it on your computer: the topic it asked for, the facts that came back, and a question that found nothing. The tidy's map shows the counts, so the tidy works where it helps most. A count never removes a fact: a fact nobody used stays where a search finds it. Ask any chat *how is memory used?* to see them.
+- **Memory counts how it is used, and the tidy reads the counts.** Each time a chat looks something up, plain code counts it on your computer: the topic it asked for, the facts that came back, and a question that found nothing. A question also counts as finding nothing when no fact or page that came back holds most of its main words: a search always returns something, and unrelated facts are not an answer. The tidy's map shows the counts, so the tidy works where it helps most. A count never removes a fact: a fact nobody used stays where a search finds it. Ask any chat *how is memory used?* to see them.
   | The counts show | What the tidy does |
   |---|---|
   | A question that found nothing | Fixes the topic, the label, or the page's words, so the question finds its answer |
@@ -119,6 +119,10 @@ Memory has two clean-ups. The daily tidy starts by itself, but it checks only a 
 - **2026-11-12** — Assumed: the real tidy of task 6.1 runs before the change is published, from a throwaway clone of the saved branch with publishing off, because the tidy's copy of the main branch does not hold the new brief until this change is live; its page edits are read and then join this change.
 - **2026-11-12** — Assumed: task 6.1's *use memory for a day* is done as real look-ups made now with the new code, because the change is being published in this chat and the task needs real rows, not a day.
 - **2026-11-12** — Assumed: the `knowledge-center` spec gets a small delta, because its catch-up requirement named the removed command beside the daily tidy.
+- **2026-11-12** — Check: `scripts/tests/dream.test.mjs` is deleted because its script moved: `scripts/tests/memory-tidy.test.mjs` holds its tests for `since`, the pages list, the record, and gone files, and drops only the tests of code this change removes (`pages --daily`, the spec rows, the plan lines).
+- **2026-11-12** — Assumed: a question also counts as finding nothing when no fact or page that came back holds at least half of its main words, because a real look-up here for an espresso machine returned five unrelated facts, so a count of empty answers alone would stay at zero.
+- **2026-11-12** — Assumed: a look-up that counts as finding nothing keeps none of the facts or topics that came back, because unrelated facts would fill the map's *often returned* and *most used* lines.
+- **2026-11-12** — Assumed: a short word matches its longer form, so *rule* finds *rules*, because the search matches word forms and plurals of four-letter words are common here.
 
 ## Capabilities
 
