@@ -27,5 +27,6 @@ On staging and its previews, the preview checker counts as the owner: it opens A
 - **Only where `WONG_ENVIRONMENT` is `staging`.** That name is committed in `app/wrangler.jsonc`, never something a request sets. On the live app, and on a local run, a checker is refused: it keeps every app and manages nobody.
 - **Nothing real is in reach.** A preview holds no sign-in-list key, makes no Cloudflare call, and its people are made up.
 - **The checker no longer sees the view of someone who is not the owner** on a preview, an Admin's included; code tests cover those views, and a waiting sign-in.
+- **A walk can't show a refusal.** The checker and the owner both open every app on a preview, so only the code tests show a person without an app refused.
 
 Part of the [Cloudflare stack](README.md).

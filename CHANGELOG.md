@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 54.0.1 — Two notes on the company sign-in and preview walks
+
+- **The company sign-in link works for about two minutes.** Start it when the person can open it at once ([connect and call](wiki/stack/company-api.md#connect-and-call)).
+- **A preview walk can't show a refusal.** The checker and the owner open every app there, so the code tests show it ([the checker on a preview](wiki/stack/preview-access.md#the-checker-on-a-preview)).
+
+**Updating.** Nothing to do by hand.
+
 ## 54.0.0 — Access is a module any app can add
 
 - **Access is now one module, the same for any app.** It lives in [`.agents/plugins/access/`](.agents/plugins/access/README.md), and your project gets it at `.claude/skills/access/`. Your app gives it one object, its slots: who is signed in, where people are stored, and who the owner is. An app with no WongStack adds Access by one message pasted into a chat; [its setup guide](.agents/plugins/access/references/setup.md) connects the app's sign-in and database. The Access page, people, roles, apps and key levels stay the same ([employee access](wiki/stack/employee-access.md)).
