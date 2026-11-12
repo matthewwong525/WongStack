@@ -24,17 +24,6 @@ Update dependencies after answers or evidence. Explain changed premises; reopen 
 
 **The 80/20 test:** ask where a wrong guess makes the plan *wrong*, not merely *different*: scope, observable behavior, compatibility, acceptance criteria. Assume naming, placement, wording, and cheaply changed details, with reasons.
 
-## Search memory before asking
-
-Before asking, recall the task and pull its likely topic; read the originals cited:
-
-```bash
-node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" recall <question>
-node "$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/memory.mjs" pull <path-or-topic>
-```
-
-A task across topics: [the memory helper](../../../memory/references/recall-helper.md). Treat dated facts as assumptions. No `.claude/skills/memory/`, or [memory unavailable](../../../memory/SKILL.md#read)? Say so; continue with available sources.
-
 ## Check for other work
 
 For repo edits, check other work once:
@@ -69,6 +58,6 @@ Summarize outcome, approach, reasons over a serious alternative, minor assumptio
 Planning uses **bounded mode**, including via `/apply` or `/ship`:
 
 1. Reuse the conversation's intent, answers, and findings.
-2. Search memory and [other work](#check-for-other-work) unless checked; investigate only new material gaps.
+2. Check [other work](#check-for-other-work) unless checked; investigate only new material gaps.
 3. Run [the exit round](#the-exit-round) for open choices; await dependent answers, retaining authorized/unattended defaults.
 4. Return the summary to `/plan`.

@@ -54,12 +54,17 @@ When a task done by hand will clearly come back (the person says it recurs, or m
 
 ### Requirement: An invoked verb serves work that changes no repo file
 
-When the person invokes `/explore`, `/plan`, `/apply`, `/save`, or `/continue` for work that changes no repo file, the verb SHALL run in its non-code form and SHALL NOT create an OpenSpec change, branch, commit, or review page. The work, not a setting, SHALL decide the form.
+When the person invokes `/explore`, `/plan`, or `/apply` for work that changes no repo file, the verb SHALL run in its non-code form and SHALL NOT create an OpenSpec change, branch, commit, or review page. The work, not a setting, SHALL decide the form. `/ship` SHALL act only on repo changes.
 
 #### Scenario: Plan an errand
 
 - **WHEN** the person invokes `/plan` to compare suppliers and email the chosen one
 - **THEN** the agent writes a numbered to-do in the conversation that marks the sending step as outward
+
+#### Scenario: Ship an errand
+
+- **WHEN** the person invokes `/ship` after an errand
+- **THEN** `/ship` says the work finishes in `/apply` and makes no git change
 
 ### Requirement: Each outward action is confirmed
 
@@ -70,20 +75,6 @@ For work that changes no repo file, `/apply` SHALL show exactly what each outwar
 - **WHEN** `/apply` reaches a step that sends an email
 - **THEN** it shows the recipient and full text and asks before it sends
 - **AND** a declined step is skipped and reported
-
-### Requirement: Non-code progress is kept as a thread
-
-For work that changes no repo file, what is done, what is next, and any blocker SHALL be kept as a memory thread with no git change, recorded by the memory plugin's capture of the chat, not by `/save`. `/continue` SHALL offer open threads beside active changes and resume the chosen one. `/ship` SHALL act only on repo changes.
-
-#### Scenario: Stop halfway and resume
-
-- **WHEN** the person stops a chat after two of four steps of an errand, then runs `/continue` in a new session
-- **THEN** no git change is made, and the agent recaps the thread and continues from the third step
-
-#### Scenario: Ship an errand
-
-- **WHEN** the person invokes `/ship` after an errand
-- **THEN** `/ship` says the work finishes in `/apply` and makes no git change
 
 ### Requirement: Planning prefers code for repeated processes
 
@@ -129,22 +120,22 @@ When an agent meets a problem while building, saving or checking a change, it SH
 
 ### Requirement: Picking up work new to this computer is reviewed first
 
-Before `/continue` switches the working tree to a saved branch, it SHALL list the branch's commits that no local branch and not the published default branch already hold. When there are any, it SHALL switch nothing and run nothing from the branch. Instead it SHALL show the files those commits change, code before plans and wiki pages, and ask the person. A commit's author SHALL NOT count as evidence that the work is the person's own. On a yes, it SHALL switch only to the exact commit shown, and SHALL show the new part and ask again when the branch moved since. After a switch that needed a review, it SHALL recap and ask before building, and SHALL NOT start `/apply` or the local checks in the same turn, even when the `/continue` call carried an instruction.
+Before `/apply` switches the working tree to a saved branch, it SHALL list the branch's commits that no local branch and not the published default branch already hold. When there are any, it SHALL switch nothing and run nothing from the branch. Instead it SHALL show the files those commits change, code before plans and wiki pages, and ask the person. A commit's author SHALL NOT count as evidence that the work is the person's own. On a yes, it SHALL switch only to the exact commit shown, and SHALL show the new part and ask again when the branch moved since. After a switch that needed a review, it SHALL recap and ask before building, and SHALL NOT build or run the local checks in the same turn, even when the `/apply` call carried an instruction.
 
 #### Scenario: A teammate's branch edits a library every hook imports
 
-- **WHEN** the owner runs `/continue` on a teammate's saved branch whose only change appends code to `.agents/skills/memory/scripts/lib/cli.mjs`
+- **WHEN** the owner runs `/apply` on a teammate's saved change whose only change appends code to `.agents/skills/memory/scripts/lib/cli.mjs`
 - **THEN** the working tree stays on its current branch, the reply lists that file as code and asks whether to switch, and running every hook command from `.agents/settings.json` and `.agents/hooks.json` leaves no trace of the branch's code
 
 #### Scenario: The owner's own branch picks up as before
 
-- **WHEN** `/continue` names a branch whose commits all sit on a local branch or the published default branch
-- **THEN** it switches with no ask and goes on to `/apply` as today
+- **WHEN** `/apply` names a change whose branch's commits all sit on a local branch or the published default branch
+- **THEN** it switches with no ask and goes on to build
 
 #### Scenario: A faked author email is still asked about
 
 - **WHEN** a branch new to this computer carries commits whose author email is the owner's
-- **THEN** `/continue` still lists its files and asks before switching
+- **THEN** `/apply` still lists its files and asks before switching
 
 #### Scenario: The branch moves after the review
 
@@ -154,16 +145,16 @@ Before `/continue` switches the working tree to a saved branch, it SHALL list th
 #### Scenario: A reviewed switch stops before building
 
 - **WHEN** the person says yes and the switch lands on the reviewed commit
-- **THEN** the reply recaps the change and asks whether to build it, and no install, test, or `/apply` has run
+- **THEN** the reply recaps the change and asks whether to build it, and no install, test, or build has run
 
 #### Scenario: A teammate's branch named like the main one is still asked about
 
 - **WHEN** the remote publishes `master` and a teammate saves a branch named `main`
-- **THEN** `/continue` on `main`, or on a branch built on it, lists `main`'s commits and files and asks before switching
+- **THEN** `/apply` on a change saved on `main`, or on a branch built on it, lists `main`'s commits and files and asks before switching
 
 #### Scenario: The yes says what switching runs
 
-- **WHEN** `/continue` asks whether to switch to work new to this computer
+- **WHEN** `/apply` asks whether to switch to work new to this computer
 - **THEN** the switch option says the change's code then runs on this computer, with the person's keys
 
 ### Requirement: Each step limits what it may change
@@ -253,7 +244,7 @@ Every chat that runs the change loop SHALL start its name with the step that run
 
 ### Requirement: A chat's name changes only when a step starts or a command is typed
 
-A chat SHALL NOT get a step word in its name until a step starts its work or the person types a skill command. A chat whose messages start no step and type no command, such as a question or an errand, SHALL keep the name it has. A typed `/explore`, `/plan`, or `/improve-code` SHALL show its step at once; a typed `/apply`, `/continue`, or `/ship` SHALL wait for the step that starts. Any other typed command of a repo skill SHALL show the skill's name in capitals at once. A command that a step runs for the person SHALL NOT change the name. A name the host gave the chat before its first step name, copied from a message or not, SHALL give way to the task words a step gives. A name the person gives the chat after it has a step name SHALL keep its words, where the host lets the chat read its name; only the step word changes.
+A chat SHALL NOT get a step word in its name until a step starts its work or the person types a skill command. A chat whose messages start no step and type no command, such as a question or an errand, SHALL keep the name it has. A typed `/explore`, `/plan`, or `/improve-code` SHALL show its step at once; a typed `/apply` or `/ship` SHALL wait for the step that starts. Any other typed command of a repo skill SHALL show the skill's name in capitals at once. A command that a step runs for the person SHALL NOT change the name. A name the host gave the chat before its first step name, copied from a message or not, SHALL give way to the task words a step gives. A name the person gives the chat after it has a step name SHALL keep its words, where the host lets the chat read its name; only the step word changes.
 
 #### Scenario: A question starts no step
 

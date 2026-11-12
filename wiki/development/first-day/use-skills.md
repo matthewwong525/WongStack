@@ -37,7 +37,7 @@ You type it. The assistant shows you which skill ran.
 
 Keep each task in its own chat, so the assistant keeps its mind on that one task ([one task, one workspace](../the-change-loop.md#one-task-one-workspace)).
 
-- **With Paseo:** each task gets its own workspace, on *New worktree* from *main*. When a task is done, type `/close`: it saves what the chat learned and closes the workspace.
+- **With Paseo:** each task gets its own workspace, on *New worktree* from *main*. When a task is done, type `/close`: it saves unfinished work and closes the workspace.
 - **With another assistant:** open a new chat in the project's folder for each task. Type `/close` when a task is done, then close the chat.
 
 Each plan that waits on your review shows as one row in the Inbox of [your company app](../../stack/company-api.md), under *Needs you* ([your chat list](../daily.md#your-chat-list)).

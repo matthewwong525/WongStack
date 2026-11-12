@@ -211,7 +211,7 @@ test('an open pull request: one command returns the gate result, the preview, an
   assert.match(calls, /gh api -X PATCH repos\/\{owner\}\/\{repo\}\/pulls\/7 -F body=@/);
   assert.doesNotMatch(calls, /gh pr create|--no-verify|--force/);
   // The body mirrors the change, and gains the preview once it is found.
-  assert.match(f.body(), /## Summary[\s\S]*What changed, in plain words\.[\s\S]*## Tasks[\s\S]*## Preview[\s\S]*work\.example\.workers\.dev[\s\S]*\/continue demo/);
+  assert.match(f.body(), /## Summary[\s\S]*What changed, in plain words\.[\s\S]*## Tasks[\s\S]*## Preview[\s\S]*work\.example\.workers\.dev[\s\S]*\/apply demo/);
   assert.equal(existsSync(f.message) || existsSync(f.summary), false, 'the temporary files are deleted');
 });
 
