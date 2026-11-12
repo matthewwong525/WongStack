@@ -1,6 +1,6 @@
 # Each plugin's guide stands on its own, with no broken links
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** paltry-hound
 **Open questions:** none
 
@@ -77,3 +77,4 @@ None.
 - **2026-11-12** — Assumed: the chat-name paragraph and the scratch-file tidy stay on the change-loop wiki page, because both run through WongStack's own profile and scripts.
 - **2026-11-12** — Assumed: links between modules (loop to memory, the browser, and Daily; Daily and memory to loop) take a web address, by the design's fallback, until the "Same shape for browser and daily" part reshapes them.
 - **2026-11-12** — Assumed: task 7.3's full local check runs in /ship's prepare after `main` comes in, because before the merge it failed only on browser's version (raised on `main` by #579 and #580, a folder this change does not touch), and another chat held the check lock.
+- **2026-11-12** — Archive checkpoint: built, reviewed (four fixes, reread clean), archived, numbered 55.3.2 after `main` came in; all local checks pass.
