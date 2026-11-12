@@ -1,6 +1,6 @@
 # The password manager's page fits a phone in a live view
 
-**Status:** planned
+**Status:** ready-to-ship
 **Branch:** bad-octopus
 **Open questions:** none
 
@@ -60,3 +60,4 @@ On a phone, the live view of the password manager's own page (1Password) shows o
 - **2026-11-12** — Assumed: while the last answer came from the password manager's page, the view's fit sends only the fit's size and reads no bar, because a reading there widened the page to the screen's width each minute, then the fit narrowed it again, and left two unanswered calls each time.
 - **2026-11-12** — Assumed: the view reads the bar at the first fit whose answer comes from a site, then sizes the page again, so the site still fits under the bar.
 - **2026-11-12** — Assumed: the unit test and the by-hand check each catch a widening at the keep-alive; both failed on the old fit before the change and pass now.
+- **2026-11-12** — Assumed: archived and saved for release as 55.2.1, after bringing in main's one-live-view-with-tabs change (55.2.0); the browser module goes to 1.1.1 on top of main's 1.1.0.
