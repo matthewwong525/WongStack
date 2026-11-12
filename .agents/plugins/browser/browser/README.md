@@ -39,12 +39,13 @@ It keeps your own edits to the three folders. When one of your edits and a new c
 
 ## Slots
 
-A slot is one named part of the profile, a default export: `export default { look, keyFiles, … }`. An empty slot turns off only its own extra. [WongStack's profile](https://github.com/matthewwong525/WongStack/blob/main/.agents/browser/profile.mjs) fills all five.
+A slot is one named part of the profile, a default export: `export default { look, keyFiles, … }`. An empty slot turns off only its own extra. [WongStack's profile](https://github.com/matthewwong525/WongStack/blob/main/.agents/browser/profile.mjs) fills all six.
 
 | Slot | What it gives | When empty |
 | --- | --- | --- |
 | `look()` | `{ css, themeJs }`: the repo's look for every private page | A plain light look |
 | `wakeChat(state, message)` | Tells the chat that opened a link that the person finished | The chat sees the result at its next look |
+| `chatTarget()` | Names the chat that opens a turn, so a live view shared by several chats wakes the right one | Only the chat that opened the view is woken |
 | `inbox` | `{ companyFor, listLink, closeItem, inTime }`: lists each open link in the repo's inbox | No inbox item |
 | `keyFiles(ctx)` | `[{ file, names?, app?, copy? }]`: which file takes each key, and the hint shown for it | Every key goes to the top `.env` |
 | `sendKey(name, value)` | Sends a key that `connect-browser.mjs take-key` read to the repo's app: `null`, `{ said }`, or `{ code, why }` | The key stays in this computer's `.env` |

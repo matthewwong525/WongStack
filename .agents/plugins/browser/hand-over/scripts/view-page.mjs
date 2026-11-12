@@ -23,13 +23,22 @@ export const WATCH = {
   turn: { button: 'Hand back', main: false, hands: true },
 };
 const WATCH_ENDINGS = { done: 'All done. Go back to the chat.', stopped: 'Stopped. Go back to the chat.' };
-const WATCH_POLL_MS = 1000;
+/** How often a page asks the link for who holds a watch's browser, or for a turn view's tabs. */
+const POLL_MS = 1000;
 
 /** What a watch link shows for the link's `{control, line}`: the agent's line, or the turn's note, as the link gives
  * it; the person's own hold keeps its own line. */
 export function watchShows({ control, line } = {}) {
   const shows = WATCH[control] ?? WATCH.assistant;
   return { ...shows, text: shows.line ?? line ?? '' };
+}
+
+/** What a turn view shows for the link's `{tabs, shown, note}`: the row, one tab per chat that is shown or new, none
+ * with one tab; the shown turn's line, and its id, which a chat's next turn does not share. */
+export function tabsShow({ tabs = [], shown = null, note = null } = {}) {
+  const row = tabs.length > 1 ? tabs.map(tab => ({ chat: tab.chat, shown: tab.chat === shown, fresh: Boolean(tab.fresh) && tab.chat !== shown })) : [];
+  const turn = tabs.find(tab => tab.chat === shown);
+  return { row, line: turn?.note ?? note ?? '', id: turn?.id ?? shown ?? '' };
 }
 
 /** A watch link's closing line for a `receipt`. */
@@ -66,6 +75,11 @@ function start(RFB = globalThis.RFB) {
   // A watch link: who holds the browser, and whether the person's taps and typing reach it.
   let watch = null;
   let mayType = true;
+  // A turn view: the chat whose tab shows, its turn's id, the turn whose Hand back was pressed, and the limit's timer.
+  let shownChat = null;
+  let shownId = null;
+  let handed = null;
+  let closer = null;
 
   const call = (path, body) => fetch(path, {
     method: body ? 'POST' : 'GET',
@@ -185,7 +199,46 @@ function start(RFB = globalThis.RFB) {
   const follow = async () => {
     const response = await call('watch');
     if (response?.ok) render(await response.json().catch(() => null));
-    if (!over) setTimeout(follow, WATCH_POLL_MS);
+    if (!over) setTimeout(follow, POLL_MS);
+  };
+
+  /** Ends the page at the link's limit. A browser keeps a timer's wait in 32 bits, so a limit long past could wrap
+   * to weeks: a past limit waits 0. */
+  const closeAt = (closesAt, now) => {
+    clearTimeout(closer);
+    if (closesAt) closer = setTimeout(() => end(ENDINGS.closed), Math.max(0, closesAt - (now ?? Date.now())));
+  };
+  /** Shows a turn view's tabs and the shown chat's line, from the link's `view`. */
+  const renderTabs = view => {
+    if (over || !view) return;
+    const { row, line, id } = tabsShow(view);
+    // The box mirrors what was typed on the page shown before.
+    if ((view.shown ?? null) !== shownChat) empty();
+    shownChat = view.shown ?? null;
+    shownId = id;
+    $('#line-text').textContent = line;
+    if (line) document.title = line;
+    $('#tabs').hidden = !row.length;
+    $('#tabs').replaceChildren(...row.map(tab => {
+      const button = Object.assign(document.createElement('button'), { type: 'button', textContent: tab.chat, className: tab.shown ? 'shown' : tab.fresh ? 'fresh' : '' });
+      if (tab.shown) button.setAttribute('aria-current', 'page');
+      if (tab.fresh) button.setAttribute('aria-label', `${tab.chat}, new`);
+      button.addEventListener('click', () => showTab(tab.chat));
+      return button;
+    }));
+    $('#hand').disabled = handed !== null && handed === shownId;
+    closeAt(view.closesAt, view.now);
+    layout();
+  };
+  /** Asks the link to show `chat`'s tab. */
+  async function showTab(chat) {
+    const response = await call('show', { chat });
+    if (response?.ok) renderTabs(await response.json().catch(() => null));
+  }
+  const followTabs = async () => {
+    const response = await call('view');
+    if (response?.ok) renderTabs(await response.json().catch(() => null));
+    if (!over) setTimeout(followTabs, POLL_MS);
   };
   // A phone's keyboard covers the page's foot without resizing it: follow what is still in sight.
   globalThis.visualViewport?.addEventListener('resize', () => {
@@ -200,12 +253,13 @@ function start(RFB = globalThis.RFB) {
     else report();
   });
 
-  // Hand back ends a view's turn: the link closes, and the screen's drop shows how it ended. On a watch link the
-  // button takes the browser or hands it back, and the link stays open.
+  // Hand back ends the shown chat's turn: the next tab shows, or after the last the link closes, and the screen's drop
+  // shows how it ended. On a watch link the button takes the browser or hands it back, and the link stays open.
   $('#hand').addEventListener('click', async () => {
     if (!watch) {
+      handed = shownId;
       $('#hand').disabled = true;
-      return call('give', {});
+      return call('give', { chat: shownChat ?? undefined });
     }
     const response = await call(watch === 'assistant' ? 'take' : 'give', {});
     if (response?.ok) render(await response.json().catch(() => null));
@@ -216,16 +270,18 @@ function start(RFB = globalThis.RFB) {
     if (!RFB) return end(ENDINGS.unloaded);
     const response = await call('view');
     if (!response?.ok) return end(ENDINGS.closed);
-    const { note, closesAt, now, ...view } = await response.json();
-    if (note) document.title = note;
+    const view = await response.json();
     fit = view.fit;
-    // A browser keeps a timer's wait in 32 bits, so a limit long past could wrap to weeks: a past limit waits 0.
-    if (closesAt) setTimeout(() => end(ENDINGS.closed), Math.max(0, closesAt - (now ?? Date.now())));
     if (view.watch) {
+      if (view.note) document.title = view.note;
+      closeAt(view.closesAt, view.now);
       watch = 'assistant';
       mayType = false;
       await follow();
-    } else $('#line-text').textContent = note ?? '';
+    } else {
+      renderTabs(view);
+      setTimeout(followTabs, POLL_MS);
+    }
     await report();
     if (!over) connect();
   })();

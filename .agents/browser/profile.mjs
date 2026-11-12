@@ -15,9 +15,12 @@ async function look() {
   return { css: lookCss(), themeJs: readFileSync(new URL('../plugins/loop/skills/plan/references/theme.js', import.meta.url), 'utf8') };
 }
 
-/** Wakes the chat that opened the link: the link's watcher runs in that chat's environment, so it names the chat. */
+const WAKE = '../skills/reply-link/scripts/lib/wake.mjs';
+
+/** Wakes the chat that opened the link: the link's watcher runs in that chat's environment, so it names the chat,
+ * unless `state` names its own, as a later chat's turn in the one live view does. */
 async function wakeChat(state, message) {
-  const wake = await import('../skills/reply-link/scripts/lib/wake.mjs');
+  const wake = await import(WAKE);
   return wake.wakeChat({ ...wake.chatTarget(), ...state }, message);
 }
 
@@ -40,6 +43,8 @@ async function keyFiles(ctx) {
 export default {
   look,
   wakeChat,
+  // The chat a turn opens from, kept with the turn, so the one live view wakes that chat and no other.
+  chatTarget: lazy(WAKE, 'chatTarget'),
   // The app's inbox lists each private link while it is open.
   inbox: { companyFor: lazy(INBOX, 'companyFor'), listLink: lazy(INBOX, 'listLink'), closeItem: lazy(INBOX, 'closeItem'), inTime: lazy(INBOX, 'inTime') },
   keyFiles,
