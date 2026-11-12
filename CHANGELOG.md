@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 57.2.0 — A waiting chat goes on with your command
+
+- **A chat that waited in the middle of a command you typed goes on with it.** You type `/ship`, and the chat stops to wait for another chat's work, a merge, or your answer elsewhere. When that wait ends, Daily's note tells the chat to go on with your `/ship` from where it stopped. Before, the note gave only the news, and the chat waited for you to say *go on* ([your chats in line](wiki/development/chats-in-line.md)).
+- **Your typed command is your yes for its own steps only.** The chat starts no new risky step of its own, such as a merge you never asked for: that still waits for you.
+- **A wait outside a command you typed gets the news only**, as before.
+
 ## 57.1.2 — Each plugin's guide stands on its own
 
 - **The build loop, memory, and Daily carry the rules they follow.** Before, their steps sent the assistant to WongStack's own guide pages, which a project with only the plugin does not have. Now the loop's shared rules are in [its own page](.agents/plugins/loop/references/rules.md), the plan's review page and prototype steps are in [the plan's](.agents/plugins/loop/skills/plan/references/review-page.md) [own pages](.agents/plugins/loop/skills/plan/references/prototypes.md), memory's [who sees what](.agents/plugins/memory/README.md#who-sees-what) and its [fact placing](.agents/plugins/memory/skills/dream-memory/references/placing-facts.md) are in memory, and [your Daily settings](.agents/plugins/daily/README.md#your-settings), add-ons and own jobs are in Daily.
