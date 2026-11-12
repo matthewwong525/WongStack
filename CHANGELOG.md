@@ -3,6 +3,12 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 57.1.1 — A retired server part opens no Needs-you chat
+
+- **When the server has retired a part your computer still uses, the daily no longer opens a *Needs you* chat.** It writes one line a day in its journal: your computer runs older code and updates itself. Before, two of these answers in a row opened a chat with steps that did not fit, such as *sign in*. A real fault still opens its chat as before.
+
+**Updating.** Nothing to do by hand.
+
 ## 57.1.0 — Every question for you comes on a card
 
 - **A chat that ends its turn on a typed question asks it again on a card, at once.** Before, only a typed list of choices came back as a card. Now any question for you does, such as *Close this chat?*: the chat gets one short message to ask it on a card, with a few short answers and its recommended one first. A question that needs no answer ends the turn with no new words. This works in Claude Code chats ([which tool carries it](.agents/plugins/loop/skills/explore/references/asking-the-user.md#which-tool-carries-it)).
