@@ -1,6 +1,6 @@
 # Memory cleans itself each day, with no command to type
 
-**Status:** in-progress
+**Status:** done
 **Branch:** remove-dream-memory-tidy-up
 **Open questions:** none
 

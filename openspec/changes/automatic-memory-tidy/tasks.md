@@ -42,4 +42,4 @@
 
 - [x] 6.1 Use memory here for a day so the counts hold real rows, run `daily-tidy.mjs survey`, and write its numbers in `design.md`; then run one full tidy for real with `memory.mjs daily now`; verify the `Last tidy` line shows its counts and the map numbers that changed, at least one map number is lower and none is higher, no shipped page, spec, or plan is in the published change, no new list thread exists, and write the run's time and the chosen limit in `design.md`
 - [x] 6.2 Read that tidy's work as a person would: `pull` three topics it changed, ask `recall` three questions about facts it placed, and ask again one question that found nothing before the tidy; verify each answer names the page or the fact, and write any miss, with its fix to the brief, in `design.md`
-- [ ] 6.3 Run `node .github/scripts/checks.mjs --worktree`; verify every check passes
+- [x] 6.3 Run `node .github/scripts/checks.mjs --worktree`; verify every check passes
