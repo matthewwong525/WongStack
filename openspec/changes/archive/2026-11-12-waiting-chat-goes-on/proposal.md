@@ -54,3 +54,4 @@ None.
 - **2026-11-12** — Assumed: `command` is `{at, text}`, like `choices`, because the note must give the time the person typed it (review finding).
 - **2026-11-12** — Archived and saved for release 56.1.0 on branch `snobbish-blobfish`.
 - **2026-11-12** — Merged main 57.0.0, which moved Daily into one folder; the brief moved with it, and this release takes the next number.
+- **2026-11-12** — Saved again for release 57.2.0 after main moved on.
