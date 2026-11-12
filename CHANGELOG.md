@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Another chat's click goes on behind your turn
+
+- **A chat's click no longer stops during your turn.** While you use the browser in one chat's tab, another chat clicks a button, a link, or a tick box in its own tab by its key, as you would press Tab and Enter. The page acts as on a mouse click, and your tab stays in front. Before, the click waited 20 seconds, then gave up with *the person is using the browser* ([your turn keeps its tab in front](wiki/development/browser-window.md#a-tab-for-each-chat)).
+- **A part of a page that reacts only to a mouse waits for your turn to end.** The chat hears at once that its click waits. The click then runs by itself when you hand back or say *done*, and the chat hears that it ran. Until then, that chat takes no other step on its page, so nothing happens out of order.
+- **With no turn open, a click works as before.**
+
+**Updating.** Nothing to do by hand. A browser that is running keeps the old behavior until it next starts.
+
 ## 53.0.0 — Memory links its topics and tidies itself each day
 
 - **One daily tidy, started by your first chat of the day.** It runs in the background, and the chat never waits. It saves what your chats learned, merges facts that say the same thing, puts lasting facts on their topic's page, links topics that connect, and checks three old pages and one spec. It uses your own AI plan. Its own work stops after 30 minutes, and the wait for the project's checks can add up to an hour. With two computers, only one tidies each day ([the daily tidy](wiki/development/wiki-dream.md#the-daily-tidy)).
