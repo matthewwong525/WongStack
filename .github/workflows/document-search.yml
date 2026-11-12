@@ -1,0 +1,36 @@
+name: Document search on Windows
+
+# Windows paths differ and no other check runs there: this proves search works with only Node.
+on:
+  push:
+    branches: ['**']
+    paths:
+      - '.agents/plugins/memory/**'
+      - 'scripts/tests/document-portable.test.mjs'
+      - '.github/workflows/document-search.yml'
+  pull_request:
+    paths:
+      - '.agents/plugins/memory/**'
+      - 'scripts/tests/document-portable.test.mjs'
+      - '.github/workflows/document-search.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: document-search-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.ref_name != github.event.repository.default_branch }}
+
+jobs:
+  portable:
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository }}
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      - name: Search a new checkout with only Node
+        run: node --test scripts/tests/document-portable.test.mjs

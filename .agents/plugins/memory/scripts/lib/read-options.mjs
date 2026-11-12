@@ -7,9 +7,9 @@ export const READ_INPUTS = {
     state: { type: 'string', enum: ['active', 'shipped', 'conversation'] }, all: { type: 'boolean' }, limit: { type: 'integer', minimum: 1, maximum: 100 } },
   show: { slug: label, all: { type: 'boolean' } },
   documents: { question: { ...text, minLength: 1 }, scope: { type: 'string', enum: ['current', 'history', 'active', 'all'] },
-    mode: { type: 'string', enum: ['auto', 'keyword', 'semantic', 'deep'] }, change: label, limit: { type: 'integer', minimum: 1, maximum: 5 } },
+    mode: { type: 'string', enum: ['auto', 'keyword'] }, change: label, limit: { type: 'integer', minimum: 1, maximum: 5 } },
   recall: { question: { ...text, minLength: 1 }, scope: { type: 'string', enum: ['current', 'history', 'active', 'all'] },
-    mode: { type: 'string', enum: ['auto', 'keyword', 'semantic', 'deep'] }, change: label, limit: { type: 'integer', minimum: 1, maximum: 5 },
+    mode: { type: 'string', enum: ['auto', 'keyword'] }, change: label, limit: { type: 'integer', minimum: 1, maximum: 5 },
     tag: label, type: { type: 'string', enum: ['user', 'feedback', 'project', 'reference', 'thread'] }, slug: label, since: label, until: label },
 };
 export const READ_OPTIONS = Object.fromEntries(Object.entries(READ_INPUTS.search).filter(([name]) => name !== 'terms').map(([name, schema]) =>

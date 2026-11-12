@@ -56,8 +56,10 @@ const CAPTURE_KEYS = ['captured', 'skipped', 'unrecognized', 'added', 'supersede
 const CONSOLIDATION_KEYS = { merged: 'merged', superseded: 'consolidationSuperseded' };
 
 function runTally(ctx) {
+  // Outside a run, the state folder is not touched: a document search writes nothing outside the checkout.
+  if (process.env.WONG_MEMORY_RUN !== '1') return null;
   const file = join(ctx.stateDir, RUN_TALLY);
-  return process.env.WONG_MEMORY_RUN === '1' && existsSync(file) ? file : null;
+  return existsSync(file) ? file : null;
 }
 
 function addToTally(file, counts) {
@@ -672,15 +674,12 @@ async function profileCommand(command) {
 
 const OPTIONS = { ...READ_OPTIONS, ...Object.fromEntries([
   ...['scope', 'mode', 'file', 'spooled', 'days', 'part', 'tag', 'type', 'slug', 'since', 'until', 'author', 'branch', 'change', 'state', 'limit', 'exclude', 'kind', 'status', 'counts', 'reason', 'definition', 'alias-of', 'role', 'key-file', 'label', 'day', 'pages', 'links', 'agent', 'more'].map(name => [name, { type: 'string' }]),
-  ...['deep', 'cpu', 'all', 'json', 'help', 'everyone', 'background', 'no-alias', 'parts'].map(name => [name, { type: 'boolean' }]),
+  ...['all', 'json', 'help', 'everyone', 'background', 'no-alias', 'parts'].map(name => [name, { type: 'boolean' }]),
 ]) };
 
 const USAGE = `usage: memory.mjs <command>
-  recall <question> [--scope current|history|active|all] [--mode auto|keyword|semantic|deep] [--change slug] [--limit 1..5] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--json]
-  documents <question> [--scope ...] [--mode ...] [--change slug] [--limit 1..5] [--json]   original wiki/OpenSpec evidence; no sign-in needed
-  documents-setup [--deep] [--cpu]   explicit pinned QMD/model preparation; ordinary reads never install
-  documents-refresh               reconcile this checkout's derived index
-  documents-status                runtime, model and index readiness
+  recall <question> [--scope current|history|active|all] [--change slug] [--limit 1..5] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--json]
+  documents <question> [--scope ...] [--change slug] [--limit 1..5] [--json]   original wiki/OpenSpec evidence by its words; no sign-in or setup needed
   search [terms] [--tag t] [--type t] [--slug s] [--since d] [--until d] [--author a] [--branch b] [--change slug] [--state active|shipped|conversation] [--all] [--everyone] [--limit n] [--json]
                                (--change: facts from sessions that wrote a fact on the change; with --branch, either)
                                (in a team, user and feedback facts are only yours; the admin's --everyone shows everyone's)

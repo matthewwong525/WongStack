@@ -10,7 +10,7 @@ import { SettingsError, defaultSettings, loadSettings, morningOf, placePath, set
   from '../../.agents/skills/daily/scripts/config.mjs';
 import { beat } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { REMIND, checkinsOff, commandSettings, commands, defaultsDone, defaultsFailed, defaultsFile, defaultsStamp, ensure, firstMessage, holds, ignoreTasks, launcherArgs, markHook, offFile, personSettings, readArgs,
-  start, startDefaults, startMoveIn, startReport, startServe, startedRecord, stateDirectory, stateOf, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
+  start, startDefaults, startReport, startServe, startedRecord, stateDirectory, stateOf, who, workerHome } from '../../.agents/skills/daily/scripts/daily.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { codeStamp, lineUpOffFile } from '../../.agents/skills/daily/scripts/worker.mjs';
 
@@ -290,12 +290,12 @@ test('ensure starts the worker only when the person has a job, none runs, check-
   assert.equal(go(jobs, { env: { WONG_STOP_CHECK: '1' } }), 'run');
   assert.equal(go(jobs, { env: { WONG_MEMORY_RUN: '1' } }), 'run');
   assert.equal(go(null), 'no-person');
-  // A routine left in the file is no job, but starts its move to the app; each call starts the add of the defaults.
-  const plainState = stateOf(plain, root, states), moved = [], added = [];
-  assert.equal(go({ ...plain, checks: [routine()] }, { moveIn: args => moved.push(args), defaults: args => added.push(args) }), 'no-jobs');
-  assert.deepEqual([...moved, ...added].map(each => [each.home.repo, each.stateDir, each.timezone]), Array(2).fill([root, plainState, ZONE]));
+  // A routine left in the file is no job and starts nothing; each call starts the add of the defaults.
+  const plainState = stateOf(plain, root, states), added = [];
+  assert.equal(go({ ...plain, checks: [routine()] }, { defaults: args => added.push(args) }), 'no-jobs');
+  assert.deepEqual(added.map(each => [each.home.repo, each.stateDir, each.timezone]), [[root, plainState, ZONE]]);
   const broken = () => { throw new Error('no app'); };
-  assert.equal(go({ ...plain, checks: [routine()] }, { moveIn: broken, defaults: broken }), 'no-jobs', 'a failed move or add stops nothing');
+  assert.equal(go({ ...plain, checks: [routine()] }, { defaults: broken }), 'no-jobs', 'a failed add stops nothing');
   // With no schedule store the worker runs the line-up itself, until the person turns it off. It adds no defaults.
   const none = [];
   mkdirSync(plainState, { recursive: true });
@@ -333,22 +333,6 @@ test('ensure starts the worker only when the person has a job, none runs, check-
     defaults: () => {} });
   assert.deepEqual(off, { state: 'off', refused: [event] });
   assert.equal(existsSync(waiting), false);
-});
-
-test('the move of left routines to the app starts once a day, detached, with no chat id, and only where the schedule skill is', () => {
-  const root = temp('move'), stateDir = temp('state'), runs = [];
-  const dir = join(root, '.agents/skills/daily/scripts'), script = join(root, '.agents/skills/daily/skills/schedule/scripts/schedule.mjs');
-  mkdirSync(dir, { recursive: true });
-  const run = (...args) => { runs.push(args); return { on: () => {}, unref: () => {} }; };
-  const move = now => startMoveIn({ home: { repo: root, dir }, stateDir, env: { PASEO_AGENT_ID: 'chat-1', PATH: '/bin' }, now, timezone: ZONE, run });
-  assert.equal(move(NOW.getTime()), false, 'no schedule skill');
-  mkdirSync(join(script, '..'), { recursive: true });
-  writeFileSync(script, '');
-  assert.equal(move(NOW.getTime()), true);
-  assert.equal(move(NOW.getTime() + 3600e3), false, 'the same day');
-  assert.equal(move(NOW.getTime() + 24 * 3600e3), true);
-  const [[node, args, options]] = runs;
-  assert.deepEqual([node, args, options.cwd, options.detached, options.env], [process.execPath, [script, 'move-in', '--unattended'], root, true, { PATH: '/bin' }]);
 });
 
 /** A checkout with the schedule skill, a shipped list, and `startDefaults` with a fake start. */
@@ -437,17 +421,6 @@ test("a try's stamp comes from the list of the copy whose schedule skill it star
   const run = (...args) => { runs.push(args); return { on: () => {}, unref: () => {} }; };
   assert.equal(startDefaults({ home: { repo: root, dir }, stateDir, env: {}, now: NOW.getTime(), timezone: ZONE, run }), true);
   assert.equal(JSON.parse(readFileSync(defaultsFile(stateDir), 'utf8')).tried.stamp, defaultsStamp(stateDir, own));
-});
-
-test('the move of left routines to the app still starts once a day, whatever its child does', () => {
-  const root = temp('move'), stateDir = temp('state'), runs = [];
-  const dir = join(root, '.agents/skills/daily/scripts');
-  mkdirSync(join(root, '.agents/skills/daily/skills/schedule/scripts'), { recursive: true });
-  writeFileSync(join(root, '.agents/skills/daily/skills/schedule/scripts/schedule.mjs'), '');
-  const run = (...args) => { runs.push(args); return { on: () => {}, unref: () => {} }; };
-  const move = now => startMoveIn({ home: { repo: root, dir }, stateDir, env: {}, now, timezone: ZONE, run });
-  assert.deepEqual([move(NOW.getTime()), move(NOW.getTime() + 2 * HOUR), move(NOW.getTime() + 24 * HOUR)], [true, false, true]);
-  assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(stateDir, 'move-in.json'), 'utf8'))), ['day']);
 });
 
 test("ensure restarts a worker whose beat holds older code or none, and leaves a current one alone", () => {

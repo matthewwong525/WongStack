@@ -473,7 +473,7 @@ export function makeWorker({ stateDir, project, timezone, sweeps, agent = RUN_AG
       const state = load();
       if (sweeps.waiting?.length && readJson(waitingFile, {}).day !== today() && !dryRun) {
         writeJson(waitingFile, { day: today() });
-        journal(`Timed jobs wait to move to the app, and do not run: ${sweeps.waiting.join(', ')}`, { kind: 'waiting' });
+        journal(`Timed jobs in the old list do not run. Ask to save each as a schedule: ${sweeps.waiting.join(', ')}`, { kind: 'waiting' });
       }
       for (const event of dryRun ? [] : takeRuns()) await handOver(event, state);
       if (lineUp && !dryRun) await lineUpDue(state);
@@ -596,7 +596,7 @@ export const morningFile = (stateDir, day) => join(stateDir, `morning-${day}.jso
 
 /** One journal line per add-on line and source not read, and one for routines still waiting in the settings file. */
 function morningLines(result, journal) {
-  if (result.waiting?.length) journal(`Routines wait to move to the app, and do not start: ${result.waiting.join(', ')}`, { kind: 'waiting' });
+  if (result.waiting?.length) journal(`Routines in your settings file do not start. Ask to save each as a schedule: ${result.waiting.join(', ')}`, { kind: 'waiting' });
   for (const line of result.lines ?? []) journal(line, { kind: 'post' });
   for (const each of result.notRead ?? []) journal(`Not read: ${each.source} — ${each.error}`, { kind: 'not-read' });
 }
