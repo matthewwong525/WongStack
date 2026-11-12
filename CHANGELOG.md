@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — The browser and Daily each come in one folder
+
+- **The browser and Daily each install as one folder** in your skills folder: `.claude/skills/browser/` and `.claude/skills/daily/`. Their other commands sit inside it, in `skills/` ([adding a module](wiki/maintaining/adding-a-module.md)). Before, each one came in two or three folders.
+- **`/schedule` is now `/daily:schedule`.** It does the same work. Its scripts are in `.claude/skills/daily/skills/schedule/scripts/`. In Claude Code, a typed `/schedule` now opens Claude Code's own cloud schedules, not yours. To make a schedule, type `/daily:schedule` or ask in plain words.
+- **A module links no file in another module.** Each one asks you in one sentence, with your assistant's question tool or a short numbered list ([the browser](.agents/plugins/browser/README.md), [Daily](.agents/plugins/daily/README.md)).
+- **Access no longer sets up memory.** Its setup has ten steps, not eleven, and changes no other tool's files ([Access](.agents/plugins/access/README.md)).
+- **Each module's version is in its two `plugin.json` files.** The `module.json` files are gone.
+
+**Updating.** `/wong-sync` moves the folders. Nothing to do by hand. If you type `/schedule` to make a schedule, type `/daily:schedule` from now on. A repo with only the browser or Daily copies the update message from that module's README on GitHub, because the old link to its update steps no longer opens.
+
 ## 55.2.1 — The password manager's page fits a phone in a live view
 
 - **On a phone, the password manager's own page narrows to the phone's width**, as a site's page does. The whole sign-in form shows, its right side included ([password manager](.agents/plugins/browser/browser/references/password-manager.md)). Before, the page stayed as wide as the computer's screen, and the view showed only a narrow strip at its left.

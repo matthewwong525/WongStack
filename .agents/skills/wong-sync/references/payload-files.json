@@ -30,8 +30,8 @@
       "agent-browser"
     ],
     "exclude": [
-      ".claude/plugins/daily/daily/team.md",
-      ".claude/plugins/daily/daily/people"
+      ".claude/plugins/daily/team.md",
+      ".claude/plugins/daily/people"
     ],
     "files": [
       ".claude/settings.json",
@@ -96,8 +96,7 @@
     ],
     "mapped": {
       ".claude/plugins/memory": ".claude/skills/memory",
-      ".claude/plugins/daily/daily": ".claude/skills/daily",
-      ".claude/plugins/daily/schedule": ".claude/skills/schedule",
+      ".claude/plugins/daily": ".claude/skills/daily",
       ".claude/plugins/access": ".claude/skills/access",
       ".claude/plugins/loop": ".claude/skills/loop",
       ".claude/plugins/loop/skills/explore": ".claude/skills/explore",
@@ -108,9 +107,7 @@
       ".claude/plugins/loop/skills/verify": ".claude/skills/verify",
       ".claude/plugins/loop/skills/continue": ".claude/skills/continue",
       ".claude/plugins/loop/skills/close": ".claude/skills/close",
-      ".claude/plugins/browser/browser": ".claude/skills/browser",
-      ".claude/plugins/browser/hand-over": ".claude/skills/hand-over",
-      ".claude/plugins/browser/shop": ".claude/skills/shop"
+      ".claude/plugins/browser": ".claude/skills/browser"
     }
   },
   "ui": {

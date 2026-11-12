@@ -7,8 +7,8 @@ const read = rel => readFileSync(new URL(`../../${rel}`, import.meta.url), 'utf8
 
 test('retired runner source and cloud creation entry point are absent', () => {
   assert.equal(existsSync(new URL('../../scripts/routine-runner/', import.meta.url)), false);
-  assert.equal(existsSync(new URL('../../.agents/skills/schedule/scripts/routine.mjs', import.meta.url)), false);
-  assert.equal(existsSync(new URL('../../.agents/skills/schedule/scripts/lib/cloudflare.mjs', import.meta.url)), false);
+  assert.equal(existsSync(new URL('../../.agents/plugins/daily/skills/schedule/scripts/routine.mjs', import.meta.url)), false);
+  assert.equal(existsSync(new URL('../../.agents/plugins/daily/skills/schedule/scripts/lib/cloudflare.mjs', import.meta.url)), false);
 });
 
 test('retirement exceptions describe frozen history and migration, with no live caller exception', () => {
@@ -31,7 +31,7 @@ test('the goal schema and the record-only save route are gone, so no schedule ne
 test('memory keeps the old routine topic as an alias and maps the skill and old repo records', () => {
   const areas = JSON.parse(read('.agents/memory/areas.json'));
   assert.ok(areas.schedule.aliases.includes('routine'), 'existing facts remain discoverable');
-  for (const path of ['.agents/plugins/daily/schedule/', 'schedules/']) assert.ok(areas.schedule.paths.includes(path));
+  for (const path of ['.agents/plugins/daily/skills/schedule/', 'schedules/']) assert.ok(areas.schedule.paths.includes(path));
   assert.ok(!areas.schedule.paths.some(path => path.includes('scheduled-work')));
   assert.ok(areas.schedule.docs.includes('wiki/stack/host-schedules.md'));
   assert.ok(areas.schedule.docs.includes('wiki/stack/legacy-cloud-schedules.md'));

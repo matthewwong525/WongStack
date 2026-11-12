@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { listRecords, loadRecord, validateRoutine, validateTiming } from '../../.agents/skills/schedule/scripts/lib/records.mjs';
+import { listRecords, loadRecord, validateRoutine, validateTiming } from '../../.agents/skills/daily/skills/schedule/scripts/lib/records.mjs';
 import { folder, writeRecord } from './fixtures/scheduled-work.mjs';
 
 test('a routine record loads; a changed instruction, a credential or a goal folder does not', t => {

@@ -7,11 +7,11 @@ import path from 'node:path';
 import { approve, approvedVersion, approvalsFile } from '../../.agents/inbox/lib/approvals.mjs';
 import { definition, saveDefinition } from '../../.agents/inbox/lib/app.mjs';
 import { RUN_FLOOR_MS, checkRun, mirrorRound, runRound } from '../../.agents/inbox/runs.mjs';
-import { FETCH_TIMEOUT_MS, handOver, openSession } from '../../.agents/skills/schedule/scripts/lib/start-run.mjs';
+import { FETCH_TIMEOUT_MS, handOver, openSession } from '../../.agents/skills/daily/skills/schedule/scripts/lib/start-run.mjs';
 import { appProgress } from '../../.agents/inbox/lib/progress.mjs';
-import { scheduleVersion } from '../../.agents/skills/schedule/scripts/lib/version.mjs';
+import { scheduleVersion } from '../../.agents/skills/daily/skills/schedule/scripts/lib/version.mjs';
 import { EXIT, PaseoError } from '../../.agents/skills/daily/scripts/lib/paseo.mjs';
-import { freshBase } from '../../.agents/skills/schedule/scripts/workspace.mjs';
+import { freshBase } from '../../.agents/skills/daily/skills/schedule/scripts/workspace.mjs';
 import { logAction } from '../../.agents/skills/reply-link/scripts/lib/helper-log.mjs';
 import { COMPUTER, NOW, ORIGIN, fakeApp, folder, plan, runId } from './fixtures/scheduled-work.mjs';
 

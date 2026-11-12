@@ -13,7 +13,7 @@ Every install starts empty and takes **every** category.
 
 ## The agent folder
 
-Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. `mapped` installs each module folder under `.claude/plugins/` as a real skill folder, such as [the loop](../../../plugins/loop/README.md)'s commands as `.claude/skills/<name>/` and Daily's two folders as `.claude/skills/daily/` and `.claude/skills/schedule/`; the longest entry wins. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
+Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. `mapped` installs each module folder under `.claude/plugins/` as a real skill folder, such as [the loop](../../../plugins/loop/README.md)'s commands as `.claude/skills/<name>/` and the browser, Daily and memory each as one folder, `.claude/skills/<name>/`, with its nested commands inside it in `skills/`; the longest entry wins. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
 
 Real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex and Claude read their respective names; the inventory block remains `CLAUDE.md`. Sync preserves every target-owned line:
 
@@ -90,7 +90,7 @@ The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide remo
 
 ## Schedules
 
-[Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `schedule`, its host and legacy references, and Node helpers; no cloud runner/bootstrap/model setup.
+[Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `/daily:schedule` inside Daily's folder, its host and legacy references, and Node helpers; no cloud runner/bootstrap/model setup.
 
 An install owns its `.agents/daily/`, except WongStack's [profile](../../../daily/profile.mjs), the one shipped file there; [`.claude/inbox/`](../../../inbox/schedules.mjs) ships WongStack's schedule store. It also owns old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records until the move at the update. Never add those live records to this inventory or overwrite them. A schedule's instructions, progress and runs live in the app, not in the repo. Updates preserve deployed cloud resources and native host jobs. [Migration/teardown](../../../../wiki/stack/legacy-cloud-schedules.md) is explicit: no action runs twice.
 

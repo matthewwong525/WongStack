@@ -17,7 +17,7 @@ import { logAction } from './lib/helper-log.mjs';
 import { checkin, closeItem, companyFor, inTime, listLink, openSocket, probe, readFile, tapResult, upload, waitingReviews } from './lib/inbox.mjs';
 import { appLines, nextPoll, waiter } from './lib/line.mjs';
 import { bytesRefused, FILE_LIMITS, filesLines, nameRefused, removeFile, saveFile, savedPath, uploadsFor } from './lib/uploads.mjs';
-import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from '../../hand-over/scripts/lib/tunnel.mjs';
+import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from '../../browser/skills/hand-over/scripts/lib/tunnel.mjs';
 import { canWake, chatTarget, liveChats, wakeChat } from './lib/wake.mjs';
 
 const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [--action <name>=<message>]... [--uploads <dir>]

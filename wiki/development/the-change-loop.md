@@ -46,10 +46,10 @@ When a task done by hand — a plain request, or non-code work under a verb — 
 
 - **Only on a clear signal**: the person says it recurs ("every Monday", "again"), or memory shows they asked before. Never on a hunch: an offer after every task teaches people to skip it.
 - **Search memory once**: `memory.mjs search` on the task's key terms finds a past request or decline.
-- **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/schedule`](../../.agents/plugins/daily/schedule/SKILL.md). Fixed steps first use a script on an existing clock; build needed code through this loop, or a [mini app](../stack/mini-apps.md) when useful: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
+- **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/daily:schedule`](../../.agents/plugins/daily/skills/schedule/SKILL.md). Fixed steps first use a script on an existing clock; build needed code through this loop, or a [mini app](../stack/mini-apps.md) when useful: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
 - **Name the outcome, not the tool**: *do this every Monday at 9*, *a page that splits the bill for you*.
 - **A no is final**: record a `feedback` fact through [the write gate](../../.agents/plugins/memory/SKILL.md#write), naming the task in the person's words, and never offer for it again.
-- **A yes starts the usual route**: `/schedule`'s own confirmation, or the change loop stopping at the plan's review.
+- **A yes starts the usual route**: `/daily:schedule`'s own confirmation, or the change loop stopping at the plan's review.
 
 No offer after a code change you built, or in an unattended run.
 
@@ -63,7 +63,7 @@ When a request has parts each publishable alone, the agent [asks once](../../.ag
 
 Before planning, the agent [checks for other work](../../.agents/plugins/loop/skills/explore/SKILL.md#check-for-other-work): other workspaces, their plans, and open pull requests. It speaks only on an overlap, and asks [where to go on](../../.agents/plugins/loop/skills/plan/references/new-workspace.md#ask-once).
 
-**Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/plugins/daily/schedule/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes with its workspace; in the main checkout, each session's tidy-up deletes day-old scratch files.
+**Scratch files** go in the git-ignored `.scratch/` at the checkout root that [`tidy.mjs scratch`](../../.agents/plugins/daily/skills/schedule/scripts/tidy.mjs) makes and prints, not the system temp folder. It goes with its workspace; in the main checkout, each session's tidy-up deletes day-old scratch files.
 
 ### Asking before drafting
 

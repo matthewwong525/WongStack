@@ -1,5 +1,5 @@
 // WongStack's side of the browser module: the one file the module loads, each slot filled from WongStack's own code.
-// The slots, and what each does when empty: ../plugins/browser/browser/README.md#slots
+// The slots, and what each does when empty: ../plugins/browser/README.md#slots
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -27,7 +27,7 @@ async function wakeChat(state, message) {
 /** The two key files, each taking the names its example declares; an undeclared tool's key goes to the app's file,
  * which reaches the live app through `npm run secrets:push`. A seeded branch copy of either is written too. */
 async function keyFiles(ctx) {
-  const { declarations } = await import('../skills/hand-over/scripts/keys.mjs');
+  const { declarations } = await import('../skills/browser/skills/hand-over/scripts/keys.mjs');
   const { loadBase } = await import('../loop/worktree-secrets.mjs');
   const declared = example => { try { return declarations(readFileSync(join(ctx.root, example), 'utf8')); } catch { return new Map(); } };
   const copy = rel => { try { return ctx.linked && loadBase(ctx)?.files?.[rel] ? join(ctx.root, rel) : null; } catch { return null; } };

@@ -33,9 +33,9 @@ const PROSE_FILE = '.github/CONTRIBUTING.md';
 export const CAMOUFOX_PIN = '.agents/skills/browser/scripts/browse.mjs';
 const CAMOUFOX_INDEX = 'https://pypi.org/pypi/camoufox/json';
 // The live view's viewer, noVNC, is pinned by version and by its files' fingerprint in one constant here.
-export const VIEWER_PIN = '.agents/skills/hand-over/scripts/view.mjs';
+export const VIEWER_PIN = '.agents/skills/browser/skills/hand-over/scripts/view.mjs';
 // Shop's command is pinned by version and by its package's fingerprint in one constant here.
-export const SHOP_PIN = '.agents/skills/shop/scripts/shop.mjs';
+export const SHOP_PIN = '.agents/skills/browser/skills/shop/scripts/shop.mjs';
 // Each stage's name and folder. site/ is the landing page (meta-only); a repo without a folder skips its stage.
 const PACKAGE_STAGES = [['app', 'app'], ['test-tools', 'scripts/tests'], ['site', 'site']];
 const NPM_TOOLS = { openspec: '@fission-ai/openspec', 'agent-browser': 'agent-browser' };

@@ -9,9 +9,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { refNames } from '../../.agents/skills/browser/scripts/browse.mjs';
-import { pageFault } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { pageFault } from '../../.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs';
 
-const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/hand-over/scripts/hand-over.mjs');
+const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), '../../.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs');
 const KEY = 'MAPS_API_KEY';
 
 const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
