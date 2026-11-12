@@ -11,11 +11,6 @@
           },
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
-            "timeout": 3
-          },
-          {
-            "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/wong-sync/scripts/codex-plugin.mjs\" --check",
             "timeout": 3
           }
@@ -29,27 +24,6 @@
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/loop/step-title.mjs\" hook --agent codex",
             "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
-            "timeout": 3
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
-            "timeout": 3
-          },
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/stop-check.mjs\" stop --agent codex",
-            "timeout": 300
           }
         ]
       }

@@ -11,12 +11,6 @@ const review = z.object({ id: z.string(), title: z.string(), workspace: z.string
   endedAt: z.number().nullable(), answered: z.boolean() })
 const reviews = z.object({ waiting: z.array(review), archived: z.array(review), more: z.boolean() })
 const list = z.object({ computerOnline: z.boolean() })
-// An open chat, with the review page it waits on; a page whose chat the app doesn't know has no agent id.
-const chat = z.object({ agentId: z.string().nullable(), name: z.string(), step: z.string().nullable(), folder: z.string(),
-  source: z.string().nullable(), closeAskedAt: z.number().nullable(),
-  review: z.object({ id: z.string(), title: z.string(), createdAt: z.number(), closesAt: z.number() }).nullable() })
-const chats = z.object({ chats: z.array(chat), computerOnline: z.boolean() })
-const closed = z.object({ agentId: z.string(), closeAskedAt: z.number() })
 const one = z.object({ item, computerOnline: z.boolean() })
 const tapped = z.object({ tap })
 const refused = z.object({ error: z.object({ code: z.string() }) })
@@ -34,7 +28,6 @@ export type Tap = z.infer<typeof tap>
 export type Plan = z.infer<typeof one>
 export type Archived = NonNullable<Plan['item']['archived']>
 export type Review = z.infer<typeof review>
-export type Chat = z.infer<typeof chat>
 export type Timing = z.infer<typeof timing>
 export type Run = z.infer<typeof run>
 export type Schedule = z.infer<typeof schedule>
@@ -68,9 +61,6 @@ const call = async <T>(schema: z.ZodType<T>, route: string, input?: object) =>
   schema.parse(await ask(route, input ? 'POST' : 'GET', input))
 
 export const readInbox = () => call(list, 'items')
-export const readChats = () => call(chats, 'chats')
-/** Asks the person's computer to send the chat `/close` once they are quiet in it. */
-export const closeChat = (agentId: string) => call(closed, 'chat-close', { agentId })
 export const readPlan = (id: string) => call(one, `item?id=${encodeURIComponent(id)}`)
 /** The person's review pages matching `q`; `before` reads the Archive's next page after that row. */
 export const readReviews = (q: string, before?: Review) => call(reviews, `reviews?${new URLSearchParams({

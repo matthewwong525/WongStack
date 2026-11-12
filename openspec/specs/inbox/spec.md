@@ -1,7 +1,7 @@
 # inbox Specification
 
 ## Purpose
-One inbox in the live app that opens on the person's open chats, with the review pages that wait on them on top and past ones in an Archive, and where a plan's link still opens its page.
+One inbox in the live app that opens on the review pages waiting for the person, with past ones in an Archive below, and where a plan's link still opens its page.
 
 ## Requirements
 
@@ -170,47 +170,9 @@ An archived review page SHALL open in the same view as a waiting one, showing th
 - **WHEN** an archived page built before this change sends its notes
 - **THEN** nothing reaches the chat, and the page says the link has closed
 
-### Requirement: The inbox opens on the person's chats
-
-The inbox SHALL open on a list of the signed-in person's open chats, one row each, with the chat's name, its current step and its folder, and only that person's chats. A chat with a review page waiting on the person SHALL sit on top under *Needs you*, and a tap SHALL open that page. A waiting review page whose chat the app does not know SHALL also show under *Needs you*, as its own row. A row SHALL leave the list when its chat closes, and SHALL show the step the chat is on now, not the step it had when it opened. A chat a schedule opened SHALL stay off the list while it runs, and SHALL show only once it has stopped and stayed open; a run that closes itself when it stops SHALL never show. Once the person writes in a schedule's chat, it SHALL show like any chat. The inbox SHALL show no days, dates, tasks or backlog. A plan item SHALL still open from its own link.
-
-#### Scenario: Opening the inbox
-
-- **WHEN** Jo has three open chats, one of them waiting on Jo's review of its plan
-- **THEN** Jo sees that chat under *Needs you* with its step and folder, the other two under it, and no days or tasks, and a tap on the first opens its plan
-
-#### Scenario: A chat moves to the next step
-
-- **WHEN** a chat Jo sees under *Plan* moves to *Apply*
-- **THEN** its row shows *Apply* the next time the inbox reads the list, and no second row appears
-
-#### Scenario: A schedule's run needs Jo
-
-- **WHEN** Jo's News schedule opens a chat, works for 5 minutes, then fails and stays open
-- **THEN** the chat is not in Jo's list while it works, and shows under *Working*, marked as from a schedule, a few minutes after it stops
-
-#### Scenario: A schedule's run closes itself
-
-- **WHEN** Jo's News schedule opens a chat that finishes and closes itself
-- **THEN** that chat never shows in Jo's list
-
-#### Scenario: Jo writes in a schedule's chat
-
-- **WHEN** Jo's News schedule chat stops and stays open, and Jo replies in it and it starts to work again
-- **THEN** the chat stays in Jo's list while it works, marked as from a schedule
-
-### Requirement: The person closes a chat from its row
-
-A chat's row SHALL offer *Close chat*. It SHALL send that chat `/close` once the person has been quiet in it for 15 minutes, and SHALL never close a chat the person did not pick.
-
-#### Scenario: Close a finished chat
-
-- **WHEN** Jo taps *Close chat* on a chat Jo last wrote in an hour ago
-- **THEN** that chat gets `/close` once, and its row leaves the list when the chat has closed
-
 ### Requirement: The inbox keeps past review pages in an Archive
 
-Below the chats, the inbox SHALL show every signed-in person an Archive of their own answered or closed review pages, newest first, whether or not they use the daily. A search SHALL find pages by their title, waiting or archived. The Archive SHALL show no other person's pages, and no question, approval, private link or hidden item.
+Below the waiting pages, the inbox SHALL show every signed-in person an Archive of their own answered or closed review pages, newest first, whether or not they use the daily. A search SHALL find pages by their title, waiting or archived. The Archive SHALL show no other person's pages, and no question, approval, private link or hidden item.
 
 #### Scenario: Looking back at a past plan
 
@@ -220,7 +182,7 @@ Below the chats, the inbox SHALL show every signed-in person an Archive of their
 #### Scenario: A page that ran out of time
 
 - **WHEN** a review page's 24 hours pass with no answer
-- **THEN** its chat leaves *Needs you*, and the page shows in the Archive with no answer
+- **THEN** it leaves *Needs you*, and the page shows in the Archive with no answer
 
 ### Requirement: The inbox's Schedules button lists the person's schedules
 
@@ -235,3 +197,17 @@ The inbox SHALL have a *Schedules* button in its top bar that opens the signed-i
 
 - **WHEN** a schedule was changed in a chat on another computer
 - **THEN** Schedules shows it as waiting for Jo's OK on that computer, offers no Run now, and has no button that approves it
+
+### Requirement: The inbox opens on the pages waiting for the person
+
+The inbox SHALL open on the signed-in person's review pages that wait on them, newest first, only theirs, each with its title, its folder, and when it came, and a tap SHALL open that page. A page SHALL leave the list when it is answered, closed, or runs out of time. The inbox SHALL show no list of open chats, and no days, dates, tasks or backlog. A plan item SHALL still open from its own link.
+
+#### Scenario: Opening the inbox
+
+- **WHEN** Jo has two plans waiting on Jo's review and four open chats with nothing waiting
+- **THEN** Jo sees the two plans under *Needs you*, newest first, and no row for the four chats, and a tap on the first opens its plan
+
+#### Scenario: Nothing waits
+
+- **WHEN** no page waits on Jo
+- **THEN** the inbox says nothing waits, and shows the Archive below

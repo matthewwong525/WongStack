@@ -24,7 +24,7 @@ function bin(t, fail) {
 const run = (path, root = '/repo', ...args) => spawnSync(process.execPath, [SCRIPT, '--root', root, ...args], { encoding: 'utf8', env: { ...process.env, PATH: path } });
 const log = dir => readFileSync(join(dir, 'log'), 'utf8');
 
-test('with Codex present, it adds the repo shop, then the memory plugin', (t) => {
+test('with Codex present and no plugin list, it adds the repo shop, then the memory plugin', (t) => {
   const dir = bin(t);
   const result = run(dir);
   assert.equal(result.status, 0);
@@ -46,12 +46,12 @@ test('with no Codex, it prints one line and exits 0', () => {
   assert.equal(result.stdout, 'Codex is not on this computer: no Codex plugin to install.\n');
 });
 
-// A repo whose root plugin list is named `name`, with memory's skill folder at `version`.
-function repo(t, name, version) {
+// A repo whose root plugin list is named `name` and lists `plugins`, with memory's skill folder at `version`.
+function repo(t, name, version, plugins = ['memory']) {
   const root = mkdtempSync(join(tmpdir(), 'wong-test-codex-repo-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   mkdirSync(join(root, '.claude-plugin'));
-  writeFileSync(join(root, '.claude-plugin/marketplace.json'), JSON.stringify({ name, plugins: [{ name: 'memory', source: './.agents/skills/memory' }] }));
+  writeFileSync(join(root, '.claude-plugin/marketplace.json'), JSON.stringify({ name, plugins: plugins.map(plugin => ({ name: plugin, source: `./.agents/skills/${plugin}` })) }));
   mkdirSync(join(root, '.agents/skills/memory/.codex-plugin'), { recursive: true });
   writeFileSync(join(root, '.agents/skills/memory/.codex-plugin/plugin.json'), JSON.stringify({ name: 'memory', version }));
   return root;
@@ -64,12 +64,29 @@ test("it installs by the name of the repo's own plugin list", (t) => {
   assert.equal(log(dir), `plugin marketplace add ${root}\nplugin add memory@relay\n`);
 });
 
-test('--check names the command only when Codex has no memory plugin, and installs nothing', (t) => {
+test('it installs every plugin the list names, daily beside memory', (t) => {
   const dir = bin(t);
-  const root = repo(t, 'wongstack', '1.0.0');
+  const root = repo(t, 'wongstack', '1.0.0', ['memory', 'daily']);
+  assert.equal(run(dir, root).stdout, 'Codex has memory@wongstack and daily@wongstack.\n');
+  assert.equal(log(dir), `plugin marketplace add ${root}\nplugin add memory@wongstack\nplugin add daily@wongstack\n`);
+});
+
+test('a failed plugin names that plugin and stops there', (t) => {
+  const dir = bin(t, 'daily');
+  const root = repo(t, 'wongstack', '1.0.0', ['memory', 'daily']);
+  const result = run(dir, root);
+  assert.equal(result.status, 0);
+  assert.equal(result.stdout, 'Codex did not install daily@wongstack: `codex plugin add daily@wongstack` failed (no such shop).\n');
+});
+
+test('--check names the command only when Codex lacks a module plugin, and installs nothing', (t) => {
+  const dir = bin(t);
+  const root = repo(t, 'wongstack', '1.0.0', ['memory', 'daily']);
   const check = () => spawnSync(process.execPath, [SCRIPT, '--root', root, '--check'], { encoding: 'utf8', env: { ...process.env, PATH: dir, CODEX_HOME: dir } });
-  assert.match(check().stdout, /^Memory: Codex has no memory@wongstack plugin .*codex-plugin\.mjs`\.\n$/);
+  assert.match(check().stdout, /^Codex has no memory@wongstack and daily@wongstack plugin .*codex-plugin\.mjs`\.\n$/);
   writeFileSync(join(dir, 'config.toml'), '[plugins."memory@wongstack"]\nenabled = true\n');
+  assert.match(check().stdout, /^Codex has no daily@wongstack plugin .*codex-plugin\.mjs`\.\n$/, 'memory alone is not enough');
+  writeFileSync(join(dir, 'config.toml'), '[plugins."memory@wongstack"]\nenabled = true\n[plugins."daily@wongstack"]\nenabled = true\n');
   assert.equal(check().stdout, '');
   assert.throws(() => log(dir), /ENOENT/, 'no codex command ran');
 });

@@ -12,7 +12,7 @@ import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
 import { askText, chatTitle, judgeLine, runJudge, stopCard, stopCheck, tailOf } from '../../.agents/skills/daily/scripts/stop-check.mjs';
 import { appendNote, takeNotes } from '../../.agents/skills/daily/scripts/waiting-notes.mjs';
 import { needsYouFile } from '../../.agents/skills/daily/scripts/worker.mjs';
-import { ensureDaily } from '../../.agents/memory/session-start.mjs';
+import { ASK as SETUP_ASK, ensureDaily, sessionStart } from '../../.agents/skills/daily/scripts/session-start.mjs';
 
 const SCRIPT = fileURLToPath(new URL('../../.agents/skills/daily/scripts/stop-check.mjs', import.meta.url));
 const TZ = 'America/Toronto';
@@ -46,7 +46,7 @@ function world({ agent = 'claude', rows = [['user', 'Build the export page.', NO
   const judged = [];
   const reply = answer ?? { stdout: `Read the chat.\n${JSON.stringify({ bucket: 'keep-going', reply: 'Keep going.', line: 'Kept going: export' })}\n` };
   const judge = async run => { judged.push(run); return typeof reply === 'function' ? reply(run) : reply; };
-  const stop = async ({ now = NOW, env = {}, input = {} } = {}) => stopCheck({ agent, env, now, root, home, judge, resolve: () => ({ config }),
+  const stop = async ({ now = NOW, env = {}, input = {}, offered = false } = {}) => stopCheck({ agent, env, now, offered, root, home, judge, resolve: () => ({ config }),
     input: { session_id: 's1', transcript_path: transcript.file, cwd: dir, stop_hook_active: true, ...input } });
   const stateDir = stateOf(config, undefined, root);
   return { stop, judged, transcript, stateDir, dir, root, home, journal: () => readLines({ stateDir }).map(entry => entry.line) };
@@ -229,7 +229,7 @@ test('a pick goes back as the option; needs-you, a timeout, a bad end line and a
   }
 });
 
-test('no check-in while off, in a background run, with no person, or when ask-check sends the reply back; an old Daily chat gets one', async () => {
+test('no check-in while off, in a background run, with no person, or when offeredChoices sends the reply back; an old Daily chat gets one', async () => {
   const off = world();
   mkdirSync(off.stateDir, { recursive: true });
   writeFileSync(offFile(off.stateDir), 'x');
@@ -244,9 +244,8 @@ test('no check-in while off, in a background run, with no person, or when ask-ch
   const nobody = await stopCheck({ input: { transcript_path: '/x' }, env: {}, resolve: () => ({ config: null }), judge: () => assert.fail('judged') });
   assert.equal(nobody.why, 'no person');
   assert.equal((await stopCheck({ input: {}, env: {}, resolve: () => assert.fail('resolved') })).why, 'no transcript');
-  const typed = 'Which one next?\n- Build the page (Recommended)\n- Write the docs';
   const asked = world();
-  assert.equal((await asked.stop({ input: { stop_hook_active: false, last_assistant_message: typed } })).why, 'ask-check');
+  assert.equal((await asked.stop({ offered: true })).why, 'ask-check');
   for (const w of [off, runs, asked]) assert.deepEqual([w.judged, w.journal()], [[], []]);
 });
 
@@ -282,18 +281,16 @@ test('the judge run gives its output, and is stopped with its group after the ti
   assert.match((await runJudge({ command: join(tmpdir(), 'no-such-judge'), args: [], cwd: tmpdir(), env: process.env })).error, /did not start/);
 });
 
-test('the stop\'s card stays working when the check or the ask check sends the stop back, else it is idle', () => {
+test('the stop\'s card stays working when the check or offeredChoices sends the stop back, else it is idle', () => {
   const home = temp(), dir = temp();
   const card = () => JSON.parse(readFileSync(join(home, '.local', 'state', 'wongstack', 'chats', 's1.json'), 'utf8')).state;
-  const typed = 'Which one next?\n- Build the page (Recommended)\n- Write the docs';
   for (const agent of ['claude', 'codex']) {
     const { file } = chat(dir, agent, [['user', 'Build the export page.', NOW - 40 * MIN], ['assistant', NEXT, NOW - MIN]]);
     const input = { hook_event_name: 'Stop', session_id: 's1', transcript_path: file, cwd: dir };
-    const stop = (out, more = {}) => { stopCard({ input: { ...input, ...more }, agent, out, env: {}, home, now: NOW }); return card(); };
+    const stop = (out, offered = false) => { stopCard({ input, agent, out, offered, env: {}, home, now: NOW }); return card(); };
     assert.equal(stop({ decision: 'block', reason: 'Keep going.' }), 'working', agent);
     assert.equal(stop(null), 'idle', agent);
-    assert.equal(stop(null, { last_assistant_message: typed }), agent === 'claude' ? 'working' : 'idle', agent);
-    assert.equal(stop(null, { last_assistant_message: typed, stop_hook_active: true }), 'idle', agent);
+    assert.equal(stop(null, true), 'working', agent);
   }
 });
 
@@ -314,9 +311,21 @@ test('the hook command prints nothing and exits 0 on input it can not use; a wro
 test('chat start starts the daily worker check, except in a background run', () => {
   const started = [];
   const start = (command, args, options) => { started.push([args.slice(1), options.cwd]); return { on() {}, unref() {} }; };
-  for (const name of ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK']) assert.equal(ensureDaily({ root: '/r' }, 'codex', { env: { [name]: '1' }, start }), false);
-  assert.equal(ensureDaily({ root: '/r' }, 'codex', { env: { WONG_DAILY_WORKER: '0' }, start }), false);
-  assert.equal(ensureDaily({ root: '/r' }, 'codex', { env: {}, start }), true);
+  for (const name of ['WONG_DAILY_RUN', 'WONG_MEMORY_RUN', 'WONG_STOP_CHECK']) assert.equal(ensureDaily('/r', 'codex', { env: { [name]: '1' }, start }), false);
+  assert.equal(ensureDaily('/r', 'codex', { env: { WONG_DAILY_WORKER: '0' }, start }), false);
+  assert.equal(ensureDaily('/r', 'codex', { env: {}, start }), true);
   assert.deepEqual(started, [[['ensure', '--agent', 'codex'], '/r']]);
-  assert.equal(ensureDaily({ root: '/r' }, 'claude', { env: {}, start: () => { throw new Error('no'); } }), false);
+  assert.equal(ensureDaily('/r', 'claude', { env: {}, start: () => { throw new Error('no'); } }), false);
+});
+
+test('a new chat in a repo with no Daily settings asks once; a resume, a background run or a set-up repo asks nothing', () => {
+  const bare = temp(), set = temp(), marks = [], started = [];
+  mkdirSync(join(set, '.agents', 'daily'), { recursive: true });
+  const start = (command, args, options) => { started.push(options.cwd); return { on() {}, unref() {} }; };
+  const run = (cwd, source, env = {}) => sessionStart({ input: { source, cwd }, env, start, mark: each => marks.push(each.input.source) });
+  assert.deepEqual(run(bare, 'startup'), [SETUP_ASK]);
+  assert.deepEqual(run(bare, 'resume'), []);
+  assert.deepEqual(run(bare, 'startup', { WONG_DAILY_RUN: '1' }), []);
+  assert.deepEqual(run(set, 'startup'), []);
+  assert.deepEqual([marks.length, started], [4, [set]]);
 });

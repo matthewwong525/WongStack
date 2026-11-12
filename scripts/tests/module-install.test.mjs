@@ -102,6 +102,54 @@ const CHECKS = {
       assert.equal(git('remote'), '', 'nothing to push to');
     });
   },
+  // Daily with no profile: both its folders, the start-of-chat ask, and its check; a PATH with node and git only,
+  // so no `paseo` is found unless a test adds one.
+  daily: async ({ folder, root }) => () => {
+    const home = join(scratch, 'daily-home'), bin = join(scratch, 'daily-bin');
+    execFileSync('git', ['-C', root, 'config', 'user.email', 'dev@example.com']);
+    mkdirSync(bin);
+    for (const tool of ['node', 'git']) symlinkSync(execFileSync('which', [tool], { encoding: 'utf8' }).trim(), join(bin, tool));
+    const script = (file, args, input, extra) => spawnSync(process.execPath, [join(folder, 'scripts', file), ...args],
+      { cwd: root, env: { HOME: home, PATH: bin, WONG_DAILY_WORKER: '0', ...extra }, encoding: 'utf8', input });
+
+    test('daily asks once at a new chat\'s start in a repo with no settings, and not on a resume', () => {
+      const start = script('session-start.mjs', ['--agent', 'claude'], JSON.stringify({ source: 'startup', session_id: 'a', cwd: root }));
+      assert.equal(start.status, 0, start.stderr);
+      assert.match(start.stdout, /^Daily isn't set up yet\. Ask the person whether to set it up now/);
+      assert.equal(start.stdout.trim().split('\n').length, 1);
+      const resumed = script('session-start.mjs', ['--agent', 'claude'], JSON.stringify({ source: 'resume', session_id: 'a', cwd: root }));
+      assert.equal(resumed.stdout, '');
+    });
+
+    const check = extra => {
+      const ran = script('daily.mjs', ['check'], '', extra);
+      assert.equal(ran.status, 0, ran.stderr);
+      const result = JSON.parse(ran.stdout);
+      assert.equal(result.status, 'ok');
+      return result.store;
+    };
+    test('daily\'s check passes with no profile: schedules are off with no Paseo', () => assert.equal(check(), 'off'));
+    test('daily\'s check passes with no profile: schedules go to Paseo when Paseo is on the PATH', () => {
+      const withPaseo = join(scratch, 'daily-paseo');
+      mkdirSync(withPaseo, { recursive: true });
+      writeFileSync(join(withPaseo, 'paseo'), '#!/bin/sh\necho "[]"\n');
+      chmodSync(join(withPaseo, 'paseo'), 0o755);
+      assert.equal(check({ PATH: `${withPaseo}:${bin}` }), 'paseo');
+    });
+    test('daily\'s check uses the profile\'s schedule store', () => {
+      const profile = join(scratch, 'daily-profile.mjs');
+      writeFileSync(profile, "export default { schedules: { name: 'app' } };\n");
+      assert.equal(check({ WONG_DAILY_PROFILE: profile }), 'app');
+    });
+
+    test('daily\'s Stop hook waits at least 300 seconds for the check-in', () => {
+      for (const file of ['claude.json', 'codex.json']) {
+        const { Stop } = JSON.parse(readFileSync(join(folder, 'hooks', file), 'utf8')).hooks;
+        const stop = Stop.flatMap(group => group.hooks).find(hook => hook.command.includes('stop-check.mjs'));
+        assert.ok(stop.timeout >= 300, file);
+      }
+    });
+  },
   // The browser's three folders with no profile, so every slot is empty, then with one that fills each.
   browser: async ({ root }) => () => {
     const node = (env, script, ...args) => spawnSync(process.execPath, [join(root, '.agents/skills', script), ...args], { cwd: root, env, encoding: 'utf8' });
@@ -145,7 +193,7 @@ console.log(JSON.stringify(out));`;
   return out.stdout;
 }
 
-/** Every relative import or file URL in the folder's scripts that resolves outside the folder. */
+/** Every relative import or file URL in the module's scripts that resolves outside it; Daily's two folders are one. */
 function outsideImports(folder) {
   const files = readdirSync(folder, { recursive: true }).filter(path => /\.m?js$/.test(path));
   return files.flatMap(file => [...readFileSync(join(folder, file), 'utf8').matchAll(SPECIFIER)]

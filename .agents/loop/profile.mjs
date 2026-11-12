@@ -14,11 +14,10 @@ const node = file => ({ root, args = [] }) => runCommand('node', [join(here, fil
 const bash = file => ({ root, args = [] }) => runCommand('bash', [join(here, file), ...args], { cwd: root });
 const ROUTE_SCRIPTS = { artifacts: 'routes/artifacts-run.mjs', app: 'routes/app-change.mjs' };
 
-/** Close this chat's workspace: its private link, its row in the Inbox, then the workspace itself. */
+/** Close this chat's workspace: its private link, then the workspace itself. */
 function closeWorkspace({ root, args = [] }) {
   const skills = join(root, '.claude/skills');
   runCommand('node', [join(skills, 'hand-over/scripts/hand-over.mjs'), 'close'], { cwd: root, stdio: 'ignore' });
-  runCommand('node', [join(here, 'step-title.mjs'), 'remove'], { cwd: root, stdio: 'ignore' });
   return runCommand('node', [join(skills, 'schedule/scripts/tidy.mjs'), 'close', ...args], { cwd: root });
 }
 

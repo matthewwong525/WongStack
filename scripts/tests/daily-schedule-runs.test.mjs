@@ -4,11 +4,12 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { approve } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
+import { approve } from '../../.agents/inbox/lib/approvals.mjs';
 import { scheduleVersion } from '../../.agents/skills/schedule/scripts/lib/version.mjs';
 import { mark } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
-import { checkRun, refuseRuns, takeRuns } from '../../.agents/skills/daily/scripts/schedule-runs.mjs';
+import { refuseRuns, takeRuns } from '../../.agents/skills/daily/scripts/schedule-runs.mjs';
+import { checkHandedRun as checkRun } from '../../.agents/inbox/runs.mjs';
 import { SKILL_BRIEFS, loadSweeps, makeWorker } from '../../.agents/skills/daily/scripts/worker.mjs';
 
 const ORIGIN = 'https://app.example.com';
@@ -93,7 +94,7 @@ function rig(w, { check = '', maxRuns, git } = {}) {
   const sweeps = { ...loadSweeps({ project: w.project }), sweeps: [], ...(maxRuns && { maxRuns }) };
   const worker = makeWorker({ stateDir: w.stateDir, project: w.project, timezone: 'America/Toronto', sweeps, briefs: [SKILL_BRIEFS], env: w.env,
     now: () => w.t ?? NOW, isAlive: pid => !killed.includes(pid) && !w.ended?.includes(pid), kill: pid => killed.push(pid),
-    app: w.app, call: async () => [], ...(git && { git }),
+    app: { check: (event, more) => checkRun(event, { app: w.app, ...more }), report: w.app.report }, call: async () => [], ...(git && { git }),
     takeRuns: () => takeRuns({ env: w.env, project: w.project, emails: ['jo@example.com'], stateDir: w.stateDir, now: w.t ?? NOW }),
     runCheck: async ({ sweep }) => { if (check instanceof Error) throw check; spawned.check = sweep.check; return check; },
     launch: run => { spawned.push({ ...run, pid: 101 + spawned.length }); return { pid: 100 + spawned.length, on: () => {} }; } });

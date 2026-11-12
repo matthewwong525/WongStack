@@ -4,12 +4,13 @@ import test from 'node:test';
 import { execFileSync } from 'node:child_process';
 import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
-import { approve, approvedVersion, approvalsFile } from '../../.agents/skills/schedule/scripts/lib/approvals.mjs';
-import { definition, saveDefinition } from '../../.agents/skills/schedule/scripts/lib/app.mjs';
-import { FETCH_TIMEOUT_MS, RUN_FLOOR_MS, checkRun, handOver, mirrorRound, openSession, runRound } from '../../.agents/skills/schedule/scripts/lib/app-runs.mjs';
-import { appProgress } from '../../.agents/skills/schedule/scripts/lib/progress.mjs';
+import { approve, approvedVersion, approvalsFile } from '../../.agents/inbox/lib/approvals.mjs';
+import { definition, saveDefinition } from '../../.agents/inbox/lib/app.mjs';
+import { RUN_FLOOR_MS, checkRun, mirrorRound, runRound } from '../../.agents/inbox/runs.mjs';
+import { FETCH_TIMEOUT_MS, handOver, openSession } from '../../.agents/skills/schedule/scripts/lib/start-run.mjs';
+import { appProgress } from '../../.agents/inbox/lib/progress.mjs';
 import { scheduleVersion } from '../../.agents/skills/schedule/scripts/lib/version.mjs';
-import { EXIT, PaseoError } from '../../.agents/skills/schedule/scripts/lib/paseo.mjs';
+import { EXIT, PaseoError } from '../../.agents/skills/daily/scripts/lib/paseo.mjs';
 import { freshBase } from '../../.agents/skills/schedule/scripts/workspace.mjs';
 import { logAction } from '../../.agents/skills/reply-link/scripts/lib/helper-log.mjs';
 import { COMPUTER, NOW, ORIGIN, fakeApp, folder, plan, runId } from './fixtures/scheduled-work.mjs';
@@ -138,7 +139,7 @@ test('a background run is handed to the worker, which reports it; a failed hand-
   const file = path.join(env.HOME, '.wong-stack', 'agent-events', `schedule-run-${runId(1)}.json`);
   assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), { event: { event: 'schedule-run', key: 'weekly-plan', run: runId(1), version, origin: ORIGIN, email: JO, cwd },
     at: new Date(NOW).toISOString() });
-  assert.deepEqual(spawned[0][1], [path.join(cwd, '.agents/skills/daily/scripts/daily.mjs'), 'ensure']);
+  assert.deepEqual(spawned[0][1], [path.join(cwd, '.claude/skills/daily/scripts/daily.mjs'), 'ensure']);
   assert.equal(spawned[0][2].detached, true);
 
   mkdirSync(path.join(env.HOME, 'blocked'));

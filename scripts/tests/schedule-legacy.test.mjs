@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { legacyAdapter, legacyPromptStatus, teardownLegacy } from '../../.agents/skills/schedule/scripts/lib/legacy.mjs';
+import { legacyAdapter, legacyPromptStatus, teardownLegacy } from '../../.agents/inbox/lib/legacy.mjs';
 const context = { installed: { url: 'https://legacy.example.test', accountId: 'synthetic-account', worker: 'synthetic-routines', gateway: 'synthetic-routines', containerId: 'owned-container' }, keys: { WONG_ROUTINES_KEY: 'private-management', CLOUDFLARE_API_TOKEN: 'private-provision' } };
 function service() {
   let rows = [{ id: 'old-1', status: 'active' }, { id: 'other-2', status: 'active' }], lost = false;

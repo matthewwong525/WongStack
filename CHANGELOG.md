@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 55.0.0 — Daily becomes a module any project can add
+
+- **Daily is now one module, the same for any repo.** It lives in [`.agents/plugins/daily/`](.agents/plugins/daily/daily/README.md), in two folders, `daily` and `schedule`, and brings its own hooks. A project without WongStack adds Daily alone with one pasted message ([the module](wiki/development/daily.md#the-module)).
+- **A repo fills Daily's parts in one profile**, `.agents/daily/profile.mjs`: where schedules live, who you are, the chat names, and more ([the profile](wiki/development/daily.md#the-profile)). A part that fails counts as empty and writes one journal line a day.
+- **Daily works with no company app.** Schedules then go to Paseo on this computer, and the line-up runs from Daily's worker. A Paseo schedule runs with full permissions, as the app's schedules do, unless it names its own. With no Paseo either, `/schedule` is off, says what it needs, and gives the line to add to the computer's own timer to run a script ([with no app](wiki/stack/host-schedules.md#with-no-app)).
+- **The Inbox opens on the plans waiting for you**, one row per review page, newest first. It keeps no list of your chats ([your chat list](wiki/development/daily.md#your-chat-list)).
+- **Removed:** *remind me* as its own feature, and the *tell* and *watch* asks. Ask *remind me* in any chat, and `/schedule` saves a one-time schedule. A `chats` entry in Daily's `sources` setting does nothing now.
+
+**Updating.** Daily moves into its own folders and keeps every schedule, OK and setting. The update also adds Daily to Codex on this computer, so its check-ins run there. On each other computer you use Codex on, the next chat names one command to run; until you run it, Daily's check-ins do not run in Codex there. The Inbox now opens on the plans waiting for you. To get a reminder, ask *remind me* in a chat: it becomes a one-time schedule through `/schedule`. The *tell* and *watch* asks are gone. The app deletes its saved list of your chats when it deploys.
+
 ## 54.0.1 — Two notes on the company sign-in and preview walks
 
 - **The company sign-in link works for about two minutes.** Start it when the person can open it at once ([connect and call](wiki/stack/company-api.md#connect-and-call)).
@@ -528,7 +538,7 @@ Memory's list of areas gains one entry, for the address of the app the WongStack
 
 ## 47.1.0 — Chats opened for you think at medium or more and show their names
 
-- **A chat opened for you never thinks below medium.** The workspace launcher and a schedule on the app's clock pass `--thinking`. Low, off, or none becomes medium. High and above stay. An unset level stays unset when the model's own default is medium or more, so a model that defaults to high keeps high; when the default is lower or can not be read, it becomes medium ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)). A chat you start yourself keeps the level you pick.
+- **A chat opened for you never thinks below medium.** The workspace launcher and a schedule on the app's clock pass `--thinking`. Low, off, or none becomes medium. High and above stay. An unset level stays unset when the model's own default is medium or more, so a model that defaults to high keeps high; when the default is lower or can not be read, it becomes medium ([`workspace.mjs`](.agents/plugins/daily/schedule/scripts/workspace.mjs)). A chat you start yourself keeps the level you pick.
 - **Open a workspace only through the launcher.** A raw `paseo run --new-workspace` with `--new-branch`, or Paseo's Handoff skill, keeps a slug name such as `roadmap-week-bricks` and the caller's thinking level ([new workspaces](.agents/skills/plan/references/new-workspace.md)).
 - **Your day shows a chat's workspace name, not its folder.** The chat on a board to-do, the chats in *what's going on?*, and the journal show *Task: Call Kim*, not `potent-quail`. The folder name still finds the chat.
 
@@ -657,7 +667,7 @@ Memory's list of areas gains one entry, for the address of the app the WongStack
 
 ## 45.4.0 — Small fixes from WongOS
 
-- **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/skills/schedule/scripts/workspace.mjs)).
+- **A script can open a tagged chat and find it again.** `workspace.mjs open` takes `--label key=value`, such as `--label job=42`, and your own script can import `openWorkspace` from it with the same checks. Find those chats later with `paseo ls --label job=42`. A tag of any other shape opens nothing ([`workspace.mjs`](.agents/plugins/daily/schedule/scripts/workspace.mjs)).
 - **A new workspace keeps your chat settings.** The worktree setup now also copies your `.claude/settings.local.json`, such as the commands you allowed, into a new workspace that has none. So a new chat does not ask for them again ([worktrees and branch copies](wiki/development/secrets.md#worktrees-and-branch-copies)).
 - **The app opens like a real app from a phone's home screen.** Add it to the home screen, and it opens full screen with no browser bar.
 - **Two lessons for checks.** A kept check points at sample data, not at a record a check made: a fresh rebuild removes that record ([kept checks](wiki/development/kept-checks.md)). A check reads a date or time field again after it types in it, because the browser tool can say the typing worked while the field stays empty.

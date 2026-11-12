@@ -14,10 +14,16 @@ const version = text => { try { return JSON.parse(text).version ?? null; } catch
 const read = path => { try { return readFileSync(path, 'utf8'); } catch { return ''; } };
 const newer = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }) > 0;
 
-/** A module's version files: one `module.json` for plain skill folders, else both plugin.json files. */
+/** A module's version files: a `module.json` with a version for plain skill folders; else both plugin.json files, in
+ *  the module's own folder or, for a module of several folders like Daily's, the first folder `module.json` names. */
 function manifestsOf(root, folder, name) {
   const single = [`${name}/module.json`, 'module.json'].find(file => existsSync(join(root, folder, file)));
-  return single ? [single] : MANIFESTS;
+  if (!single || existsSync(join(root, folder, MANIFESTS[0]))) return MANIFESTS;
+  let listed = {};
+  try { listed = JSON.parse(read(join(root, folder, single))); } catch { /* unreadable: no version */ }
+  if (listed.version) return [single];
+  const first = listed.folders?.[0];
+  return first ? MANIFESTS.map(file => `${first}/${file}`) : [single];
 }
 
 /** A line per module whose version is off: its two manifests differ, or it changed since `base` at one version. */
