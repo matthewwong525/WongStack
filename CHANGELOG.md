@@ -10,6 +10,22 @@
 
 **Updating.** Nothing to do by hand.
 
+## 55.2.0 — One live view, a tab for each chat
+
+- **Several chats share one live view link.** When a second chat needs you while a view is open, its step joins that view as a tab in a row above the page, and the chat sends you the same link. Before, its view could not open until the first one closed ([one live view, a tab for each chat](.agents/plugins/browser/hand-over/references/live-view.md#what-the-link-can-do)).
+- **A new tab waits for your tap.** It shows a dot and never takes the page from you while you type. You tap a tab to show its page.
+- ***Hand back* ends only the tab you see.** Only its chat is told, and it carries on. The oldest tab left then shows. The link closes after the last tab.
+- **Each tab keeps its own 8-hour limit**, from when its chat joins. A chat's `close` ends only its own tab.
+- **A browser in a window, and the watch link, work as before.**
+
+**Updating.** Nothing to do by hand.
+
+## 55.1.1 — A note on checking the inbox on a preview
+
+- **Clear the browser's cookies before you check the inbox on a preview as yourself.** A browser that opened the preview as the checker keeps that sign-in, and the inbox refuses it ([an app that serves only the signed-in person](wiki/stack/cloudflare-access.md#setup)).
+
+**Updating.** Nothing to do by hand.
+
 ## 55.1.0 — Memory shows the files behind each fact
 
 - **A memory answer ends with a short list of files.** After its facts and passages, `recall` lists up to eight files and docs those facts are about, each with the facts that led to it, so the AI opens the right place first ([files behind the facts](wiki/development/document-retrieval.md#files-behind-the-facts)). The list says it is a place to start, not a full list.

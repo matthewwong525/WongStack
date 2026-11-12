@@ -18,10 +18,16 @@
   #status { margin: 24px 16px; color: var(--foreground); font-size: 1.1rem; text-align: left; overflow-wrap: anywhere; }
   #text { flex: 1; min-width: 0; padding: 10px 14px; border-radius: 999px; font-size: 1.05rem; }
   #type button { flex: none; margin-left: auto; min-height: 2.5rem; padding: 0.4rem 0.9rem; }
+  #tabs { display: flex; gap: 6px; overflow-x: auto; padding: 6px 10px; border-bottom: 1px solid var(--border); background: var(--background); }
+  #tabs[hidden] { display: none; }
+  #tabs button { flex: none; border-radius: 999px; padding: 0.25rem 0.75rem; font-size: 0.85rem; white-space: nowrap; }
+  #tabs button.shown { border-color: transparent; background: var(--secondary); color: var(--secondary-foreground); font-weight: 600; }
+  #tabs button.fresh::after { content: ""; display: inline-block; width: 0.5em; height: 0.5em; margin-left: 0.4em; border-radius: 50%; background: var(--primary); vertical-align: middle; }
 </style>
 </head>
 <body>
 <section id="view" hidden>
+  <nav id="tabs" aria-label="Chats that need you" hidden></nav>
   <div id="stage"><div id="holder"><div id="screen"></div></div></div>
   <div id="bar">
     <p id="line-text" role="status"></p>

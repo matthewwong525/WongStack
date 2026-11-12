@@ -41,13 +41,13 @@ The agent's browser fills the page, already on the step. One bar under it holds 
 └──────────────────────────────┘
 ```
 
-- **The line says what to do now.** It sits in the bar, right above the type box, so everything you need is in one place.
+- **The line says what to do now.** It sits in the bar, above the type box.
 - **No light and dark switch.** The view always shows light, so the site looks as it does in your own browser.
 - **It fits what you hold.** Narrow on a phone, wide on a laptop, with the whole puzzle and its button in view. The page gets its own size back when the link closes.
 - **Tap straight on the browser.** Your taps go to it as they are. On a laptop your keyboard does too.
 - **Type in the box and it types in the browser.** A phone's keyboard doesn't reach the browser. Tap a box in the browser, then type in ours: each letter, delete, Enter, and paste lands in the browser at once, with no send. Text already in the browser's box stays: you add to it, or keep deleting.
 - **Paste anywhere.** A paste on the browser or in the box types the text into the browser, a key at a time, so a password from your password manager goes straight in. Nothing pasted goes to the link's helper.
-- ***Hand back* ends your turn.** The browser goes back to the agent, and the chat carries on. Saying *done* in the chat closes the link too.
+- ***Hand back* ends your turn.** The browser goes back to the agent, and the chat carries on. Saying *done* in the chat ends it too.
 - **To give up, tap *Hand back* and say so in the chat.** If the step is not finished, the agent asks before it does more on that page.
 - **It stays open until you end it.** After *Hand back*, the page says *Done. Go back to the chat.* A link that has closed says *This link has closed. Ask in the chat for a new one.*
 
@@ -56,8 +56,8 @@ The agent's browser fills the page, already on the step. One bar under it holds 
 **While it's open, the link drives a browser signed in as you.** Anyone who gets it can use every account that browser is signed in to, address bar included. Send it to nobody.
 
 - **The same guards as [every private link](../../browser/references/browsing.md#how-private-links-work).** A new Cloudflare address and a secret only the link carries, one link per chat, and no screen without the secret. The screen's connection sends it as the WebSocket subprotocol, since a browser can send no header there, and the helper echoes it back ([`ws-bridge.mjs`](../scripts/lib/ws-bridge.mjs)).
-- **One live view on the computer.** The browser has one screen, so a second view, from any chat, can't open until the first closes. Its message names the chat that holds it: `A live view is already open in modest-toad.`
-- **Open for up to 8 hours.** It closes only when you tap *Hand back*, when you say *done* in the chat, or at the limit, even if the chat stops. A closed link never works again.
+- **One live view, a tab for each chat.** The browser has one screen, so the computer has one view link. Another chat that needs you while it is open adds a tab above the page and sends you the same link. A new tab waits, marked with a dot, until you tap it: it never takes the page from you. *Hand back* ends only the tab you see; its chat alone carries on, and the oldest tab left shows next. The link closes after the last tab. A [watch link](#the-watch-link) has no tabs: while one is open, no other view opens. The message names the chat that holds it: `A live view is already open in modest-toad.`
+- **Each tab is open for up to 8 hours** from when its chat joins. It closes only on *Hand back*, on *done* in its chat, or at its limit, even if the chat stops. A closed link never works again.
 - **The agent learns only how it ended.** It sees nothing you tapped or typed. Afterwards it reads the page afresh and trusts nothing from before.
 - **Tasks share the window, a tab each.** While your turn is open, no other task shows its tab. If you tap another chat's tab or the blank first tab, yours comes back to the front by itself ([a tab for each chat](../../browser/references/browser-window.md#a-tab-for-each-chat)). A tab that you or the site open during your turn, such as *Forgot password* or *Sign in with Google*, stays in front while it is open: the browser can not tell the agent which tab shows.
 - **A pop-up stays open.** An add-on's toolbar pop-up, such as your password manager's, or a menu stays in front of the page until you pick from it or tap outside it. Tap its box to type in it. Then your tab comes back to the front.
