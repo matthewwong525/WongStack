@@ -133,7 +133,7 @@ A person without Project code is refused as for a download: *Ask your admin*. A 
 |---|---|
 | `/save` | Pushes, opens or renews the change, waits for the checks, and prints the preview: all through the app. A red check is reported with its log's end; it can't be rerun from here. |
 | `/ship` | With the publish tick: archives, saves, waits for the checks, then [publishes through the app](#who-publishes). Without it: stops after the save with one `NEXT:` line, the owner or an Admin publishes. |
-| `/continue` | Lists saved branches, and no pull requests. |
+| `/apply`, picking up saved work | Lists saved branches, and no pull requests. |
 | `/verify` | Reads the gate again: a save through the app leaves no receipt. |
 
 ### Who publishes
@@ -151,7 +151,7 @@ Then it publishes, with the server's own credential:
 
 A push to the published branch is still refused, so nothing skips the checks. A service token never publishes on the live app.
 
-The owner or an Admin who picks up a teammate's saved change with [`/continue`](../../.agents/plugins/loop/skills/continue/SKILL.md#3-check-out-the-branch) sees its changed files first, before any of it runs on their computer.
+The owner or an Admin who picks up a teammate's saved change with [`/apply`](../../.agents/plugins/loop/skills/apply/references/pick-up.md#2-check-out-the-branch) sees its changed files first, before any of it runs on their computer.
 
 A saved branch never reaches the deploy key either: its own code builds with no key, and the published branch's scripts deploy the build ([where the deploy key is](github-actions.md#where-the-deploy-key-is)). A GitHub write collaborator can still reach it, so give a teammate this save access, not GitHub write access.
 

@@ -25,7 +25,7 @@ test('a Markdown link into a module folder points at its install path; other lin
     '[ref]: ../../.agents/skills/memory/references/setup.md',
     'Stay [here](#top) and [there](../close/SKILL.md).',
   ].join('\n'));
-  assert.equal(installText('.claude/skills/continue/SKILL.md', '[m](../../plugins/memory/SKILL.md)', mapped), '[m](../memory/SKILL.md)');
+  assert.equal(installText('.claude/skills/close/SKILL.md', '[m](../../plugins/memory/SKILL.md)', mapped), '[m](../memory/SKILL.md)');
 });
 
 test('a module page keeps its links inside the module, and moves a link out of it', () => {

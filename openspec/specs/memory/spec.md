@@ -128,20 +128,6 @@ The digest SHALL include the people page that lists the current git email, found
 - **WHEN** no page in `knowledge/people/` or `wiki/people/` lists the current git email
 - **THEN** the digest shows no person section, and its opening lines still say to pull the task's topics or use the helper once the task is known
 
-### Requirement: The verbs read memory where they decide
-
-`/explore` SHALL search memory before it asks a question (`asking-the-user`), by the intent's words and by the code areas of the paths it expects to touch; `/continue` SHALL read the slug's live facts and open threads, and `/close` SHALL read the session's and its change's facts before it closes. An unreachable store SHALL NOT stop a verb; it SHALL say memory was not loaded.
-
-#### Scenario: Resuming a change
-
-- **WHEN** `/continue add-po-search` runs and the store holds facts for that slug
-- **THEN** the recap shows its open threads and facts with their ages
-
-#### Scenario: Planning a Worker change
-
-- **WHEN** `/explore` expects to touch `app/worker/index.ts` and a live fact is tagged `worker` without naming that path
-- **THEN** it loads that fact before its first question
-
 ### Requirement: Transcripts are kept and traceable
 
 With a bucket, each captured session's full transcript up to 50 MB SHALL be kept with no expiry, and a reader SHALL be able to follow a fact to its session's text. A member or reader SHALL read only transcripts owned by their credential's machine, and the admin every transcript in the repo. The Worker SHALL refuse a transcript over 50 MB from any key; that session's facts SHALL still be captured, and a request for its transcript SHALL say it was too large to keep.
@@ -264,15 +250,6 @@ The daily tidy SHALL merge facts that say the same thing into one new fact, supe
 
 - **WHEN** an open thread asks for a real phone test and a later live fact records that test passing
 - **THEN** consolidation supersedes the thread with a fact that says so, and the thread's body is unchanged
-
-### Requirement: Save is the deliberate capture point
-
-`/save` SHALL write the session's new facts through the gate under the change name or a topic slug, and report how many were added, superseded, and dropped and whether they were stored or spooled. A session with no code and no plan SHALL get facts, never an empty OpenSpec change, and no session SHALL write files under `notes/`.
-
-#### Scenario: A conversation-only save
-
-- **WHEN** `/save` runs after a session with no diff and no plan
-- **THEN** facts under a topic slug are stored and no change folder is created
 
 ### Requirement: Facts keep what a cold reader needs
 
@@ -763,7 +740,7 @@ When a chat ends, the memory plugin SHALL upload its full transcript, with secre
 
 ### Requirement: A finished chat's work and leftovers are captured
 
-The memory plugin SHALL be the one writer of a chat's facts: from each ended chat it SHALL record what the chat set out to do and what got done, leave one open thread for each planned piece not done, and close a thread the chat finished. It SHALL start this capture when a chat ends, as well as at the next chat start, so `/continue` sees the threads. No WongStack skill SHALL write a chat's facts itself.
+The memory plugin SHALL be the one writer of a chat's facts: from each ended chat it SHALL record what the chat set out to do and what got done, leave one open thread for each planned piece not done, and close a thread the chat finished. It SHALL start this capture when a chat ends, as well as at the next chat start, so the next chat's start-of-chat note shows the threads. No WongStack skill SHALL write a chat's facts itself.
 
 #### Scenario: Work left undone
 

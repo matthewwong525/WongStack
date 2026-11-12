@@ -149,7 +149,7 @@ test('builds branch-off and checkout arguments with the brief last', () => {
   const off = runArgs({ primary: '/p', title: 'B', brief: '/plan B', settings, base: 'origin/main' });
   assert.deepEqual(off, ['run', '-d', '--new-workspace', 'worktree', '--worktree-mode', 'branch-off', '--base', 'origin/main',
     '--cwd', '/p', '--title', 'B', '--provider', 'claude', '--mode', 'bypassPermissions', '--', '/plan B']);
-  const co = runArgs({ primary: '/p', title: 'B', brief: '/continue b', settings: { ...settings, model: 'm', thinking: 'x' }, checkout: 'feat/b' });
+  const co = runArgs({ primary: '/p', title: 'B', brief: '/apply b', settings: { ...settings, model: 'm', thinking: 'x' }, checkout: 'feat/b' });
   assert.deepEqual(co.slice(4, 8), ['--worktree-mode', 'checkout-branch', '--branch', 'feat/b']);
   assert.equal(flag(co, '--model'), 'm');
   assert.equal(flag(co, '--thinking'), 'x');
@@ -248,7 +248,7 @@ test('checkout mode opens the owner\'s own branch with no review, and branches o
   const before = git(root, 'rev-parse', 'refs/remotes/origin/main');
   const paseo = fakePaseo(t);
   const env = { ...paseo.env, FAKE_RUN_WORKTREE: path.join(base, 'opened') };
-  const r = runCli(linked, ['open', '--title', 'add-auth', '--brief', brief(t, '/continue add-auth'), '--checkout', 'feat/auth'], env);
+  const r = runCli(linked, ['open', '--title', 'add-auth', '--brief', brief(t, '/apply add-auth'), '--checkout', 'feat/auth'], env);
   assert.equal(r.status, 0, JSON.stringify(r.json));
   const [run] = paseo.runs();
   assert.equal(flag(run.args, '--title'), 'Add auth');
@@ -272,7 +272,7 @@ test('a teammate\'s branch opens nothing without --reviewed at its newest commit
   const save = teammate(t, origin, 'teammate-work');
   const seen = save('tool.mjs');
   const paseo = fakePaseo(t);
-  const open = (...more) => runCli(root, ['open', '--title', 'T', '--brief', brief(t, '/continue t'), '--checkout', 'teammate-work', ...more], paseo.env);
+  const open = (...more) => runCli(root, ['open', '--title', 'T', '--brief', brief(t, '/apply t'), '--checkout', 'teammate-work', ...more], paseo.env);
   const unreviewed = open();
   assert.equal(unreviewed.status, 2, JSON.stringify(unreviewed.json));
   assert.equal(unreviewed.json.review.tip, seen);
@@ -294,7 +294,7 @@ test('the review check opens plainly with no profile part, and refuses when the 
   const open = (file, at) => {
     const paseo = fakePaseo(t);
     const env = { ...paseo.env, WONG_DAILY_PROFILE: file, FAKE_RUN_WORKTREE: path.join(base, at) };
-    return { paseo, r: runCli(root, ['open', '--title', 'T', '--brief', brief(t, '/continue t'), '--checkout', 'feat/auth'], env) };
+    return { paseo, r: runCli(root, ['open', '--title', 'T', '--brief', brief(t, '/apply t'), '--checkout', 'feat/auth'], env) };
   };
   const plain = open(path.join(base, 'no-profile.mjs'), 'plain');
   assert.equal(plain.r.status, 0, JSON.stringify(plain.r.json));
@@ -325,7 +325,7 @@ test('a teammate\'s `main`, where origin publishes `master`, still needs --revie
   const tip = teammate(t, origin, 'main')('hook.mjs');
   git(root, 'fetch', '-q', 'origin');
   const paseo = fakePaseo(t);
-  const r = runCli(root, ['open', '--title', 'T', '--brief', brief(t, '/continue t'), '--checkout', 'main'], paseo.env);
+  const r = runCli(root, ['open', '--title', 'T', '--brief', brief(t, '/apply t'), '--checkout', 'main'], paseo.env);
   assert.equal(r.status, 2, JSON.stringify(r.json));
   assert.equal(r.json.review.tip, tip);
   assert.deepEqual(r.json.review.files, [{ path: 'hook.mjs', kind: 'code' }]);
@@ -337,7 +337,7 @@ test('a reviewed open pins the local branch before Paseo runs, and checks where 
   const save = teammate(t, origin, 'teammate-work');
   const tip = save('tool.mjs');
   const paseo = fakePaseo(t);
-  const args = ['open', '--title', 'T', '--brief', brief(t, '/continue t'), '--checkout', 'teammate-work', '--reviewed', tip];
+  const args = ['open', '--title', 'T', '--brief', brief(t, '/apply t'), '--checkout', 'teammate-work', '--reviewed', tip];
   const r = runCli(root, args, { ...paseo.env, FAKE_RUN_WORKTREE: path.join(base, 'opened') });
   assert.equal(r.status, 0, JSON.stringify(r.json));
   assert.equal(paseo.runs()[0].pinned, tip);

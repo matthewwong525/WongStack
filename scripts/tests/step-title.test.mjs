@@ -64,8 +64,8 @@ const set = (w, step, opts = {}) => setStep({ step, env: w.env, cwd: opts.cwd ??
 const renames = w => w.calls().filter(args => args[1] === 'update' || args[1] === 'rename');
 
 test('each loop verb is a loop verb, another skill is other, and Codex\'s $ form the same', () => {
-  const loops = ['/explore', '/plan', '/improve-code', '/apply', '/continue', '/ship', '$plan x'].map(p => verbOf(p).loop);
-  assert.deepEqual(loops, Array(7).fill(true));
+  const loops = ['/explore', '/plan', '/improve-code', '/apply', '/ship', '$plan x'].map(p => verbOf(p).loop);
+  assert.deepEqual(loops, Array(6).fill(true));
   assert.deepEqual(verbOf('/daily'), { other: true });
   assert.deepEqual(verbOf('fix the invoice total'), {});
 });

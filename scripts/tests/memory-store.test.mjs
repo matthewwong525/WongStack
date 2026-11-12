@@ -713,7 +713,7 @@ test('a thread must name who checks it: a verb or area tag, read through aliases
     { action: 'add', type: 'thread', body: 'Does the preview need a second check?' },
   ] });
   assert.equal(untagged.code, 1);
-  assert.match(untagged.stderr, /fact 2: a thread needs the tag of the step whose next run should check it \(explore, plan, apply, save, ship, continue, verify, routine, sync, setup, close, improve, dream\), or the area tag/);
+  assert.match(untagged.stderr, /fact 2: a thread needs the tag of the step whose next run should check it \(explore, plan, apply, save, ship, verify, routine, sync, setup, close, improve, dream\), or the area tag/);
   assert.equal(rows(env, 'SELECT count(*) AS n FROM facts')[0].n, 0, 'nothing in the batch is stored');
   const gated = await memory(env.repo, env.fake, ['gate', '--file', writeJsonFile(env.repo.home, 'gate.json', { slug: 'q', facts: [{ type: 'thread', body: 'Does the preview need a second check?' }] })]);
   assert.match(gated.stdout, /Tags: fact 1: a thread needs the tag of the step/);

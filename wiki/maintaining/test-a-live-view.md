@@ -26,6 +26,8 @@ Give each chat's page a different title, such as `example.com` and `iana.org/hel
 
 Press the view's buttons through its own routes on `127.0.0.1:<port>`, with the `x-hand-over-key` header. Both values are in `$T/.wong-stack/hand-over/view/state.json`. Never print the key.
 
+To test what the view's page does when a person opens a link, load `http://127.0.0.1:<port>/#key=<key>&chat=<name>` in a separate headless browser, such as Playwright's Chromium, never in the agent's browser: that browser is the screen under test. Then read `/view` to see which tab shows.
+
 ## Expect the wake-up in your own chat
 
 The test chats run inside your workspace, so each *Hand back* wakes **your** chat, and that message stops the command that is running. Run each `wait` in the background, read its output file afterwards, and treat the wake-up as the test's result, not as the person.

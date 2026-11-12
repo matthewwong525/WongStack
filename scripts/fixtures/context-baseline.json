@@ -928,7 +928,7 @@
         "wiki/development/the-change-loop.md"
       ],
       "after": [
-        ".agents/skills/continue/SKILL.md",
+        ".agents/skills/apply/references/pick-up.md",
         ".agents/skills/apply/SKILL.md",
         ".agents/skills/plan/references/openspec-cli.md",
         ".agents/skills/save/references/checkpoint-evidence.md",

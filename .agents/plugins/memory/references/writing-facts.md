@@ -20,6 +20,6 @@ A fact is the least a cold reader needs to act as this session would: one or two
 
 ## One fact, one claim
 
-Split a paragraph into facts that can each be superseded alone. Write absolute dates, never *yesterday*. Use the change's slug if the session had one, so `/continue` and `/ship` find it.
+Split a paragraph into facts that can each be superseded alone. Write absolute dates, never *yesterday*. Use the change's slug if the session had one, so a later chat on that change finds it.
 
 When the write gate shows close live facts, drop a candidate one already says; supersede one it corrects.

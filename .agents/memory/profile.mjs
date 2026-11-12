@@ -9,7 +9,7 @@ export default {
   topics: lazy('./topics.mjs', 'topics'),
   // The verb tags, and the slash commands that name them.
   steps: {
-    explore: ['/explore'], plan: ['/plan'], apply: ['/apply'], save: ['/save'], ship: ['/ship'], continue: ['/continue'],
+    explore: ['/explore'], plan: ['/plan'], apply: ['/apply'], save: ['/save'], ship: ['/ship'],
     verify: ['/verify'], routine: ['/routine'], sync: ['/wong-sync'], setup: ['/wong-setup'], close: ['/close'],
     improve: ['/improve-code', '/improve'], dream: ['/memory:dream-memory', '/dream-memory', '/dream'],
   },

@@ -105,7 +105,6 @@
       ".claude/plugins/loop/skills/save": ".claude/skills/save",
       ".claude/plugins/loop/skills/ship": ".claude/skills/ship",
       ".claude/plugins/loop/skills/verify": ".claude/skills/verify",
-      ".claude/plugins/loop/skills/continue": ".claude/skills/continue",
       ".claude/plugins/loop/skills/close": ".claude/skills/close",
       ".claude/plugins/browser": ".claude/skills/browser"
     }

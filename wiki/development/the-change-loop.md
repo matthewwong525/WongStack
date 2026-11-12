@@ -6,15 +6,15 @@ A plain request — research, an errand, a reminder, a question — is not a cha
 
 ```
 /explore ─▶ /plan ─▶ /apply ─▶ /save ─▶ /ship ─▶ /close
- think      draft the  implement  save +    publish +   wiki +
+ think      draft the  implement  save +    publish +   keep +
  (no git)   change     + host     review +  archive   close
             (no git)   preview    CI
                           ▲
-            /continue ────┘
-            resume saved work later, on any machine
+            /apply <name> ┘
+            pick up saved work later, on any machine
 ```
 
-Each [loop](../../.agents/plugins/loop/README.md) skill calls the OpenSpec CLI. **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none; `/save`, `/continue`, `/ship`, and `/close` own branches, PRs, and merges.
+Each [loop](../../.agents/plugins/loop/README.md) skill calls the OpenSpec CLI. **OpenSpec owns plans; WongStack skills own all git**: `/explore`, `/plan`, and `/apply` run none, but for `/apply`'s [switch to a saved branch](../../.agents/plugins/loop/skills/apply/references/pick-up.md#2-check-out-the-branch); `/save`, `/ship`, and `/close` own branches, PRs, and merges.
 
 **A verb whose precondition is missing invokes the verb before it**, nested, so you can enter anywhere:
 
@@ -49,7 +49,7 @@ When a task done by hand — a plain request, or non-code work under a verb — 
 - **Pick the help by the work.** A scheduled task that needs judgment on each run gets a routine through [`/daily:schedule`](../../.agents/plugins/daily/skills/schedule/SKILL.md). Fixed steps first use a script on an existing clock; build needed code through this loop, or a [mini app](../stack/mini-apps.md) when useful: [most process improvements shouldn't use AI](../agent-knowledge-center.md#most-process-improvements-shouldnt-use-ai).
 - **Name the outcome, not the tool**: *do this every Monday at 9*, *a page that splits the bill for you*.
 - **A no is final**: record a `feedback` fact through [the write gate](../../.agents/plugins/memory/SKILL.md#write), naming the task in the person's words, and never offer for it again.
-- **A yes starts the usual route**: `/daily:schedule`'s own confirmation, or the change loop stopping at the plan's review.
+- **A yes starts the usual route**: `/daily:schedule` confirms, or the change loop stops at the plan's review.
 
 No offer after a code change you built, or in an unattended run.
 
@@ -75,11 +75,10 @@ Each skill owns its procedure; this list says what each stage is for.
 
 - **[`/explore`](../../.agents/plugins/loop/skills/explore/SKILL.md)** thinks a problem through, owns the [questions before a plan](#asking-before-drafting), and changes no repo file.
 - **[`/plan`](../../.agents/plugins/loop/skills/plan/SKILL.md)** drafts the change folder and its `review.html` page. **A behavior change plans test authoring beside source**, and its checks at the end ([why](#apply-never-saves-to-stop-but-may-save-to-finish-a-task)). `/save` never authors tests; coverage grows where the context is richest.
-- **[`/apply`](../../.agents/plugins/loop/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/plugins/loop/skills/apply/SKILL.md#build-in-a-helper), free of the planning talk, has [a second agent review it](../../.agents/plugins/loop/skills/apply/SKILL.md#a-second-look), and ends with [the local pre-check](#the-gate) and a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload.
+- **[`/apply`](../../.agents/plugins/loop/skills/apply/SKILL.md)** ensures a plan, works `tasks.md` [in a fresh helper agent](../../.agents/plugins/loop/skills/apply/SKILL.md#build-in-a-helper), free of the planning talk, has [a second agent review it](../../.agents/plugins/loop/skills/apply/SKILL.md#a-second-look), and ends with [the local pre-check](#the-gate) and a host preview. It never saves on completion; invoked by `/ship`, it returns with no upload. `/apply <name>` also [picks up saved work](../../.agents/plugins/loop/skills/apply/references/pick-up.md), cold, on any machine; work new to this computer is shown and asked about first.
 - **[`/save`](../../.agents/plugins/loop/skills/save/SKILL.md)** is the git stage: it commits code and [the synced change](#the-change-is-a-living-handoff-not-just-a-plan) together, pushes, opens or updates the PR, waits for CI when present, and returns a preview URL. The chat's facts go to the [memory store](memory.md) through memory capture, not `/save`. With no plan, it authors one from the session, so nothing ships without its handoff. `/ship` reuses it for the archive, so git, PR, and CI logic exists once.
-- **[`/continue`](../../.agents/plugins/loop/skills/continue/SKILL.md)** resumes a change or an open non-code thread, cold, on any machine, and hands off to `/apply`. Work new to this computer is shown and asked about first.
 - **[`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md)** archives the change, runs `/save` and [`/verify`](#verifying-the-app) once each, plus once more after a failed walk's one fix, squash-merges on [the gate](#the-gate), then [looks at the live app](staging-walkthrough.md#what-it-is-not). An unfinished change goes through `/apply` first. The walk replays [kept checks](kept-checks.md#when-it-replays) and saves new ones. A check only possible after publishing is a Decision-log line: it refuses unticked tasks.
-- **[`/close`](../../.agents/plugins/loop/skills/close/SKILL.md)** wraps up a chat you chose to close, with no question. It keeps unfinished work saved, reads the chat for repeatable facts and moves them to the wiki in their own pull request, and closes the workspace. Memory capture keeps the rest. A workspace closed another way leaves its facts to [the daily tidy](wiki-dream.md#the-daily-tidy), which memory starts at the first chat of the next day.
+- **[`/close`](../../.agents/plugins/loop/skills/close/SKILL.md)** wraps up a chat you chose to close, with no question. It keeps unfinished work saved and closes the workspace; it reads no memory and edits no wiki page. With [memory](memory.md) installed, [the daily tidy](wiki-dream.md#the-daily-tidy), which memory starts at the first chat of the next day, puts the chat's repeatable facts on the wiki.
 
 Loop back any time: re-`/plan` if the spec needs to change.
 
@@ -95,7 +94,7 @@ Every chat starts in plan; only you move it on. Each step may read, research, ru
 
 You move it on by typing a step, tapping *Build it* or *Build and publish* on a plan's page, or picking build or publish when asked. A step run inside another, such as `/plan` inside `/ship`, keeps the outer step's reach. Add your own step as `.agents/skills/<name>/SKILL.md`, linked from this page.
 
-**A chat's name starts with the step at work**: `EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `, then its task. It moves as each step starts; a chat that starts none, such as a question, keeps its name. A typed command shows at once: `/plan` as `PLAN`, `/verify` as `VERIFY`; `/apply`, `/continue` and `/ship` wait for their step. Each step names the work at that time, a plan's title once there is a plan: any name Paseo made gives way, and a name you give in Paseo stays. [`step-title.mjs`](../../.agents/loop/step-title.mjs) writes it, at once in Paseo and Codex; in Claude Code alone, a later step shows at your next message. The Daily chat, routines and helpers keep theirs.
+**A chat's name starts with the step at work**: `EXPLORE: `, `PLAN: `, `APPLY: `, `SHIP: `, or `DONE: `, then its task. It moves as each step starts; a chat that starts none, such as a question, keeps its name. A typed command shows at once: `/plan` as `PLAN`, `/verify` as `VERIFY`; `/apply` and `/ship` wait for their step. Each step names the work at that time, a plan's title once there is a plan: any name Paseo made gives way, and a name you give in Paseo stays. [`step-title.mjs`](../../.agents/loop/step-title.mjs) writes it, at once in Paseo and Codex; in Claude Code alone, a later step shows at your next message. The Daily chat, routines and helpers keep theirs.
 
 ### Fix it or ask
 
@@ -125,7 +124,7 @@ A verb you invoke for work that changes no repo file, such as research, a messag
 
 - **`/plan`** writes a short numbered to-do in the chat, marking each step that acts outside it.
 - **`/apply`** works the to-do. Only an outward action, such as a sent message or a payment, asks first, showing exactly what it will do.
-- **`/save`** says the chat's memory capture keeps the progress, and **`/continue`** resumes it.
+- **Progress** stays in the chat. With [memory](memory.md) installed, its capture keeps an open thread, and *pick up <the errand>* in a new chat carries on.
 - **`/ship`** is for repo changes only; the work finishes in `/apply`.
 
 ### Mini apps
@@ -170,11 +169,11 @@ Only a proposal the branch adds or edits counts, archived ones included, so an o
 
 ## The change is a living handoff, not just a plan
 
-`/save` keeps three surfaces on the change, so a cold reader inherits the *why*, not just the *what*: the **`**Status:**`** line under the proposal's H1 (`in-progress` | `blocked (<on what>)` | `ready-to-ship` | `parked`), which the `/continue` menu shows; the **append-only** dated **`## Decision log`** at the foot of `proposal.md` — what landed, what was decided or ruled out and why, what blocks it — never rewritten; and **the PR body**, regenerated on every `/save` as a **mirror of the change**, so a forge alone is a full handoff. Reviewers comment instead of editing it.
+`/save` keeps three surfaces on the change, so a cold reader inherits the *why*, not just the *what*: the **`**Status:**`** line under the proposal's H1 (`in-progress` | `blocked (<on what>)` | `ready-to-ship` | `parked`), which `/apply`'s list of saved work shows; the **append-only** dated **`## Decision log`** at the foot of `proposal.md` — what landed, what was decided or ruled out and why, what blocks it — never rewritten; and **the PR body**, regenerated on every `/save` as a **mirror of the change**, so a forge alone is a full handoff. Reviewers comment instead of editing it.
 
 ## Where the plan and record live
 
-The change folder on the feature branch *is* the plan, and `/continue <name>` finds it from a fresh clone. Its **archive** on the default branch, with the synced `openspec/specs/`, *is* the record; there are no GitHub planning issues.
+The change folder on the feature branch *is* the plan, and `/apply <name>` finds it from a fresh clone. Its **archive** on the default branch, with the synced `openspec/specs/`, *is* the record; there are no GitHub planning issues.
 
 **The branch and change can have different names.** The folder and the session's facts use the change name; `/save` records the branch in the proposal's `**Branch:**` line. Each verb selects a change by [the selection rungs](../../.agents/plugins/loop/skills/save/references/checkpoint-evidence.md#selection-rungs), and `/ship` moves another change the branch adds to its own branch first.
 

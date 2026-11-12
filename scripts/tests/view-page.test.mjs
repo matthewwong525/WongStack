@@ -4,7 +4,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { runInContext } from 'node:vm';
 import { JSDOM } from 'jsdom';
-import { ending, shapeOf, strokes, tabsShow, watchEnding, watchShows } from '../../.agents/skills/browser/skills/hand-over/scripts/view-page.mjs';
+import { ending, linkOf, shapeOf, strokes, tabsShow, tabToOpen, watchEnding, watchShows } from '../../.agents/skills/browser/skills/hand-over/scripts/view-page.mjs';
 
 const scripts = new URL('../../.agents/skills/browser/skills/hand-over/scripts/', import.meta.url);
 const sourcePath = fileURLToPath(new URL('view-page.mjs', scripts));
@@ -23,9 +23,9 @@ const DONE = 'Done. Go back to the chat.';
 const CLOSED = 'This link has closed. Ask in the chat for a new one.';
 const [BACK, TAB, ENTER] = [0xff08, 0xff09, 0xff0d];
 
-// The page at `width` with stand-in `viewers`; `view`, `receipts`, and `watch` answer `/view`, `/receipt`, `/watch`
-// (null view: closed); take and give change the watch's `control`, show a turn view's tab. `holder` is the stage width.
-function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wide }, receipts = [], hash = '#key=secret', viewer = true, before = () => {}, watch = null } = {}) {
+// The page at `width` with stand-in `viewers`; `view`, `receipts`, `watch` answer `/view`, `/receipt`, `/watch` (null
+// view: closed); take and give change `control`, show a turn view's tab unless `ended`. `holder`: the stage width.
+function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wide }, receipts = [], hash = '#key=secret', viewer = true, before = () => {}, watch = null, ended = false } = {}) {
   const calls = [];
   const viewers = [];
   const answer = (status, body) => ({ status, ok: status === 200, json: async () => body });
@@ -52,7 +52,7 @@ function page(t, { width = 390, holder = 366, view = { note: NOTE, fit: FITS.wid
       calls.push({ path, key: init.headers?.['x-hand-over-key'], body });
       if (path === 'view') return view ? answer(200, view) : answer(410);
       if (path === 'fit') return FITS[body.fit] ? answer(200, { fit: FITS[body.fit] }) : answer(400);
-      if (path === 'show') return view.tabs?.some(tab => tab.chat === body.chat) ? answer(200, Object.assign(view, { shown: body.chat })) : answer(409);
+      if (path === 'show') return !ended && view.tabs?.some(tab => tab.chat === body.chat) ? answer(200, Object.assign(view, { shown: body.chat })) : answer(409);
       const holds = { take: 'person', give: 'assistant' }[path];
       if (watch && holds) watch.control = holds;
       if (watch && (path === 'watch' || holds)) return answer(200, { ...watch });
@@ -439,6 +439,30 @@ test('a chat\'s next turn gets its own Hand back, even when the page saw no poll
   assert.deepEqual([p.$('#line-text').textContent, p.$('#hand').disabled], ['Pick a seat', false]);
 });
 
+test('a chat\'s link opens on its own tab, once: the key stays the only secret, and a later poll keeps your tab', async t => {
+  const view = tabsView();
+  const p = await live(t, { view, hash: '#key=secret&chat=flights' });
+  assert.deepEqual(p.paths().slice(0, 2), ['view', 'show'], 'it asks for its tab before the first picture');
+  assert.deepEqual(p.calls[1], { path: 'show', key: 'secret', body: { chat: 'flights' } });
+  assert.deepEqual(row(p), [['dentist', '', null], ['flights', 'shown', 'page']]);
+  assert.equal(p.$('#line-text').textContent, 'Pay for the seat');
+  assert.equal(p.window.location.hash, '', 'the # part is cleared, so a reload asks no tab');
+  p.$('#tabs button').click();
+  await settle();
+  await pause(1100);
+  assert.equal(p.paths().filter(path => path === 'show').length, 2, 'only the first load and the tap ask');
+  assert.equal(p.$('#line-text').textContent, 'Type the code from your phone', 'the poll keeps the tab you tapped');
+});
+
+test('a chat\'s link whose tab ended, or that names no open tab, opens the view as it is', async t => {
+  for (const [hash, ended] of [['#key=secret&chat=flights', true], ['#key=secret&chat=garage', false], ['#key=secret&chat=dentist', false]]) {
+    const p = await live(t, { view: tabsView(), hash, ended });
+    assert.deepEqual(row(p), [['dentist', 'shown', 'page'], ['flights', 'fresh', null]], hash);
+    assert.equal(p.$('#line-text').textContent, 'Type the code from your phone');
+    assert.equal(p.shown().live, true, 'the view stays open');
+  }
+});
+
 const WATCHED = { note: 'The assistant is connecting your tools.', watch: true };
 const SHOWN = {
   assistant: { line: 'Clicking New integration…', hand: 'Take over', main: 'btn-primary', hands: false },
@@ -487,6 +511,15 @@ test('the pure helpers: the shape a width reports, the closing line, and the tab
   assert.deepEqual(tabsShow(tabsView('dentist', TABS.slice(0, 1))), { row: [], line: 'Type the code from your phone', id: 1 });
   assert.deepEqual(tabsShow(tabsView('flights')), { row: [{ chat: 'dentist', shown: false, fresh: false }, { chat: 'flights', shown: true, fresh: false }], line: 'Pay for the seat', id: 2 }, 'the shown tab is never new');
   assert.deepEqual(tabsShow({}), { row: [], line: '', id: '' });
+  assert.deepEqual(linkOf('#key=abc'), { key: 'abc', chat: null });
+  assert.deepEqual(linkOf('#key=abc&chat=flights'), { key: 'abc', chat: 'flights' });
+  assert.deepEqual(linkOf(`#key=abc&chat=${encodeURIComponent('my trip & co')}`), { key: 'abc', chat: 'my trip & co' }, 'an encoded name');
+  assert.deepEqual(linkOf(''), { key: '', chat: null });
+  assert.equal(tabToOpen(tabsView(), 'flights'), 'flights', 'an open tab not shown');
+  assert.equal(tabToOpen(tabsView('flights'), 'flights'), null, 'already shown');
+  assert.equal(tabToOpen(tabsView(), 'garage'), null, 'no such tab');
+  assert.equal(tabToOpen({ ...WATCHED, tabs: TABS }, 'flights'), null, 'a watch view');
+  assert.equal(tabToOpen(tabsView(), null), null, 'no chat');
   assert.equal(watchEnding({ result: 'done' }), 'All done. Go back to the chat.');
   assert.equal(watchEnding({ result: 'stopped' }), 'Stopped. Go back to the chat.');
   assert.equal(watchEnding(null), CLOSED);

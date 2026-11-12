@@ -16,8 +16,7 @@ const USAGE = `usage: step-title.mjs set <STEP> [--task <words>]   a skill moves
 --task words, cut at a word to 60 characters, replace the earlier ones unless the person renamed the chat in Paseo.
        step-title.mjs hook --agent claude|codex [--event session-start]   a hook; reads the hook JSON on stdin
 STEP is one of EXPLORE, PLAN, APPLY, SHIP, DONE. The hook gives a step only for a typed command: /explore EXPLORE,
-/plan or /improve-code PLAN, another repo skill its name in capitals (/verify VERIFY, /daily:schedule SCHEDULE);
-/apply, /continue, /ship none.
+/plan or /improve-code PLAN, another repo skill its name in capitals (/verify VERIFY, /daily:schedule SCHEDULE); /apply, /ship none.
 Always exits 0 and prints STEP_TITLE=<title> or STEP_TITLE=skipped <reason>.`;
 
 export { STEPS, withoutStep };
