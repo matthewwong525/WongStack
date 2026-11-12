@@ -171,6 +171,9 @@ const STEPS = {
     const refsCount = has('refs-count') ? Number(text('refs-count')) : (tab.last.match(/\[e\d+\]/g) ?? []).length;
     return send(response, 200, { url: tab.url, refsCount, ...windowSnapshot(tab.last, 0) });
   },
+  // `fill-list` holds the fill list's answer; `pick-refused` the server's refusal of a pick.
+  logins: (_, __, response) => send(response, 200, { ok: true, ...(has('fill-list') ? JSON.parse(text('fill-list')) : { state: 'none', names: [] }) }),
+  pick: (_, __, response) => (has('pick-refused') ? refuse(response, 409, text('pick-refused')) : send(response, 200, { ok: true, filled: true })),
   screenshot: (_, __, response) => (has('fail-shot') ? refuse(response, 500, 'screenshot failed') : response.writeHead(200, { 'content-type': 'image/png' }).end(has('shot') ? text('shot') : 'png-1')),
 };
 

@@ -72,29 +72,132 @@ export const pressKey = key => String(key).split('+').map(part => KEY_ALIASES[pa
 /** The refusal while the tab shows the password manager's page, marked so a live view's helper can tell it apart. It
  * gives the page's own size, `[width, height]`, so a view over that page sets it back at its end. */
 const onAddonPage = tab => Object.assign(refusal(403, ADDON_REFUSAL), { addonPage: true, size: tab.addon?.own ? [tab.addon.own.width, tab.addon.own.height] : null });
-/** Whether any of `found` is the password manager's frame. It runs in the page, so it uses nothing outside. */
-const ADDON_TARGET = found => found.some(element => /^(IFRAME|FRAME|OBJECT|EMBED)$/.test(element.tagName) && /^moz-extension:/i.test(element.src || element.data || ''));
-/** Whether the keyboard is inside the password manager's frame, through any open shadow root. */
-const FOCUS_IN_ADDON = `(() => { let field = document.activeElement; while (field?.shadowRoot?.activeElement) field = field.shadowRoot.activeElement; return (${ADDON_TARGET})(field ? [field] : []); })()`;
+/** Whether any of `found` is the password manager's frame, or inside it. It runs in the page, so it uses nothing
+ * outside. */
+const ADDON_TARGET = found => found.some(element => (/^(IFRAME|FRAME|OBJECT|EMBED)$/.test(element.tagName) && /^moz-extension:/i.test(element.src || element.data || ''))
+  || /^moz-extension:/i.test(element.ownerDocument?.URL ?? ''));
+/** Whether the page's keyboard is in `frame`: on the frame, or on the element whose shadow root holds it, closed ones
+ * too, as 1Password's are. It runs in the page with the frame's element. */
+const HOLDS_FOCUS = frame => {
+  let field = document.activeElement;
+  while (field?.shadowRoot?.activeElement) field = field.shadowRoot.activeElement;
+  for (let at = frame; at; at = at.getRootNode().host) if (at === field) return true;
+  return false;
+};
 /** Whether `frame` is the password manager's, or sits inside one. */
 const inAddonFrame = frame => {
   for (let at = frame; at; at = at.parentFrame?.()) if (ADDON_PAGE.test(at.url())) return true;
   return false;
 };
 
-/** Refuses a step aimed at the password manager's frame by selector or by the keyboard; a ref never names one, since
- * the page text leaves its frames out. */
-async function guardAddon(page, { ref, selector }) {
+const LIST_OPEN = "the password manager's fill list is open on this page, and a key could pick a login from it: pick through `browse.mjs addon logins` and `addon pick`, or close the list with `press Escape` first";
+
+/** Refuses a step aimed at the password manager's frame by selector or keyboard (a ref never names one), and, while its
+ * fill list shows, any key but Escape: arrow keys and Enter in the page's own box pick from that list. */
+async function guardAddon(page, name, { ref, selector, key, pressEnter, submit }) {
   if (!ref && await aimedAtAddon(page, selector)) throw refusal(403, ADDON_REFUSAL);
+  const keys = name === 'press' ? !/^escape$/i.test(String(key ?? '').trim()) : name === 'type' && Boolean(pressEnter || submit);
+  if (keys && await addonFrameShown(page)) throw refusal(403, LIST_OPEN);
+}
+
+/** Whether a password manager's frame shows on the page; one whose element can not be read counts as shown. */
+async function addonFrameShown(page) {
+  for (const frame of page.frames().filter(inAddonFrame)) {
+    const element = await frame.frameElement().catch(() => null);
+    if (!element || await element.isVisible().catch(() => true)) return true;
+  }
+  return false;
 }
 
 /** Whether `selector`, or the keyboard with none, reaches the password manager's frame; an error counts as no. */
 async function aimedAtAddon(page, selector) {
   try {
-    return (selector ? await page.locator(selector).evaluateAll(ADDON_TARGET) : await page.evaluate(FOCUS_IN_ADDON)) === true;
+    return selector ? (await page.locator(selector).evaluateAll(ADDON_TARGET)) === true : await focusInAddon(page);
   } catch {
     return false;
   }
+}
+
+/** Whether the keyboard is in one of the password manager's frames. */
+async function focusInAddon(page) {
+  for (const frame of page.frames().filter(inAddonFrame)) {
+    const element = await frame.frameElement().catch(() => null);
+    if (element && (await element.evaluate(HOLDS_FOCUS).catch(() => false)) === true) return true;
+  }
+  return false;
+}
+
+/** 1Password's in-page fill list: its frame, whose address says whether it is locked, and its login rows. */
+const FILL_LIST = /^moz-extension:\/\/[^/]+\/inline\/menu\/menu\.html/i;
+const LOGIN_ROW = '[role="menuitem"].entry';
+const LIST_MS = 3000;
+const LIST_POLL_MS = 250;
+const LIST_PRESS_MS = 1000;
+const FILL_MS = 3000;
+/** How long a read of the login names lets one pick follow. */
+export const PICK_MS = 2 * 60_000;
+// The username box, else the text box before the first password box, else that password box, as a 2-step sign-in.
+const LOGIN_BOXES = ['input[autocomplete~="username" i]:visible, input[autocomplete~="email" i]:visible',
+  'xpath=(//input[@type="password"])[1]/preceding::input[not(@type) or @type="text" or @type="email"][1]', 'input[type="password"]:visible'];
+/** The login box and each shown password box with its value, kept in the page as a handle: Node never reads a value.
+ * A hidden password box, as on Google's email step, is no box: it runs in the page, so it repeats the filter. */
+const BOX_VALUES = login => new Map([login, ...[...document.querySelectorAll('input[type="password"]')]
+  .filter(box => box.checkVisibility?.() ?? box.getClientRects().length > 0)].map(box => [box, box.value]));
+/** Whether a box changed since `before` and the page now holds a password, or the login of a 2-step sign-in. */
+const FILLED_SINCE = (login, before) => {
+  const passwords = [...document.querySelectorAll('input[type="password"]')].filter(box => box.checkVisibility?.() ?? box.getClientRects().length > 0);
+  const changed = [login, ...passwords].some(box => !before.has(box) || before.get(box) !== box.value);
+  return changed && (passwords.length ? passwords.some(box => box.value !== '') : login.value !== '');
+};
+const NO_OFFER = 'run `browse.mjs addon logins` on this page and ask the person first: a pick needs its login names read here within 2 minutes, once';
+
+const fillList = page => page.frames().find(frame => FILL_LIST.test(frame.url()));
+
+async function loginBox(page) {
+  for (const selector of LOGIN_BOXES) {
+    const box = page.locator(selector).first();
+    if (await box.count().catch(() => 0)) return box;
+  }
+  return null;
+}
+
+/** Each login row's visible text, one line each; nothing else in the list is read. */
+const rowNames = list => list.locator(LOGIN_ROW).evaluateAll(rows => rows.map(row => row.innerText.split('\n').map(line => line.trim()).filter(Boolean).join(' · ').slice(0, 200)));
+
+/** Focuses the login box and waits for the password manager's list there: `{state: 'list', names, box}`, `locked`
+ * when it asks to unlock, or `none`. A key press opens the list when focus alone does not. */
+async function offeredLogins(page) {
+  const box = await loginBox(page);
+  if (!box) return { state: 'none', names: [] };
+  await box.focus({ timeout: 3000 });
+  for (let end = Date.now() + LIST_MS, pressed = 0; Date.now() < end; await sleep(LIST_POLL_MS)) {
+    const list = fillList(page);
+    if (list && new URL(list.url()).searchParams.get('locked') !== 'false') return { state: 'locked', names: [] };
+    const names = list ? await rowNames(list).catch(() => []) : [];
+    if (names.length) return { state: 'list', names, box };
+    if (!list && Date.now() - pressed >= LIST_PRESS_MS) {
+      await box.press('ArrowDown', { timeout: 3000 });
+      pressed = Date.now();
+    }
+  }
+  return { state: 'none', names: [] };
+}
+
+/** Clicks login `n` once its name is still the one read, then waits for a box to change and the page's password box,
+ * or the login box of a 2-step sign-in, to hold a value: a pre-filled email alone is no fill. */
+async function pickLogin(page, n, name) {
+  const { names, box } = await offeredLogins(page);
+  if (names[n - 1] !== name) throw refusal(409, 'the password manager no longer offers that login here; read the logins again and ask the person again');
+  const before = await box.evaluateHandle(BOX_VALUES);
+  try {
+    await clickOn(fillList(page).locator(LOGIN_ROW).nth(n - 1));
+    for (const end = Date.now() + FILL_MS; Date.now() < end; await sleep(LIST_POLL_MS)) {
+      if (await box.evaluate(FILLED_SINCE, before).catch(() => false) === true) return;
+    }
+  } finally {
+    await before.dispose().catch(() => {});
+  }
+  throw refusal(502, 'the password manager did not fill the page');
 }
 
 /** Sizes the page with its tab shown: a tab behind sizes the window the shown one is in, and never ends (tried
@@ -265,15 +368,29 @@ const ACTIONS = {
     await tab.page.bringToFront();
     return { ok: true };
   },
+  /** The one opening in the add-on guard: the login names offered here, kept with the address for one pick. */
+  async logins(tab) {
+    const { state, names } = await offeredLogins(tab.page);
+    tab.offer = state === 'list' ? { url: tab.page.url(), names, at: Date.now() } : null;
+    return { ok: true, state, names };
+  },
+  async pick(tab, { n }) {
+    const { offer } = tab;
+    tab.offer = null;
+    if (!offer || offer.url !== tab.page.url() || Date.now() - offer.at > PICK_MS) throw refusal(409, NO_OFFER);
+    if (!Number.isInteger(n) || n < 1 || n > offer.names.length) throw refusal(400, `pick takes a login number from 1 to ${offer.names.length}`);
+    await pickLogin(tab.page, n, offer.names[n - 1]);
+    return { ok: true, filled: true };
+  },
 };
 // Only these actions keep the refs: the rest can change the page.
-const KEEPS_REFS = new Set(['type', 'select', 'evaluate', 'viewport', 'front']);
+const KEEPS_REFS = new Set(['type', 'select', 'evaluate', 'viewport', 'front', 'logins']);
 // The agent's own steps, which never reach the password manager; only these run while its page shows.
 const GUARDED = new Set(['click', 'type', 'select', 'press']);
 const OPEN_ON_ADDON = new Set(['navigate', 'front']);
-// A resize shows its tab first, so it waits for the person's turn; a click then goes by key or waits (`clickBehind`),
-// and typing, a key, a choice, reading, and a picture stay behind.
-const SHOWS_TAB = new Set(['viewport']);
+// A resize, and a pick's click in the add-on's list, show the tab, so they wait for the person's turn; a click goes
+// by key or waits (`clickBehind`), and typing, a key, a choice, reading, and a picture stay behind.
+const SHOWS_TAB = new Set(['viewport', 'pick']);
 
 /** The request's JSON body, or {} with none. */
 async function readBody(request) {
@@ -448,7 +565,7 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
     if (SHOWS_TAB.has(name) || addonPage) await awaitTurn(tab);
     if (name === 'viewport' && tab.addon && await onAddon(tab)) return keepForSite(tab, body);
     if (!OPEN_ON_ADDON.has(name) && await onAddon(tab)) throw onAddonPage(tab);
-    if (GUARDED.has(name)) await guardAddon(tab.page, body);
+    if (GUARDED.has(name)) await guardAddon(tab.page, name, body);
     const result = name === 'click' && behind ? await clickBehind(tab, body) : await ACTIONS[name](tab, body);
     if (!KEEPS_REFS.has(name)) Object.assign(tab, { refs: null, text: null });
     return result;
