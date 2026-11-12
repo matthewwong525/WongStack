@@ -133,6 +133,7 @@ Memory has two clean-ups. The daily tidy starts by itself, but it checks only a 
 - **2026-11-12** — Assumed: a record says *Map: not read* when the second map fails, because the second real tidy changed 451 facts and its record said *no change*.
 - **2026-11-12** — Assumed: the check *no map number is higher* is met by the third real tidy and not by the second, because the second sorted 451 facts and so made one topic too big to read; the number is true, and the brief now tells the tidy to split a topic its own sorting made large.
 - **2026-11-12** — Three real tidies ran (353 s, 607 s, 321 s), the reviewer's four findings and the run's fault are fixed, and the second look ended with none. The 60-minute limit stays.
+- **2026-11-12** — Archive checkpoint: every task is done, the plan is archived, and the release is numbered 59.0.0 (memory module 4.0.0).
 
 ## Capabilities
 

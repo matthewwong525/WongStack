@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — Memory cleans itself each day, with no command to type
+## 59.0.0 — Memory cleans itself each day, with no command to type
 
 - **The command `/dream-memory` is gone.** The [daily tidy](wiki/development/wiki-dream.md) your first chat of the day starts now does the full job. You type nothing, and it asks you nothing.
 - **The tidy chooses its own work from a map.** Plain code counts where memory is weak: new facts not yet read, facts with no topic, labels with no page, topics too big to read, facts that name a file that is gone, pages due a check, and questions that found no answer. The tidy works on the weakest place first. It has a goal and a short list of things it must never do, in place of fixed steps and counts ([the goal and the map](wiki/development/wiki-dream.md#the-goal-and-the-map)).
@@ -14,7 +14,6 @@
 - **The tidy no longer lists specs or plans for you.** It reads them as evidence and changes none. It leaves alone what it may not fix, and looks again after 7 days.
 
 **Updating.** Nothing to do by hand, with one exception: if you made a schedule that runs the old `/dream-memory` command, delete it. The daily tidy does that work now.
-
 
 ## 58.0.1 — Closing a chat works again
 

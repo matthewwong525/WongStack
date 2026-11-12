@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · automatic-memory-tidy</title>
+<title>Review · 2026-11-12-automatic-memory-tidy</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="automatic-memory-tidy" data-own-back>
+<body data-change="2026-11-12-automatic-memory-tidy" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>automatic-memory-tidy</h1>
+  <h1>2026-11-12-automatic-memory-tidy</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -528,6 +528,16 @@
 <li class="decision card" id="decision-45" data-note="decision-45" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: a look-up that counts as finding nothing keeps none of the facts or topics that came back, because unrelated facts would fill the map's <i>often returned</i> and <i>most used</i> lines.</li>
 <li class="decision card" id="decision-46" data-note="decision-46" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: a short word matches its longer form, so <i>rule</i> finds <i>rules</i>, because the search matches word forms and plurals of four-letter words are common here.</li>
 <li class="decision card" id="decision-47" data-note="decision-47" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: a run's lock is free at once when the process it names is gone, because the first real tidy here waited 30 minutes behind the lock of a run killed hours before and then gave up with no word; the longer 3-hour lock made that worse.</li>
+<li class="decision card" id="decision-48" data-note="decision-48" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: a label or topic the tidy looked at and left keeps its place in the map's count and loses only its name, because the first real tidy showed <i>topics too big to read 1 -&gt; 0</i> for a topic it had only looked at.</li>
+<li class="decision card" id="decision-49" data-note="decision-49" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the run tells the tidy how many minutes it has and not to end while the map shows work it may do, because the first real tidy ended after 6 minutes with 514 facts still without a topic.</li>
+<li class="decision card" id="decision-50" data-note="decision-50" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-12</p>Check: <code>scripts/measure-context.mjs</code> counts the tidy's brief and its fact-placing page (<code>references/tidy.md</code>, <code>references/placing-facts.md</code>) as on-call text, outside the instruction word limit, because only the unattended tidy reads them and the typed-only skill they replace was counted the same way.</li>
+<li class="decision card" id="decision-51" data-note="decision-51" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the fact-placing page that main moved into the removed skill's folder now sits beside the brief, and the brief links no wiki page, because main's newer rule fails a plugin link that leaves the plugin's folder.</li>
+<li class="decision card" id="decision-52" data-note="decision-52" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the run links the company pages into its copy, and the tidy saves a company page at once by itself, because the plan promises that a fact lands on its topic's page and the copy had no company page; the computer has one company copy, so the run can not hold such an edit back.</li>
+<li class="decision card" id="decision-53" data-note="decision-53" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: a run that stops at its time limit keeps its missed questions on the next map, because the spec says what a run did not reach stays, and the design had dropped them.</li>
+<li class="decision card" id="decision-54" data-note="decision-54" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: a record says <i>Map: not read</i> when the second map fails, because the second real tidy changed 451 facts and its record said <i>no change</i>.</li>
+<li class="decision card" id="decision-55" data-note="decision-55" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-12</p>Assumed: the check <i>no map number is higher</i> is met by the third real tidy and not by the second, because the second sorted 451 facts and so made one topic too big to read; the number is true, and the brief now tells the tidy to split a topic its own sorting made large.</li>
+<li class="decision card" id="decision-56" data-note="decision-56" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Three real tidies ran (353 s, 607 s, 321 s), the reviewer's four findings and the run's fault are fixed, and the second look ended with none. The 60-minute limit stays.</li>
+<li class="decision card" id="decision-57" data-note="decision-57" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-12</p>Archive checkpoint: every task is done, the plan is archived, and the release is numbered 59.0.0 (memory module 4.0.0).</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
