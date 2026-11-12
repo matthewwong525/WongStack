@@ -5,14 +5,14 @@ import { readFileSync } from 'node:fs';
 import { isMain, parseCli, usageError } from '../skills/memory/scripts/lib/cli.mjs';
 
 const USAGE = 'usage: ask-check.mjs stop|links|reminder   Claude Code hooks; read the hook JSON on stdin\n'
-  + '  stop      the Stop hook: sends a reply back once when it ends with choices typed as a list\n'
+  + '  stop      the Stop hook: sends a reply back once when it ends with a typed question or choices typed as a list\n'
   + '  links     a PreToolUse hook on AskUserQuestion: sends a question back once when it leaves out a link the turn showed\n'
   + '  reminder  a SessionStart hook for compact: prints the ask rule in one line';
 const MODES = ['stop', 'links', 'reminder'];
 
 const TOOL = 'AskUserQuestion';
 const OPTION = /^\s*(?:[-*]|\d+[.)])\s+\S/;
-export const REASON = `Your reply ends with choices typed as a list. Ask them now with ${TOOL}, recommended first; don't repeat the report or the list. If ${TOOL} isn't callable here, end the turn and say nothing more: the typed list stands.`;
+export const REASON = `Your reply ends with a question for the person. If you need their answer, ask it now with ${TOOL}: 2 to 4 short options, recommended first. Don't repeat the report. If you need no answer, or ${TOOL} isn't callable here, end the turn and say nothing more.`;
 export const LINKS_REASON = 'This question leaves out a link the person needs. Ask again with the full link in the question text (not in an option), and keep it on its own chat line above:';
 export const REMINDER = `Asks, next steps included, go through the question tool (${TOOL} here), never typed as a list while it is callable; a question that needs a link shows the full link in its text too: .claude/skills/explore/references/asking-the-user.md#which-tool-carries-it`;
 
@@ -27,6 +27,16 @@ export function endsWithChoices(text) {
   if (count < 2 || count > 4 || lines.length <= count) return false;
   const head = lines.at(-count - 1).replace(/[*_\s]+$/, '');
   return head.endsWith('?') || lines.slice(-count).some(line => line.includes('Recommended'));
+}
+
+const TAP_LINE = /^\s*\[👉 Tap here/;
+const ASKS = /\?["')\]]*(?:\s|$)/;
+
+/** True when the reply's last paragraph, tap-link lines and Markdown marks dropped, holds a sentence ending in `?`. */
+export function endsWithQuestion(text) {
+  const kept = String(text ?? '').split('\n').filter(line => !TAP_LINE.test(line)).join('\n');
+  const last = kept.split(/\n\s*\n/).map(part => part.trim()).filter(Boolean).at(-1) ?? '';
+  return ASKS.test(last.replace(/[*_`>]/g, ''));
 }
 
 // A row a person typed: a user row with text, not the compaction summary or a meta row.
@@ -136,7 +146,7 @@ export function stopDecision(input, env = process.env) {
   try { turn = readTurn(readRows(input.transcript_path)); } catch { return null; }
   if (turn.asked) return null;
   const text = typeof input.last_assistant_message === 'string' && input.last_assistant_message ? input.last_assistant_message : turn.text;
-  return endsWithChoices(text) ? { decision: 'block', reason: REASON } : null;
+  return endsWithChoices(text) || endsWithQuestion(text) ? { decision: 'block', reason: REASON } : null;
 }
 
 /** The PreToolUse hook's answer for an AskUserQuestion call: a deny object naming the missing links, or null. */

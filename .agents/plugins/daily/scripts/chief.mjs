@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto';
 import { homedir, tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { EXIT, PaseoError, findPaseo, paseo } from './lib/paseo.mjs';
-import { localDay } from './config.mjs';
+import { RUN_AGENTS, localDay } from './config.mjs';
+import { slot } from './lib/slot.mjs';
 import { finished } from './finished.mjs';
 
 export const BUCKETS = ['keep-going', 'pick', 'person'];
@@ -434,6 +435,15 @@ export const serviceAlive = (stateDir, now = Date.now()) => {
 /** A background run's stand-in id; it matches no chat. */
 export const RUN_ID = 'daily-worker';
 
+export const ASK_TOOLS = { claude: 'AskUserQuestion', codex: 'request_user_input' };
+
+/** The fixed message that has a chat ask its question on a card, with its own tool's name. */
+export function askText(agent) {
+  const tool = ASK_TOOLS[agent] ?? ASK_TOOLS[RUN_AGENTS[0]];
+  return `The person is away and answers by tap. Ask what you need from them now with ${tool}: 2 to 4 short options, `
+    + `your recommended one first, marked (Recommended). Don't repeat the report. If ${tool} isn't callable here, end the turn and say nothing more.`;
+}
+
 /** The env a command runs with: a background run with no Paseo id acts under the stand-in, so an install's jobs run. */
 export const chiefEnv = env => (env.PASEO_AGENT_ID || !env.WONG_DAILY_RUN ? env : { ...env, PASEO_AGENT_ID: RUN_ID });
 
@@ -467,7 +477,7 @@ export async function sendText(call, agentId, text, behavior = null) {
 
 /** Sends a watched, stopped agent one message, or with `steer` a working one too. With `mark`, it refuses a stop
  * that moved on since that line. */
-export async function reply({ text, mark: stopMark, behavior = null, ...args }) {
+export async function reply({ text, mark: stopMark, behavior = null, kind = null, ...args }) {
   const { refused, row, agent, log } = await handFor({ ...args, text });
   if (refused) return refused;
   if (!live(agent)) return { status: 'refused', reason: 'gone', ...describe(row), error: `${row.title} is gone.` };
@@ -476,7 +486,17 @@ export async function reply({ text, mark: stopMark, behavior = null, ...args }) 
     return { status: 'refused', reason: 'moved', ...describe(row), error: `${row.title} moved on since that stop: nothing sent.` };
   }
   await sendText(args.call, row.agentId, text, behavior);
-  return { status: 'sent', ...log({ kind: working(agent.status) ? 'steer' : 'reply' }, text) };
+  return { status: 'sent', ...log({ kind: kind ?? (working(agent.status) ? 'steer' : 'reply') }, text) };
+}
+
+/** Sends a stopped chat whose last turn asks in text the fixed message to ask it on a card; refuses a moved stop. */
+export async function reask({ agent: name, mark: stopMark, ...args }) {
+  const self = (args.env ?? process.env).PASEO_AGENT_ID;
+  const list = self ? await args.call(['ls', '--global']) : [];
+  const row = watchedRow(watched({ ...args, list, self }), name);
+  const provider = list.find(entry => entry.id === row?.agentId)?.provider;
+  return reply({ ...args, agent: name, mark: stopMark, text: askText(provider), bucket: 'person',
+    label: `Asked again on a card: ${row?.title ?? name}`, kind: 'reask' });
 }
 
 async function pendingAsk(call, agentId, request) {
@@ -485,10 +505,14 @@ async function pendingAsk(call, agentId, request) {
 }
 
 const COMMAND_TOOL = 'Bash';
+const CLOSE_ANSWERS = ['close it', 'keep it open'];
 const noRequest = (row, request) => ({ status: 'refused', reason: 'request', ...describe(row), error: `${row.title} has no pending request ${request}.` });
 
 // Answers a pending card: the CLI can't fill an answer, so it rides on a denial's message. A command card takes allow.
 export async function answer({ request, text, ...args }) {
+  if (CLOSE_ANSWERS.includes(String(text ?? '').replace(/\(Recommended\)/i, '').trim().toLowerCase())) {
+    return { status: 'refused', reason: 'close', error: 'A close question waits for the person: never answer it.' };
+  }
   const { refused, row, log } = await handFor({ ...args, text });
   if (refused) return refused;
   const ask = await pendingAsk(args.call, row.agentId, request);
@@ -540,10 +564,11 @@ export async function allow({ request, ...args }) {
   return { status: 'allowed', ...log({ kind: 'allow', request: ask.id }, args.label) };
 }
 
-/** Each watched agent with its status, open cards and last action, and `finished` on one with no card that
- * `finishedOf` passes, `covered` on one the line-up told another chat covers; the last 5 actions. */
+/** Each watched agent with its status, cards and last action; with no card, `typedAsk` and `mark` on a stop that asks
+ * in text, else `finished` by `finishedOf` or `covered` by the line-up; the last 5 actions. */
 export async function status({ stateDir, day, started, timezone, call, env = process.env, project = process.cwd(),
-  finishedOf = agent => finished({ agent, project, inspect: id => call(['inspect', id]) }) }) {
+  finishedOf = agent => finished({ agent, project, inspect: id => call(['inspect', id]) }),
+  askedOf = text => slot('askedInText', [text]) }) {
   if (!env.PASEO_AGENT_ID) return unsupported;
   let read;
   try { read = await readPaseo(call); } catch (error) { return notPaseo(error) ? unsupported : { state: 'not-read', error: oneLine(error.message) }; }
@@ -557,11 +582,21 @@ export async function status({ stateDir, day, started, timezone, call, env = pro
   for (const row of rows) {
     const agent = read.list.find(entry => entry.id === row.agentId && live(entry));
     const asking = read.pending.filter(ask => ask.agentId === row.agentId).length;
-    const covered = !asking && agent && !working(agent.status) && mapped(row.agentId)?.covered;
+    const typed = !asking && STOPPED.includes(agent?.status) ? await typedAsk(call, row.agentId, askedOf) : null;
+    const covered = !typed && !asking && agent && !working(agent.status) && mapped(row.agentId)?.covered;
     agents.push({ ...describe(row), status: agent?.status ?? 'gone', asking, last: log.filter(entry => entry.agent === row.agentId).at(-1) ?? null,
-      ...(!asking && agent && await finishedOf(agent) && { finished: true }), ...(covered && { covered: titleOf(covered) }) });
+      ...(typed && { typedAsk: true, mark: typed.mark }),
+      ...(!typed && !asking && agent && await finishedOf(agent) && { finished: true }), ...(covered && { covered: titleOf(covered) }) });
   }
   return { state: 'read', day, agents, recent: log.filter(entry => entry.label).slice(-5).map(entry => entry.label) };
+}
+
+const STOPPED = ['idle', 'error'];
+
+// The stopped chat's last turn when it asks the person in text, else null.
+async function typedAsk(call, agentId, askedOf) {
+  const turn = await readTurn(call, agentId);
+  return turn?.said && await askedOf(turn.said) ? turn : null;
 }
 
 const END_CHARS = 300;
