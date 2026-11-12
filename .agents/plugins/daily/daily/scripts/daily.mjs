@@ -11,12 +11,12 @@ import { promisify } from 'node:util';
 import { isMain, parseCli, usageError } from './lib/cli.mjs';
 import { primaryRoot } from './lib/primary-root.mjs';
 import { repoContext } from './lib/env.mjs';
-import { loadProfile, moduleRepo, slot, slotNow } from './lib/slot.mjs';
+import { loadProfile, moduleRepo, readProfile, slotNow, slotResult } from './lib/slot.mjs';
 import { runAddons } from './addons.mjs';
 import { SCHEDULE_LABEL } from './chats.mjs';
 import { BUCKETS, allow, answer, chiefDay, chiefEnv, doneAgent, mark, noteEnd, paseoCli, readBeat, readJson, reply,
   serviceAlive, status, writeJson } from './chief.mjs';
-import { RUN_AGENTS, SettingsError, defaultSettings, loadSettings, localDay, settingsFor } from './config.mjs';
+import { RUN_AGENTS, SETTINGS_DOC, SettingsError, defaultSettings, loadSettings, localDay, settingsFor } from './config.mjs';
 import { addLine, format, newLines, readLines } from './journal.mjs';
 import { writeCard } from './chat-list.mjs';
 import { lineUpData, saveMap, tell } from './line-up.mjs';
@@ -534,22 +534,23 @@ const NEED_FILE = new Set(['start']);
 /** The settings `command` runs with: the file's, else the defaults; it throws for a command that needs a file. */
 export function commandSettings(command, { me, config }) {
   if (config && (me.file || !NEED_FILE.has(command))) return config;
-  throw new SettingsError(`No daily settings for ${me.email ?? 'this person'}: add .agents/daily/<name>.json. See wiki/development/daily.md#your-settings-file.`);
+  throw new SettingsError(`No daily settings for ${me.email ?? 'this person'}: add .agents/daily/<name>.json. See ${SETTINGS_DOC}`);
 }
 
 /** `D check`: the profile loads, one dry worker pass runs, a sample stop sorts, and the schedule store answers.
- *  `ok` only when each part worked; `store` is `app`, `paseo`, or `off`. */
+ *  `ok` only when each part worked; `store` is `app`, `paseo`, or `off`; a broken profile is `profileError`. */
 export async function check({ config, project, env = process.env, sortStop = null }) {
-  const parts = await loadProfile(env);
+  const { parts, error } = await readProfile(env);
   const { findStore } = await import('../../schedule/scripts/schedule.mjs');
-  const store = await findStore({ env, root: project });
+  const store = error ? null : await findStore({ env, root: project });
   const lines = [], dir = mkdtempSync(join(tmpdir(), 'daily-check-'));
   try {
     await serveDaily({ config, project, stateDir: dir, call: paseoCli(env), env, dryRun: true, started: () => ({}), watching: {}, print: item => lines.push(item) });
   } finally { rmSync(dir, { recursive: true, force: true }); }
   const { sampleStop } = await import('./stop-check.mjs');
   const sorted = await (sortStop ?? sampleStop)();
-  return { status: sorted ? 'ok' : 'failed', profile: Object.keys(parts), store: store?.name ?? 'off', pass: lines.length, stop: sorted ?? null };
+  return { status: sorted && !error ? 'ok' : 'failed', profile: Object.keys(parts), ...(error && { profileError: String(error.message ?? error).split('\n')[0] }),
+    store: store?.name ?? 'off', pass: lines.length, stop: sorted ?? null };
 }
 
 async function main(args = process.argv.slice(2)) {
@@ -561,10 +562,11 @@ async function main(args = process.argv.slice(2)) {
   }
   if (args[0] === 'journal' && args.includes('--hook')) return;
   const { command, values } = readArgs(args);
-  await loadProfile();
+  await readProfile();
   if (command === 'ensure') {
-    const store = await slot('schedules');
-    const { refused = [], ...result } = ensure({ agent: values.agent, schedules: Boolean(store) });
+    // A store that failed still owns the line-up: the worker must not start a second one.
+    const { value: store, error } = await slotResult('schedules');
+    const { refused = [], ...result } = ensure({ agent: values.agent, schedules: Boolean(store || error) });
     if (refused.length && store?.report) result.refused = await refuseRuns(refused, { report: (id, done) => store.report(id, done, { project: primaryRoot(REPO).primary }) });
     console.log(JSON.stringify(result)); return;
   }

@@ -9,7 +9,7 @@ import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from './lib/cli.mjs';
 import { headlessCommand } from './lib/headless.mjs';
-import { loadProfile, slot } from './lib/slot.mjs';
+import { readProfile, slot } from './lib/slot.mjs';
 import { BUCKETS, HOLD_MS, STREAK, paseoRecord, readJson, writeJson } from './chief.mjs';
 import { writeCard } from './chat-list.mjs';
 import { RUN_AGENTS, defaultSettings } from './config.mjs';
@@ -170,7 +170,7 @@ if (isMain(import.meta.url)) {
   if (positionals.join(' ') !== 'stop' || !RUN_AGENTS.includes(values.agent)) usageError(USAGE);
   // A stop hook never fails the chat: any error lets it stop, with no output.
   const input = hookInput();
-  await loadProfile();
+  await readProfile();
   const offered = Boolean(await slot('offeredChoices', [input, values.agent]));
   stopCheck({ input, agent: values.agent, offered }).then(({ out }) => out, () => null).then(out => {
     try { stopCard({ input, agent: values.agent, out, offered }); } catch { /* the card never fails the chat */ }

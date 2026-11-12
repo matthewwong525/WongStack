@@ -1,11 +1,12 @@
 // Daily as a module: the profile's parts, the schedule store it finds, the Paseo store, and the worker's own line-up.
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { readLines } from '../../.agents/skills/daily/scripts/journal.mjs';
-import { forgetProfile, loadProfile, slot, slotNow } from '../../.agents/skills/daily/scripts/lib/slot.mjs';
+import { forgetProfile, loadProfile, slot, slotNow, slotResult } from '../../.agents/skills/daily/scripts/lib/slot.mjs';
 import { LINE_UP, lineUpOffFile, loadSweeps, makeWorker } from '../../.agents/skills/daily/scripts/worker.mjs';
 import { paseoStore } from '../../.agents/skills/schedule/scripts/lib/paseo-store.mjs';
 import { main } from '../../.agents/skills/schedule/scripts/schedule.mjs';
@@ -60,6 +61,36 @@ test('a profile that does not load counts as empty', async () => {
   assert.equal(await slot('person', [], { env, journal: null }), undefined);
 });
 
+test('slotResult tells an absent part from a failed one: no profile, no part, a throw, a broken profile, a late answer', async () => {
+  assert.deepEqual(await slotResult('checkout', [], { env: { WONG_DAILY_PROFILE: join(temp(), 'none.mjs') } }), { absent: true });
+  forgetProfile();
+  const env = profile(`{ person: () => ({ email: 'jo@example.com' }), checkout: () => { throw new Error('no git'); },
+    chatName: () => new Promise(() => {}) }`);
+  assert.deepEqual(await slotResult('prepareRun', [], { env }), { absent: true });
+  assert.deepEqual(await slotResult('person', [], { env }), { value: { email: 'jo@example.com' } });
+  assert.match((await slotResult('checkout', [], { env })).error.message, /no git/);
+  assert.match((await slotResult('chatName', [], { env, ms: 20 })).error.message, /no answer in 0\.02 seconds/);
+  forgetProfile();
+  assert.ok((await slotResult('checkout', [], { env: profile('{ checkout: ') })).error, 'a profile that does not load');
+});
+
+test('a profile with a syntax error crashes no entry point: the stop hook exits 0, and the check names the error', () => {
+  const scripts = new URL('../../.agents/skills/daily/scripts/', import.meta.url).pathname;
+  const git = spawnSync('sh', ['-c', 'command -v git'], { encoding: 'utf8' }).stdout.trim();
+  const env = { ...process.env, ...profile('{ person: '), PATH: `${dirname(process.execPath)}:${dirname(git)}` };
+  const stop = spawnSync(process.execPath, [join(scripts, 'stop-check.mjs'), 'stop', '--agent', 'claude'],
+    { encoding: 'utf8', env, input: JSON.stringify({ session_id: 'broken', transcript_path: join(temp(), 'none.jsonl'), cwd: temp() }) });
+  assert.equal(stop.status, 0, stop.stderr);
+  assert.equal(stop.stdout, '');
+  assert.equal(stop.stderr.match(/Daily's profile part failed/g)?.length, 1, 'one line, once');
+  const checked = spawnSync(process.execPath, [join(scripts, 'daily.mjs'), 'check'], { encoding: 'utf8', env });
+  assert.doesNotMatch(checked.stderr, /\n\s+at /, 'no stack trace');
+  const report = JSON.parse(checked.stdout);
+  assert.equal(report.status, 'failed', 'a broken profile is never ready');
+  assert.match(report.profileError, /Unexpected/);
+  assert.deepEqual([report.profile, report.store], [[], 'off']);
+});
+
 // ---------------------------------------------------------------------------
 // The schedule store
 
@@ -79,7 +110,7 @@ async function cli(argv, world) {
 test('schedule.mjs sends each command to the store it finds; with none it says so and exits 3', async () => {
   const { calls, store } = standIn();
   const file = join(temp(), 'plan.json');
-  writeFileSync(file, JSON.stringify({ key: 'tidy' }));
+  writeFileSync(file, JSON.stringify({ key: 'tidy', timing: { mode: 'recurring', cron: '0 9 * * 1' } }));
   assert.equal((await cli(['store'], { store })).store, 'stand-in');
   assert.equal((await cli([], { store })).done, 'list');
   await cli(['save', '--file', file, '--approve'], { store });
@@ -87,13 +118,21 @@ test('schedule.mjs sends each command to the store it finds; with none it says s
   await cli(['pause', 'tidy'], { store });
   await cli(['move-in', '--dry-run'], { store });
   assert.deepEqual(calls.map(([name]) => name), ['list', 'save', 'show', 'control', 'extra']);
-  assert.deepEqual(calls[1][1], { key: 'tidy' });
+  assert.equal(calls[1][1].key, 'tidy');
   assert.deepEqual([calls[3][1], calls[3][2]], ['pause', 'tidy']);
   assert.equal((await cli(['approve', 'tidy'], { store })).ok, false, 'an approval names its version');
   const none = await cli(['list'], { store: null });
   assert.deepEqual([none.exit, none.ok, none.code], [3, false, 'no-store']);
   assert.match(none.error, /^No schedule store/);
+  assert.equal(none.crontab, "<minute> <hour> <day> <month> <weekday> cd '/w' && <command>", 'a line for the computer\'s own timer');
+  assert.ok(none.error.endsWith(none.crontab));
+  const weekly = await cli(['save', '--file', file], { store: null, primary: "/w/jo's shop" });
+  assert.equal(weekly.crontab, "0 9 * * 1 cd '/w/jo'\\''s shop' && <command>", 'the plan\'s own time, the folder quoted');
   assert.equal((await cli(['store'], { store: null })).store, 'off');
+  writeFileSync(file, JSON.stringify({ key: 'tidy', timing: { mode: 'recurring', cron: '0 9 * * 1', timezone: 'America/Toronto' } }));
+  const zoned = await cli(['save', '--file', file], { store: null });
+  assert.match(zoned.error, /The time is in America\/Toronto/, 'the plan\'s timezone is named beside the line');
+  assert.equal(zoned.timezone, 'America/Toronto');
   const bare = { PATH: temp(), WONG_DAILY_PROFILE: join(temp(), 'none.mjs') };
   assert.equal((await cli(['store'], { env: bare })).store, 'off', 'no profile store and no Paseo');
 });
@@ -120,11 +159,19 @@ test('the Paseo store saves only after the OK, as a chat schedule named for its 
   await assert.rejects(store.save(plan(), {}, world), /get the person's OK/);
   const saved = await store.save(plan(), { approve: true, version: shown.version }, world);
   assert.deepEqual(saved, { key: 'weekly-plan', version: shown.version, host: 'paseo', id: 'job-9' });
-  assert.equal(calls.at(-1), 'schedule create --name weekly-plan: Weekly plan --cron 0 9 * * 1 --timezone America/Toronto --cwd /w/main --provider claude -- Plan the week.');
+  assert.equal(calls.at(-1), 'schedule create --name weekly-plan: Weekly plan --cron 0 9 * * 1 --timezone America/Toronto --cwd /w/main --provider claude --mode bypassPermissions -- Plan the week.');
   assert.deepEqual((await store.list()).schedules.map(row => [row.key, row.name, row.state]), [['standup', 'Standup', 'active']]);
   assert.equal((await store.control('pause', 'standup')).done, 'pause');
   assert.equal(calls.at(-1), 'schedule pause job-1');
   await assert.rejects(store.control('pause', 'nope'), /no schedule with this key/);
+});
+
+test('a Paseo schedule runs unattended in the mode the app uses for its provider, unless it names its own', async () => {
+  const { calls, store } = fakePaseo();
+  const modeOf = async run => { await store.save(plan({ run }), { approve: true }, world); return calls.at(-1).match(/--provider (\S+)(?: --mode (\S+))?/).slice(1); };
+  assert.deepEqual(await modeOf(undefined), ['claude', 'bypassPermissions']);
+  assert.deepEqual(await modeOf({ provider: 'codex' }), ['codex', 'full-access']);
+  assert.deepEqual(await modeOf({ provider: 'claude', mode: 'default' }), ['claude', 'default'], "the schedule's own mode wins");
 });
 
 test('the Paseo store refuses what Paseo can not run, and a one-time run becomes one cron run', async () => {
@@ -157,4 +204,12 @@ test('with no schedule store the worker runs the line-up every 5 minutes, until 
   await worker.sweep();
   assert.equal(checks.length, 1, 'off: no line-up');
   assert.ok(existsSync(LINE_UP.check));
+});
+
+test('a profile that fails to load stops schedule.mjs; nothing falls back to Paseo', async () => {
+  const file = join(temp(), 'profile.mjs');
+  writeFileSync(file, 'export default {;\n');
+  const failed = await cli(['list'], { env: { WONG_DAILY_PROFILE: file } });
+  assert.deepEqual([failed.exit, failed.ok, failed.code], [3, false, 'store-failed']);
+  assert.match(failed.error, /nothing moved to Paseo/);
 });

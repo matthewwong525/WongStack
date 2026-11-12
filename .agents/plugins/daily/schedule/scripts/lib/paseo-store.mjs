@@ -1,6 +1,7 @@
 // The schedule store with no `schedules` part: Paseo runs each schedule as a new chat on this computer. The person's
 // OK before the save is the approval, so there is no version ledger. wiki/stack/host-schedules.md#with-no-app
 import { findPaseo, paseo } from '../../../daily/scripts/lib/paseo.mjs';
+import { MODES } from '../workspace.mjs';
 import { mayDo } from './hosts.mjs';
 import { requireValue, ScheduleError, validateTiming } from './records.mjs';
 import { scheduleVersion } from './version.mjs';
@@ -78,9 +79,11 @@ export function paseoStore(env = process.env, call = null) {
       requireValue(approve, 'Paseo runs a schedule once it is saved: show it, get the person\'s OK, then save with --approve.');
       requireValue(!version || version === now, 'The file differs from the version the person saw; show it again.');
       requireValue(!(await rows()).some(row => keyOf(row) === def.key), 'Paseo already has a schedule with this key; cancel it first.');
-      const { run } = def;
+      const { run } = def, provider = run.provider || 'claude';
+      // No one is there to answer a permission ask, so a run gets the app's unattended mode unless it names its own.
+      const mode = run.mode || MODES[provider];
       const created = await invoke(['schedule', 'create', '--name', `${def.key}${SEP}${def.name}`, ...cadence(def.timing), '--timezone', def.timing.timezone,
-        '--cwd', run.cwd, '--provider', run.provider || 'claude', ...(run.mode ? ['--mode', run.mode] : []),
+        '--cwd', run.cwd, '--provider', provider, ...(mode ? ['--mode', mode] : []),
         ...(run.thinking ? ['--thinking', run.thinking] : []), '--', def.instructions]);
       return { key: def.key, version: now, host: 'paseo', id: created?.id ?? null };
     },

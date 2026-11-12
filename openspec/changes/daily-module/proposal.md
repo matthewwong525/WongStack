@@ -1,6 +1,7 @@
 # Daily becomes a module any project can add
 
-**Status:** planned
+**Status:** in-progress
+**Branch:** durable-hamster
 **Open questions:** none
 
 ## Why
@@ -124,3 +125,14 @@ Non-goals: an Inbox, a live line, or a schedule store for projects that are not 
 - **2026-11-11** — Check: the worker's Needs-you tests now use the Paseo kind, and lost their chat-list case, because the `chats` kind went with the chat list. The ask-check stop tests now pass `offeredChoices` through `offered`, because the profile owns that test now.
 - **2026-11-12** — Asked how to fit the new setup guide under the skill word limit → chose to count each module's setup guide apart.
 - **2026-11-12** — Check: `measure-context.mjs` counts a module's `references/setup.md` (Daily's and memory's) as on-call, out of the instruction total, because only a project that adds the module reads it; no chat here loads it.
+- **2026-11-12** — Asked which permission mode a Paseo schedule runs in with no one there → chose full permissions, as the app's schedules run.
+- **2026-11-12** — Assumed: a `checkout` part that throws, answers late, or whose profile fails to load refuses the open with a plain reason, and only no profile or no `checkout` part opens the branch as it is, because the review gate must not open unreviewed work. This replaces the earlier rule that a thrown `checkout` counts as empty.
+- **2026-11-12** — Assumed: `checkout` gets 60 seconds, not the usual 10, because its review fetches the branch, and a slow fetch must not refuse a good open.
+- **2026-11-12** — Assumed: `D check` on a profile that does not load runs the rest with every part empty, names the error, and reports `failed`, because setup calls Daily ready only at `ok`; the stop hook and the other commands go on with every part empty.
+- **2026-11-12** — Assumed: `adding-a-module.md` picks the shape by hooks: a module with hooks installs as a plugin, so each bare-named command is a sibling folder listed in `module.json` (Daily); a module with no hooks keeps commands in `skills/<command>/` with a `mapped` entry each (the loop), because a plugin's nested skill is renamed `/<module>:<command>`.
+- **2026-11-12** — Assumed: `codex-plugin.mjs` installs every plugin the root `marketplace.json` lists, not a fixed pair, so a later module with hooks needs no edit there.
+- **2026-11-12** — Assumed: `daily/SKILL.md` keeps its relative links to the wiki and the loop's ask page, as memory's and the loop's skills do, because an install rewrites them for the copy's place and the module rule covers imports, not reading links; a plain repo reads Daily's own references.
+- **2026-11-12** — Assumed: the loop module goes to `1.0.3`, because `main` took `1.0.2` for its own loop edits while this change held `1.0.2` for its `plan/SKILL.md` link, and one version must mean one folder.
+- **2026-11-12** — Assumed: a profile that fails to load stops `/schedule` and keeps the worker's line-up off, with no move to Paseo, because a quiet move would hide the app's schedules and save new ones outside it with full permissions.
+- **2026-11-12** — Assumed: with no store, the timer line names the plan's timezone beside it, because the computer's timer reads the time in its own timezone.
+- **2026-11-12** — Saved for the preview check: the build, the review's fixes, and the setup test in a plain repo pass; the Inbox preview check is next.

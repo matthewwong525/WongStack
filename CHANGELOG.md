@@ -7,11 +7,11 @@
 
 - **Daily is now one module, the same for any repo.** It lives in [`.agents/plugins/daily/`](.agents/plugins/daily/daily/README.md), in two folders, `daily` and `schedule`, and brings its own hooks. A project without WongStack adds Daily alone with one pasted message ([the module](wiki/development/daily.md#the-module)).
 - **A repo fills Daily's parts in one profile**, `.agents/daily/profile.mjs`: where schedules live, who you are, the chat names, and more ([the profile](wiki/development/daily.md#the-profile)). A part that fails counts as empty and writes one journal line a day.
-- **Daily works with no company app.** Schedules then go to Paseo on this computer, and the line-up runs from Daily's worker. With no Paseo either, `/schedule` is off and says what it needs ([with no app](wiki/stack/host-schedules.md#with-no-app)).
+- **Daily works with no company app.** Schedules then go to Paseo on this computer, and the line-up runs from Daily's worker. A Paseo schedule runs with full permissions, as the app's schedules do, unless it names its own. With no Paseo either, `/schedule` is off, says what it needs, and gives the line to add to the computer's own timer to run a script ([with no app](wiki/stack/host-schedules.md#with-no-app)).
 - **The Inbox opens on the plans waiting for you**, one row per review page, newest first. It keeps no list of your chats ([your chat list](wiki/development/daily.md#your-chat-list)).
 - **Removed:** *remind me* as its own feature, and the *tell* and *watch* asks. Ask *remind me* in any chat, and `/schedule` saves a one-time schedule. A `chats` entry in Daily's `sources` setting does nothing now.
 
-**Updating.** Nothing to do by hand. Daily moves into its own folders and keeps every schedule, OK and setting. The Inbox now opens on the plans waiting for you. To get a reminder, ask *remind me* in a chat: it becomes a one-time schedule through `/schedule`. The *tell* and *watch* asks are gone. The app deletes its saved list of your chats when it deploys.
+**Updating.** Daily moves into its own folders and keeps every schedule, OK and setting. The update also adds Daily to Codex on this computer, so its check-ins run there. On each other computer you use Codex on, the next chat names one command to run; until you run it, Daily's check-ins do not run in Codex there. The Inbox now opens on the plans waiting for you. To get a reminder, ask *remind me* in a chat: it becomes a one-time schedule through `/schedule`. The *tell* and *watch* asks are gone. The app deletes its saved list of your chats when it deploys.
 
 ## 53.2.0 — Another chat's click goes on behind your turn
 

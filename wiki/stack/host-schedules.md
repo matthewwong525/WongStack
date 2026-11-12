@@ -18,7 +18,7 @@ You see your schedules behind the *Schedules* button at the top of the Inbox, an
 
 A repo with [Daily](../development/daily.md#the-module) and no company app has no schedule store of its own. `node .claude/skills/schedule/scripts/schedule.mjs store` names the one in use:
 
-- **`paseo`:** each schedule is a [Paseo](https://paseo.sh) schedule on this computer that opens a new chat. Your OK before the save is the approval; there is no OK on each computer. Paseo can not run a background run, a `check`, `minutes`, a `deny` list, a team copy, or an `until` goal, so `/schedule` refuses each with its reason.
+- **`paseo`:** each schedule is a [Paseo](https://paseo.sh) schedule on this computer that opens a new chat. Your OK before the save is the approval; there is no OK on each computer. No one is there to answer a permission ask, so it runs with full permissions, as an app schedule does, unless its `run.mode` names another. Paseo can not run a background run, a `check`, `minutes`, a `deny` list, a team copy, or an `until` goal, so `/schedule` refuses each with its reason.
 - **`off`:** with no Paseo either, `/schedule` answers `{ "ok": false, "code": "no-store" }` and says what it needs. For a script, it gives you the crontab line to add.
 
 The line-up, a [default schedule](#default-schedules) here, then runs from [Daily's worker](../development/daily.md#with-no-app).

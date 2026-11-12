@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { isMain } from '../../daily/scripts/lib/cli.mjs';
 import { primaryRoot, PrimaryRootError } from '../../daily/scripts/lib/primary-root.mjs';
-import { slot } from '../../daily/scripts/lib/slot.mjs';
+import { slot, slotResult } from '../../daily/scripts/lib/slot.mjs';
 import { EXIT, PaseoError, findPaseo, git, paseo, parseCommand, runPaseo, withJson } from '../../daily/scripts/lib/paseo.mjs';
 
 const USAGE = `usage: workspace.mjs open --title <part> --brief <file>
@@ -17,6 +17,8 @@ const VALUE_FLAGS = ['title', 'brief', 'checkout', 'reviewed', 'agent', 'label']
 const LABEL = /^[a-z][a-z0-9-]{0,39}=[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$/;
 export const MODES = { claude: 'bypassPermissions', codex: 'full-access' };
 const PARENT_VARS = ['PASEO_AGENT_ID', 'PASEO_WORKSPACE_ID'];
+// The review fetches the branch, so it gets longer than a part's usual time limit.
+const CHECKOUT_MS = 60e3;
 export const PLACEHOLDERS = new Set(['main', 'master', 'default', 'hello', 'hello world', 'test', 'testing', 'untitled',
   'new workspace', 'workspace', 'scratch', 'temp', 'tmp', 'wip']);
 const SLUG = /^(?=.*[A-Za-z0-9])(?=.*[-_])[A-Za-z0-9._-]+$/;
@@ -184,11 +186,15 @@ export async function freshBase(cwd, branch, { fetch, timeout = 0 }) {
 }
 
 // The profile's `checkout` reviews a --checkout branch: `{commit}` to open at, or `{refused, extra}` (exit 2). With no
-// part, the branch opens as it is.
+// profile or no part, the branch opens as it is; a part that fails refuses, so nothing opens unreviewed.
 async function reviewedCheckout(primary, branch, reviewed, { dryRun }) {
-  const found = await slot('checkout', [branch, primary, { reviewed, dryRun }]);
-  if (found?.refused) throw new PaseoError(EXIT.input, found.refused, found.extra ?? {});
-  return found?.commit ?? null;
+  const { error, value } = await slotResult('checkout', [branch, primary, { reviewed, dryRun }], { ms: CHECKOUT_MS });
+  if (error) {
+    const why = String(error?.message ?? error).split('\n')[0];
+    throw new PaseoError(EXIT.input, `The review check for "${branch}" failed, so the workspace does not open: ${why}`);
+  }
+  if (value?.refused) throw new PaseoError(EXIT.input, value.refused, value.extra ?? {});
+  return value?.commit ?? null;
 }
 
 /** The new worktree's HEAD, checked against the commit it was opened for; a mismatch is exit 5. */

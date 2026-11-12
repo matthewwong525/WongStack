@@ -8,6 +8,7 @@ import { repoContext } from './env.mjs';
 const HERE = dirname(fileURLToPath(import.meta.url));
 export const SLOT_MS = 10e3;
 let loaded = null;
+const told = new Set();
 
 /** The repo that holds this copy of Daily, and its profile file. */
 export const moduleRepo = () => repoContext(HERE).root;
@@ -25,10 +26,16 @@ export async function loadProfile(env = process.env, root) {
   return loaded.parts;
 }
 
-/** Writes `line` once a day per part: the journal when `journal` is `{ stateDir, timezone }`, else stderr. */
+/** The profile for an entry point: one that does not load writes one line and counts as `{}`, so every part is empty
+ *  and the command still runs. `error` names the failure. */
+export async function readProfile(env = process.env, root, { journal = null, now = new Date() } = {}) {
+  try { return { parts: await loadProfile(env, root) }; } catch (error) { await tell('profile', error, journal, now); return { parts: {}, error }; }
+}
+
+/** Writes `line` once a day per part to the journal when `journal` is `{ stateDir, timezone }`, else once to stderr. */
 async function tell(part, error, journal, now) {
   const line = `Daily's ${part} part failed and counts as empty: ${String(error?.message ?? error).split('\n')[0].slice(0, 160)}`;
-  if (!journal?.stateDir) { process.stderr.write(`${line}\n`); return; }
+  if (!journal?.stateDir) { if (!told.has(part)) process.stderr.write(`${line}\n`); told.add(part); return; }
   const [{ addLine }, { localDay }] = await Promise.all([import('../journal.mjs'), import('../config.mjs')]);
   const marker = join(journal.stateDir, 'slots.json'), day = localDay(now, journal.timezone);
   let seen = {};
@@ -39,19 +46,26 @@ async function tell(part, error, journal, now) {
   addLine({ stateDir: journal.stateDir, timezone: journal.timezone, line, kind: 'slot' });
 }
 
-/** A function part's result for `args`, an object part as is, or undefined: missing, thrown, or later than `ms`. */
-export async function slot(part, args = [], { env = process.env, root, ms = SLOT_MS, journal = null, now = new Date() } = {}) {
+/** A part's answer told apart, for a caller that must fail closed: `{ absent: true }` with no profile or no such part,
+ *  `{ value }`, or `{ error }` when the profile did not load, or the part threw or answered later than `ms`. */
+export async function slotResult(part, args = [], { env = process.env, root, ms = SLOT_MS, journal = null, now = new Date() } = {}) {
   let found;
-  try { found = (await loadProfile(env, root))[part]; } catch (error) { await tell('profile', error, journal, now); return undefined; }
-  if (typeof found !== 'function') return found ?? undefined;
+  try { found = (await loadProfile(env, root))[part]; } catch (error) { await tell('profile', error, journal, now); return { error }; }
+  if (found == null) return { absent: true };
+  if (typeof found !== 'function') return { value: found };
   let timer;
   try {
     const late = new Promise((_, fail) => { timer = setTimeout(() => fail(new Error(`no answer in ${ms / 1000} seconds`)), ms); });
-    return await Promise.race([Promise.resolve().then(() => found(...args)), late]);
+    return { value: await Promise.race([Promise.resolve().then(() => found(...args)), late]) };
   } catch (error) {
     await tell(part, error, journal, now);
-    return undefined;
+    return { error };
   } finally { clearTimeout(timer); }
+}
+
+/** A function part's result for `args`, an object part as is, or undefined: missing, thrown, or later than `ms`. */
+export async function slot(part, args = [], options = {}) {
+  return (await slotResult(part, args, options)).value ?? undefined;
 }
 
 /** The same answer from a profile `loadProfile` already read, for code that can not wait: a part that answers with

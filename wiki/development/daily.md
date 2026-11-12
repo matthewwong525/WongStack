@@ -154,7 +154,7 @@ Daily is two folders, [`daily`](../../.agents/plugins/daily/daily/README.md) and
 | `prepareRun` | setup for a background run's copy of the repo | nothing |
 | `checkout` | a check of a saved branch before a chat opens on it | a plain checkout |
 
-A part that fails or answers late counts as empty, with one line a day in [the journal](#the-journal).
+A part that fails or answers late counts as empty, with one line a day in [the journal](#the-journal). A profile that does not load counts as empty too, so a typo in it stops no chat. One exception: a `checkout` that fails refuses the open, so no saved branch opens unchecked.
 
 ### With no app
 
