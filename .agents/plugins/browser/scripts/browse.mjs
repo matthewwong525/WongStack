@@ -16,10 +16,11 @@ import { INTERACTIVE_ROLES, MAX_REFS, SKIP_PATTERNS, parseLine } from './refs.mj
 const USAGE = `usage: browse.mjs <command> [--session <name>]
   open <url>                    open the page in this task's tab; prints BROWSE_URL=
   snapshot                      the page as text with refs (e1, e2…)
-  click <ref-or-selector>       prints BROWSE_CLICK=script when only the page's own script took it; during the
-                                person's turn in another tab, key when pressed by its key, or queued when it waits
-                                for their turn to end
-  wait-click                    waits for this tab's queued click; prints BROWSE_CLICK=mouse|forced|script, or none
+  click <ref-or-selector>       prints BROWSE_CLICK=script when only the page's own script took it; it runs at
+                                once, also while the person uses another tab; key or queued come only from an
+                                older running browser
+  wait-click                    waits for this tab's queued click, at most 3 minutes; prints
+                                BROWSE_CLICK=mouse|forced|script, or none (always none from a current browser)
   type <ref-or-selector> <text>
   press <key>
   select <ref-or-selector> <option>
@@ -29,10 +30,10 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
                                 prints BROWSE_SHOT=<temp path>, or none when unchanged;
                                 --full-page takes the whole page, not just what shows
   save                          keep the sign-ins now, with every tab open
-  front                         bring this task's tab to the front of the browser's window; refused with
-                                BROWSE_ERROR while the person uses another tab
+  front                         bring this task's tab to the front of the browser's window; prints
+                                BROWSE_FRONT=yes, or behind while the person uses another tab, which stays in front
   show                          front, with no turn held, to show the person a page;
-                                prints BROWSE_SHOWN=window|link|none
+                                prints BROWSE_SHOWN=window|link|none, and BROWSE_FRONT=behind as front does
   window [on|off]               show the browser in a window on this computer's screen, from its next start;
                                 on Linux, off (or no screen) sends a live-view link instead;
                                 prints BROWSE_WINDOW=on|off; alone, the setting (on unless turned off)
@@ -69,7 +70,8 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
 export const CAMOUFOX = { python: '0.5.9', build: 'v158.0.1-beta.41' };
 const CHECKS = ['checkbox', 'radio', 'switch', 'menuitemcheckbox'];
 const SCRIPT_CLICK_NOTE = 'The click reached the page only through its own script, which a site may ignore: read the page again, then offer the live view that stays open, not more clicks.';
-const QUEUED_NOTE = 'The person is using the browser in another chat\'s tab. This click runs when their turn ends. Run `browse.mjs wait-click` in the background, and take no other step on this page until it ends.';
+const QUEUED_NOTE = 'An older running browser holds this click for the person\'s turn in another chat\'s tab. Run `browse.mjs wait-click` in the background, and take no other step on this page until it ends; it stops by itself after 3 minutes.';
+const BEHIND_NOTE = 'The person is using the browser in another chat\'s tab, so that tab stays in front. This tab keeps working behind it; run front again once their turn ends.';
 export const NO_REF_NOTE = '- note: some boxes have no ref; read the page again or use a selector';
 const NEEDS = 'the browser, Camoufox, is not installed. It needs Python 3.10 or newer, about 3 GB of disk, and about 700 MB of memory while it runs. Ask the person, then run `browse.mjs install`.';
 const PYTHON_NEEDS = 'the browser needs Python 3.10 or newer with its venv module, and this computer has none. Install it (Debian or Ubuntu: `sudo apt install python3 python3-venv`), then run `browse.mjs install`.';
@@ -93,6 +95,9 @@ const ms = (name, normal) => Number(process.env[name] ?? normal);
 const SETTLE_MS = ms('BROWSE_SETTLE_MS', 8000);
 const SETTLE_GAP_MS = ms('BROWSE_SETTLE_GAP_MS', 1000);
 const COMMAND_MS = ms('BROWSE_COMMAND_MS', 45_000);
+// How long wait-click waits for a click an older running browser holds for another chat's turn.
+const CLICK_WAIT_MS = ms('BROWSE_CLICK_WAIT_MS', 3 * 60_000);
+const CLICK_WAITS_TOO_LONG = 'the click still waits for another chat\'s turn in an older browser; it stops by itself once idle, or ask the person to hand back';
 /** A start's parts: the launch config, the browser's launch, then the login move; a start waits for all three. */
 export const CONFIG_MS = 180_000;
 export const LAUNCH_MS = 60_000;
@@ -701,8 +706,8 @@ export function client(given, { retry = true, start = true } = {}) {
       writeTab({ ...tab, ...(url && { url }), refs: boxesIn(seen.snapshot), names: refNames(seen.snapshot) });
       return seen;
     },
-    /** Clicks; a tick box, radio, or switch that didn't change gets Space, as a person would press, then a stop.
-     * Resolves to how the click landed: `mouse`, `forced`, `script`, or `key`; `queued` while it waits for a turn. */
+    /** Clicks; a tick box, radio, or switch that didn't change gets Space, then a stop. Resolves to how the click
+     * landed: `mouse`, `forced`, or `script`; an older browser also says `key`, or `queued` while it waits. */
     async click(target) {
       const { ref, selector } = targetOf(target);
       const box = async () => (ref ? boxesIn((await page.snapshot()).snapshot)[ref] : await evaluate(`(${boxAt})(document, ${JSON.stringify(selector)}, ${JSON.stringify(CHECKS)})`)) ?? null;
@@ -718,21 +723,24 @@ export function client(given, { retry = true, start = true } = {}) {
       if (!boxChanged(before, await box())) throw new BrowseError('the box did not change');
       return via;
     },
-    /** Waits for this tab's queued click to run; resolves to how it landed, or `none` when no click waits. A gone tab
+    /** Waits, up to `CLICK_WAIT_MS`, for the click an older browser queued here: how it landed, or `none`. A gone tab
      * is an error only when this session queued a click: the reaper also closes an idle tab with none. */
     async waitClick() {
       const tab = readTab();
       server ??= await liveServer();
       if (!tab || !server) return 'none';
       const reported = () => { const now = readTab(); if (now?.clickQueued) writeTab({ ...now, clickQueued: undefined }); };
-      for (;;) {
+      for (const end = Date.now() + CLICK_WAIT_MS; ;) {
         const answer = await json('GET', `/tabs/${tab.tabId}/click?userId=${USER}`).catch(error => {
           if (error.status) reported();
           if (error.status !== 404) throw error;
           if (tab.clickQueued) throw new BrowseError('this task\'s tab closed before its click ran');
           return { none: true };
         });
-        if (answer.waiting) continue;
+        if (answer.waiting) {
+          if (Date.now() >= end) throw new BrowseError(CLICK_WAITS_TOO_LONG);
+          continue;
+        }
         reported();
         return answer.via ?? 'none';
       }
@@ -748,8 +756,8 @@ export function client(given, { retry = true, start = true } = {}) {
     size: () => evaluate('[innerWidth, innerHeight]').catch(error => error.size ?? Promise.reject(error)),
     /** Each ref's box at the last snapshot, as `refNames` gives it; `{}` before one. */
     names: () => readTab()?.names ?? {},
-    /** Shows this tab in front: `turn` holds or ends the person's turn, `raise: false` renews it, `reselect` leaves
-     * their own tab shown, `shared` stands beside other turns; `handedBack` answers the browser's Hand back. */
+    /** Shows this tab: `turn` holds or ends a turn, `raise: false` renews it, `reselect` keeps the person's tab,
+     * `shared` joins other turns. Answers `handedBack` on Hand back, `behind` on a plain front during another turn. */
     front: ({ turn, raise, reselect, shared } = {}) => onTab(tabId => json('POST', `/tabs/${tabId}/front`, { userId: USER, ...(turn !== undefined && { turn }), ...(raise === false && { raise }), ...(reselect && { reselect }), ...(shared && { shared }) })),
     /** Whether the browser shows this tab now: a tab behind another reads hidden. */
     shown: () => evaluate("document.visibilityState === 'visible'"),
@@ -823,6 +831,13 @@ function settingCommand(name, choice) {
   if (choice) console.log(NEXT_START);
 }
 
+/** Brings the tab to the front: `yes`, or `behind` with its note while the person uses another tab. */
+async function frontOf(page) {
+  const { behind } = (await page.front()) ?? {};
+  if (behind) console.error(BEHIND_NOTE);
+  return behind ? 'behind' : 'yes';
+}
+
 /** The clicks `click` names, each with its note for the agent: a mouse or forced click is the plain one. */
 const CLICK_NOTES = { script: SCRIPT_CLICK_NOTE, key: '', queued: QUEUED_NOTE };
 
@@ -842,8 +857,11 @@ const COMMANDS = {
   select: [2, (page, [target, option]) => page.select(target, option)],
   screenshot: [0, async (page, _, flags) => console.log(`BROWSE_SHOT=${(await page.screenshot({ ifChanged: flags['if-changed'], fullPage: flags['full-page'] })) ?? 'none'}`)],
   save: [0, async page => { await page.save(); console.log('BROWSE_SAVED=yes'); }],
-  front: [0, async page => { await page.front(); console.log('BROWSE_FRONT=yes'); }],
-  show: [0, async page => { await page.front(); console.log(`BROWSE_SHOWN=${shownAs(readJson(FILES.server))}`); }],
+  front: [0, async page => console.log(`BROWSE_FRONT=${await frontOf(page)}`)],
+  show: [0, async page => {
+    if (await frontOf(page) === 'behind') console.log('BROWSE_FRONT=behind');
+    console.log(`BROWSE_SHOWN=${shownAs(readJson(FILES.server))}`);
+  }],
   close: [0, async page => { await page.close(); console.log(`BROWSE_CLOSED=${page.session}`); }],
   status: [0, status],
   install: [0, install],

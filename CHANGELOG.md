@@ -12,6 +12,15 @@
 
 **Updating.** In each project on this computer that used the background helper, say yes to install the project's own helper: `node .claude/skills/reply-link/scripts/helper.mjs install`. It makes the helper start with the computer and moves the project off the shared one. Do it at a quiet minute, not on the hour or a 5-minute mark, so the shared helper claims no due run in between.
 
+## 61.4.0 — Another chat's browser turn never stops your chat
+
+- **Your chat's own tab always works.** While you have a turn in another chat's tab, this chat reads, clicks, types, and resizes in its own tab at once. Before, a click on a part of a page that takes no key waited for your turn to end, and every later step on that page was refused, for as long as a live view stayed open.
+- **Your tab stays in front.** A step that must show its tab, such as a resize or the password manager's list, shows it for a moment; then the 🔔 tab you were on comes back. Another chat's `front` or `show` prints `BROWSE_FRONT=behind` and leaves your tab in front.
+- **`wait-click` finishes at once.** A click never waits now. Against a browser that started before this update, `wait-click` stops after 3 minutes with a clear message, not after an hour.
+- **A browser update starts by itself.** A running browser whose own scripts changed stops once no chat has a tab or a turn open in it. The next browser command starts the new code. A browser that a chat is using never stops.
+
+**Updating.** Nothing to do by hand. The running browser takes the update by itself once no chat uses it.
+
 ## 61.3.0 — A bell on each tab that waits on you, and one Hand back in the browser
 
 - **Each tab that waits on you shows 🔔 in its title.** When a sign-in, a payment, a robot check, or a stuck step needs you, its chat's tab gets the bell, in the browser window and in a live view. The site can change the title; the bell comes back.

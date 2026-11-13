@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 // browse.mjs names its files from the home folder as it loads, so the test gets its own first.
 process.env.HOME = mkdtempSync(join(tmpdir(), 'browser-server-test-'));
-const { BELL, contextOptions, persistentOptions, PICK_MS, pressKey, routes, startProxy } = await import('../../.agents/skills/browser/scripts/browser-server.mjs');
+const { BELL, codeChanged, contextOptions, ownCode, persistentOptions, PICK_MS, pressKey, routes, startProxy } = await import('../../.agents/skills/browser/scripts/browser-server.mjs');
 const { ADDON_REFUSAL } = await import('../../.agents/skills/browser/scripts/refs.mjs');
 const { joinPieces } = await import('../../.agents/skills/browser/scripts/browse.mjs');
 
@@ -21,14 +21,6 @@ function inPage(document, script, ...args) {
   const kept = globalThis.document;
   globalThis.document = document;
   try { return script(...args.map(arg => (arg?.[HANDLE] ? arg.value : arg))); } finally { globalThis.document = kept; }
-}
-
-/** An element as a page script sees it: its tag, `type`, attributes, `tabIndex`, whether it is disabled, and whether
- * a focus lands on it. */
-function element(localName, { type = '', attributes = {}, tabIndex = 0, disabled = false, focusable = true } = {}) {
-  const root = { activeElement: null };
-  const made = { localName, type, tabIndex, matches: selector => selector === ':disabled' && disabled, getAttribute: name => attributes[name] ?? null, hasAttribute: name => name in attributes };
-  return Object.assign(made, { getRootNode: () => root, focus: () => { if (focusable) root.activeElement = made; } });
 }
 
 /** A frame whose text is `yaml`; its locators record each step in `calls`. A click throws each `clickFails` error. */
@@ -112,8 +104,8 @@ function stubPage(calls, yaml, frames = []) {
   };
 }
 
-/** A browser context that starts with one blank window, as Camoufox does. A page that runs `window.open` opens a tab
- * in its window, which reads `yaml`; `newPage` opens a window. It keeps the tabs, the windows, and the cookies. */
+/** A browser context that starts with one blank window, as Camoufox does: `window.open` opens a tab reading `yaml`,
+ * `newPage` a window. It keeps tabs, windows, cookies, and `shown`: the one page a front shows, which reads visible. */
 function stubContext(yaml = '- button "Go"', frames = () => []) {
   const context = { opened: [], cookies: [], yaml, windows: 1, waiting: [] };
   const page = opener => {
@@ -121,8 +113,11 @@ function stubContext(yaml = '- button "Go"', frames = () => []) {
     made.extra = frames(made.calls);
     made.frames = () => [made.main, ...made.extra];
     made.opener = async () => opener;
+    const raise = made.bringToFront;
+    made.bringToFront = async () => { context.shown = made; return raise(); };
     const read = made.evaluate;
     made.evaluate = async expression => {
+      if (expression === 'document.visibilityState') return context.shown === made ? 'visible' : 'hidden';
       if (!/window\.open\(/.test(expression)) return read(expression);
       const tab = page(made);
       context.opened.push(tab);
@@ -136,6 +131,7 @@ function stubContext(yaml = '- button "Go"', frames = () => []) {
     return made;
   };
   context.first = page(null);
+  context.shown = context.first;
   context.homes = [context.first];
   context.pages = () => [...context.homes, ...context.opened];
   context.newPage = async () => {
@@ -682,7 +678,8 @@ test('every task gets a tab in the one window, opened from a kept home tab that 
       assert.deepEqual(tab.calls.slice(0, 2), [['no opener'], ['goto', 'https://shop.example.test/']], 'and loses its way back to it before the site loads');
     }
     assert.deepEqual((await call('GET', '/tabs?userId=me')).body.tabs.map(tab => tab.listItemId), ['a', 'b'], 'the home tab is not listed');
-    await new Promise(done => setTimeout(done, 80));
+    // A busy machine can hold the reaper back, so wait for the close, up to 2 seconds.
+    for (const end = Date.now() + 2000; Date.now() < end && !context.opened.every(tab => tab.isClosed());) await new Promise(done => setTimeout(done, 20));
     assert.ok(context.opened.every(tab => tab.isClosed()), 'idle task tabs close');
     assert.equal(context.first.isClosed(), false, 'the idle reaper leaves the home tab');
     assert.deepEqual(context.first.calls, [], 'and no task\'s step reaches it');
@@ -706,189 +703,134 @@ test('two tasks opening at once each get their own tab', async () => {
   } finally { await close(); }
 });
 
-test('while the person has a turn in one tab, no other tab comes to the front: front is refused, a resize waits', async () => {
+test('during another tab\'s turn, every step on a tab runs at once, and the turn\'s tab comes back to the front', async () => {
   const context = stubContext();
-  const { call, close } = await serve(context, { turnWaitMs: 300 });
+  const { call, close } = await serve(context);
   try {
     const { tabId: mine } = (await open(call, 'mine')).body;
     const { tabId: other } = (await open(call, 'other')).body;
     const [page, otherPage] = context.opened;
     const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
+    const fronts = () => page.calls.filter(([step]) => step === 'front').length;
     assert.deepEqual((await post(mine, 'front', { turn: true })).body, { ok: true });
-    assert.deepEqual(page.calls.at(-1), ['front'], 'the turn\'s tab comes to the front');
+    assert.equal(context.shown, page, 'the turn\'s tab comes to the front');
 
-    assert.deepEqual(await post(other, 'front'), { status: 409, type: 'application/json', body: { error: 'the person is using the browser' } });
-    assert.equal((await post(other, 'front', { turn: true })).status, 409, 'and no second turn starts');
-    const before = otherPage.calls.length;
-    const resize = await post(other, 'viewport', { width: 800, height: 600 });
-    assert.deepEqual([resize.status, resize.body.error], [409, 'the person is using the browser in another tab; try again once their turn ends'], 'a resize shows its tab');
-    assert.equal((await post(other, 'navigate', { url: 'moz-extension://pm-uuid/popup/index.html' })).status, 409, 'and so does an add-on\'s page');
-    assert.equal(otherPage.calls.length, before, 'none reached the page');
-    assert.equal((await post(other, 'type', { selector: '#q', text: 'hi', mode: 'keyboard' })).status, 200, 'typing stays behind, so it goes on');
-    assert.equal((await call('GET', `/tabs/${other}/snapshot?userId=me`)).status, 200, 'and so does reading');
-    assert.ok(!otherPage.calls.some(([step]) => step === 'front'), 'neither shows its tab');
+    assert.deepEqual((await post(other, 'click', { selector: '#buy' })).body, { ok: true, url: 'https://shop.example.test/', via: 'mouse' }, 'a click runs at once');
+    assert.deepEqual(otherPage.calls.at(-1), ['click', 'css:#buy:visible', { timeout: 3000 }]);
+    for (const [route, body] of [['type', { selector: '#q', text: 'hi', mode: 'keyboard' }], ['press', { key: 'Enter' }], ['select', { selector: '#size', option: 'M' }], ['evaluate', { expression: '1' }]]) {
+      assert.equal((await post(other, route, body)).status, 200, route);
+    }
+    assert.equal((await call('GET', `/tabs/${other}/snapshot?userId=me`)).status, 200, 'reading never waits');
+    assert.equal((await call('GET', `/tabs/${other}/screenshot?userId=me`)).status, 200);
+    assert.equal(fronts(), 1, 'a step that left the turn\'s tab shown puts nothing back');
+
+    assert.deepEqual((await post(other, 'front')).body, { ok: true, behind: true }, 'a plain front stays behind the turn');
+    assert.ok(!otherPage.calls.some(([step]) => step === 'front'), 'and never shows its tab');
+    assert.equal((await post(other, 'front', { turn: true })).status, 409, 'a second plain turn is still refused');
+
+    assert.deepEqual((await post(other, 'viewport', { width: 800, height: 600 })).body, { ok: true, width: 800, height: 600 }, 'a resize runs at once');
+    assert.ok(otherPage.calls.some(([step]) => step === 'front'), 'it shows its tab for a moment');
+    assert.deepEqual([context.shown, page.calls.at(-1), fronts()], [page, ['front'], 2], 'then the turn\'s tab comes back');
+
+    otherPage.calls.onClick = () => { context.shown = otherPage; };
+    await post(other, 'click', { selector: '#buy' });
+    assert.deepEqual([context.shown, fronts()], [page, 3], 'a click that brought its tab forward puts the turn\'s tab back');
+    otherPage.calls.onClick = null;
+
+    context.shown = context.first;
+    await post(other, 'viewport', { width: 900, height: 600 });
+    assert.equal(fronts(), 3, 'with no turn\'s page shown before the step, nothing comes forward by itself');
+    context.shown = page;
+
+    assert.deepEqual((await call('GET', `/tabs/${other}/click?userId=me`)).body, { ok: true, none: true }, 'no click ever waits');
+    assert.equal((await post(other, 'navigate', { url: 'moz-extension://pm-uuid/popup/index.html' })).status, 200, 'an add-on\'s page opens at once');
+    assert.deepEqual([context.shown, fronts()], [page, 4], 'and the turn\'s tab comes back after it');
+
+    assert.equal((await post(mine, 'viewport', { width: 480, height: 663 })).status, 200, 'the turn\'s own tab resizes, for a live view');
+    assert.deepEqual((await post(other, 'front', { turn: false })).body, { ok: true }, 'another tab can not end the turn');
+    assert.deepEqual((await post(other, 'front')).body, { ok: true, behind: true });
+    assert.deepEqual((await post(mine, 'front', { turn: false })).body, { ok: true });
+    assert.deepEqual((await post(other, 'front')).body, { ok: true }, 'once the turn ends, its front shows it');
+    assert.equal(context.shown, otherPage);
+  } finally { await close(); }
+});
+
+test('with several turns, the turn\'s tab the person was on comes back, and a turn\'s own step puts no other back', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context);
+  try {
+    const { tabId: mine } = (await open(call, 'mine')).body;
+    const { tabId: second } = (await open(call, 'second')).body;
+    const { tabId: third } = (await open(call, 'third')).body;
+    const [page, secondPage] = context.opened;
+    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
+    await post(mine, 'front', { turn: true, shared: true });
+    await post(second, 'front', { turn: true, shared: true });
+    assert.equal(context.shown, page, 'a second shared turn stays behind');
+    await secondPage.bringToFront();
+    await post(third, 'viewport', { width: 800, height: 600 });
+    assert.equal(context.shown, secondPage, 'the 🔔 tab the person picked comes back, not the first turn\'s');
 
     const fronts = page.calls.filter(([step]) => step === 'front').length;
-    assert.deepEqual((await post(mine, 'front', { turn: true, raise: false })).body, { ok: true });
-    assert.equal(page.calls.filter(([step]) => step === 'front').length, fronts, 'a renewal alone shows nothing');
-    assert.equal((await post(mine, 'viewport', { width: 480, height: 663 })).status, 200, 'the turn\'s own tab still resizes, for a live view');
-
-    const waiting = post(other, 'viewport', { width: 800, height: 600 });
-    assert.deepEqual((await post(other, 'front', { turn: false })).body, { ok: true }, 'another tab can not end the turn');
-    assert.deepEqual((await post(mine, 'front', { turn: false })).body, { ok: true });
-    assert.equal((await waiting).status, 200, 'a waiting resize goes on once the turn ends');
-    assert.deepEqual((await post(other, 'front')).body, { ok: true });
+    assert.equal((await post(mine, 'viewport', { width: 480, height: 663 })).status, 200);
+    assert.equal(context.shown, page, 'a live view fitting a turn\'s own tab shows it');
+    assert.equal(page.calls.filter(([step]) => step === 'front').length, fronts + 1, 'and puts no other turn\'s tab back');
+    assert.deepEqual((await post(third, 'front')).body, { ok: true, behind: true });
+    assert.deepEqual((await post(mine, 'front')).body, { ok: true, behind: true }, 'a plain front from a turn\'s tab beside another turn stays behind too');
   } finally { await close(); }
 });
 
-test('during another tab\'s turn, a click on a target the keyboard presses goes by its key, behind; with none, by mouse', async () => {
+test('an idle server whose code changed stops: never with a tab open or still opening', async () => {
   const context = stubContext();
-  const { call, close } = await serve(context);
+  let changed = false;
+  let stops = 0;
+  const { call, close } = await serve(context, { idleMs: 100, outdated: () => changed, onOutdated: () => { stops++; } });
+  const settle = () => new Promise(done => setTimeout(done, 300));
   try {
-    const { tabId: mine } = (await open(call, 'mine')).body;
-    const { tabId: other } = (await open(call, 'other')).body;
-    const otherPage = context.opened[1];
-    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
-    Object.assign(otherPage.main.elements, {
-      'css:#buy:visible': element('button'),
-      'css:#next:visible': element('a', { attributes: { href: '/next' } }),
-      'css:#send:visible': element('input', { type: 'submit' }),
-      'css:#agree:visible': element('input', { type: 'checkbox' }),
-      'css:#menu:visible': element('div', { attributes: { role: 'button' } }),
-      'css:#toggle:visible': element('span', { attributes: { role: 'switch' } }),
-      'role:button:Go:true#0': element('button'),
-    });
-    await post(mine, 'front', { turn: true });
-    const before = otherPage.calls.length;
-    for (const [selector, key] of [['#buy', 'Enter'], ['#next', 'Enter'], ['#send', 'Enter'], ['#agree', 'Space'], ['#menu', 'Enter'], ['#toggle', 'Space']]) {
-      assert.deepEqual((await post(other, 'click', { selector })).body, { ok: true, url: 'https://shop.example.test/', via: 'key' }, selector);
-      assert.deepEqual(otherPage.calls.slice(-2), [['focus', `css:${selector}:visible`], ['press', key]], selector);
-    }
-    assert.deepEqual((await post(other, 'click', { ref: 'e1' })).body.via, 'key', 'a ref goes by key too');
-    assert.ok(!otherPage.calls.slice(before).some(([step]) => step === 'front' || step === 'click'), 'no click or front reached the tab behind');
+    await open(call, 'mine');
+    await settle();
+    assert.deepEqual([context.opened[0].isClosed(), stops], [true, 0], 'its tab closed unused, and nothing changed: it keeps running');
 
-    await post(mine, 'front', { turn: false });
-    assert.deepEqual((await post(other, 'click', { selector: '#buy' })).body.via, 'mouse', 'with no turn, a click is the mouse click');
-    assert.deepEqual(otherPage.calls.at(-1), ['click', 'css:#buy:visible', { timeout: 3000 }]);
+    changed = true;
+    let release;
+    const gate = new Promise(done => { release = done; });
+    const real = context.waitForEvent;
+    context.waitForEvent = (event, options) => { const made = real(event, options); return gate.then(() => made); };
+    const opening = open(call, 'late');
+    await settle();
+    assert.equal(stops, 0, 'a tab still opening keeps it');
+    release();
+    assert.equal((await opening).status, 200);
+    context.waitForEvent = real;
+    assert.equal(stops, 0, 'a tab in use keeps it');
+    await settle();
+    assert.ok(stops >= 1, 'once its last tab closes unused, it stops');
   } finally { await close(); }
 });
 
-test('a click the keyboard can not make waits for the turn to end, and its tab takes no other step before it', async () => {
-  const context = stubContext();
-  const { call, close } = await serve(context, { clickPollMs: 100 });
-  try {
-    const { tabId: mine } = (await open(call, 'mine')).body;
-    const { tabId: other } = (await open(call, 'other')).body;
-    const otherPage = context.opened[1];
-    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
-    const result = () => call('GET', `/tabs/${other}/click?userId=me`);
-    // Each ask holds 100 ms here, so an ask goes on until the click ran.
-    const ran = async () => {
-      for (;;) {
-        const answer = await result();
-        if (!answer.body.waiting) return answer;
-      }
-    };
-    Object.assign(otherPage.main.elements, {
-      'css:#plain:visible': element('div'),
-      'css:#hidden:visible': element('button', { focusable: false }),
-      'css:#off:visible': element('button', { disabled: true }),
-      'css:#skipped:visible': element('a', { attributes: { href: '/x' }, tabIndex: -1 }),
-    });
-    assert.deepEqual((await result()).body, { ok: true, none: true }, 'with no click waiting, none');
-    await post(mine, 'front', { turn: true });
-    for (const selector of ['#plain', '#hidden', '#off', '#skipped']) {
-      assert.deepEqual((await post(other, 'click', { selector })).body, { ok: true, queued: true }, `${selector} waits`);
-      const refused = { status: 409, type: 'application/json', body: { error: 'a click on this page waits for the person\'s turn in another tab; run `wait-click`' } };
-      if (selector === '#plain') {
-        const before = otherPage.calls.length;
-        for (const [route, body] of [['click', { selector: '#buy' }], ['type', { selector: '#q', text: 'x' }], ['press', { key: 'Enter' }], ['evaluate', { expression: '1' }], ['front', {}], ['navigate', { url: 'https://shop.example.test/next' }]]) {
-          assert.deepEqual(await post(other, route, body), refused, route);
-        }
-        assert.deepEqual(await call('GET', `/tabs/${other}/snapshot?userId=me`), refused);
-        assert.equal((await call('GET', `/tabs/${other}/screenshot?userId=me`)).status, 409);
-        assert.equal((await open(call, 'other', 'https://shop.example.test/again')).status, 409, 'and so does opening a page in it');
-        assert.equal(otherPage.calls.length, before, 'none reached the page');
-        assert.deepEqual((await result()).body, { ok: true, waiting: true }, 'an ask before the turn ends hears it still waits');
-      }
-      const answer = ran();
-      await post(mine, 'front', { turn: false });
-      assert.deepEqual((await answer).body, { ok: true, url: 'https://shop.example.test/', via: 'mouse' }, 'the turn ended, so the click ran');
-      assert.deepEqual(otherPage.calls.at(-1), ['click', `css:${selector}:visible`, { timeout: 3000 }]);
-      assert.deepEqual((await result()).body, { ok: true, none: true }, 'once asked, it is gone');
-      await post(mine, 'front', { turn: true });
-    }
-    assert.ok(!otherPage.calls.some(([step]) => step === 'press'), 'no key went to any of them');
-  } finally { await close(); }
-});
+test('the code check sees a file that changed, went, or came; the primary checkout\'s copies count too', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'own-code-'));
+  const [kept, gone, late] = ['kept.mjs', 'gone.mjs', 'late.mjs'].map(name => join(dir, name));
+  for (const file of [kept, gone]) writeFileSync(file, 'x');
+  const check = () => codeChanged([kept, gone, late]);
+  assert.equal(check()(), false, 'nothing changed');
+  let changed = check();
+  utimesSync(kept, new Date(1000), new Date(1000));
+  assert.equal(changed(), true, 'an older stamp counts as a change');
+  changed = check();
+  rmSync(gone);
+  assert.equal(changed(), true, 'a missing file counts');
+  changed = check();
+  writeFileSync(late, 'x');
+  assert.equal(changed(), true, 'and so does a new one');
 
-test('a waiting click runs when the turn\'s lease lapses, and a closed tab drops it', async () => {
-  const context = stubContext();
-  const { call, close } = await serve(context, { turnMs: 300 });
-  try {
-    const { tabId: mine } = (await open(call, 'mine')).body;
-    const { tabId: other } = (await open(call, 'other')).body;
-    const otherPage = context.opened[1];
-    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
-    otherPage.main.elements['css:#plain:visible'] = element('div');
-    await post(mine, 'front', { turn: true });
-    assert.equal((await post(other, 'click', { selector: '#plain' })).body.queued, true);
-    assert.equal((await call('GET', `/tabs/${other}/click?userId=me`)).body.via, 'mouse', 'its helper stopped renewing the turn');
-
-    await post(mine, 'front', { turn: true });
-    assert.equal((await post(other, 'click', { selector: '#plain' })).body.queued, true);
-    const clicks = otherPage.calls.filter(([step]) => step === 'click').length;
-    const answer = call('GET', `/tabs/${other}/click?userId=me`);
-    await call('DELETE', `/tabs/${other}?userId=me`);
-    assert.deepEqual(await answer, { status: 410, type: 'application/json', body: { error: 'the tab closed before its click ran' } });
-    await new Promise(done => setTimeout(done, 400));
-    assert.equal(otherPage.calls.filter(([step]) => step === 'click').length, clicks, 'and the click never runs');
-    assert.equal((await call('GET', `/tabs/${other}/click?userId=me`)).status, 404);
-  } finally { await close(); }
-});
-
-test('waiting clicks on two tabs run oldest first once the turn ends', async () => {
-  const context = stubContext();
-  const { call, close } = await serve(context);
-  try {
-    const { tabId: mine } = (await open(call, 'mine')).body;
-    const { tabId: first } = (await open(call, 'first')).body;
-    const { tabId: second } = (await open(call, 'second')).body;
-    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
-    const order = [];
-    for (const [page, name] of [[context.opened[1], first], [context.opened[2], second]]) {
-      page.main.elements['css:#plain:visible'] = element('div');
-      const push = page.calls.push.bind(page.calls);
-      page.calls.push = (...items) => { if (items.some(([step]) => step === 'click')) order.push(name); return push(...items); };
-    }
-    await post(mine, 'front', { turn: true });
-    // The later-opened tab queues first, so the order is by wait, not by tab.
-    assert.equal((await post(second, 'click', { selector: '#plain' })).body.queued, true);
-    await new Promise(done => setTimeout(done, 20));
-    assert.equal((await post(first, 'click', { selector: '#plain' })).body.queued, true);
-    await post(mine, 'front', { turn: false });
-    for (const tab of [second, first]) assert.equal((await call('GET', `/tabs/${tab}/click?userId=me`)).body.via, 'mouse');
-    assert.deepEqual(order, [second, first]);
-  } finally { await close(); }
-});
-
-test('a click that ran keeps refusing its tab\'s other steps until its result is claimed', async () => {
-  const context = stubContext();
-  const { call, close } = await serve(context);
-  try {
-    const { tabId: mine } = (await open(call, 'mine')).body;
-    const { tabId: other } = (await open(call, 'other')).body;
-    const otherPage = context.opened[1];
-    const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
-    otherPage.main.elements['css:#plain:visible'] = element('div');
-    await post(mine, 'front', { turn: true });
-    assert.equal((await post(other, 'click', { selector: '#plain' })).body.queued, true);
-    await post(mine, 'front', { turn: false });
-    while (!otherPage.calls.some(([step]) => step === 'click')) await new Promise(done => setTimeout(done, 50));
-    assert.equal((await post(other, 'type', { selector: '#q', text: 'x' })).status, 409, 'the click ran, but its chat has not heard');
-    assert.deepEqual((await call('GET', `/tabs/${other}/click?userId=me`)).body, { ok: true, url: 'https://shop.example.test/', via: 'mouse' });
-    assert.equal((await post(other, 'type', { selector: '#q', text: 'x' })).status, 200, 'once claimed, steps run');
-  } finally { await close(); }
+  const here = join('/work/tree', '.agents/plugins/browser/scripts');
+  const linked = ownCode(here, () => ({ root: '/work/tree', primary: '/work/main' }));
+  assert.ok(linked.includes(join(here, 'browser-server.mjs')));
+  assert.ok(linked.includes('/work/main/.agents/plugins/browser/scripts/browser-server.mjs'), 'a merge lands in the primary checkout');
+  assert.ok(ownCode(here, () => ({ root: '/work/main', primary: '/work/main' })).every(file => file.startsWith(here)), 'the primary itself counts once');
+  assert.ok(ownCode(here, () => { throw new Error('not a checkout'); }).every(file => file.startsWith(here)), 'outside a checkout, only its own');
+  rmSync(dir, { recursive: true, force: true });
 });
 
 test('a live view\'s poll selects the turn\'s tab again, unless a tab the person or the site opened in the turn is open', async () => {
@@ -929,15 +871,15 @@ test('a live view\'s poll selects the turn\'s tab again, unless a tab the person
 
 test('a turn ends when its helper stops renewing it, or its tab closes', async () => {
   const context = stubContext();
-  const { call, close } = await serve(context, { turnMs: 40, turnWaitMs: 0 });
+  const { call, close } = await serve(context, { turnMs: 40 });
   try {
     const { tabId: mine } = (await open(call, 'mine')).body;
     const { tabId: other } = (await open(call, 'other')).body;
     const post = (tab, route, body) => call('POST', `/tabs/${tab}/${route}`, { userId: 'me', ...body });
     await post(mine, 'front', { turn: true });
-    assert.equal((await post(other, 'front')).status, 409);
+    assert.equal((await post(other, 'front')).body.behind, true);
     await new Promise(done => setTimeout(done, 60));
-    assert.equal((await post(other, 'front')).status, 200, 'a lease past its time lets go');
+    assert.deepEqual((await post(other, 'front')).body, { ok: true }, 'a lease past its time lets go');
     await post(mine, 'front', { turn: true });
     await call('DELETE', `/tabs/${mine}?userId=me`);
     assert.equal((await post(other, 'click', { selector: '#buy' })).status, 200, 'a closed tab holds no turn');
@@ -966,7 +908,7 @@ function titled(page, title) {
 
 test('shared turns stand side by side, each tab with its bell; only the first comes to the front', async () => {
   const context = stubContext();
-  const { call, close } = await serve(context, { turnWaitMs: 0 });
+  const { call, close } = await serve(context);
   try {
     const { tabId: mine } = (await open(call, 'mine')).body;
     const { tabId: other } = (await open(call, 'other')).body;
@@ -980,7 +922,7 @@ test('shared turns stand side by side, each tab with its bell; only the first co
     assert.ok(!otherPage.calls.some(([step]) => step === 'front'), 'and stays behind');
     assert.deepEqual([doc.title, otherDoc.title], [`${BELL}Netflix`, `${BELL}Pay`]);
     assert.equal((await post(third, { turn: true })).status, 409, 'a plain turn is refused beside them');
-    assert.equal((await post(third, {})).status, 409, 'and so is a plain front');
+    assert.deepEqual((await post(third, {})).body, { ok: true, behind: true }, 'and a plain front stays behind');
     assert.equal((await call('GET', '/turns')).body.count, 2);
 
     doc.change('Netflix: sign in');
@@ -1002,7 +944,7 @@ test('shared turns stand side by side, each tab with its bell; only the first co
 
 test('Hand back ends every shared turn, each renewal hears it once, and a lapse takes its bell off too', async () => {
   const context = stubContext();
-  const { call, close } = await serve(context, { turnMs: 200, turnWaitMs: 0, handBackKey: 'button-key' });
+  const { call, close } = await serve(context, { turnMs: 200, handBackKey: 'button-key' });
   try {
     const { tabId: mine } = (await open(call, 'mine')).body;
     const { tabId: other } = (await open(call, 'other')).body;
@@ -1034,7 +976,7 @@ test('Hand back ends every shared turn, each renewal hears it once, and a lapse 
 
     assert.deepEqual((await post(mine, { turn: true })).body, { ok: true });
     await call('POST', '/hand-back', null, 'button-key');
-    assert.equal((await post(other, {})).status, 409, 'a plain turn stays: the watch link has its own Hand back');
+    assert.equal((await post(other, {})).body.behind, true, 'a plain turn stays: the watch link has its own Hand back');
     assert.equal(doc.title, 'Netflix', 'and has no bell');
   } finally { await close(); }
 });

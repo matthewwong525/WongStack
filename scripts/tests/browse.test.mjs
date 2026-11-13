@@ -1122,7 +1122,7 @@ test('a click says BROWSE_CLICK=script only when the page\'s own script took it'
   assert.match(out.stderr, /live view that stays open/);
 });
 
-test('a click behind the person\'s turn says key or queued, and wait-click says how a queued one landed', t => {
+test('a click an older browser holds says key or queued, and wait-click says how a queued one landed, within its limit', t => {
   const f = fixture(t);
   assert.equal(ok(f, 'wait-click'), 'BROWSE_CLICK=none\n', 'with no page open, no click waits');
   assert.equal(f.camofox.starts(), 0, 'and no browser starts for it');
@@ -1136,7 +1136,7 @@ test('a click behind the person\'s turn says key or queued, and wait-click says 
   f.camofox.set('click-queued');
   out = f.run('click', '#more');
   assert.deepEqual([out.status, out.stdout], [0, 'BROWSE_CLICK=queued\nBROWSE_DONE=click\n']);
-  assert.match(out.stderr, /runs when their turn ends\. Run `browse\.mjs wait-click` in the background, and take no other step on this page/);
+  assert.match(out.stderr, /An older running browser holds this click .* Run `browse\.mjs wait-click` in the background, and take no other step on this page/);
   f.camofox.unset('click-queued');
   f.camofox.set('click-still-waiting');
   f.camofox.set('waited-via', 'forced');
@@ -1150,6 +1150,14 @@ test('a click behind the person\'s turn says key or queued, and wait-click says 
   f.camofox.set('waited-error', 'e2 is not on the page now; read the page again and use a current ref');
   out = f.run('wait-click');
   assert.deepEqual([out.status, out.stdout], [1, 'BROWSE_ERROR=e2 is not on the page now; read the page again and use a current ref\n']);
+
+  f.camofox.unset('waited-error');
+  f.camofox.set('click-queued');
+  ok(f, 'click', 'e2');
+  f.camofox.set('click-never-runs');
+  out = f.runWith({ BROWSE_CLICK_WAIT_MS: '50' }, 'wait-click');
+  assert.deepEqual([out.status, out.stdout], [1, 'BROWSE_ERROR=the click still waits for another chat\'s turn in an older browser; it stops by itself once idle, or ask the person to hand back\n'], 'it stops at its limit, not after an hour');
+  assert.match(f.run('--help').stdout, /wait-click .*at most 3 minutes/);
 });
 
 test('wait-click on a closed tab says none when this session queued no click, else that its click never ran', t => {
@@ -1273,6 +1281,12 @@ test('front brings this task\'s tab to the front, and says so when the person is
   const out = f.run('front');
   assert.equal(out.status, 1);
   assert.equal(out.stdout, 'BROWSE_ERROR=the person is using the browser\n');
+  f.camofox.unset('front-refused');
+  f.camofox.set('front-behind');
+  const behind = f.run('front');
+  assert.deepEqual([behind.status, behind.stdout], [0, 'BROWSE_FRONT=behind\n'], 'the person\'s tab stays in front');
+  assert.match(behind.stderr, /This tab keeps working behind it/);
+  assert.equal(ok(f, 'show'), 'BROWSE_FRONT=behind\nBROWSE_SHOWN=none\n');
   assert.match(f.run('--help').stdout, /front .*bring this task's tab to the front/);
 });
 

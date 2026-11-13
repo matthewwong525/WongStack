@@ -23,8 +23,9 @@ const USAGE = `usage: connect-browser.mjs <command>
   open <url>                   a new page at an https address
   read                         the page, every key hidden
   click <ref> | fill <ref> <text> | select <ref> <value> | wait <ref|ms>
-  wait-click                   wait for a click held for the person's turn in another chat's tab: Done once it ran,
-                               or No click waits.
+  wait-click                   wait, at most 3 minutes, for a click an older running browser held for the person's
+                               turn in another chat's tab: Done once it ran, or No click waits (a current browser
+                               never holds one)
   take-key [<ref>] --tool <id> [--id]
                                send a tool's key, the page's one or the one at <ref>, as TOOL_<ID>, or its ID as
                                TOOL_<ID>_ID, by the profile's sendKey; with none, it stays in this computer's
@@ -44,7 +45,7 @@ const SIGN_IN_PAGE = /password|passcode|sign.?in|log.?in/i;
 const HAND_OVER = join(dirname(fileURLToPath(import.meta.url)), '../skills/hand-over/scripts/hand-over.mjs');
 const WATCH_NOTE = 'The assistant is connecting your tools.';
 const WAIT_MS = 10_000;
-const CLICK_WAITS = 'The person is using the browser in another chat\'s tab, so this click runs when their turn ends. Run `browser.mjs wait-click` in the background with the host\'s longest limit, and take no other step until it ends.';
+const CLICK_WAITS = 'An older running browser holds this click for the person\'s turn in another chat\'s tab. Run `connect-browser.mjs wait-click` in the background, and take no other step until it ends; it stops by itself after 3 minutes.';
 const PAUSES = {
   person: ['CONNECT_PAUSED=taken-over', 'The person took over the browser. Run `hand-over.mjs wait` in the background and send the browser nothing until it prints handed-back.'],
   turn: ['CONNECT_PAUSED=your-turn', 'It is the person\'s turn to sign in. Run `hand-over.mjs wait` in the background until it prints handed-back; in a browser window, run `hand-over.mjs close` once they say done.'],
@@ -105,7 +106,8 @@ const camoufox = {
     await ({ fill: () => page().type(target, value), select: () => page().select(target, value) })[kind]();
     return 'Done';
   },
-  /** A click that waited for the person's turn: `Done` once it ran, its error if it failed, or that none waits. */
+  /** A click an older browser held for the person's turn: `Done` once it ran, its error if it failed or still waits
+   * after 3 minutes, or that none waits. */
   waitClick: async () => await page().waitClick() === 'none' ? 'No click waits.' : 'Done',
   valueAt: (target) => page().valueOf(target).then(value => value.trim(), () => ''),
   async picture(path) {
