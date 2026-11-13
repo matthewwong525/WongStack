@@ -3,6 +3,17 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.6.0 — One command for screen work, a design guide, and a friendlier starter look
+
+- **`/ui` opens all screen work.** Before the assistant designs, builds, or changes a screen, it loads `/ui`, which sends it to four sources in order: the [UX principles](wiki/ux-principles.md), the design guide, the ready-made parts, and web guidance at need. You can type `/ui` too.
+- **A design guide holds the look every screen shares.** [The design guide](wiki/design-guide.md) is calm, roomy, and friendly, in your own colours: colour, type, space, shape and depth, pictures, words, and motion. It names no brand.
+- **Your brand is one short list in one file.** The accent, the text on it, the focus ring, the font, the corner size, and three shadows sit in `app/src/index.css`. Change one and every screen, every ready-made part, the plan's review page, and the private pages follow ([set your brand](wiki/design-guide.md#set-your-brand)).
+- **The starter app wears the look.** Main buttons are violet, corners are rounder, shadows are softer, and titles are larger. The font stays the device's own, and no screen gets a new layout.
+- **The app's checks hold the look.** A check fails when text on your accent, your page, or your muted colour is under 4.5 to 1, in light or in dark. Four design rules stop a colour outside your set, a style written on one element, a class that makes no style, and a class the check can't read ([the check](wiki/design-guide.md#the-check)).
+- **Web guidance comes from one fixed version.** The assistant asks `modern-web-guidance@1.0.0` for one guide at a time and copies none. Only a WongStack update moves the version. With no internet, the work goes on without it.
+
+**Updating.** The update brings `/ui` and the design guide. The starter's new look is offered, not forced: an install with its own colours keeps them and adds only the new brand values, the font and the three shadows, beside them. Run the app's checks after the update. If a design rule or the readable-colour check flags your own screens, the update plan lists each one with its fix. Screens that can't meet a design rule yet turn it off for those files alone, in an `overrides` entry of `app/.oxlintrc.json`, with a `Check:` bullet; the rule stays on for every other file. Write a brand colour that is in `hsl()` as `oklch()` or hex, once.
+
 ## 61.5.0 — Each project runs its own background helper, and a run with no sign-in says so
 
 - **Each project gets its own background helper.** It runs that project's own code and sign-in, and serves only that project's app, schedules and inbox taps. Another project's update can no longer stop your schedules with *needs your OK* ([the helper](wiki/stack/live-line.md#the-helper)).

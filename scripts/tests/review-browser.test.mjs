@@ -1050,6 +1050,23 @@ browserTest('the page starts light on a dark device, and the switch turns it dar
   await context.close();
 });
 
+browserTest('the page draws in the app\'s font: its text, a pin, the note box, a sketch and a diagram follow --font', async () => {
+  const { url } = fixture(proposal.replace(`  ${fence}text\n  you ask\n     │\n  done\n  ${fence}`, [
+    `  ${fence}svg`, '  <svg viewBox="0 0 480 120">', '    <text x="16" y="80">Notes</text>', '  </svg>', `  ${fence}`,
+    `  ${fence}mermaid`, '  flowchart LR', '    A[you ask] --> B[a plan]', `  ${fence}`,
+  ].join('\n')));
+  const { page, context, errors } = await open(url);
+  // A rebrand, as the look carries it from the app's stylesheet into the page's light set.
+  await page.evaluate(() => document.documentElement.style.setProperty('--font', '"Brand Sans", sans-serif'));
+  await note(page, 'item-2', 'A note');
+  await draft(page, 'item-4', 'A draft');
+  const fonts = await page.evaluate(() => Object.fromEntries(['body', 'h1', '.pin', '#editor textarea', '.art.sketch text', '.art.pic svg text']
+    .map(part => [part, getComputedStyle(document.querySelector(part)).fontFamily])));
+  for (const [part, family] of Object.entries(fonts)) assert.match(family, /^"?Brand Sans"?, sans-serif$/, `${part} draws in ${family}`);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
 browserTest('a sketch fits 320px, opens full screen, and repaints on the dark switch; a table row copies as its change and row', async () => {
   const { url } = fixture(proposal.replace(`  ${fence}text\n  you ask\n     │\n  done\n  ${fence}`, [
     `  ${fence}svg`, '  <svg viewBox="0 0 480 120">', '    <rect x="0" y="0" width="480" height="120" fill="card" stroke="line"/>',

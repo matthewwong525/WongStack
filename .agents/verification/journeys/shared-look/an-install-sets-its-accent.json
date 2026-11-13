@@ -1,0 +1,91 @@
+{
+  "format": "verify-journey-1",
+  "id": "an-install-sets-its-accent",
+  "scenario": {
+    "capability": "shared-look",
+    "requirement": "The brand is one list in one place",
+    "scenario": "An install sets its accent"
+  },
+  "thenDigest": "65bdfa8b231f1c062f843ad44c84fe0ef47a55e17c3e9cdbc4147c297f907090",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/memory/areas.json",
+    ".agents/plugins/loop/skills/plan/SKILL.md",
+    ".agents/plugins/loop/skills/plan/references/look.css",
+    ".agents/plugins/loop/skills/plan/references/review-kit.html",
+    ".agents/rules/code.md",
+    ".agents/rules/payload.md",
+    ".agents/skills/ui/SKILL.md",
+    ".agents/skills/update-dependencies/SKILL.md",
+    ".agents/skills/update-dependencies/scripts/update.mjs",
+    ".agents/skills/wong-setup/references/seed/wiki-README.md",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    ".agents/skills/wong-sync/references/payload-manifest.md",
+    "app/.oxlintrc.json",
+    "app/src/index.css",
+    "scripts/check-app-checks.mjs"
+  ],
+  "recordedAt": "5286c982f1bc14b053a75d0350b05354827579fc",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "390",
+      "760"
+    ],
+    [
+      "set",
+      "media",
+      "light"
+    ],
+    [
+      "open",
+      "{url}/apps/hello/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "eval",
+      "JSON.stringify((b=>b?({dark:document.documentElement.classList.contains('dark'),button:getComputedStyle(b).backgroundColor,text:getComputedStyle(b).color,corner:getComputedStyle(b).borderRadius,primary:getComputedStyle(document.documentElement).getPropertyValue('--primary'),radius:getComputedStyle(document.documentElement).getPropertyValue('--radius'),shadowCard:getComputedStyle(document.documentElement).getPropertyValue('--shadow-card'),h1:getComputedStyle(document.querySelector('h1')).fontSize,font:getComputedStyle(document.body).fontFamily}):'no button')([...document.querySelectorAll('button,a')].find(b=>/Say hello/.test(b.textContent))))"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Switch to dark"
+    ],
+    [
+      "wait",
+      "300"
+    ],
+    [
+      "eval",
+      "JSON.stringify((b=>b?({dark:document.documentElement.classList.contains('dark'),button:getComputedStyle(b).backgroundColor,text:getComputedStyle(b).color,corner:getComputedStyle(b).borderRadius,primary:getComputedStyle(document.documentElement).getPropertyValue('--primary'),radius:getComputedStyle(document.documentElement).getPropertyValue('--radius'),shadowCard:getComputedStyle(document.documentElement).getPropertyValue('--shadow-card'),h1:getComputedStyle(document.querySelector('h1')).fontSize,font:getComputedStyle(document.body).fontFamily}):'no button')([...document.querySelectorAll('button,a')].find(b=>/Say hello/.test(b.textContent))))"
+    ],
+    [
+      "find",
+      "role",
+      "button",
+      "click",
+      "--name",
+      "Switch to light"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Say hello"
+    },
+    {
+      "text": "Your name"
+    },
+    {
+      "path": "/apps/hello/"
+    }
+  ]
+}

@@ -9,7 +9,12 @@
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     "typescript/no-explicit-any": "error",
     "comment-length/max-comment-lines": ["error", 2],
-    "comment-length/max-comment-width": ["error", 120]
+    "comment-length/max-comment-width": ["error", 120],
+    // The design rules (wiki/design-guide.md): a screen keeps to the app's own colours and to classes that make a style.
+    "shadcn/no-raw-colors": "error",
+    "shadcn/no-inline-styles": "error",
+    "shadcn/no-unknown-classes": "error",
+    "shadcn/require-static-classes": "error"
   },
   "overrides": [
     {

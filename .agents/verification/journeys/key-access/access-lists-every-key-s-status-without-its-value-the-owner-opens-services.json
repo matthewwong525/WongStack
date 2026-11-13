@@ -1,0 +1,75 @@
+{
+  "format": "verify-journey-1",
+  "id": "access-lists-every-key-s-status-without-its-value-the-owner-opens-services",
+  "scenario": {
+    "capability": "key-access",
+    "requirement": "Access lists every key's status without its value",
+    "scenario": "The owner opens Services"
+  },
+  "thenDigest": "502c45efb049d514904fabd832622a642ba7d3f155161a7f2a754b3b8149df4d",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/memory/areas.json",
+    ".agents/plugins/loop/skills/plan/SKILL.md",
+    ".agents/plugins/loop/skills/plan/references/look.css",
+    ".agents/plugins/loop/skills/plan/references/review-kit.html",
+    ".agents/rules/code.md",
+    ".agents/rules/payload.md",
+    ".agents/skills/ui/SKILL.md",
+    ".agents/skills/update-dependencies/SKILL.md",
+    ".agents/skills/update-dependencies/scripts/update.mjs",
+    ".agents/skills/wong-setup/references/seed/wiki-README.md",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    ".agents/skills/wong-sync/references/payload-manifest.md",
+    "app/.oxlintrc.json",
+    "app/src/index.css",
+    "scripts/check-app-checks.mjs"
+  ],
+  "recordedAt": "5286c982f1bc14b053a75d0350b05354827579fc",
+  "steps": [
+    [
+      "set",
+      "viewport",
+      "1500",
+      "1100"
+    ],
+    [
+      "open",
+      "{url}/apps/access/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "find",
+      "role",
+      "link",
+      "click",
+      "--name",
+      "Services 1"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "800"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Cloudflare"
+    },
+    {
+      "text": "Not saved"
+    },
+    {
+      "text": "API guide"
+    }
+  ]
+}

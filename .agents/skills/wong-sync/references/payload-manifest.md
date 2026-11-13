@@ -7,7 +7,7 @@
 Every install starts empty and takes **every** category.
 
 - **Core** ships every listed skill's scripts/references, including reply links, improvement, scheduling, browser and memory. It also ships Claude ask hooks, project settings, `paseo.json`, rules, process pages, `.nvmrc`, portable checks, test and guard workflows/change-scope action, and the `WONG-STACK` block.
-- **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) for user-facing screens.
+- **UI** adds [`ux-principles.md`](../../../../wiki/ux-principles.md) and the [design guide](../../../../wiki/design-guide.md) for user-facing screens; core's [`ui`](../../ui/SKILL.md) skill opens both.
 - **Pack** adds scripts, [comment rule](../../../../scripts/lint-comment-length.mjs), workflow, schema, `wiki/stack/`, [check runner](../../../../scripts/check-runner/worker.mjs) and [company calls](../../../../scripts/company-api.mjs). Employee migrations are additive; memory imports need no app packages.
 - **Scaffold** adds `app/`, except `app/wrangler*.jsonc`, which hold source-repo database IDs.
 

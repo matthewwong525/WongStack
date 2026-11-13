@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // /update-dependencies' one script: survey every tool and dependency, update what is behind, move the OpenSpec pins
-// together, check the CLI contract, and report. A rerun after a fix finds finished stages current. Meta-only.
+// together and the web guidance pin, check the CLI contract, and report. A rerun finds finished stages current.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -9,9 +9,9 @@ import { isMain, parseCli } from '../../../../scripts/lib-cli.mjs';
 
 const USAGE = `Usage: node .claude/skills/update-dependencies/scripts/update.mjs [--dry-run] [--hold <package>]...
 
-Surveys and updates the OpenSpec and browser CLIs, the OpenSpec pins, and the app/,
-scripts/tests/, and site/ dependencies, then checks the OpenSpec contract and reports.
-the Camoufox library's pin in browse.mjs, the live view's viewer pin in view.mjs, and the pin of Shop's
+Surveys and updates the OpenSpec and browser CLIs, the OpenSpec pins, the ui skill's web
+guidance pin, and the app/, scripts/tests/, and site/ dependencies, then checks the OpenSpec
+contract and reports. The Camoufox library's pin in browse.mjs, the live view's viewer pin in view.mjs, and the pin of Shop's
 command in shop.mjs are surveyed and never moved: a newer one is handed to you. Each stage prints
 "== <stage>", a line per item, then "ok", or "FAIL <what> — <error>" and exits 1.
 Run it again after a fix: finished stages report current.
@@ -36,6 +36,9 @@ const CAMOUFOX_INDEX = 'https://pypi.org/pypi/camoufox/json';
 export const VIEWER_PIN = '.agents/skills/browser/skills/hand-over/scripts/view.mjs';
 // Shop's command is pinned by version and by its package's fingerprint in one constant here.
 export const SHOP_PIN = '.agents/skills/browser/skills/shop/scripts/shop.mjs';
+// The web guidance tool is pinned once, in the ui skill's lookup command; a repo without the skill skips it.
+export const GUIDANCE_PIN = '.agents/skills/ui/SKILL.md';
+const GUIDANCE_TOOL = 'modern-web-guidance';
 // Each stage's name and folder. site/ is the landing page (meta-only); a repo without a folder skips its stage.
 const PACKAGE_STAGES = [['app', 'app'], ['test-tools', 'scripts/tests'], ['site', 'site']];
 const NPM_TOOLS = { openspec: '@fission-ai/openspec', 'agent-browser': 'agent-browser' };
@@ -104,6 +107,17 @@ export function readViewerPin(text) {
 /** The version of Shop's command shop.mjs installs, or null when the text pins none. */
 export function readShopPin(text) {
   return text.match(/SHOP = \{ version: '(\d+\.\d+\.\d+)'/)?.[1] ?? null;
+}
+
+/** The one exact version every mention of the web guidance tool in `text` names; null for none, a range, or two. */
+export function readGuidancePin(text) {
+  const versions = [...text.matchAll(new RegExp(`\\b${GUIDANCE_TOOL}(?:@([^\\s"'\`]*))?`, 'g'))].map(match => match[1] ?? '');
+  return versions.length && new Set(versions).size === 1 && /^\d+\.\d+\.\d+$/.test(versions[0]) ? versions[0] : null;
+}
+
+/** `text` with the web guidance pin set to `version`. */
+export function rewriteGuidancePin(text, version) {
+  return text.replace(new RegExp(`\\b${GUIDANCE_TOOL}@\\d+\\.\\d+\\.\\d+`, 'g'), `${GUIDANCE_TOOL}@${version}`);
 }
 
 /** `text` with every OpenSpec pin, and with `prose` its "OpenSpec x.y.z" too, set to `version`. */
@@ -243,6 +257,7 @@ async function survey(ctx) {
   await surveyCamoufox(ctx);
   await surveyViewer(ctx);
   await surveyShop(ctx);
+  await surveyGuidance(ctx);
 
   ctx.plans = {};
   for (const [label, dir] of PACKAGE_STAGES) {
@@ -307,6 +322,30 @@ async function surveyShop(ctx) {
   if (compareVersions(latest, pin) <= 0) { ctx.log(`shop ${pin} current`); return; }
   ctx.log(`shop ${pin} -> ${latest} pinned`);
   needsYou(ctx, `shop ${pin} -> ${latest}: move the version and the fingerprint in ${SHOP_PIN} together, and only after reading what the new version adds and running a search and a checkout read through it`);
+}
+
+// The web guidance pin is read here and moved in its own stage: only a WongStack release changes what an install runs.
+async function surveyGuidance(ctx) {
+  if (!existsSync(join(ctx.root, GUIDANCE_PIN))) return;
+  const pin = readGuidancePin(readText(ctx, GUIDANCE_PIN));
+  if (!pin) throw new StageFailure(GUIDANCE_PIN, `names ${GUIDANCE_TOOL} with no one exact version`);
+  const latest = versionOf(await need(ctx, 'npm', ['view', GUIDANCE_TOOL, 'version']));
+  ctx.guidance = { pin, latest };
+  ctx.log(compareVersions(latest, pin) > 0 ? `${GUIDANCE_TOOL} ${pin} -> ${latest}` : `${GUIDANCE_TOOL} ${pin} current`);
+}
+
+// A moved pin is a payload edit, so a release: the two commands the skill names must answer at the new version first.
+async function moveGuidance(ctx) {
+  if (!ctx.guidance) { ctx.log('no ui skill; skipped'); return; }
+  const { pin, latest } = ctx.guidance;
+  const moves = compareVersions(latest, pin) > 0;
+  const to = moves ? latest : pin;
+  if (!moves) ctx.log(`${GUIDANCE_TOOL} pin current (${pin})`);
+  else ctx.log(`${ctx.dryRun ? 'would move ' : ''}${GUIDANCE_PIN} ${pin} -> ${latest}`);
+  if (moves && !ctx.dryRun) writeFileSync(join(ctx.root, GUIDANCE_PIN), rewriteGuidancePin(readText(ctx, GUIDANCE_PIN), latest));
+  const from = readGuidancePin(ctx.base[GUIDANCE_PIN] ?? '') ?? pin;
+  if (from === to) return;
+  needsYou(ctx, `${GUIDANCE_TOOL} ${from} -> ${to}: run the search and the retrieve command in ${GUIDANCE_PIN} at the new version, and put ${from} back if either gives no answer`);
 }
 
 async function updateTools(ctx) {
@@ -430,6 +469,7 @@ const STAGES = [
   ['survey', survey],
   ['tools', updateTools],
   ['openspec-pins', movePins],
+  ['web-guidance-pin', moveGuidance],
   ...PACKAGE_STAGES.map(([label]) => [label, updatePackages(label)]),
   ['contract', checkContract],
   ['report', report],
@@ -438,7 +478,7 @@ const STAGES = [
 /** Run every stage in order; returns the exit code (0 done, 1 a stage failed). */
 export async function run({ root = REPO, dryRun = false, hold = [], env = process.env, fetchJson = defaultFetchJson, log = console.log } = {}) {
   const ctx = { root, dryRun, hold, env, fetchJson, log, needsYou: [], updatedTools: [] };
-  ctx.base = Object.fromEntries([PIN_FILES[0], ...PACKAGE_STAGES.map(([, dir]) => `${dir}/package.json`)]
+  ctx.base = Object.fromEntries([PIN_FILES[0], GUIDANCE_PIN, ...PACKAGE_STAGES.map(([, dir]) => `${dir}/package.json`)]
     .map(file => [file, baseline(ctx, file)]));
   for (const [name, stage] of STAGES) {
     log(`== ${name}`);

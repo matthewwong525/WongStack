@@ -8,7 +8,8 @@ import { CAMOUFOX } from '../../.agents/skills/browser/scripts/browse.mjs';
 import { VIEWER } from '../../.agents/skills/browser/skills/hand-over/scripts/view.mjs';
 import { SHOP } from '../../.agents/skills/browser/skills/shop/scripts/shop.mjs';
 import {
-  CAMOUFOX_PIN, PIN_FILES, SHOP_PIN, VIEWER_PIN, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamoufoxPin, readPin, readShopPin, readViewerPin, rewritePins, run,
+  CAMOUFOX_PIN, GUIDANCE_PIN, PIN_FILES, SHOP_PIN, VIEWER_PIN, bumpRange, isMajor, latestInMajor, lockInSync, planPackages, readCamoufoxPin, readGuidancePin, readPin, readShopPin,
+  readViewerPin, rewriteGuidancePin, rewritePins, run,
 } from '../../.agents/skills/update-dependencies/scripts/update.mjs';
 
 test('a bump keeps the range prefix and never goes backwards', () => {
@@ -84,6 +85,21 @@ test('the pin of Shop\'s command is read from shop.mjs itself', () => {
   assert.equal(readShopPin(text), SHOP.version);
   assert.equal(readShopPin("export const SHOP = { version: 'latest' };"), null, 'a name is no pin');
   assert.equal(readShopPin("export const SHOP = { version: '^1.1.0' };"), null, 'a range is no pin');
+});
+
+// The web guidance tool is pinned in the ui skill's command alone; the updater reads that file, not a copy.
+test('the web guidance pin is read from the ui skill itself, and a rewrite moves every mention', () => {
+  const text = readFileSync(join(import.meta.dirname, '../..', GUIDANCE_PIN), 'utf8');
+  const pin = readGuidancePin(text);
+  assert.match(pin ?? '', /^\d+\.\d+\.\d+$/, `${GUIDANCE_PIN} names no exact modern-web-guidance version`);
+  assert.equal(readGuidancePin('`npx -y modern-web-guidance@latest search "x"`'), null, 'a name is no pin');
+  assert.equal(readGuidancePin('`npx -y modern-web-guidance search "x"`'), null, 'a bare name is no pin');
+  assert.equal(readGuidancePin('`npx -y modern-web-guidance@^1.0.0 search "x"`'), null, 'a range is no pin');
+  assert.equal(readGuidancePin('modern-web-guidance@1.0.0 search, then modern-web-guidance@1.1.0 retrieve'), null, 'two versions are no pin');
+  assert.equal(readGuidancePin('no lookup here'), null);
+  const moved = rewriteGuidancePin(text, '9.8.7');
+  assert.equal(readGuidancePin(moved), '9.8.7');
+  assert.equal(moved, text.replaceAll(`modern-web-guidance@${pin}`, 'modern-web-guidance@9.8.7'), 'only the version changes');
 });
 
 test('a lock is in sync only when its root entry names the same ranges', () => {
@@ -210,7 +226,7 @@ test('nothing outdated reports status: current and changes no file', async t => 
   const f = fixture(t);
   const { code, out } = await f.go();
   assert.equal(code, 0, out);
-  for (const stage of ['survey', 'tools', 'openspec-pins', 'app', 'test-tools', 'contract', 'report']) assert.match(out, new RegExp(`^== ${stage}$`, 'm'));
+  for (const stage of ['survey', 'tools', 'openspec-pins', 'web-guidance-pin', 'app', 'test-tools', 'contract', 'report']) assert.match(out, new RegExp(`^== ${stage}$`, 'm'));
   assert.match(out, /^status: current$/m);
   assert.doesNotMatch(out, /FAIL|needs you/);
   assert.equal(f.status(), '');
@@ -453,4 +469,50 @@ test('a shop.mjs that pins nothing fails the survey, and a repo without it skips
   const unpinned = await f.go();
   assert.equal(unpinned.code, 1);
   assert.match(unpinned.out, /^FAIL \.agents\/skills\/browser\/skills\/shop\/scripts\/shop\.mjs — names no pinned version of Shop's command$/m);
+});
+
+const UI_SKILL = '4. Web guidance: `npx -y modern-web-guidance@1.0.0 search "<2 to 5 words>"`, then `retrieve "<id>"`.\n';
+
+test('the web guidance pin moves to npm\'s newest, and the two commands are handed to the agent, on a rerun too', async t => {
+  const f = fixture(t, withRegistry({ 'modern-web-guidance': '1.0.0' }));
+  write(f.root, GUIDANCE_PIN, UI_SKILL);
+  git(f.root, 'add', '--all');
+  git(f.root, 'commit', '-q', '-m', 'ui');
+  const current = await f.go();
+  assert.equal(current.code, 0, current.out);
+  assert.match(current.out, /^== web-guidance-pin$/m);
+  assert.match(current.out, /^modern-web-guidance 1\.0\.0 current$/m);
+  assert.match(current.out, /^status: current$/m);
+  assert.equal(f.read(GUIDANCE_PIN), UI_SKILL);
+
+  f.setState(withRegistry({ 'modern-web-guidance': '1.1.0' }));
+  const dry = await f.go({ dryRun: true });
+  assert.match(dry.out, /^would move \.agents\/skills\/ui\/SKILL\.md 1\.0\.0 -> 1\.1\.0$/m);
+  assert.equal(f.read(GUIDANCE_PIN), UI_SKILL, 'a dry run writes nothing');
+
+  const newer = await f.go();
+  assert.equal(newer.code, 0, newer.out);
+  assert.match(newer.out, /^modern-web-guidance 1\.0\.0 -> 1\.1\.0$/m);
+  assert.match(newer.out, /^\.agents\/skills\/ui\/SKILL\.md 1\.0\.0 -> 1\.1\.0$/m);
+  assert.match(newer.out, /^needs you: modern-web-guidance 1\.0\.0 -> 1\.1\.0: run the search and the retrieve command in \.agents\/skills\/ui\/SKILL\.md at the new version, and put 1\.0\.0 back if either gives no answer$/m);
+  assert.match(newer.out, /^status: needs-agent$/m);
+  assert.equal(f.read(GUIDANCE_PIN), UI_SKILL.replace('@1.0.0', '@1.1.0'), 'only the version moved');
+  assert.doesNotMatch(f.calls(), /npm install/);
+
+  const again = await f.go();
+  assert.match(again.out, /^modern-web-guidance 1\.1\.0 current$/m);
+  assert.match(again.out, /^needs you: modern-web-guidance 1\.0\.0 -> 1\.1\.0: /m, 'a rerun still says what moved');
+  assert.match(again.out, /^status: needs-agent$/m);
+});
+
+test('a ui skill that pins nothing fails the survey, and a repo without it skips the web guidance', async t => {
+  const f = fixture(t);
+  const without = await f.go();
+  assert.equal(without.code, 0, without.out);
+  assert.match(without.out, /^no ui skill; skipped$/m);
+  assert.doesNotMatch(f.calls(), /modern-web-guidance/);
+  write(f.root, GUIDANCE_PIN, UI_SKILL.replace('@1.0.0', '@latest'));
+  const unpinned = await f.go();
+  assert.equal(unpinned.code, 1);
+  assert.match(unpinned.out, /^FAIL \.agents\/skills\/ui\/SKILL\.md — names modern-web-guidance with no one exact version$/m);
 });

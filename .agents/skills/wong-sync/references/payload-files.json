@@ -29,6 +29,7 @@
       "improve-code",
       "connect",
       "lesson",
+      "ui",
       "wong-sync",
       "agent-browser"
     ],
@@ -118,6 +119,7 @@
   "ui": {
     "files": [
       "wiki/ux-principles.md",
+      "wiki/design-guide.md",
       "wiki/review-pages.md",
       "wiki/prototypes.md"
     ]

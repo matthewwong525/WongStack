@@ -10,30 +10,23 @@
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
-    ".agents/plugins/browser/SKILL.md",
-    ".agents/plugins/browser/scripts/browse.mjs",
-    ".agents/plugins/browser/scripts/browser-server.mjs",
-    ".agents/plugins/browser/scripts/launch-config.py",
-    ".agents/plugins/browser/scripts/connect-browser.mjs",
-    ".agents/plugins/browser/skills/hand-over/SKILL.md",
-    ".agents/plugins/browser/skills/hand-over/scripts/details.mjs",
-    ".agents/plugins/browser/skills/hand-over/scripts/hand-over.mjs",
-    ".agents/plugins/browser/skills/hand-over/scripts/lib/timings.mjs",
-    ".agents/plugins/browser/skills/hand-over/scripts/private-page.css",
-    ".agents/plugins/browser/skills/hand-over/scripts/view-page.html",
-    ".agents/plugins/browser/skills/hand-over/scripts/view-page.mjs",
-    ".agents/plugins/browser/skills/hand-over/scripts/view.mjs",
     ".agents/memory/areas.json",
-    ".agents/plugins/browser/skills/shop/scripts/shop.mjs",
-    ".agents/skills/verify/references/walkthrough.md",
-    ".agents/skills/wong-setup/references/seed/wiki-development-README.md",
+    ".agents/plugins/loop/skills/plan/SKILL.md",
+    ".agents/plugins/loop/skills/plan/references/look.css",
+    ".agents/plugins/loop/skills/plan/references/review-kit.html",
+    ".agents/rules/code.md",
+    ".agents/rules/payload.md",
+    ".agents/skills/ui/SKILL.md",
+    ".agents/skills/update-dependencies/SKILL.md",
+    ".agents/skills/update-dependencies/scripts/update.mjs",
+    ".agents/skills/wong-setup/references/seed/wiki-README.md",
     ".agents/skills/wong-sync/references/payload-files.json",
-    "AGENTS.md",
-    "scripts/retired-names.json",
-    "site/attachments/own-your-setup.md",
-    "site/attachments/team-access.md"
+    ".agents/skills/wong-sync/references/payload-manifest.md",
+    "app/.oxlintrc.json",
+    "app/src/index.css",
+    "scripts/check-app-checks.mjs"
   ],
-  "recordedAt": "401718ee07a239bec3f53b86306e5ddb5f3142b5",
+  "recordedAt": "5286c982f1bc14b053a75d0350b05354827579fc",
   "steps": [
     [
       "set",
@@ -56,18 +49,18 @@
       "networkidle"
     ],
     [
-      "wait",
-      "--text",
-      "Your apps"
+      "eval",
+      "getComputedStyle(document.body).backgroundColor + ' | ' + getComputedStyle(document.body).color + ' | class=' + document.documentElement.className"
     ],
     [
-      "eval",
-      "getComputedStyle(document.body).backgroundColor + ' | ' + document.documentElement.className"
+      "set",
+      "media",
+      "light"
     ]
   ],
   "expect": [
     {
-      "text": "Your apps"
+      "text": "Your workspace"
     },
     {
       "path": "/"
