@@ -5,6 +5,7 @@ The hosted WongStack app that ran at wongstack.com was shut down on 2026-10-04, 
 ## What is gone
 
 - **The app.** Sign-in, plans, and rented servers, with its production and practice sites and their databases.
+- **Its managed service.** A person signed in with GitHub, paid, signed in to Claude, then paired Paseo; the service then rented one always-on server per person. Payment came before the server, because a free server draws crypto-mining abuse that the service pays for. Each person kept their own Cloudflare account, because only approved resellers may make accounts for others.
 - **Its practice site.** No staging address exists, so nothing can be walked there.
 - **Its keys.** The publish key, the repo's secrets, and the key files in its checkout.
 
