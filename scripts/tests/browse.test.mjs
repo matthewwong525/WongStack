@@ -648,6 +648,18 @@ test('the client sets a page\'s size, reads it, and keeps the page open, each in
   assert.deepEqual(f.camofox.tabs()[0].size, [480, 663]);
 });
 
+test('the client\'s front holds a shared turn and hears Hand back once; shown asks if the tab shows', t => {
+  const f = fixture(t);
+  ok(f, 'open', SHOP, '--session', 'a');
+  const hold = 'return page.front({ turn: true, raise: false, shared: true });';
+  assert.deepEqual(viaClient(f, hold), { value: { ok: true } });
+  assert.deepEqual(f.camofox.requests().at(-1).body, { userId: 'me', turn: true, raise: false, shared: true });
+  f.camofox.set('hand-back');
+  assert.deepEqual(viaClient(f, hold), { value: { ok: true, handedBack: true } });
+  assert.deepEqual(viaClient(f, 'return page.shown();'), { value: true });
+  assert.deepEqual(f.camofox.requests().at(-1).body, { userId: 'me', expression: "document.visibilityState === 'visible'" });
+});
+
 test('a private link\'s client does not reopen a lost tab or start a stopped browser for these calls', t => {
   const f = fixture(t);
   ok(f, 'open', SHOP, '--session', 'a');

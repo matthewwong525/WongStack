@@ -23,7 +23,7 @@ export const WATCH = {
   turn: { button: 'Hand back', main: false, hands: true },
 };
 const WATCH_ENDINGS = { done: 'All done. Go back to the chat.', stopped: 'Stopped. Go back to the chat.' };
-/** How often a page asks the link for who holds a watch's browser, or for a turn view's tabs. */
+/** How often a page asks the link for who holds a watch's browser, or for a turn view's open turns. */
 const POLL_MS = 1000;
 
 /** What a watch link shows for the link's `{control, line}`: the agent's line, or the turn's note, as the link gives
@@ -33,12 +33,10 @@ export function watchShows({ control, line } = {}) {
   return { ...shows, text: shows.line ?? line ?? '' };
 }
 
-/** What a turn view shows for the link's `{tabs, shown, note}`: the row, one tab per chat that is shown or new, none
- * with one tab; the shown turn's line, and its id, which a chat's next turn does not share. */
-export function tabsShow({ tabs = [], shown = null, note = null } = {}) {
-  const row = tabs.length > 1 ? tabs.map(tab => ({ chat: tab.chat, shown: tab.chat === shown, fresh: Boolean(tab.fresh) && tab.chat !== shown })) : [];
-  const turn = tabs.find(tab => tab.chat === shown);
-  return { row, line: turn?.note ?? note ?? '', id: turn?.id ?? shown ?? '' };
+/** The lines a turn view's bar lists for the link's `{note, tabs}`: each open turn's note, beside the bell its tab
+ * shows; with no tabs, the note alone. */
+export function tabsShow({ note, tabs = [] } = {}) {
+  return tabs.length ? tabs.map(tab => `🔔 ${tab.note}`) : [note].filter(Boolean);
 }
 
 /** What a link's `#` part holds: its key, and the chat whose tab it opens, or null. */
@@ -87,10 +85,8 @@ function start(RFB = globalThis.RFB) {
   // A watch link: who holds the browser, and whether the person's taps and typing reach it.
   let watch = null;
   let mayType = true;
-  // A turn view: the chat whose tab shows, its turn's id, the turn whose Hand back was pressed, and the limit's timer.
+  // A turn view: the chat whose tab shows, and the limit's timer.
   let shownChat = null;
-  let shownId = null;
-  let handed = null;
   let closer = null;
 
   const call = (path, body) => fetch(path, {
@@ -220,33 +216,18 @@ function start(RFB = globalThis.RFB) {
     clearTimeout(closer);
     if (closesAt) closer = setTimeout(() => end(ENDINGS.closed), Math.max(0, closesAt - (now ?? Date.now())));
   };
-  /** Shows a turn view's tabs and the shown chat's line, from the link's `view`. */
+  /** Shows each open turn's line, from the link's `view`. */
   const renderTabs = view => {
     if (over || !view) return;
-    const { row, line, id } = tabsShow(view);
+    const lines = tabsShow(view);
     // The box mirrors what was typed on the page shown before.
     if ((view.shown ?? null) !== shownChat) empty();
     shownChat = view.shown ?? null;
-    shownId = id;
-    $('#line-text').textContent = line;
-    if (line) document.title = line;
-    $('#tabs').hidden = !row.length;
-    $('#tabs').replaceChildren(...row.map(tab => {
-      const button = Object.assign(document.createElement('button'), { type: 'button', textContent: tab.chat, className: tab.shown ? 'shown' : tab.fresh ? 'fresh' : '' });
-      if (tab.shown) button.setAttribute('aria-current', 'page');
-      if (tab.fresh) button.setAttribute('aria-label', `${tab.chat}, new`);
-      button.addEventListener('click', () => showTab(tab.chat));
-      return button;
-    }));
-    $('#hand').disabled = handed !== null && handed === shownId;
+    $('#line-text').textContent = lines.join('\n');
+    if (lines.length) document.title = lines[0];
     closeAt(view.closesAt, view.now);
     layout();
   };
-  /** Asks the link to show `chat`'s tab. */
-  async function showTab(chat) {
-    const response = await call('show', { chat });
-    if (response?.ok) renderTabs(await response.json().catch(() => null));
-  }
   const followTabs = async () => {
     const response = await call('view');
     if (response?.ok) renderTabs(await response.json().catch(() => null));
@@ -265,14 +246,10 @@ function start(RFB = globalThis.RFB) {
     else report();
   });
 
-  // Hand back ends the shown chat's turn: the next tab shows, or after the last the link closes, and the screen's drop
-  // shows how it ended. On a watch link the button takes the browser or hands it back, and the link stays open.
+  // A watch link's button takes the browser or hands it back, and the link stays open. A turn view has none: the
+  // browser's own Hand back ends its turns, and the screen's drop shows how the last one ended.
   $('#hand').addEventListener('click', async () => {
-    if (!watch) {
-      handed = shownId;
-      $('#hand').disabled = true;
-      return call('give', { chat: shownChat ?? undefined });
-    }
+    if (!watch) return;
     const response = await call(watch === 'assistant' ? 'take' : 'give', {});
     if (response?.ok) render(await response.json().catch(() => null));
   });
@@ -291,7 +268,8 @@ function start(RFB = globalThis.RFB) {
       mayType = false;
       await follow();
     } else {
-      // The link's own chat shows first, as a tap on its tab would; a tab that ended leaves the view as it is.
+      $('#hand').hidden = true;
+      // The link's own chat's tab shows first; a turn that ended leaves the view as it is.
       const asked = tabToOpen(view, chat) ? await call('show', { chat }) : null;
       renderTabs((asked?.ok && (await asked.json().catch(() => null))) || view);
       setTimeout(followTabs, POLL_MS);

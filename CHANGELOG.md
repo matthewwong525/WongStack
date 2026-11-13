@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.3.0 — A bell on each tab that waits on you, and one Hand back in the browser
+
+- **Each tab that waits on you shows 🔔 in its title.** When a sign-in, a payment, a robot check, or a stuck step needs you, its chat's tab gets the bell, in the browser window and in a live view. The site can change the title; the bell comes back.
+- **One *Hand back* button sits at the top of the browser.** Its number counts the tabs that wait on you. One click ends every open turn, and each chat carries on. Saying *done* in a chat still ends only that chat's turn.
+- **Two chats can wait on you at once in the window.** Before, a second chat's turn stopped with *the person is using the browser*. Now its tab gets a bell and waits behind yours, and it never takes the page by itself.
+- **A live view lists each open turn's line, with no row of tabs.** You pick a 🔔 tab in the browser itself, and the view fits the tab you see. The live view's own *Hand back* is gone; the watch link keeps its *Take over* and *Hand back*.
+
+**Updating.** Nothing to do by hand. The *Hand back* button shows after the browser's next start; until then, say *done* in each chat to end its turn.
+
 ## 61.2.0 — Build loop chat names start with an emoji
 
 - **A chat's name starts with one emoji for its build step**, not a capital word and a colon: 🔍 explore, 📝 plan, 🔨 build, 🚀 publish, ✅ done. `PLAN: Fix the invoice total` is now `📝 Fix the invoice total`. The task words stay the same ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).

@@ -373,16 +373,16 @@ export function reply(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'content-length': Buffer.byteLength(text) }).end(text);
 }
 
-/** The view's routes for `{note}`: `tabs()` adds a turn view's tabs, `/show` runs `onShow(chat)`, and `/give` runs
- * `onGive(chat)`, which gives what ends that turn after the answer, or null. `watch` hooks serve a watch link. */
-export function viewRoutes({ note }, { fitted = () => null, onFit = async () => null, onGive = () => null, onShow = async () => false, tabs = null, closesAt, watch = null } = {}) {
+/** The view's routes for `{note}`: `tabs()` adds a turn view's open turns, and `/show` runs `onShow(chat)`. `watch`
+ * hooks serve a watch link, which alone has a Hand back of its own. */
+export function viewRoutes({ note }, { fitted = () => null, onFit = async () => null, onShow = async () => false, tabs = null, closesAt, watch = null } = {}) {
   return async (pathname, request, response) => {
     if (pathname === '/view') {
       if (request.method !== 'GET') return reply(response, 405);
       watch?.shown();
       return reply(response, 200, { note, ...(watch ? { watch: true } : { control: 'turn' }), fit: fitted(), closesAt, ...tabs?.(), now: Date.now() });
     }
-    if ((!watch && (pathname === '/watch' || pathname === '/take')) || (!tabs && pathname === '/show')) return reply(response, 404);
+    if ((!watch && (pathname === '/watch' || WATCH_ACTIONS.has(pathname))) || (!tabs && pathname === '/show')) return reply(response, 404);
     if (pathname === '/watch') return request.method === 'GET' ? reply(response, 200, watch.info()) : reply(response, 405);
     if (request.method !== 'POST') return reply(response, 405);
     if (watch && WATCH_ACTIONS.has(pathname)) {
@@ -391,12 +391,6 @@ export function viewRoutes({ note }, { fitted = () => null, onFit = async () => 
     }
     // A body that is too big or not JSON names no chat and no fit.
     const body = await readBody(request).then(read => (typeof read === 'object' ? read : null));
-    if (pathname === '/give') {
-      const end = onGive(body?.chat);
-      if (!end) return reply(response, 409);
-      response.once('finish', end);
-      return reply(response, 200, { control: 'assistant' });
-    }
     if (pathname === '/show') return (await onShow(body?.chat)) ? reply(response, 200, { ...tabs(), now: Date.now() }) : reply(response, 409);
     const kind = body?.fit;
     if (!FITS.includes(kind)) return reply(response, 400);

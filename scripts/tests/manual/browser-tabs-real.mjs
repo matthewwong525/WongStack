@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // By hand, never in CI: a throwaway Camoufox in its own home folder checks tabs in one window, the person's turn, a
-// click and a resize behind it, a real add-on, and on a Mac the window count, aimed at this run's own windows alone.
+// click and a resize behind it, a real add-on, two turns' bells and Hand back, and on a Mac the window count.
 import { execSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -26,7 +26,7 @@ if (!process.env.BROWSER_TABS_REAL_HOME) {
 
 const { FILES, launchConfig } = await import('../../../.agents/skills/browser/scripts/browse.mjs');
 const { persistentOptions, routes } = await import('../../../.agents/skills/browser/scripts/browser-server.mjs');
-const { addAddon, folderOf, pageUrl, startArgs } = await import('../../../.agents/skills/browser/scripts/addons.mjs');
+const { addAddon, folderOf, handBackArgs, pageUrl, startArgs } = await import('../../../.agents/skills/browser/scripts/addons.mjs');
 
 const sleep = ms => new Promise(done => setTimeout(done, ms));
 const check = (name, ok, detail = '') => {
@@ -74,16 +74,23 @@ const added = await addAddon(SLUG).catch(error => ({ error: error.message }));
 check(`add ${SLUG} from Firefox's add-on site through addons.mjs`, !added.error, added.error ?? added.name);
 // On Linux the library's start reads no DISPLAY of its own, so the screen goes by name, as the server's Xvfb does.
 const screen = process.platform === 'linux' && process.env.DISPLAY ? ['--display', process.env.DISPLAY] : ['--window'];
-const config = await launchConfig([...screen, '--fingerprint', join(process.env.HOME, 'fingerprint.json'), ...(await startArgs())]);
+// The API listens first: the Hand back add-on's config names its port. HAND_BACK_CLICK=1 waits for a person's click.
+let handle;
+const polled = [];
+const api = createServer((request, response) => {
+  if (request.headers.authorization === 'Bearer hand-back') polled.push(`${request.method} ${request.url}`);
+  return handle ? handle(request, response) : response.writeHead(503).end();
+});
+const base = `http://127.0.0.1:${await listen(api)}`;
+const button = handBackArgs({ port: Number(new URL(base).port), key: 'hand-back' });
+const config = await launchConfig([...screen, '--fingerprint', join(process.env.HOME, 'fingerprint.json'), ...(await startArgs()), ...button]);
 if (config.error) throw new Error(config.error);
 const camou = JSON.parse(config.options.env.CAMOU_CONFIG_1);
 config.options.env.CAMOU_CONFIG_1 = JSON.stringify({ ...camou, addons: [...(camou.addons ?? []), probeAddon()] });
 const theirs = camoufoxPids();
 const { firefox } = createRequire(import.meta.url)(join(config.driver, 'index.js'));
 const context = await firefox.launchPersistentContext(FILES.profile, persistentOptions(config));
-const handle = routes(context, 'key', { turnWaitMs: 1500, stepMs: 20_000 });
-const api = createServer(handle);
-const base = `http://127.0.0.1:${await listen(api)}`;
+handle = routes(context, 'key', { turnWaitMs: 1500, stepMs: 20_000, handBackKey: 'hand-back' });
 const call = async (method, path, body) => {
   const response = await fetch(`${base}${path}`, { method, headers: { authorization: 'Bearer key', 'content-type': 'application/json' }, ...(body && { body: JSON.stringify({ userId: 'me', ...body }) }) });
   return { status: response.status, body: response.headers.get('content-type') === 'image/png' ? await response.arrayBuffer() : await response.json() };
@@ -169,6 +176,26 @@ try {
       check('a click aimed at its frame is refused', aimed.status === 403, aimed.body.error);
     }
   }
+
+  await post(a, 'front', { turn: true, shared: true });
+  const joined = await post(b, 'front', { turn: true, shared: true });
+  check('a second shared turn joins the first, behind it', joined.status === 200 && await shownNow() === urlOf('a'), `${joined.status} ${shown}`);
+  const bells = async () => [await read(a, 'document.title'), await read(b, 'document.title')];
+  check('both turns\' tabs show the bell', (await bells()).every(title => title.startsWith('🔔 ')), (await bells()).join(' | '));
+  await post(a, 'evaluate', { expression: "document.title = 'renamed'" });
+  await sleep(300);
+  check('the bell comes back when the site changes its title', (await read(a, 'document.title')) === '🔔 renamed');
+  check('the toolbar button reads the turn count', polled.includes('GET /turns'), polled.slice(-3).join(', ') || 'no poll');
+  if (process.env.HAND_BACK_CLICK) {
+    console.log('Click Hand back at the top of the browser.');
+    for (let tries = 0; !polled.includes('POST /hand-back') && tries < 120; tries++) await sleep(500);
+  } else await fetch(`${base}/hand-back`, { method: 'POST', headers: { authorization: 'Bearer hand-back' } });
+  check('one Hand back reaches the server', !process.env.HAND_BACK_CLICK || polled.includes('POST /hand-back'));
+  const renewals = [await post(a, 'front', { turn: true, shared: true, raise: false }), await post(b, 'front', { turn: true, shared: true, raise: false })];
+  check('each turn\'s renewal hears it once', renewals.every(each => each.body.handedBack === true), JSON.stringify(renewals.map(each => each.body)));
+  check('and both bells are gone', (await bells()).every(title => !title.startsWith('🔔')), (await bells()).join(' | '));
+  await post(a, 'front', { turn: false });
+  await post(b, 'front', { turn: false });
 
   const home = context.pages().find(each => each.url() === 'about:blank');
   await home?.close();

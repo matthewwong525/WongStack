@@ -34,14 +34,16 @@ const USAGE = `usage: hand-over.mjs open --view --note <line> [--session <name>]
           --view: the person's turn in the browser, as a live view of the --session page: a
           payment, a backup code, a sign-in, a check that asks whether a person is there, or a
           stuck step; the person types or pastes on the real site, and the agent sees nothing
-          until the turn ends; the page shows --note as its one line (what to do now), with
-          Hand back; the turn ends only on Hand back, close, or the time limit, never on a page
-          change; open for 480 minutes; while another chat's view is open, this chat's turn
-          joins it as a tab and prints the view's link, opening on its tab
+          until the turn ends; the task's tab title starts with a bell, and the page lists
+          each open turn's --note (what to do now); the turn ends only on Hand back in the
+          browser's toolbar (which ends every open turn), close, or the time limit, never on a
+          page change; open for 480 minutes; while another chat's view is open, this chat's
+          turn joins it and prints the view's link, which opens on its tab
           HANDOVER_VIEW=window, with no link, where the browser shows in its own window: the
-          task's tab is brought to the front and held there, the person does the step there
-          and says done in the chat, and close ends the turn; while a turn is open, no other
-          task's tab comes to the front; HANDOVER_VIEW=unsupported where the browser has no
+          task's tab gets the bell and is held, the person does the step there and clicks Hand
+          back in the browser's toolbar or says done in the chat (then run close); several
+          chats' turns stand at once, and a new one comes to the front only with no other open;
+          HANDOVER_VIEW=unsupported where the browser has no
           screen to show, and HANDOVER_NEEDS=live-view (exit 3) with a line per missing tool
           --watch: a live view the agent drives while the person watches, as one
           for connecting tools: the person's taps reach the browser only after they
@@ -56,7 +58,7 @@ const USAGE = `usage: hand-over.mjs open --view --note <line> [--session <name>]
           steps, and check {url, auth}, shown on the key page (exit 2 with KEYS_GUIDE=)
           --minutes: time limit for any link, default 1440 (24 hours); 480 for --view
   wait    block until the link closes; print HANDOVER_RESULT=done|handed-back|closed|timeout|error:
-          done for a key link's save, handed-back for a view's Hand back (or close of a window);
+          done for a key link's save, handed-back for Hand back (or close of a window);
           then HANDOVER_SAVED=<name>,<name>,
           HANDOVER_APP_KEYS=<name>,<name> and HANDOVER_OPENED=yes|no (whether
           anyone opened it) for a key link, then HANDOVER_REPLACED_BY=<folder>
@@ -74,7 +76,7 @@ const USAGE = `usage: hand-over.mjs open --view --note <line> [--session <name>]
           command for the person, having installed nothing`;
 // Chat apps often hide text between tool calls; only the turn's last message shows for sure.
 const SEND_REMINDER = 'Run wait in the background, then end this turn with the link above on its own line; text between tool calls may not show.';
-const WINDOW_REMINDER = 'Run wait in the background, then end this turn telling the person what to do in the browser window, and to say done there in the chat; on done, run close.';
+const WINDOW_REMINDER = 'Run wait in the background, then end this turn telling the person what to do on the 🔔 tab in the browser window, then to click Hand back at the top of the browser; on done in the chat, run close.';
 /** The longest --note. */
 const NOTE_MOST = 140;
 /** How a view ends by the person's own hand: each wakes the chat. */
@@ -392,15 +394,16 @@ const viewOpening = dir => namesIn(dir).some(entry => {
   return pid && pid !== process.pid && alive(pid);
 });
 
-/** The chat whose own live view, a watch link or a turn in the browser's window, is open or opening, from any chat's
- * folder or an older link's shared place, or null. A dead watcher or opener reads as closed. */
-function chatViewHolder() {
+/** The chat whose live view (a watch link or a window turn) is open or opening, or null; a dead watcher reads as
+ * closed. `shared`: a window turn, beside which other chats' window turns stand, and an opener counts only here. */
+function chatViewHolder(shared = false) {
   const chats = namesIn(LINKS).filter(entry => entry.isDirectory()).map(entry => entry.name);
   for (const [dir, chat] of [[DIR, null], ...chats.map(name => [join(LINKS, name), name])]) {
     const { state, pid } = filesIn(dir);
     const { view, cwd } = readJson(state) ?? {};
-    if (view && alive(watcherPid(pid))) return chat ?? (typeof cwd === 'string' ? basename(cwd) : 'another chat');
-    if (chat && viewOpening(dir)) return chat;
+    const beside = shared && chat !== CHAT && view?.window && !view.watch;
+    if (view && !beside && alive(watcherPid(pid))) return chat ?? (typeof cwd === 'string' ? basename(cwd) : 'another chat');
+    if (chat && (!shared || chat === CHAT) && viewOpening(dir)) return chat;
   }
   return null;
 }
@@ -423,9 +426,12 @@ function refuseView(holder) {
 async function open(values) {
   const keys = values.keys ? await keyConfig(values.keys, values.guide) : null;
   if (typeof keys === 'number') return keys;
-  // A turn by link joins the one live view: only a watch link, or a view in a window, keeps it out.
-  const turn = values.view && !values.watch && !checkView().window;
-  const refused = values.view ? refuseView(turn ? chatViewHolder() : viewHolder()) || viewRefusal() : 0;
+  // A turn by link joins the one live view: only a watch link, or a view in a window, keeps it out. Turns in the
+  // window stand side by side, each tab with its bell.
+  const window = values.view && !values.watch && checkView().window;
+  const turn = values.view && !values.watch && !window;
+  const holder = () => (turn ? chatViewHolder() : window ? chatViewHolder(true) : viewHolder());
+  const refused = values.view ? refuseView(holder()) || viewRefusal() : 0;
   if (refused) return refused;
   mkdirSync(CHAT_DIR, { recursive: true });
   if (turn) return openTurn(values);
@@ -434,7 +440,7 @@ async function open(values) {
   if (!mark) return startLink(values, keys);
   writeFileSync(mark, `${process.pid}\n`, { mode: 0o600 });
   try {
-    return refuseView(viewHolder()) || (await startLink(values, keys));
+    return refuseView(holder()) || (await startLink(values, keys));
   } finally {
     rmSync(mark, { force: true });
   }
@@ -592,8 +598,8 @@ async function startView(turn, page) {
     clearView();
     return turnFailed(message);
   };
-  // The task's tab comes to the front first; the turn holds it there, so no other task's tab takes its place.
-  const busy = await page.front({ turn: true }).then(() => null, error => (BUSY.test(error.message) ? error : null));
+  // The task's tab comes to the front first; its shared turn holds it, with its bell.
+  const busy = await page.front({ turn: true, shared: true }).then(() => null, error => (BUSY.test(error.message) ? error : null));
   if (busy) return fail('The person is using the browser in another chat\'s tab; open this view once their turn ends.');
   const display = screenOf();
   if (!display) return fail(void unsupported('The browser has no screen to show.'));
@@ -658,8 +664,8 @@ async function startLink(values, keys) {
   };
   const fault = session && (await pageFault(pageOf(session)));
   if (fault) return fail(fault);
-  // The task's tab comes to the front first; a turn holds it there, so no other task's tab takes its place.
-  const busy = session && (await pageOf(session).front(values.watch ? {} : { turn: true }).then(() => null, error => (BUSY.test(error.message) ? error : null)));
+  // The task's tab comes to the front first, unless another chat's turn is open; its turn holds it, with its bell.
+  const busy = session && (await pageOf(session).front(values.watch ? {} : { turn: true, shared: true }).then(() => null, error => (BUSY.test(error.message) ? error : null)));
   if (busy) return fail('The person is using the browser in another chat\'s tab; open this view once their turn ends.');
   const completionId = randomBytes(16).toString('hex');
   if (window) {
@@ -796,23 +802,24 @@ async function watch() {
     return finish('error', { cause: 'error' });
   }
   let holding = !watchSide;
-  /** Holds the turn on the page's tab while the person has it: a live view selects it again unless the person or the
-   * site opened a tab in the turn, or a browser pop-up shows; a window is the person's own, so its tab is only kept. */
+  /** Holds the turn on the page's tab: a live view selects it again unless a tab opened in the turn or a pop-up shows;
+   * a window keeps it as a shared turn with its bell. Resolves to whether the person clicked Hand back. */
   const holdTurn = async (person, popup = false) => {
     // An ended view has let go of its turn; a late poll never takes it again.
-    if (done || (!person && !holding)) return;
+    if (done || (!person && !holding)) return false;
     holding = person;
-    await page.front(person ? { turn: true, ...(window || popup ? { raise: false } : { reselect: true }) } : { turn: false }).catch(() => {});
+    const hold = window ? { turn: true, raise: false, ...(!watchSide && { shared: true }) } : { turn: true, ...(popup ? { raise: false } : { reselect: true }) };
+    return (await page.front(person ? hold : { turn: false }).catch(() => null))?.handedBack === true;
   };
   /** One poll of a view: a stopped screen source starts again, the turn is renewed, and the tab and window come to
-   * the front unless a pop-up shows. Resolves to 'error' when the source can not start, or null. */
+   * the front unless a pop-up shows. Resolves to 'error' when the source can not start, 'handed-back', or null. */
   const pollView = async () => {
     try {
       if (await live?.revive()) saveState();
     } catch {
       return 'error';
     }
-    await holdTurn(!watchSide || watchSide.personHolds(), live?.popupOpen());
+    if (await holdTurn(!watchSide || watchSide.personHolds(), live?.popupOpen())) return 'handed-back';
     live?.front();
     return null;
   };
@@ -824,7 +831,7 @@ async function watch() {
     inbox.list();
     if (Date.now() >= state.deadline) return finish('timeout', { cause: 'deadline' });
     const ended = state.view && (await pollView());
-    if (ended) return finish(ended, { cause: 'error' });
+    if (ended) return finish(ended, { cause: ended === 'error' ? 'error' : 'hand-back' });
     if (page && !done && Date.now() >= keepAt) {
       keepAt = Date.now() + KEEP_MS;
       await keepOpen().catch(() => {});
@@ -833,8 +840,8 @@ async function watch() {
   }
 }
 
-/** Serves the one live view: a tab per turn file, one shown at a time; each turn ends alone, on Hand back, close, or
- * its limit, and the view closes after the last. Every change to the turns runs in order, polls included. */
+/** Serves the one live view: each turn file's tab holds a shared turn with its bell, the view fits the bell tab shown,
+ * and the browser's Hand back ends each at its renewal. Every change to the turns runs in order, polls included. */
 async function watchView() {
   FILES = { ...SHARED, timings: FILES.timings };
   const state = readJson(FILES.state);
@@ -845,6 +852,8 @@ async function watchView() {
   const turns = new Map();
   // Chats whose turn ended last: each `wait` returns once the view has closed, or once another chat joins.
   const held = new Set();
+  // Ended turns' fitted pages behind another tab, which get their size back once no turn is left.
+  const unsized = [];
   let shown = null;
   let done = false;
   let receipt = null;
@@ -856,49 +865,57 @@ async function watchView() {
     return run;
   };
   const record = () => writeWhole(SHARED.listed, { chats: [...turns.keys()], shown });
-  const putBack = async turn => {
-    if (turn.size) await turn.page.resize(...turn.size).catch(() => {});
+  const putBack = turn => turn.size && turn.page.resize(...turn.size).catch(() => {});
+  /** Ends a turn in the browser and gives its fitted page its size back. A resize shows its tab and waits on other
+   * tabs' turns, so a page behind waits until the last turn has ended there, and the page shown goes last. */
+  const endAndSizeBack = async (turn, front) => {
+    if (turn.fitted && !front) unsized.push(turn);
+    if (turn.fitted && front && turns.size) await putBack(turn);
     await endTurn(turn.page);
+    if (turns.size) return;
+    for (const each of unsized.splice(0)) await putBack(each);
+    if (turn.fitted && front) await putBack(turn);
   };
-  /** Shows `chat`'s page, or none: the page shown before gets its size back and lets go of the turn first. The first
-   * page shown already holds the turn: open took it. */
+  /** Shows `chat`'s page in the view, fitted, or none; a page keeps its fit when the person picks another tab. */
   const show = async chat => {
-    const [prev, next] = [turns.get(shown), turns.get(chat)];
-    await live.show(next?.page ?? null, async () => {
-      if (!prev) return;
-      await putBack(prev);
-      await next?.page.front({ turn: true }).catch(() => {});
-    });
-    shown = next ? chat : null;
-    if (next) next.seen = true;
-    if (next) await live.fit();
+    const turn = turns.get(chat);
+    await live.show(turn?.page ?? null);
+    shown = turn ? chat : null;
+    if (turn) turn.fitted = true;
+    if (turn) await live.fit();
     record();
   };
   const release = () => {
     for (const chat of held) rmSync(filesIn(join(LINKS, chat)).pid, { force: true });
     held.clear();
   };
-  /** Adds each new turn file, oldest first; the first turn in an empty view shows at once, a later one waits. */
+  /** Adds each new turn file, oldest first, as a shared turn with its bell; its tab comes to the front only when no
+   * other turn is open. */
   const addTurns = async () => {
     const fresh = turnsOnDisk().filter(turn => !turns.has(turn.chat));
-    for (const turn of fresh) turns.set(turn.chat, { ...turn, page: pageOf(turn.session), seen: false });
-    if (fresh.length) release();
-    if (!shown && turns.size) await show(turns.keys().next().value);
-    else if (fresh.length) record();
+    for (const turn of fresh) {
+      turns.set(turn.chat, { ...turn, page: pageOf(turn.session) });
+      await turns.get(turn.chat).page.front({ turn: true, shared: true }).catch(() => {});
+    }
+    if (!fresh.length) return;
+    release();
+    record();
   };
-  /** Marks `chat`'s turn, or the shown one, as ending; its chat's name, or null when it is gone or already ending. */
+  /** Marks `chat`'s turn as ending; its chat's name, or null when it is gone or already ending. */
   const claim = chat => {
-    const turn = turns.get(chat ?? shown);
+    const turn = turns.get(chat);
     if (!turn || turn.ending) return null;
     turn.ending = true;
     return turn.chat;
   };
-  /** Ends a claimed turn: the oldest turn left shows in its place, and its chat alone gets the result. */
+  /** Ends a claimed turn, its bell gone, and gives its chat alone the result. */
   const endOne = async (chat, result, cause) => {
     const turn = turns.get(chat);
     time(turn.completionId, { ended: result, cause, ms: Date.now() - turn.joined });
-    if (chat === shown) await show([...turns.keys()].find(other => other !== chat) ?? null);
     turns.delete(chat);
+    const front = chat === shown;
+    if (front) await show(null);
+    await endAndSizeBack(turn, front);
     record();
     for (const file of [turnFile(chat), closeFile(chat)]) rmSync(file, { force: true });
     receipt = await publishTurn(state, turn, result);
@@ -935,49 +952,58 @@ async function watchView() {
   for (const sig of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(sig, () => void inOrder(async () => { await endAll('closed', sig); finish(); }));
   const tabs = () => {
     const open = [...turns.values()].filter(turn => !turn.ending);
-    return { note: turns.get(shown)?.note ?? null, closesAt: Math.max(0, ...open.map(turn => turn.deadline)) || null, shown, tabs: open.map(turn => ({ chat: turn.chat, id: turn.joined, note: turn.note, fresh: !turn.seen, closesAt: turn.deadline })) };
+    return { closesAt: Math.max(0, ...open.map(turn => turn.deadline)) || null, shown, tabs: open.map(turn => ({ chat: turn.chat, note: turn.note })) };
   };
   const hooks = {
     onOpened: () => writeFileSync(FILES.opened, ''),
     fitted: () => live.describe(),
     onFit: kind => live.fit(kind),
     tabs,
-    // The person hands back only the tab they see: a press from a page that showed another one ends nothing.
-    onGive: chat => {
-      const claimed = (chat ?? shown) === shown && claim(shown);
-      return claimed && (() => void inOrder(async () => { await endOne(claimed, 'handed-back', 'hand-back'); await closeIfEmpty(); }));
-    },
+    // A chat's link shows its tab on the link's first load: the fit's resize brings it to the front.
     onShow: chat => inOrder(async () => {
       if (!turns.has(chat) || turns.get(chat).ending) return false;
-      if (chat !== shown) await show(chat);
+      await show(chat);
       return true;
     }),
   };
-  /** One poll: new turns join, a closed or late turn ends, and the shown page keeps the person's turn and the front. */
+  /** The chat whose bell tab the browser shows, or null: a tab behind another reads hidden. */
+  const shownInBrowser = async () => {
+    for (const turn of turns.values()) if (await turn.page.shown().catch(() => false)) return turn.chat;
+    return null;
+  };
+  /** Renews each turn, the shown one last; the browser's Hand back has ended each one that answers `handedBack`. */
+  const renew = async () => {
+    for (const turn of [...turns.values()].sort((a, b) => (a.chat === shown) - (b.chat === shown))) {
+      const answer = await turn.page.front({ turn: true, shared: true, raise: false }).catch(() => null);
+      if (answer?.handedBack && claim(turn.chat)) await endOne(turn.chat, 'handed-back', 'hand-back');
+    }
+  };
+  /** One poll: new turns join, a closed, late, or handed-back turn ends, and the view fits the bell tab the person
+   * picked, or the oldest when the shown one ended. */
   const poll = async () => {
     await addTurns();
     for (const turn of turns.values()) {
       const why = existsSync(closeFile(turn.chat)) ? ['closed', 'close-command'] : Date.now() >= turn.deadline ? ['timeout', 'deadline'] : null;
       if (why && claim(turn.chat)) await endOne(turn.chat, ...why);
     }
-    await closeIfEmpty();
-    if (done) return;
     try {
-      if (await live.revive()) writeWhole(FILES.state, state);
+      if (!done && await live.revive()) writeWhole(FILES.state, state);
     } catch {
       await endAll('error', 'error');
       return finish();
     }
-    const popup = live.popupOpen();
-    await turns.get(shown)?.page.front({ turn: true, ...(popup ? { raise: false } : { reselect: true }) }).catch(() => {});
+    await renew();
+    await closeIfEmpty();
+    if (done || !turns.size) return;
+    const picked = await shownInBrowser();
+    if (picked ? picked !== shown : !turns.has(shown)) await show(picked ?? turns.keys().next().value);
     live.front();
   };
-  /** Keeps each turn's page open: the shown one by its fit again, unless a pop-up shows, each other by a constant. */
-  const keepOpen = async () => {
-    for (const turn of turns.values()) await (turn.chat === shown && !live.popupOpen() ? live.fit() : turn.page.keepAlive()).catch(() => {});
-  };
   try {
-    await inOrder(addTurns);
+    await inOrder(async () => {
+      await addTurns();
+      await show(turns.keys().next().value ?? null);
+    });
     if (!done) closePage = await servePage(state, hooks);
   } catch {
     await inOrder(() => endAll('error', 'error'));
@@ -987,9 +1013,11 @@ async function watchView() {
   while (!done) {
     inbox.list();
     await inOrder(poll);
+    // Each renewal keeps its page open; the shown page is fitted again, so one back from the password manager's page
+    // fits under the bar. A fit brings the tab up, which would cover a shown pop-up.
     if (!done && Date.now() >= keepAt) {
       keepAt = Date.now() + KEEP_MS;
-      await inOrder(keepOpen);
+      await inOrder(() => (shown && !live.popupOpen() ? live.fit() : null));
     }
     const next = Math.min(...[...turns.values()].map(turn => turn.deadline));
     await sleep(Math.min(POLL_MS, Math.max(0, next - Date.now())));

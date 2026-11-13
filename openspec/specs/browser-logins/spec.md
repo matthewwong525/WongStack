@@ -362,20 +362,6 @@ An update that removes saved logins SHALL leave the saved-passwords file unread 
 - **WHEN** an install with saved logins takes the update
 - **THEN** the person is asked once whether to delete the saved-passwords file, the file stays unless they say yes, and sites already signed in in the browser stay signed in
 
-### Requirement: Every live view shows one line and Hand back
-
-Every live view SHALL show, in one bar under the site, one short line saying what the person should do now, the type box, and one *Hand back* button, for the chat whose tab is shown. *Hand back* SHALL end that chat's turn and return its page to the agent. When the step is not finished after *Hand back*, the agent SHALL ask in the chat before it takes a further step on that page.
-
-#### Scenario: A stuck step
-
-- **WHEN** the person taps through DigiKey's stuck *Continue* in a live view and taps *Hand back*
-- **THEN** that chat's turn ends, the chat is told, and the agent reads the page afresh
-
-#### Scenario: Give up on a payment
-
-- **WHEN** the person taps *Hand back* in a payment's live view without pressing Pay, and says in the chat to stop
-- **THEN** that chat's turn ends, the agent presses nothing on that page, and the chat says the payment was not finished
-
 ### Requirement: A paste anywhere on a live view types into the browser
 
 In every live view, a paste the person makes on the browser's picture, or in the box under it, SHALL type the pasted text into the part of the browser that has the focus, as if typed. The view SHALL save nothing pasted, and the agent SHALL NOT see it.
@@ -512,12 +498,17 @@ A Linux computer SHALL use a live-view link for the person's turn when its link 
 
 ### Requirement: On a computer with its own screen, the turn happens in the shown browser window
 
-On a Mac or Windows computer, and on a Linux computer with a screen and the link setting off, the agent's browser SHALL open in a window on the screen by default, and the window SHALL stay shown while the agent works: it SHALL never hide by itself. The person's turn SHALL happen in that window, on the task's own tab: the chat SHALL say what to do and to say *done*, and the turn SHALL end only on *done*, a close, or the time limit, never because the page changed. The person SHALL be able to turn the window off, taking effect at the next browser start, never by restarting a running browser. On a Mac or Windows computer with the window off, a step that needs the person SHALL end with steps to finish in their own browser.
+On a Mac or Windows computer, and on a Linux computer with a screen and the link setting off, the agent's browser SHALL open in a window on the screen by default, and the window SHALL stay shown while the agent works: it SHALL never hide by itself. The person's turn SHALL happen in that window, on the task's own tab, with its bell: the chat SHALL say what to do, on the bell tab, and to click *Hand back* in the browser's toolbar. The turn SHALL end only on that *Hand back*, on *done* in its chat, a close, or the time limit, never because the page changed. Several chats' turns SHALL be open in the window at once, and a turn SHALL NOT be refused because another chat's window turn is open. A turn's tab SHALL come to the front when it opens only if no other turn is open. The person SHALL be able to turn the window off, taking effect at the next browser start, never by restarting a running browser. On a Mac or Windows computer with the window off, a step that needs the person SHALL end with steps to finish in their own browser.
 
 #### Scenario: A sign-in on a Mac
 
 - **WHEN** a task on a Mac with the window on meets a login page
-- **THEN** the window, already shown, brings that task's tab to the front, no link is sent, the chat asks the person to sign in in the browser window and say *done*, and the agent carries on only after *done*
+- **THEN** the window, already shown, brings that task's tab to the front with its bell, no link is sent, the chat asks the person to sign in on the bell tab and click *Hand back*, and the agent carries on only after the turn ends
+
+#### Scenario: Two chats need the person at once on a Mac
+
+- **WHEN** one chat's sign-in turn is open in the window and another chat needs the person to type a card
+- **THEN** the card's tab gets a bell and stays behind the sign-in tab, and neither chat is told the person is busy
 
 #### Scenario: The window turned off
 
@@ -529,26 +520,30 @@ On a Mac or Windows computer, and on a Linux computer with a screen and the link
 - **WHEN** a task on a Linux computer with a screen and the link setting off meets a login page
 - **THEN** the browser shows in a window there, and the turn goes as on a Mac, with no link
 
-### Requirement: Chats that need the person share one live view, a tab each
+### Requirement: A bell marks each tab that waits on the person, and one Hand back ends them all
 
-On a computer that shows the person's turn by a live-view link, a chat that needs a turn while a live view is open SHALL join that view as a tab of its own and send the view's link, naming its own tab, and SHALL NOT be refused because another chat's turn is open. The view SHALL show a row of tabs, one per chat with an open turn, each named for its chat. Tapping a tab SHALL show that chat's page and line; each page SHALL stay as the person left it. Opening a chat's link SHALL show that chat's tab while its turn is open, and the view as it is otherwise. A newly joined tab SHALL NOT take the screen from the tab shown. *Hand back*, a close, or a time limit on one tab SHALL end only that chat's turn and SHALL tell only that chat; the view SHALL then show the oldest tab still open, and the link SHALL close when no tab is left. The watch link SHALL take no tab.
+While a chat's turn is open, in a live view or in the browser window, that chat's tab title SHALL begin with a bell, kept through page changes and removed when the turn ends; no other tab SHALL show a bell. The browser SHALL show one *Hand back* button in its own toolbar, which no site can see, with the number of open turns. Clicking it SHALL end every open turn and SHALL tell each of their chats, and each agent SHALL read its page afresh and ask in the chat before a further step on a page whose step is not finished. *Done* in a chat, a close, or a time limit SHALL end only that chat's turn. The watch link SHALL take no bell, and the toolbar *Hand back* SHALL NOT end it.
 
-#### Scenario: Two chats need the person at once
+#### Scenario: Two chats wait, one Hand back
+
+- **WHEN** one chat waits on a sign-in and another on a card, each tab with its bell, and the person finishes both and clicks *Hand back* in the toolbar
+- **THEN** both bells go, both chats are told and carry on, and each reads its page afresh
+
+#### Scenario: Hand back before a step is done
+
+- **WHEN** the person clicks *Hand back* while the card tab still shows its card page
+- **THEN** the card's chat presses nothing on that page and asks in the chat what to do
+
+### Requirement: Chats that need the person share one live view
+
+On a computer that shows the person's turn by a live-view link, a chat that needs a turn while a live view is open SHALL join that view and send its link, and SHALL NOT be refused because another chat's turn is open. The view SHALL show the browser's whole window, its own tabs included, and SHALL show no row of its own. The bar under the browser SHALL list what each open turn asks, each beside its bell, and the type box; it SHALL show no *Hand back* of its own on a turn view. A newly joined turn SHALL NOT take the screen from the tab shown; opening a chat's link SHALL bring that chat's tab to the front while its turn is open. The link SHALL close when no turn is left.
+
+#### Scenario: A second chat joins
 
 - **WHEN** one chat's sign-in view is open and another chat needs the person to type a card
-- **THEN** the second chat's tab appears in the same view, marked new, its chat sends the view's link naming its tab, and the person's sign-in page stays shown until they tap the new tab or open its link
+- **THEN** the card's tab gets a bell and stays behind the sign-in page, the bar lists both steps, and that chat sends the view's link
 
-#### Scenario: Opening the second chat's link
+#### Scenario: The last turn ends
 
-- **WHEN** the sign-in tab is shown and the person opens the link the card's chat sent
-- **THEN** the view opens on the card tab, its line shows, and the sign-in tab stays open as the person left it
-
-#### Scenario: Opening a link whose tab has ended
-
-- **WHEN** the person opens a chat's link after they handed that chat's tab back, while another tab is still open
-- **THEN** the view opens on the tab shown now
-
-#### Scenario: Hand back on one tab
-
-- **WHEN** the person taps *Hand back* on the card tab while the sign-in tab is still open
-- **THEN** only the card's chat is told and carries on, the view shows the sign-in tab, and the link stays open
+- **WHEN** the person clicks *Hand back* in the toolbar with two turns open
+- **THEN** both chats are told and the link closes

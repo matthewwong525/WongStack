@@ -268,8 +268,8 @@ test('a page that can not be read is no page; the password manager\'s own page i
 /** What the fake page answers to a read: its address or its size. */
 const evaluated = (b, expression) => (expression === 'location.href' ? b.url : expression === '[innerWidth, innerHeight]' ? [1280, 720] : expression.startsWith('[') ? [[], []] : 1);
 
-/** A fake browser server in the test's HOME, for session `pay`: a page at `url` with `lines`, and `onClick`. It
- * records every step but a read in `calls`; no real browser or site is reached. */
+/** A fake browser server in the test's HOME, for session `pay`: a page at `url` with `lines`, `onClick`, and
+ * `handedBack`. It records every step but a read in `calls`; no real browser or site is reached. */
 async function fakeBrowser(t, f, page = {}) {
   const b = { url: 'https://shop.test/pay', lines: ['- textbox "Card" [e1]', '- button "Pay" [e2]'], calls: [], onClick: () => {}, ...page };
   const server = createServer(async (request, response) => {
@@ -283,6 +283,11 @@ async function fakeBrowser(t, f, page = {}) {
     if (route === 'snapshot') return answer({ snapshot: b.lines.join('\n'), url: b.url, refsCount: b.lines.length, hasMore: false });
     if (route === 'screenshot') return response.writeHead(200, { 'content-type': 'image/png' }).end(Buffer.from('png'));
     if (route === 'click') b.onClick(data);
+    // `handedBack`: the person clicked Hand back in the browser's toolbar, which a shared turn's renewal hears once.
+    if (route === 'front' && b.handedBack && data.shared && data.turn === true) {
+      b.handedBack = false;
+      return answer({ ok: true, handedBack: true });
+    }
     answer({ ok: true });
   });
   await new Promise(done => server.listen(0, '127.0.0.1', done));
@@ -319,21 +324,22 @@ async function openLink(c, ...args) {
 
 const QUICK = { HANDOVER_POLL_MS: '50' };
 
-test('a view stays through two address changes and ends handed-back on Hand back', async t => {
+test('a view stays through two address changes and ends handed-back on Hand back in the browser', async t => {
   const f = fixture(t);
   screenTools(f);
   const b = await fakeBrowser(t, f);
   const c = f.chat('chat-a', QUICK);
   const { call, state } = await openLink(c, '--view', '--note', 'Tap Continue on DigiKey.');
   const shown = (await call('view')).body;
-  assert.deepEqual([shown.control, shown.note], ['turn', 'Tap Continue on DigiKey.']);
+  assert.deepEqual([shown.control, shown.tabs.map(tab => tab.note)], ['turn', ['Tap Continue on DigiKey.']]);
   const pid = Number(readFileSync(join(c.dir, 'watcher.pid'), 'utf8'));
   for (const url of ['https://shop.test/review', 'https://shop.test/receipt']) {
     b.url = url;
     await pause(200);
     assert.ok(alive(pid), `still open at ${url}`);
   }
-  assert.deepEqual(await call('give', {}), { status: 200, body: { control: 'assistant' } });
+  assert.equal((await call('give', {})).status, 404, 'the view has no Hand back of its own');
+  b.handedBack = true;
   const out = await c.start('wait');
   assert.match(out.stdout, /^HANDOVER_RESULT=handed-back$/m);
   assert.ok(!existsSync(state.view.dir), 'the screen source stopped');

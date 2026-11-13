@@ -257,12 +257,12 @@ test('a turn that ends with no person to tell says to go back and say continue',
   assert.equal(quiet.shown().line, 'Done. Go back to the chat, and say continue.');
 });
 
-test('Hand back ends the turn: the button goes quiet, and the receipt says it is done', async t => {
+test('a turn view has no Hand back of its own: the browser\'s button ends the turn, and the receipt says it is done', async t => {
   const p = await live(t, { receipts: [[200, { result: 'handed-back', notification: 'notified' }]] });
+  assert.equal(p.$('#hand').hidden, true, 'Hand back sits in the browser\'s toolbar');
   p.$('#hand').click();
   await settle();
-  assert.deepEqual(p.calls.at(-1), { path: 'give', key: 'secret', body: {} });
-  assert.equal(p.$('#hand').disabled, true, 'one press: the turn ends once');
+  assert.equal(p.paths().includes('give'), false, 'and a hidden button posts nothing');
   assert.equal(p.$('#stop'), null, 'no Stop: to give up, the person hands back and says so in the chat');
   p.$('#text').value = 'half typed';
   await p.viewers[0].emit('disconnect');
@@ -386,79 +386,41 @@ test('Ctrl+V on the screen reaches the page\'s paste, not the viewer, and lets g
   assert.deepEqual(viewer.calls.at(-1), ['sendKey', 0x6b, null]);
 });
 
-const TABS = [{ chat: 'dentist', id: 1, note: 'Type the code from your phone', fresh: false }, { chat: 'flights', id: 2, note: 'Pay for the seat', fresh: true }];
+const TABS = [{ chat: 'dentist', note: 'Type the code from your phone' }, { chat: 'flights', note: 'Pay for the seat' }];
 const tabsView = (shown = 'dentist', tabs = TABS) => ({ note: tabs.find(tab => tab.chat === shown).note, fit: FITS.wide, shown, tabs: tabs.map(tab => ({ ...tab })) });
-const row = p => [...p.$('#tabs').children].map(tab => [tab.textContent, tab.className, tab.getAttribute('aria-current')]);
+const LINES = '🔔 Type the code from your phone\n🔔 Pay for the seat';
 
-test('a view shared by chats shows a tab per chat above the page: the shown one filled, a new one marked', async t => {
-  const p = await live(t, { view: tabsView() });
-  assert.equal(p.$('#tabs').hidden, false);
-  assert.equal(p.$('#tabs').getAttribute('aria-label'), 'Chats that need you');
-  assert.deepEqual(row(p), [['dentist', 'shown', 'page'], ['flights', 'fresh', null]]);
-  assert.equal(p.$('#tabs .fresh').getAttribute('aria-label'), 'flights, new');
-  assert.equal(p.$('#line-text').textContent, 'Type the code from your phone', 'the line is the shown chat\'s');
-
-  const one = await live(t, { view: tabsView('dentist', TABS.slice(0, 1)) });
-  assert.equal(one.$('#tabs').hidden, true, 'one chat needs no row');
-  assert.equal(one.$('#line-text').textContent, 'Type the code from your phone');
-});
-
-test('a tap on a tab shows that chat: the line follows, the box empties, and Hand back names the chat it ends', async t => {
+test('a view shared by chats lists each open turn\'s line beside its bell, and no tab row', async t => {
   const view = tabsView();
   const p = await live(t, { view });
+  assert.equal(p.$('#tabs'), null, 'the browser\'s own tabs show which wait: each has a bell');
+  assert.equal(p.$('#line-text').textContent, LINES);
+  assert.equal(p.window.document.title, '🔔 Type the code from your phone');
+  assert.equal(p.$('#hand').hidden, true);
   p.$('#text').value = 'half typed';
-  p.$('#tabs .fresh').click();
-  await settle();
-  assert.deepEqual(p.calls.at(-1), { path: 'show', key: 'secret', body: { chat: 'flights' } });
-  assert.deepEqual(row(p), [['dentist', '', null], ['flights', 'shown', 'page']]);
-  assert.equal(p.$('#line-text').textContent, 'Pay for the seat');
+  Object.assign(view, tabsView('flights', TABS.slice(1)));
+  await pause(1100);
+  assert.ok(p.paths().filter(path => path === 'view').length > 1, 'the page asks the link for its turns');
+  assert.equal(p.$('#line-text').textContent, '🔔 Pay for the seat', 'a turn handed back leaves the list');
   assert.equal(p.$('#text').value, '', 'what was typed for one page is not left for the next');
-
-  p.$('#hand').click();
-  await settle();
-  assert.deepEqual(p.calls.at(-1), { path: 'give', key: 'secret', body: { chat: 'flights' } });
-  assert.equal(p.$('#hand').disabled, true, 'one press per turn');
-  Object.assign(view, tabsView('dentist', TABS.slice(0, 1)));
-  await pause(1100);
-  assert.ok(p.paths().filter(path => path === 'view').length > 1, 'the page asks the link for its tabs');
-  assert.equal(p.$('#line-text').textContent, 'Type the code from your phone', 'the tab left shows');
-  assert.equal(p.$('#tabs').hidden, true);
-  assert.equal(p.$('#hand').disabled, false, 'and its own Hand back is ready');
-  assert.equal(p.shown().live, true, 'the link stays open for it');
+  assert.equal(p.shown().live, true, 'the link stays open for the turn left');
 });
 
-test('a chat\'s next turn gets its own Hand back, even when the page saw no poll between the two', async t => {
-  const view = tabsView('flights', TABS.slice(1));
-  const p = await live(t, { view });
-  p.$('#hand').click();
-  await settle();
-  assert.equal(p.$('#hand').disabled, true);
-  // While the phone slept, the other tab closed and flights joined again: the next poll shows its new turn.
-  Object.assign(view, tabsView('flights', [{ ...TABS[1], id: 3, note: 'Pick a seat' }]));
-  await pause(1100);
-  assert.deepEqual([p.$('#line-text').textContent, p.$('#hand').disabled], ['Pick a seat', false]);
-});
-
-test('a chat\'s link opens on its own tab, once: the key stays the only secret, and a later poll keeps your tab', async t => {
-  const view = tabsView();
-  const p = await live(t, { view, hash: '#key=secret&chat=flights' });
+test('a chat\'s link opens on its own tab, once: the key stays the only secret, and a later poll asks no tab', async t => {
+  const p = await live(t, { view: tabsView(), hash: '#key=secret&chat=flights' });
   assert.deepEqual(p.paths().slice(0, 2), ['view', 'show'], 'it asks for its tab before the first picture');
   assert.deepEqual(p.calls[1], { path: 'show', key: 'secret', body: { chat: 'flights' } });
-  assert.deepEqual(row(p), [['dentist', '', null], ['flights', 'shown', 'page']]);
-  assert.equal(p.$('#line-text').textContent, 'Pay for the seat');
+  assert.equal(p.$('#line-text').textContent, LINES);
   assert.equal(p.window.location.hash, '', 'the # part is cleared, so a reload asks no tab');
-  p.$('#tabs button').click();
-  await settle();
   await pause(1100);
-  assert.equal(p.paths().filter(path => path === 'show').length, 2, 'only the first load and the tap ask');
-  assert.equal(p.$('#line-text').textContent, 'Type the code from your phone', 'the poll keeps the tab you tapped');
+  assert.equal(p.paths().filter(path => path === 'show').length, 1, 'only the first load asks');
 });
 
 test('a chat\'s link whose tab ended, or that names no open tab, opens the view as it is', async t => {
   for (const [hash, ended] of [['#key=secret&chat=flights', true], ['#key=secret&chat=garage', false], ['#key=secret&chat=dentist', false]]) {
     const p = await live(t, { view: tabsView(), hash, ended });
-    assert.deepEqual(row(p), [['dentist', 'shown', 'page'], ['flights', 'fresh', null]], hash);
-    assert.equal(p.$('#line-text').textContent, 'Type the code from your phone');
+    assert.equal(p.$('#line-text').textContent, LINES, hash);
+    assert.equal(p.paths().filter(path => path === 'show').length, ended ? 1 : 0, hash);
     assert.equal(p.shown().live, true, 'the view stays open');
   }
 });
@@ -507,10 +469,9 @@ test('Take over and Hand back post their route; the close ends the page with its
 });
 
 test('the pure helpers: the shape a width reports, the closing line, and the tabs', () => {
-  assert.deepEqual(tabsShow({ note: 'Sign in' }), { row: [], line: 'Sign in', id: '' }, 'an answer with no tabs keeps its note');
-  assert.deepEqual(tabsShow(tabsView('dentist', TABS.slice(0, 1))), { row: [], line: 'Type the code from your phone', id: 1 });
-  assert.deepEqual(tabsShow(tabsView('flights')), { row: [{ chat: 'dentist', shown: false, fresh: false }, { chat: 'flights', shown: true, fresh: false }], line: 'Pay for the seat', id: 2 }, 'the shown tab is never new');
-  assert.deepEqual(tabsShow({}), { row: [], line: '', id: '' });
+  assert.deepEqual(tabsShow({ note: 'Sign in' }), ['Sign in'], 'an answer with no tabs keeps its note');
+  assert.deepEqual(tabsShow(tabsView('flights')), LINES.split('\n'), 'each open turn, in order, whichever shows');
+  assert.deepEqual(tabsShow({}), []);
   assert.deepEqual(linkOf('#key=abc'), { key: 'abc', chat: null });
   assert.deepEqual(linkOf('#key=abc&chat=flights'), { key: 'abc', chat: 'flights' });
   assert.deepEqual(linkOf(`#key=abc&chat=${encodeURIComponent('my trip & co')}`), { key: 'abc', chat: 'my trip & co' }, 'an encoded name');

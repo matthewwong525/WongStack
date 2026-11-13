@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -374,6 +374,27 @@ test('each start loads every add-on and pins each button; a weekly check swaps i
 
   rmSync(folderOf(FEATURED.guid), { recursive: true });
   assert.deepEqual(await startArgs({ now: 5 * UPDATE_MS }), ['--addon', folderOf(BLOCKER.guid)], 'a folder gone starts the browser without it');
+});
+
+test('each start copies the WongStack add-on out of the repo with its port and key, pins its button, and lists it nowhere', async () => {
+  reset();
+  profileWith({});
+  const copy = join(HOME, '.wong-stack', 'browser', 'hand-back');
+  mkdirSync(copy, { recursive: true });
+  writeFileSync(join(copy, 'old.js'), '');
+  assert.deepEqual(addons.handBackArgs({ port: 4123, key: 'button-key' }), ['--addon', copy]);
+  const repo = fileURLToPath(new URL('../../.agents/plugins/browser/addon/', import.meta.url));
+  assert.equal(readFileSync(join(copy, 'manifest.json'), 'utf8'), readFileSync(join(repo, 'manifest.json'), 'utf8'));
+  assert.equal(JSON.parse(readFileSync(join(copy, 'manifest.json'), 'utf8')).browser_specific_settings.gecko.id, addons.HAND_BACK_GUID);
+  assert.ok(!existsSync(join(copy, 'old.js')), 'an older copy goes');
+  assert.ok(!existsSync(join(repo, 'config.json')), 'the repo holds no key');
+  assert.deepEqual(JSON.parse(readFileSync(join(copy, 'config.json'), 'utf8')), { port: 4123, key: 'button-key' });
+  assert.equal(statSync(join(copy, 'config.json')).mode & 0o777, 0o600, 'only this account reads the key');
+  const layout = JSON.parse(addons.prefIn(readFileSync(join(PROFILE, 'prefs.js'), 'utf8'), 'browser.uiCustomization.state'));
+  assert.ok(layout.placements['nav-bar'].includes('hand-back_wongstack-browser-action'), 'its button is on the toolbar');
+  assert.deepEqual(addonStatus(), [], 'addon status names it not');
+  assert.equal((await run('addon', 'remove', 'WongStack')).stdout, 'BROWSE_ADDON_REMOVED=none\n', 'and addon remove finds it not');
+  assert.ok(existsSync(join(copy, 'manifest.json')));
 });
 
 test('1Password signs in on its own page; addon open shows the newest password manager, else the newest add-on; a first start with no layout pins nothing', async () => {
