@@ -57,3 +57,4 @@ None.
 - **2026-11-13** — Assumed: the plan-first and safe-changes attachments keep their text with `checked:` set to today, because neither names a chat's name.
 - **2026-11-13** — Assumed: the `/verify`-keeps-the-name half of task 3.2 is shown by feeding the Claude hook `/verify x` in this Paseo chat, because a helper can not type into the chat; the hook wrote nothing and the Paseo name stayed `🔨 Build loop chat names start with an emoji`.
 - **2026-11-13** — Assumed: a saved step with no mark, such as `VERIFY` from before this release, shows its task words alone, because the review found it showed `undefined <task>` and the plan says old names keep their task words.
+- **2026-11-13** — Archived and saved for release 61.2.0 on branch `build-loop-emoji-prefixes`; the shared local check turn was busy, so lint ran directly and passed, and CI is the gate.
