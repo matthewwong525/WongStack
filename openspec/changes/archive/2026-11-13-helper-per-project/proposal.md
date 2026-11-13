@@ -1,5 +1,9 @@
 # Each project runs its own background helper, so "Keep my chats in line" starts again
 
+**Status:** ready-to-ship
+**Branch:** ordinary-unicorn
+**Open questions:** none
+
 ## Why
 
 Every "Keep my chats in line" run in WongStack and relay-ring stops with "needs your OK", though you gave the OK. One background helper serves every project on this computer, and it now runs ClaymooApp's copy. That copy looks for your sign-in only where ClaymooApp keeps it, so it finds no one signed in to the WongStack and relay-ring apps and refuses their runs. WongOS runs its own helper, so its runs start. The same fix was written on 2026-11-06 but never went live.
@@ -85,3 +89,4 @@ None.
 - **2026-11-13** — Assumed (inside `/ship`, build): the helper's rounds find each folder's main checkout through `computer.mjs`'s per-folder cache, not two `git` calls each round, because the extra calls made the round-gap test in `live-line.test.mjs` flaky under the full suite.
 - **2026-11-13** — Assumed (inside `/ship`, build): WongOS's and ClaymooApp's names in ported code, tests and the wiki became `myapp` and `shop`, because `private-names.test.mjs` keeps private names out of live files.
 - **2026-11-13** — Assumed (inside `/ship`): 4.1 ticked with every local check passing but `module-versions`, which fails only because `origin/main` gained browser 3.3.0 after this branch was cut; `/ship`'s prepare merges `main` and reruns every local check before the save.
+- **2026-11-13** — Archive checkpoint: archived as `openspec/changes/archive/2026-11-13-helper-per-project/` and numbered 61.5.0; the review found three problems (a failed install left no helper, uninstall stranded taps and run gaps, a wrong wiki line), all fixed, and the second read found none.

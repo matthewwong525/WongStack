@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Each project runs its own background helper, and a run with no sign-in says so
+## 61.5.0 — Each project runs its own background helper, and a run with no sign-in says so
 
 - **Each project gets its own background helper.** It runs that project's own code and sign-in, and serves only that project's app, schedules and inbox taps. Another project's update can no longer stop your schedules with *needs your OK* ([the helper](wiki/stack/live-line.md#the-helper)).
 - **Nothing to approve again.** Your OKs stay in one file for all projects, because each OK names its app. A project's helper takes over the runs that already started and its open inbox taps, so no run starts twice or too soon, and each tap arrives once.
