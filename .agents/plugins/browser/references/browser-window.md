@@ -7,8 +7,9 @@ The agent's browser has one window, with a tab for each chat. This page says whe
 Each chat, and each scheduled run, gets its own tab in the one window, with the same sign-ins. The chats work at the same time, and none waits for another.
 
 - **A new chat opens a tab, not a window.** A blank first tab stays at the left: the browser opens each chat's tab from it, so leave it open. If you close it, the next chat opens one new window, once.
-- **Each tab that waits on you shows 🔔.** While a turn is open, the other chats keep reading, typing, and clicking in their own tabs behind it, and never show theirs. A chat clicks a button, a link, or a tick box by its key, as you would press Tab and Enter, so your tab stays in front. A part of a page that reacts only to a mouse waits: the click runs by itself when no turn is open, and that chat takes no other step on its page until then. A second chat's turn joins yours, in the window or [your live view](../skills/hand-over/references/live-view.md#what-the-link-can-do): its tab gets a 🔔 and waits behind until you pick it.
+- **Each tab that waits on you shows 🔔.** While a turn is open, the other chats keep reading, typing, clicking, and resizing in their own tabs at once. None of them waits for your turn, and no step is refused because of it. A step that shows its tab, such as a resize, shows it for a moment; then the 🔔 tab you were on comes back to the front. Another chat's `front` or `show` prints `BROWSE_FRONT=behind` and leaves your tab in front. A second chat's turn joins yours, in the window or [your live view](../skills/hand-over/references/live-view.md#what-the-link-can-do): its tab gets a 🔔 and waits behind until you pick it.
 - **A tab closes when its chat is done**, or after 5 minutes unused.
+- **An updated browser starts by itself.** When the browser's own scripts change, the running browser stops once no chat has a tab or a turn open in it. The next browser command starts the new code.
 
 [`browser-server.mjs`](../scripts/browser-server.mjs) owns the tabs.
 

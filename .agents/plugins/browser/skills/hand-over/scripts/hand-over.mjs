@@ -664,8 +664,9 @@ async function startLink(values, keys) {
   };
   const fault = session && (await pageFault(pageOf(session)));
   if (fault) return fail(fault);
-  // The task's tab comes to the front first, unless another chat's turn is open; its turn holds it, with its bell.
-  const busy = session && (await pageOf(session).front(values.watch ? {} : { turn: true, shared: true }).then(() => null, error => (BUSY.test(error.message) ? error : null)));
+  // The task's tab comes to the front first, unless another chat's turn is open; its turn holds it, with its bell. A
+  // watch whose tab stays behind another chat's turn waits for it.
+  const busy = session && (await pageOf(session).front(values.watch ? {} : { turn: true, shared: true }).then(answer => (answer?.behind ? answer : null), error => (BUSY.test(error.message) ? error : null)));
   if (busy) return fail('The person is using the browser in another chat\'s tab; open this view once their turn ends.');
   const completionId = randomBytes(16).toString('hex');
   if (window) {
@@ -866,8 +867,8 @@ async function watchView() {
   };
   const record = () => writeWhole(SHARED.listed, { chats: [...turns.keys()], shown });
   const putBack = turn => turn.size && turn.page.resize(...turn.size).catch(() => {});
-  /** Ends a turn in the browser and gives its fitted page its size back. A resize shows its tab and waits on other
-   * tabs' turns, so a page behind waits until the last turn has ended there, and the page shown goes last. */
+  /** Ends a turn in the browser and gives its fitted page its size back. A resize shows its tab, so a page behind
+   * waits until the last turn has ended there, and the page shown goes last. */
   const endAndSizeBack = async (turn, front) => {
     if (turn.fitted && !front) unsized.push(turn);
     if (turn.fitted && front && turns.size) await putBack(turn);

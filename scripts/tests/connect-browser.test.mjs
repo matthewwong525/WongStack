@@ -166,7 +166,7 @@ test('in the assistant\'s browser, read hides a key, no picture while one shows,
   assert.equal(f.run(['open', 'http://www.notion.so/']).status, 1, 'an address that is not https');
 });
 
-test('a click that waits for the person\'s turn in another chat\'s tab answers at once, and wait-click says how it ended', t => {
+test('a click an older browser holds for another chat\'s turn answers at once, and wait-click says how it ended, within its limit', t => {
   const f = onServer(t, '- heading "New integration"\n- button "Save" [e2]');
   assert.deepEqual([f.run(['wait-click']).stdout], ['No click waits.\n'], 'with no click sent, none waits');
   f.camofox.set('click-queued');
@@ -174,7 +174,7 @@ test('a click that waits for the person\'s turn in another chat\'s tab answers a
   let before = f.camofox.calls().length;
   const clicked = f.run(['click', '@e2']);
   assert.equal(clicked.status, 0, clicked.stderr);
-  assert.match(clicked.stdout, /^The person is using the browser in another chat's tab, so this click runs when their turn ends\. Run `browser\.mjs wait-click` in the background/);
+  assert.match(clicked.stdout, /^An older running browser holds this click for the person's turn in another chat's tab\. Run `connect-browser\.mjs wait-click` in the background/);
   assert.deepEqual(f.camofox.calls().slice(before).filter(call => /click/.test(call)), ['POST /tabs/:tab/click'], 'it did not wait for the turn');
   f.camofox.unset('click-queued');
   before = f.camofox.calls().length;
@@ -189,6 +189,13 @@ test('a click that waits for the person\'s turn in another chat\'s tab answers a
   const failed = f.run(['wait-click']);
   assert.equal(failed.status, 1);
   assert.match(failed.stderr, /e2 is not on the page now/);
+  f.camofox.unset('waited-error');
+  f.camofox.set('click-queued');
+  f.run(['click', '@e2']);
+  f.camofox.set('click-never-runs');
+  const stuck = f.run(['wait-click'], { BROWSE_CLICK_WAIT_MS: '50' });
+  assert.equal(stuck.status, 1, 'it stops at its limit');
+  assert.match(stuck.stderr, /the click still waits for another chat's turn in an older browser/);
 });
 
 /** No stand-in's log, and no argv sent, holds a copy of `value`. */

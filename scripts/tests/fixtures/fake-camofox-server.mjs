@@ -96,11 +96,11 @@ function evaluate(tab, expression) {
   return new Function('document', `return ${expression}`)({ querySelector });
 }
 
-/** A waiting click's result, as the long poll gives it: `{waiting}` while `click-still-waiting` is set, else how it
- * landed, by `waited-via`, or the refusal `waited-error` holds. */
+/** An older browser's waiting click: `{waiting}` once after `click-still-waiting`, always with `click-never-runs`,
+ * else how it landed, by `waited-via`, or the refusal `waited-error` holds. */
 function clickResult(tab, response) {
   if (!tab.waiting) return send(response, 200, { ok: true, none: true });
-  if (once('click-still-waiting')) return send(response, 200, { ok: true, waiting: true });
+  if (has('click-never-runs') || once('click-still-waiting')) return send(response, 200, { ok: true, waiting: true });
   tab.waiting = false;
   if (has('waited-error')) return refuse(response, 409, text('waited-error'));
   return send(response, 200, { ok: true, url: tab.url, via: has('waited-via') ? text('waited-via') : 'mouse' });
@@ -165,7 +165,8 @@ const STEPS = {
     const heard = has('hand-back') && body.turn === true && body.shared && body.raise === false && !tab.heard;
     if (heard) tab.heard = true;
     if (body.turn !== undefined) tab.turn = body.turn && !heard ? (body.shared ? 'shared' : 'plain') : null;
-    return send(response, 200, { ok: true, ...(heard && { handedBack: true }) });
+    // `front-behind`: another tab holds the person's turn, so a plain front stays behind it.
+    return send(response, 200, { ok: true, ...(heard && { handedBack: true }), ...(has('front-behind') && body.turn === undefined && { behind: true }) });
   },
   evaluate: (tab, body, response) => send(response, 200, { ok: true, result: evaluate(tab, body.expression) }),
   viewport(tab, body, response) {

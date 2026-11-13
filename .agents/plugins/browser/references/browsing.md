@@ -52,7 +52,7 @@ A failed command prints one `BROWSE_ERROR=` line. A ref comes from the newest sn
 
 With the proxy on and [saved proxies](browser-proxy.md), such as one at your home and a paid backup, the browser goes through them first, so sites see your home address. Otherwise it uses this computer's own network, so sites see the computer's country. Its timezone and English follow the address sites see. It needs no WARP, relay, or phone connection, and chooses no country. Sites can still [refuse](#when-a-site-refuses-the-browser).
 
-A running browser keeps its pages and logins, and takes a setting or an update only once you stop it and a later errand starts it. Never restart it for a setting or an update.
+A running browser keeps its pages and logins, and takes a setting only once you stop it and a later errand starts it. Never restart it for a setting or an update: a browser whose scripts changed stops by itself once no chat has a tab or a turn open in it ([an updated browser starts by itself](browser-window.md#a-tab-for-each-chat)).
 
 ## Show what the browser is doing
 
