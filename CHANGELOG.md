@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — One command for screen work, a design guide, and a friendlier starter look
+## 61.6.0 — One command for screen work, a design guide, and a friendlier starter look
 
 - **`/ui` opens all screen work.** Before the assistant designs, builds, or changes a screen, it loads `/ui`, which sends it to four sources in order: the [UX principles](wiki/ux-principles.md), the design guide, the ready-made parts, and web guidance at need. You can type `/ui` too.
 - **A design guide holds the look every screen shares.** [The design guide](wiki/design-guide.md) is calm, roomy, and friendly, in your own colours: colour, type, space, shape and depth, pictures, words, and motion. It names no brand.

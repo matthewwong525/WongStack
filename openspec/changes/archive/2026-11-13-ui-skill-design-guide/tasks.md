@@ -31,7 +31,7 @@
 - [x] 5.1 Run `(cd app && npm test)`. Done when it passes with no check loosened.
 - [x] 5.2 Run `node .github/scripts/checks.mjs --worktree`, then `openspec validate "ui-skill-design-guide" --strict --no-interactive`. Done when both pass.
 - [x] 5.3 Run one real lookup with the skill's exact command: a `search`, then a `retrieve` of one result. Done when both answer.
-- [ ] 5.4 Confirm on the preview that Home and Hello show the violet primary button, round corners, and soft shadows, in light and in dark — verified via `/save`.
+- [x] 5.4 Confirm on the preview that Home and Hello show the violet primary button, round corners, and soft shadows, in light and in dark — verified via `/save`.
 
 ## 6. Review fixes
 

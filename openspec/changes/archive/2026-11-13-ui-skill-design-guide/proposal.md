@@ -1,6 +1,6 @@
 # One command for screen work, a design guide, and a friendlier starter look
 
-**Status:** in-progress
+**Status:** ready-to-ship
 **Branch:** ui-skill-design-guide
 **Open questions:** none
 
@@ -122,3 +122,4 @@ WongStack has no single place that says how a screen should look. Advice on scre
 - **2026-11-13** — Assumed: an install whose screens can't meet a design rule yet turns it off for those files alone, in an `overrides` entry, because turning the rule off for the whole app fails the proof of the checks, and letting that proof skip a rule would weaken it.
 - **2026-11-13** — Assumed: the readable-colour check also reads `none`, a signed hue, a hue unit, and a chroma in percent, and fails on a mistyped number by name, because a tool writes those solid forms and a mistyped number passed with no word.
 - **2026-11-13** — Assumed: a source-only check in `scripts/tests/look.test.mjs` holds the starter to the device's font, because the app's own check now takes any font and the starter still ships the device's.
+- **2026-11-13** — Archive checkpoint: every task is done, the preview showed the violet primary button, round corners, and soft shadows on Home and Hello in light and in dark, and the release is numbered 61.6.0.
