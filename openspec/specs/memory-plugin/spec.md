@@ -5,20 +5,6 @@ Memory as one plugin any repo can install: the core, a store interface of named 
 
 ## Requirements
 
-### Requirement: Memory installs as one plugin with its own hooks
-
-The core memory SHALL ship as one folder for Claude Code and Codex that carries its own start-of-chat, message, before-edit, and end-of-chat hooks, so a repo's own settings name no memory hook. Every repo that has memory, a full WongStack install or memory alone, SHALL hold it as a real folder in its skills folder, never as a link and never in a plugins folder. Claude Code SHALL load it from the repo's own checkout with no install step, so a branch runs its own copy. No repo SHALL need a plugin shop to get memory. Codex SHALL need one install per computer, and a Codex chat on a computer whose copy is missing or older than the repo's SHALL name the one command that installs it.
-
-#### Scenario: An install after its update
-
-- **WHEN** a WongStack install takes this release with its update, and a person opens a new Claude Code chat in it
-- **THEN** memory is a real folder in the install's skills folder, the install has no plugins folder, and the digest loads with nothing installed, the before-edit warning shows on the first edit in a mapped folder, and a message naming a topic gets its summary
-
-#### Scenario: Codex without the plugin
-
-- **WHEN** a person opens a Codex chat in a repo with memory, on a computer where memory's Codex plugin is missing or older than the repo's folder
-- **THEN** the chat names the one command that installs it, and the chat goes on
-
 ### Requirement: The plugin reaches a store only through named operations
 
 The plugin SHALL read and write memory only through one fixed list of named operations, and SHALL never send a query, a table name, or an owner. It SHALL work the same with any backend that answers those operations, in the same process or over the network, and SHALL never itself hold back a fact for privacy: what a caller may see is the backend's decision.
@@ -125,3 +111,17 @@ The first chat a person starts each day on a computer with memory SHALL start on
 
 - **WHEN** the plugin is newer than the store it reaches
 - **THEN** no daily tidy starts, the chat start says once that the store is older, and capture at chat end works as before
+
+### Requirement: Memory installs as one folder whose hooks the project runs
+
+The core memory SHALL ship as one folder that carries the list of its start-of-chat, message, before-edit, and end-of-chat hooks for Claude Code and Codex. Every repo that has memory, a full WongStack install or memory alone, SHALL hold it as a real folder in its skills folder and SHALL run those hooks from the project's own settings, never through a plugin, so they run in every chat, trusted folder or not. Claude Code and Codex SHALL load it from the repo's own checkout with no install step on the computer, so a branch runs its own copy. No repo SHALL need a plugin shop to get memory.
+
+#### Scenario: An install after its update
+
+- **WHEN** a WongStack install takes this release with its update, and a person opens a new Claude Code chat in it, in a folder the person never trusted
+- **THEN** memory is a real folder in the install's skills folder with no plugin manifest, the digest loads, the before-edit warning shows on the first edit in a mapped folder, and a message naming a topic gets its summary
+
+#### Scenario: Memory alone
+
+- **WHEN** a person adds memory alone to a repo by the setup guide, and opens a Codex chat there
+- **THEN** the repo's own Codex hooks file runs memory's hooks, and the chat installs no Codex plugin

@@ -1,6 +1,6 @@
 # Host schedules
 
-A schedule starts agreed work later: a morning routine, a weekly report, a timed background job, or a task that ends when its goal is met. [`/daily:schedule`](../../.agents/plugins/daily/skills/schedule/SKILL.md) first checks whether a script can do the work, then saves the schedule after your OK: in your company app, or [with no app](#with-no-app), in Paseo.
+A schedule starts agreed work later: a morning routine, a weekly report, a timed background job, or a task that ends when its goal is met. [`/schedule`](../../.agents/plugins/daily/skills/schedule/SKILL.md) first checks whether a script can do the work, then saves the schedule after your OK: in your company app, or [with no app](#with-no-app), in Paseo.
 
 ## Script or routine
 
@@ -12,14 +12,14 @@ In WongStack, every schedule lives in your company app's database, in one list f
 
 Each schedule belongs to the person who made it. You see, change, and run only yours, under your own [company sign-in](../development/memory.md#sign-in-and-expiry). The owner can make one schedule for everyone: each teammate then gets their own copy, which they approve and can pause for themselves. The owner can not see a teammate's copy after that.
 
-You see your schedules behind the *Schedules* button at the top of the Inbox, and in any chat through `/daily:schedule`. You make or change one only in a chat.
+You see your schedules behind the *Schedules* button at the top of the Inbox, and in any chat through `/schedule`. You make or change one only in a chat.
 
 ## With no app
 
 A repo with [Daily](../development/daily.md#the-module) and no company app has no schedule store of its own. `node .claude/skills/daily/skills/schedule/scripts/schedule.mjs store` names the one in use:
 
-- **`paseo`:** each schedule is a [Paseo](https://paseo.sh) schedule on this computer that opens a new chat. Your OK before the save is the approval; there is no OK on each computer. No one is there to answer a permission ask, so it runs with full permissions, as an app schedule does, unless its `run.mode` names another. Paseo can not run a background run, a `check`, `minutes`, a `deny` list, a team copy, or an `until` goal, so `/daily:schedule` refuses each with its reason.
-- **`off`:** with no Paseo either, `/daily:schedule` answers `{ "ok": false, "code": "no-store" }` and says what it needs. For a script, it gives you the crontab line to add.
+- **`paseo`:** each schedule is a [Paseo](https://paseo.sh) schedule on this computer that opens a new chat. Your OK before the save is the approval; there is no OK on each computer. No one is there to answer a permission ask, so it runs with full permissions, as an app schedule does, unless its `run.mode` names another. Paseo can not run a background run, a `check`, `minutes`, a `deny` list, a team copy, or an `until` goal, so `/schedule` refuses each with its reason.
+- **`off`:** with no Paseo either, `/schedule` answers `{ "ok": false, "code": "no-store" }` and says what it needs. For a script, it gives you the crontab line to add.
 
 The line-up, a [default schedule](#default-schedules) here, then runs from [Daily's worker](../development/daily.md#with-no-app).
 
@@ -67,11 +67,11 @@ Automatic contacting requires an agreed recipient, channel, message purpose, fre
 
 ## When it needs your answer
 
-When a call would help, the assistant offers it through a verified question surface and waits. One pending question and its deferred action survive later sessions. The dependent follow-up pauses; silence and elapsed time are never consent. Offering a call does not place one. Answer the identified question or use `/daily:schedule resume` to continue within the agreed scope.
+When a call would help, the assistant offers it through a verified question surface and waits. One pending question and its deferred action survive later sessions. The dependent follow-up pauses; silence and elapsed time are never consent. Offering a call does not place one. Answer the identified question or use `/schedule resume` to continue within the agreed scope.
 
 ## Manage a schedule
 
-In the Inbox's *Schedules* list you can pause, resume, run now, or cancel a waiting run, and tap a schedule to see its last ten runs that did work, how many quiet checks found nothing to do, and its instructions. In a chat, `/daily:schedule` also lists, inspects, changes, approves, and ends your schedules. A change saves a new version, so it waits for your OK on each computer that runs it. A failed or uncertain change is inspected before a retry.
+In the Inbox's *Schedules* list you can pause, resume, run now, or cancel a waiting run, and tap a schedule to see its last ten runs that did work, how many quiet checks found nothing to do, and its instructions. In a chat, `/schedule` also lists, inspects, changes, approves, and ends your schedules. A change saves a new version, so it waits for your OK on each computer that runs it. A failed or uncertain change is inspected before a retry.
 
 ## Default schedules
 

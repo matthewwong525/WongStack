@@ -3,7 +3,7 @@ title: You explain your business again every day
 problem: Each new chat starts from zero, so you explain your business again.
 fix: Each chat saves what it learned, and the next one starts knowing it.
 order: 1
-checked: 2026-11-12
+checked: 2026-11-13
 sources:
   - wiki/development/memory.md
   - .agents/plugins/memory/SKILL.md

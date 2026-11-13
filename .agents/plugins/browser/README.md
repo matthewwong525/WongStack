@@ -32,7 +32,7 @@ It keeps your own edits to the folder. When one of your edits and a new change t
 ## What it needs
 
 - **Node 20 or newer** on each computer.
-- **One folder** at `.claude/skills/browser/`, as a real folder, with the private-link and Shop skills inside it in `skills/`. Claude Code loads it from there, with no install step. One version in both `plugin.json` files names the whole folder.
+- **One folder** at `.claude/skills/browser/`, as a real folder, with the private-link and Shop skills inside it in `skills/`, each linked up to `.claude/skills/<name>/`. Claude Code and Codex load them from there, with no install step. One version in its `VERSION` file names the whole folder.
 - **A git-ignored `.env`** at the repo's top: the key link writes keys there when the repo has no profile.
 - **`cloudflared`** for a private link, Camoufox to browse, and Shop's command to buy: the agent asks, then installs each when a task first needs it ([how](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/required-tools.md)).
 - **A profile, if you want one**: `.agents/browser/profile.mjs`, outside the folder, so an update never touches it. With none, each slot below is empty and the module still works.

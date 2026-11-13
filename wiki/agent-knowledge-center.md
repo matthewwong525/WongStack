@@ -58,7 +58,7 @@ The more an agent can reach, the more it does for you, and the more damage a wro
 - **Active changes** own work in progress. Each [change loop](development/the-change-loop.md) plan lives under `openspec/changes/<name>/` with its tasks, status, and decision log.
 - **Archived changes** own what shipped and why.
 - **The memory store** owns session context outside the repo: short typed facts that every session reads as a digest at start, and the raw transcripts behind them. [Session memory](development/memory.md) owns how it works.
-- **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/ship`, `/close`, `/verify`, `/improve-code`, `/daily:schedule`, `/wong-sync`.
+- **Skills** turn the process into commands an agent runs: `/explore`, `/plan`, `/apply`, `/save`, `/ship`, `/close`, `/verify`, `/improve-code`, `/schedule`, `/wong-sync`.
 
 **Put new guidance in the cheapest place that works.** Text the agent loads in every chat costs words in every chat; a page it opens only when needed costs nothing until then. Try, in order:
 

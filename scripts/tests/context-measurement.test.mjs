@@ -62,18 +62,18 @@ test('inventory covers every authored skill folder, skips the vendored browser s
     '.agents/skills/memory/SKILL.md': '---\ndescription: Search facts.\n---\nmemory body',
     '.agents/skills/memory/references/writing-facts.md': 'fact rules',
     '.agents/skills/daily/SKILL.md': '---\ndescription: Daily asks.\n---\ndaily body',
-    '.agents/skills/daily/skills/schedule/SKILL.md': '---\ndescription: Schedule a prompt.\n---\nroutine body',
+    '.agents/skills/schedule/SKILL.md': '---\ndescription: Schedule a prompt.\n---\nroutine body',
     '.agents/skills/agent-browser/SKILL.md': '---\ndescription: Drive a browser.\n---\nvendored body',
   });
   const report = measureContext(root, { revision: 'fixture', owners: [], files: {}, routes: {} });
   const paths = report.inventory.map(row => row.path);
   assert(paths.includes('.agents/skills/memory/SKILL.md'));
   assert(paths.includes('.agents/skills/memory/references/writing-facts.md'));
-  assert(paths.includes('.agents/skills/daily/skills/schedule/SKILL.md'));
+  assert(paths.includes('.agents/skills/schedule/SKILL.md'));
   assert(!paths.some(path => path.includes('agent-browser')));
   const descriptions = report.inventory.find(row => row.path === DESCRIPTIONS);
   assert.equal(descriptions.kind, 'descriptions');
-  assert.deepEqual(descriptions.after, countText('Drive a browser.\nDaily asks.\nSchedule a prompt.\nSearch facts.'));
+  assert.deepEqual(descriptions.after, countText('Drive a browser.\nDaily asks.\nSearch facts.\nSchedule a prompt.'));
   assert.deepEqual(report.categories.descriptions.after, descriptions.after);
 });
 

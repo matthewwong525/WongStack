@@ -2,7 +2,6 @@
 paths:
   - ".claude/**"
   - ".agents/**"
-  - ".claude-plugin/**"
   - "app/**"
   - "scripts/**"
   - ".github/**"
@@ -43,7 +42,7 @@ This rule is meta-repo only — it never ships to a target. You are touching a f
 - **A new capability spec needs an area, and that makes a release.** [`memory-areas.test.mjs`](../../scripts/tests/memory-areas.test.mjs) fails until [`areas.json`](../memory/areas.json) names the spec. That file ships, so a change that adds a spec carries at least a `patch` entry, even when the spec covers a source-only folder. Plan it, or it surfaces at the first save.
 - **A template or fragment is code, not prose.** Renaming a variable a script reads (`.env.example`, a config fragment, a workflow's `env:`) is behavioural: a release with its changelog entry, never a `docs(...)` commit. The failure is silent — a token under an unread name looks like an unprovisioned repo. One file [owns each name](../../wiki/stack/cloudflare-credentials.md#store-it); every other surface links to it.
 - **An ask is a choice, and a reply ends with the next step.** A skill in the loop, or a WongStack skill outside every module, links [the ask convention](../plugins/loop/skills/explore/references/asking-the-user.md) and states only what is specific to its own question; it never keeps a second copy of the choice format or the tool order. A skill in another module, such as the browser or Daily, states its ask in one sentence, such as *ask in the chat as a multiple choice, with the assistant's question tool when it has one*, and links no other module's file ([adding a module](../../wiki/maintaining/adding-a-module.md#what-it-may-reach)).
-- **Skills reference files by repo-relative path** (`$(git rev-parse --show-toplevel)/.claude/skills/...`) — never `${CLAUDE_PLUGIN_ROOT}` or an absolute path, because they run from a target's `.claude/skills/`. One exception: a plugin's own hook files, `.agents/plugins/<name>/hooks/*.json`, may use `${CLAUDE_PLUGIN_ROOT}`, because the host sets it to that plugin's folder.
+- **Skills reference files by repo-relative path** (`$(git rev-parse --show-toplevel)/.claude/skills/...`) — never `${CLAUDE_PLUGIN_ROOT}` or an absolute path, because they run from a target's `.claude/skills/`. A module's hook files, `.agents/plugins/<name>/hooks/*.json`, use the same project paths, as [adding a module](../../wiki/maintaining/adding-a-module.md) says.
 - **Git-fronting skills keep their CLI and delivery steps.** [The change loop](../../wiki/development/the-change-loop.md) says which verbs run git. Preserve the spec-reconciliation, resume, validation, and archive behavior when editing them. The [CLI contract](../plugins/loop/skills/plan/references/openspec-cli.md) owns shared mechanics. The vendored `agent-browser` skill remains upstream content; refresh it from upstream rather than hand-editing it, then keep its one local edit: `disable-model-invocation: true` in the frontmatter, so only `/verify` calls it.
 - **Meta-only rules (like this one) stay out of `payload-files.json`**; payload rules are listed there and in the [payload manifest](../skills/wong-sync/references/payload-manifest.md).
 

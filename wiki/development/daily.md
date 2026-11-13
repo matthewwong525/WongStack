@@ -111,7 +111,7 @@ Your `sweeps` file adds event jobs, changes the default schedules, and lists too
 
 ## The module
 
-Daily is one folder, [`.agents/plugins/daily/`](../../.agents/plugins/daily/README.md), with [`/daily:schedule`](../../.agents/plugins/daily/skills/schedule/SKILL.md) inside it in `skills/schedule/`. A WongStack install also gives the command's `SKILL.md` its own top-level skill folder, so it loads in every chat by its bare name, also in a folder you did not trust. It imports no file outside the folder, links no file of another module, and reaches the repo only through [the profile](#the-profile). It has two installs:
+Daily is one folder, [`.agents/plugins/daily/`](../../.agents/plugins/daily/README.md), with [`/schedule`](../../.agents/plugins/daily/skills/schedule/SKILL.md) inside it in `skills/schedule/`. The command also has its own top-level skill folder, so it loads in every chat by its bare name, also in a folder you did not trust. The project's settings run Daily's hooks. It imports no file outside the folder, links no file of another module, and reaches the repo only through [the profile](#the-profile). It has two installs:
 
 - **WongStack ships it** with each update, and fills every part of the profile.
 - **Any repo adds it alone** by [its README](../../.agents/plugins/daily/README.md): one pasted message copies the folder in and runs `D check`. That prints `ok` when the profile loads, one worker pass runs, a sample stop sorts, and it names the schedule store: `app`, `paseo` or `off`.
@@ -122,7 +122,7 @@ Daily is one folder, [`.agents/plugins/daily/`](../../.agents/plugins/daily/READ
 
 | Part | Gives | Without it |
 |---|---|---|
-| `schedules` | the schedule store, such as the company app | Paseo's, else `/daily:schedule` is off |
+| `schedules` | the schedule store, such as the company app | Paseo's, else `/schedule` is off |
 | `person` | who is signed in, and the sign-in step | your git email |
 | `chatName` | a chat's step and task, for the line-up | the chat app's title, else the folder |
 | `offeredChoices` | a stop that ended in typed choices the repo sends back | every stop goes to the check-in |
@@ -134,7 +134,7 @@ A part that fails or answers late counts as empty, with one line a day in [the j
 
 ### With no app
 
-- **Schedules go to Paseo.** Each is a chat schedule on this computer, saved after your OK. Paseo can not run a background run, a check, a time limit, a deny list, a team copy, or an end goal, so `/daily:schedule` refuses each with its reason. With no Paseo either, `/daily:schedule` is off and says what it needs.
+- **Schedules go to Paseo.** Each is a chat schedule on this computer, saved after your OK. Paseo can not run a background run, a check, a time limit, a deny list, a team copy, or an end goal, so `/schedule` refuses each with its reason. With no Paseo either, `/schedule` is off and says what it needs.
 - **The worker keeps your chats in line** every 5 minutes, with the same check and brief as [the default schedule](#your-chats-in-line). `D lineup off` stops it; `D lineup on` starts it again. *Stop check-ins* stops it too.
 - **No default schedules** are added.
 

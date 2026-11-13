@@ -1,4 +1,4 @@
-// The plugin's local side: repo context, .env, local state, the spool, and the store the repo's profile connects.
+// Memory's local side: repo context, .env, local state, the spool, and the store the repo's profile connects.
 // The profile owns the backend and the sign-in; this file names no server. wiki/development/memory.md#the-profile
 import { execFileSync, spawn } from 'node:child_process';
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
@@ -108,8 +108,6 @@ export function statePath(ctx, ...parts) {
 }
 
 export const readJson = (path, fallback) => { try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return fallback; } };
-// Codex installs memory by the name of the repo's plugin list, the root `.claude-plugin/marketplace.json`.
-export const codexPluginName = root => `memory@${readJson(join(root, '.claude-plugin', 'marketplace.json'), {})?.name || 'wongstack'}`;
 // Write a temp file, then rename it: a concurrent reader sees the old file or the new one, never a torn one.
 export function writeJson(path, value) {
   const temp = `${path}.${process.pid}.tmp`;

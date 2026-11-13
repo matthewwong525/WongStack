@@ -194,7 +194,7 @@ export function startReport({ config, stateDir, now = new Date() }) {
 // Command
 
 const USAGE = `usage: daily.mjs who | start [--dry-run] [--report] | handoff --file <text file>
-       daily.mjs remind   a reminder is a one-time chat schedule now: ask /daily:schedule
+       daily.mjs remind   a reminder is a one-time chat schedule now: ask /schedule
        daily.mjs serve [--agent claude|codex] [--seconds 60] [--once] [--dry-run] | ensure [--agent claude|codex] | status | check
        daily.mjs checkins off | checkins on | lineup off | lineup on
        daily.mjs journal [--new] | journal --line <words> [--run <id>]
@@ -245,7 +245,7 @@ export function readArgs(args) {
 }
 
 /** What `D remind` says: a reminder is a schedule now. */
-export const REMIND = 'A reminder is a one-time chat schedule now: ask /daily:schedule for one that opens a chat with the words at that time.';
+export const REMIND = 'A reminder is a one-time chat schedule now: ask /schedule for one that opens a chat with the words at that time.';
 const IGNORED = {
   tasks: 'Ignored: `sources.tasks` in your settings. The week board is gone; the plans waiting for you show in the Inbox.',
   chats: 'Ignored: `sources.chats` in your settings. Daily keeps no chat list in the app now; the plans waiting for you show in the Inbox.',

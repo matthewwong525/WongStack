@@ -17,4 +17,4 @@ user-invocable: false
 
 ## Changing settings
 
-A routine, such as *check orders on Mondays*, goes to [`/daily:schedule`](./skills/schedule/SKILL.md). Others edit `.agents/daily/<name>.json` by [your settings](README.md#your-settings). With none, start from [the example](references/example.json) and their email. Show the change, then save by [the change loop](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/the-change-loop.md). Keep health, family and money out of a shared project.
+A routine, such as *check orders on Mondays*, goes to [`/schedule`](./skills/schedule/SKILL.md). Others edit `.agents/daily/<name>.json` by [your settings](README.md#your-settings). With none, start from [the example](references/example.json) and their email. Show the change, then save by [the change loop](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/the-change-loop.md). Keep health, family and money out of a shared project.

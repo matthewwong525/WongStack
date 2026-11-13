@@ -21,7 +21,7 @@ node "<source path>/.claude/skills/wong-sync/scripts/preflight.mjs" \
 
 It writes nothing. Follow exactly one route, by the `status` in its versioned JSON:
 
-- `current` — report the source version and commit, selected-unit count, preflight time, and the line `codex-plugin.mjs` beside it prints, run in the target; stop. No plan, change, or record edit.
+- `current` — report the source version and commit, selected-unit count, preflight time, and the line `codex-plugin.mjs` beside it prints, run in the target, which removes old module plugins from Codex; stop. No plan, change, or record edit.
 - `update` — keep the whole report in context and invoke `/plan`, never stopping at *Plan it?*. Start from `changes`; never re-compare the full payload.
 - `error` — report every diagnostic and stop: no partial "current", no `/plan`.
 
@@ -29,7 +29,7 @@ An unknown schema version or status, truncated output, failed command, or invali
 
 Invoke `/plan` with this description, filled in, plus any user instructions:
 
-> Update this repo to WongStack <version> at <source path>, commit <commit>; it now runs <installed version, or unknown>. The preflight found this complete set of changed payload units: <preflight report>. Start there and expand only for a named dependency or target impact. Keep local adaptations and renamed skills. If `CLAUDE.md` is a real file, not a link to `AGENTS.md`, plan its move per <source path>/.claude/skills/wong-sync/references/payload-manifest.md#the-agent-folder. Follow <source path>/.claude/skills/wong-sync/references/payload-manifest.md#planning-an-update for catch-up moves, skipped releases' hand steps, the merge check, and plain wording. Plan the useful updates through the normal workflow. As the last task, after implementation, record the source version in the install record, then run node <source path>/.claude/skills/wong-sync/scripts/codex-plugin.mjs in the target.
+> Update this repo to WongStack <version> at <source path>, commit <commit>; it now runs <installed version, or unknown>. The preflight found this complete set of changed payload units: <preflight report>. Start there and expand only for a named dependency or target impact. Keep local adaptations and renamed skills. If `CLAUDE.md` is a real file, not a link to `AGENTS.md`, plan its move per <source path>/.claude/skills/wong-sync/references/payload-manifest.md#the-agent-folder. Follow <source path>/.claude/skills/wong-sync/references/payload-manifest.md#planning-an-update for catch-up moves, skipped releases' hand steps, the merge check, and plain wording. Plan the useful updates through the normal workflow. As the last task, after implementation, record the source version in the install record, then run node <source path>/.claude/skills/wong-sync/scripts/codex-plugin.mjs in the target to remove old module plugins from Codex.
 
 Pass prior user decisions as context. Use installed skills by their recorded names, else the source's; resolve source resources in the source checkout while working in the target. Provision a missing part by setup's [provisioning runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md) from the source checkout.
 

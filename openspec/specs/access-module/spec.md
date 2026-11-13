@@ -7,7 +7,7 @@ Access as one module any app can add: who signs in, roles and Admin, apps and ke
 
 ### Requirement: Access installs as one module
 
-Access SHALL ship as one folder, with its own start-of-chat check, that every repo with Access holds as a real folder in its skills folder. The folder SHALL import no file outside itself, and SHALL need no other WongStack module to run. A full WongStack install SHALL get it with each update, and WongStack's own app SHALL use the same folder it ships.
+Access SHALL ship as one folder, with its own start-of-chat check, that every repo with Access holds as a real folder in its skills folder. The project's own settings SHALL run that check, never a plugin, so it runs in every chat, trusted folder or not. The folder SHALL import no file outside itself, and SHALL need no other WongStack module to run. A full WongStack install SHALL get it with each update, and WongStack's own app SHALL use the same folder it ships.
 
 #### Scenario: Access alone in an empty repo
 

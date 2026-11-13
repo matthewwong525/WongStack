@@ -5,20 +5,6 @@ Daily is one module any repo can add: check-ins, the journal, the line-up, and `
 
 ## Requirements
 
-### Requirement: Daily installs as one module with its own hooks
-
-Daily SHALL ship as one folder: the daily skill at its root and the schedule command inside it, under one version, with the hooks that run its check-ins and start its worker inside the folder, never in the repo's shared settings files. In every install the folder SHALL be a real folder in the repo's skills folder, so a copy of it brings the hooks. Copied alone, the schedule command SHALL be named `/daily:schedule`; in a WongStack install it SHALL be `/schedule`, a top-level skill, by the payload layout. Either way it SHALL load once. The module SHALL import no file outside its own folder, SHALL link no file in another module's folder, and SHALL need no other module. Each guide SHALL state in its own words how it asks the person a question.
-
-#### Scenario: Installed alone
-
-- **WHEN** Daily's folder is copied into an empty repo with no other WongStack part
-- **THEN** a chat start, a check-in on a stop, and Daily's check all run, nothing reads a file outside the folder, no guide links a file of another module, and `/daily:schedule` shows once in the command list
-
-#### Scenario: In a WongStack install
-
-- **WHEN** a WongStack install opens a chat in a folder the person did not trust
-- **THEN** `/schedule` shows once in the command list and `/daily:schedule` does not show
-
 ### Requirement: A repo plugs into Daily through named slots
 
 A repo SHALL connect Daily to its own parts through one profile file, outside the module's folders: where schedules are kept, who the person is, a chat's saved name, whether a turn already offered choices, what a background run's copy of the repo needs, and a check before a workspace opens on a saved branch. Each slot SHALL be optional, and an empty slot SHALL turn off or simplify only its own part: with no person slot, Daily SHALL know the person by their git email; with no chat-name slot, it SHALL use the chat app's own name; with no choices slot, each stop SHALL go to the check-in. A broken slot SHALL write one journal line and act as empty.
@@ -30,7 +16,7 @@ A repo SHALL connect Daily to its own parts through one profile file, outside th
 
 ### Requirement: Daily works in a repo with no app
 
-With no schedule store in the profile, `/daily:schedule` SHALL save each schedule as a Paseo schedule after the person's OK, when Paseo is on the computer, and SHALL say plainly what it can not do there, such as a check script or a deny list. With neither, `/daily:schedule` SHALL say it needs an app or Paseo, save nothing, and, for a script, give the line the person can add to the computer's own timer, without editing a timer itself. *Keep my chats in line* SHALL then run from Daily's worker on its own pass, with the same limits, and SHALL be pausable by asking. Check-ins, the journal, the morning and pass add-ons, the person's own jobs, and the Needs-you chats SHALL work with no app.
+With no schedule store in the profile, `/schedule` SHALL save each schedule as a Paseo schedule after the person's OK, when Paseo is on the computer, and SHALL say plainly what it can not do there, such as a check script or a deny list. With neither, `/schedule` SHALL say it needs an app or Paseo, save nothing, and, for a script, give the line the person can add to the computer's own timer, without editing a timer itself. *Keep my chats in line* SHALL then run from Daily's worker on its own pass, with the same limits, and SHALL be pausable by asking. Check-ins, the journal, the morning and pass add-ons, the person's own jobs, and the Needs-you chats SHALL work with no app.
 
 #### Scenario: A weekly schedule with Paseo and no app
 
@@ -87,3 +73,17 @@ In a full WongStack install, schedules SHALL stay in the company app with each c
 
 - **WHEN** Jo's WongStack install with three approved schedules takes the update
 - **THEN** the three schedules run at their next times on the same computer with no new OK, each run's chat reads its run guide, and Jo's settings file is unchanged
+
+### Requirement: Daily installs as one module whose hooks the project runs
+
+Daily SHALL ship as one folder: the daily skill at its root and the schedule command inside it, under one version, with the list of the hooks that run its check-ins and start its worker. In every repo the folder SHALL be a real folder in the repo's skills folder, and the project's own settings SHALL run its hooks, never a plugin. The schedule command SHALL be named `/schedule`, a top-level skill, alone or in WongStack, and SHALL load once. The module SHALL import no file outside its own folder, SHALL link no file in another module's folder, and SHALL need no other module. Each guide SHALL state in its own words how it asks the person a question.
+
+#### Scenario: Installed alone
+
+- **WHEN** Daily's setup guide adds the folder to an empty repo with no other WongStack part
+- **THEN** a chat start, a check-in on a stop, and Daily's check all run, nothing reads a file outside the folder, no guide links a file of another module, and `/schedule` shows once in the command list
+
+#### Scenario: In a WongStack install
+
+- **WHEN** a WongStack install opens a chat in a folder the person did not trust
+- **THEN** Daily's start check and stop check run, `/schedule` shows once in the command list, and `/daily:schedule` does not show

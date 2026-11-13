@@ -1,34 +1,22 @@
 #!/usr/bin/env node
 // SessionStart hook. Runs no model and never blocks the session: registers it, prints the profile's lines and the
 // digest, and starts one detached background run. Any failure prints one line.
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCli } from './lib/cli.mjs';
 import { startDaily } from './lib/daily.mjs';
 import { loadDigest, olderNote, profileTopicLines, readCache } from './lib/digest.mjs';
-import { codexPluginName, detached, isMain, loadProfile, openStore, pluginPath, readJson, repoContext, SETUP_GUIDE, spoolList, statePath, writeJson } from './lib/store.mjs';
+import { detached, isMain, loadProfile, openStore, pluginPath, repoContext, SETUP_GUIDE, spoolList, statePath, writeJson } from './lib/store.mjs';
 import { pending, registerSession } from './lib/transcripts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const PLUGIN = dirname(HERE);
 const BUDGET_MS = 1500;
 
 const fallbackInstruction = sessionId => `Memory: past sessions wait for capture, and a background run could not start on its own. Start one background subagent with the smallest capable model. Tell it to follow the "Background run" section of ${pluginPath('SKILL.md')} and to exclude session ${sessionId}. Do not wait for it.`;
 
 const startRun = (ctx, agent, sessionId, more = []) => process.env.WONG_MEMORY_NO_HEADLESS !== '1' && detached(join(HERE, 'run.mjs'), ['--agent', agent, ...more],
   { cwd: ctx.root, env: { ...process.env, WONG_MEMORY_RUN_STARTED: new Date().toISOString(), WONG_MEMORY_EXCLUDE: sessionId } });
-
-const versionOf = dir => readJson(join(dir, '.codex-plugin', 'plugin.json'), {}).version;
-const older = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }) < 0;
-const skillFolder = root => ['.agents', '.claude'].map(dir => join(root, dir, 'skills', 'memory')).find(existsSync);
-
-// Codex runs a copy of memory, which this checkout's skill folder may have moved past.
-export function pluginLines(ctx, agent, { plugin = PLUGIN } = {}) {
-  const own = skillFolder(ctx.root);
-  if (agent !== 'codex' || !own || realpathSync(plugin) === realpathSync(own) || !older(versionOf(plugin), versionOf(own))) return [];
-  return [`Memory: this computer's Codex copy of memory is older than this checkout's; run \`codex plugin marketplace add ${ctx.primaryRoot || ctx.root}\` and \`codex plugin add ${codexPluginName(ctx.root)}\`.`];
-}
 
 // Asked once per chat, so a resume stays quiet; setup starts only on the person's yes.
 function askSetup(ctx, sessionId) {
@@ -57,7 +45,7 @@ async function main(agent) {
   const own = Promise.resolve().then(() => profile.sessionStart?.(ctx, { agent })).then(lines => (Array.isArray(lines) ? lines : []), () => []);
   const localWork = spoolList(ctx).length > 0 || pending(ctx, { exclude: [sessionId] }).length > 0;
   const result = await digest;
-  const out = [...pluginLines(ctx, agent), ...(await own)];
+  const out = await own;
   if (result.error) {
     const signedOut = result.error.kind === 'signin';
     const cache = signedOut || result.error.kind === 'network' ? readCache(ctx) : null;

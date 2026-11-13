@@ -3,7 +3,7 @@ title: It doesn't know how your business works
 problem: Your AI guesses at your processes, because nobody wrote them down where it reads.
 fix: Your know-how is written down once, in pages the AI reads before it works.
 order: 2
-checked: 2026-11-12
+checked: 2026-11-13
 sources:
   - wiki/stack/company-knowledge.md
   - wiki/agent-knowledge-center.md

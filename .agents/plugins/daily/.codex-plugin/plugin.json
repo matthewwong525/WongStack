@@ -1,8 +1,0 @@
-{
-  "name": "daily",
-  "version": "3.0.1",
-  "description": "Daily check-ins for a repo: a background worker, a check at each chat's stop, keeping open chats in line, and schedules.",
-  "author": { "name": "WongStack" },
-  "skills": "./skills/",
-  "hooks": "./hooks/codex.json"
-}

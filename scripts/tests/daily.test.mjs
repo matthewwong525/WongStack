@@ -208,12 +208,12 @@ test('readArgs takes each command with its flags, chief-service as serve, and re
   }
 });
 
-test('commands wire the settings: remind points to /daily:schedule, and a handoff outside a background run is refused', async () => {
+test('commands wire the settings: remind points to /schedule, and a handoff outside a background run is refused', async () => {
   const stateDir = temp('state');
   const config = validateConfig(settings());
   const run = (command, values, env = {}) => commands({ config, project: '/w/main', stateDir, values, call: async () => [], env })[command]();
   assert.deepEqual(await run('remind', { day: '2026-10-23', text: 'Call the bank' }), { status: 'refused', reason: 'schedule', error: REMIND });
-  assert.match(REMIND, /one-time chat schedule.*\/daily:schedule/);
+  assert.match(REMIND, /one-time chat schedule.*\/schedule/);
   const found = join(stateDir, 'found.md');
   writeFileSync(found, '3 invoices are late.\n');
   assert.equal((await run('handoff', { file: found })).reason, 'run');
@@ -542,7 +542,7 @@ test('checkins off and on still answer when the start of the defaults throws', a
   assert.deepEqual(await run('checkins on'), { state: 'on', worker: 'started' });
 });
 
-test("each tool's plugin hooks run mark at start, message and stop; mark writes the card but the stop's, and keeps Paseo's stop mark", () => {
+test("each tool's Daily hooks run mark at start, message and stop; mark writes the card but the stop's, and keeps Paseo's stop mark", () => {
   const read = path => JSON.parse(readFileSync(fileURLToPath(new URL(`../../.agents/${path}`, import.meta.url)), 'utf8')).hooks;
   for (const tool of ['claude', 'codex']) {
     const hooks = read(`plugins/daily/hooks/${tool}.json`);
@@ -551,7 +551,7 @@ test("each tool's plugin hooks run mark at start, message and stop; mark writes 
     assert.equal(runs('SessionStart', 'session-start.mjs"').length, 1, `${tool} SessionStart marks through session-start.mjs`);
     for (const event of ['UserPromptSubmit', 'Stop']) assert.equal(runs(event, 'daily.mjs" mark').length, 1, `${tool} ${event}`);
   }
-  for (const file of ['settings.json', 'hooks.json']) assert.doesNotMatch(JSON.stringify(read(file)), /daily\.mjs|\/stop-check\.mjs/, file);
+  for (const file of ['settings.json', 'hooks.json']) assert.match(JSON.stringify(read(file)), /daily\.mjs\\" mark/, `${file} runs Daily's hooks`);
   for (const tool of ['claude', 'codex']) {
     const home = temp('mark');
     const env = { HOME: home, PASEO_AGENT_ID: 'agent-7' };

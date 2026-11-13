@@ -20,7 +20,8 @@
     "in .claude/skills/<name>/. A nested mapped entry wins over its parent's: the loop's",
     "skills/<name>/ lands in .claude/skills/<name>/, beside .claude/skills/loop/. No folder link ships.",
     "A mapped file entry moves one file: another module's command keeps its folder in the module, and",
-    "only its SKILL.md lands in .claude/skills/<command>/, so the command loads by its bare name in every chat."
+    "only its SKILL.md lands in .claude/skills/<command>/, so the command loads by its bare name in every chat.",
+    "Modules load as plain skills, never plugins; .claude/settings.json and .claude/hooks.json run their hooks."
   ],
   "core": {
     "skillDirs": [
@@ -37,7 +38,6 @@
     ],
     "files": [
       ".claude/settings.json",
-      ".claude-plugin/marketplace.json",
       ".claude/daily/profile.mjs",
       ".claude/hooks.json",
       ".claude/access/slots.json",

@@ -32,6 +32,7 @@ const SPECIFIER = /(\bfrom\s*['"]|\bimport\s*\(\s*['"]|\bimport\s+['"])(\.{1,2}\
 const ROOTED = { script: /(?<!https?:\/\/\S*)\.(?:claude|agents)\/plugins\/[\w.-]+(?:\/[\w.-]+)*/g,
   md: /(?<=--show-toplevel\)\/|\bnode )\.(?:claude|agents)\/plugins\/[\w.-]+(?:\/[\w.-]+)*/g };
 // A module command's `SKILL.md` mapped to a top-level skill: an install names it `/<name>`, not `/<module>:<command>`.
+// Older releases' source still names `/<module>:<command>`, and the preflight rebuilds their base text through this.
 const COMMAND_FILE = /^\.claude\/plugins\/([\w.-]+)\/skills\/([\w.-]+)\/SKILL\.md$/;
 const SKILL_FILE = /^\.claude\/skills\/([\w.-]+)\/SKILL\.md$/;
 const renames = mapped => mapped.flatMap(([from, to]) => {

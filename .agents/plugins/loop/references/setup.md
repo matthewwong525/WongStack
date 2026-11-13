@@ -33,7 +33,7 @@ For Codex, link each command into `.agents/skills/`, unless `.agents` and `.clau
 
 ```bash
 mkdir -p .agents/skills
-for name in explore plan apply save ship verify close; do ln -sfn "../../.claude/skills/$name" ".agents/skills/$name"; done
+for name in explore plan apply save ship verify close; do t=".agents/skills/$name"; { [ -e "$t" ] && [ ! -L "$t" ] && echo "Skipped $t: it is another skill"; } || ln -sfn "../../.claude/skills/$name" "$t"; done
 ```
 
 ## 3. OpenSpec
@@ -70,15 +70,17 @@ Commit the folders and every file you added. Ask before any push.
 ## Update
 
 1. **Stop in a WongStack install** (`.claude/.wong-stack.json`): the loop updates with [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md).
-2. **Find the base:** the newest WongStack commit that set the loop's `.claude-plugin/plugin.json` version.
+2. **Find the base:** the newest WongStack commit that set the loop's version: its `VERSION` file, or, in a copy from before that file, its `.claude-plugin/plugin.json`.
 
    ```bash
-   version=$(node -p "require('./.claude/skills/loop/.claude-plugin/plugin.json').version")
+   dir=.claude/skills/loop
+   if [ -f "$dir/VERSION" ]; then version=$(cat "$dir/VERSION"); file=.agents/plugins/loop/VERSION
+   else version=$(node -p "require('./$dir/.claude-plugin/plugin.json').version"); file=.agents/plugins/loop/.claude-plugin/plugin.json
+   fi
    ws=$(mktemp -d)/ws
    git clone -q --filter=blob:none https://github.com/matthewwong525/WongStack "$ws"
-   manifest=.agents/plugins/loop/.claude-plugin/plugin.json
-   for c in $(git -C "$ws" log --format=%H main -- "$manifest"); do
-     git -C "$ws" show "$c:$manifest" | grep -q "\"version\": \"$version\"" && { base=$c; break; }
+   for c in $(git -C "$ws" log --format=%H main -- "$file"); do
+     git -C "$ws" show "$c:$file" | grep -qE "(^|\")$version(\"|$)" && { base=$c; break; }
    done
    ```
 

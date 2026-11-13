@@ -1,20 +1,20 @@
 # Session memory
 
-Session memory is the repo's private store of **facts**: short typed lines that past chats learned, which the next chat reads at start. It lives outside git, in the repo's own Cloudflare account, so a capture needs no commit and a public repo publishes nothing. [The memory plugin](../../.agents/plugins/memory/README.md) runs it, [its skill](../../.agents/plugins/memory/SKILL.md) is its one door, and this page is the convention. It is one knowledge surface in [the knowledge center](../agent-knowledge-center.md), beside the wiki and OpenSpec.
+Session memory is the repo's private store of **facts**: short typed lines that past chats learned, which the next chat reads at start. It lives outside git, in the repo's own Cloudflare account, so a capture needs no commit and a public repo publishes nothing. [The memory module](../../.agents/plugins/memory/README.md) runs it, [its skill](../../.agents/plugins/memory/SKILL.md) is its one door, and this page is the convention. It is one knowledge surface in [the knowledge center](../agent-knowledge-center.md), beside the wiki and OpenSpec.
 
 ## Three layers
 
 Memory has three parts, so another repo can use it with its own database.
 
-- **The plugin**, [`.agents/plugins/memory/`](../../.agents/plugins/memory/README.md): the hooks, `memory.mjs`, the write gate, capture, the digest, [topics](#topics), and [the tidy](wiki-dream.md). It never names a database.
-- **The store interface**, `store/interface.mjs` in the plugin: twelve named operations, such as `facts`, `write`, and `digest`. The plugin sends only these: never a query, a table name, or an owner. The server writes every query and applies [who sees what](#who-sees-what). `store/contract.mjs` checks that a backend answers each one, each role's limits included.
+- **The module**, [`.agents/plugins/memory/`](../../.agents/plugins/memory/README.md): the hooks, `memory.mjs`, the write gate, capture, the digest, [topics](#topics), and [the tidy](wiki-dream.md). It never names a database.
+- **The store interface**, `store/interface.mjs` in the module: twelve named operations, such as `facts`, `write`, and `digest`. The module sends only these: never a query, a table name, or an owner. The server writes every query and applies [who sees what](#who-sees-what). `store/contract.mjs` checks that a backend answers each one, each role's limits included.
 - **WongStack's extras**, [`.agents/memory/`](../../.agents/memory/profile.mjs): [the profile](#the-profile), the D1 and R2 store behind the app's `/_memory/v2/` route, the sign-in, admin jobs, [code areas](#facts-by-code-area), [company knowledge](../stack/company-knowledge.md), and [the actions catalogue](../stack/company-api.md).
 
 ## The profile
 
-[`.agents/memory/profile.mjs`](../../.agents/memory/profile.mjs) is the one file the plugin loads from the repo; `WONG_MEMORY_PROFILE` can name another. It exports one object. Only `connect` is required, and a missing part turns off only its own feature:
+[`.agents/memory/profile.mjs`](../../.agents/memory/profile.mjs) is the one file the module loads from the repo; `WONG_MEMORY_PROFILE` can name another. It exports one object. Only `connect` is required, and a missing part turns off only its own feature:
 
-| Part | What it gives the plugin |
+| Part | What it gives the module |
 |---|---|
 | `connect` | which store, and how this computer signs in |
 | `topics` | [the topics](#topics): code areas and company pages |
@@ -33,9 +33,9 @@ With no profile, a new chat asks once, *Memory isn't set up yet. Set it up now?*
 Each is a real `.claude/skills/memory/` folder, so Claude Code loads it from the checkout and a branch runs its own memory code.
 
 - **With WongStack.** Each [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) brings the folder.
-- **Alone**, in any other repo: a message pasted from [the plugin's README](../../.agents/plugins/memory/README.md) has the AI follow [the setup guide](../../.agents/plugins/memory/references/setup.md). It copies the folder in, connects or builds a store, writes the profile, and runs the store check, asking before a step that costs money or goes public. A second message updates it and keeps the repo's own edits. In a WongStack install, both stop.
+- **Alone**, in any other repo: a message pasted from [the module's README](../../.agents/plugins/memory/README.md) has the AI follow [the setup guide](../../.agents/plugins/memory/references/setup.md). It copies the folder in, connects or builds a store, writes the profile, and runs the store check, asking before a step that costs money or goes public. A second message updates it and keeps the repo's own edits. In a WongStack install, both stop.
 
-Codex copies the plugin once per computer from the root `.claude-plugin/marketplace.json`: setup or an update installs it here; elsewhere, the next Codex chat names the command. An open Codex chat asks once to trust its hooks; `codex exec` skips them before that.
+The project's settings run memory's hooks, in Claude Code and Codex alike, so no install step runs on each computer. An open Codex chat asks once to trust its hooks; `codex exec` skips them before that.
 
 ## What is stored
 
@@ -55,7 +55,7 @@ Each repo's memory is its own, with two levels, the team or only you, and the ad
 
 ## When memory loads
 
-When a chat starts or resumes, the plugin's start hook prints a **digest** of threads, not facts: the [last daily tidy](wiki-dream.md#the-daily-tidy), every open thread of the change on your branch, one line counting the open threads on other changes by step (`plan 3, save 5; 41 untagged`), [the topic list](#topics), a `Lately:` line with the topics that gained facts this week, [your people page](../wiki-style.md#people) (from [`knowledge/people/`](../stack/company-knowledge.md#what-goes-there) first) cut at 1.5 KB with a line naming the page, then only the preferences you stated since the last tidy. An older preference is on your page or under its topic. Its first lines tell the agent to [recall its task](document-retrieval.md) and [pull](memory-search.md#pull-a-thread) its topics before substantial work, or give a task that spans topics to [the memory helper](memory-search.md#the-memory-helper). Code builds it from one `digest` call, with no model, in under two seconds. It is capped at 40 lines and 6 KB; the last line says how many live facts memory holds. A store older than the plugin lists the newest facts, as before, and the digest says so once. Offline or signed out, the hook prints this computer's cached digest with its age; a refused sign-in turns that off until one succeeds. The digest stays the same for the whole chat, so the prompt cache holds.
+When a chat starts or resumes, memory's start hook prints a **digest** of threads, not facts: the [last daily tidy](wiki-dream.md#the-daily-tidy), every open thread of the change on your branch, one line counting the open threads on other changes by step (`plan 3, save 5; 41 untagged`), [the topic list](#topics), a `Lately:` line with the topics that gained facts this week, [your people page](../wiki-style.md#people) (from [`knowledge/people/`](../stack/company-knowledge.md#what-goes-there) first) cut at 1.5 KB with a line naming the page, then only the preferences you stated since the last tidy. An older preference is on your page or under its topic. Its first lines tell the agent to [recall its task](document-retrieval.md) and [pull](memory-search.md#pull-a-thread) its topics before substantial work, or give a task that spans topics to [the memory helper](memory-search.md#the-memory-helper). Code builds it from one `digest` call, with no model, in under two seconds. It is capped at 40 lines and 6 KB; the last line says how many live facts memory holds. A store older than memory lists the newest facts, as before, and the digest says so once. Offline or signed out, the hook prints this computer's cached digest with its age; a refused sign-in turns that off until one succeeds. The digest stays the same for the whole chat, so the prompt cache holds.
 
 **Before the first edit in a folder**, a hook shows that [area's](#facts-by-code-area) open threads, then its newest live facts, eight lines at most, as [who sees what](#who-sees-what) allows. It fires once per area per chat, on Claude Code's edit tools and Codex's `apply_patch`, and never holds up the edit: no answer within 3 seconds shows nothing.
 
@@ -77,7 +77,7 @@ What a topic does:
 
 ## How facts are captured
 
-- **Capture is the one writer of a chat's facts.** `/save` and `/close` read and write none. When a chat ends, the plugin's end hook keeps its redacted transcript and starts the background run, so the chat's wrap-up and open threads are written before the next chat starts. Codex has no end event: there, the next chat start does both.
+- **Capture is the one writer of a chat's facts.** `/save` and `/close` read and write none. When a chat ends, memory's end hook keeps its redacted transcript and starts the background run, so the chat's wrap-up and open threads are written before the next chat starts. Codex has no end event: there, the next chat start does both.
 - **The background run** records what each ended chat set out to do and what got done, leaves one open thread for each planned piece not done, and closes a thread the chat finished. A chat start also starts one for chats left an hour idle and uncaptured. It runs your agent's command-line tool on its normal model; to choose another, set `WONG_MEMORY_MODEL` (Claude Code) or `WONG_MEMORY_CODEX_MODEL` (Codex) in the hook's environment. The run may only call the memory script and write files in one temp folder outside the repo. It captures at most five chats, newest first, on your model allowance; your next digest reports what it stored. Set `WONG_MEMORY_RUN=1` on a headless `claude -p` probe, or its hook starts a run too.
 - **Struggle notes** record where the assistant had trouble, such as a correction or a step that kept failing. The background run writes one as a `thread` tagged `improve`, by [the writing rule](../../.agents/plugins/memory/references/writing-facts.md), with nothing private; a smooth chat gets none. [`/improve-code`](repository-improvement.md#struggle-notes-come-first) reads them before it chooses and takes the ones about code; [the memory tidy](wiki-dream.md#what-it-reads) takes the ones about memory and the wiki. The run sees only failed steps and what was typed, so a long hunt that never failed gets no note.
 

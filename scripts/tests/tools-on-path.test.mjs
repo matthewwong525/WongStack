@@ -18,6 +18,7 @@ const SETTINGS = '.agents/settings.json';
 const CODEX_HOOKS = '.agents/hooks.json';
 const PLUGIN_HOOKS = '.agents/plugins/memory/hooks/claude.json';
 const DAILY_HOOKS = '.agents/plugins/daily/hooks/claude.json';
+const ACCESS_HOOKS = '.agents/plugins/access/hooks/claude.json';
 const LINE = 'export PATH="$HOME/.local/bin:$PATH"';
 const PREFIX = 'PATH="$HOME/.local/bin:$PATH" ';
 const TOOL = 'wong-fake-tool';
@@ -201,15 +202,16 @@ test("a command that reads the hook's env file finds the tool", unix, t => {
 });
 
 test("every one of Claude Code's node hooks looks in the user folder, and Codex's hook file sets no PATH", unix, () => {
-  const plugin = [PLUGIN_HOOKS, DAILY_HOOKS].flatMap(file => Object.values(JSON.parse(read(file)).hooks).flat().flatMap(group => group.hooks))
+  const plugin = [PLUGIN_HOOKS, DAILY_HOOKS, ACCESS_HOOKS].flatMap(file => Object.values(JSON.parse(read(file)).hooks).flat().flatMap(group => group.hooks))
     .map(hook => hook.command);
   const node = [...allCommands(), ...plugin].filter(command => /(^|\s)node\s/.test(command));
 
-  assert.equal(node.length, 16, `${SETTINGS}, ${PLUGIN_HOOKS} and ${DAILY_HOOKS} should hold sixteen hooks that run node; found ${node.length}`);
+  const own = allCommands().filter(command => /(^|\s)node\s/.test(command)).length;
+  assert.equal(own, 17, `${SETTINGS} should hold seventeen hooks that run node, the modules' included; found ${own}`);
   for (const command of node) {
     assert.ok(command.startsWith(`${PREFIX}node `), `${SETTINGS}: a node hook must start with ${PREFIX}so it finds a Node in the user folder: ${command}`);
   }
   // Codex starts a hook in a login shell, which setup's line reaches; on Windows
   // it uses cmd.exe, where a PATH= prefix is a syntax error.
-  for (const file of [CODEX_HOOKS, '.agents/plugins/memory/hooks/codex.json', '.agents/plugins/daily/hooks/codex.json']) assert.doesNotMatch(read(file), /PATH=/, `${file} must not set PATH`);
+  for (const file of [CODEX_HOOKS, ...['memory', 'daily', 'access'].map(name => `.agents/plugins/${name}/hooks/codex.json`)]) assert.doesNotMatch(read(file), /PATH=/, `${file} must not set PATH`);
 });

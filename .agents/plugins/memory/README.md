@@ -32,7 +32,7 @@ It keeps your own edits to this folder. When one of your edits and a new change 
 
 ## Who sees what
 
-Who sees which fact is the store's decision, never the plugin's. Each repo's memory is its own: nothing goes to or loads from another repo. The store gives each person a role, checked on every call: an admin, a member, or a reader.
+Who sees which fact is the store's decision, never memory's. Each repo's memory is its own: nothing goes to or loads from another repo. The store gives each person a role, checked on every call: an admin, a member, or a reader.
 
 | What | You | Teammates | Admin |
 |---|---|---|---|
@@ -48,14 +48,9 @@ Who sees which fact is the store's decision, never the plugin's. Each repo's mem
 ## What it needs
 
 - **Node 20 or newer** on each computer.
-- **This folder** at `.claude/skills/memory/`, as a real folder. Claude Code loads it from there, with no install step.
+- **This folder** at `.claude/skills/memory/`, as a real folder, linked into `.agents/skills/memory` for Codex. Claude Code and Codex load it from there, with no install step.
+- **Its hooks in your project's settings**, `.claude/settings.json` and `.codex/hooks.json`, so the digest loads in every chat. The setup guide adds them.
 - **A profile**: `.agents/memory/profile.mjs`, outside this folder, so an update never touches it. It says which store to use and how this computer signs in.
 - **A store** that passes the check in [`store/contract.mjs`](store/contract.mjs): your own server, a route in your app, or a new one.
-- **For Codex**, one install on each computer, run from your project's folder:
-
-  ```bash
-  codex plugin marketplace add <this project's folder>
-  codex plugin add memory@wongstack
-  ```
 
 [How WongStack uses memory](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/memory.md) explains the store, who sees what, and capture in full.

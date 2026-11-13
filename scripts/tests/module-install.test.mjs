@@ -2,7 +2,7 @@
 // wiki/maintaining/adding-a-module.md
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { chmodSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { after, test } from 'node:test';
@@ -115,8 +115,8 @@ const CHECKS = {
     const script = (file, args, input, extra) => spawnSync(process.execPath, [join(folder, 'scripts', file), ...args],
       { cwd: root, env: { HOME: home, PATH: bin, WONG_DAILY_WORKER: '0', ...extra }, encoding: 'utf8', input });
 
-    test('daily copied alone keeps its schedule command in its folder, named /daily:schedule', () => {
-      assert.match(readFileSync(join(folder, 'skills/schedule/SKILL.md'), 'utf8'), /^# \/daily:schedule$/m);
+    test('daily copied alone keeps its schedule command in its folder, named /schedule', () => {
+      assert.match(readFileSync(join(folder, 'skills/schedule/SKILL.md'), 'utf8'), /^# \/schedule$/m);
     });
 
     test('daily asks once at a new chat\'s start in a repo with no settings, and not on a resume', () => {
@@ -250,6 +250,28 @@ function otherModuleLinks(name) {
   });
 }
 
+/** The script a hook command runs, with the project folder in place of its variable. */
+const hookScript = (command, root) => command.match(/node "([^"]+)"/)?.[1]
+  .replace('$CLAUDE_PROJECT_DIR', root).replace('$(git rev-parse --show-toplevel)', root);
+
+/** The bash fences of a module's setup guide under its hooks step and its link step, run as a person would. */
+function guideSteps(name) {
+  const guide = readFileSync(join(repo, '.agents/plugins', name, 'references/setup.md'), 'utf8');
+  const fence = heading => guide.split(/^## /m).find(section => heading.test(section))?.match(/^```bash\n([\s\S]*?)^```$/m)?.[1];
+  return { hooks: fence(/^\d+\. Run its hooks\n/), link: fence(/^\d+\. Link [^\n]*\n/) };
+}
+
+const bash = (cwd, script) => spawnSync('bash', ['-c', script], { cwd, encoding: 'utf8' });
+const commandsOf = folder => existsSync(join(folder, 'skills')) ? readdirSync(join(folder, 'skills')) : [];
+
+/** A new git repo, `.claude` apart from `.agents`, with a real copy of the module, as the guide's copy leaves it. */
+function guideProject(name, folder) {
+  const project = mkdtempSync(join(scratch, `${name}-guide-`));
+  execFileSync('git', ['init', '-q', '-b', 'main', project]);
+  cpSync(folder, join(project, '.claude/skills', name), { recursive: true });
+  return project;
+}
+
 // An empty git repo holding only the module, each file where the manifest maps it, and a profile on the stand-in store.
 function installAlone(name) {
   const root = join(scratch, name);
@@ -301,6 +323,39 @@ for (const { name, root, files, check } of installs) {
     assert.deepEqual(brokenImports(root, files.filter(file => /\.m?js$/.test(file))), []);
   });
 
+  test(`${name} copied alone holds no plugin manifest`, () => {
+    assert.deepEqual(['.claude-plugin', '.codex-plugin'].filter(dir => existsSync(join(root, '.agents/skills', name, dir))), []);
+  });
+
+  test(`${name}'s setup guide merges its hooks once and links its commands, by the guide's own steps`, () => {
+    const { hooks, link } = guideSteps(name);
+    const folder = join(root, '.agents/skills', name);
+    if (existsSync(join(folder, 'hooks'))) assert.ok(hooks, 'the guide has no hooks step');
+    if (existsSync(join(folder, 'skills')) && name !== 'loop') assert.ok(link, 'the guide has no link step');
+    const project = guideProject(name, folder);
+    for (const step of [hooks, link, hooks, link].filter(Boolean)) assert.equal(bash(project, step).status, 0, step);
+    for (const [hookFile, settings] of [['claude.json', '.claude/settings.json'], ['codex.json', '.codex/hooks.json']]) {
+      const path = join(folder, 'hooks', hookFile);
+      if (!existsSync(path)) continue;
+      const merged = JSON.parse(readFileSync(join(project, settings), 'utf8')).hooks;
+      for (const [event, groups] of Object.entries(JSON.parse(readFileSync(path, 'utf8')).hooks)) {
+        for (const group of groups) assert.equal(merged[event].filter(other => JSON.stringify(other) === JSON.stringify(group)).length, 1, `${hookFile} ${event}`);
+      }
+      for (const hook of Object.values(merged).flat().flatMap(group => group.hooks)) {
+        const script = hookScript(hook.command, project);
+        assert.ok(script && existsSync(script), `${hookFile}: ${script} is not in the copy`);
+      }
+    }
+    if (!link) return;
+    const own = join(project, '.claude/skills', name);
+    assert.equal(realpathSync(join(project, '.agents/skills', name)), realpathSync(own), 'Codex sees the module');
+    for (const command of commandsOf(folder)) {
+      const skill = realpathSync(join(own, 'skills', command, 'SKILL.md'));
+      assert.equal(realpathSync(join(project, '.claude/skills', command, 'SKILL.md')), skill, command);
+      assert.equal(realpathSync(join(project, '.agents/skills', command, 'SKILL.md')), skill, `${command} for Codex`);
+    }
+  });
+
   if (STANDALONE.includes(name)) {
     test(`${name} links no file in another module's folder`, () => assert.deepEqual(otherModuleLinks(name), []));
 
@@ -308,6 +363,27 @@ for (const { name, root, files, check } of installs) {
       assert.deepEqual(files.filter(file => !file.startsWith(`.agents/skills/${name}/`)), []);
     });
   }
+}
+
+// A guide's link step: a project's own skill of a command's name stays; the module's own earlier copy becomes a link.
+const daily = installs.find(install => install.name === 'daily');
+if (daily) {
+  test("daily's guide leaves a project's own schedule skill in place, and replaces its own earlier copy", () => {
+    const project = guideProject('daily', daily.folder);
+    const own = join(project, '.claude/skills/schedule');
+    mkdirSync(own, { recursive: true });
+    writeFileSync(join(own, 'SKILL.md'), '---\nname: schedule\n---\nThe project\'s own.\n');
+    const run = bash(project, guideSteps('daily').link);
+    assert.equal(run.status, 0, run.stderr);
+    assert.match(run.stdout, /Skipped \/schedule/);
+    assert.ok(!lstatSync(own).isSymbolicLink());
+    assert.equal(readFileSync(join(own, 'SKILL.md'), 'utf8'), '---\nname: schedule\n---\nThe project\'s own.\n');
+    assert.ok(!existsSync(join(project, '.agents/skills/schedule')), 'Codex gets no link to the project\'s skill');
+    rmSync(own, { recursive: true });
+    cpSync(join(project, '.claude/skills/daily/skills/schedule'), own, { recursive: true });
+    assert.equal(bash(project, guideSteps('daily').link).status, 0);
+    assert.ok(lstatSync(own).isSymbolicLink(), 'the earlier copy is now a link');
+  });
 }
 
 // Access with the stand-in store: the owner's first look starts permissions, then the gate lets in only listed people.
