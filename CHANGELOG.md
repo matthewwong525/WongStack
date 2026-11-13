@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Build loop chat names start with an emoji
+
+- **A chat's name starts with one emoji for its build step**, not a capital word and a colon: 🔍 explore, 📝 plan, 🔨 build, 🚀 publish, ✅ done. `PLAN: Fix the invoice total` is now `📝 Fix the invoice total`. The task words stay the same ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **Other commands keep the chat's name.** Typing `/verify`, `/schedule` or another command outside the build steps no longer puts its name in front, such as `VERIFY:`.
+- **Old names still read right.** A chat named the old way, such as `PLAN: Fix the invoice total`, gets its emoji at its next step, with the same task words.
+
+**Updating.** Nothing to do by hand: open chats move to the emoji at their next step.
+
 ## 61.0.0 — Every chat runs WongStack's checks, with no plugins
 
 - **Every chat runs each module's checks, trusted folder or not.** Memory's start digest, Daily's check-ins and stop check, and Access's start check now run from your project's own settings, the same place `/plan`'s checks run from. Before, they ran through a plugin, which loads only in a folder you trusted, so a new Paseo workspace stayed silent.
