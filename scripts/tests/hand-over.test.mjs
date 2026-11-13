@@ -886,6 +886,16 @@ test('a view opens nothing while a turn that is not shared, as a watch\'s, is op
   assert.ok(!existsSync(join(f.state, 'watcher.pid')), 'no watcher starts');
 });
 
+test('a watch opens nothing while its tab stays behind another chat\'s turn', async t => {
+  const f = fixture(t, { window: true });
+  f.openPage();
+  f.set('front-behind');
+  const out = f.run('open', '--watch', '--session', SESSION, '--note', WATCH_NOTE);
+  assert.equal(out.status, 1);
+  assert.match(out.stderr, /The person is using the browser in another chat's tab/);
+  assert.ok(!existsSync(join(f.state, 'watcher.pid')), 'no watcher starts');
+});
+
 test('the browser on request: a window view needs only a note, holds the chat\'s tab as the person\'s turn, reads no page, and ends on close', async t => {
   const f = fixture(t, { window: true });
   f.openPage(null);

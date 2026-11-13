@@ -98,9 +98,9 @@ Once a site accepts the person's login in the personal browser, that login SHALL
 
 ### Requirement: Browsing tasks share the personal browser
 
-Two browsing tasks, or a task and a scheduled run, SHALL each use their own tab in one window of the one personal browser and the same sign-ins, without waiting on each other and without one closing the other's tabs. A new task SHALL NOT open a second window. While the person's turn is open in one task's tab, no other task SHALL switch the window to another tab. Preview checks SHALL NOT use the personal browser or its sign-ins.
+Two browsing tasks, or a task and a scheduled run, SHALL each use their own tab in one window of the one personal browser and the same sign-ins, without waiting on each other and without one closing the other's tabs. A new task SHALL NOT open a second window. Preview checks SHALL NOT use the personal browser or its sign-ins.
 
-While the person's turn is open in another task's tab, a task's click SHALL act in its own tab without showing it: on a target the keyboard can reach and press (a link, a button, a form's send button, a tick box, a choice, a page section's summary, or an element the page marks as a button, link, tab, menu item, tick box, switch, or choice), it SHALL press that target's key at once and report done, and the person's tab SHALL stay shown. Any other target SHALL wait until the turn ends, then be clicked: the task SHALL learn at once that the click waits and SHALL be able to learn when it ran and how; no other step on that task's tab SHALL run before it. With no turn open, a click SHALL work as before.
+While the person's turn is open in another task's tab, a task SHALL read, click, type, choose and resize in its own tab at once: no step SHALL wait for the turn to end, and no step SHALL be refused because of it. When a step shows that task's tab, the turn's tab the person was on SHALL come back to the front right after the step, and a task's request to show its own tab SHALL leave the person's tab in front. With no turn open, every step SHALL work as before.
 
 #### Scenario: A scheduled run during a task
 
@@ -109,8 +109,8 @@ While the person's turn is open in another task's tab, a task's click SHALL act 
 
 #### Scenario: Another chat browses during the person's turn
 
-- **WHEN** a chat browses while the person signs in on another chat's tab
-- **THEN** the second chat works in its own tab, and the person's tab stays the one shown
+- **WHEN** a chat reads, types, and resizes its own tab while the person signs in on another chat's tab
+- **THEN** each step runs at once in the chat's own tab, and the person's tab is the one shown after each
 
 #### Scenario: Another chat clicks a button during the person's turn
 
@@ -120,7 +120,7 @@ While the person's turn is open in another task's tab, a task's click SHALL act 
 #### Scenario: Another chat clicks a mouse-only target during the person's turn
 
 - **WHEN** a chat clicks an element that reacts to no key while the person's turn is open in another chat's tab
-- **THEN** the chat hears at once that the click waits, its other steps on that tab are refused until the click runs, the click runs when the person's turn ends, and the chat can learn that it ran
+- **THEN** the click runs at once, the chat's next step on that tab is not refused, and the person's tab is the one shown
 
 #### Scenario: A preview check
 
@@ -152,12 +152,12 @@ The agent SHALL run the personal browser with its usage and failure reporting sw
 
 ### Requirement: Local proxy upgrades preserve running browsing tasks
 
-An update that changes the proxy default, or a change to the proxy setting, SHALL preserve existing saved logins and SHALL NOT automatically stop an already-running personal browser, close another task's tabs, or interrupt private input. The next deliberate stop and new start SHALL apply the setting, and stopping a browser that started with the proxy SHALL stop its local forwarding listener too.
+An update that changes the proxy default, or a change to the proxy setting, SHALL preserve existing saved logins and SHALL NOT stop a personal browser that a task is using, close another task's tabs, or interrupt private input. The next stop and new start SHALL apply the setting, and stopping a browser that started with the proxy SHALL stop its local forwarding listener too.
 
 #### Scenario: Another task is using the existing browser
 
 - **WHEN** updated browsing code encounters a personal browser already running without the managed local proxy
-- **THEN** the task can keep its pages and logins and the new default takes effect at the next deliberate browser restart
+- **THEN** the task can keep its pages and logins and the new default takes effect at the next browser start
 
 #### Scenario: Stopping the browser
 
@@ -547,3 +547,17 @@ On a computer that shows the person's turn by a live-view link, a chat that need
 
 - **WHEN** the person clicks *Hand back* in the toolbar with two turns open
 - **THEN** both chats are told and the link closes
+
+### Requirement: An updated browser starts by itself
+
+A running personal browser whose own code changed after it started SHALL stop by itself once no task has a tab open or opening in it and no turn is open, so the next browser command starts the new code. It SHALL never stop while a task uses it.
+
+#### Scenario: Idle after an update
+
+- **WHEN** a fix to the browser lands and the last task's tab closes
+- **THEN** the browser stops, and the next task's browser command starts the fixed one
+
+#### Scenario: A task still uses the browser
+
+- **WHEN** the browser's code changed while a task has its tab open
+- **THEN** the browser keeps running, with that task's page and logins
