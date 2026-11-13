@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeJson } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { cardsDir, chatList, findChat, writeCard } from '../../.agents/skills/daily/scripts/chat-list.mjs';
+import { forgetProfile, loadProfile } from '../../.agents/skills/daily/scripts/lib/slot.mjs';
 
 const NOW = Date.parse('2026-11-08T15:00:00Z');
 const HOUR = 3600e3;
@@ -42,6 +43,16 @@ test("a chat in Paseo takes its Paseo title as its name", () => {
   writeJson(join(home, '.paseo', 'agents', 'w-repo', 'agent-7.json'), { id: 'agent-7', title: 'Checkout page' });
   hook(home, { key: 'claude-a', env: { PASEO_AGENT_ID: 'agent-7' } });
   assert.equal(list(home)[0].name, 'Checkout page');
+});
+
+test("a chat outside Paseo takes the profile's step and task as its name, with the step's mark", async t => {
+  const home = temp();
+  const file = join(home, 'profile.mjs');
+  writeFileSync(file, "export default { chatName: () => ({ step: 'APPLY', task: 'Fix the invoice total' }) };\n");
+  t.after(forgetProfile);
+  await loadProfile({ WONG_DAILY_PROFILE: file });
+  hook(home, { key: 'claude-a' });
+  assert.equal(list(home)[0].name, '🔨 Fix the invoice total');
 });
 
 test('a background run, a sub-agent, a notice, a bad key, a bad card or one from another tool writes or lists nothing', () => {

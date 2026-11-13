@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.2.0 — Build loop chat names start with an emoji
+
+- **A chat's name starts with one emoji for its build step**, not a capital word and a colon: 🔍 explore, 📝 plan, 🔨 build, 🚀 publish, ✅ done. `PLAN: Fix the invoice total` is now `📝 Fix the invoice total`. The task words stay the same ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **Other commands keep the chat's name.** Typing `/verify`, `/schedule` or another command outside the build steps no longer puts its name in front, such as `VERIFY:`.
+- **Old names still read right.** A chat named the old way, such as `PLAN: Fix the invoice total`, gets its emoji at its next step, with the same task words.
+
+**Updating.** Nothing to do by hand: open chats move to the emoji at their next step.
+
 ## 61.1.0 — The agent signs in with 1Password's icon and passkeys, and closes its boxes
 
 - **The agent tries 1Password first at every sign-in.** When 1Password's list doesn't open by itself, the agent clicks the small 1Password icon in the email box. It reads only the names of the logins, asks you, and picks one only after your yes, as before.

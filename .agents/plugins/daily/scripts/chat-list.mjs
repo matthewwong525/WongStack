@@ -3,6 +3,7 @@
 import { readdirSync, rmSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join } from 'node:path';
+import { stepName } from './chats.mjs';
 import { codexDayDir } from './lib/transcripts.mjs';
 import { slotNow } from './lib/slot.mjs';
 import { paseoRecord, readJson, sameRepo, writeJson } from './chief.mjs';
@@ -35,7 +36,7 @@ function codexTranscript(key, home, now) {
 /** The chat's name: its Paseo title, else the profile's `chatName`, `{step, task}`, else its folder. */
 function nameOf({ paseoId, key, cwd, home }) {
   const named = paseoRecord(paseoId, home).title ? null : slotNow('chatName', [cwd, paseoId ?? key]);
-  return text(paseoRecord(paseoId, home).title) ?? (named?.step && named.task ? text(`${named.step}: ${named.task}`) : null) ?? basename(cwd);
+  return text(paseoRecord(paseoId, home).title) ?? (named?.step && named.task ? text(stepName(named.step, named.task)) : null) ?? basename(cwd);
 }
 
 /** A hook's card for its chat: `working` from a start or a message, `idle` from a stop, or `state` when given. Not for
