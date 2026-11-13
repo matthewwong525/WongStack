@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · bell-on-waiting-tabs</title>
+<title>Review · 2026-11-13-bell-on-waiting-tabs</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="bell-on-waiting-tabs" data-own-back>
+<body data-change="2026-11-13-bell-on-waiting-tabs" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>bell-on-waiting-tabs</h1>
+  <h1>2026-11-13-bell-on-waiting-tabs</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -494,6 +494,16 @@
 <li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: a chat's mouse-only click still waits until no bell is up, because it would bring its tab over yours.</li>
 <li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: the bell goes in the page's title, because the browser lets the agent change nothing else on a tab; a site that reads its title sees it, which does no harm.</li>
 <li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: plan here despite the 1Password workspace, because its goal differs; only files overlap.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: the add-on's copy and its <code>config.json</code> sit in <code>~/.wong-stack/browser/hand-back</code>, made again at each start, because the key changes each start and the repo must hold no key.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: the button shows the bell icon alone, with <i>Hand back</i> as its tooltip and a count badge, because the browser's toolbar shows add-on buttons as icons.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: no <code>GET /turns?tabId=</code>; each turn's renewal alone carries <code>handedBack</code>, because every watcher already renews each few seconds.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: only a renewal hears a Hand back; a new turn's first hold on the same tab starts afresh, so a late mark never ends a new turn.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: a fitted page behind keeps its size until the last turn ends, because a resize of a page behind would bring it to the front.</li>
+<li class="decision card" id="decision-20" data-note="decision-20" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: a chat link's <code>#chat</code> brings its tab to the front through the fit's resize, once, on first load.</li>
+<li class="decision card" id="decision-21" data-note="decision-21" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: the live view's bar lists each turn's note with its bell, not the site's title, because the note says what to do.</li>
+<li class="decision card" id="decision-22" data-note="decision-22" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: live-view lines say <i>tap Hand back at the top of the browser</i>, not <i>click</i>, because the view's pages say <i>tap</i> and many people open it on a phone; the window's lines say <i>click</i>.</li>
+<li class="decision card" id="decision-23" data-note="decision-23" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: the browser module's version goes to 3.2.0, not 3.1.0, because the main line already holds 3.1.0.</li>
+<li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: archive checkpoint: built, reviewed (one fix: the last turn ends before pages behind get their size back), two-chat live view passed in a throwaway browser with one toolbar Hand back; merged with 61.1.0 (1Password) and 61.2.0, browser module 3.2.0.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

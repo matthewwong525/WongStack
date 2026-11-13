@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — A bell on each tab that waits on you, and one Hand back in the browser
+## 61.3.0 — A bell on each tab that waits on you, and one Hand back in the browser
 
 - **Each tab that waits on you shows 🔔 in its title.** When a sign-in, a payment, a robot check, or a stuck step needs you, its chat's tab gets the bell, in the browser window and in a live view. The site can change the title; the bell comes back.
 - **One *Hand back* button sits at the top of the browser.** Its number counts the tabs that wait on you. One click ends every open turn, and each chat carries on. Saying *done* in a chat still ends only that chat's turn.

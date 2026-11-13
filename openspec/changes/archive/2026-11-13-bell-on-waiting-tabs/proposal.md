@@ -1,5 +1,9 @@
 # A bell on each tab that waits on you, and one Hand back in the browser
 
+**Status:** ready-to-ship
+**Branch:** afraid-liger
+**Open questions:** none
+
 ## Why
 
 When several chats work in the agent's browser at once, every tab shows only the site's own name. In the live view and in the window on your Mac, you can't tell which tab needs you. On the Mac, only one chat can wait on you at a time, and you say *done* in each chat. In the live view, *Hand back* tells only one chat at a time.
@@ -75,3 +79,4 @@ None.
 - **2026-11-13** — Assumed: the live view's bar lists each turn's note with its bell, not the site's title, because the note says what to do.
 - **2026-11-13** — Assumed: live-view lines say *tap Hand back at the top of the browser*, not *click*, because the view's pages say *tap* and many people open it on a phone; the window's lines say *click*.
 - **2026-11-13** — Assumed: the browser module's version goes to 3.2.0, not 3.1.0, because the main line already holds 3.1.0.
+- **2026-11-13** — Assumed: archive checkpoint: built, reviewed (one fix: the last turn ends before pages behind get their size back), two-chat live view passed in a throwaway browser with one toolbar Hand back; merged with 61.1.0 (1Password) and 61.2.0, browser module 3.2.0.
