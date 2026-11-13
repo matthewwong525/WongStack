@@ -28,14 +28,16 @@ Right after it adds a password manager, the agent opens its own page and [sends 
 
 ## Use it at a sign-in
 
-When a site needs a login and 1Password is unlocked, the agent signs in with it, after your yes:
+When a site needs a login or a passkey and 1Password is unlocked, the agent signs in with it, after your yes:
 
-1. `addon logins` reads only the names of the logins 1Password offers for the site.
-2. The agent asks you, every time: the login, the site, and the numbered steps it will take once signed in.
-3. On your yes, `addon pick <n>` picks that login, once. 1Password fills the page, and the agent clicks the site's sign-in. It sees the password box only as filled.
+1. `addon logins` reads only the names of the logins 1Password offers for the site. When its list does not open by itself, it clicks 1Password's icon in the login box. For a passkey, the agent first presses the site's passkey button; `addon logins` then reads the names in 1Password's *Sign in with a passkey* box.
+2. The agent asks you, every time: the login or passkey, the site, and the numbered steps it will take once signed in.
+3. On your yes, `addon pick <n>` picks that login, once. 1Password fills the page, and the agent clicks the site's sign-in. It sees the password box only as filled. For a passkey, it presses that box's sign-in once.
 4. The agent does only the steps you said yes to. Another step asks again, and an action that sends, pays, or posts keeps its own yes. Its end report names the steps it did.
 
-A pick needs a fresh `addon logins` on the same page, within 2 minutes; the code refuses any other order. When 1Password is locked, has no login for the site, or you say no, you sign in yourself in a sign-in turn, as below.
+A pick needs a fresh `addon logins` on the same page, within 2 minutes; the code refuses any other order. When 1Password is locked, has no login for the site, or you say no, you sign in yourself in a sign-in turn, as below. A passkey on your own phone or computer stays yours: [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
+
+1Password's own boxes over the page, such as *Save login?*, the agent closes at once with `addon close`, with no ask. It presses only the box's own close button, by its name (*Close*, *Dismiss*, *Not now*, or *No thanks*), so nothing goes into your vault and no setting changes; never *Save*, *Update*, or *Never*. A box with no such button stays: you close it in a live view.
 
 In [the browser window](browser-window.md#your-turn-in-the-window), use it as in your own Firefox. In a live view, with the one the agent added:
 
@@ -47,7 +49,7 @@ On the password manager's page, the page fits your phone or laptop, as a site do
 
 Each add-on's button is on the toolbar, from the second start of a new browser. Its small pop-up also works in a live view: it stays open until you pick from it or tap outside it. Tap its box, then type, such as your password to unlock it ([a pop-up stays open](../skills/hand-over/references/live-view.md#what-the-link-can-do)).
 
-Apart from that one pick, the agent's own steps skip the password manager, and every other add-on. `snapshot` leaves out their frames, and a click, typing, a key, or a choice aimed at one stops with `BROWSE_ERROR=that is the password manager's own; the person uses it in the live view`. While its page shows in the tab, every step but a new address stops the same way, and the agent can not see that page.
+Apart from the icon, that one pick, and a box's close, the agent's own steps skip the password manager, and every other add-on. `snapshot` leaves out their frames, and a click, typing, a key, or a choice aimed at one stops with `BROWSE_ERROR=that is the password manager's own; the person uses it in the live view`, which names `addon close` while a box of its own shows. While its page shows in the tab, every step but a new address stops the same way, and the agent can not see that page.
 
 ## Keep it safe
 
