@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · build-loop-emoji-prefixes</title>
+<title>Review · 2026-11-13-build-loop-emoji-prefixes</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="build-loop-emoji-prefixes" data-own-back>
+<body data-change="2026-11-13-build-loop-emoji-prefixes" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>build-loop-emoji-prefixes</h1>
+  <h1>2026-11-13-build-loop-emoji-prefixes</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -474,6 +474,10 @@
 <li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: 🔍 explore, 📝 plan, 🔨 apply, 🚀 ship, ✅ done, because each is a common picture for its step and one character wide in most chat lists.</li>
 <li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: the step words stay inside the code (<code>set PLAN</code>, the saved state), and only the shown name changes, because skills, the Daily chat list and tests read those words.</li>
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: old word names are still stripped, because chats named before this release must keep their task words.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: Daily's <code>VERSION</code> rises to 4.1.0, a minor step, because its <code>chats.mjs</code> and <code>chat-list.mjs</code> change and the module-version check needs a new number.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: the plan-first and safe-changes attachments keep their text with <code>checked:</code> set to today, because neither names a chat's name.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: the <code>/verify</code>-keeps-the-name half of task 3.2 is shown by feeding the Claude hook <code>/verify x</code> in this Paseo chat, because a helper can not type into the chat; the hook wrote nothing and the Paseo name stayed <code>🔨 Build loop chat names start with an emoji</code>.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: a saved step with no mark, such as <code>VERIFY</code> from before this release, shows its task words alone, because the review found it showed <code>undefined &lt;task&gt;</code> and the plan says old names keep their task words.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

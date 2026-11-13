@@ -1,6 +1,6 @@
 # Build loop chat names start with an emoji
 
-**Status:** ready-to-build
+**Status:** ready-to-ship
 **Branch:** build-loop-emoji-prefixes
 **Open questions:** none
 

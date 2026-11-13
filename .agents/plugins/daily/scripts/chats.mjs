@@ -9,7 +9,7 @@ export const STEP_MARKS = { EXPLORE: '🔍', PLAN: '📝', APPLY: '🔨', SHIP: 
 export const STEPS = Object.keys(STEP_MARKS);
 /** A typed loop verb's step; null waits for its skill's `set`, because it can plan or build first. */
 export const LOOP_STEPS = { explore: 'EXPLORE', plan: 'PLAN', 'improve-code': 'PLAN', apply: null, continue: null, ship: null };
-/** The name a host shows for a step and its task words; a step with no mark, such as an old `VERIFY`, shows the task. */
+/** A host's name for a step and its task words; a step with no mark, such as an old `VERIFY`, shows the task. */
 export const stepName = (step, task) => (STEP_MARKS[step] ? `${STEP_MARKS[step]} ${task}` : task);
 /** An old name's skill word: its name in capitals minus `wong-`, as `VERIFY: x` was written before the marks. */
 export const skillStep = name => name.replace(/^wong-/, '').toUpperCase();

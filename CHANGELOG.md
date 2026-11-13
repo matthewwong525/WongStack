@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Build loop chat names start with an emoji
+## 61.2.0 — Build loop chat names start with an emoji
 
 - **A chat's name starts with one emoji for its build step**, not a capital word and a colon: 🔍 explore, 📝 plan, 🔨 build, 🚀 publish, ✅ done. `PLAN: Fix the invoice total` is now `📝 Fix the invoice total`. The task words stay the same ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
 - **Other commands keep the chat's name.** Typing `/verify`, `/schedule` or another command outside the build steps no longer puts its name in front, such as `VERIFY:`.
