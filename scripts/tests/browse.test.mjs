@@ -1216,6 +1216,27 @@ test('addon logins prints the offered login names only, and addon pick prints th
   assert.equal(refused.status, 1);
   assert.equal(refused.stdout, 'BROWSE_ERROR=run `browse.mjs addon logins` first\n');
   assert.equal(f.run('addon', 'pick').status, 2, 'pick needs its number');
+  f.camofox.unset('pick-refused');
+  f.camofox.set('fill-list', { state: 'passkey', names: ['Shopify · info@example.com'] });
+  assert.equal(on('addon', 'logins').stdout, 'BROWSE_ADDON_LOGIN=1 | passkey: Shopify · info@example.com\n', 'a passkey says so');
+  f.camofox.set('pick-passkey');
+  assert.equal(on('addon', 'pick', '1').stdout, 'BROWSE_ADDON_PICKED=passkey\n');
+});
+
+test('addon close prints how many of the password manager\'s boxes closed, or the server\'s refusal', t => {
+  const f = fixture(t);
+  const on = (...args) => f.run(...args, '--session', 'a');
+  ok(f, 'open', SHOP, '--session', 'a');
+  assert.equal(on('addon', 'close').stdout, 'BROWSE_ADDON_CLOSED=0\n');
+  f.camofox.set('boxes-closed', '1');
+  assert.equal(on('addon', 'close').stdout, 'BROWSE_ADDON_CLOSED=1\n');
+  assert.deepEqual(f.camofox.requests().filter(({ path }) => path.endsWith('/closeBoxes')).at(-1).body, { userId: 'me' });
+  f.camofox.set('close-refused', "the password manager's box has no close button; the person closes it in the live view");
+  const refused = on('addon', 'close');
+  assert.equal(refused.status, 1);
+  assert.equal(refused.stdout, "BROWSE_ERROR=the password manager's box has no close button; the person closes it in the live view\n");
+  assert.equal(f.run('addon', 'close', 'x').status, 2, 'close takes no word');
+  assert.match(f.run('--help').stdout, /addon close +close the password manager's boxes over the page/);
 });
 
 test('no password manager question: install, status and a task\'s first open print no offer, and asked and decline are gone', t => {
@@ -1226,7 +1247,7 @@ test('no password manager question: install, status and a task\'s first open pri
   for (const verb of ['asked', 'decline']) {
     const out = f.run('addon', verb);
     assert.equal(out.status, 2, verb);
-    assert.match(out.stderr, /addon takes find, add, open, logins, pick, status, or remove/);
+    assert.match(out.stderr, /addon takes find, add, open, logins, pick, close, status, or remove/);
   }
   assert.doesNotMatch(f.run('--help').stdout, /asked|decline/);
 });
