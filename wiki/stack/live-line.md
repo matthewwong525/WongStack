@@ -15,13 +15,13 @@ The app never sends a command, a prompt, or code. Your computer ignores any othe
 
 Your computer also keeps its own limits, so even a broken-into app can't open chat after chat:
 
-- **A run starts once.** The helper notes each run it starts in `~/.wong-stack/helper/runs.json` and refuses the same run again (`repeat`).
+- **A run starts once.** The helper notes each run it starts in its folder's `runs.json` and refuses the same run again (`repeat`).
 - **A schedule starts no more often than it allows**: its `authority.minIntervalMs`, or every 10 minutes at most when it sets none (`too_soon`). A schedule meant to run more often needs that field set.
 - **Rounds stay 1 second apart**, however many *look now* messages arrive.
 
 A refused run is kept as not started, with its reason, and goes in [the log](#the-log). When the helper can't read or write `runs.json`, it starts nothing (`no_ledger`).
 
-The helper starts a run in the folder the schedule names, which must exist on this computer and not be a temporary workspace (`no_folder`). Paseo schedules from all your project folders signed in to that app go up to the app together.
+The helper starts a run in the folder the schedule names, which must exist on this computer and not be a temporary workspace (`no_folder`). It checks your OK with its own project's sign-in. Paseo schedules from the project folders it serves go up to the app together.
 
 A line belongs to one person in one app. Ana's tap never wakes Ben's computer. The line closes when your sign-in expires, and your computer opens it again with a fresh one. A web page from another site can't open yours: the app checks where the request came from.
 
@@ -33,13 +33,17 @@ When the line drops, your computer goes back to checking every 10 seconds, and r
 
 ## The helper
 
-A small background program, the helper, holds the line. [`helper.mjs`](../../.agents/skills/reply-link/scripts/helper.mjs) installs it so it starts with the computer and runs as you, never with more rights than your chats:
+A small background program, the helper, holds the line. Each project has its own helper, which runs that project's code and serves only that project's app, schedules and inbox items. So one project's update never stops another project's schedules. [`helper.mjs`](../../.agents/skills/reply-link/scripts/helper.mjs) installs the helper of the project you run it from, so it starts with the computer and runs as you, never with more rights than your chats:
 
-- **Linux:** a systemd user service, `wongstack-helper.service`, kept running after you log out. When your chats run as root, as on a server, it is a system service that runs as root.
-- **macOS:** a LaunchAgent, `com.wongstack.helper.plist`.
+- **Linux:** a systemd user service, `wongstack-helper@<id>.service`, kept running after you log out. `<id>` is the project's main folder name and a short code of its path, such as `myapp-1a2b3c4d`. All projects share one template unit, `wongstack-helper@.service`. When your chats run as root, as on a server, it is a system service that runs as root.
+- **macOS:** a LaunchAgent, `com.wongstack.helper.<id>.plist`.
 - **Other systems:** no service. Each chat that starts runs the helper while it is needed.
 
-Setup offers to install it once, in its tools question; an update asks first. Each chat that starts restarts it if it stopped. The service runs a small launcher in `~/.wong-stack/helper/` that starts the helper from your main project folder, never from a workspace a tidy-up may delete. The helper stores no new secret: it signs in through `cloudflared`, as your chats do.
+Setup offers to install it once, in its tools question; an update asks first. Each chat that starts restarts its project's helper if it stopped, or if the project's main folder holds newer code. Another project's newer code never moves it. The service runs a small launcher in `~/.wong-stack/helpers/<id>/` that starts the helper from your main project folder, never from a workspace a tidy-up may delete. That folder also holds the helper's `runs.json`, [its log](#the-log), and its open inbox items. The helper stores no new secret: it signs in through `cloudflared`, as your chats do. Your OKs stay in one file for all projects, `~/.wong-stack/helper/approved.json`, because each OK names its app.
+
+### The old shared helper
+
+Before one helper per project, one helper, `wongstack-helper.service`, served every project in `~/.wong-stack/helper/folders.json`. It still serves each project that has no helper of its own. A chat in such a project starts it only when it stopped. It never points it at that project's copy: when one project's newer copy moved it, the shared helper read every project's sign-in the way that copy does, found none for the other apps, and refused their runs. `helper.mjs install` moves a project off it: it removes the project from `folders.json`, copies the started runs into the project's own `runs.json` so no run starts twice or too soon, and moves the project's open inbox items. It does this only after the project's service starts: a first install that fails leaves the project on the shared helper. The project's helper does this again each round, and within a second of a change to `folders.json` or the shared items, in case an older chat lists the project again. A shared helper on current code skips each project that has its own helper. Install at a quiet minute, not on the hour: until its next round, the shared helper may still claim one due run.
 
 The helper warns when your computer's Node is older than [the minimum with current security fixes](../development/required-tools.md#nodes-minimum), and keeps working.
 
@@ -49,11 +53,11 @@ The helper warns when your computer's Node is older than [the minimum with curre
 node .claude/skills/reply-link/scripts/helper.mjs uninstall
 ```
 
-It no longer starts with the computer. Taps then arrive by checking while a chat runs, as before. Schedules on the app's clock wait until it is back: a run due meanwhile starts once then, or shows as *Missed* if it is too late. `helper.mjs status` says whether it is installed and running; `helper.mjs install` puts it back.
+This project's helper no longer starts with the computer. Its open inbox items and started runs go back to the old shared helper. When the shared helper is installed, it serves the project again from the next chat. When it is not, taps arrive by checking while a chat runs, as before. Schedules on the app's clock wait until it is back: a run due meanwhile starts once then, or shows as *Missed* if it is too late. `helper.mjs status` says whether it is installed and running, and `SHARED=yes` while the old shared helper still lists the project; `helper.mjs install` puts it back.
 
 ## The log
 
-The helper writes one line per delivered tap, started or refused run, and ignored message to `~/.wong-stack/helper/log.jsonl`, so you can see everything the app caused. A started run's line also holds any workspace warning, such as a workspace that kept Paseo's name. It never holds a message's text. It starts over once it reaches 1 MB, keeping the one before.
+The helper writes one line per delivered tap, started or refused run, and ignored message to `~/.wong-stack/helpers/<id>/log.jsonl`, so you can see everything the app caused. A started run's line also holds any workspace warning, such as a workspace that kept Paseo's name. The old shared helper writes to `~/.wong-stack/helper/log.jsonl`. It never holds a message's text. It starts over once it reaches 1 MB, keeping the one before.
 
 ## Its own Worker
 
@@ -85,7 +89,7 @@ The line is one Durable Object per person, [`line.ts`](../../app/worker/apps/inb
   ```
 
   [`line-stand-in.mjs`](../../scripts/line-stand-in.mjs) prints each message it hears, with the seconds since it joined, and closes on Ctrl-C. It refuses any address but this computer's, so it never reaches a live app. Put a test plan the way a chat does, a `PUT` to `/apps/inbox/api/item` with an id of 32 hex characters and `"actions": ["approve"]`. Tap it in the inbox, which needs a button in the plan's HTML that posts `inbox:tap`, or send the inbox's tap yourself: a `POST` to `/apps/inbox/api/tap` with the item, `approve` and its version. The stand-in prints `{"t":"look"}` within a second; the plan alone wakes only the inbox. Close the test item after, with a `POST` to `/apps/inbox/api/item-close`.
-- **Then on the live app, after publishing.** `helper.mjs status` says the helper is running. Tap a test plan in the live inbox and time it reaching its chat; the tap shows in `~/.wong-stack/helper/log.jsonl`. Close the test item and any test schedule after.
+- **Then on the live app, after publishing.** `helper.mjs status` says the helper is running. Tap a test plan in the live inbox and time it reaching its chat; the tap shows in `~/.wong-stack/helpers/<id>/log.jsonl`. Close the test item and any test schedule after.
 - **Answer every goodbye.** Its `webSocketClose` closes the socket back. Without it, the computer waits 10 seconds and sees the line drop (`1006`), not close.
 - **Walk it from a script**, signed in as you: give [`companyClient`](../../scripts/employee-bootstrap.mjs) a `stateDir` holding a `target.json` that names the app's origin. The folder must be private (`0700`) and the file `0600`, or it refuses. Open `/apps/inbox/api/line?computer=<32 hex>`, then make an item, tap it, and time the *look now*.
 

@@ -35,6 +35,8 @@ The approval stays on the computer, not in the app, because the app must not be 
 
 So a schedule changed somewhere else, a team copy, or any schedule on a new computer waits for your OK in a chat on that computer. The Inbox shows it as *Needs your OK*, with the computer's name. On a computer two people share, each person's OKs are kept apart.
 
+A run is refused as `not_approved` when the person signed in has no OK on its version. When this computer has no sign-in to the schedule's app, the run is refused as `not_signed_in` and the Inbox shows *didn't start, this computer isn't signed in*, not *Needs your OK*: an OK can't fix it, so sign in again.
+
 The chat shows the app's text as a quote. It never acts on that text; only your answer approves it.
 
 ## Where it runs

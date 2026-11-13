@@ -27,7 +27,7 @@ async function ask(client, route, method, body) {
 }
 
 /** `{schedule, origin, email}` when the claimed run may start, else `{reason}`: the app's schedule, its version
- *  recomputed here, the signed-in person's OK on that version, not ended, and a real folder. */
+ *  recomputed here, a sign-in (`not_signed_in`), that person's OK on the version, not ended, and a real folder. */
 export async function checkRun(run, { client, env = process.env, email = signedInAs }) {
   if (!KEY.test(run?.key ?? '') || !VERSION.test(run?.revision ?? '')) return { reason: 'unknown_key' };
   let found;
@@ -39,7 +39,9 @@ export async function checkRun(run, { client, env = process.env, email = signedI
   const version = scheduleVersion(heldDefinition(schedule));
   if (version !== schedule.version || version !== run.revision) return { reason: 'changed' };
   const origin = client.target(), who = origin && email(origin);
-  if (!who || approvedVersion({ origin, email: who, key: run.key }, env) !== version) return { reason: 'not_approved' };
+  // No sign-in here is told apart from a missing OK: an OK can not fix it.
+  if (!who) return { reason: 'not_signed_in' };
+  if (approvedVersion({ origin, email: who, key: run.key }, env) !== version) return { reason: 'not_approved' };
   if (!runnableFolder(schedule.run?.cwd)) return { reason: 'no_folder' };
   return { schedule, origin, email: who };
 }
@@ -164,14 +166,16 @@ export function scheduleApp(project, connect = () => companyFor(project)) {
   };
 }
 
-/** `{schedule}` when the run may start, else `{reason}`: the signed-in person's OK on this version, the app's same
- * version, not ended, and a folder in `project`. */
+/** `{schedule}` when the run may start, else `{reason}`: a sign-in here (`not_signed_in`), the signed-in person's OK
+ * on this version, the app's same version, not ended, and a folder in `project`. */
 export async function checkHandedRun(event, { app, project, env = process.env }) {
   let origin, held;
   try { origin = await app.origin(); held = origin && await app.schedule(event.key); } catch { return { reason: 'no_app' }; }
   if (!origin) return { reason: 'no_app' };
   const email = String(event.email).toLowerCase();
-  if (app.email(origin) !== email || approvedVersion({ origin, email, key: event.key }, env) !== event.version) return { reason: 'not_approved' };
+  const who = app.email(origin);
+  if (!who) return { reason: 'not_signed_in' };
+  if (who !== email || approvedVersion({ origin, email, key: event.key }, env) !== event.version) return { reason: 'not_approved' };
   if (!held || held.kind !== 'background' || held.version !== event.version || scheduleVersion(heldDefinition(held)) !== event.version) {
     return { reason: 'changed' };
   }

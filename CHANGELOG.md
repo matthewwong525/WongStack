@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.5.0 — Each project runs its own background helper, and a run with no sign-in says so
+
+- **Each project gets its own background helper.** It runs that project's own code and sign-in, and serves only that project's app, schedules and inbox taps. Another project's update can no longer stop your schedules with *needs your OK* ([the helper](wiki/stack/live-line.md#the-helper)).
+- **Nothing to approve again.** Your OKs stay in one file for all projects, because each OK names its app. A project's helper takes over the runs that already started and its open inbox taps, so no run starts twice or too soon, and each tap arrives once.
+- **The old shared helper stays for projects with no helper of their own.** A chat never points it at its own project's copy again; it only starts it when it stopped ([the old shared helper](wiki/stack/live-line.md#the-old-shared-helper)).
+- **A run that can't see your sign-in says so.** When this computer isn't signed in to the app, the run shows *didn't start, this computer isn't signed in*, not *Needs your OK*, and the page asks for no OK ([the OK on each computer](wiki/stack/host-schedules.md#the-ok-on-each-computer)).
+
+**Updating.** In each project on this computer that used the background helper, say yes to install the project's own helper: `node .claude/skills/reply-link/scripts/helper.mjs install`. It makes the helper start with the computer and moves the project off the shared one. Do it at a quiet minute, not on the hour or a 5-minute mark, so the shared helper claims no due run in between.
+
 ## 61.4.0 — Another chat's browser turn never stops your chat
 
 - **Your chat's own tab always works.** While you have a turn in another chat's tab, this chat reads, clicks, types, and resizes in its own tab at once. Before, a click on a part of a page that takes no key waited for your turn to end, and every later step on that page was refused, for as long as a live view stayed open.

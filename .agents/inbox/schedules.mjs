@@ -168,7 +168,7 @@ export const check = (event, { project, env }) => checkHandedRun(event, { app: s
 export async function extra(command, values, args, world) {
   const { root, env } = world;
   if (command === 'hosts') {
-    const app = await (world.appHost ?? appHost)({ service: () => helperService(env), client: () => connect(world) });
+    const app = await (world.appHost ?? appHost)({ service: () => helperService(env, {}, root), client: () => connect(world) });
     return { preferred: selectHost({ enclosing: 'paseo', available: [app, { name: 'paseo', supported: true }] }).name, app };
   }
   if (command === 'mirror') {

@@ -43,6 +43,7 @@ it('says how a run went, and a run with no work as nothing to do', () => {
   expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'blocked', result: 'checkins_off' })).toBe("didn't start, check-ins are off")
   expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'failed', result: 'open_failed' })).toBe("didn't start, the chat couldn't open")
   expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'blocked', result: 'not_approved' })).toBe("didn't start, needs your OK")
+  expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'blocked', result: 'not_signed_in' })).toBe("didn't start, this computer isn't signed in")
   expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'blocked', result: 'already_running' })).toBe("didn't start, it's already running")
   expect(outcome({ id: 'r', key: 'k', dueAt: NOW, source: 'clock', state: 'failed', result: 'something_new' })).toBe("didn't start")
 })

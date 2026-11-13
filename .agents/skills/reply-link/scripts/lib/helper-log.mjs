@@ -8,12 +8,13 @@ const FIELDS = ['event', 'app', 'item', 'tap', 'action', 'outcome', 'key', 'run'
 const LONG = { warning: 1000 };
 export const LOG_LIMIT = 1024 * 1024;
 
-/** Appends `entry`'s allowed fields to ~/.wong-stack/helper/log.jsonl, rolled to log.1.jsonl at 1 MB. Never throws. */
-export function logAction(entry, { env = process.env, now = Date.now } = {}) {
+/** Appends `entry`'s allowed fields to the helper's log.jsonl, rolled to log.1.jsonl at 1 MB: project `root`'s own
+ *  helper's, or with none the shared ~/.wong-stack/helper/log.jsonl. Never throws. */
+export function logAction(entry, { env = process.env, root = null, now = Date.now } = {}) {
   const line = { at: new Date(now()).toISOString() };
   for (const field of FIELDS) if (entry?.[field] != null) line[field] = String(entry[field]).slice(0, LONG[field] ?? 200);
   try {
-    const { dir, log } = helperFiles(env);
+    const { dir, log } = helperFiles(env, root);
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     let size = 0;
     try { size = statSync(log).size; } catch { /* no log yet */ }

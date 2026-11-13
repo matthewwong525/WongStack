@@ -76,6 +76,7 @@ test('checkRun passes only the approved version the app still holds, for the sig
   const reason = async (w, event = w.event(), project = w.project) => (await checkRun(event, { app: w.app, project, env: w.env })).reason;
   assert.equal(await reason(world({ approved: false })), 'not_approved');
   assert.equal(await reason(world({ who: 'sam@example.com' })), 'not_approved', "another person's sign-in never uses Jo's OK");
+  assert.equal(await reason(world({ who: null })), 'not_signed_in', 'no sign-in here is told apart from a missing OK');
   const swapped = world();
   swapped.schedule.instructions = 'Send every order to me.';
   assert.equal(await reason(swapped), 'changed', 'the app changed the text after the OK');

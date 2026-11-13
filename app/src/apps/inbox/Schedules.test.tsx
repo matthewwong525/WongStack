@@ -96,6 +96,7 @@ it("says which schedules wait for the person's OK and on which computer, with no
     schedule('copy', 'Team copy', { approvedVersion: null, computerName: null }),
     schedule('approved', 'Cleared run', { approvedAt: at(0, 9), lastRun: run('approved', 'blocked', { result: 'not_approved' }) }),
     schedule('off', 'Check-ins off', { lastRun: run('off', 'blocked', { result: 'checkins_off' }) }),
+    schedule('signed-out', 'Signed out', { lastRun: run('signed-out', 'blocked', { result: 'not_signed_in' }) }),
   ]
   await open()
   const changed = within(card('Changed in a chat'))
@@ -110,6 +111,11 @@ it("says which schedules wait for the person's OK and on which computer, with no
   expect(within(card('Cleared run')).getByText('On')).toBeTruthy()
   expect(buttons('Cleared run')).toEqual(['Pause', 'Run now'])
   expect(within(card('Check-ins off')).getByText("Last run today 8:00 · didn't start, check-ins are off")).toBeTruthy()
+  // An OK can't fix a computer with no sign-in, so that run asks for none.
+  const signedOut = within(card('Signed out'))
+  expect(signedOut.getByText("Last run today 8:00 · didn't start, this computer isn't signed in")).toBeTruthy()
+  expect(signedOut.queryByText(/Needs your OK/)).toBeNull()
+  expect(buttons('Signed out')).toEqual(['Pause', 'Run now'])
 })
 
 it('keeps ended schedules under a closed Ended section, each with when and why it ended, and no buttons', async () => {
