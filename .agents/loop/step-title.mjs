@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// A chat's name starts with its step or typed command: wiki/development/the-change-loop.md#what-each-step-may-change.
-// One file per chat keeps the step and task words; every host it can reach gets the whole name `<STEP>: <task>`.
+// A chat's name starts with its loop step's mark: wiki/development/the-change-loop.md#what-each-step-may-change.
+// One file per chat keeps the step and task words; every host it can reach gets the whole name `<mark> <task>`.
 import { execFileSync, spawn } from 'node:child_process';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../skills/memory/scripts/lib/cli.mjs';
-import { LOOP_STEPS, STEPS, skillStep, withoutStep } from '../skills/daily/scripts/chats.mjs';
+import { LOOP_STEPS, STEPS, stepName, withoutStep } from '../skills/daily/scripts/chats.mjs';
 import { paseoRecord } from '../skills/daily/scripts/chief.mjs';
 import { findPaseo, runPaseo } from '../skills/daily/scripts/lib/paseo.mjs';
 import { PLACEHOLDERS, renameArgs } from '../skills/daily/skills/schedule/scripts/workspace.mjs';
@@ -15,8 +15,8 @@ import { PLACEHOLDERS, renameArgs } from '../skills/daily/skills/schedule/script
 const USAGE = `usage: step-title.mjs set <STEP> [--task <words>]   a skill moves this chat to STEP
 --task words, cut at a word to 60 characters, replace the earlier ones unless the person renamed the chat in Paseo.
        step-title.mjs hook --agent claude|codex [--event session-start]   a hook; reads the hook JSON on stdin
-STEP is one of EXPLORE, PLAN, APPLY, SHIP, DONE. The hook gives a step only for a typed command: /explore EXPLORE,
-/plan or /improve-code PLAN, another repo skill its name in capitals (/verify VERIFY, /schedule SCHEDULE); /apply, /ship none.
+STEP is one of EXPLORE, PLAN, APPLY, SHIP, DONE, shown as 🔍 📝 🔨 🚀 ✅. The hook gives a step only for a typed loop
+command: /explore EXPLORE, /plan or /improve-code PLAN; /apply, /ship and every other skill none.
 Always exits 0 and prints STEP_TITLE=<title> or STEP_TITLE=skipped <reason>.`;
 
 export { STEPS, withoutStep };
@@ -34,12 +34,10 @@ export function verbOf(prompt) {
   return VERBS.has(name) ? { loop: true } : { other: true };
 }
 
-/** A typed command's step: a loop verb's own, or another repo skill's name in capitals minus `wong-`; else null. */
-export function commandStep(prompt, top) {
+/** A typed loop verb's own step, else null: another skill keeps the chat's name. */
+export function commandStep(prompt) {
   const name = SKILL.exec(String(prompt ?? '').trim())?.[1];
-  if (!name) return null;
-  if (VERBS.has(name)) return LOOP_STEPS[name];
-  return top && !name.includes(':') && existsSync(join(top, '.claude', 'skills', name, 'SKILL.md')) ? skillStep(name) : null;
+  return VERBS.has(name) ? LOOP_STEPS[name] : null;
 }
 
 const squash = text => String(text ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -81,7 +79,7 @@ export function nextState(state, { step, task = null }) {
   };
 }
 
-export const titleOf = state => (state?.step && state.task ? `${state.step}: ${state.task}` : null);
+export const titleOf = state => (state?.step && state.task ? stepName(state.step, state.task) : null);
 
 /** The chat's folder facts: its git common dir and whether it is a linked worktree; null outside git. */
 export function folderOf(cwd) {
@@ -115,7 +113,7 @@ export function skipReason({ env, folder, record }) {
   return null;
 }
 
-/** The task words from the host's name: Paseo's chat name, minus a step word. */
+/** The task words from the host's name: Paseo's chat name, minus a step mark or old step word. */
 const hostTask = record => goodTask(cutWords(withoutStep(record?.title)));
 const sameWords = title => squash(withoutStep(title));
 
@@ -204,12 +202,12 @@ export async function setStep({ step, task, env = process.env, cwd = process.cwd
   return [`STEP_TITLE=${title}`, ...failed.map(reason => `STEP_TITLE_WARNING=${reason}`)].join('\n');
 }
 
-/** The hook's state: only a typed repo command gives a step. With no task words yet, take the host's name unless it
- * copies the message or a command, else the first clause. /compact changes nothing. */
-function stateFor(prompt, before, record, top) {
+/** The hook's state: only a typed loop command gives a step. With no task words yet, take the host's name unless it
+ * copies the message or a command, else the first clause. Any other skill, such as /verify, changes nothing. */
+function stateFor(prompt, before, record) {
   const { loop, other } = verbOf(prompt);
-  const step = commandStep(prompt, top);
-  if ((other && !step) || (before && !loop && !other)) return before;
+  if (other || (before && !loop)) return before;
+  const step = commandStep(prompt);
   const base = before ?? { step: null, task: null, taskFrom: null, shown: null, seen: null };
   const next = { ...base, step: step ?? base.step };
   if (base.task) return next.step === base.step ? before : next;
@@ -233,7 +231,7 @@ export function hookTurn({ input, agent, event, env = process.env, home = homedi
   let state = adopted;
   let write = null;
   if (!start) {
-    state = stateFor(input?.prompt, adopted, record, folder.top);
+    state = stateFor(input?.prompt, adopted, record);
     if (titleOf(state) !== titleOf(adopted)) write = titleOf(state);
     if (write) state = withSeen(state, record, write);
   }

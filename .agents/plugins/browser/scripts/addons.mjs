@@ -419,10 +419,13 @@ export const ADDON_VERBS = {
   logins: [0, async page => console.log(loginLines(await page.logins()).join('\n'))],
   pick: [1, async (page, [number]) => {
     if (!/^[1-9]\d*$/.test(number)) throw new BrowseError('addon pick takes the number addon logins printed before the login');
-    await page.pick(Number(number));
-    console.log('BROWSE_ADDON_PICKED=filled');
+    const { passkey } = await page.pick(Number(number));
+    console.log(`BROWSE_ADDON_PICKED=${passkey ? 'passkey' : 'filled'}`);
   }],
+  close: [0, async page => console.log(`BROWSE_ADDON_CLOSED=${(await page.closeBoxes()).closed ?? 0}`)],
 };
 
-/** The lines `addon logins` prints: each offered login's number and name, else `locked` or `none`. */
-export const loginLines = ({ state, names = [] }) => (state === 'list' ? names.map((name, at) => `BROWSE_ADDON_LOGIN=${at + 1} | ${name}`) : [`BROWSE_ADDON_LOGIN=${state === 'locked' ? 'locked' : 'none'}`]);
+/** The lines `addon logins` prints: each offered login's or passkey's number and name, else `locked` or `none`. */
+export const loginLines = ({ state, names = [] }) => (['list', 'passkey'].includes(state)
+  ? names.map((name, at) => `BROWSE_ADDON_LOGIN=${at + 1} | ${state === 'passkey' ? 'passkey: ' : ''}${name}`)
+  : [`BROWSE_ADDON_LOGIN=${state === 'locked' ? 'locked' : 'none'}`]);

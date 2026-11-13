@@ -12,6 +12,23 @@
 
 **Updating.** Nothing to do by hand. The *Hand back* button shows after the browser's next start; until then, say *done* in each chat to end its turn.
 
+## 61.2.0 — Build loop chat names start with an emoji
+
+- **A chat's name starts with one emoji for its build step**, not a capital word and a colon: 🔍 explore, 📝 plan, 🔨 build, 🚀 publish, ✅ done. `PLAN: Fix the invoice total` is now `📝 Fix the invoice total`. The task words stay the same ([the change loop](wiki/development/the-change-loop.md#what-each-step-may-change)).
+- **Other commands keep the chat's name.** Typing `/verify`, `/schedule` or another command outside the build steps no longer puts its name in front, such as `VERIFY:`.
+- **Old names still read right.** A chat named the old way, such as `PLAN: Fix the invoice total`, gets its emoji at its next step, with the same task words.
+
+**Updating.** Nothing to do by hand: open chats move to the emoji at their next step.
+
+## 61.1.0 — The agent signs in with 1Password's icon and passkeys, and closes its boxes
+
+- **The agent tries 1Password first at every sign-in.** When 1Password's list doesn't open by itself, the agent clicks the small 1Password icon in the email box. It reads only the names of the logins, asks you, and picks one only after your yes, as before.
+- **A passkey saved in your 1Password works too.** The agent presses the site's passkey button, reads the passkey names in 1Password's box, and asks you: the passkey, the site, and the steps it will take once signed in. After your yes, it presses that box's sign-in once. A passkey on your own phone or computer stays yours.
+- **The agent closes 1Password's boxes by itself.** When a box such as *Save login?* covers the page, the agent presses the box's own close button and goes on, with no ask and no live view. It never presses *Save*, *Update*, or *Never*, so nothing goes into your vault. A box with no close button still comes to you in a live view.
+- **Every other click in 1Password stays blocked**, and the agent still never unlocks it.
+
+**Updating.** Nothing to do by hand. The browser uses the new steps from its next start.
+
 ## 61.0.0 — Every chat runs WongStack's checks, with no plugins
 
 - **Every chat runs each module's checks, trusted folder or not.** Memory's start digest, Daily's check-ins and stop check, and Access's start check now run from your project's own settings, the same place `/plan`'s checks run from. Before, they ran through a plugin, which loads only in a folder you trusted, so a new Paseo workspace stayed silent.

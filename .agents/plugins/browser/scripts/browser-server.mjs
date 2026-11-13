@@ -108,14 +108,24 @@ const inAddonFrame = frame => {
   return false;
 };
 
+const KEY_IN_BOX = "a password manager's box shows on this page, and a key could press its buttons";
 const LIST_OPEN = "the password manager's fill list is open on this page, and a key could pick a login from it: pick through `browse.mjs addon logins` and `addon pick`, or close the list with `press Escape` first";
 
 /** Refuses a step aimed at the password manager's frame by selector or keyboard (a ref never names one), and, while its
  * fill list shows, any key but Escape: arrow keys and Enter in the page's own box pick from that list. */
 async function guardAddon(page, name, { ref, selector, key, pressEnter, submit }) {
-  if (!ref && await aimedAtAddon(page, selector)) throw refusal(403, ADDON_REFUSAL);
+  if (!ref && await aimedAtAddon(page, selector)) throw await addonRefusal(page);
   const keys = name === 'press' ? !/^escape$/i.test(String(key ?? '').trim()) : name === 'type' && Boolean(pressEnter || submit);
-  if (keys && await addonFrameShown(page)) throw refusal(403, LIST_OPEN);
+  if (keys && await addonFrameShown(page)) throw await keyRefusal(page);
+}
+
+/** The refusal of a key while a password manager's frame shows: its fill list's, else one naming `addon close` while
+ * a box of its own covers the page, which Escape does not close. */
+async function keyRefusal(page) {
+  const list = fillList(page);
+  const element = list ? await list.frameElement().catch(() => null) : null;
+  if (list && (!element || await element.isVisible().catch(() => true))) return refusal(403, LIST_OPEN);
+  return refusal(403, (await hintBoxes(page)).length ? `${KEY_IN_BOX}${BOX_HINT}` : KEY_IN_BOX);
 }
 
 /** Whether a password manager's frame shows on the page; one whose element can not be read counts as shown. */
@@ -125,6 +135,11 @@ async function addonFrameShown(page) {
     if (!element || await element.isVisible().catch(() => true)) return true;
   }
   return false;
+}
+
+/** The refusal of a step aimed at the password manager, pointing to `addon close` while a box of its own shows. */
+async function addonRefusal(page) {
+  return refusal(403, (await hintBoxes(page)).length ? `${ADDON_REFUSAL}${BOX_HINT}` : ADDON_REFUSAL);
 }
 
 /** Whether `selector`, or the keyboard with none, reaches the password manager's frame; an error counts as no. */
@@ -171,6 +186,115 @@ const NO_OFFER = 'run `browse.mjs addon logins` on this page and ask the person 
 
 const fillList = page => page.frames().find(frame => FILL_LIST.test(frame.url()));
 
+// 1Password draws its icon in a closed shadow root no locator reaches (tried 2026-11-13), so the page finds it where
+// it shows in the login box. It runs in the page with that box, so it uses nothing outside.
+const ICON_TAGS = ['com-1password-button'];
+const ICON_AT = (box, tags) => {
+  const { left, top, right, bottom } = box.getBoundingClientRect();
+  const hits = [];
+  for (let x = left; x < right; x += 4) {
+    for (let y = top; y < bottom; y += 4) if (tags.includes(box.ownerDocument.elementFromPoint(x, y)?.localName)) hits.push([x, y]);
+  }
+  const mid = axis => hits.reduce((sum, hit) => sum + hit[axis], 0) / hits.length;
+  return hits.length ? { x: mid(0), y: mid(1) } : null;
+};
+const ICON_MS = 1500;
+
+/** Clicks the password manager's icon in the login box, once, where the page shows it; false with none there. */
+async function clickIcon(page, box) {
+  const at = await box.evaluate(ICON_AT, ICON_TAGS, { timeout: 3000 }).catch(() => null);
+  if (!at) return false;
+  await page.mouse.click(at.x, at.y);
+  return true;
+}
+
+/** 1Password's page for a box over the page, such as *Save login?* or its passkey box. */
+const BOX_PAGE = /^moz-extension:\/\/[^/]+\/inline\/notification\/notification\.html/i;
+const PASSKEY_TITLE = { name: 'Sign in with a passkey', exact: true };
+const PASSKEY_ROW = 'li button';
+const PASSKEY_SIGN_IN = { name: 'Sign in', exact: true };
+const PASSKEY_MS = 10_000;
+/** The passkey box's offer, `{names, locked}`: each `row`'s text, or the one passkey's beside its *Sign in* button.
+ * It runs in the box's frame, so it uses nothing outside. */
+const PASSKEY_OFFER = (body, row) => {
+  const line = element => element.innerText.split('\n').map(part => part.trim()).filter(part => part && part !== 'Sign in').join(' · ').slice(0, 200);
+  const rows = [...body.querySelectorAll(row)];
+  const button = rows.length ? null : [...body.querySelectorAll('button')].find(found => found.innerText.trim() === 'Sign in');
+  let single = button?.parentElement;
+  while (single && !line(single)) single = single.parentElement;
+  const names = rows.length ? rows.map(line) : single ? [line(single)] : [];
+  return { names, locked: !names.length && /unlock/i.test(body.innerText) };
+};
+
+const isPasskeyBox = async frame => BOX_PAGE.test(frame.url()) && await frame.getByRole('heading', PASSKEY_TITLE).count().catch(() => 0) > 0;
+
+/** The shown passkey box, or null. */
+async function passkeyBox(page) {
+  for (const frame of await shownBoxes(page)) if (await isPasskeyBox(frame)) return frame;
+  return null;
+}
+
+/** The boxes a refusal points to `addon close` for: all but the passkey box, whose close would drop a sign-in. */
+async function hintBoxes(page) {
+  const boxes = [];
+  for (const frame of await shownBoxes(page)) if (!(await isPasskeyBox(frame))) boxes.push(frame);
+  return boxes;
+}
+
+/** The passkey box's offer as `offeredLogins` gives it: `{state: 'passkey', names, box}`, `locked`, or `none`. */
+async function offeredPasskeys(box) {
+  const { names = [], locked = false } = await box.locator('body').evaluate(PASSKEY_OFFER, PASSKEY_ROW, { timeout: 3000 }).catch(() => ({}));
+  return names.length ? { state: 'passkey', names, box } : { state: locked ? 'locked' : 'none', names: [] };
+}
+
+/** Presses passkey `n`'s sign-in once its name is still the one read, then waits for the box to go, as it does once
+ * signed in. */
+async function pickPasskey(page, n, name) {
+  const box = await passkeyBox(page);
+  const { names } = box ? await offeredPasskeys(box) : { names: [] };
+  if (names[n - 1] !== name) throw refusal(409, 'the password manager no longer offers that passkey here; read the logins again and ask the person again');
+  const rows = box.locator(PASSKEY_ROW);
+  await clickOn(await rows.count() ? rows.nth(n - 1) : box.getByRole('button', PASSKEY_SIGN_IN));
+  if (!(await gone(page, [box], PASSKEY_MS))) throw refusal(502, 'the password manager did not sign in with the passkey');
+}
+
+// Its own close button's names, or the X's; never *Save*, *Update*, or *Never*, which save or change a setting.
+const CLOSE_NAMES = /^(close|dismiss|dismiss banner|not now|no thanks)$/i;
+const CLOSE_MS = 3000;
+const BOX_HINT = '; a box of its own covers the page: close it with browse.mjs addon close';
+const NO_CLOSE = "the password manager's box has no close button; the person closes it in the live view";
+
+/** Each shown frame of the password manager's but its fill list, which Escape closes: its boxes over the page. */
+async function shownBoxes(page) {
+  const shown = [];
+  for (const frame of page.frames().filter(frame => inAddonFrame(frame) && !FILL_LIST.test(frame.url()) && !inAddonFrame(frame.parentFrame?.() ?? null))) {
+    const element = await frame.frameElement().catch(() => null);
+    if (element && await element.isVisible().catch(() => false)) shown.push(frame);
+  }
+  return shown;
+}
+
+/** Whether every one of `frames` on `page` went, hidden or detached, within `wait`. */
+async function gone(page, frames, wait) {
+  for (const end = Date.now() + wait; Date.now() < end; await sleep(LIST_POLL_MS)) {
+    if (!(await shownBoxes(page)).some(frame => frames.includes(frame))) return true;
+  }
+  return false;
+}
+
+/** Closes each box by its own close button: none pressed unless every box has one. Resolves to how many closed. */
+async function closeBoxes(page) {
+  const boxes = await shownBoxes(page);
+  const buttons = await Promise.all(boxes.map(async frame => {
+    const button = frame.getByRole('button', { name: CLOSE_NAMES }).first();
+    return await button.count().catch(() => 0) ? button : null;
+  }));
+  if (buttons.includes(null)) throw refusal(403, NO_CLOSE);
+  for (const button of buttons) await clickOn(button);
+  if (boxes.length && !(await gone(page, boxes, CLOSE_MS))) throw refusal(502, "the password manager's box did not close; the person closes it in the live view");
+  return boxes.length;
+}
+
 async function loginBox(page) {
   for (const selector of LOGIN_BOXES) {
     const box = page.locator(selector).first();
@@ -182,18 +306,26 @@ async function loginBox(page) {
 /** Each login row's visible text, one line each; nothing else in the list is read. */
 const rowNames = list => list.locator(LOGIN_ROW).evaluateAll(rows => rows.map(row => row.innerText.split('\n').map(line => line.trim()).filter(Boolean).join(' · ').slice(0, 200)));
 
-/** Focuses the login box and waits for the password manager's list there: `{state: 'list', names, box}`, `locked`
- * when it asks to unlock, or `none`. A key press opens the list when focus alone does not. */
+/** A shown passkey box's passkeys, else the login box's list: `{state: 'list', names, box}`, `locked`, or `none`. A
+ * key opens the list when focus alone does not, and then the add-on's icon in the box. */
 async function offeredLogins(page) {
+  const passkeys = await passkeyBox(page);
+  if (passkeys) return offeredPasskeys(passkeys);
   const box = await loginBox(page);
   if (!box) return { state: 'none', names: [] };
   await box.focus({ timeout: 3000 });
-  for (let end = Date.now() + LIST_MS, pressed = 0; Date.now() < end; await sleep(LIST_POLL_MS)) {
+  const start = Date.now();
+  for (let end = start + LIST_MS, pressed = 0, clicked = false; Date.now() < end; await sleep(LIST_POLL_MS)) {
     const list = fillList(page);
     if (list && new URL(list.url()).searchParams.get('locked') !== 'false') return { state: 'locked', names: [] };
     const names = list ? await rowNames(list).catch(() => []) : [];
     if (names.length) return { state: 'list', names, box };
-    if (!list && Date.now() - pressed >= LIST_PRESS_MS) {
+    if (list) continue;
+    if (!clicked && Date.now() - start >= ICON_MS) {
+      clicked = true;
+      if (await clickIcon(page, box)) pressed = Date.now();
+    }
+    if (Date.now() - pressed >= LIST_PRESS_MS) {
       await box.press('ArrowDown', { timeout: 3000 });
       pressed = Date.now();
     }
@@ -204,8 +336,8 @@ async function offeredLogins(page) {
 /** Clicks login `n` once its name is still the one read, then waits for a box to change and the page's password box,
  * or the login box of a 2-step sign-in, to hold a value: a pre-filled email alone is no fill. */
 async function pickLogin(page, n, name) {
-  const { names, box } = await offeredLogins(page);
-  if (names[n - 1] !== name) throw refusal(409, 'the password manager no longer offers that login here; read the logins again and ask the person again');
+  const { state, names, box } = await offeredLogins(page);
+  if (state !== 'list' || names[n - 1] !== name) throw refusal(409, 'the password manager no longer offers that login here; read the logins again and ask the person again');
   const before = await box.evaluateHandle(BOX_VALUES);
   try {
     await clickOn(fillList(page).locator(LOGIN_ROW).nth(n - 1));
@@ -276,7 +408,7 @@ async function refLocator(tab, ref) {
     info = tab.refs.get(ref);
   }
   if (!info) throw refusal(409, `${ref} is not on the page now; read the page again and use a current ref`);
-  if (info.frame && inAddonFrame(info.frame)) throw refusal(403, ADDON_REFUSAL);
+  if (info.frame && inAddonFrame(info.frame)) throw await addonRefusal(tab.page);
   const scope = info.frame ?? tab.page;
   return (info.name ? scope.getByRole(info.role, { name: info.name, exact: true }) : scope.getByRole(info.role)).nth(info.nth);
 }
@@ -386,10 +518,10 @@ const ACTIONS = {
     await tab.page.bringToFront();
     return { ok: true };
   },
-  /** The one opening in the add-on guard: the login names offered here, kept with the address for one pick. */
+  /** The one opening in the add-on guard: the login or passkey names here, kept with the address for one pick. */
   async logins(tab) {
     const { state, names } = await offeredLogins(tab.page);
-    tab.offer = state === 'list' ? { url: tab.page.url(), names, at: Date.now() } : null;
+    tab.offer = state === 'list' || state === 'passkey' ? { url: tab.page.url(), names, at: Date.now(), passkey: state === 'passkey' } : null;
     return { ok: true, state, names };
   },
   async pick(tab, { n }) {
@@ -397,8 +529,13 @@ const ACTIONS = {
     tab.offer = null;
     if (!offer || offer.url !== tab.page.url() || Date.now() - offer.at > PICK_MS) throw refusal(409, NO_OFFER);
     if (!Number.isInteger(n) || n < 1 || n > offer.names.length) throw refusal(400, `pick takes a login number from 1 to ${offer.names.length}`);
-    await pickLogin(tab.page, n, offer.names[n - 1]);
-    return { ok: true, filled: true };
+    if (!offer.passkey) await pickLogin(tab.page, n, offer.names[n - 1]);
+    else await pickPasskey(tab.page, n, offer.names[n - 1]);
+    return { ok: true, ...(offer.passkey ? { passkey: true } : { filled: true }) };
+  },
+  /** The other opening: each box of the password manager's over the page, closed by its own close button. */
+  async closeBoxes(tab) {
+    return { ok: true, closed: await closeBoxes(tab.page) };
   },
 };
 // Only these actions keep the refs: the rest can change the page.
@@ -406,9 +543,9 @@ const KEEPS_REFS = new Set(['type', 'select', 'evaluate', 'viewport', 'front', '
 // The agent's own steps, which never reach the password manager; only these run while its page shows.
 const GUARDED = new Set(['click', 'type', 'select', 'press']);
 const OPEN_ON_ADDON = new Set(['navigate', 'front']);
-// A resize, and a pick's click in the add-on's list, show the tab, so they wait for the person's turn; a click goes
-// by key or waits (`clickBehind`), and typing, a key, a choice, reading, and a picture stay behind.
-const SHOWS_TAB = new Set(['viewport', 'pick']);
+// A resize, and a click in the add-on's list, icon, or box, show the tab, so they wait for the person's turn; a click
+// goes by key or waits (`clickBehind`), and typing, a key, a choice, reading, and a picture stay behind.
+const SHOWS_TAB = new Set(['viewport', 'logins', 'pick', 'closeBoxes']);
 
 /** The request's JSON body, or {} with none. */
 async function readBody(request) {

@@ -53,10 +53,13 @@ const USAGE = `usage: browse.mjs <command> [--session <name>]
                                 browser ships
   addon open                    open the newest password manager's page, else the newest add-on's, in this
                                 task's tab, for the person in a live view
-  addon logins                  the logins the password manager's fill list offers for this page, by name only:
-                                BROWSE_ADDON_LOGIN=<n> | <name> each, or BROWSE_ADDON_LOGIN=locked|none
-  addon pick <n>                after the person's yes, pick login <n> from the list addon logins read on this
-                                page in the last 2 minutes, once; prints BROWSE_ADDON_PICKED=filled
+  addon logins                  the logins the password manager offers for this page, by name only, opening its
+                                list by its icon in the login box when needed: BROWSE_ADDON_LOGIN=<n> | <name>
+                                each, <n> | passkey: <name> for its passkey box, or BROWSE_ADDON_LOGIN=locked|none
+  addon pick <n>                after the person's yes, pick login or passkey <n> from what addon logins read on
+                                this page in the last 2 minutes, once; prints BROWSE_ADDON_PICKED=filled|passkey
+  addon close                   close the password manager's boxes over the page, such as Save login?, by their
+                                own close button, saving nothing; prints BROWSE_ADDON_CLOSED=<count>
   addon status                  BROWSE_ADDON=<name> for each added add-on, or BROWSE_ADDON=none
   addon remove [<name>]         take out the add-on its slug or name names, with its stored data; no name
                                 takes out the only one`;
@@ -761,6 +764,8 @@ export function client(given, { retry = true, start = true } = {}) {
     logins: () => onTab(tabId => json('POST', `/tabs/${tabId}/logins`, { userId: USER })),
     /** Picks login `n` from the list `logins` read last; the server refuses any other order. */
     pick: n => onTab(tabId => json('POST', `/tabs/${tabId}/pick`, { userId: USER, n })),
+    /** Closes the password manager's boxes over the page by their own close buttons: `{closed}`. */
+    closeBoxes: () => onTab(tabId => json('POST', `/tabs/${tabId}/closeBoxes`, { userId: USER })),
     /** A use the server counts, so it keeps an idle page open; it reads and changes nothing on the page. */
     keepAlive: () => evaluate('1'),
     async value(target) {
@@ -855,7 +860,7 @@ const QUIET = new Set(['click', 'type', 'press', 'select']);
 function addonRunner([verb, ...words], usage) {
   return async (page, _, flags) => {
     const { ADDON_VERBS } = await import('./addons.mjs');
-    if (!Object.hasOwn(ADDON_VERBS, verb)) usage('addon takes find, add, open, logins, pick, status, or remove');
+    if (!Object.hasOwn(ADDON_VERBS, verb)) usage('addon takes find, add, open, logins, pick, close, status, or remove');
     const [count, runner] = ADDON_VERBS[verb];
     const [least, most = least] = [count].flat();
     const counted = least === most ? least : `${least} or ${most}`;

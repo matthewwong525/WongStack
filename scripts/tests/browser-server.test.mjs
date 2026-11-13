@@ -34,7 +34,7 @@ function element(localName, { type = '', attributes = {}, tabIndex = 0, disabled
 /** A frame whose text is `yaml`; its locators record each step in `calls`. A click throws each `clickFails` error. */
 function stubFrame(calls, { url = 'about:blank', name = '', yaml = '' } = {}) {
   // `addonTargets` are the selectors that find the password manager's frame in the page; `rows` its fill list's login
-  // names; `boxes: false` finds no box; `visible` is its element's; `elements`, each locator's.
+  // names; `boxes: false` finds no box, `counts` a locator's own; `visible` its element's; `elements` each locator's.
   const frame = { yaml, clickFails: [], detached: false, addonTargets: [], rows: [], boxes: true, visible: true, elements: {} };
   // `dom`, when set, is the stand-in page a box's script or the frame element's runs in: `{document, login, element}`.
   const locator = desc => ({
@@ -57,7 +57,7 @@ function stubFrame(calls, { url = 'about:blank', name = '', yaml = '' } = {}) {
     },
     fill: async text => { calls.push(['fill', desc, text]); },
     focus: async () => { calls.push(['focus', desc]); frame.elements[desc]?.focus(); },
-    count: async () => (frame.boxes ? 1 : 0),
+    count: async () => frame.counts?.[desc] ?? (frame.boxes ? 1 : 0),
     evaluateAll: async () => (desc === 'css:[role="menuitem"].entry' ? frame.rows : frame.addonTargets.includes(desc)),
     selectOption: async choice => {
       calls.push(['select', desc, choice]);
@@ -97,6 +97,7 @@ function stubPage(calls, yaml, frames = []) {
     getByRole: main.getByRole,
     focus: async selector => { calls.push(['focus', `css:${selector}`]); },
     keyboard: { type: async (text, options) => { calls.push(['keys', text, options]); }, press: async key => { calls.push(['press', key]); } },
+    mouse: { click: async (x, y) => { calls.push(['mouse', x, y]); calls.onMouse?.(); } },
     // The page is 1100x663, and the browser's bar 85 pixels: the window is that much taller than the page.
     evaluate: async expression => {
       if (expression === 'window.opener = null') calls.push(['no opener']);
@@ -394,7 +395,7 @@ test('a step that never ends times out, and the next step on that tab still runs
 
 test("the password manager's frames, page and keyboard are the person's: the agent never reads or uses them", async () => {
   const context = stubContext('- button "Go"', calls => {
-    const manager = stubFrame(calls, { url: 'moz-extension://pm-uuid/inline/menu.html', yaml: '- button "Fill Card number"\n- textbox "Search vault"' });
+    const manager = stubFrame(calls, { url: 'moz-extension://pm-uuid/inline/menu/menu.html?locked=false', yaml: '- button "Fill Card number"\n- textbox "Search vault"' });
     const inner = stubFrame(calls, { url: 'https://shop.example.test/inner', yaml: '- button "Inside"\n- textbox "Code"' });
     inner.parent = manager;
     return [manager, inner];
@@ -567,6 +568,104 @@ test("the one opening: logins reads the fill list's login names, and one pick of
     assert.deepEqual((await post('logins')).body, { ok: true, state: 'none', names: [] }, 'no list within 3 seconds');
     page.main.boxes = false;
     assert.deepEqual((await post('logins')).body, { ok: true, state: 'none', names: [] }, 'no login box');
+  } finally { await close(); }
+});
+
+test('the icon in the login box opens the list when a key does not; a passkey box offers its passkeys for one pick', async () => {
+  const context = stubContext('- textbox "Email"');
+  const { call, close } = await serve(context);
+  try {
+    const { tabId } = (await open(call)).body;
+    const page = context.opened[0];
+    const post = (route, body) => call('POST', `/tabs/${tabId}/${route}`, { userId: 'me', ...body });
+    const list = stubFrame(page.calls, { url: 'moz-extension://op-uuid/inline/menu/menu.html?locked=false' });
+    list.rows = ['Shopify · info@example.com'];
+    // 1Password's icon shows at the box's right end, in a host the page sees but no locator reaches.
+    const icon = { localName: 'com-1password-button' };
+    const document = { elementFromPoint: (x, y) => (x >= 280 && x < 296 && y >= 58 && y < 74 ? icon : { localName: 'input' }) };
+    const login = { value: '', ownerDocument: document, getBoundingClientRect: () => ({ left: 100, top: 50, right: 300, bottom: 80 }) };
+    page.main.dom = { login, document: { querySelectorAll: () => [] } };
+    page.calls.onMouse = () => { if (!page.extra.includes(list)) page.extra.push(list); };
+    assert.deepEqual((await post('logins')).body, { ok: true, state: 'list', names: list.rows });
+    assert.deepEqual(page.calls.filter(([step]) => step === 'mouse'), [['mouse', 286, 64]], 'one click, at the icon\'s middle');
+    assert.ok(page.calls.some(([step, , key]) => step === 'press' && key === 'ArrowDown'), 'a key first');
+
+    page.extra.length = 0;
+    const box = stubFrame(page.calls, { url: 'moz-extension://op-uuid/inline/notification/notification.html' });
+    const rows = [{ innerText: 'Shopify\ninfo@example.com' }, { innerText: 'Shopify\nops@example.com' }];
+    const body = { innerText: '', querySelectorAll: selector => (selector === 'li button' ? rows : []) };
+    box.dom = { document: {}, login: body };
+    page.extra.push(box);
+    page.main.addonTargets = ['css:#op-box'];
+    assert.equal((await post('click', { selector: '#op-box' })).body.error, ADDON_REFUSAL, 'no close hint over a passkey box');
+    assert.doesNotMatch((await post('press', { key: 'Enter' })).body.error, /addon close/, 'nor for a key');
+    page.calls.onClick = desc => { if (desc.startsWith('css:li button#')) box.visible = false; };
+    const before = page.calls.length;
+    assert.match((await post('pick', { n: 1 })).body.error, /no longer offers that login/, 'a login read before the passkey box is not picked');
+    assert.match((await post('pick', { n: 1 })).body.error, /addon logins/, 'no passkey pick before its names are read');
+    const names = ['Shopify · info@example.com', 'Shopify · ops@example.com'];
+    assert.deepEqual((await post('logins')).body, { ok: true, state: 'passkey', names });
+    assert.deepEqual(page.calls.slice(before).filter(([step]) => ['click', 'press', 'mouse', 'focus'].includes(step)), [], 'reading the names touches nothing');
+    assert.deepEqual((await post('pick', { n: 2 })).body, { ok: true, passkey: true });
+    assert.deepEqual(page.calls.filter(([step]) => step === 'click').map(([, desc]) => desc), ['css:li button#1'], 'one press, on that passkey');
+    assert.equal((await post('pick', { n: 2 })).status, 409, 'one pick per read');
+
+    // One passkey has no list: its name sits beside the box's own *Sign in* button.
+    box.visible = true;
+    rows.length = 0;
+    box.counts = { 'css:li button': 0 };
+    const row = { innerText: 'Shopify\ninfo@example.com\nSign in' };
+    const signIn = { innerText: 'Sign in', parentElement: { innerText: 'Sign in', parentElement: row } };
+    body.querySelectorAll = selector => (selector === 'button' ? [signIn] : []);
+    page.calls.onClick = desc => { if (desc.startsWith('role:button:Sign in')) box.visible = false; };
+    assert.deepEqual((await post('logins')).body, { ok: true, state: 'passkey', names: ['Shopify · info@example.com'] });
+    assert.deepEqual((await post('pick', { n: 1 })).body, { ok: true, passkey: true });
+    assert.equal(page.calls.filter(([step]) => step === 'click').at(-1)[1], 'role:button:Sign in:true');
+
+    box.visible = true;
+    body.querySelectorAll = () => [];
+    body.innerText = 'Sign in with a passkey\nTo use your passkey, unlock 1Password first.';
+    assert.deepEqual((await post('logins')).body, { ok: true, state: 'locked', names: [] }, 'a locked box offers no names');
+  } finally { await close(); }
+});
+
+test("addon close presses only a box's own close button, leaves the fill list alone, and the refusal points to it", async () => {
+  const context = stubContext('- button "Confirm"');
+  const { call, close } = await serve(context);
+  try {
+    const { tabId } = (await open(call)).body;
+    const page = context.opened[0];
+    const post = (route, body) => call('POST', `/tabs/${tabId}/${route}`, { userId: 'me', ...body });
+    const clicks = () => page.calls.filter(([step]) => step === 'click').map(([, desc]) => desc);
+    assert.deepEqual((await post('closeBoxes')).body, { ok: true, closed: 0 }, 'no box, nothing to close');
+
+    const list = stubFrame(page.calls, { url: 'moz-extension://op-uuid/inline/menu/menu.html?locked=false' });
+    const save = stubFrame(page.calls, { url: 'moz-extension://op-uuid/inline/notification/notification.html' });
+    save.counts = { 'role:heading:Sign in with a passkey:true': 0 };
+    page.extra.push(list, save);
+    page.main.addonTargets = ['css:#op-box'];
+    const refused = await post('click', { selector: '#op-box' });
+    assert.deepEqual([refused.status, refused.body.error], [403, `${ADDON_REFUSAL}; a box of its own covers the page: close it with browse.mjs addon close`]);
+    assert.equal((await call('GET', `/tabs/${tabId}/snapshot?userId=me`)).body.snapshot, '- button "Confirm" [e1]', 'a reading leaves the box out');
+    assert.match((await post('press', { key: 'Enter' })).body.error, /fill list is open/, 'with the fill list open, its own refusal');
+    list.visible = false;
+    const boxHint = "a password manager's box shows on this page, and a key could press its buttons; a box of its own covers the page: close it with browse.mjs addon close";
+    assert.equal((await post('press', { key: 'Enter' })).body.error, boxHint, 'with only a box, a key is refused toward addon close, not Escape');
+    assert.equal((await post('type', { selector: '#email', text: 'x', submit: true })).body.error, boxHint);
+    list.visible = true;
+
+    const only = stubFrame(page.calls, { url: 'moz-extension://op-uuid/inline/notification/notification.html#2' });
+    only.boxes = false;
+    page.extra.push(only);
+    const none = await post('closeBoxes');
+    assert.deepEqual([none.status, none.body.error], [403, "the password manager's box has no close button; the person closes it in the live view"]);
+    assert.deepEqual(clicks(), [], 'with one box lacking a close button, nothing is pressed');
+
+    page.extra.pop();
+    page.calls.onClick = desc => { if (desc.startsWith('role:button:')) save.visible = false; };
+    assert.deepEqual((await post('closeBoxes')).body, { ok: true, closed: 1 });
+    assert.deepEqual(clicks(), ['role:button:/^(close|dismiss|dismiss banner|not now|no thanks)$/i:undefined#first'], 'one press, on its close button by name');
+    assert.equal((await post('click', { selector: '#op-box' })).body.error, ADDON_REFUSAL, 'with the box gone, the fill list alone gets no hint');
   } finally { await close(); }
 });
 
