@@ -105,17 +105,18 @@ test('an added link into a module folder is compared in its install form', t => 
   assert.equal(report.status, 'clean');
 });
 
-test('an edited page naming a module command, unchanged in source, misses the renamed line a new file pair writes', t => {
+test('an edited page linking a module command, unchanged in source, misses the moved link a new file pair writes', t => {
   const daily = { '.claude/plugins/daily': '.claude/skills/daily' };
   const baseInventory = { core: { ...manifest.core, mapped: daily } };
   const inventory = { core: { ...manifest.core, mapped: { ...daily, '.claude/plugins/daily/skills/schedule/SKILL.md': '.claude/skills/schedule/SKILL.md' } } };
-  const page = `${basePage}\nType /daily:schedule to plan.\n`;
-  const edited = page.replace('Intro.', 'Intro, in our own words.');
+  const link = to => `See [schedule](../.agents/${to}/SKILL.md).`;
+  const page = `${basePage}\n${link('plugins/daily/skills/schedule')}\n`;
+  const edited = `${basePage}\n${link('skills/daily/skills/schedule')}\n`.replace('Intro.', 'Intro, in our own words.');
   const { status, report } = fixture(t, { page: edited, rules: mergedRules, base: page, latest: page, inventory, baseInventory }).run();
   assert.equal(status, 1, JSON.stringify(report));
   assert.deepEqual(report.files, [{
     targetPath: 'wiki/page.md',
     sourcePath: 'wiki/page.md',
-    missing: [{ sourceLines: '9', count: 1, first: 'Type /schedule to plan.' }],
+    missing: [{ sourceLines: '9', count: 1, first: link('skills/schedule') }],
   }]);
 });

@@ -608,6 +608,11 @@ function catchUpNeeds(target, record, installedVersion, baseline, own, mapped) {
   // A module kept as a folder link becomes a real folder: the link leaves before its files are copied.
   const moduleLinks = mapped.map(([, to]) => to).filter(path => at(path) === 'link');
   if (moduleLinks.length) reasons.push({ code: 'module-link', paths: moduleLinks });
+  // A module plugin's files, or a settings file that names one: the update moves the install off plugins.
+  const plugins = [...mapped.map(([, to]) => `${to}/.claude-plugin`), '.claude-plugin/marketplace.json'].filter(path => at(path) !== null);
+  const named = ['.claude/settings.json', '.claude/settings.local.json']
+    .filter(path => at(path) === 'file' && readFileSync(resolve(target, path), 'utf8').includes('@skills-dir'));
+  if (plugins.length || named.length) reasons.push({ code: 'module-plugin', paths: [...plugins, ...named] });
   if (baseline === 'empty') reasons.push({ code: 'no-baseline', paths: [] });
   return { needed: reasons.length > 0 || below(installedVersion, [19, 0, 0]), reasons };
 }

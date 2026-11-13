@@ -13,7 +13,7 @@ Every install starts empty and takes **every** category.
 
 ## The agent folder
 
-Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. `mapped` installs each module folder under `.claude/plugins/` as a real skill folder, such as [the loop](../../../plugins/loop/README.md)'s commands as `.claude/skills/<name>/` and the browser, Daily and memory each as one folder, `.claude/skills/<name>/`, with its nested commands inside it in `skills/`; the longest entry wins. A file entry moves one nested command's `SKILL.md` to `.claude/skills/<command>/`, so it loads in every chat as `/<command>`, and the install renames each `/<module>:<command>` in shipped text. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
+Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. `mapped` installs each module folder under `.claude/plugins/` as a real skill folder, such as [the loop](../../../plugins/loop/README.md)'s commands as `.claude/skills/<name>/` and the browser, Daily and memory each as one folder, `.claude/skills/<name>/`, with its nested commands inside it in `skills/`; the longest entry wins. A file entry moves one nested command's `SKILL.md` to `.claude/skills/<command>/`, so it loads in every chat as `/<command>`. Modules load as plain skills, with no plugin, and the project's settings run their hooks. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
 
 Real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex and Claude read their respective names; the inventory block remains `CLAUDE.md`. Sync preserves every target-owned line:
 
@@ -68,7 +68,7 @@ Add these report instructions to each sync's explore/plan handoff, in order, ver
 
 ## The memory store and its hooks
 
-**memory** is [a plugin](../../../plugins/memory/SKILL.md) with its [writing bar](../../../plugins/memory/references/writing-facts.md); [`.claude/memory/`](../../../memory/profile.mjs) holds WongStack's profile, D1 store, and migrations. [Retrieval](../../../../wiki/development/document-retrieval.md) ships fallback and pinned setup metadata, never caches. Merge hooks into target settings/hooks, never replace; Codex asks once to trust them. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require an admin `memory.mjs migrate` after merge/deploy. Machine ownership needs trusted replacement credentials; old private history stays unassigned. [Memory](../../../../wiki/development/memory.md) owns other details.
+**memory** is [a module](../../../plugins/memory/SKILL.md) with its [writing bar](../../../plugins/memory/references/writing-facts.md); [`.claude/memory/`](../../../memory/profile.mjs) holds WongStack's profile, D1 store, and migrations. [Retrieval](../../../../wiki/development/document-retrieval.md) ships fallback and pinned setup metadata, never caches. Merge hooks into target settings/hooks, never replace; Codex asks once to trust them. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require an admin `memory.mjs migrate` after merge/deploy. Machine ownership needs trusted replacement credentials; old private history stays unassigned. [Memory](../../../../wiki/development/memory.md) owns other details.
 
 ## The Paseo project file
 
@@ -90,7 +90,7 @@ The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide remo
 
 ## Schedules
 
-[Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `/daily:schedule` inside Daily's folder, its host references, and Node helpers; no cloud runner/bootstrap/model setup.
+[Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `/schedule` inside Daily's folder, its host references, and Node helpers; no cloud runner/bootstrap/model setup.
 
 An install owns its `.agents/daily/`, except WongStack's [profile](../../../daily/profile.mjs), the one shipped file there; [`.claude/inbox/`](../../../inbox/schedules.mjs) ships WongStack's schedule store. It also owns old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records. Never add those live records to this inventory or overwrite them. A schedule's instructions, progress and runs live in the app, not in the repo. Updates preserve deployed cloud resources and native host jobs, and [run and move none of the old data](../../../../wiki/stack/host-schedules.md#existing-schedules).
 

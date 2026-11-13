@@ -278,17 +278,14 @@ test('a typed command names the chat at once: a repo skill in capitals, /explore
   assert.equal(commandStep('/daily', w.main), null);
 });
 
-test('a typed module command, /daily:schedule, names the chat SCHEDULE', unix, t => {
+test('a typed module command, /schedule, names the chat SCHEDULE', unix, t => {
   const w = world(t);
-  mkdirSync(path.join(w.main, '.claude', 'skills', 'daily', 'skills', 'schedule'), { recursive: true });
-  writeFileSync(path.join(w.main, '.claude', 'skills', 'daily', 'SKILL.md'), '# daily\n');
-  writeFileSync(path.join(w.main, '.claude', 'skills', 'daily', 'skills', 'schedule', 'SKILL.md'), '# schedule\n');
-  assert.equal(commandStep('/daily:schedule every Monday at 9', w.main), 'SCHEDULE');
-  assert.equal(commandStep('/daily:shop', w.main), null, 'no such command in the module');
-  assert.equal(commandStep('/daily:schedule:x', w.main), null);
-  assert.equal(commandStep('/:schedule', w.main), null);
+  mkdirSync(path.join(w.main, '.claude', 'skills', 'schedule'), { recursive: true });
+  writeFileSync(path.join(w.main, '.claude', 'skills', 'schedule', 'SKILL.md'), '# schedule\n');
+  assert.equal(commandStep('/schedule every Monday at 9', w.main), 'SCHEDULE');
+  assert.equal(commandStep('/shop', w.main), null, 'no such command');
   const env = { PATH: w.env.PATH, HOME: w.home };
-  const turn = hookTurn({ input: { prompt: '/daily:schedule a weekly sales summary', session_id: 's1', cwd: w.main }, agent: 'claude', env, home: w.home });
+  const turn = hookTurn({ input: { prompt: '/schedule a weekly sales summary', session_id: 's1', cwd: w.main }, agent: 'claude', env, home: w.home });
   assert.equal(turn.out?.hookSpecificOutput.sessionTitle, 'SCHEDULE: A weekly sales summary');
 });
 

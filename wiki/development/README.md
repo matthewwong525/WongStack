@@ -15,7 +15,7 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
   - [Use skills](first-day/use-skills.md) — Lesson 1: who you are, what a skill is, a question card, one real skill, and one task per chat.
   - [Make your first change](first-day/make-a-change.md) — Lesson 2: plan, build and save one small, real change; it stops at the save.
 - [Code improvement](repository-improvement.md) — run or schedule `/improve-code` to find one way to make the code simpler or safer to change; it writes the plan and stops for your yes.
-- [Host schedules](../stack/host-schedules.md) — `/daily:schedule` chooses predictable scripts first and verifies an existing host clock for assistant work; each schedule lives in the app and runs only after your OK on that computer.
+- [Host schedules](../stack/host-schedules.md) — `/schedule` chooses predictable scripts first and verifies an existing host clock for assistant work; each schedule lives in the app and runs only after your OK on that computer.
 - [Required tools](required-tools.md) — the whole toolchain is `git`, `gh`, Node, `openspec`, and `curl`: why it stays that small, and how the payload handles JSON without a standalone `jq`.
 - [Browsing](../../.agents/plugins/browser/references/browsing.md) — how the agent uses websites as the person: the browser's own sign-ins, pictures of key moments, private links for what only the person can give or do, and what it does when a site refuses its browser.
   - [Saved details](../../.agents/plugins/browser/skills/hand-over/references/saved-details.md) — everyday answers you choose to keep, such as an email or an address, fill the next form after a yes; a card is never saved.

@@ -1,16 +1,16 @@
 {
   "hooks": {
     "SessionStart": [
-      { "matcher": "startup|resume", "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start.mjs\" --agent claude", "timeout": 5 }] }
+      { "matcher": "startup|resume", "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/memory/scripts/session-start.mjs\" --agent claude", "timeout": 5 }] }
     ],
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/topic-match.mjs\"", "timeout": 3 }] }
+      { "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/memory/scripts/topic-match.mjs\"", "timeout": 3 }] }
     ],
     "PreToolUse": [
-      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/before-edit.mjs\"", "timeout": 3 }] }
+      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/memory/scripts/before-edit.mjs\"", "timeout": 3 }] }
     ],
     "SessionEnd": [
-      { "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-end.mjs\" --agent claude", "timeout": 5 }] }
+      { "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/memory/scripts/session-end.mjs\" --agent claude", "timeout": 5 }] }
     ]
   }
 }

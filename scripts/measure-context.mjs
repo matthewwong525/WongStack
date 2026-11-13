@@ -28,12 +28,10 @@ function walk(path) {
   return readdirSync(path, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(join(path, entry.name)) : [join(path, entry.name)]);
 }
 
-// A linked skill folder, such as memory's link to its plugin, counts as the skill it serves; a plugin's own
-// `skills/<name>/` counts as a skill too.
+// A linked skill folder, such as memory's link to its module or schedule's to its command, counts as its skill.
 const skillDirs = root => {
   const skills = join(root, '.agents/skills');
-  const own = name => existsSync(join(skills, name, 'skills')) ? readdirSync(join(skills, name, 'skills')).map(sub => `${name}/skills/${sub}`) : [];
-  return existsSync(skills) ? readdirSync(skills).filter(name => statSync(join(skills, name)).isDirectory()).flatMap(name => [name, ...own(name)]).sort() : [];
+  return existsSync(skills) ? readdirSync(skills).filter(name => statSync(join(skills, name)).isDirectory()).sort() : [];
 };
 
 /** The `description:` value of a SKILL.md frontmatter, folded continuation lines included. */

@@ -1,18 +1,18 @@
 {
   "hooks": {
     "SessionStart": [
-      { "matcher": "startup|resume", "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start.mjs\" --agent claude", "timeout": 5 }] }
+      { "matcher": "startup|resume", "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/session-start.mjs\" --agent claude", "timeout": 5 }] }
     ],
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/daily.mjs\" mark --agent claude", "timeout": 3 }] }
+      { "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/daily.mjs\" mark --agent claude", "timeout": 3 }] }
     ],
     "Notification": [
-      { "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/daily.mjs\" mark --agent claude", "timeout": 3 }] }
+      { "hooks": [{ "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/daily.mjs\" mark --agent claude", "timeout": 3 }] }
     ],
     "Stop": [
       { "hooks": [
-        { "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/daily.mjs\" mark --agent claude", "timeout": 3 },
-        { "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"${CLAUDE_PLUGIN_ROOT}/scripts/stop-check.mjs\" stop --agent claude", "timeout": 300 }
+        { "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/daily.mjs\" mark --agent claude", "timeout": 3 },
+        { "type": "command", "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/daily/scripts/stop-check.mjs\" stop --agent claude", "timeout": 300 }
       ] }
     ]
   }

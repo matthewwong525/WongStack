@@ -432,6 +432,16 @@ test('an install that keeps the module as a folder link reads it as missing and 
   assert.deepEqual(report.catchUp.reasons.find(reason => reason.code === 'module-link'), { code: 'module-link', paths: ['.claude/skills/memory'] });
 });
 
+test('an install whose module is a plugin, or whose settings name one, gets the module-plugin catch-up', t => {
+  const f = moduleFixture(t);
+  const reason = () => f.inspect().catchUp.reasons.find(found => found.code === 'module-plugin');
+  write(f.target, '.claude/skills/memory/scripts/memory.mjs', 'memory\n');
+  assert.equal(reason(), undefined);
+  write(f.target, '.claude/skills/memory/.claude-plugin/plugin.json', '{"name":"memory","version":"4.0.0"}\n');
+  write(f.target, '.claude/settings.local.json', '{"enabledPlugins":{"daily@skills-dir":false}}\n');
+  assert.deepEqual(reason(), { code: 'module-plugin', paths: ['.claude/skills/memory/.claude-plugin', '.claude/settings.local.json'] });
+});
+
 test('a module that moves from a skill folder to a mapped folder stays one unit, and a moved link is no change', t => {
   const f = fixture(t, { manifest: inventory({ core: { ...inventory().core, skillDirs: ['alpha', 'memory'] } }), components: { skills: ['alpha', 'memory'] } });
   write(f.source, '.agents/skills/memory/scripts/memory.mjs', 'memory\n');
@@ -468,10 +478,13 @@ test('the root block links a mapped module where an install keeps it, so a fresh
 });
 
 // The 59.0.0 layout kept a module command's SKILL.md in its module; a file entry moves it to its own skill folder.
-function commandFixture(t, components, { note } = {}) {
+function commandFixture(t, components, { note, installed = note } = {}) {
   const daily = { '.claude/plugins/daily': '.claude/skills/daily' };
   const f = fixture(t, { components, manifest: inventory({ core: { ...inventory().core, mapped: daily } }) });
-  if (note) for (const root of [f.source, f.target]) write(root, 'wiki/ux-principles.md', note);
+  if (note) {
+    write(f.source, 'wiki/ux-principles.md', note);
+    write(f.target, 'wiki/ux-principles.md', installed);
+  }
   write(f.source, '.agents/plugins/daily/skills/schedule/SKILL.md', '# Schedule\n[run](references/run.md)\n');
   write(f.source, '.agents/plugins/daily/skills/schedule/references/run.md', 'run\n');
   f.updateRecord({ commit: f.commit('daily at the 59.0.0 layout') });
@@ -491,14 +504,29 @@ test('an install at the 59.0.0 layout moves the command SKILL.md as one removed 
   ]);
 });
 
-test('a new file pair reads the base with the base pairs, so a text it renames is modified and an untouched install is installed-equivalent', t => {
-  const f = commandFixture(t, undefined, { note: 'Type /daily:schedule to plan.\n' });
+test('a new file pair reads the base with the base pairs, so a link it moves is modified and an untouched install is installed-equivalent', t => {
+  const link = to => `See [schedule](../.agents/${to}/SKILL.md).\n`;
+  const f = commandFixture(t, undefined, { note: link('plugins/daily/skills/schedule'), installed: link('skills/daily/skills/schedule') });
   const changes = f.inspect().changes.map(change => [change.targetPath, change.operation, change.localState]).sort();
   assert.deepEqual(changes, [
     ['.claude/skills/daily/skills/schedule/SKILL.md', 'removed', 'installed-equivalent'],
     ['.claude/skills/schedule/SKILL.md', 'added', 'missing'],
     ['wiki/ux-principles.md', 'modified', 'installed-equivalent'],
   ]);
+});
+
+test('a 60.0.0 install whose source named /daily:schedule, installed as /schedule, reads as untouched', t => {
+  const mapped = { '.claude/plugins/daily': '.claude/skills/daily', '.claude/plugins/daily/skills/schedule/SKILL.md': '.claude/skills/schedule/SKILL.md' };
+  const f = fixture(t, { manifest: inventory({ core: { ...inventory().core, mapped } }) });
+  write(f.source, '.agents/plugins/daily/skills/schedule/SKILL.md', '# /daily:schedule\n');
+  write(f.source, '.agents/plugins/daily/README.md', 'Type /daily:schedule to plan.\n');
+  f.updateRecord({ commit: f.commit('daily at the 60.0.0 layout') });
+  write(f.target, '.claude/skills/schedule/SKILL.md', '# /schedule\n');
+  write(f.target, '.claude/skills/daily/README.md', 'Type /schedule to plan.\n');
+  write(f.source, '.agents/plugins/daily/README.md', 'Type /schedule to plan a run.\n');
+  f.commit('the source names /schedule');
+  assert.deepEqual(f.inspect().changes.map(change => [change.targetPath, change.operation, change.localState]),
+    [['.claude/skills/daily/README.md', 'modified', 'installed-equivalent']]);
 });
 
 test('the install record\'s skill rename gives a moved command another top-level name', t => {

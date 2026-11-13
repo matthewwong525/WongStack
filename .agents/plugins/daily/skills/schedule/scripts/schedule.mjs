@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // The person's schedules: show, save and approve here, manage, finish a run. The store is the profile's `schedules`
-// part, else Paseo; with neither, `/daily:schedule` is off. No git. wiki/stack/host-schedules.md
+// part, else Paseo; with neither, `/schedule` is off. No git. wiki/stack/host-schedules.md
 import { parseArgs } from 'node:util';
 import { readFileSync } from 'node:fs';
 import { isMain } from '../../../scripts/lib/cli.mjs';

@@ -1,7 +1,7 @@
 // Where a payload file lands in an install, .agents/skills/wong-sync/scripts/install-path.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
 
 import { INVENTORY, installPath, installText, mappedDirs } from '../../.agents/skills/wong-sync/scripts/install-path.mjs';
 
@@ -67,13 +67,13 @@ test('a module command\'s SKILL.md lands in its own top-level skill folder; its 
 });
 
 test('the moved SKILL.md links back into the module, and its script paths stay the module\'s', () => {
-  const page = '# /daily:schedule\n[run](references/run.md) [daily](../../SKILL.md)\nnode .claude/plugins/daily/skills/schedule/scripts/schedule.mjs list';
+  const page = '# /schedule\n[run](references/run.md) [daily](../../SKILL.md)\nnode .claude/plugins/daily/skills/schedule/scripts/schedule.mjs list';
   assert.equal(installText('.claude/plugins/daily/skills/schedule/SKILL.md', page, daily),
     '# /schedule\n[run](../daily/skills/schedule/references/run.md) [daily](../daily/SKILL.md)\nnode .claude/skills/daily/skills/schedule/scripts/schedule.mjs list');
   assert.equal(installText('.claude/plugins/daily/SKILL.md', '[schedule](./skills/schedule/SKILL.md)', daily), '[schedule](../schedule/SKILL.md)');
 });
 
-test('an install names the command /schedule in Markdown and a script, and leaves a web address alone', () => {
+test('an older release\'s /daily:schedule installs as /schedule in Markdown and a script, and a web address stays', () => {
   assert.equal(installText('wiki/page.md', 'Run `/daily:schedule every day`. See https://example.test/daily:schedule.', daily),
     'Run `/schedule every day`. See https://example.test/daily:schedule.');
   assert.equal(installText('.claude/plugins/daily/scripts/daily.mjs', "const REMIND = 'ask /daily:schedule for one';", daily), "const REMIND = 'ask /schedule for one';");
@@ -81,7 +81,7 @@ test('an install names the command /schedule in Markdown and a script, and leave
   assert.equal(installText('wiki/page.md', '`/daily:schedule`', daily.slice(0, 1)), '`/daily:schedule`', 'a module copied alone keeps its name');
 });
 
-test('every module command outside the loop has its file entry, and no entry\'s target is another shipped skill', () => {
+test('every module command outside the loop has its file entry and source link, and no entry\'s target is another shipped skill', () => {
   const manifest = JSON.parse(readFileSync(new URL(`../../${INVENTORY}`, import.meta.url), 'utf8'));
   const real = mappedDirs(manifest);
   const plugins = new URL('../../.agents/plugins/', import.meta.url);
@@ -91,6 +91,11 @@ test('every module command outside the loop has its file entry, and no entry\'s 
       .map(command => `.claude/plugins/${module}/skills/${command}/SKILL.md`));
   assert.ok(commands.length >= 4);
   for (const command of commands) assert.ok(real.some(([from]) => from === command), `${command} has no mapped file entry`);
+  for (const command of commands) {
+    const [, module, name] = command.match(/^\.claude\/plugins\/([^/]+)\/skills\/([^/]+)\//);
+    const link = new URL(`../skills/${name}`, plugins);
+    assert.equal(lstatSync(link).isSymbolicLink() && readlinkSync(link), `../plugins/${module}/skills/${name}`, `${name} has no source link`);
+  }
   const names = real.map(([, to]) => to.match(/^\.claude\/skills\/([^/]+)/)?.[1]).filter(Boolean);
   const shipped = [...names, ...manifest.core.skillDirs];
   assert.deepEqual(shipped.filter((name, i) => shipped.indexOf(name) !== i), [], 'two shipped skills share a name');

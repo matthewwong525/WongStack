@@ -15,6 +15,37 @@
             "timeout": 3
           }
         ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/session-start.mjs\" --agent codex",
+            "timeout": 5,
+            "statusMessage": "Loading memory"
+          }
+        ]
+      },
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/session-start.mjs\" --agent codex",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/access/scripts/session-start.mjs\"",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -23,6 +54,24 @@
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/loop/step-title.mjs\" hook --agent codex",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/topic-match.mjs\"",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
             "timeout": 3
           }
         ]
@@ -35,6 +84,34 @@
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/loop/helper-stop-check.mjs\"",
             "timeout": 3
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/memory/scripts/before-edit.mjs\"",
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/daily.mjs\" mark --agent codex",
+            "timeout": 3
+          },
+          {
+            "type": "command",
+            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/stop-check.mjs\" stop --agent codex",
+            "timeout": 300
           }
         ]
       }

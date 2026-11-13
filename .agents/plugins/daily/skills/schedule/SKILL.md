@@ -4,7 +4,7 @@ description: Schedule scripts or future sessions; save, approve and manage app s
 user-invocable: true
 ---
 
-# /daily:schedule
+# /schedule
 
 Use a script on a clock for exports, payment checks and narrow model calls; code goes through the [change loop](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/the-change-loop.md). A schedule is for work that needs judgment.
 

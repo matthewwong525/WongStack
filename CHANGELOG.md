@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.0.0 — Every chat runs WongStack's checks, with no plugins
+
+- **Every chat runs each module's checks, trusted folder or not.** Memory's start digest, Daily's check-ins and stop check, and Access's start check now run from your project's own settings, the same place `/plan`'s checks run from. Before, they ran through a plugin, which loads only in a folder you trusted, so a new Paseo workspace stayed silent.
+- **No module loads as a plugin.** The plugin files are gone. Each module keeps its version in a one-line `VERSION` file.
+- **`/daily:schedule` is now `/schedule` everywhere**, also in a repo that added Daily alone. The browser's private-link and shop commands, and `/services`, load by their own names too.
+- **A repo that added one module alone** follows that module's update guide. It adds the module's checks to the project's settings, links its commands, and removes the plugin files.
+- **Codex has no WongStack plugin any more.** The project's `.codex/hooks.json` runs each module's checks once you trust the project.
+
+**Updating.** `/wong-sync` removes the plugin files and adds each module's checks to your project's settings. It also deletes any setting that turns a WongStack plugin on or off, such as `daily@skills-dir`, and removes a check you added by hand that would now run twice; it keeps every other check of yours. At the end it runs `codex-plugin.mjs`, which takes WongStack's old plugins out of Codex on this computer. On another computer, the next Codex chat names the one command to run. From now on, type `/schedule`, not `/daily:schedule`.
+
 ## 60.0.0 — /schedule works in every chat again
 
 - **`/schedule` loads in every chat again, as it did before 57.0.0.** Since 57.0.0 it was `/daily:schedule`, and Claude Code loaded it only in a folder you trusted. In a new Paseo workspace it was missing, so *make a schedule* could open Claude Code's own cloud schedules, not yours. Now each update gives the command its own place in your skills folder, beside `/plan` and `/ship`.

@@ -319,8 +319,9 @@ test('a teammate branch that edits the hooks\' shared library runs nothing on pi
     spawnSync('sh', ['-c', command], { cwd: owner, env, input: event, encoding: 'utf8', timeout: 30_000 });
     return size() > start;
   });
-  const node = commands.filter(command => /\bnode "/.test(command));
-  assert.equal(node.length, 11);
+  // Access's start hook imports no shared library, so the control would not see it run.
+  const node = commands.filter(command => /\bnode "/.test(command) && !command.includes('/skills/access/'));
+  assert.equal(node.length, 27);
   assert.deepEqual(runHooks(), []);
   assert.ok(!existsSync(marker), 'branch code ran after the pickup');
 

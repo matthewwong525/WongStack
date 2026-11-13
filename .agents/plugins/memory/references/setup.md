@@ -10,7 +10,7 @@ When the repo has `.claude/.wong-stack.json`, stop and change nothing: memory co
 
 ## 2. Copy the folder in
 
-Copy this folder from GitHub, as a real folder, to `.claude/skills/memory/`: Claude Code loads plugins only from `.claude/skills/`. Skip this when it is there.
+Copy this folder from GitHub, as a real folder, to `.claude/skills/memory/`: Claude Code loads skills only from `.claude/skills/`. Skip this when it is there.
 
 ```bash
 dir=.claude/skills/memory
@@ -40,20 +40,38 @@ export default {
 
 The profile imports nothing from the folder. Keep every key in an ignored file, never in the profile.
 
-## 5. Codex
+## 5. Run its hooks
 
-Skip this when `codex` is not on this computer.
+The project's own settings run memory's hooks, so they run in every chat, trusted folder or not. Merge [`hooks/claude.json`](../hooks/claude.json) into `.claude/settings.json` and [`hooks/codex.json`](../hooks/codex.json) into `.codex/hooks.json`, each made if missing: under each event, add each group that is not there yet, and keep every other entry.
 
-1. Add `memory` to the root `.claude-plugin/marketplace.json`, the repo's own list when it has one; else make it:
+```bash
+node -e 'const fs = require("fs"), path = require("path");
+for (const [from, to] of [["claude", ".claude/settings.json"], ["codex", ".codex/hooks.json"]]) {
+  const add = JSON.parse(fs.readFileSync(`.claude/skills/memory/hooks/${from}.json`, "utf8")).hooks;
+  const file = fs.existsSync(to) ? JSON.parse(fs.readFileSync(to, "utf8")) : {};
+  for (const [event, groups] of Object.entries(add)) {
+    const have = ((file.hooks ??= {})[event] ??= []);
+    for (const group of groups) if (!have.some(g => JSON.stringify(g) === JSON.stringify(group))) have.push(group);
+  }
+  fs.mkdirSync(path.dirname(to), { recursive: true });
+  fs.writeFileSync(to, JSON.stringify(file, null, 2) + "\n");
+}'
+```
 
-   ```json
-   { "name": "wongstack", "owner": { "name": "WongStack" }, "plugins": [{ "name": "memory", "source": "./.claude/skills/memory" }] }
-   ```
+Codex runs them once the person trusts the project.
 
-2. From the repo's folder, with the list's `name` in place of `wongstack`, run `codex plugin marketplace add "$(pwd)"` and `codex plugin add memory@wongstack`. Codex asks once to trust the hooks.
-3. Name both commands in `AGENTS.md`, made if missing, for each other computer's Codex.
+## 6. Link it for Codex
 
-## 6. Run the check
+Codex loads skills from `.agents/skills/`: link the folder there, unless `.agents` and `.claude` are already the same folder.
+
+```bash
+if [ "$(cd .claude && pwd -P)" != "$(mkdir -p .agents && cd .agents && pwd -P)" ]; then
+  mkdir -p .agents/skills
+  name=memory t=.agents/skills/memory; { [ -e "$t" ] && [ ! -L "$t" ] && echo "Skipped $t: it is another skill"; } || ln -sfn "../../.claude/skills/$name" "$t"
+fi
+```
+
+## 7. Run the check
 
 On a memory server, a new chat that shows `# Memory digest` is the check. Else [`store/contract.mjs`](../store/contract.mjs) exports `checkStore(makeStore)`, one `node:test` suite over each operation and each role. Add a test file:
 
@@ -64,23 +82,24 @@ checkStore(() => makeStore());   // a fresh, empty { as(caller) → store }
 
 A caller is `{ role: 'admin'|'member'|'reader'|'team', subject, email }`. Run it with `node --test`: memory is ready only when it passes.
 
-## 7. Save
+## 8. Save
 
 Commit the folder and every file you added. Ask before any push.
 
 ## Update
 
 1. **Stop in a WongStack install** (`.claude/.wong-stack.json`): memory updates with [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md).
-2. **Find the base:** the newest WongStack commit that set the folder's `.claude-plugin/plugin.json` version.
+2. **Find the base:** the newest WongStack commit that set the folder's version: its `VERSION` file, or, in a copy from before that file, its `.claude-plugin/plugin.json`.
 
    ```bash
    dir=.claude/skills/memory
-   version=$(node -p "require('./$dir/.claude-plugin/plugin.json').version")
+   if [ -f "$dir/VERSION" ]; then version=$(cat "$dir/VERSION"); file=.agents/plugins/memory/VERSION
+   else version=$(node -p "require('./$dir/.claude-plugin/plugin.json').version"); file=.agents/plugins/memory/.claude-plugin/plugin.json
+   fi
    ws=$(mktemp -d)/ws
    git clone -q --filter=blob:none --no-checkout https://github.com/matthewwong525/WongStack "$ws"
-   manifest=.agents/plugins/memory/.claude-plugin/plugin.json
-   for c in $(git -C "$ws" log --format=%H main -- "$manifest"); do
-     git -C "$ws" show "$c:$manifest" | grep -q "\"version\": \"$version\"" && { base=$c; break; }
+   for c in $(git -C "$ws" log --format=%H main -- "$file"); do
+     git -C "$ws" show "$c:$file" | grep -qE "(^|\")$version(\"|$)" && { base=$c; break; }
    done
    ```
 
@@ -90,4 +109,8 @@ Commit the folder and every file you added. Ask before any push.
    - only at `main`: add it;
    - only at the base: remove it, unless the repo changed it: a conflict.
 4. **On any conflict, write nothing:** name each file and stop.
-5. Else put the merged folder in place, [run the check](#6-run-the-check), rerun [Codex's two commands](#5-codex) when Codex is here, commit, and ask before any push.
+5. Else put the merged folder in place, then:
+   - **From a copy with a `.claude-plugin/` folder**, which the merge removed: remove `memory` from the root `.claude-plugin/marketplace.json`, and the file once it lists none; when Codex is here, run `codex plugin remove memory@<the list's name>`; and delete the `enabledPlugins` key `memory@skills-dir` from `.claude/settings.json` and `.claude/settings.local.json`.
+   - [Run its hooks](#5-run-its-hooks) again. First remove each group the base's hook files listed and `main`'s do not, and each hook the project added by hand that runs the same `.claude/skills/memory/scripts/` file, so each hook runs once.
+   - [Link it for Codex](#6-link-it-for-codex) again.
+   - [Run the check](#7-run-the-check), commit, and ask before any push.

@@ -1,7 +1,0 @@
-{
-  "name": "memory",
-  "version": "4.0.0",
-  "description": "Session memory for a repo: what past chats decided, open threads, and your topics, with each chat's facts kept for the next.",
-  "author": { "name": "WongStack" },
-  "hooks": "./hooks/claude.json"
-}

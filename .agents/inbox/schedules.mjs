@@ -1,4 +1,4 @@
-// WongStack's schedule store for Daily's `/daily:schedule`: the person's schedules in the company app, each approved per
+// WongStack's schedule store for Daily's `/schedule`: the person's schedules in the company app, each approved per
 // computer. Daily calls it through the profile's `schedules` part. wiki/stack/host-schedules.md
 import { existsSync, readFileSync } from 'node:fs';
 import { computerId, helperService } from '../skills/reply-link/scripts/lib/computer.mjs';
