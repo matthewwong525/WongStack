@@ -16,6 +16,7 @@ paths:
   - "wiki/maintaining/**"
   - "wiki/stack/**"
   - "wiki/ux-principles.md"
+  - "wiki/design-guide.md"
   - "wiki/review-pages.md"
   - "wiki/prototypes.md"
   - "schema/**"

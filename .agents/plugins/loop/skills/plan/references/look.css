@@ -1,6 +1,7 @@
 /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
-   shadcn's neutral light and dark colours stays only for a colour it can't find. Every page starts light, even on a
+   shadcn's neutral light and dark colours stays only for a colour it can't find. The app's font, corner size and
+   shadows come in the same sets; the font and the shadows below fall back to their own values without them. Every page starts light, even on a
    dark device; theme.js adds `.dark` to the root element when the person switches, and draws the switch (.theme-toggle).
    The parts below draw app/src/components/ui/ (button, input, card, badge, skeleton) in plain CSS. Each sits in
    :where(), so a page's own rule always wins.
@@ -49,13 +50,14 @@
 }
 /* tokens:end */
 
-/* Tailwind's shadow-xs, shadow-sm and shadow-lg; Radix's popover shadow, and its upward twin for a box docked at the
-   bottom, so a layer reads as above the page; and the 3px focus ring at half strength. */
+/* The app's three shadows (--shadow-low, --shadow-card, --shadow-raised), else Tailwind's shadow-xs, shadow-sm and
+   shadow-lg; Radix's popover shadow, and its upward twin for a box docked at the bottom, so a layer reads as above
+   the page; and the 3px focus ring at half strength. */
 :root {
   color-scheme: light;
-  --look-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --look-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --look-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --look-shadow-xs: var(--shadow-low, 0 1px 2px 0 rgb(0 0 0 / 0.05));
+  --look-shadow-sm: var(--shadow-card, 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1));
+  --look-shadow-lg: var(--shadow-raised, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1));
   --look-shadow-overlay: 0 10px 38px -10px rgb(0 0 0 / 0.35), 0 10px 20px -15px rgb(0 0 0 / 0.2);
   --look-shadow-up: 0 -8px 24px rgb(0 0 0 / 0.12);
   --look-ring: color-mix(in oklab, var(--ring) 50%, transparent);
@@ -65,7 +67,7 @@
 :where(body) {
   background: var(--background);
   color: var(--foreground);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
   font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

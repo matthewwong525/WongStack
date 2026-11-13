@@ -19,6 +19,9 @@ const TAIL = 15;
 const SECRET = 'SAVED_SECRET';
 const lines = (count, line) => `${Array.from({ length: count }, (_, index) => line(index)).join('\n')}\n`;
 const WRONG_TYPE = 'export const count: number = "text";\n';
+// A screen of one element, and a ready-made part that takes a class.
+const screen = (name, element, props = '') => `export function ${name}(${props}) {\n  return ${element};\n}\n`;
+const TILE = screen('Tile', '<div className={className} />', '{ className }: { className?: string }');
 const repeated = name => `export function ${name}(input: number): number {\n  let total = input;\n${
   lines(38, index => `  total += input * ${index + 2};`)}  return total;\n}\n`;
 
@@ -27,8 +30,10 @@ const repeated = name => `export function ${name}(input: number): number {\n  le
 export const GATES = [
   {
     name: 'lint', tool: /\boxlint\b/, settings: ['.oxlintrc.json'],
-    also: () => ['../scripts/lint-comment-length.mjs'],
-    files: { 'src/apps/second/value.ts': 'export const value = 2;\n' },
+    // The design rules read the app's own colours and classes from the parts' settings and its one stylesheet.
+    also: () => ['../scripts/lint-comment-length.mjs', 'components.json', 'src/index.css'],
+    // A part for the built-class sample: that rule reads only a class set on a ready-made part.
+    files: { 'src/apps/second/value.ts': 'export const value = 2;\n', 'src/components/ui/tile.tsx': TILE },
     samples: [
       { file: 'src/explicit-any.ts', says: 'no-explicit-any', text: 'export const loose = (value: any) => value;\n' },
       { file: 'src/too-long.ts', says: 'max-lines', text: lines(501, index => `export const line${index} = ${index};`) },
@@ -39,6 +44,12 @@ export const GATES = [
       { file: 'src/long-comment.ts', says: 'max-comment-lines', text: '// one\n// two\n// three\nexport const noted = 1;\n' },
       { file: 'src/wide-comment.ts', says: 'max-comment-width', text: `// ${'x'.repeat(127)}\nexport const wide = 1;\n` },
       { file: 'src/apps/first/App.tsx', says: 'no-restricted-imports', text: 'import { value } from "../second/value";\n\nexport function App() {\n  return <p>{value}</p>;\n}\n' },
+      // The design rules: a colour outside the app's set, a style on one element, a misspelt class, a built class.
+      { file: 'src/RawColour.tsx', says: 'no-raw-colors', text: screen('RawColour', '<p className="bg-pink-500">Pink</p>') },
+      { file: 'src/InlineStyle.tsx', says: 'no-inline-styles', text: screen('InlineStyle', '<p style={{ color: "red" }}>Red</p>') },
+      { file: 'src/MisspeltClass.tsx', says: 'no-unknown-classes', text: screen('MisspeltClass', '<p className="itmes-center">Centre</p>') },
+      { file: 'src/BuiltClass.tsx', says: 'require-static-classes', text: `import { Tile } from "@/components/ui/tile";\n\n${
+        screen('BuiltClass', '<Tile className={`p-${size}`} />', '{ size }: { size: number }')}` },
     ],
   },
   {

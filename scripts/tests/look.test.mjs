@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { lookColours, lookCss } from '../../.agents/skills/plan/scripts/look.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -79,4 +79,83 @@ test('the look loads nothing and lets no value break out of a page', t => {
   assert.doesNotMatch(out, /url\(|@import|<\/?(?:style|script)/i);
   assert.doesNotMatch(lookCss(repo), /url\(|@import|<|>/);
   for (const part of [':where(button, .btn)', ':where(.card)', ':where(.tag)', 'color-scheme: light;', '.theme-toggle {']) assert.ok(out.includes(part), part);
+});
+
+test('a rebranded corner, font and shadow reach the look, light and dark', t => {
+  const css = shipped
+    .replace(/(\n:root \{[^}]*--radius:)[^;]+;/, '$1 0.25rem;')
+    .replace(/(\n:root \{[^}]*--font:)[^;]+;/, '$1 "Brand Sans", sans-serif;')
+    .replace(/(\n:root \{[^}]*--shadow-card:)[^;]+;/, '$1 0 2px 0 rgb(0 0 0 / 0.2);')
+    .replace(/(\n\.dark \{[^}]*--shadow-card:)[^;]+;/, '$1 0 2px 0 rgb(0 0 0 / 0.6);');
+  const out = lookCss(checkout(t, css));
+  for (const value of ['--radius: 0.25rem;', '--font: "Brand Sans", sans-serif;', '--shadow-card: 0 2px 0 rgb(0 0 0 / 0.2);']) {
+    assert.ok(colours(out).includes(value), `the light set carries ${value}`);
+  }
+  assert.ok(colours(out, '.dark').includes('--shadow-card: 0 2px 0 rgb(0 0 0 / 0.6);'), 'the dark set carries its own shadow');
+  // The parts read the app's values first: the body its font, a control, a card and a layer their shadow.
+  assert.match(out, /:where\(body\) \{[^}]*font-family: var\(--font, /);
+  for (const [look, brand] of [['xs', 'low'], ['sm', 'card'], ['lg', 'raised']]) {
+    assert.ok(out.includes(`--look-shadow-${look}: var(--shadow-${brand}, `), `--look-shadow-${look} reads --shadow-${brand}`);
+  }
+  assert.match(out, /:where\(\.card\) \{[^}]*border-radius: calc\(var\(--radius\) \+ 4px\);[^}]*box-shadow: var\(--look-shadow-sm\);/);
+});
+
+test('the starter\'s own font, corner and shadows reach the look', () => {
+  // The starter ships the device's own font. An install sets its own: the app's check takes any font.
+  assert.match(shipped, /\n:root \{[^}]*--font:\s*system-ui, sans-serif;/);
+  const out = lookCss(repo);
+  for (const name of ['--font', '--radius', '--shadow-low', '--shadow-card', '--shadow-raised']) {
+    const value = new RegExp(`\\n:root \\{[^}]*${name}:\\s*([^;]+);`).exec(shipped)[1];
+    assert.ok(colours(out).includes(`${name}: ${value};`), `the look carries the app's ${name}`);
+  }
+});
+
+test('a repo with no app keeps the look\'s own font, corner and shadows', t => {
+  const out = lookCss(checkout(t, null));
+  assert.doesNotMatch(out, /--font:|--shadow-(?:low|card|raised):/, 'no app, so no brand font or shadow is set');
+  assert.match(colours(out), /--radius: 0\.625rem;/);
+  for (const line of [
+    'font-family: var(--font, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);',
+    '--look-shadow-xs: var(--shadow-low, 0 1px 2px 0 rgb(0 0 0 / 0.05));',
+    '--look-shadow-sm: var(--shadow-card, 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1));',
+    '--look-shadow-lg: var(--shadow-raised, 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1));',
+  ]) assert.ok(out.includes(line), line);
+});
+
+// The builder reads the look of the checkout it sits in, so a rebranded checkout gets its own copy of the builder.
+async function rebrandedBuilder(t, css) {
+  const root = checkout(t, css);
+  mkdirSync(join(root, '.git'));
+  cpSync(join(repo, '.agents/plugins/loop'), join(root, '.agents/plugins/loop'), { recursive: true });
+  const { buildReview } = await import(pathToFileURL(join(root, '.agents/plugins/loop/skills/plan/scripts/build-review.mjs')).href);
+  return kind => {
+    const dir = join(root, `sample-${kind}`);
+    mkdirSync(dir);
+    writeFileSync(join(dir, 'proposal.md'), '# Sample\n\n## Why\n\nA reason.\n\n## What Changes\n\n- **One thing** changes.\n');
+    buildReview(dir, { requireCurrent: true, kind });
+    return /<style>([\s\S]*?)<\/style>/.exec(readFileSync(join(dir, 'review.html'), 'utf8'))[1];
+  };
+}
+
+/** Each `font`, `font-family` and diagram font the built page's stylesheet sets, as `{ rule, value }`. */
+const fontRules = style => [...style.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap(([, selector, body]) =>
+  [...body.matchAll(/(?:^|[;\s])(?:font|font-family|--pele-font)\s*:\s*([^;]+)/g)].map(([, value]) => ({ rule: selector.trim(), value: value.trim() })));
+
+test('a rebranded font reaches a built review page and a built preview page: no rule of the page beats it', async t => {
+  const build = await rebrandedBuilder(t, shipped.replace(/(\n:root \{[^}]*--font:)[^;]+;/, '$1 "Brand Sans", sans-serif;'));
+  // The plan's review page, and the page /apply builds from the same kit to show a finished build.
+  for (const kind of ['plan', 'preview']) {
+    const style = build(kind);
+    assert.ok(colours(style).includes('--font: "Brand Sans", sans-serif;'), `${kind}: the page carries the app's font`);
+    const fonts = fontRules(style);
+    // A rule that named its own font would win over the look's `:where(body)`, which has no weight: the page's
+    // body, a sketch, a diagram, a pin and the note box each read --font first, with a stack for a repo with no app.
+    const page = fonts.filter(({ rule }) => /(?:^|\s)body$/.test(rule));
+    assert.ok(page.length, `${kind}: the page's own body rule sets a font`);
+    for (const rule of ['.art.sketch svg', '.art.pic', '.pin', '#editor textarea']) assert.ok(fonts.some(found => found.rule === rule), `${kind}: ${rule} sets a font`);
+    for (const { rule, value } of fonts) {
+      if (value === 'inherit' || value.endsWith('monospace')) continue;
+      assert.match(value, /var\(--font, [^()]*sans-serif\)$/, `${kind}: ${rule} reads the app's font first, not "${value}"`);
+    }
+  }
 });

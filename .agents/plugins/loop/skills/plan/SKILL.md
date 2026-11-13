@@ -38,7 +38,7 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.
 
 Copy its status, plan copy, link, and review lines as printed; [print the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) says when the last goes. Fix warned drawings. Keep no other copy of the proposal's text.
 
-A change that adds or restructures a screen gets [a `## UX` design section](references/drawings.md#the--ux-section-in-designmd).
+A change that adds or restructures a screen loads [`/ui`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/ui/SKILL.md) and gets [a `## UX` section](references/drawings.md#the--ux-section-in-designmd).
 
 ## Review notes
 
@@ -52,4 +52,4 @@ A change that adds or restructures a screen gets [a `## UX` design section](refe
 
 Lay out tasks so the build is written before it is checked ([why](../../references/rules.md#apply-never-saves-to-stop-but-may-save-to-finish-a-task)): group source and test authoring by surface, and put required checks in one final phase, not per-part `/save` tasks. A substantive deployed acceptance task names `/save` after implementation.
 
-Run `slot.mjs stepTitle set PLAN --task "<proposal title>"`. Validate with `openspec validate "<name>" --strict --no-interactive`; confirm the review page and every apply-required artifact are complete. Standalone, end on [the plan's copy, link, and review line](../explore/references/asking-the-user.md#print-the-plans-link), asking nothing. Invoked by `/apply`, return the exact change name to it.
+Run `slot.mjs stepTitle set PLAN --task "<proposal title>"`. Validate with `openspec validate "<name>" --strict --no-interactive`; confirm the review page and every apply-required artifact are complete. Standalone, end on [the plan's copy, link, and review line](../explore/references/asking-the-user.md#print-the-plans-link), asking nothing. Invoked by `/apply`, return the exact change name.
