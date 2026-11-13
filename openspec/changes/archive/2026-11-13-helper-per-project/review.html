@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · helper-per-project</title>
+<title>Review · 2026-11-13-helper-per-project</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -442,11 +442,11 @@
 })();
 </script>
 </head>
-<body data-change="helper-per-project" data-own-back>
+<body data-change="2026-11-13-helper-per-project" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>helper-per-project</h1>
+  <h1>2026-11-13-helper-per-project</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -485,6 +485,12 @@
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: close PR #529 when this ships, after a yes, because this change replaces it.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed: the stray <code>daily.mjs serve</code> from <code>/tmp/iwp/55</code> stays out of scope: it takes only its own folder's runs, so it does not cause this.</li>
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed (inside <code>/ship</code>): the go-live steps (install WongStack's helper, update relay-ring and install its helper, see both line-ups start, close PR #529) run after the merge, each after a yes, as the design's Migration Plan says, not as tasks, because a task must be done before the change is archived and these need the fix live first.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed (inside <code>/ship</code>, build): <code>pointCurrent</code> now moves only a project's own launcher; its shared branch is gone, because no caller may move the shared one.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-13</p>Check: dropped the helper test that the shared launcher, still naming the old hand-over script, is pointed at reply-link's, and its two <code>scripts/retired-names.json</code> exceptions, because the shared launcher is never moved now.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed (inside <code>/ship</code>, build): the helper's rounds find each folder's main checkout through <code>computer.mjs</code>'s per-folder cache, not two <code>git</code> calls each round, because the extra calls made the round-gap test in <code>live-line.test.mjs</code> flaky under the full suite.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed (inside <code>/ship</code>, build): WongOS's and ClaymooApp's names in ported code, tests and the wiki became <code>myapp</code> and <code>shop</code>, because <code>private-names.test.mjs</code> keeps private names out of live files.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-13</p>Assumed (inside <code>/ship</code>): 4.1 ticked with every local check passing but <code>module-versions</code>, which fails only because <code>origin/main</code> gained browser 3.3.0 after this branch was cut; <code>/ship</code>'s prepare merges <code>main</code> and reruns every local check before the save.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-13</p>Archive checkpoint: archived as <code>openspec/changes/archive/2026-11-13-helper-per-project/</code> and numbered 61.5.0; the review found three problems (a failed install left no helper, uninstall stranded taps and run gaps, a wrong wiki line), all fixed, and the second read found none.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
