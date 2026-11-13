@@ -47,12 +47,12 @@ test("one person's OK never passes another person's run on the same computer", t
   assert.equal(approvedVersion({ origin: ORIGIN, email: JO, key: 'weekly-plan' }, env), null, 'a broken file approves nothing');
 });
 
-test('checkRun refuses an unapproved, changed, ended or folderless run, and passes an approved one', async t => {
+test('checkRun refuses an unapproved, signed-out, changed, ended or folderless run, and passes an approved one', async t => {
   const { app, env, version } = await saved(t);
   const run = { id: runId(1), key: 'weekly-plan', revision: version };
   assert.equal((await checkRun(run, { client: app, env, email: () => JO })).schedule.key, 'weekly-plan');
   assert.equal((await checkRun(run, { client: app, env, email: () => KIM })).reason, 'not_approved');
-  assert.equal((await checkRun(run, { client: app, env, email: () => null })).reason, 'not_approved');
+  assert.equal((await checkRun(run, { client: app, env, email: () => null })).reason, 'not_signed_in', 'no sign-in here is no missing OK');
   assert.equal((await checkRun({ ...run, revision: 'b'.repeat(64) }, { client: app, env, email: () => JO })).reason, 'changed');
   assert.equal((await checkRun({ ...run, key: 'nope' }, { client: app, env, email: () => JO })).reason, 'unknown_key');
 

@@ -19,6 +19,7 @@ const WHY: Record<string, string | undefined> = {
   unknown_key: "didn't start, the computer doesn't know it", open_failed: "didn't start, the chat couldn't open",
   no_opener: "didn't start, this computer can't open a chat", no_worker: "didn't start, no background worker",
   no_result: "didn't start, the computer never answered", already_running: "didn't start, it's already running",
+  not_signed_in: "didn't start, this computer isn't signed in",
 }
 /** How a run went. */
 export const outcome = (run: Run) =>

@@ -398,7 +398,7 @@ it("takes a stale claim after an hour and ten minutes when the run sets no time 
 
 it("takes a computer's word that a run could not start", async () => {
   await putSchedule(sam);
-  for (const reason of ["not_approved", "changed", "ended", "no_folder", "no_work", "checkins_off"]) {
+  for (const reason of ["not_approved", "changed", "ended", "no_folder", "no_work", "checkins_off", "not_signed_in"]) {
     const id = (await call(sam, "POST", "run-now", { key: "sales-digest" })).json.run.id;
     await claim();
     expect((await call(sam, "POST", "run-result", { id, state: "blocked", reason })).json.run).toMatchObject({ state: "blocked", result: reason });

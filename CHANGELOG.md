@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Each project runs its own background helper, and a run with no sign-in says so
+
+- **Each project gets its own background helper.** It runs that project's own code and sign-in, and serves only that project's app, schedules and inbox taps. Another project's update can no longer stop your schedules with *needs your OK* ([the helper](wiki/stack/live-line.md#the-helper)).
+- **Nothing to approve again.** Your OKs stay in one file for all projects, because each OK names its app. A project's helper takes over the runs that already started and its open inbox taps, so no run starts twice or too soon, and each tap arrives once.
+- **The old shared helper stays for projects with no helper of their own.** A chat never points it at its own project's copy again; it only starts it when it stopped ([the old shared helper](wiki/stack/live-line.md#the-old-shared-helper)).
+- **A run that can't see your sign-in says so.** When this computer isn't signed in to the app, the run shows *didn't start, this computer isn't signed in*, not *Needs your OK*, and the page asks for no OK ([the OK on each computer](wiki/stack/host-schedules.md#the-ok-on-each-computer)).
+
+**Updating.** In each project on this computer that used the background helper, say yes to install the project's own helper: `node .claude/skills/reply-link/scripts/helper.mjs install`. It makes the helper start with the computer and moves the project off the shared one. Do it at a quiet minute, not on the hour or a 5-minute mark, so the shared helper claims no due run in between.
+
 ## 61.3.0 — A bell on each tab that waits on you, and one Hand back in the browser
 
 - **Each tab that waits on you shows 🔔 in its title.** When a sign-in, a payment, a robot check, or a stuck step needs you, its chat's tab gets the bell, in the browser window and in a live view. The site can change the title; the bell comes back.
