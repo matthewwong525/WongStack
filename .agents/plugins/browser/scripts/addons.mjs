@@ -1,8 +1,9 @@
 // The add-ons a person asks the agent to add, and 1Password by default: checked Firefox add-ons from Firefox's add-on
 // site, loaded side by side at each start, kept up to date, and removed by name with their stored data.
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { inflateRawSync } from 'node:zlib';
 import { BrowseError, FILES, stopServer } from './browse.mjs';
 
@@ -364,6 +365,19 @@ export async function startArgs({ profile = FILES.profile, now = Date.now() } = 
     pin(profile, added.guid);
     return ['--addon', folderOf(added.guid)];
   });
+}
+
+const OWN_ADDON = fileURLToPath(new URL('../addon/', import.meta.url));
+export const HAND_BACK_GUID = 'hand-back@wongstack';
+
+/** Copies the WongStack add-on, the toolbar's Hand back, out of the repo with this start's port and hand-back key,
+ * and pins its button; its launch flags. It is not in the added list, so `addon status` and `addon remove` skip it. */
+export function handBackArgs({ port, key, profile = FILES.profile, dir = FILES.handBack }) {
+  rmSync(dir, { recursive: true, force: true });
+  cpSync(OWN_ADDON, dir, { recursive: true });
+  writeFileSync(join(dir, 'config.json'), `${JSON.stringify({ port, key })}\n`, { mode: 0o600 });
+  pin(profile, HAND_BACK_GUID);
+  return ['--addon', dir];
 }
 
 /** The add-on whose page `addon open` shows: the newest password manager, else the newest add-on. */

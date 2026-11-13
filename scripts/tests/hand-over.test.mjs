@@ -42,7 +42,7 @@ const SESSION = 'card';
 // The X display the fake browser says it runs on, for a live view.
 const DISPLAY = ':97';
 // What an expression the watcher or a reading evaluates is called as a step.
-const READS = { 'location.href': 'url', '[innerWidth, innerHeight]': 'size', 1: 'keep-alive', [`[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`]: 'secrets' };
+const READS = { 'location.href': 'url', '[innerWidth, innerHeight]': 'size', 1: 'keep-alive', [`[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`]: 'secrets', "document.visibilityState === 'visible'": 'shown' };
 
 /** An evaluated read as a step: a count by its selector. */
 function readOf(expression) {
@@ -56,7 +56,7 @@ function stepOf({ method, path, body }) {
   if (route === 'evaluate') return READS[body.expression] ?? readOf(body.expression);
   if (route === 'viewport') return `viewport ${body.width}x${body.height}`;
   if (route === 'select') return `select ${target} ${body.option}`;
-  if (route === 'front') return ['front', { true: 'turn', false: 'end' }[body.turn], body.raise === false && 'kept', body.reselect && 'again'].filter(Boolean).join(' ');
+  if (route === 'front') return ['front', { true: 'turn', false: 'end' }[body.turn], body.shared && 'shared', body.raise === false && 'kept', body.reselect && 'again'].filter(Boolean).join(' ');
   return method === 'POST' && target ? `${route} ${target}` : route;
 }
 
@@ -388,7 +388,8 @@ const SOURCE_ARGS = dir => ['-display', DISPLAY, '-unixsock', join(dir, 'screen.
 /** Opens a live view on the fixture's page, with NOTE unless `args` names a note. */
 const openedView = (f, ...args) => opened(f, '--view', '--session', SESSION, ...args, ...(args.includes('--note') ? [] : ['--note', NOTE]));
 /** Presses the view's Hand back. */
-const handBack = link => route(link.port, link.key, 'give', {});
+/** The person's click on Hand back in the browser's toolbar: each open turn hears it at its next renewal. */
+const handBack = f => f.set('hand-back');
 /** The link's recorded state, or null while the watcher is writing it. A live view by link keeps its state in the
  * computer's one view, and this chat's note, page, size, and limit in its turn there. */
 function stateOf(f) {
@@ -444,8 +445,9 @@ test('--view needs a note and takes no finish; its flags go with --view only', t
   assert.equal(f.run('install-view', 'now').status, 2);
   const help = f.run('--help').stdout;
   assert.match(help, /open --view --note <line> \[--session <name>\] \[--minutes N\]/);
-  assert.match(help, /never on a page\s+change/);
-  assert.match(help, /joins it as a tab and prints the view's link, opening on its tab/);
+  assert.match(help, /never on a\s+page change/);
+  assert.match(help, /joins it and prints the view's link, which opens on its tab/);
+  assert.match(help, /Hand back in the\s+browser's toolbar \(which ends every open turn\)/);
   assert.match(help, /wait \| close \[--stopped\] \| install-view/);
   assert.match(help, /HANDOVER_NEEDS=live-view/);
   assert.match(help, /HANDOVER_VIEW=window/);
@@ -554,7 +556,7 @@ test('open --view starts the screen source on a private socket, fits the page, a
   const shown = await route(port, key, 'view');
   assert.equal(shown.status, 200);
   const me = basename(f.state);
-  assert.deepEqual({ ...shown.json, now: 0 }, { note: NOTE, control: 'turn', fit: WIDE, closesAt: state.deadline, shown: me, tabs: [{ chat: me, id: state.joined, note: NOTE, fresh: false, closesAt: state.deadline }], now: 0 });
+  assert.deepEqual({ ...shown.json, now: 0 }, { control: 'turn', fit: WIDE, closesAt: state.deadline, shown: me, tabs: [{ chat: me, note: NOTE }], now: 0 });
   assert.doesNotMatch(JSON.stringify(shown.json), /pay\.example|\.sock|hand-over/, 'no address of the page, and no path');
   assert.equal((await route(port, key, 'fit', { fit: 'tall' })).status, 400);
   assert.deepEqual(f.page().size, [1280, 663], 'a refused fit changes nothing');
@@ -562,8 +564,7 @@ test('open --view starts the screen source on a private socket, fits the page, a
   assert.deepEqual(f.page().size, [480, 663]);
   assert.deepEqual((await route(port, key, 'view')).json.fit, PHONE);
   assert.equal((await route(port, key, 'fit')).status, 405);
-  assert.equal((await route(port, key, 'give')).status, 405, 'a press is a POST');
-  for (const gone of ['form', 'send', 'save', 'keys', 'screen', 'done', 'take', 'watch', 'picture']) assert.equal((await route(port, key, gone, {})).status, 404, gone);
+  for (const gone of ['form', 'send', 'save', 'keys', 'screen', 'done', 'take', 'give', 'watch', 'picture']) assert.equal((await route(port, key, gone, {})).status, 404, gone);
   assert.equal((await route(port, key, 'show', { chat: 'another' })).status, 409, 'a chat with no tab');
 });
 
@@ -670,7 +671,7 @@ test('the screen answers only the link\'s key, sent as the subprotocol, and carr
   assert.equal((await ws.bytes(GREETING.length)).toString(), GREETING, 'the screen source\'s own greeting');
   ws.send(2, Buffer.from('a tap'));
   await eventually(() => f.tools.input().toString() === 'a tap');
-  assert.ok(f.steps().every(step => /^(url|size|viewport \d+x\d+)$/.test(step)), 'the tap went through the screen, not through a command to the browser');
+  assert.ok(f.steps().every(step => /^(url|size|shown|viewport \d+x\d+)$/.test(step)), 'the tap went through the screen, not through a command to the browser');
   ws.end();
 });
 
@@ -721,11 +722,12 @@ test('a view that ends on the password manager\'s page leaves the page\'s own si
   assert.deepEqual(f.page().size, [2560, 1328]);
 });
 
-test('while a view is open the watcher reads nothing from the page and keeps the page\'s window in front', linux, async t => {
+test('while a view is open the watcher reads only whether its tab shows, and keeps the page\'s window in front', linux, async t => {
   const f = fixture(t, { view: true });
   openedView(f);
   await eventually(() => f.fronts().length > 3);
-  assert.deepEqual(f.steps(), ['url', 'size', 'viewport 1280x720', 'viewport 1280x663'], 'only the open\'s own reads and fit: no poll reads the page');
+  assert.deepEqual(f.steps().filter(step => step !== 'shown'), ['url', 'size', 'viewport 1280x720', 'viewport 1280x663'], 'only the open\'s own reads and fit: no poll reads the page\'s content');
+  assert.ok(f.steps().includes('shown'), 'each poll asks which bell tab the browser shows');
   const tool = f.tools.calls('xdotool');
   assert.ok(tool.some(args => args.join(' ') === 'search --classname Navigator'));
   assert.ok(!tool.some(args => args.includes('--class')), '--class finds no browser window');
@@ -733,27 +735,28 @@ test('while a view is open the watcher reads nothing from the page and keeps the
   assert.ok(raised.length > 1, 'raised again at each poll');
   assert.ok(raised.every(args => args[1] === '100'), 'always the page\'s own window');
   assert.ok(f.tools.calls('xdotool', { display: true }).every(display => display === DISPLAY));
-  assert.equal(f.fronts()[0], 'front turn', 'the turn\'s tab comes to the front at open');
-  assert.ok(f.fronts().length > 2 && f.fronts().slice(1).every(step => step === 'front turn again'), 'and is held and selected again at each poll, unless the person opened a tab of their own');
+  assert.equal(f.fronts()[0], 'front turn shared', 'the turn\'s tab comes to the front at open, as a shared turn with its bell');
+  assert.ok(f.fronts().length > 2 && f.fronts().slice(2).every(step => step === 'front turn shared kept'), 'and is held at each poll, selecting no tab: the person picks tabs in the browser');
   f.run('close');
   assert.equal(f.fronts().at(-1), 'front end', 'and let go at the end');
 });
 
-test('while a browser pop-up shows, a view\'s polls and keep-alive leave it in front; the page comes back once it closes', linux, async t => {
+test('while a browser pop-up shows, a view\'s polls and refits leave it in front; the page comes back once it closes', linux, async t => {
   const f = fixture(t, { view: true });
   f.env.HANDOVER_KEEPALIVE_MS = '100';
   openedView(f);
-  await eventually(() => f.steps().includes('viewport 1280x663') && f.fronts().includes('front turn again'));
+  await eventually(() => f.steps().includes('viewport 1280x663') && f.fronts().includes('front turn shared kept'));
   const raises = () => f.tools.calls('xdotool').filter(args => args[0] === 'windowraise').length;
   f.set('popup');
-  await eventually(() => f.fronts().includes('front turn kept'));
+  const seen = f.fronts().length;
+  await eventually(() => f.fronts().length > seen + 2);
   const [fronts, steps, raised] = [f.fronts().length, f.steps().length, raises()];
-  await eventually(() => f.fronts().length > fronts + 3 && f.steps().slice(steps).includes('keep-alive'));
-  assert.ok(f.fronts().slice(fronts).every(step => step === 'front turn kept'), 'each poll renews the turn and selects no tab');
+  await eventually(() => f.fronts().length > fronts + 3);
+  assert.ok(f.fronts().slice(fronts).every(step => step === 'front turn shared kept'), 'each poll renews the turn and selects no tab');
   assert.equal(raises(), raised, 'and raises no window over the pop-up');
-  assert.ok(!f.steps().slice(steps).some(step => step.startsWith('viewport')), 'the keep-alive fits nothing, since a fit brings the tab up');
+  assert.ok(!f.steps().slice(steps).some(step => step.startsWith('viewport')), 'and fits nothing, since a fit brings the tab up');
   f.unset('popup');
-  await eventually(() => f.fronts().at(-1) === 'front turn again' && raises() > raised);
+  await eventually(() => raises() > raised && f.steps().slice(steps).some(step => step.startsWith('viewport')));
   f.run('close');
 });
 
@@ -769,7 +772,7 @@ test('a view stays open on a page an old finish would have met, until Hand back,
   await pause(300);
   assert.ok(existsSync(join(f.state, 'watcher.pid')), 'the receipt\'s address and a gone box end nothing');
   assert.equal((await route(link.port, link.key, 'view')).status, 200, 'the view still answers');
-  assert.deepEqual(await route(link.port, link.key, 'give', {}), { status: 200, json: { control: 'assistant' } });
+  handBack(f);
   assert.equal(await ws.closed, true, 'the screen connection ends with the link');
   const receipt = await eventually(async () => {
     const answer = await route(link.port, link.key, 'receipt').catch(() => null);
@@ -791,13 +794,12 @@ test('a view stays open on a page an old finish would have met, until Hand back,
   assert.equal(f.sent().length, 1);
 });
 
-test('a press of Hand back ends the turn handed-back, once, puts the page back, and wakes the chat', linux, async t => {
+test('Hand back in the browser ends the turn handed-back, once, puts the page back, and wakes the chat', linux, async t => {
   const f = fixture(t, { view: true, paseo: 'ok' });
   const link = openedView(f);
   const was = kept(f, link);
-  assert.deepEqual(await route(link.port, link.key, 'give', {}), { status: 200, json: { control: 'assistant' } });
-  const again = await route(link.port, link.key, 'give', {});
-  assert.ok([409, 410].includes(again.status), 'the turn ends once');
+  assert.equal((await route(link.port, link.key, 'give', {})).status, 404, 'the view has no Hand back of its own');
+  handBack(f);
   const out = f.run('wait');
   assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=handed-back');
   assert.match(out.rawStdout, /HANDOVER_NOTIFICATION=notified/);
@@ -843,7 +845,7 @@ test('a live view keeps its page open by setting its fit again, and sends nothin
   f.env.HANDOVER_KEEPALIVE_MS = '100';
   openedView(f);
   await eventually(() => f.steps().filter(step => step === 'viewport 1280x663').length >= 3);
-  assert.deepEqual([...new Set(f.steps())].sort(), ['size', 'url', 'viewport 1280x663', 'viewport 1280x720']);
+  assert.deepEqual([...new Set(f.steps())].sort(), ['shown', 'size', 'url', 'viewport 1280x663', 'viewport 1280x720']);
   assert.equal(f.steps().filter(step => step === 'viewport 1280x720').length, 1, 'the bar is read once');
   assert.equal(f.steps().filter(step => step === 'size').length, 1, 'and the size to put back');
 });
@@ -853,12 +855,12 @@ test('where the browser shows in its own window, a view opens no link, stays ope
   f.openPage();
   const out = f.run('open', ...VIEW_ARGS);
   assert.equal(out.status, 0, out.stderr);
-  assert.match(out.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=Run wait in the background, then end this turn telling the person what to do in the browser window/);
+  assert.match(out.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=Run wait in the background, then end this turn telling the person what to do on the 🔔 tab in the browser window, then to click Hand back at the top of the browser/);
   assert.doesNotMatch(out.stdout, /HANDOVER_LINK|https?:|key=/);
   assert.deepEqual(f.calls(), [], 'no tunnel');
-  assert.equal(f.fronts()[0], 'front turn', 'the task\'s tab comes to the front, held as the person\'s turn');
-  await eventually(() => f.fronts().includes('front turn kept'));
-  assert.ok(f.fronts().slice(1).every(step => step === 'front turn kept'), 'each poll renews the turn without taking the screen: the window is the person\'s');
+  assert.equal(f.fronts()[0], 'front turn shared', 'the task\'s tab comes to the front, held as the person\'s turn');
+  await eventually(() => f.fronts().includes('front turn shared kept'));
+  assert.ok(f.fronts().slice(1).every(step => step === 'front turn shared kept'), 'each poll renews the turn without taking the screen: the window is the person\'s');
   const state = stateOf(f);
   assert.deepEqual(state.view, { note: NOTE, window: true });
   assert.equal(state.key, undefined, 'no key, and no page served');
@@ -873,7 +875,7 @@ test('where the browser shows in its own window, a view opens no link, stays ope
   assert.deepEqual(f.timings().map(({ ended, cause }) => [ended, cause]), [['handed-back', 'close-command']]);
 });
 
-test('a view opens nothing while the person\'s turn is open in another chat\'s tab', async t => {
+test('a view opens nothing while a turn that is not shared, as a watch\'s, is open in another chat\'s tab', async t => {
   const f = fixture(t, { window: true });
   f.openPage();
   f.set('front-refused');
@@ -889,16 +891,16 @@ test('the browser on request: a window view needs only a note, holds the chat\'s
   f.openPage(null);
   const out = f.run('open', '--view', '--note', "Here is the browser. Tap Hand back when you're done.");
   assert.equal(out.status, 0, out.stderr);
-  assert.match(out.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=.*say done there in the chat; on done, run close\./);
+  assert.match(out.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=.*click Hand back at the top of the browser; on done in the chat, run close\./);
   assert.doesNotMatch(out.stdout, /HANDOVER_LINK/);
   assert.deepEqual(stateOf(f).view, { note: "Here is the browser. Tap Hand back when you're done.", window: true });
   assert.notEqual(stateOf(f).session, SESSION, 'the chat\'s own tab, with no --session');
   f.set('count', '0');
-  await eventually(() => f.fronts().includes('front turn kept'));
+  await eventually(() => f.fronts().includes('front turn shared kept'));
   assert.ok(existsSync(join(f.state, 'watcher.pid')), 'still open');
   assert.deepEqual(f.steps(), ['url'], 'only the address, once at open, to know a page is there');
   assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=handed-back');
-  assert.deepEqual([f.fronts()[0], f.fronts().at(-1)], ['front turn', 'front end']);
+  assert.deepEqual([f.fronts()[0], f.fronts().at(-1)], ['front turn shared', 'front end']);
 });
 
 test('every end of a window turn lets go of the turn: a timeout, and a close after the watcher died', async t => {
@@ -907,7 +909,7 @@ test('every end of a window turn lets go of the turn: a timeout, and a close aft
   const ends = () => f.fronts().filter(step => step === 'front end').length;
   assert.equal(f.run('open', ...VIEW_ARGS, '--minutes', '0.02').status, 0);
   assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=timeout');
-  assert.deepEqual([f.fronts()[0], f.fronts().at(-1), ends()], ['front turn', 'front end', 1]);
+  assert.deepEqual([f.fronts()[0], f.fronts().at(-1), ends()], ['front turn shared', 'front end', 1]);
   assert.equal(f.run('open', ...VIEW_ARGS).status, 0);
   process.kill(Number(readFileSync(join(f.state, 'watcher.pid'), 'utf8')), 'SIGKILL');
   await pause(100);
@@ -945,7 +947,35 @@ function joined(f, name = 'flights', ...args) {
 /** The view's answer to the page's poll. */
 const tabsOf = async link => (await route(link.port, link.key, 'view')).json;
 
-test('a second chat\'s turn joins the open view as a tab behind the one shown: the same link, one tunnel, one screen', linux, async t => {
+test('window turns stand side by side: a second chat\'s opens beside the first, one Hand back wakes both, done ends one', async t => {
+  const f = fixture(t, { window: true, paseo: 'ok' });
+  f.openPage();
+  const other = f.chat('flights');
+  assert.equal(other.browse('open', RECEIPT, '--session', FLIGHTS.session).status, 0);
+  const both = () => {
+    assert.equal(f.run('open', ...VIEW_ARGS).status, 0);
+    const second = other.run('open', '--view', '--session', FLIGHTS.session, '--note', FLIGHTS.note);
+    assert.equal(second.status, 0, second.stderr);
+    assert.match(second.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=/, 'no chat is told the person is busy');
+  };
+  both();
+  const watch = f.chat('tools').run('open', '--watch', '--session', FLIGHTS.session, '--note', WATCH_NOTE);
+  assert.equal(watch.status, 1, 'a watch still stays out');
+  await eventually(() => f.fronts().filter(step => step === 'front turn shared kept').length > 3);
+  handBack(f);
+  assert.equal(f.run('wait').stdout.trim(), 'HANDOVER_RESULT=handed-back');
+  assert.equal(other.run('wait').stdout.trim(), 'HANDOVER_RESULT=handed-back');
+  assert.deepEqual(f.sent().map(message => message[1]).sort(), ['a-full-workspace-id', 'flights-workspace-id'], 'each chat is woken');
+  assert.deepEqual(f.timings().map(({ ended, cause }) => [ended, cause]), [['handed-back', 'hand-back'], ['handed-back', 'hand-back']]);
+
+  // Each tab has heard its Hand back, so these turns end only on close.
+  both();
+  assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=handed-back');
+  assert.ok(existsSync(join(other.state, 'watcher.pid')), 'done in one chat ends that chat\'s turn alone');
+  assert.equal(other.run('close').stdout.trim(), 'HANDOVER_RESULT=handed-back');
+});
+
+test('a second chat\'s turn joins the open view behind the tab shown: the same link, one tunnel, one screen', linux, async t => {
   const f = fixture(t, { view: true, paseo: 'ok' });
   const link = openedView(f);
   const was = kept(f, link);
@@ -958,48 +988,39 @@ test('a second chat\'s turn joins the open view as a tab behind the one shown: t
   assert.equal(f.tools.calls('x11vnc').length, 1, 'one screen source');
   assert.ok(existsSync(join(other.state, 'watcher.pid')), 'the second chat waits on the same watcher');
   const view = await tabsOf(link);
-  assert.deepEqual([view.shown, view.note], [me, NOTE], 'a new tab does not take the screen from the person');
-  assert.deepEqual(view.tabs.map(tab => [tab.chat, tab.note, tab.fresh]), [[me, NOTE, false], ['flights', FLIGHTS.note, true]]);
-  assert.equal(view.closesAt, Math.max(...view.tabs.map(tab => tab.closesAt)), 'the link stays until its last limit');
+  assert.equal(view.shown, me, 'a new turn does not take the screen from the person');
+  assert.deepEqual(view.tabs, [{ chat: me, note: NOTE }, { chat: 'flights', note: FLIGHTS.note }], 'the bar lists each turn\'s line');
+  assert.ok(view.closesAt >= stateOf(f).deadline, 'the link stays until its last limit');
+  await eventually(() => f.fronts().filter(step => step === 'front turn shared kept').length > 3);
+  assert.ok(!f.fronts().some(step => step.includes('again')), 'no poll selects a tab: the person picks tabs in the browser');
 
-  const shown = await route(link.port, link.key, 'show', { chat: 'flights' });
-  assert.deepEqual([shown.status, shown.json.shown, shown.json.note], [200, 'flights', FLIGHTS.note]);
-  assert.deepEqual(shown.json.tabs.map(tab => tab.fresh), [false, false], 'a tab seen is no longer new');
-  assert.deepEqual(f.page().size, FIRST, 'the page shown before gets its size back');
-  assert.equal(f.fronts().filter(step => step === 'front end').length, 1, 'and lets go of the turn');
-  assert.equal((await route(link.port, link.key, 'show', { chat: me })).json.shown, me, 'and back');
-  assert.equal((await route(link.port, link.key, 'show', { chat: 'garage' })).status, 409, 'a chat with no tab');
-  assert.deepEqual(f.sent(), [], 'a tap wakes nobody');
+  f.set('shown', FLIGHTS.session);
+  await eventually(async () => (await tabsOf(link)).shown === 'flights');
+  assert.deepEqual(f.page().size, [1280, 663], 'the page shown before keeps its fit');
+  assert.equal(f.fronts().filter(step => step === 'front end').length, 0, 'and its turn');
+  f.unset('shown');
+  assert.deepEqual((await route(link.port, link.key, 'show', { chat: me })).json.shown, me, 'a chat\'s link shows its own tab');
+  assert.equal((await route(link.port, link.key, 'show', { chat: 'garage' })).status, 409, 'a chat with no turn');
+  assert.deepEqual(f.sent(), [], 'a tab change wakes nobody');
   assert.equal(other.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
   assert.equal(f.run('close').stdout.trim(), 'HANDOVER_RESULT=closed');
+  assert.deepEqual(f.camofox.tabs().map(tab => tab.size), [FIRST, FIRST], 'the page behind gets its size back at the last end');
   await assertPutBack(f, was);
 });
 
-test('Hand back ends the shown chat\'s turn alone, wakes only that chat, and shows the oldest tab left; the last closes the link', linux, async t => {
+test('Hand back in the browser ends every turn, wakes each chat, and closes the link', linux, async t => {
   const f = fixture(t, { view: true, paseo: 'ok' });
   const link = openedView(f);
   const was = kept(f, link);
-  const me = basename(f.state);
   const { other } = joined(f);
-  assert.deepEqual(await route(link.port, link.key, 'give', { chat: 'flights' }), { status: 409, json: null }, 'only the shown tab hands back');
-  assert.deepEqual(await route(link.port, link.key, 'give', { chat: me }), { status: 200, json: { control: 'assistant' } });
+  assert.equal((await route(link.port, link.key, 'give', { chat: 'flights' })).status, 404, 'the view has no Hand back of its own');
+  handBack(f);
   const out = f.run('wait');
   assert.equal(out.stdout.trim(), 'HANDOVER_RESULT=handed-back');
   assert.match(out.rawStdout, /HANDOVER_NOTIFICATION=notified/);
-  assert.deepEqual(f.sent().map(message => message[1]), ['a-full-workspace-id'], 'only the first chat is woken');
-  const view = await eventually(async () => {
-    const now = await tabsOf(link);
-    return now.shown === 'flights' && now;
-  });
-  assert.deepEqual([view.note, view.tabs.map(tab => tab.chat)], [FLIGHTS.note, ['flights']]);
-  assert.ok(existsSync(join(other.state, 'watcher.pid')), 'the other turn is still open');
-  assert.ok(await answers(link.port), 'and so is the link');
-
-  assert.equal((await route(link.port, link.key, 'give', { chat: 'flights' })).status, 200);
-  const last = other.run('wait');
-  assert.equal(last.stdout.trim(), 'HANDOVER_RESULT=handed-back');
-  assert.deepEqual(f.sent().map(message => message[1]), ['a-full-workspace-id', 'flights-workspace-id'], 'then only the second');
-  assert.match(f.sent()[1][2], /"mode":"view","result":"handed-back"/);
+  assert.equal(other.run('wait').stdout.trim(), 'HANDOVER_RESULT=handed-back');
+  assert.deepEqual(f.sent().map(message => message[1]).sort(), ['a-full-workspace-id', 'flights-workspace-id'], 'each chat is woken');
+  assert.ok(f.sent().every(message => /"mode":"view","result":"handed-back"/.test(message[2])));
   await assertPutBack(f, was);
   assert.ok(!existsSync(join(f.hub, 'view', 'state.json')), 'the view\'s own files are gone');
   assert.deepEqual(f.timings().map(({ ended, cause }) => [ended, cause]), [['handed-back', 'hand-back'], ['handed-back', 'hand-back']]);
@@ -1132,7 +1153,7 @@ test('a view handed back notifies the full originating workspace without wait; t
   assert.equal(JSON.parse(readFileSync(join(f.hub, 'view', 'state.json'), 'utf8')).agentId, undefined, 'the view names no chat to wake');
   assert.equal(state.target.agentId, 'a-full-workspace-id', 'each turn names its own, since a view serves several chats');
   assert.match(state.completionId, /^[a-f0-9]{32}$/);
-  await handBack(link);
+  handBack(f);
   const receipt = await eventually(async () => {
     const response = await fetch(`http://127.0.0.1:${link.port}/receipt`, { headers: { 'x-hand-over-key': link.key } }).catch(() => null);
     return response?.status === 200 && await response.json();
@@ -1155,7 +1176,8 @@ test('a view handed back notifies the full originating workspace without wait; t
 for (const [paseo, notification] of [['fail', 'unconfirmed'], ['timeout', 'unconfirmed'], ['invalid', 'unconfirmed'], [null, 'unavailable']]) {
   test(`completion keeps its result when notification is ${paseo ?? 'missing'}`, linux, async t => {
     const f = fixture(t, { view: true, paseo });
-    await handBack(openedView(f));
+    openedView(f);
+    handBack(f);
     f.run('wait');
     const result = JSON.parse(readFileSync(join(f.state, 'result.json'), 'utf8'));
     assert.equal(result.result, 'handed-back'); assert.equal(result.notification, notification);
@@ -1165,7 +1187,8 @@ for (const [paseo, notification] of [['fail', 'unconfirmed'], ['timeout', 'uncon
 
 test('a CLI without originating identity never infers a target or opens another workspace', linux, async t => {
   const f = fixture(t, { view: true, paseo: 'ok', agentId: '' });
-  await handBack(openedView(f));
+  openedView(f);
+  handBack(f);
   f.run('wait');
   assert.equal(f.sent().length, 0);
   assert.equal(JSON.parse(readFileSync(join(f.state, 'result.json'), 'utf8')).notification, 'unavailable');
@@ -1304,7 +1327,7 @@ test('a live view is listed by what it asks, never its note, and leaves the inbo
   const link = openedView(f, '--note', 'Tap the box that says you are human');
   const state = stateOf(f);
   assert.deepEqual(await listing(calls, state), { id: state.completionId, title: 'Your turn in the browser', workspace: basename(process.cwd()), what: 'view', url: `${ORIGIN}/#key=${link.key}` }, 'the inbox names no tab');
-  await handBack(link);
+  handBack(f);
   assert.equal(f.run('wait').stdout, 'HANDOVER_RESULT=handed-back\n');
   assert.deepEqual(closedIn(calls), [state.completionId]);
   assert.doesNotMatch(JSON.stringify(calls()), /human/);

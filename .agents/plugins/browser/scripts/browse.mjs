@@ -78,6 +78,7 @@ export const FILES = {
   profile: join(DIR, 'profile'), cache: join(DIR, 'cache'), marker: join(DIR, 'migrated'), fingerprint: join(DIR, 'fingerprint.json'), venv: join(DIR, 'venv', CAMOUFOX.python),
   settings: join(homedir(), '.wong-stack', 'browser-settings.json'),
   addons: join(DIR, 'addons'), added: join(DIR, 'addons.json'), log: join(DIR, 'server.log'),
+  handBack: join(homedir(), '.wong-stack', 'browser', 'hand-back'),
 };
 /** The old camofox browser's profiles, read once for the login move. */
 export const OLD_PROFILES = join(homedir(), '.wong-stack', 'camofox', 'profiles');
@@ -744,9 +745,11 @@ export function client(given, { retry = true, start = true } = {}) {
     size: () => evaluate('[innerWidth, innerHeight]').catch(error => error.size ?? Promise.reject(error)),
     /** Each ref's box at the last snapshot, as `refNames` gives it; `{}` before one. */
     names: () => readTab()?.names ?? {},
-    /** Shows this tab in front with the keyboard: `turn` holds or ends the person's turn, `raise: false` renews it,
-     * and `reselect` leaves the person's own tab shown. */
-    front: ({ turn, raise, reselect } = {}) => onTab(tabId => send('POST', `/tabs/${tabId}/front`, { userId: USER, ...(turn !== undefined && { turn }), ...(raise === false && { raise }), ...(reselect && { reselect }) })),
+    /** Shows this tab in front: `turn` holds or ends the person's turn, `raise: false` renews it, `reselect` leaves
+     * their own tab shown, `shared` stands beside other turns; `handedBack` answers the browser's Hand back. */
+    front: ({ turn, raise, reselect, shared } = {}) => onTab(tabId => json('POST', `/tabs/${tabId}/front`, { userId: USER, ...(turn !== undefined && { turn }), ...(raise === false && { raise }), ...(reselect && { reselect }), ...(shared && { shared }) })),
+    /** Whether the browser shows this tab now: a tab behind another reads hidden. */
+    shown: () => evaluate("document.visibilityState === 'visible'"),
     /** Sets the page's size; resolves to its size. On the password manager's page the width applies, the height stays
      * under the bar, and the answer says `addonPage`. */
     resize: (width, height) => onTab(tabId => json('POST', `/tabs/${tabId}/viewport`, { userId: USER, width, height })),

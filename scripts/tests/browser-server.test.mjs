@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 // browse.mjs names its files from the home folder as it loads, so the test gets its own first.
 process.env.HOME = mkdtempSync(join(tmpdir(), 'browser-server-test-'));
-const { contextOptions, persistentOptions, PICK_MS, pressKey, routes, startProxy } = await import('../../.agents/skills/browser/scripts/browser-server.mjs');
+const { BELL, contextOptions, persistentOptions, PICK_MS, pressKey, routes, startProxy } = await import('../../.agents/skills/browser/scripts/browser-server.mjs');
 const { ADDON_REFUSAL } = await import('../../.agents/skills/browser/scripts/refs.mjs');
 const { joinPieces } = await import('../../.agents/skills/browser/scripts/browse.mjs');
 
@@ -84,6 +84,7 @@ function stubPage(calls, yaml, frames = []) {
   return {
     main,
     calls,
+    listeners,
     mainFrame: () => main,
     frames: () => [main, ...frames],
     url: () => url,
@@ -842,6 +843,119 @@ test('a turn ends when its helper stops renewing it, or its tab closes', async (
     await call('DELETE', `/tabs/${mine}?userId=me`);
     assert.equal((await post(other, 'click', { selector: '#buy' })).status, 200, 'a closed tab holds no turn');
   } finally { await close(); }
+});
+
+/** Gives `page` a title the server's scripts run against, with a stand-in for the observer that keeps the bell. */
+function titled(page, title) {
+  const document = { title, head: {} };
+  class Watcher {
+    constructor(callback) { Object.assign(this, { callback: () => inPage(document, callback), on: false }); document.watcher = this; }
+    observe() { this.on = true; }
+    disconnect() { this.on = false; }
+  }
+  const read = page.evaluate;
+  page.evaluate = async (script, arg) => {
+    if (typeof script !== 'function') return read(script);
+    const kept = globalThis.MutationObserver;
+    globalThis.MutationObserver = Watcher;
+    try { return inPage(document, script, arg); } finally { globalThis.MutationObserver = kept; }
+  };
+  /** The site sets its title, as a new page or a script does; the observer, while on, sees it. */
+  document.change = text => { document.title = text; if (document.watcher?.on) document.watcher.callback(); };
+  return document;
+}
+
+test('shared turns stand side by side, each tab with its bell; only the first comes to the front', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context, { turnWaitMs: 0 });
+  try {
+    const { tabId: mine } = (await open(call, 'mine')).body;
+    const { tabId: other } = (await open(call, 'other')).body;
+    const { tabId: third } = (await open(call, 'third')).body;
+    const [page, otherPage] = context.opened;
+    const [doc, otherDoc] = [titled(page, 'Netflix'), titled(otherPage, 'Pay')];
+    const post = (tab, body) => call('POST', `/tabs/${tab}/front`, { userId: 'me', ...body });
+    assert.deepEqual((await post(mine, { turn: true, shared: true })).body, { ok: true });
+    assert.deepEqual(page.calls.at(-1), ['front'], 'the first turn\'s tab comes to the front');
+    assert.deepEqual((await post(other, { turn: true, shared: true })).body, { ok: true }, 'a second shared turn joins');
+    assert.ok(!otherPage.calls.some(([step]) => step === 'front'), 'and stays behind');
+    assert.deepEqual([doc.title, otherDoc.title], [`${BELL}Netflix`, `${BELL}Pay`]);
+    assert.equal((await post(third, { turn: true })).status, 409, 'a plain turn is refused beside them');
+    assert.equal((await post(third, {})).status, 409, 'and so is a plain front');
+    assert.equal((await call('GET', '/turns')).body.count, 2);
+
+    doc.change('Netflix: sign in');
+    assert.equal(doc.title, `${BELL}Netflix: sign in`, 'a title the site changes keeps the bell');
+    page.listeners.domcontentloaded();
+    doc.title = 'Netflix home';
+    page.listeners.domcontentloaded();
+    await new Promise(done => setTimeout(done, 10));
+    assert.equal(doc.title, `${BELL}Netflix home`, 'and so does a new page');
+
+    assert.deepEqual((await post(other, { turn: false })).body, { ok: true });
+    await new Promise(done => setTimeout(done, 10));
+    assert.equal(otherDoc.title, 'Pay', 'an ended turn takes its bell off');
+    otherDoc.change('Paid');
+    assert.equal(otherDoc.title, 'Paid', 'and its watcher');
+    assert.equal(doc.title, `${BELL}Netflix home`, 'the other turn keeps its own');
+  } finally { await close(); }
+});
+
+test('Hand back ends every shared turn, each renewal hears it once, and a lapse takes its bell off too', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context, { turnMs: 200, turnWaitMs: 0, handBackKey: 'button-key' });
+  try {
+    const { tabId: mine } = (await open(call, 'mine')).body;
+    const { tabId: other } = (await open(call, 'other')).body;
+    const [page, otherPage] = context.opened;
+    const [doc, otherDoc] = [titled(page, 'Netflix'), titled(otherPage, 'Pay')];
+    const post = (tab, body) => call('POST', `/tabs/${tab}/front`, { userId: 'me', ...body });
+    await post(mine, { turn: true, shared: true });
+    await post(other, { turn: true, shared: true });
+    assert.deepEqual((await call('GET', '/turns', null, 'button-key')).body, { ok: true, count: 2 }, 'the button\'s key reads the count');
+    assert.deepEqual((await call('POST', '/hand-back', null, 'button-key')).body, { ok: true });
+    await new Promise(done => setTimeout(done, 10));
+    assert.deepEqual([doc.title, otherDoc.title], ['Netflix', 'Pay'], 'every bell goes');
+    assert.equal((await call('GET', '/turns')).body.count, 0);
+    const renew = { turn: true, shared: true, raise: false };
+    assert.deepEqual((await post(mine, renew)).body, { ok: true, handedBack: true }, 'a renewal hears it');
+    assert.deepEqual((await post(other, renew)).body, { ok: true, handedBack: true });
+    assert.deepEqual((await post(mine, renew)).body, { ok: true }, 'once');
+    await call('POST', '/hand-back', null, 'button-key');
+    assert.deepEqual((await post(other, { turn: true, shared: true })).body, { ok: true }, 'a new turn\'s first hold starts afresh');
+    assert.equal((await post(other, renew)).body.handedBack, undefined);
+    await post(other, { turn: false });
+    assert.equal((await post(mine, renew)).body.handedBack, true, 'while a renewal still hears its own');
+    await post(mine, renew);
+    assert.equal(doc.title, `${BELL}Netflix`);
+    await new Promise(done => setTimeout(done, 250));
+    assert.equal((await call('GET', '/turns')).body.count, 0, 'a lease past its time lets go');
+    await new Promise(done => setTimeout(done, 10));
+    assert.equal(doc.title, 'Netflix', 'and takes its bell off');
+
+    assert.deepEqual((await post(mine, { turn: true })).body, { ok: true });
+    await call('POST', '/hand-back', null, 'button-key');
+    assert.equal((await post(other, {})).status, 409, 'a plain turn stays: the watch link has its own Hand back');
+    assert.equal(doc.title, 'Netflix', 'and has no bell');
+  } finally { await close(); }
+});
+
+test('the hand-back key opens only the count and Hand back', async () => {
+  const context = stubContext();
+  const { call, close } = await serve(context, { handBackKey: 'button-key' });
+  try {
+    const { tabId } = (await open(call, 'mine')).body;
+    assert.equal((await call('GET', '/tabs?userId=me', null, 'button-key')).status, 401);
+    assert.equal((await call('POST', '/tabs', { userId: 'me', sessionKey: 'x' }, 'button-key')).status, 401);
+    assert.equal((await call('POST', `/tabs/${tabId}/front`, { userId: 'me', turn: false }, 'button-key')).status, 401);
+    assert.equal((await call('GET', '/turns', null, 'wrong-key')).status, 401);
+    assert.equal((await call('POST', '/turns', null, 'button-key')).status, 401, 'each route by its own method');
+    assert.deepEqual((await call('GET', '/turns')).body, { ok: true, count: 0 }, 'the main key opens them too');
+  } finally { await close(); }
+  const plain = await serve(stubContext());
+  try {
+    assert.equal((await plain.call('GET', '/turns', null, 'null')).status, 401, 'with no hand-back key, none opens them');
+  } finally { await plain.close(); }
 });
 
 test('show brings its tab to the front and holds no turn', async () => {

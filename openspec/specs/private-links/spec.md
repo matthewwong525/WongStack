@@ -128,7 +128,7 @@ A live view SHALL fit the browser window to the screen the person sees, on every
 
 ### Requirement: Every live view stays open until the person ends it
 
-Every live view, and every turn the agent gives the person on its browser, SHALL take no finish. It SHALL end only when the person taps *Hand back* on its page (or says *done* for a window turn), when the chat closes it, or at its time limit. It SHALL stay open through every page change on the site, a signed-in page or a receipt included. A request to open a view with a finish SHALL fail as a usage fault.
+Every live view, and every turn the agent gives the person on its browser, SHALL take no finish. A turn SHALL end only when the person clicks *Hand back* in the browser's toolbar, which ends every open turn, when the person says *done* in its chat, when the chat closes it, or at its time limit. A watch link SHALL end on its own *Hand back*. Each SHALL stay open through every page change on the site, a signed-in page or a receipt included. A request to open a view with a finish SHALL fail as a usage fault.
 
 #### Scenario: Several steps in one view
 

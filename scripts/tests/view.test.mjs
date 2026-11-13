@@ -20,7 +20,6 @@ const { checkView, endView, findTool, fingerprint, installView, listensOnTcp, li
 const linux = { skip: process.platform !== 'linux' && 'a live view runs on Linux only' };
 const APT = ['install', '-y', '--no-install-recommends', 'x11vnc', 'xdotool'];
 const alive = pid => { try { process.kill(pid, 0); return true; } catch { return false; } };
-const pause = ms => new Promise(done => setTimeout(done, ms));
 const sha = data => createHash('sha256').update(data).digest('hex');
 
 /** Writes `files`, a map of path to text, under `dir`. */
@@ -596,13 +595,10 @@ async function mounted(t, routes) {
   };
 }
 
-test('the view\'s routes give the note, the fit, and the deadline, take a shape, and end the turn once', async t => {
+test('the view\'s routes give the note, the fit, and the deadline, take a shape, and have no Hand back of their own', async t => {
   const fits = [];
-  const ends = [];
   const fit = kind => ({ kind, width: kind === 'phone' ? 480 : 1280, screen: SCREEN });
-  // The watcher ends a turn once: a second press finds no turn to end.
-  const onGive = () => ends.length ? null : () => ends.push('give');
-  const call = await mounted(t, viewRoutes({ note: 'Messenger wants to know you\'re a person' }, { fitted: () => fit('wide'), onFit: async kind => { fits.push(kind); return fit(kind); }, onGive, closesAt: 1234 }));
+  const call = await mounted(t, viewRoutes({ note: 'Messenger wants to know you\'re a person' }, { fitted: () => fit('wide'), onFit: async kind => { fits.push(kind); return fit(kind); }, closesAt: 1234 }));
   const view = await call('view');
   assert.equal(view.status, 200);
   assert.deepEqual({ ...view.json, now: 0 }, { note: 'Messenger wants to know you\'re a person', control: 'turn', fit: fit('wide'), closesAt: 1234, now: 0 });
@@ -612,11 +608,7 @@ test('the view\'s routes give the note, the fit, and the deadline, take a shape,
   assert.deepEqual(await call('fit', { fit: 'phone' }), { status: 200, json: { fit: fit('phone') } });
   for (const body of ['{', {}, { fit: 'tall' }, { fit: ['phone'] }, 'x'.repeat(20_000)]) assert.equal((await call('fit', body)).status, 400, JSON.stringify(body).slice(0, 40));
   assert.deepEqual(fits, ['phone'], 'only a shape it knows reaches the browser');
-  assert.equal((await call('give')).status, 405, 'a press is a POST');
-  assert.deepEqual(await call('give', {}), { status: 200, json: { control: 'assistant' } });
-  await pause(20);
-  assert.equal((await call('give', {})).status, 409, 'a second Hand back');
-  assert.deepEqual(ends, ['give'], 'the turn ends once, after its answer is sent');
+  for (const gone of ['give', 'take', 'watch']) assert.equal((await call(gone, {})).status, 404, `${gone}: the browser's own Hand back ends a turn`);
 
   const bare = await mounted(t, viewRoutes({ note: null }));
   assert.deepEqual(Object.keys((await bare('view')).json).sort(), ['control', 'fit', 'note', 'now'], 'nothing else from the page');
@@ -624,14 +616,12 @@ test('the view\'s routes give the note, the fit, and the deadline, take a shape,
   assert.equal((await bare('stop', {})).status, 400, 'Stop is gone: the route is no turn action');
 });
 
-test('a shared view\'s routes add its tabs, show a tab a press names, and end the turn of the chat Hand back names', async t => {
+test('a shared view\'s routes add its open turns and show the tab a chat\'s link names', async t => {
   const shown = { now: 'dentist' };
-  const given = [];
-  const tabs = () => ({ note: 'Booking needs a code', shown: shown.now, tabs: [{ chat: 'dentist', note: 'Booking needs a code', fresh: false }, { chat: 'flights', note: 'Pay for the seat', fresh: true }] });
-  const call = await mounted(t, viewRoutes({ note: 'Booking needs a code' }, {
+  const tabs = () => ({ shown: shown.now, tabs: [{ chat: 'dentist', note: 'Booking needs a code' }, { chat: 'flights', note: 'Pay for the seat' }] });
+  const call = await mounted(t, viewRoutes({ note: null }, {
     tabs,
     onShow: async chat => chat === 'flights' && Boolean(shown.now = chat),
-    onGive: chat => chat === 'flights' ? () => given.push(chat) : null,
   }));
   const view = (await call('view')).json;
   assert.deepEqual([view.control, view.shown, view.tabs.map(tab => tab.chat)], ['turn', 'dentist', ['dentist', 'flights']]);
@@ -639,10 +629,7 @@ test('a shared view\'s routes add its tabs, show a tab a press names, and end th
   assert.equal((await call('show', { chat: 'garage' })).status, 409, 'a chat with no tab');
   const showing = await call('show', { chat: 'flights' });
   assert.deepEqual([showing.status, showing.json.shown], [200, 'flights']);
-  assert.equal((await call('give', { chat: 'dentist' })).status, 409, 'a chat whose turn is not open');
-  assert.equal((await call('give', { chat: 'flights' })).status, 200);
-  await pause(20);
-  assert.deepEqual(given, ['flights']);
+  assert.equal((await call('give', { chat: 'flights' })).status, 404, 'no Hand back: the browser\'s own ends every turn');
 
   const single = await mounted(t, viewRoutes({ note: null }));
   assert.equal((await single('show', { chat: 'flights' })).status, 404, 'a view with no tabs has no route to show one');

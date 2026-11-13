@@ -4,15 +4,15 @@ A live view is a private link that shows the agent's browser on one page, for yo
 
 ## When it opens
 
-Every live view is the same turn: one line under the site says what to do now, and you tap *Hand back* when you're done. The view never closes because the page changed: a signed-in page or a receipt leaves it open, so you can check a setting or fix a mistake first. It opens for these steps only:
+Every live view is the same turn: one line under the site says what to do now, and you tap *Hand back* at the top of the browser when you're done. The view never closes because the page changed: a signed-in page or a receipt leaves it open, so you can check a setting or fix a mistake first. It opens for these steps only:
 
 | Step | The line says |
 |---|---|
-| A sign-in | Sign in to Netflix, then tap Hand back. |
-| A payment | Type your card and press Pay $45.00, then tap Hand back. |
-| A backup code | Type your backup code for Google, then tap Hand back. |
-| A robot check | Show Messenger you're a person, then tap Hand back. |
-| A stuck step | Tap DigiKey's Continue, then tap Hand back. |
+| A sign-in | Sign in to Netflix, then tap Hand back at the top of the browser. |
+| A payment | Type your card and press Pay $45.00, then tap Hand back at the top of the browser. |
+| A backup code | Type your backup code for Google, then tap Hand back at the top of the browser. |
+| A robot check | Show Messenger you're a person, then tap Hand back at the top of the browser. |
+| A stuck step | Tap DigiKey's Continue, then tap Hand back at the top of the browser. |
 
 - **A sign-in:** a site asks you to log in, and the browser isn't signed in. You type your password on the site's own page, paste it from your password manager, or fill it from [your password manager in the browser](../../../references/password-manager.md). The browser keeps the session, so a later task doesn't ask again: [sign in](#sign-in).
 - **A payment or a backup code:** card details, a backup or recovery code, or another lasting secret the page asks for. The agent fills the rest of the page first, and you press the site's own *Pay*: [pay or type a code](#pay-or-type-a-code). PayPal is [the same turn](#other-ways-to-pay).
@@ -26,28 +26,29 @@ Every other step keeps its route in [when a step needs you](../../../references/
 
 ## What you see
 
-The agent's browser fills the page, already on the step. One bar under it holds everything else: the line, the type box, and *Hand back*.
+The agent's browser fills the page, already on the step. Its tab's title starts with 🔔, and *Hand back* is the bell button at the top of the browser, with a count of open turns. One bar under the page holds the line and the type box.
 
 ```text
 ┌──────────────────────────────┐
-│ netflix.com/login            │
+│ 🔔 Netflix                   │
+│ netflix.com/login        🔔1 │
 │  Email     [            ]    │
 │  Password  [            ]    │
-│                              │
 ├──────────────────────────────┤
-│ Sign in to Netflix, then tap │
-│ Hand back.                   │
-│ [Tap a box…]     [Hand back] │
+│ 🔔 Sign in to Netflix, then  │
+│ tap Hand back at the top of  │
+│ the browser.                 │
+│ [Tap a box…]                 │
 └──────────────────────────────┘
 ```
 
-- **The line says what to do now.** It sits in the bar, above the type box.
+- **The line says what to do now.** It sits in the bar, above the type box: one line for each open turn.
 - **No light and dark switch.** The view always shows light, so the site looks as it does in your own browser.
 - **It fits what you hold.** Narrow on a phone, wide on a laptop, with the whole puzzle and its button in view. The page gets its own size back when the link closes.
 - **Tap straight on the browser.** Your taps go to it as they are. On a laptop your keyboard does too.
 - **Type in the box and it types in the browser.** A phone's keyboard doesn't reach the browser. Tap a box in the browser, then type in ours: each letter, delete, Enter, and paste lands in the browser at once, with no send. Text already in the browser's box stays: you add to it, or keep deleting.
 - **Paste anywhere.** A paste on the browser or in the box types the text into the browser, a key at a time, so a password from your password manager goes straight in. Nothing pasted goes to the link's helper.
-- ***Hand back* ends your turn.** The browser goes back to the agent, and the chat carries on. Saying *done* in the chat ends it too.
+- ***Hand back* ends every open turn.** The browser goes back to the agent, and each chat carries on. Saying *done* in a chat ends only its own turn.
 - **To give up, tap *Hand back* and say so in the chat.** If the step is not finished, the agent asks before it does more on that page.
 - **It stays open until you end it.** After *Hand back*, the page says *Done. Go back to the chat.* A link that has closed says *This link has closed. Ask in the chat for a new one.*
 
@@ -56,10 +57,10 @@ The agent's browser fills the page, already on the step. One bar under it holds 
 **While it's open, the link drives a browser signed in as you.** Anyone who gets it can use every account that browser is signed in to, address bar included. Send it to nobody.
 
 - **The same guards as [every private link](../../../references/browsing.md#how-private-links-work).** A new Cloudflare address and a secret only the link carries, one link per chat, and no screen without the secret. The screen's connection sends it as the WebSocket subprotocol, since a browser can send no header there, and the helper echoes it back ([`ws-bridge.mjs`](../scripts/lib/ws-bridge.mjs)).
-- **One live view, a tab for each chat.** The browser has one screen, so the computer has one view. Another chat that needs you while it is open adds a tab above the page and sends a link that opens on its tab. A new tab waits, marked with a dot, until you tap it or open its link: it never takes the page by itself. *Hand back* ends only the tab you see; its chat alone carries on, and the oldest tab left shows next. The view closes after the last tab. A [watch link](#the-watch-link) has no tabs and keeps other views out: `A live view is already open in modest-toad.`
-- **Each tab is open for up to 8 hours** from when its chat joins. It closes only on *Hand back*, on *done* in its chat, or at its limit, even if the chat stops. A closed link never works again.
+- **One live view, a 🔔 tab for each chat.** The browser has one screen, so the computer has one view. Another chat that needs you while it is open adds its turn: its tab gets a 🔔, its line joins the bar, and its link opens on its tab. A new turn never takes the page by itself: pick a 🔔 tab in the browser. The view closes after the last turn. A [watch link](#the-watch-link) has no turns and keeps other views out: `A live view is already open in modest-toad.`
+- **Each turn is open for up to 8 hours** from when its chat joins. It closes only on *Hand back*, on *done* in its chat, or at its limit, even if the chat stops. A closed link never works again.
 - **The agent learns only how it ended.** It sees nothing you tapped or typed. Afterwards it reads the page afresh and trusts nothing from before.
-- **Tasks share the window, a tab each.** While your turn is open, no other task shows its tab. If you tap another chat's tab or the blank first tab, yours comes back to the front by itself ([a tab for each chat](../../../references/browser-window.md#a-tab-for-each-chat)). A tab that you or the site open during your turn, such as *Forgot password* or *Sign in with Google*, stays in front while it is open: the browser can not tell the agent which tab shows.
+- **Tasks share the window, a tab each.** While a turn is open, no task without one shows its tab ([a tab for each chat](../../../references/browser-window.md#a-tab-for-each-chat)). The view fits the 🔔 tab you see. A tab that you or the site open during your turn, such as *Forgot password* or *Sign in with Google*, stays in front while it is open.
 - **A pop-up stays open.** An add-on's toolbar pop-up, such as your password manager's, or a menu stays in front of the page until you pick from it or tap outside it. Tap its box to type in it. Then your tab comes back to the front.
 
 ## The watch link
@@ -74,14 +75,14 @@ The [watch link](https://github.com/matthewwong525/WongStack/blob/main/wiki/deve
 
    ```bash
    H=.claude/skills/browser/skills/hand-over/scripts/hand-over.mjs
-   node $H open --view --note "Sign in to Netflix, then tap Hand back."
-   node $H open --view --note 'Type your card and press Pay $45.00, then tap Hand back.'   # single quotes keep the $
-   node $H open --view --note "Show Messenger you're a person, then tap Hand back."
+   node $H open --view --note "Sign in to Netflix, then tap Hand back at the top of the browser."
+   node $H open --view --note 'Type your card and press Pay $45.00, then tap Hand back at the top of the browser.'   # single quotes keep the $
+   node $H open --view --note "Show Messenger you're a person, then tap Hand back at the top of the browser."
    node $H wait                                                                            # prints HANDOVER_RESULT=...
    ```
 
-   `--note` is required: it is the one line the page shows. End it with *then tap Hand back*, since only you end the turn. A task that passes `--session <name>` to [`browse.mjs`](../../../scripts/browse.mjs) passes it here too; `--minutes N` sets a shorter limit. Exit 2 means a usage fault, such as no `--note`, or a finish flag such as `--until`, which no view takes. Exit 1 means the task has no page open, another link is open in this chat, or a live view is open in any chat. No page open usually means you took a while to say *Ready* and the browser closed the idle page: the agent opens the site's page again, then the view.
-4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures: the page is yours. The link's helper reads nothing from the page. It keeps your tab and its window in front, unless a pop-up shows, and once a minute sets the page's size again, since the browser closes a page left alone for 5 minutes and your taps don't count ([`hand-over.mjs`](../scripts/hand-over.mjs)).
+   `--note` is required: it is the one line the page shows. End it with *then tap Hand back at the top of the browser*, since only you end the turn. A task that passes `--session <name>` to [`browse.mjs`](../../../scripts/browse.mjs) passes it here too; `--minutes N` sets a shorter limit. Exit 2 means a usage fault, such as no `--note`, or a finish flag such as `--until`, which no view takes. Exit 1 means the task has no page open, another link is open in this chat, or a live view is open in any chat. No page open usually means you took a while to say *Ready* and the browser closed the idle page: the agent opens the site's page again, then the view.
+4. **Hands off while it's open.** From `open` until `wait` prints, the agent sends its browser no commands and takes no pictures: the page is yours. The link's helper reads nothing from the page. It keeps the window in front, unless a pop-up shows, fits the 🔔 tab you see, and once a minute sets that page's size again, since the browser closes a page left alone for 5 minutes and your taps don't count ([`hand-over.mjs`](../scripts/hand-over.mjs)).
 5. **Read how it ended.** After each result, the agent reads the page afresh.
    - `handed-back`: you tapped *Hand back*. The agent takes a fresh snapshot, shows [a picture](../../../references/browsing.md#show-what-the-browser-is-doing), and carries on from what the page shows now. It says it's signed in only once the page shows it. If the step is not finished, it asks you in the chat before it does more on that page.
    - `closed` or `timeout`: you said *done*, or the limit passed. If the check or the login is still there and you never got to it, the agent offers a new link. If you tried and the site refused you, that was [the site's one view](#one-view-per-site).
@@ -94,7 +95,7 @@ The [watch link](https://github.com/matthewwong525/WongStack/blob/main/wiki/deve
 At a login page the browser isn't signed in to, the agent opens a sign-in turn:
 
 - **You end it.** The view stays open at the signed-in page, through a second step such as Messenger's approval, until you tap *Hand back*.
-- **The line names the site:** `--note "Sign in to Netflix, then tap Hand back."`
+- **The line names the site:** `--note "Sign in to Netflix, then tap Hand back at the top of the browser."`
 - **A code or an approval during your turn is yours to finish there.** One that comes after *Hand back* goes through [login codes](../../../references/login-codes.md). A robot check during your turn is yours too.
 - **The browser keeps the session**, in its profile ([saved browser logins](../../../references/browsing.md#saved-browser-logins)), so a later task needs no sign-in until the site logs you out.
 
@@ -106,11 +107,11 @@ A card goes onto the site's own page, typed by you, and you press the site's own
 
 1. **Fill the rest of the page first.** The agent types the ordinary answers, from [saved details](saved-details.md) after a yes or asked in the chat, and shows a picture of the page.
 2. **Ask the pay question**, naming the purchase and its total: *Pay City of Markham $45.00?* `Ready, send it / Not now`. Your yes is your yes to buy.
-3. **Open the turn** with the line *Type your card and press Pay $45.00, then tap Hand back.*
+3. **Open the turn** with the line *Type your card and press Pay $45.00, then tap Hand back at the top of the browser.*
 4. **You type the card and press *Pay* once.** The view stays open at the receipt until you tap *Hand back*.
 5. **The agent checks the payment**, below.
 
-A backup or recovery code is the same turn, with the line *Type your backup code for Google, then tap Hand back.* Never the chat: a backup code doesn't expire, so it must not sit in the stored chat.
+A backup or recovery code is the same turn, with the line *Type your backup code for Google, then tap Hand back at the top of the browser.* Never the chat: a backup code doesn't expire, so it must not sit in the stored chat.
 
 ### Check the payment
 
@@ -123,7 +124,7 @@ After `handed-back`, `closed` or `timeout`, the agent finds out what the site di
 
 ### Other ways to pay
 
-- **PayPal**, where the site takes it: the pay question offers *Pay $84.00 with PayPal (you sign in, live)* beside the card. The agent presses the store's PayPal button, which pays nothing, then opens a turn with the line *Sign in to PayPal and approve $84.00, then tap Hand back.* You sign in and approve there. If PayPal's window does not show in the view, the agent opens PayPal's address in the same tab.
+- **PayPal**, where the site takes it: the pay question offers *Pay $84.00 with PayPal (you sign in, live)* beside the card. The agent presses the store's PayPal button, which pays nothing, then opens a turn with the line *Sign in to PayPal and approve $84.00, then tap Hand back at the top of the browser.* You sign in and approve there. If PayPal's window does not show in the view, the agent opens PayPal's address in the same tab.
 - **Google Pay and Apple Pay** stay out: Google blocks the agent's browser, and Apple Pay needs your device.
 
 ## One view per site

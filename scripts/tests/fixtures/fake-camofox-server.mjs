@@ -35,6 +35,8 @@ function send(response, status, body) {
   response.writeHead(status, { 'content-type': 'application/json' }).end(JSON.stringify(body));
 }
 const refuse = (response, status, error, more = {}) => send(response, status, { error, ...more });
+/** Whether the tab holds the person's turn: the browser's Hand back has ended every shared one. */
+const holdsTurn = tab => tab.turn === 'plain' || (tab.turn === 'shared' && !has('hand-back'));
 
 /** The page text a read gives, by how many reads this tab has had. */
 function pageText(tab) {
@@ -76,6 +78,8 @@ function evaluate(tab, expression) {
   if (expression === 'location.href') return tab.url;
   if (expression === '[innerWidth, innerHeight]') return tab.size;
   if (expression === '1') return 1;
+  // `shown` names the session whose tab the browser shows; with none, every tab reads as shown.
+  if (expression === "document.visibilityState === 'visible'") return !has('shown') || text('shown') === tab.session;
   // The page's secret boxes hold `secrets.json`'s values; `frames.json` holds the main page's iframes as `[name, src]`.
   if (expression === `[${SECRETS_SCRIPT}, ${FRAMES_SCRIPT}]`) return [has('secrets.json') ? JSON.parse(text('secrets.json')) : [], has('frames.json') ? JSON.parse(text('frames.json')) : []];
   const querySelectorAll = selector => (parse(selector), Array.from({ length: has('count') ? Number(text('count')) : 1 }));
@@ -155,10 +159,20 @@ const STEPS = {
     Object.assign(tab, { url: body.url, reads: 0, addon: null });
     return send(response, 200, { ok: true, tabId: tab.id, url: tab.url });
   },
-  front: (_, __, response) => (has('front-refused') ? refuse(response, 409, 'the person is using the browser') : send(response, 200, { ok: true })),
+  front: (tab, body, response) => {
+    if (has('front-refused')) return refuse(response, 409, 'the person is using the browser');
+    // `hand-back` is the person's click on the browser's Hand back: each shared turn's renewal hears it once.
+    const heard = has('hand-back') && body.turn === true && body.shared && body.raise === false && !tab.heard;
+    if (heard) tab.heard = true;
+    if (body.turn !== undefined) tab.turn = body.turn && !heard ? (body.shared ? 'shared' : 'plain') : null;
+    return send(response, 200, { ok: true, ...(heard && { handedBack: true }) });
+  },
   evaluate: (tab, body, response) => send(response, 200, { ok: true, result: evaluate(tab, body.expression) }),
   viewport(tab, body, response) {
     if (has('fail-viewport')) return refuse(response, 500, 'viewport failed');
+    // A resize shows the tab, so beside another tab's turn the real server waits for it, then refuses.
+    const behind = tab.turn !== 'shared' && [...tabs.values()].some(other => other !== tab && holdsTurn(other));
+    if (behind) return refuse(response, 409, 'the person is using the browser in another tab');
     tab.size = [body.width, body.height];
     return send(response, 200, { ok: true, width: body.width, height: body.height });
   },

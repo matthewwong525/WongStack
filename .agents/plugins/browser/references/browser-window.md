@@ -7,7 +7,7 @@ The agent's browser has one window, with a tab for each chat. This page says whe
 Each chat, and each scheduled run, gets its own tab in the one window, with the same sign-ins. The chats work at the same time, and none waits for another.
 
 - **A new chat opens a tab, not a window.** A blank first tab stays at the left: the browser opens each chat's tab from it, so leave it open. If you close it, the next chat opens one new window, once.
-- **Your turn keeps its tab in front.** While it is your turn in one tab, the other chats keep reading, typing, and clicking in their own tabs behind it, and never show theirs. A chat clicks a button, a link, or a tick box by its key, as you would press Tab and Enter, so your tab stays in front. A part of a page that reacts only to a mouse waits: the click runs by itself when your turn ends, and that chat takes no other step on its page until then. A second chat's turn joins [your live view](../skills/hand-over/references/live-view.md#what-the-link-can-do) as a tab; in a window, it waits: its `open --view` stops with *the person is using the browser*.
+- **Each tab that waits on you shows 🔔.** While a turn is open, the other chats keep reading, typing, and clicking in their own tabs behind it, and never show theirs. A chat clicks a button, a link, or a tick box by its key, as you would press Tab and Enter, so your tab stays in front. A part of a page that reacts only to a mouse waits: the click runs by itself when no turn is open, and that chat takes no other step on its page until then. A second chat's turn joins yours, in the window or [your live view](../skills/hand-over/references/live-view.md#what-the-link-can-do): its tab gets a 🔔 and waits behind until you pick it.
 - **A tab closes when its chat is done**, or after 5 minutes unused.
 
 [`browser-server.mjs`](../scripts/browser-server.mjs) owns the tabs.
@@ -33,9 +33,9 @@ Each chat, and each scheduled run, gets its own tab in the one window, with the 
 
 Where the browser shows in a window, your turn for [a sign-in, a payment, a robot check, or a stuck step](../skills/hand-over/references/live-view.md#when-it-opens) happens there, with no link:
 
-- **`open --view` takes the same line** as a live view. It brings your chat's tab to the front, and prints `HANDOVER_VIEW=window` and no `HANDOVER_LINK`.
-- **The chat says the line, with *say done*:** *Sign in to Netflix in the browser window, then say done.* On a Mac it adds: *If it's behind, click Camoufox in the Dock.* A payment still asks [the pay question](../skills/hand-over/references/live-view.md#pay-or-type-a-code) first.
-- **It ends only on your *done*, never because the page changed.** On *done*, the agent runs `hand-over.mjs close`, which ends the turn as `handed-back`. Then it reads the page afresh. While the turn is open, it sends that tab nothing.
+- **`open --view` takes the same line** as a live view. It puts 🔔 in your chat's tab title, brings the tab to the front unless another turn is open, and prints `HANDOVER_VIEW=window` and no `HANDOVER_LINK`.
+- **The chat says the line, with *Hand back*:** *Sign in to Netflix on the 🔔 tab in the browser window, then click Hand back at the top of the browser.* On a Mac it adds: *If it's behind, click Camoufox in the Dock.* A payment still asks [the pay question](../skills/hand-over/references/live-view.md#pay-or-type-a-code) first.
+- **It ends on *Hand back* or your *done*, never because the page changed.** *Hand back* ends every open turn and wakes each chat. On *done*, the agent runs `hand-over.mjs close`, which ends this chat's turn as `handed-back`. Then it reads the page afresh. While the turn is open, it sends that tab nothing.
 - **With the window off on a Mac or Windows computer**, `open --view` prints `HANDOVER_VIEW=unsupported`, and the step ends with steps for you.
 
 ## Ask for the browser
@@ -43,17 +43,17 @@ Where the browser shows in a window, your turn for [a sign-in, a payment, a robo
 Say *send me the browser* or *show me the browser* at any time to see and use your chat's tab. On every computer, the agent runs the same command:
 
 ```bash
-node .claude/skills/browser/skills/hand-over/scripts/hand-over.mjs open --view --note "Here is the browser. Tap Hand back when you're done."
+node .claude/skills/browser/skills/hand-over/scripts/hand-over.mjs open --view --note "Here is the browser. Tap Hand back at the top of the browser when you're done."
 ```
 
 It stays open through every page, as every turn does, for up to 8 hours. It holds your chat's tab as your turn, so no other chat's click takes the window away from you.
 
-- **With a window,** it brings your chat's tab to the front and prints `HANDOVER_VIEW=window`, with no link. The agent tells you the tab is in front, and to say *done* when you are through. On *done*, it runs `hand-over.mjs close`.
-- **With the link,** the agent sends a live view of your chat's tab. It ends when you tap *Hand back*.
+- **With a window,** it brings your chat's tab to the front and prints `HANDOVER_VIEW=window`, with no link. The agent tells you the 🔔 tab is in front, and to click *Hand back* or say *done* when you are through. On *done*, it runs `hand-over.mjs close`.
+- **With the link,** the agent sends a live view of your chat's tab. It ends when you tap *Hand back* at the top of the browser.
 
 The agent never runs `browse.mjs front` or `show` for this: neither holds a turn, so another chat's click could switch the window to its own tab.
 
-To show you a page when its task is done, with no turn, the agent runs `browse.mjs show`, which brings your chat's tab to the front. It prints `BROWSE_SHOWN=window`, `link`, or `none`; with `link` or `none` there is no window to show, so the agent sends a picture or the view above. While your turn is open in another chat's tab, `open` stops with *the person is using the browser in another chat's tab*. The agent still sends a link by itself for a sign-in, a payment or a backup code, a robot check, or a stuck step.
+To show you a page when its task is done, with no turn, the agent runs `browse.mjs show`, which brings your chat's tab to the front. It prints `BROWSE_SHOWN=window`, `link`, or `none`; with `link` or `none` there is no window to show, so the agent sends a picture or the view above. While a turn is open, `show` stops with *the person is using the browser*. The agent still sends a link by itself for a sign-in, a payment or a backup code, a robot check, or a stuck step.
 
 ## Settings stay on this computer
 

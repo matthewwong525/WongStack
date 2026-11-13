@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — A bell on each tab that waits on you, and one Hand back in the browser
+
+- **Each tab that waits on you shows 🔔 in its title.** When a sign-in, a payment, a robot check, or a stuck step needs you, its chat's tab gets the bell, in the browser window and in a live view. The site can change the title; the bell comes back.
+- **One *Hand back* button sits at the top of the browser.** Its number counts the tabs that wait on you. One click ends every open turn, and each chat carries on. Saying *done* in a chat still ends only that chat's turn.
+- **Two chats can wait on you at once in the window.** Before, a second chat's turn stopped with *the person is using the browser*. Now its tab gets a bell and waits behind yours, and it never takes the page by itself.
+- **A live view lists each open turn's line, with no row of tabs.** You pick a 🔔 tab in the browser itself, and the view fits the tab you see. The live view's own *Hand back* is gone; the watch link keeps its *Take over* and *Hand back*.
+
+**Updating.** Nothing to do by hand. The *Hand back* button shows after the browser's next start; until then, say *done* in each chat to end its turn.
+
 ## 61.0.0 — Every chat runs WongStack's checks, with no plugins
 
 - **Every chat runs each module's checks, trusted folder or not.** Memory's start digest, Daily's check-ins and stop check, and Access's start check now run from your project's own settings, the same place `/plan`'s checks run from. Before, they ran through a plugin, which loads only in a folder you trusted, so a new Paseo workspace stayed silent.

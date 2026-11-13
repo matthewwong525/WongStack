@@ -2,12 +2,12 @@
 // The shared browser: one Camoufox profile, driven by the Playwright inside the Python camoufox library, behind the
 // REST routes camofox-browser had (github.com/jo-inc/camofox-browser, MIT), so browse.mjs keeps its calls.
 import { spawn } from 'node:child_process';
-import { timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
-import { startArgs as addonArgs } from './addons.mjs';
+import { startArgs as addonArgs, handBackArgs } from './addons.mjs';
 import { FILES, LAUNCH_MS, OLD_PROFILES, launchConfig, proxySetting, windowSetting } from './browse.mjs';
 import { NETWORK_FILE, startForwarder } from './forwarder.mjs';
 import { moveLogins } from './login-move.mjs';
@@ -39,6 +39,24 @@ const BUSY = 'the person is using the browser';
 const WATCH_MS = 250;
 const CLICK_POLL_MS = 25_000;
 const WAITING = 'a click on this page waits for the person\'s turn in another tab; run `wait-click`';
+// The mark before the title of each tab that waits on the person; the browser lets a script change nothing else there.
+export const BELL = '🔔 ';
+const BELL_MS = 1000;
+/** Puts the bell before the page's title, and keeps it there while the site changes its title. It runs in the page,
+ * with the bell, and keeps its watcher on the document, which the page's own scripts never see. */
+const RING = bell => {
+  const mark = () => { if (!document.title.startsWith(bell)) document.title = bell + document.title; };
+  mark();
+  if (document.wongBell) return;
+  document.wongBell = new MutationObserver(mark);
+  document.wongBell.observe(document.head ?? document.documentElement, { subtree: true, childList: true, characterData: true });
+};
+/** Takes the bell off the page's title, and stops keeping it. It runs in the page, with the bell. */
+const UNRING = bell => {
+  document.wongBell?.disconnect();
+  delete document.wongBell;
+  if (document.title.startsWith(bell)) document.title = document.title.slice(bell.length);
+};
 // The screen a Linux desktop's window needs; the library hands the browser no variable of its own.
 const SCREEN_VARS = ['DISPLAY', 'WAYLAND_DISPLAY', 'XAUTHORITY', 'XDG_RUNTIME_DIR'];
 
@@ -412,18 +430,20 @@ function authorized(request, key) {
   return given.length === wanted.length && timingSafeEqual(given, wanted);
 }
 
-/** The HTTP handler over one browser `context`: the camofox routes browse.mjs calls, each behind `key`, with one
- * tab per userId + sessionKey, all in the home tab's window. A tab unused for `idleMs` closes, as camofox's did. */
-export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnMs = TURN_MS, turnWaitMs = TURN_WAIT_MS, clickPollMs = CLICK_POLL_MS } = {}) {
+/** The HTTP handler over one browser `context`: browse.mjs's routes behind `key`, a tab per userId + sessionKey,
+ * closed after `idleMs` unused. `handBackKey`, the toolbar button's, opens only the turn count and Hand back. */
+export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnMs = TURN_MS, turnWaitMs = TURN_WAIT_MS, clickPollMs = CLICK_POLL_MS, handBackKey = null } = {}) {
   const tabs = new Map();
   let made = 0;
   let home = null;
   let opening = Promise.resolve();
   // Each page made for a task's tab: any other page but the home tab is one the person or a site opened.
   const taskPages = new WeakSet();
-  // The tab of the person's open turn, `{id, until, before}`: no other tab comes to the front while it holds. `before`
-  // holds the pages open when it began.
-  let turn = null;
+  // Each open turn of the person's by its tab's id, `{until, before, shared}`: no other tab comes to the front while
+  // one holds. `before` holds the pages open when it began; shared turns stand side by side, each tab with its bell.
+  const turns = new Map();
+  // The tabs whose shared turn the person handed back, each until its renewal hears it, or a lease's time.
+  const handedBack = new Map();
   const tabOf = (id, userId) => {
     const tab = tabs.get(id);
     if (!tab || tab.page.isClosed() || (userId && tab.userId !== userId)) throw refusal(404, 'Tab not found');
@@ -484,15 +504,38 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
     opening = made.catch(() => {});
     return made;
   };
-  /** Whether another tab holds the person's turn; a closed tab or a lapsed lease ends it. */
-  const otherTurn = tab => {
-    if (turn && (Date.now() >= turn.until || tabs.get(turn.id)?.page.isClosed() !== false)) turn = null;
-    return Boolean(turn) && turn.id !== tab.id;
+  /** Runs `script` with the bell on the tab's page, for at most a second: a page that never answers holds no turn. */
+  const onTitle = (id, script) => {
+    const page = tabs.get(id)?.page;
+    return page && Promise.race([page.evaluate(script, BELL).catch(() => {}), sleep(BELL_MS)]);
   };
-  /** Waits for another tab's turn to end; a refusal once `turnWaitMs` passes. */
+  /** Ends the tab's turn and takes its bell off. */
+  const endTurn = id => {
+    if (turns.get(id)?.shared) void onTitle(id, UNRING);
+    turns.delete(id);
+  };
+  /** The open turns, once each lapsed lease or closed tab has ended its own. */
+  const openTurns = () => {
+    for (const [id, held] of turns) if (Date.now() >= held.until || tabs.get(id)?.page.isClosed() !== false) endTurn(id);
+    for (const [id, until] of handedBack) if (Date.now() >= until) handedBack.delete(id);
+    return turns;
+  };
+  /** Whether another tab holds a turn of the person's. */
+  const otherTurn = tab => [...openTurns().keys()].some(id => id !== tab.id);
+  /** Ends every shared turn, as the person's *Hand back* in the browser's toolbar does: each renewal then hears it. */
+  const handBack = () => {
+    for (const [id, held] of openTurns()) {
+      if (!held.shared) continue;
+      handedBack.set(id, Date.now() + turnMs);
+      endTurn(id);
+    }
+    return { ok: true };
+  };
+  /** Waits for another tab's turn to end; a refusal once `turnWaitMs` passes. A tab with a shared turn of its own
+   * waits for none: the watcher that holds it shows it only to fit it or put it back. */
   const awaitTurn = async tab => {
     const end = Date.now() + turnWaitMs;
-    while (otherTurn(tab)) {
+    while (otherTurn(tab) && !turns.get(tab.id)?.shared) {
       if (Date.now() >= end) throw refusal(409, `${BUSY} in another tab; try again once their turn ends`);
       await sleep(Math.min(250, turnWaitMs));
     }
@@ -517,6 +560,8 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
       drop(tabs.get(tabId));
       tabs.delete(tabId);
     });
+    // A new page has the site's own title: the bell goes back on.
+    page.on('domcontentloaded', () => { if (turns.get(tabId)?.shared) void onTitle(tabId, RING); });
     return { tabId, url: page.url() };
   };
   const listTabs = async userId => ({
@@ -614,21 +659,37 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
 
   /** Whether a page the person or a site opened during the turn is still open, such as a *Forgot password* tab or a
    * sign-in window. A page can not tell which tab shows, so the person may be on it. */
-  const ownPageOpen = () => context.pages().some(page => !page.isClosed() && page !== home && !taskPages.has(page) && !turn.before.has(page));
-  /** Brings the tab to the front, unless another tab holds the person's turn: `turn` holds or ends it, `raise: false`
-   * only renews it, `reselect` leaves the person's own page shown. */
-  const front = async (tab, { turn: hold, raise = true, reselect = false }) => {
+  const ownPageOpen = () => {
+    const before = new Set([...turns.values()].flatMap(held => [...held.before]));
+    return context.pages().some(page => !page.isClosed() && page !== home && !taskPages.has(page) && !before.has(page));
+  };
+  /** Whether another tab's turn keeps this one from holding: any turn, or for a shared turn only a turn not shared. */
+  const blocked = (tab, shared) => [...openTurns()].some(([id, held]) => id !== tab.id && !(shared && held.shared));
+  /** Brings the tab to the front unless another turn holds: `turn` holds or ends it, `raise: false` renews it,
+   * `reselect` keeps the person's page. A `shared` turn rings its bell, raises only alone, hears `handedBack` once. */
+  const front = async (tab, { turn: hold, raise = true, reselect = false, shared = false }) => {
     if (tab.waiting) throw refusal(409, WAITING);
     if (hold === false) {
-      if (turn?.id === tab.id) turn = null;
+      handedBack.delete(tab.id);
+      endTurn(tab.id);
       return { ok: true };
     }
-    if (otherTurn(tab)) throw refusal(409, BUSY);
-    if (hold === true) turn = { id: tab.id, until: Date.now() + turnMs, before: turn?.id === tab.id ? turn.before : new Set(context.pages()) };
-    if (reselect && turn?.id === tab.id && ownPageOpen()) return { ok: true };
-    if (!raise) return { ok: true };
+    openTurns();
+    // Only a renewal hears a Hand back: a new turn's first hold on the same tab clears it.
+    if (hold === true && shared && handedBack.delete(tab.id) && !raise) return { ok: true, handedBack: true };
+    if (blocked(tab, hold === true && shared)) throw refusal(409, BUSY);
+    const alone = !otherTurn(tab);
+    if (hold === true) {
+      turns.set(tab.id, { until: Date.now() + turnMs, before: turns.get(tab.id)?.before ?? new Set(context.pages()), shared });
+      if (shared) await onTitle(tab.id, RING);
+    }
+    if (reselect && turns.has(tab.id) && ownPageOpen()) return { ok: true };
+    if (!raise || !alone) return { ok: true };
     return act(tab, 'front', {});
   };
+
+  /** The toolbar button's two routes: how many tabs wait on the person, and their Hand back. */
+  const BUTTON_ROUTES = { 'GET /turns': () => ({ ok: true, count: [...openTurns().values()].filter(held => held.shared).length }), 'POST /hand-back': handBack };
 
   /** The answer to one authorized request: a JSON body, or PNG bytes. */
   const answer = async (method, parts, query, body) => {
@@ -674,6 +735,8 @@ export function routes(context, key, { idleMs = IDLE_MS, stepMs = STEP_MS, turnM
     };
     const url = new URL(request.url, 'http://127.0.0.1');
     if (request.method === 'GET' && url.pathname === '/health') return send(200, { ok: true, engine: 'camoufox', tabs: tabs.size });
+    const button = BUTTON_ROUTES[`${request.method} ${url.pathname}`];
+    if (button && (authorized(request, key) || (handBackKey && authorized(request, handBackKey)))) return send(200, button());
     if (!authorized(request, key)) return send(401, { error: 'unauthorized' });
     try {
       const body = request.method === 'POST' ? await readBody(request) : {};
@@ -757,13 +820,15 @@ async function main() {
     if (screen) stops.push(() => screen.child.kill());
     // A broken add-on never stops a start: the browser starts without it.
     const addon = await addonArgs().catch(() => []);
-    const config = await launchConfig([...proxy.args, ...(screen ? ['--display', screen.display] : []), ...windowed.args, '--fingerprint', FILES.fingerprint, ...addon]);
+    const handBackKey = randomBytes(24).toString('hex');
+    const handBack = (() => { try { return handBackArgs({ port, key: handBackKey }); } catch { return []; } })();
+    const config = await launchConfig([...proxy.args, ...(screen ? ['--display', screen.display] : []), ...windowed.args, '--fingerprint', FILES.fingerprint, ...addon, ...handBack]);
     if (config.error) throw new Error(config.error);
     const { firefox } = createRequire(import.meta.url)(join(config.driver, 'index.js'));
     const context = await firefox.launchPersistentContext(FILES.profile, persistentOptions(config, windowed.env));
     stops.push(() => context.close());
     await moveLogins(context, { profilesDir: OLD_PROFILES, marker: FILES.marker }).catch(() => {});
-    handle = routes(context, readFileSync(FILES.key, 'utf8').trim());
+    handle = routes(context, readFileSync(FILES.key, 'utf8').trim(), { handBackKey });
     record({ port, display: screen?.display ?? null, ...windowed.record, proxy: proxy.on, windowSetting: setting, library: config.library, build: config.build, locale: config.locale });
     // A browser that quits on its own takes the server with it, so the next command starts a fresh one.
     context.on('close', () => void stop(1));
