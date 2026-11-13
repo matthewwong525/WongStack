@@ -48,7 +48,7 @@ The code stays in the stored chat and on one command line. That's fine, not a le
 
 For an *approve in the app* prompt, the agent says *Tap Yes in the Google app on your phone.* and checks the address with `browse.mjs get url` until it leaves the approval page. After about 2 minutes, the site's own limit, it says it timed out and offers to try again.
 
-- **Google asks for a passkey first.** A passkey can't reach the agent's browser. So the agent taps *Try another way*, picks the password, and then waits for this phone prompt.
+- **Google asks for a passkey first.** A passkey on your own device can't reach the agent's browser; one in 1Password [can](password-manager.md#use-it-at-a-sign-in). Else the agent taps *Try another way*, picks the password, and then waits for this phone prompt.
 - **Check the start of the address, not any part of it.** Google's sign-in address holds the target site in its `continue=` part, so `mail.google.com` anywhere in it matches too early. Match the site's own address at the start, such as `https://mail.google.com` for Gmail.
 
 ## A wrong or expired code
@@ -62,7 +62,7 @@ Each of these has its own route in [when a step needs you](browsing.md#when-a-st
 - **A backup or recovery code** goes through [a live view](../skills/hand-over/references/live-view.md#pay-or-type-a-code).
 - **A *Sign in with Google* or *Apple* button** [follows the provider's own login](browsing.md#saved-browser-logins); a code the provider sends comes back here.
 - **A robot check**, a tick box or a picture puzzle, goes to [a live view](../skills/hand-over/references/live-view.md).
-- **A passkey or Face ID** is yours, on your own device, with [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
+- **A passkey on your own device, or Face ID,** is yours there, with [steps to finish it yourself](browsing.md#steps-for-you-to-finish).
 - **A password** is yours to type in [a sign-in turn](../skills/hand-over/references/live-view.md#sign-in).
 
 Back to [browsing](browsing.md).
