@@ -76,7 +76,7 @@ const USAGE = `usage: hand-over.mjs open --view --note <line> [--session <name>]
           command for the person, having installed nothing`;
 // Chat apps often hide text between tool calls; only the turn's last message shows for sure.
 const SEND_REMINDER = 'Run wait in the background, then end this turn with the link above on its own line; text between tool calls may not show.';
-const WINDOW_REMINDER = 'Run wait in the background, then end this turn telling the person what to do on the 🔔 tab in the browser window, then to click Hand back at the top of the browser; on done in the chat, run close.';
+const WINDOW_REMINDER = 'Run wait in the background, then end this turn telling the person what to do on the 🔔 tab in the browser window, then to click ✅ at the top right; on done in the chat, run close.';
 /** The longest --note. */
 const NOTE_MOST = 140;
 /** How a view ends by the person's own hand: each wakes the chat. */

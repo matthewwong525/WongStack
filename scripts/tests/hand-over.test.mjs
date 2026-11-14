@@ -855,7 +855,7 @@ test('where the browser shows in its own window, a view opens no link, stays ope
   f.openPage();
   const out = f.run('open', ...VIEW_ARGS);
   assert.equal(out.status, 0, out.stderr);
-  assert.match(out.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=Run wait in the background, then end this turn telling the person what to do on the 🔔 tab in the browser window, then to click Hand back at the top of the browser/);
+  assert.match(out.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=Run wait in the background, then end this turn telling the person what to do on the 🔔 tab in the browser window, then to click ✅ at the top right/);
   assert.doesNotMatch(out.stdout, /HANDOVER_LINK|https?:|key=/);
   assert.deepEqual(f.calls(), [], 'no tunnel');
   assert.equal(f.fronts()[0], 'front turn shared', 'the task\'s tab comes to the front, held as the person\'s turn');
@@ -901,7 +901,7 @@ test('the browser on request: a window view needs only a note, holds the chat\'s
   f.openPage(null);
   const out = f.run('open', '--view', '--note', "Here is the browser. Tap Hand back when you're done.");
   assert.equal(out.status, 0, out.stderr);
-  assert.match(out.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=.*click Hand back at the top of the browser; on done in the chat, run close\./);
+  assert.match(out.stdout, /^HANDOVER_VIEW=window\nHANDOVER_SEND=.*click ✅ at the top right; on done in the chat, run close\./);
   assert.doesNotMatch(out.stdout, /HANDOVER_LINK/);
   assert.deepEqual(stateOf(f).view, { note: "Here is the browser. Tap Hand back when you're done.", window: true });
   assert.notEqual(stateOf(f).session, SESSION, 'the chat\'s own tab, with no --session');

@@ -329,5 +329,6 @@
   {"name": "CLAUDE_PLUGIN_ROOT", "replacement": "`$CLAUDE_PROJECT_DIR/.claude/skills/<module>` in a module's hook file", "allow": [".agents/rules/payload.md"], "why": "the rule says never to use it"},
   {"name": "pluginLines", "replacement": "nothing: memory's start hook no longer checks a Codex plugin copy"},
   {"name": "codexPluginName", "replacement": "nothing: memory no longer names a Codex plugin"},
-  {"name": "codex plugin marketplace add", "replacement": "the project's `.codex/hooks.json`, which runs each module's hooks"}
+  {"name": "codex plugin marketplace add", "replacement": "the project's `.codex/hooks.json`, which runs each module's hooks"},
+  {"name": "bell.svg", "replacement": "`check.svg`, the green check", "allow": ["scripts/tests/addons.test.mjs"], "why": "the test checks the old icon is gone from the copied add-on"}
 ]

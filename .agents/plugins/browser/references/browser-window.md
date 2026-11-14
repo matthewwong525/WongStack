@@ -35,7 +35,7 @@ Each chat, and each scheduled run, gets its own tab in the one window, with the 
 Where the browser shows in a window, your turn for [a sign-in, a payment, a robot check, or a stuck step](../skills/hand-over/references/live-view.md#when-it-opens) happens there, with no link:
 
 - **`open --view` takes the same line** as a live view. It puts 🔔 in your chat's tab title, brings the tab to the front unless another turn is open, and prints `HANDOVER_VIEW=window` and no `HANDOVER_LINK`.
-- **The chat says the line, with *Hand back*:** *Sign in to Netflix on the 🔔 tab in the browser window, then click Hand back at the top of the browser.* On a Mac it adds: *If it's behind, click Camoufox in the Dock.* A payment still asks [the pay question](../skills/hand-over/references/live-view.md#pay-or-type-a-code) first.
+- **The chat says the line, with *Hand back*, the green check:** *Sign in to Netflix on the 🔔 tab in the browser window, then click ✅ at the top right.* On a Mac it adds: *If it's behind, click Camoufox in the Dock.* A payment still asks [the pay question](../skills/hand-over/references/live-view.md#pay-or-type-a-code) first.
 - **It ends on *Hand back* or your *done*, never because the page changed.** *Hand back* ends every open turn and wakes each chat. On *done*, the agent runs `hand-over.mjs close`, which ends this chat's turn as `handed-back`. Then it reads the page afresh. While the turn is open, it sends that tab nothing.
 - **With the window off on a Mac or Windows computer**, `open --view` prints `HANDOVER_VIEW=unsupported`, and the step ends with steps for you.
 
@@ -44,13 +44,13 @@ Where the browser shows in a window, your turn for [a sign-in, a payment, a robo
 Say *send me the browser* or *show me the browser* at any time to see and use your chat's tab. On every computer, the agent runs the same command:
 
 ```bash
-node .claude/skills/browser/skills/hand-over/scripts/hand-over.mjs open --view --note "Here is the browser. Tap Hand back at the top of the browser when you're done."
+node .claude/skills/browser/skills/hand-over/scripts/hand-over.mjs open --view --note "Here is the browser. Tap ✅ at the top right when you're done."
 ```
 
 It stays open through every page, as every turn does, for up to 8 hours. It holds your chat's tab as your turn, so no other chat's click takes the window away from you.
 
-- **With a window,** it brings your chat's tab to the front and prints `HANDOVER_VIEW=window`, with no link. The agent tells you the 🔔 tab is in front, and to click *Hand back* or say *done* when you are through. On *done*, it runs `hand-over.mjs close`.
-- **With the link,** the agent sends a live view of your chat's tab. It ends when you tap *Hand back* at the top of the browser.
+- **With a window,** it brings your chat's tab to the front and prints `HANDOVER_VIEW=window`, with no link. The agent tells you the 🔔 tab is in front, and to click ✅ at the top right or say *done* when you are through. On *done*, it runs `hand-over.mjs close`.
+- **With the link,** the agent sends a live view of your chat's tab. It ends when you tap *Hand back*, the green check at the top right.
 
 The agent never runs `browse.mjs front` or `show` for this: neither holds a turn, so another chat's click could switch the window to its own tab.
 

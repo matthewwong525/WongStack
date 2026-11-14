@@ -385,6 +385,9 @@ test('each start copies the WongStack add-on out of the repo with its port and k
   assert.deepEqual(addons.handBackArgs({ port: 4123, key: 'button-key' }), ['--addon', copy]);
   const repo = fileURLToPath(new URL('../../.agents/plugins/browser/addon/', import.meta.url));
   assert.equal(readFileSync(join(copy, 'manifest.json'), 'utf8'), readFileSync(join(repo, 'manifest.json'), 'utf8'));
+  const { browser_action: action, icons } = JSON.parse(readFileSync(join(copy, 'manifest.json'), 'utf8'));
+  assert.deepEqual([action.default_icon, icons['48']], ['check.svg', 'check.svg'], 'its button is the green check');
+  assert.ok(existsSync(join(copy, 'check.svg')) && !existsSync(join(copy, 'bell.svg')));
   assert.equal(JSON.parse(readFileSync(join(copy, 'manifest.json'), 'utf8')).browser_specific_settings.gecko.id, addons.HAND_BACK_GUID);
   assert.ok(!existsSync(join(copy, 'old.js')), 'an older copy goes');
   assert.ok(!existsSync(join(repo, 'config.json')), 'the repo holds no key');
@@ -395,6 +398,38 @@ test('each start copies the WongStack add-on out of the repo with its port and k
   assert.deepEqual(addonStatus(), [], 'addon status names it not');
   assert.equal((await run('addon', 'remove', 'WongStack')).stdout, 'BROWSE_ADDON_REMOVED=none\n', 'and addon remove finds it not');
   assert.ok(existsSync(join(copy, 'manifest.json')));
+});
+
+test('a built-in add-on\'s button leaves the toolbar once, while 1Password and Hand back stay, and a pin the person makes back stays', async () => {
+  reset();
+  const ubo = 'uBlock0@raymondhill.net';
+  const [uboButton, opButton, handBack] = ['ublock0_raymondhill_net-browser-action', '_d634138d-c276-4fc8-924b-40a0ea21d284_-browser-action', 'hand-back_wongstack-browser-action'];
+  const marker = join(PROFILE, 'wongstack-unpinned.json');
+  const placements = () => JSON.parse(addons.prefIn(readFileSync(join(PROFILE, 'prefs.js'), 'utf8'), 'browser.uiCustomization.state')).placements;
+  shipInBrowser(ubo);
+  mkdirSync(DIR, { recursive: true });
+  writeFileSync(LIST, JSON.stringify({ added: [], defaults: { [addons.ONE_PASSWORD.slug]: 'removed' } }));
+
+  mkdirSync(PROFILE, { recursive: true });
+  writeFileSync(join(PROFILE, 'prefs.js'), '// Mozilla User Preferences\n');
+  await startArgs({ now: 1 });
+  assert.ok(!existsSync(marker), 'a first start, with no layout yet, writes no marker');
+
+  profileWith({}, { placements: { 'nav-bar': ['urlbar-container', 'unified-extensions-button', uboButton, opButton, handBack], 'unified-extensions-area': [] }, seen: [uboButton] });
+  await startArgs({ now: 2 });
+  assert.deepEqual(placements(), { 'nav-bar': ['urlbar-container', 'unified-extensions-button', opButton, handBack], 'unified-extensions-area': [uboButton] });
+  assert.deepEqual(JSON.parse(readFileSync(marker, 'utf8')), [ubo]);
+
+  const repinned = { 'nav-bar': ['urlbar-container', 'unified-extensions-button', opButton, handBack, uboButton], 'unified-extensions-area': [] };
+  profileWith({}, { placements: repinned, seen: [uboButton] });
+  await startArgs({ now: 3 });
+  assert.deepEqual(placements(), repinned, 'the person\'s own pin stays');
+
+  rmSync(marker);
+  profileWith({}, { placements: { 'nav-bar': ['urlbar-container'], 'unified-extensions-area': [uboButton] } });
+  addons.unpinBuiltIns(PROFILE);
+  assert.deepEqual(JSON.parse(readFileSync(marker, 'utf8')), [ubo], 'a button already in the menu counts as done');
+  assert.equal(addons.unpinnedLayout('', ubo), null, 'an unknown layout moves nothing');
 });
 
 test('1Password signs in on its own page; addon open shows the newest password manager, else the newest add-on; a first start with no layout pins nothing', async () => {
