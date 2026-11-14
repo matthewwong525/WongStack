@@ -263,8 +263,9 @@ test('the check script reads the context on stdin and prints one run line', () =
   const home = temp(), repo = realpathSync(temp());
   execFileSync('git', ['init', '-q', repo]);
   const file = join(home, 'claude-a.jsonl');
-  card(home, { key: 'claude-a', tool: 'claude', name: 'Checkout', cwd: repo, transcript: file });
-  transcript(file, 'claude', 'claude-a', repo)('user', 'Build checkout');
+  // The script runs on the real clock, so a fixed date ages out of the chat list.
+  card(home, { key: 'claude-a', tool: 'claude', name: 'Checkout', cwd: repo, transcript: file, at: iso(Date.now() - MIN) });
+  transcript(file, 'claude', 'claude-a', repo)('user', 'Build checkout', Date.now() - 5 * MIN);
   mkdirSync(stateDirectory(repo, 'alex', join(home, '.local', 'state', 'wongstack', 'daily')), { recursive: true });
   const { CLAUDE_CODE_SESSION_ID: _self, ...env } = process.env;
   const check = () => spawnSync(process.execPath, [CHECK], { input: JSON.stringify({ repo, person: 'alex', timezone: ZONE }),

@@ -73,3 +73,4 @@ None.
 - **2026-11-14** — Assumed, at build: the watch link's sign-in line keeps *Sign in to Notion, then tap Hand back.*, because only the watch page's own *Hand back* ends that turn; the toolbar's check stays grey there and never ends a watch link.
 - **2026-11-14** — Assumed: the person said *Chrome*, but the agent's browser is Camoufox, a Firefox build; the change is to that browser's toolbar.
 - **2026-11-14** — Archive checkpoint: built and archived inside /ship. The live check restarted the agent's browser from this build: uBlock moved into the puzzle-piece menu, and the toolbar ends with 1Password, then the green check, faded while nothing waits.
+- **2026-11-14** — Asked whether to fix, in this change, the daily line-up test that went stale at 15:00 UTC today (its fixed 7 November date aged out of the 7-day chat list; it failed on main too) → chose to fix it here: the one test that runs the check script now uses the real clock.
