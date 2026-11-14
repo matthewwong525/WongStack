@@ -187,7 +187,7 @@ try {
   check('the bell comes back when the site changes its title', (await read(a, 'document.title')) === '🔔 renamed');
   check('the toolbar button reads the turn count', polled.includes('GET /turns'), polled.slice(-3).join(', ') || 'no poll');
   if (process.env.HAND_BACK_CLICK) {
-    console.log('Click Hand back at the top of the browser.');
+    console.log('Click ✅ at the top right.');
     for (let tries = 0; !polled.includes('POST /hand-back') && tries < 120; tries++) await sleep(500);
   } else await fetch(`${base}/hand-back`, { method: 'POST', headers: { authorization: 'Bearer hand-back' } });
   check('one Hand back reaches the server', !process.env.HAND_BACK_CLICK || polled.includes('POST /hand-back'));

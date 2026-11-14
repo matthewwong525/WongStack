@@ -204,14 +204,24 @@ export function clearStorage(profile, guid) {
   rmSync(join(profile, 'browser-extension-data', guid), { recursive: true, force: true });
 }
 
-/** The toolbar's saved layout with the add-on's button on it, as Firefox names that button; null when the layout is
- * unknown or already has it there. */
-export function pinnedLayout(prefs, guid) {
-  const widget = `${guid.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}-browser-action`;
+/** The add-on's toolbar button, as Firefox names it. */
+const widgetOf = guid => `${guid.toLowerCase().replace(/[^a-z0-9_-]/g, '_')}-browser-action`;
+const MENU = 'unified-extensions-area';
+
+/** The toolbar's saved layout, or null when the browser has not saved one yet. */
+function layoutIn(prefs) {
   let state;
   try { state = JSON.parse(prefIn(prefs, TOOLBAR)); } catch { return null; }
-  const placements = state?.placements;
-  if (!Array.isArray(placements?.['nav-bar'])) return null;
+  return Array.isArray(state?.placements?.['nav-bar']) ? state : null;
+}
+
+/** The toolbar's saved layout with the add-on's button on it; null when the layout is unknown or already has it
+ * there. */
+export function pinnedLayout(prefs, guid) {
+  const widget = widgetOf(guid);
+  const state = layoutIn(prefs);
+  if (!state) return null;
+  const { placements } = state;
   if (placements['nav-bar'].includes(widget) && Object.entries(placements).every(([area, list]) => area === 'nav-bar' || !list.includes(widget))) return null;
   for (const area of Object.keys(placements)) placements[area] = placements[area].filter(id => id !== widget);
   placements['nav-bar'].push(widget);
@@ -219,14 +229,52 @@ export function pinnedLayout(prefs, guid) {
   return JSON.stringify(state);
 }
 
+/** The toolbar's saved layout with the add-on's button moved into the puzzle-piece menu; null when the layout is
+ * unknown or the button is on no toolbar. */
+export function unpinnedLayout(prefs, guid) {
+  const widget = widgetOf(guid);
+  const state = layoutIn(prefs);
+  if (!state) return null;
+  const { placements } = state;
+  if (!Object.entries(placements).some(([area, list]) => area !== MENU && Array.isArray(list) && list.includes(widget))) return null;
+  for (const area of Object.keys(placements)) if (Array.isArray(placements[area])) placements[area] = placements[area].filter(id => id !== widget);
+  placements[MENU] = [...(placements[MENU] ?? []), widget];
+  state.seen = [...new Set([...(state.seen ?? []), widget])];
+  return JSON.stringify(state);
+}
+
+/** Writes `layout` into the stopped browser's prefs.js. */
+function writeLayout(profile, prefs, layout) {
+  const line = `user_pref(${JSON.stringify(TOOLBAR)}, ${JSON.stringify(layout)});`;
+  writeFileSync(join(profile, 'prefs.js'), prefs.replace(/^user_pref\("browser\.uiCustomization\.state", .*\);$/m, () => line));
+}
+
 /** Pins the add-on's button to the toolbar in the stopped browser's prefs.js. A first start has no layout yet, so its
  * button waits in the extensions menu until the next start. */
 function pin(profile, guid) {
   const prefs = readPrefs(profile);
   const layout = pinnedLayout(prefs, guid);
-  if (!layout) return;
-  const line = `user_pref(${JSON.stringify(TOOLBAR)}, ${JSON.stringify(layout)});`;
-  writeFileSync(join(profile, 'prefs.js'), prefs.replace(/^user_pref\("browser\.uiCustomization\.state", .*\);$/m, () => line));
+  if (layout) writeLayout(profile, prefs, layout);
+}
+
+/** The profile's list of built-in add-ons whose buttons this start has moved off the toolbar once. */
+const unpinnedFile = profile => join(profile, 'wongstack-unpinned.json');
+
+/** Moves each built-in add-on's button, such as uBlock Origin's, off the toolbar into the puzzle-piece menu, once per
+ * profile: a guid is recorded only once the browser's saved layout has it, so a button the person pins back stays. */
+export function unpinBuiltIns(profile = FILES.profile, builtIn = builtInGuids()) {
+  const done = new Set(readJson(unpinnedFile(profile)) ?? []);
+  const before = done.size;
+  for (const guid of builtIn) {
+    if (done.has(guid)) continue;
+    const prefs = readPrefs(profile);
+    const state = layoutIn(prefs);
+    if (!state) continue;
+    const layout = unpinnedLayout(prefs, guid);
+    if (layout) writeLayout(profile, prefs, layout);
+    if (layout || state.placements[MENU]?.includes(widgetOf(guid))) done.add(guid);
+  }
+  if (done.size !== before) writeFileSync(unpinnedFile(profile), `${JSON.stringify([...done])}\n`, { mode: 0o600 });
 }
 
 /** The chat holding a live view, or null: an add or remove stops the browser, so it stops at once while one is open. */
@@ -361,6 +409,7 @@ export async function startArgs({ profile = FILES.profile, now = Date.now() } = 
     for (const added of list) checked.push(due(added) ? await update(added, now) : added);
     save(list = checked);
   }
+  try { unpinBuiltIns(profile, builtIn); } catch { /* a toolbar it can't tidy keeps the start going */ }
   return list.filter(added => !builtIn.has(added.guid) && existsSync(join(folderOf(added.guid), 'manifest.json'))).flatMap(added => {
     pin(profile, added.guid);
     return ['--addon', folderOf(added.guid)];

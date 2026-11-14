@@ -6,7 +6,7 @@ The agent's browser comes with the 1Password add-on, and can hold any other add-
 
 The agent asks nothing about a password manager: a new browser adds 1Password with [the checks](#the-checks), and an older one gets it once, at its next start. It is not added when you removed it, said no to a password manager before, or when the agent already added another one. A failed download keeps the start going, and a start a day later tries again.
 
-When you want an add-on, say so: *add my password manager*, or *add Dark Reader*. The agent adds a well-known one at once, with [the checks](#the-checks), and opens a password manager's sign-in page, so you only sign in. An add-on the browser already has, such as uBlock Origin, is built in: the agent says so and adds nothing.
+When you want an add-on, say so: *add my password manager*, or *add Dark Reader*. The agent adds a well-known one at once, with [the checks](#the-checks), and opens a password manager's sign-in page, so you only sign in. An add-on the browser already has, such as uBlock Origin, is built in: the agent says so and adds nothing. A built-in add-on works on every page, but its button sits in the puzzle-piece menu at the right of the toolbar, not on the toolbar.
 
 Ask the agent, not the add-on site in the browser. 1Password added from [Firefox's add-on site](https://addons.mozilla.org) in Camoufox 158.0.1-beta.41 opened no setup page, and its button did nothing; the copy the agent added worked. When you ask the agent for an add-on you already added yourself, its add removes your copy and its stored data, so only the working copy loads.
 
@@ -47,7 +47,7 @@ In [the browser window](browser-window.md#your-turn-in-the-window), use it as in
 
 On the password manager's page, the page fits your phone or laptop, as a site does, and the view keeps the whole toolbar on the screen.
 
-Each add-on's button is on the toolbar, from the second start of a new browser. Its small pop-up also works in a live view: it stays open until you pick from it or tap outside it. Tap its box, then type, such as your password to unlock it ([a pop-up stays open](../skills/hand-over/references/live-view.md#what-the-link-can-do)).
+Each add-on you asked for has its button on the toolbar, from the second start of a new browser. If you pin a built-in add-on's button back, it stays. Its small pop-up also works in a live view: it stays open until you pick from it or tap outside it. Tap its box, then type, such as your password to unlock it ([a pop-up stays open](../skills/hand-over/references/live-view.md#what-the-link-can-do)).
 
 Apart from the icon, that one pick, and a box's close, the agent's own steps skip the password manager, and every other add-on. `snapshot` leaves out their frames, and a click, typing, a key, or a choice aimed at one stops with `BROWSE_ERROR=that is the password manager's own; the person uses it in the live view`, which names `addon close` while a box of its own shows. While its page shows in the tab, every step but a new address stops the same way, and the agent can not see that page.
 

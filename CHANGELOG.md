@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.7.0 — A green check you click when you're done
+
+- **The browser's *Hand back* button is a green check.** It sits at the right end of the toolbar and still counts the tabs that wait on you. When nothing waits, it is grey and does nothing. The 🔔 stays on each tab that needs you: the bell means *this tab needs you*, and the check means *I'm done*.
+- **Each line that gives you the browser names the check, in few words.** *Sign in to Netflix, then tap ✅ at the top right.* In the window on your own screen, it says *click*. The watch link keeps its own *Hand back* under the page.
+- **uBlock Origin leaves the toolbar.** It still blocks ads on every page. Its button moves into the puzzle-piece menu at the right of the toolbar, once. If you pin it back, it stays. Add-ons you asked for, such as 1Password, stay on the toolbar.
+
+**Updating.** Nothing to do by hand. The green check and the tidier toolbar show at the browser's next start.
+
 ## 61.6.0 — One command for screen work, a design guide, and a friendlier starter look
 
 - **`/ui` opens all screen work.** Before the assistant designs, builds, or changes a screen, it loads `/ui`, which sends it to four sources in order: the [UX principles](wiki/ux-principles.md), the design guide, the ready-made parts, and web guidance at need. You can type `/ui` too.
