@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.9.0 — A plan shows each screen as HTML in the app's real look
+
+- **A plan shows a screen as an HTML page in the app's real look.** The chat writes *Before*, today's screen, and each *After* state as pages, with the app's colors, fonts, corners, real words, and sample data. It runs no copy of the app. For this app, `look.mjs page` writes the page's stylesheet: the app's colors and parts, and the Tailwind classes the page names, made by the app's own Tailwind. A phone or desktop app's page copies its theme's colors and fonts by hand.
+- **The plan no longer runs a copy of the app.** The step that made a copy, put it online, or drew it with the app's screen test is gone. The build makes each screen match the page you approved.
+- **A plan can't show a screen as a sketch alone.** The review page stops on a card whose only screen is a sketch, and a "No real picture" line no longer lets it through. A sketch stays only for a part the phone or computer draws itself, such as the keyboard, beside the page. Its label says *Sketch*, and it shows real words: the gray `bar` and `skeleton` placeholders stop the build.
+
+**Updating.** An open plan with a screen shown only as a sketch, or with a copy of the app for its pictures, needs its screens as pages: its next review-page build stops and says so. Your repo's own steps for drawing plan pictures with a screen test, such as a phone app's picture steps, are no longer read; keep them only for your own tests. A link to an old heading of `wiki/prototypes.md` needs the new heading.
+
 ## 61.8.0 — The key link takes longer keys and any file
 
 - **A key can be up to 32 KB.** Before, the key link refused a key over 4,096 characters with *Couldn't save this one*. A signing certificate, a long key file, or a chain of certificates now fits. GitHub holds up to 48 KB a secret, so each saved key still fits there. A Worker secret still holds at most 5 KB, and `npm run secrets:push` fails on a longer one.

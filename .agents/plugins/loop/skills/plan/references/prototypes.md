@@ -1,15 +1,21 @@
 # Prototypes
 
-A prototype is a throwaway copy of the app that draws real *Before* and *After* pictures. [`prototype.mjs`](../scripts/prototype.mjs) runs each step, unasked; git never takes the copy.
+A prototype is the screen as an HTML page in the app's real look, written while you plan. Run no app and change no database: sample data stands in.
 
-1. `prototype.mjs start <change>` makes `.scratch/<change>-prototype`, with earlier rounds' edits. Edit the screen there, with sample data for each state; add no database migration.
-2. Draw it as [a web app](#a-web-app) or by [a screen test](#an-app-the-preview-cant-serve): one picture per state in `<change>/pictures/`, in the bullet's `picture` fence after *Before*, which stays from the first round.
-3. Notes change the copy: draw again and rebuild the page. `prototype.mjs finish <change>` keeps the edits as a diff for the build.
+1. Write *Before*, today's screen, and one *After* for each state the plan names, as files in `openspec/changes/<change>/pages/`, with the real words and sample data. Name them in one `page` fence: `Before: pages/inbox.html`, `After: pages/inbox-new.html`.
+2. Give each page [the app's look](#the-apps-look), or [another app's look](#another-apps-look). A screen to try, such as a drag, is a `live` card with its own script.
+3. Notes change the pages: rebuild the review page. The build makes each screen match its approved page.
 
-## A web app
+Sign-in, missing data, or a change not live yet is no reason for a sketch: a page needs none of them.
 
-`prototype.mjs upload <change>` puts the copy on the change's preview address, or `serve <change>` prints `PROTOTYPE_URL=` here. Add `Try it: <https address>`.
+## The app's look
 
-## An app the preview can't serve
+Copy the screen's real class names onto the page, then run `node .claude/skills/plan/scripts/look.mjs page <file.html>`. It writes `<file>.css` beside it: the app's colors and parts, and the Tailwind rules the page's classes name. Link it: `<link rel="stylesheet" href="<file>.css">`.
 
-Draw a phone or desktop app by its own screen test: *Before* first, then each *After*. Use the real app with a fake data source, its real fonts, screen size and platform, and no debug marks; no *Try it*. Remove the test and its pictures before `finish`: the diff holds only the screen's edits. Follow the repo's steps a path rule names; else work them out and write them, with their rule, in this plan. A system part, such as the keyboard, gets a `screen` sketch with `No real picture: <the part>, which only the phone draws`.
+## Another app's look
+
+A phone or desktop app: copy its theme's colors, corners, and fonts into the page's own CSS, its font files beside it.
+
+## What a page can't show
+
+A part the system draws, such as the keyboard or the share sheet, may be a `screen` sketch, only beside the page, with one line that names the part.

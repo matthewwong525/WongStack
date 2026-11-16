@@ -4,11 +4,11 @@ What a plan's `review.html` shows. Write each fence by [the drawing guide](drawi
 
 ## A card shows the closest real result
 
-A changed screen shows *Before*, today's screen, and one *After* per state from [the prototype](prototypes.md), with *Try it* when online. A site this app doesn't run shows a `live` card of [its prototype](#a-website-prototype). Words to send are the real words.
+A changed screen shows *Before*, today's screen, and one *After* per state as pages from [the prototype](prototypes.md), never a sketch alone. A site this app doesn't run shows a `live` card of [its prototype](#a-website-prototype). Words to send are the real words.
 
 ## The review file
 
-A sketch holds each screen and empty, loading, or error state of the flow, with one primary action, real labels, and phone layout first when the brief says phone. Pictures are phone width, visible part only, under 300 KB, with no private data.
+The pages hold each screen and empty, loading, or error state of the flow, with one primary action, real labels, and phone layout first when the brief says phone. Pictures are phone width, visible part only, under 300 KB, with no private data.
 
 ## A website prototype
 

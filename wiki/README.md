@@ -10,7 +10,7 @@ The rest is for people who shape how WongStack works. [AI knowledge centers](age
 
 - [AI knowledge centers](agent-knowledge-center.md) — the six working principles, and why WongStack keeps process knowledge in the repo and makes it runnable by agents.
 - [Review pages](review-pages.md) — the one standard for every page that asks a person to look, note, and choose: plans, built previews, and other work such as ads.
-- [Prototypes](prototypes.md) — how a plan makes real *Before* and *After* pictures of a screen: in the browser for a web app, by the app's own screen test for a phone or desktop app.
+- [Prototypes](prototypes.md) — how a plan shows a screen's *Before* and *After* as HTML pages in the app's real look, with no copy of the app running.
 - [Contributing upstream](contributing.md) — how to send a workflow improvement back to WongStack by hand, and the generality bar it has to clear.
 - [Development](development/README.md) — how this repo plans, builds, checks, and ships changes.
 - [Maintaining WongStack](maintaining/README.md) — editing the toolkit itself: adding a skill, the folder links, and cutting a release.

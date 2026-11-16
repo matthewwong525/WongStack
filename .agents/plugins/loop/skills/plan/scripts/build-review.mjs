@@ -37,8 +37,9 @@ const SCREEN_EMPTY = new Set(['hr', 'input']);
 const SCREEN_ATTRS = new Set(['class', 'type', 'placeholder', 'value', 'colspan', 'rowspan']);
 const SCREEN_FLAGS = new Set(['checked', 'disabled', 'selected']);
 const SCREEN_TYPES = new Set(['text', 'checkbox', 'radio']);
-const SCREEN_CLASSES = new Set(['card', 'btn', 'btn-primary', 'primary', 'btn-ghost', 'field', 'tag', 'tag-outline', 'skeleton',
-  'row', 'col', 'grow', 'gap', 'phone', 'muted', 'danger', 'bar', 'sep']);
+const SCREEN_CLASSES = new Set(['card', 'btn', 'btn-primary', 'primary', 'btn-ghost', 'field', 'tag', 'tag-outline',
+  'row', 'col', 'grow', 'gap', 'phone', 'muted', 'danger', 'sep']);
+const GRAY_BARS = new Set(['bar', 'skeleton']);
 const PHONE_WIDE = 360;
 // A `picture` fence: files from the page's own folder, checked by their first bytes, carried inside the page.
 const PHOTO_TYPES = [['image/png', [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]], ['image/jpeg', [0xff, 0xd8, 0xff]], ['image/webp', [0x52, 0x49, 0x46, 0x46]]];
@@ -264,7 +265,7 @@ function markup(source, rules, fail) {
         seen.add(key);
         const value = quoted === undefined ? null : decode(quoted.slice(1, -1), ref => fail(pos, ref));
         if (value !== null && /url\s*\(/i.test(value)) fail(pos, 'url(');
-        const kept = rules.attr(key, value, classes, what => fail(pos, what ?? `${key}=`));
+        const kept = rules.attr(key, value, classes, (what, how) => fail(pos, what ?? `${key}=`, how));
         if (kept !== undefined) out.push(kept === null ? ` ${key}` : ` ${key}="${esc(kept)}"`);
       }
       const shut = rules.html ? (self && !empty ? `></${name}>` : '>') : self ? '/>' : '>';
@@ -315,10 +316,10 @@ export function sketchScreen(source, refuse) {
       if (key === 'type' && !SCREEN_TYPES.has(value)) no();
       if (key !== 'class') return value;
       for (const name of value.split(/\s+/).filter(Boolean)) {
+        if (GRAY_BARS.has(name)) no(`a gray bar, class "${name}"`, 'write the real words');
         if (!SCREEN_CLASSES.has(name)) no(`class "${name}"`);
         if (name === 'phone') phone = true;
-        // The page's own footer is `.bar`: the placeholder is written as `sk-bar` so neither styles the other.
-        classes.push(name === 'bar' ? 'sk-bar' : name);
+        classes.push(name);
       }
     },
   }, refuse);
@@ -340,15 +341,15 @@ function sketch(item, fence, k, warnings) {
 function screen(item, fence, k, warnings) {
   const id = `item-${item.n}-picture-${k}`, where = `item ${item.n}, picture ${k}`;
   const drawn = sketchScreen(fence.lines.join('\n'), refuser(fence, where, 'a screen', "build it from the look's parts and layout classes only"));
-  return single(frame(fence, id, where, `<div class="sk" inert>${drawn.html}</div>`, drawn.phone ? PHONE_WIDE : null, 'pic screen', '', warnings), fence, 'Screen');
+  return single(frame(fence, id, where, `<div class="sk" inert>${drawn.html}</div>`, drawn.phone ? PHONE_WIDE : null, 'pic screen', '', warnings), fence, 'Sketch');
 }
 
 // One line naming the item, the picture, the proposal line, and the refused part.
 function refuser(fence, where, what, how) {
   const source = fence.lines.join('\n');
-  return (at, name) => {
+  return (at, name, fix = how) => {
     const line = fence.at + 1 + (source.slice(0, at).match(/\n/g) || []).length;
-    throw new Error(`${fence.file} line ${line}: ${where}: ${what} can not hold ${name}; ${how}`);
+    throw new Error(`${fence.file} line ${line}: ${where}: ${what} can not hold ${name}; ${fix}`);
   };
 }
 
@@ -668,12 +669,14 @@ function view(drawn) {
     + `<div class="clip">${shown.html}</div><figcaption>${esc(shown.label)}</figcaption></figure>`).join('')}</div></div>`;
 }
 
-// A sketch stands in for a real picture only with a line that names the step that failed, or the part no test draws.
-function sketchOnly(block, ctx, warnings) {
-  const sketch = block.drawings.find(fence => fence.lang === 'screen' || fence.lang === 'svg');
-  if (!sketch || block.drawings.some(fence => fence.lang === 'picture') || /\bNo real picture:/i.test(block.text)) return;
-  warnings.push(`${ctx.file} line ${sketch.at}: item ${block.n}: a screen sketch with no real picture: draw it from the prototype or the app's screen test, with sample data, `
-    + 'or add a line "No real picture: <the step that failed>"');
+// A screen sketch is only of a part the system draws, beside the screen as it will look.
+// An `svg` draws arrows and layers, not screens, so it may stand alone.
+const REAL = new Set(['picture', 'page', 'live']);
+function sketchOnly(block, ctx) {
+  const sketch = block.drawings.find(fence => fence.lang === 'screen');
+  if (!sketch || block.drawings.some(fence => REAL.has(fence.lang))) return;
+  throw new Error(`${ctx.file} line ${sketch.at}: item ${block.n}: a screen sketch alone; show the screen as it will look, `
+    + 'as a page by the prototype rules, with the sketch only beside it');
 }
 
 const PICTURE_KINDS = new Set(['ads', 'mermaid', 'svg', 'screen', 'picture', 'page']);
@@ -703,7 +706,7 @@ function changes(section, warnings, ctx) {
       else { panels.push(drawing(block, fence, first, warnings)); first += fence.lines.length; }
       if (PICTURE_KINDS.has(fence.lang)) pictures += panels.at(-1).parts.length;
     }
-    sketchOnly(block, ctx, warnings);
+    sketchOnly(block, ctx);
     // A card has one Try it link; a later one is dropped, with a warning so an older plan still builds.
     for (const extra of panels.filter(panel => panel.tryIt).slice(1)) warnings.push(`${extra.tryAt}: a card takes one Try it; dropped ${extra.tryIt}`);
     const shown = view(panels), text = block.text.replace(/\s*\(review\.html#\/[^)]*\)\s*$/, '');

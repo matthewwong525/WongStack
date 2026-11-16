@@ -1,8 +1,10 @@
 // The app's look as plain CSS for pages that can't run the app: the review page, the private pages, a closed link.
 // The colours come from app/src/index.css, so a rebranded app carries them everywhere; look.css holds the parts.
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain, parseCli, usageError } from '../../../scripts/lib/cli.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LOOK = resolve(HERE, '../references/look.css');
@@ -11,6 +13,8 @@ const top = dir => existsSync(join(dir, '.git')) || dirname(dir) === dir ? dir :
 export const ROOT = top(HERE);
 const START = '/* tokens:start */';
 const END = '/* tokens:end */';
+const USAGE = `usage: look.mjs page <file.html>
+  write <file>.css beside the page: the app's look, and the Tailwind classes the page's class attributes name`;
 
 /** The top-level blocks of `css` as `{ prelude, body }`, comments dropped. */
 function blocks(css) {
@@ -63,4 +67,58 @@ export function lookCss(root = ROOT) {
   const { colours, dark } = lookColours(root);
   const set = (prelude, map) => `${prelude} {\n${[...map].map(([name, value]) => `  ${name}: ${value};`).join('\n')}\n}`;
   return `${look.slice(0, at)}${set(':root', colours)}\n${set('.dark', dark)}${look.slice(to + END.length)}`;
+}
+
+/** The file an `exports` value names: a plain path, else its `style` condition, else its `default`. */
+const entry = value => typeof value === 'string' ? value : value && (entry(value.style) ?? entry(value.default));
+
+/** A stylesheet Tailwind imports: a relative path, or a package's file by its `exports`, its `style`, or the path. */
+export function sheet(id, base, modules) {
+  if (/^\.\.?\//.test(id)) return resolve(base, id);
+  const parts = id.split('/'), size = id.startsWith('@') ? 2 : 1;
+  const dir = join(modules, ...parts.slice(0, size)), sub = parts.slice(size).join('/');
+  const meta = JSON.parse(read(join(dir, 'package.json')) ?? '{}');
+  // An `exports` that is a path or a set of conditions, not a map of `./` keys, is the package's `.` entry.
+  const keyed = typeof meta.exports === 'object' && Object.keys(meta.exports ?? {}).some(key => key.startsWith('.'));
+  const found = entry((keyed ? meta.exports : { '.': meta.exports })[sub ? `./${sub}` : '.']);
+  return join(dir, found ?? (sub || (meta.style ?? 'index.css')));
+}
+
+/** The rules for `classes`, built by the app's own Tailwind from its stylesheet; null when the app has no Tailwind. */
+async function tailwind(classes, root) {
+  let compile;
+  try { ({ compile } = createRequire(join(root, 'app/package.json'))('tailwindcss')); } catch { return null; }
+  const modules = join(root, 'app/node_modules'), app = join(root, 'app/src');
+  const loadStylesheet = async (id, base) => {
+    const path = sheet(id, base, modules);
+    return { path, base: dirname(path), content: readFileSync(path, 'utf8') };
+  };
+  const loadModule = async id => { throw new Error(`the page's look can not load ${id}`); };
+  const built = await compile(readFileSync(join(app, 'index.css'), 'utf8'), { base: app, from: join(app, 'index.css'), loadStylesheet, loadModule });
+  return built.build(classes);
+}
+
+/** `<file>.css` beside the page: the look, then the page's Tailwind rules, which the look's parts must not outrank. */
+export async function pageCss(file, root = ROOT) {
+  const html = readFileSync(file, 'utf8');
+  const classes = [...new Set([...html.matchAll(/\sclass\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].flatMap(m => (m[1] ?? m[2]).split(/\s+/)).filter(Boolean))];
+  let rules, warning;
+  try { rules = await tailwind(classes, root); } catch (error) {
+    rules = null;
+    warning = `the app's Tailwind failed (${error.message}), so only the look's colors and parts`;
+  }
+  const out = file.replace(/\.html?$/i, '') + '.css';
+  writeFileSync(out, rules === null ? lookCss(root) : `${rules}\n@layer components {\n${lookCss(root)}\n}\n`);
+  return { out, tailwind: rules !== null, warning };
+}
+
+if (isMain(import.meta.url)) {
+  const { positionals } = parseCli({ usage: USAGE, allowPositionals: true });
+  if (positionals.length !== 2 || positionals[0] !== 'page' || !/\.html?$/i.test(positionals[1])) usageError(USAGE);
+  try {
+    const { out, tailwind: built, warning } = await pageCss(resolve(positionals[1]));
+    console.log(out);
+    if (warning) console.error(`look: ${warning}`);
+    else if (!built) console.error('look: no Tailwind in app/node_modules, so only the look\'s colors and parts; run `npm ci` in app/, then run this again');
+  } catch (error) { console.error(`look: ${error.message}`); process.exitCode = 1; }
 }

@@ -58,12 +58,13 @@ const launched = await launch();
 const browser = launched.missing ? null : launched;
 const browserTest = (name, fn) => test(name, needs(launched.missing, launched.missing), fn);
 
-function fixture(source = proposal) {
+function fixture(source = proposal, files = {}) {
   const temp = mkdtempSync(join(tmpdir(), 'wong-review-'));
   const dir = join(temp, 'review-fixture');
   mkdirSync(dir);
   temps.push(temp);
   writeFileSync(join(dir, 'proposal.md'), source);
+  for (const [name, bytes] of Object.entries(files)) writeFileSync(join(dir, name), bytes);
   buildReview(dir, { requireCurrent: true });
   return { dir, url: pathToFileURL(join(dir, 'review.html')).href };
 }
@@ -1109,11 +1110,11 @@ browserTest('a sketch fits 320px, opens full screen, and repaints on the dark sw
 
 browserTest('a phone screen fits 320px, a tap on its button places a note instead of pressing it, and it repaints on the dark switch', async () => {
   const { url } = fixture(proposal.replace(`  ${fence}text\n  you ask\n     │\n  done\n  ${fence}`, [
-    `  ${fence}screen`, '  <div class="card col gap phone">', '    <div class="row gap"><h3>Notes</h3><span class="tag">3</span></div>', '    <div class="bar"></div>',
+    `  ${fence}screen`, '  <div class="card col gap phone">', '    <div class="row gap"><h3>Notes</h3><span class="tag">3</span></div>',
     '    <input type="text" placeholder="A question or a change">',
     '    <div class="row gap"><span class="grow"></span><button class="btn-ghost">Cancel</button><button class="btn-primary">Save</button></div>',
-    '  </div>', `  ${fence}`,
-  ].join('\n')));
+    '  </div>', `  ${fence}`, `  ${fence}picture`, '  After: after.png', `  ${fence}`,
+  ].join('\n')), { 'after.png': solidPng(390, 844) });
   const { page, context, errors } = await open(url, { width: 320, touch: true });
   await page.waitForFunction(() => document.querySelector('#item-1 .clip').style.getPropertyValue('--f') !== '');
   const fits = await page.evaluate(() => {
@@ -1124,16 +1125,15 @@ browserTest('a phone screen fits 320px, a tap on its button places a note instea
   assert.deepEqual(fits, { inside: true, page: true, drawn: true });
   const paint = () => page.evaluate(() => {
     const css = sel => getComputedStyle(document.querySelector(`#item-1 .art.screen ${sel}`));
-    return { card: css('.card').backgroundColor, save: css('.btn-primary').backgroundColor, bar: css('.sk-bar').height, footer: document.querySelectorAll('.bar').length };
+    return { card: css('.card').backgroundColor, save: css('.btn-primary').backgroundColor };
   });
   const light = await paint();
-  assert.ok(parseFloat(light.bar) > 0 && light.footer === 1, 'the gray bar draws in the sketch, apart from the page\'s footer');
   await page.locator('.theme-toggle').click();
   await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished)));
   const dark = await paint();
   assert.notEqual(dark.card, light.card, 'the card repaints on the switch');
   assert.notEqual(dark.save, light.save, 'the button repaints on the switch');
-  await page.locator('#item-1 .part').tap();
+  await page.locator('#item-1 .part[data-kind="draw"]').tap();
   const save = page.locator('.clip.big .art.screen .btn-primary');
   const box = await save.boundingBox();
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
@@ -1142,7 +1142,7 @@ browserTest('a phone screen fits 320px, a tap on its button places a note instea
   assert.equal(await page.locator('#editor-where').innerText(), '#/1 · picture 1 "Notes 3 Cancel Save"');
   await page.locator('#editor textarea').fill('Save on Enter too.');
   await page.locator('#editor [data-act="save"]').click();
-  assert.match(await copied(page), /^- Change #1, picture 1, spot at \d+% across and \d+% down on "Screen" \("Notes 3 Cancel Save"\): Save on Enter too\.$/m);
+  assert.match(await copied(page), /^- Change #1, picture 1, spot at \d+% across and \d+% down on "Sketch" \("Notes 3 Cancel Save"\): Save on Enter too\.$/m);
   assert.deepEqual(errors, []);
   await context.close();
 });
