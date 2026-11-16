@@ -88,7 +88,7 @@ The page SHALL escape all proposal text, drawings and picture labels included, s
 
 ### Requirement: A visual is a narrow drawing
 
-A visual SHALL be a fence inside its What Changes bullet, drawn by the planning agent in the same pass with no other agent, from the shared drawing guide's patterns: a `mermaid` fence for steps, states, and back-and-forth flows; a `screen` fence for screens and before-and-after layouts, built from the shared look's app parts; an `svg` fence for a free drawing such as arrows or layers; a Markdown table for a table; a `text` fence for a small listing such as a file tree; and a `picture` fence for a real picture. Mermaid, screen, and SVG fences SHALL show on the page as inline pictures made at build time. A change SHALL draw one visual by default, plus a sketch of each screen it adds or restructures. A text drawing SHALL aim for 40 columns and MAY reach 56. The builder SHALL warn about a text line wider than 60 columns, or a picture wider than 640 pixels, and still build. A proposal with only text fences SHALL build as it did before pictures.
+A visual SHALL be a fence inside its What Changes bullet, drawn by the planning agent in the same pass with no other agent, from the shared drawing guide's patterns: a `mermaid` fence for steps, states, and back-and-forth flows; a `screen` fence for screens and before-and-after layouts, built from the shared look's app parts; an `svg` fence for a free drawing such as arrows or layers; a Markdown table for a table; a `text` fence for a small listing such as a file tree; and a `picture` fence for a real picture. Mermaid, screen, and SVG fences SHALL show on the page as inline pictures made at build time. A change SHALL draw one visual by default; a screen it adds or changes SHALL show as a page in the app's own look, by the review page standard. A text drawing SHALL aim for 40 columns and MAY reach 56. The builder SHALL warn about a text line wider than 60 columns, or a picture wider than 640 pixels, and still build. A proposal with only text fences SHALL build as it did before pictures.
 
 A `picture` fence SHALL list one `[label:] path` per line. Each path SHALL resolve to a PNG, JPEG or WebP file, known by its first bytes, inside the page's source folder. The page SHALL carry each picture inside itself, open at the start, with its label as caption and alt text, side by side when two fit, else stacked, and SHALL take a spot note on it. The builder SHALL stop, naming the item and picture and keeping the last good page, for a web address, an absolute path, a path or link that leaves the folder, a missing file, another file type, or a picture over 300 KB. It SHALL stop, keeping the last good page, when the built page passes 1.5 MB, so the Inbox can store it, and SHALL warn when it passes 800 KB and still build. It SHALL warn about a picture over 150 KB and still build. Each size message SHALL say to take only the visible part at phone width.
 
@@ -163,17 +163,22 @@ The builder SHALL warn, naming the item and drawing line, when a line inside a b
 
 ### Requirement: Screen sketches show each state and the change
 
-A change that adds or restructures a screen SHALL show it before and after, each as its own labelled picture side by side in the card, with each empty, loading, or error state its flow names. The after SHALL be a picture of the plan's prototype; a sketch SHALL stand in only when no prototype can be made, with one plain line saying why. A screen the person can open today SHALL also get a Before screenshot, or one plain line saying why it can not. A sketch SHALL use real words and the app's parts, with a gray bar only for unknown text, in the page's colors; the builder SHALL warn, and still build, about a fill or stroke color that is not one of the kit's named colors.
+A change that adds or restructures a screen SHALL show it before and after, each as its own labelled picture side by side in the card, with each empty, loading, or error state its flow names. The before and the after SHALL be pages in the app's own look, never a sketch. A sketch, of a part the system draws, SHALL use real words and the app's parts, with no gray bar for words, in the page's colors, and SHALL be named *Sketch* when it has no label of its own. The builder SHALL stop on a gray bar, and SHALL warn, and still build, about a fill or stroke color that is not one of the kit's named colors.
 
 #### Scenario: A changed screen
 
 - **WHEN** a plan changes an existing screen's layout
-- **THEN** its review page shows a screenshot of the screen today and a picture of the prototype, for each state the plan names, side by side
+- **THEN** its review page shows a page of the screen today and a page of the change, for each state the plan names, side by side
 
 #### Scenario: A fixed color
 
 - **WHEN** an `svg` fence paints a box `fill="#ffffff"`
 - **THEN** the builder warns with the item and picture that the color will not follow dark mode, and still writes the page
+
+#### Scenario: A gray bar for words
+
+- **WHEN** a `screen` fence holds a gray placeholder bar
+- **THEN** the builder stops with the item and picture, and says to write the real words
 
 ### Requirement: Explore draws in chat from the same guide
 

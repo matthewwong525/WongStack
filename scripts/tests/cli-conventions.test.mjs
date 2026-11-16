@@ -73,7 +73,7 @@ const scripts = {
   '.agents/skills/memory/scripts/topic-match.mjs': [],
   '.agents/loop/helper-stop-check.mjs': [],
   '.agents/skills/apply/scripts/preview-review.mjs': [],
-  '.agents/skills/plan/scripts/prototype.mjs': ['start', 'demo'],
+  '.agents/skills/plan/scripts/look.mjs': ['page', 'a.html'],
   '.agents/plugins/loop/scripts/slot.mjs': [],
   '.agents/plugins/loop/scripts/lib/primary-root.mjs': [],
 };

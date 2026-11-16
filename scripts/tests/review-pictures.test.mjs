@@ -40,11 +40,12 @@ A reviewer sees flows.
 `;
 const textOnly = proposal.replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`, `${fence}text\n  /apply ──▶ /save`);
 
-function fixture(fn, source = proposal) {
+function fixture(fn, source = proposal, files = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-pictures-'));
   const root = join(dir, 'demo');
   mkdirSync(root);
   writeFileSync(join(root, 'proposal.md'), source);
+  for (const [name, bytes] of Object.entries(files)) writeFileSync(join(root, name), bytes);
   try { return fn(root); } finally { rmSync(dir, { recursive: true, force: true }); }
 }
 const page = root => readFileSync(join(root, 'review.html'), 'utf8');
@@ -181,7 +182,7 @@ const sketchSource = [
   '</svg>',
 ];
 // The sketch replaces item 1's flow; its first line is proposal line 11, so line k of the sketch is line 10 + k.
-const withSketch = (lines = sketchSource, why = ' No real picture: the app has no page yet.') => proposal
+const withSketch = (lines = sketchSource, why = '') => proposal
   .replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`, `${fence}svg\n${lines.map(line => `  ${line}`).join('\n')}`)
   .replace('runs one check.', `runs one check.${why}`);
 
@@ -252,13 +253,17 @@ for (const [what, lines, line, name] of refused) {
 const screenSource = [
   '<div class="card col gap phone">',
   '  <div class="row gap"><h3>Notes &amp; drafts</h3><span class="tag">3</span></div>',
-  '  <div class="bar"></div>',
   '  <input type="text" placeholder="A question or a change">',
   '  <label><input type="checkbox" checked> Send now</label>',
   '  <div class="row gap"><span class="grow"/><button class="btn-ghost">Cancel</button><button class=\'btn-primary\'>Save</button></div>',
   '</div>',
 ];
-const withScreen = (lines = screenSource, why) => withSketch(lines, why).replace(`${fence}svg`, `${fence}screen`);
+// A screen sketch is only ever beside the screen as it will look: here a picture, a.png, after it in item 1.
+const beside = (source, real = `${fence}picture\n  After: a.png`) => source.replace(`  ${fence}\n- **Escapes`, `  ${fence}\n  ${real}\n  ${fence}\n- **Escapes`);
+const withScreen = (lines = screenSource, why) => beside(withSketch(lines, why).replace(`${fence}svg`, `${fence}screen`));
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const png = (size = 64) => Buffer.concat([PNG, Buffer.alloc(size - PNG.length, 1)]);
+const shot = { 'a.png': png() };
 
 test('a screen fence becomes a phone-wide sketch of the look\'s parts, written out again inside an inert box', () => fixture(root => {
   assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
@@ -267,25 +272,24 @@ test('a screen fence becomes a phone-wide sketch of the look\'s parts, written o
   assert.ok(pic, 'the screen sits in the picture wrapper with an inert box');
   assert.ok(Math.abs(Number(pic[1]) * 13 - 360) < 0.01, 'a phone screen is 360 px in em');
   assert.match(pic[2], /^<div class="card col gap phone">\s*<div class="row gap"><h3>Notes &amp; drafts<\/h3><span class="tag">3<\/span><\/div>/);
-  assert.match(pic[2], /<div class="sk-bar"><\/div>/, 'the gray bar is renamed apart from the page\'s footer');
   assert.match(pic[2], /<input type="text" placeholder="A question or a change">/);
   assert.match(pic[2], /<input type="checkbox" checked> Send now<\/label>/);
   assert.match(pic[2], /<span class="grow"><\/span><button class="btn-ghost">Cancel<\/button><button class="btn-primary">Save<\/button>/);
   assert.equal((html.match(/<script\b/gi) || []).length, 2, 'still the kit\'s one script, and the switch');
-}, withScreen()));
+}, withScreen(), shot));
 
 test('a screen with no phone class fills the frame, with no width set', () => fixture(root => {
   assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
   assert.match(page(root), /<div class="art pic screen" data-note="item-1-picture-1" tabindex="0"><div class="sk" inert><div class="card"><p>Wide<\/p><\/div><\/div>/);
-}, withScreen(['<div class="card"><p>Wide</p></div>'])));
+}, withScreen(['<div class="card"><p>Wide</p></div>']), shot));
 
 test('Mermaid, svg, and screen pictures in one item share one count, in order', () => fixture(root => {
   buildReview(root, { requireCurrent: true });
   assert.deepEqual([...page(root).matchAll(/class="art (pic(?: \w+)?)" data-note="(item-1-picture-\d+)"/g)].map(m => `${m[2]} ${m[1]}`),
     ['item-1-picture-1 pic', 'item-1-picture-2 pic screen', 'item-1-picture-3 pic sketch']);
-}, proposal.replace(`  ${fence}\n- **Escapes`, [
+}, beside(proposal.replace(`  ${fence}\n- **Escapes`, [
   `  ${fence}`, `  ${fence}screen`, '  <div class="card">x</div>', `  ${fence}`,
-  `  ${fence}svg`, '  <svg viewBox="0 0 40 20"><rect x="0" y="0" width="40" height="20"/></svg>', `  ${fence}`, '- **Escapes'].join('\n'))));
+  `  ${fence}svg`, '  <svg viewBox="0 0 40 20"><rect x="0" y="0" width="40" height="20"/></svg>', `  ${fence}`, '- **Escapes'].join('\n'))), shot));
 
 const refusedScreens = [
   ['a style attribute', ['<div class="card">', '<p style="color:red">x</p>', '</div>'], 12, 'style='],
@@ -300,22 +304,22 @@ const refusedScreens = [
   ['a url( in a value', ['<input placeholder="url(x)">'], 11, 'url('],
   ['an end tag on an empty element', ['<div><input></input></div>'], 11, '</input>'],
   ['a missing end tag', ['<div class="card">', '<p>x'], 12, '<p>, which never closes'],
+  ['a gray bar', ['<div class="card">', '<div class="bar"></div>', '</div>'], 12, 'a gray bar, class "bar"', 'write the real words'],
+  ['a skeleton', ['<div class="card">', '<p class="muted skeleton">x</p>', '</div>'], 12, 'a gray bar, class "skeleton"', 'write the real words'],
 ];
-for (const [what, lines, line, name] of refusedScreens) {
+for (const [what, lines, line, name, how = 'build it from the look\'s parts and layout classes only'] of refusedScreens) {
   test(`a screen holding ${what} stops the build on one line, and the previous page stays`, () => fixture(root => {
     buildReview(root, { requireCurrent: true });
     const good = page(root);
     writeFileSync(join(root, 'proposal.md'), withScreen(lines));
     const result = build(root);
     assert.equal(result.status, 1);
-    assert.equal(result.stderr, `review: proposal.md line ${line}: item 1, picture 1: a screen can not hold ${name}; build it from the look's parts and layout classes only\n`);
+    assert.equal(result.stderr, `review: proposal.md line ${line}: item 1, picture 1: a screen can not hold ${name}; ${how}\n`);
     assert.equal(page(root), good);
   }));
 }
 
 // ── `picture` fences: files from the change's own folder, carried inside the page ──
-const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const png = (size = 64) => Buffer.concat([PNG, Buffer.alloc(size - PNG.length, 1)]);
 // The fence replaces item 1's flow; its first line is proposal line 11.
 const withPictures = lines => proposal.replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`, `${fence}picture\n${lines.map(line => `  ${line}`).join('\n')}`);
 const pictured = (fn, lines, files) => fixture(root => {
@@ -590,15 +594,36 @@ test('a live After card beside a Before picture gives two labelled parts', () =>
   assert.deepEqual(partsOf(page(root)).slice(0, 2), ['Before photo', 'After live']);
 }, proposal.replace(`${fence}mermaid\n  flowchart LR\n    A[apply] --> B[save]`, `${fence}picture\n  Before: before.png\n  ${fence}\n  ${fence}live After\n  folder: site`)));
 
-test('a screen sketch with no real picture and no reason warns, and builds', () => fixture(root => {
-  assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, ['proposal.md line 10: item 1: a screen sketch with no real picture: '
-    + 'draw it from the prototype or the app\'s screen test, with sample data, or add a line "No real picture: <the step that failed>"']);
-}, withScreen(['<div class="card"><p>Wide</p></div>'], '')));
+const keyboard = ['<div class="card"><p>Paste</p></div>'];
+const alone = why => withSketch(keyboard, why).replace(`${fence}svg`, `${fence}screen`);
+test('a screen sketch alone stops the build with its card, even with a line saying why, and the previous page stays', () => fixture(root => {
+  buildReview(root, { requireCurrent: true });
+  const good = page(root);
+  for (const why of ['', ' No real picture: a test copy can\'t sign in.']) {
+    writeFileSync(join(root, 'proposal.md'), alone(why));
+    const result = build(root);
+    assert.equal(result.status, 1);
+    assert.equal(result.stderr, 'review: proposal.md line 10: item 1: a screen sketch alone; show the screen as it will look, '
+      + 'as a page by the prototype rules, with the sketch only beside it\n');
+    assert.equal(page(root), good);
+  }
+}));
 
-test('a screen sketch beside a real picture gives no warning', () => fixture(root => {
-  writeFileSync(join(root, 'a.png'), png());
+test('a screen sketch beside a picture, a page, or a live card builds, named Sketch', () => {
+  for (const [real, files] of [[`${fence}picture\n  After: a.png`, shot], [`${fence}page\n  After: a.html`, { 'a.html': '<p>Paste here</p>' }],
+    [`${fence}live After\n  folder: site`, site]]) {
+    fixture(root => {
+      mkdirSync(join(root, 'site'));
+      for (const [name, bytes] of Object.entries(files)) writeFileSync(join(root, name), bytes);
+      assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, [], real);
+      assert.equal(partsOf(page(root))[0], 'Sketch draw', real);
+    }, beside(alone(''), real));
+  }
+});
+
+test('an svg drawing alone builds: it draws arrows and layers, not a screen', () => fixture(root => {
   assert.deepEqual(buildReview(root, { requireCurrent: true }).warnings, []);
-}, withScreen(['<div class="card"><p>Wide</p></div>'], '').replace(`  ${fence}\n- **Escapes`, `  ${fence}\n  ${fence}picture\n  After: a.png\n  ${fence}\n- **Escapes`)));
+}, withSketch()));
 
 // ── `page` fences: a whole page, such as an email, a part a version; it runs nothing and its links go nowhere ──
 const email = '<!doctype html><html><head><style>body { background: url("top.png"); }</style></head>'

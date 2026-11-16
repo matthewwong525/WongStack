@@ -25,7 +25,7 @@ On a screen 900 px or wider, every part and the bar's buttons share one width, w
 
 ## A card shows the closest real result
 
-A card shows what the go makes, as close to the real thing as you can make it. A person who sees the real result decides once; a person who sees a sketch decides twice, before and after the build. [The plan's review page rules](../.agents/plugins/loop/skills/plan/references/review-page.md#a-card-shows-the-closest-real-result) say what a plan's card shows, and [the drawing guide](../.agents/plugins/loop/skills/plan/references/drawings.md) how to write each fence: an `ad`, a `page`, a table, or the real words to send. A finished build shows *Approved* and *Built*, or *Live now* and *Preview*, side by side.
+A card shows what the go makes, as close to the real thing as you can make it. A person who sees the real result decides once; a person who sees a sketch decides twice, before and after the build. So a card never shows a screen as a sketch alone: the builder stops on one, and names the card. [The plan's review page rules](../.agents/plugins/loop/skills/plan/references/review-page.md#a-card-shows-the-closest-real-result) say what a plan's card shows, and [the drawing guide](../.agents/plugins/loop/skills/plan/references/drawings.md) how to write each fence: an `ad`, a `page`, a table, or the real words to send. A finished build shows *Approved* and *Built*, or *Live now* and *Preview*, side by side.
 
 ## The card view
 
@@ -39,7 +39,7 @@ A card shows each picture, drawing, ad, page, and live card as one labelled pict
 
 ## The prototype
 
-A plan that adds or changes a screen makes a throwaway copy of the app, changes the screen there with sample data, and takes real *Before* and *After* pictures of it. A web app goes on the change's preview address; a phone or desktop app is drawn by its own screen test. [Prototypes](prototypes.md) owns every step, and the sketch that stays only when no route can draw the screen.
+A plan that adds or changes a screen writes it as HTML pages in the app's real look, with sample data: *Before*, today's screen, beside one *After* for each state. No copy of the app runs. [Prototypes](prototypes.md) owns every step, and the sketch that stays only for a part the system draws, beside the page.
 
 ## A website prototype
 

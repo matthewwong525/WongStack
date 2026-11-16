@@ -29,25 +29,6 @@ When `/apply` plans first, it SHALL build exactly the change that planning produ
 - **WHEN** `/plan`, invoked by `/apply`, stops on a blocker
 - **THEN** `/apply` reports the blocker and builds nothing
 
-### Requirement: A fresh helper builds the tasks
-
-Where the host can start one, a fresh helper agent SHALL build the change's tasks, so the build does not carry the planning conversation. When the plan made a prototype, the helper SHALL start from it, so the built screens match the approved pictures. The helper SHALL NOT ask the person, run git, save, or upload a preview, and SHALL NOT report while a helper or check it started is still running. It SHALL return on a question, a blocker, or the whole implementation; the parent SHALL handle a question or blocker and start a new helper for the rest when appropriate. A host with no helper SHALL build inline with the same outcome.
-
-#### Scenario: An ambiguous task
-
-- **WHEN** the helper cannot finish a task without the person's decision
-- **THEN** it returns the question, the parent asks the person, and a new helper works the remaining tasks
-
-#### Scenario: No helper available
-
-- **WHEN** the host cannot start a helper agent
-- **THEN** `/apply` works the tasks inline with the same outcome
-
-#### Scenario: A plan with a prototype
-
-- **WHEN** the plan kept a prototype of a changed screen
-- **THEN** the helper starts from it, and the built screen matches the plan's *After* picture unless a task says otherwise
-
 ### Requirement: A finished change ends with a host preview
 
 When every task is done, `/apply` SHALL upload a preview of the app from the agent host under the change's name and ask whether to publish, with changing it more or saving as the other choices, and *See the preview* when a preview was uploaded. It SHALL NOT invoke `/save` or take any git, pull-request, or CI action on completion. When the app is untouched or the upload cannot run, it SHALL say so in one line and still ask.
@@ -219,3 +200,22 @@ When the build's tasks are done and before the preview, or before returning to `
 
 - **WHEN** the reviewer finds that the build changed a screen the plan never mentioned
 - **THEN** `/apply` asks the person one plain question with a recommended answer before the preview, and changes nothing until they answer
+
+### Requirement: A fresh helper builds the tasks from the plan
+
+Where the host can start one, a fresh helper agent SHALL build the change's tasks, so the build does not carry the planning conversation. When the plan shows a screen as a page, the helper SHALL build the screen to match it. The helper SHALL NOT ask the person, run git, save, or upload a preview, and SHALL NOT report while a helper or check it started is still running. It SHALL return on a question, a blocker, or the whole implementation; the parent SHALL handle a question or blocker and start a new helper for the rest when appropriate. A host with no helper SHALL build inline with the same outcome.
+
+#### Scenario: An ambiguous task
+
+- **WHEN** the helper cannot finish a task without the person's decision
+- **THEN** it returns the question, the parent asks the person, and a new helper works the remaining tasks
+
+#### Scenario: No helper available
+
+- **WHEN** the host cannot start a helper agent
+- **THEN** `/apply` works the tasks inline with the same outcome
+
+#### Scenario: A plan with a screen page
+
+- **WHEN** the plan shows a changed screen as an approved *After* page
+- **THEN** the built screen matches that page unless a task says otherwise

@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { lookColours, lookCss } from '../../.agents/skills/plan/scripts/look.mjs';
+import { buildReview } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { lookColours, lookCss, pageCss, sheet } from '../../.agents/skills/plan/scripts/look.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const shipped = readFileSync(join(repo, 'app/src/index.css'), 'utf8');
@@ -158,4 +160,107 @@ test('a rebranded font reaches a built review page and a built preview page: no 
       assert.match(value, /var\(--font, [^()]*sans-serif\)$/, `${kind}: ${rule} reads the app's font first, not "${value}"`);
     }
   }
+});
+
+// ── `look.mjs page`: a plan's screen page gets the look, and the app's Tailwind for the classes it names ──
+const tailwindMissing = !existsSync(join(repo, 'app/node_modules/tailwindcss')) && 'no app/node_modules: run npm ci in app/';
+
+/** A change folder with a screen page in `pages/`, its stylesheet written by `look.mjs page` from `root`'s app. */
+async function screenPage(t, root) {
+  const change = mkdtempSync(join(tmpdir(), 'wong-look-page-'));
+  t.after(() => rmSync(change, { recursive: true, force: true }));
+  mkdirSync(join(change, 'pages'));
+  writeFileSync(join(change, 'pages/inbox.html'), '<!doctype html><html><head><link rel="stylesheet" href="inbox.css"></head>'
+    + '<body><div class="rounded-lg bg-card p-4"><b>Inbox</b></div><button class="btn-primary">Send</button></body></html>');
+  writeFileSync(join(change, 'proposal.md'), '# Sample\n\n## Why\n\nA reason.\n\n## What Changes\n\n- **The Inbox** changes.\n'
+    + '  ```page\n  After: pages/inbox.html\n  ```\n');
+  const written = await pageCss(join(change, 'pages/inbox.html'), root);
+  assert.equal(written.out, join(change, 'pages/inbox.css'));
+  return { change, written, css: readFileSync(written.out, 'utf8') };
+}
+
+test('look.mjs page writes the app\'s Tailwind rules for the classes a page names, and the review page carries them', { skip: tailwindMissing }, async t => {
+  const { change, written, css } = await screenPage(t, repo);
+  assert.equal(written.tailwind, true);
+  assert.match(css, /\.rounded-lg \{\s*border-radius: var\(--radius\);/);
+  assert.match(css, /\.bg-card \{\s*background-color: var\(--card\);/);
+  assert.match(css, /\.p-4 \{\s*padding: calc\(var\(--spacing\) \* 4\);/);
+  assert.ok(css.includes(lookCss(repo)), 'the look\'s colors and parts come too');
+  assert.ok(css.indexOf('@layer theme, base, components, utilities;') < css.indexOf('@layer components {\n'), 'the parts sit under the classes');
+  assert.deepEqual(buildReview(change, { requireCurrent: true }).warnings, []);
+  assert.match(readFileSync(join(change, 'review.html'), 'utf8'), /\.bg-card \{/);
+});
+
+test('look.mjs page with no Tailwind installed writes the look\'s colors and parts, and the CLI says to run npm ci', async t => {
+  const root = checkout(t, shipped);
+  const { change, written, css } = await screenPage(t, root);
+  assert.equal(written.tailwind, false);
+  assert.equal(css, lookCss(root));
+  assert.deepEqual(buildReview(change, { requireCurrent: true }).warnings, []);
+  mkdirSync(join(root, '.git'));
+  cpSync(join(repo, '.agents/plugins/loop'), join(root, '.agents/plugins/loop'), { recursive: true });
+  const run = spawnSync(process.execPath, [join(root, '.agents/plugins/loop/skills/plan/scripts/look.mjs'), 'page', join(change, 'pages/inbox.html')], { encoding: 'utf8' });
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(run.stdout, `${join(change, 'pages/inbox.css')}\n`);
+  assert.match(run.stderr, /run `npm ci` in app\//);
+});
+
+/** Writes each `path: text` pair under `dir`, making folders as needed. */
+function files(dir, tree) {
+  for (const [path, text] of Object.entries(tree)) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), typeof text === 'string' ? text : JSON.stringify(text));
+  }
+}
+
+/** Packages an app stylesheet may import: a scoped one, one with a subpath in its `exports`, and plain ones. */
+const packages = {
+  '@fontsource-variable/inter/package.json': { style: 'index.css' },
+  '@fontsource-variable/inter/index.css': '.font-inter { font-family: "Inter Variable"; }\n',
+  'tw-animate-css/package.json': { exports: { '.': { style: './dist/tw-animate.css' }, './prefix': { style: './dist/tw-animate-prefix.css' } } },
+  'tw-animate-css/dist/tw-animate.css': '',
+  'tw-animate-css/dist/tw-animate-prefix.css': '.tw-prefix-made { color: red; }\n',
+  'plain/package.json': { exports: './main.css' },
+  'plain/main.css': '',
+  'loose/package.json': {},
+  'loose/extra/more.css': '',
+};
+
+test('look.mjs finds a scoped package\'s sheet and a subpath through the package\'s exports map', t => {
+  const modules = mkdtempSync(join(tmpdir(), 'wong-look-modules-'));
+  t.after(() => rmSync(modules, { recursive: true, force: true }));
+  files(modules, packages);
+  const at = path => join(modules, path);
+  assert.equal(sheet('@fontsource-variable/inter', '/x', modules), at('@fontsource-variable/inter/index.css'));
+  assert.equal(sheet('tw-animate-css', '/x', modules), at('tw-animate-css/dist/tw-animate.css'));
+  assert.equal(sheet('tw-animate-css/prefix', '/x', modules), at('tw-animate-css/dist/tw-animate-prefix.css'));
+  assert.equal(sheet('plain', '/x', modules), at('plain/main.css'), 'a string exports is the package\'s own entry');
+  assert.equal(sheet('loose', '/x', modules), at('loose/index.css'), 'no exports and no style: index.css');
+  assert.equal(sheet('loose/extra/more.css', '/x', modules), at('loose/extra/more.css'), 'no exports: the path itself');
+  assert.equal(sheet('./own.css', '/x/src', modules), '/x/src/own.css');
+});
+
+test('look.mjs page builds an app stylesheet that imports a scoped package and a subpath', { skip: tailwindMissing }, async t => {
+  const root = checkout(t, `@import "tailwindcss";\n@import "@fontsource-variable/inter";\n@import "tw-animate-css/prefix";\n${shipped.replace(/@import[^\n]*\n/g, '')}`);
+  writeFileSync(join(root, 'app/package.json'), '{}');
+  files(join(root, 'app/node_modules'), packages);
+  symlinkSync(join(repo, 'app/node_modules/tailwindcss'), join(root, 'app/node_modules/tailwindcss'), 'dir');
+  const { written, css } = await screenPage(t, root);
+  assert.equal(written.tailwind, true, written.warning);
+  assert.match(css, /\.bg-card \{\s*background-color: var\(--card\);/);
+  assert.match(css, /\.font-inter \{/, 'the scoped package\'s rules come in');
+  assert.match(css, /\.tw-prefix-made \{/, 'the subpath\'s rules come in');
+});
+
+test('look.mjs page still writes the look\'s colors and parts, with a warning, when the app\'s Tailwind fails', async t => {
+  const root = checkout(t, shipped);
+  files(join(root, 'app'), {
+    'package.json': {},
+    'node_modules/tailwindcss/package.json': { main: 'index.js' },
+    'node_modules/tailwindcss/index.js': 'exports.compile = async () => { throw new Error("cannot read the sheet"); };\n',
+  });
+  const { written, css } = await screenPage(t, root);
+  assert.equal(written.tailwind, false);
+  assert.match(written.warning, /Tailwind failed \(cannot read the sheet\)/);
+  assert.equal(css, lookCss(root));
 });
