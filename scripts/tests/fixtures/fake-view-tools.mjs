@@ -1,5 +1,5 @@
 // Stand-ins for what a live view runs (x11vnc, xdotool, apt-get, sudo), shared by the view and private-link tests, and
-// a WebSocket client. A test steers each fake with files in `control`, the fake camofox's: `popup` shows a pop-up.
+// a WebSocket client. Files in `control` steer each fake: `popup` shows a pop-up, or one per `{x, y, width, height}`.
 
 import { randomBytes } from 'node:crypto';
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -27,14 +27,23 @@ else serve();`,
   xdotool: `if (has('xdotool-fails')) process.exit(1);
 const tabs = has('tabs.json') ? JSON.parse(fs.readFileSync(file('tabs.json'), 'utf8')) : [];
 const sized = has('windows.json') ? JSON.parse(fs.readFileSync(file('windows.json'), 'utf8')) : {};
+const listed = has('popup') ? fs.readFileSync(file('popup'), 'utf8') : null;
+const popups = listed === null ? [] : listed ? JSON.parse(listed) : [{}];
+const popup = id => popups[Number(id) - 200] && { x: 0, y: 80, width: 300, height: 200, ...popups[Number(id) - 200] };
 const [command] = args;
 if (command === 'getdisplaygeometry') console.log(${JSON.stringify(SCREEN.join(' '))});
 else if (args.join(' ') === 'search --onlyvisible --classname ^Camoufox$') {
-  if (!has('popup')) process.exit(1);
-  console.log(200);
+  if (!popups.length) process.exit(1);
+  popups.forEach((shown, index) => console.log(200 + index));
 } else if (command === 'search') {
   if (args[1] !== '--classname' || args[2] !== 'Navigator' || !tabs.length) process.exit(1);
   tabs.forEach((tab, index) => console.log(100 + index));
+} else if (command === 'getwindowgeometry' && popup(args.at(-1))) {
+  const { x, y, width, height } = popup(args.at(-1));
+  console.log(['WINDOW=' + args.at(-1), 'X=' + x, 'Y=' + y, 'WIDTH=' + width, 'HEIGHT=' + height, 'SCREEN=0'].join('\\n'));
+} else if (command === 'windowmove' && args.length === 4 && popup(args[1])) {
+  popups[Number(args[1]) - 200] = { ...popup(args[1]), x: Number(args[2]), y: Number(args[3]) };
+  fs.writeFileSync(file('popup'), JSON.stringify(popups));
 } else if (command === 'getwindowgeometry') {
   // A window is its page plus the bar, or the size windowsize gave it until the page's size changes.
   const { size } = tabs[Number(args.at(-1)) - 100];
