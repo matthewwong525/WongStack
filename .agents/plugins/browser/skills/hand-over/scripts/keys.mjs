@@ -7,7 +7,7 @@ import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'nod
 import { basename, dirname, join } from 'node:path';
 import { slot } from '../../../scripts/lib/profile.mjs';
 
-export const LIMITS = { names: 20, body: 16 * 1024, value: 4096, hint: 200, title: 40, why: 140, steps: 6, step: 140 };
+export const LIMITS = { names: 20, body: 128 * 1024, value: 32 * 1024, hint: 200, title: 40, why: 140, steps: 6, step: 140 };
 const CHECK_TIMEOUT_MS = 8000;
 export const KEY_ROUTES = new Set(['/keys', '/save', '/continue', '/done']);
 export const NAME = /^[A-Z_][A-Z0-9_]*$/;

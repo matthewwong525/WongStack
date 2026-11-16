@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — The key link takes longer keys and any file
+
+- **A key can be up to 32 KB.** Before, the key link refused a key over 4,096 characters with *Couldn't save this one*. A signing certificate, a long key file, or a chain of certificates now fits. GitHub holds up to 48 KB a secret, so each saved key still fits there. A Worker secret still holds at most 5 KB, and `npm run secrets:push` fails on a longer one.
+- **Any file goes through *or pick a file*.** A text file, such as a JSON key file, works as before. A file that is not text, such as a `.p12` certificate, is changed on the person's own device to base64: one line of plain letters and digits that decodes to the same bytes, as a build step reads it back with `base64 --decode`. The page shows the file's name and size, never its content. A file can be up to 24 KB.
+
+**Updating.** Nothing to do by hand. The next key link you open takes the longer keys and files.
+
 ## 61.7.1 — The Hand back button looks exactly like ✅
 
 - **The browser's *Hand back* button is the ✅ emoji itself.** Each line says *tap ✅ at the top right*, and the button there is now the same drawing the browser uses for ✅ in a page: a light green square with round corners and a white check. Before, it was a dark green circle. It still counts the tabs that wait on you, and it is still grey when nothing waits.

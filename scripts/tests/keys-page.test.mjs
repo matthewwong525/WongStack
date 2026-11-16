@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { JSDOM } from 'jsdom';
-import { heldLabel, httpsHost, readableName, timeLeft } from '../../.agents/skills/browser/skills/hand-over/scripts/keys-page.mjs';
+import { fileLabel, fileValue, heldLabel, httpsHost, readableName, timeLeft } from '../../.agents/skills/browser/skills/hand-over/scripts/keys-page.mjs';
 
 const scripts = new URL('../../.agents/skills/browser/skills/hand-over/scripts/', import.meta.url);
 const source = readFileSync(new URL('keys-page.mjs', scripts), 'utf8').replace(/^export /gm, '');
@@ -266,20 +266,55 @@ test('a picked key file is read on the device and shown as its name and line cou
   assert.equal(p.$('#closed').hidden, false);
 });
 
-test('a file over 16 KB is refused before it is read or sent, and an empty one says so', async t => {
+test('a file over 24 KB is refused before it is read or sent, and an empty one says so', async t => {
   const p = page(t, never);
   await settle();
-  const big = new p.window.File(['x'.repeat(16 * 1024 + 1)], 'backup.zip');
-  big.text = () => { throw new Error('a too-big file was read'); };
+  const big = new p.window.File(['x'.repeat(24 * 1024 + 1)], 'backup.zip');
+  big.text = big.arrayBuffer = () => { throw new Error('a too-big file was read'); };
   await pick(p, big);
   assert.match(p.$('#keys li').textContent, /That file is too big to be a key\./);
   assert.equal(p.$('#keys .held').hidden, true);
   assert.equal(p.$('#save').disabled, true);
   await pick(p, new p.window.File(['  \n'], 'empty.txt'));
   assert.match(p.$('#keys li').textContent, /That file is empty\./);
-  await pick(p, new p.window.File(['x'.repeat(16 * 1024)], 'just-fits.txt'));
+  await pick(p, new p.window.File(['x'.repeat(24 * 1024)], 'just-fits.txt'));
   assert.equal(p.$('#keys .held').textContent, 'just-fits.txt · 1 line');
   assert.equal(p.calls.some(call => call.path === 'continue'), false);
+});
+
+/** Bytes shaped like a `.p12` certificate: a DER header, a zero byte, and bytes that are not UTF-8. */
+const P12 = Uint8Array.from({ length: 4000 }, (_, i) => [0x30, 0x82, 0x0f, 0x9c, 0x02, 0x01, 0x03, 0x00][i] ?? (i * 151 + 7) % 256);
+const base64 = bytes => Buffer.from(bytes).toString('base64');
+
+test('a file is text when its bytes are strict UTF-8 with no zero byte, else base64 of the same bytes', () => {
+  const json = JSON.stringify({ type: 'service_account', private_key: PEM }, null, 2);
+  for (const text of [json, PEM, 'ключ · 鍵\n']) assert.deepEqual(fileValue(new TextEncoder().encode(text)), { text });
+  assert.deepEqual(fileValue(new TextEncoder().encode(json).buffer), { text: json }, 'an ArrayBuffer too');
+  for (const bytes of [P12, Uint8Array.of(0x6b, 0x65, 0x79, 0x00, 0x31), Uint8Array.of(0x6b, 0xe9, 0x79), Uint8Array.of(0xff, 0xfe, 0xfd)]) {
+    const { base64: line, text } = fileValue(bytes);
+    assert.equal(text, undefined);
+    assert.match(line, /^[A-Za-z0-9+/]+=*$/, 'one line of base64');
+    assert.deepEqual(Uint8Array.from(Buffer.from(line, 'base64')), bytes, 'it decodes to the same bytes');
+  }
+  const big = Uint8Array.from({ length: 24 * 1024 }, (_, i) => (i * 31) % 256);
+  assert.equal(fileValue(big).base64.length, 32 * 1024, '24 KB of bytes is 32 KB of base64, past one chunk');
+  assert.deepEqual(Uint8Array.from(Buffer.from(fileValue(big).base64, 'base64')), big);
+  assert.equal(fileLabel('Certificates.p12', P12), 'Certificates.p12 · 4 KB, saved as base64');
+  assert.equal(fileLabel('tiny.der', Uint8Array.of(0)), 'tiny.der · 1 KB, saved as base64', 'rounded up');
+});
+
+test('a picked file that is not text is held as one base64 line under its name and size, and sent as that line', async t => {
+  const p = page(t, saved('untested', undefined, 'SIGNING_CERT_P12'), { keys: [{ name: 'SIGNING_CERT_P12', hint: '' }] });
+  await settle();
+  await pick(p, new p.window.File([P12], 'Certificates.p12', { type: 'application/x-pkcs12' }));
+  assert.equal(p.$('#keys .held').textContent, 'Certificates.p12 · 4 KB, saved as base64');
+  assert.ok(p.button('Pick another file'));
+  assert.equal(p.$('#keys .row').hidden, true);
+  assert.ok(!p.text().includes(base64(P12).slice(0, 40)), 'the content is never shown');
+  assert.equal(p.calls.some(call => call.path !== 'keys'), false, 'nothing is sent until Save');
+  p.submit();
+  await settle();
+  assert.deepEqual(p.calls.find(call => call.path === 'continue').body, { keys: { SIGNING_CERT_P12: base64(P12) } });
 });
 
 test('the time reads as a clock time on this device until its last ten minutes, then in minutes, and the page closes at the limit', async t => {
