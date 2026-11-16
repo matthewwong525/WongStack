@@ -180,7 +180,7 @@ When the agent gives a test for a key, the page SHALL send that key once, on sav
 
 ### Requirement: The key page takes a paste, a long key, or a key file
 
-The page SHALL offer a one-tap paste where the person's browser allows it, and SHALL accept a key that spans several lines, pasted or picked as a file that the person's device reads itself. Such a key SHALL be stored on one line in a form the app reads back with the same content: the same data for a JSON key file, the same lines for any other text. The page SHALL show a picked file's name and line count, never its content. A key no single line can hold whole SHALL be refused with a message, never saved changed.
+The page SHALL offer a one-tap paste where the person's browser allows it, and SHALL accept a key that spans several lines, pasted or picked as a file that the person's device reads itself. Such a key SHALL be stored on one line in a form the app reads back with the same content: the same data for a JSON key file, the same lines for any other text. A picked file that is not text SHALL be stored as one base64 line that decodes to the same bytes. The page SHALL show a picked file by its name and line count when it is text, and by its name and size when it is not, never its content. A key no single line can hold whole SHALL be refused with a message, never saved changed.
 
 #### Scenario: A key file
 
@@ -191,6 +191,11 @@ The page SHALL offer a one-tap paste where the person's browser allows it, and S
 
 - **WHEN** the person's browser refuses to read the clipboard
 - **THEN** the page says to paste into the field by hand, and a hand-pasted multi-line key keeps its line breaks
+
+#### Scenario: A binary key file
+
+- **WHEN** the person picks a `.p12` signing certificate, which is not text, for a key that `.env.example` declares, and saves
+- **THEN** the page shows the file's name and size, the key lands as one base64 line, and decoding that line gives the same bytes as the file
 
 ### Requirement: An unsaved key link says what happened
 When a key link ends with nothing saved, the agent SHALL learn whether the person ever opened it and, when it closed for another private link, which workspace opened that link. The agent SHALL say which happened before it offers a new link, and SHALL NOT send another link to a person who never opened the last one without asking whether it loaded. What the agent learns SHALL hold no key value, private address, or page content.

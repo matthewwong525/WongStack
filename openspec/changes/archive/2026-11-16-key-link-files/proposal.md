@@ -53,3 +53,4 @@ None.
 - **2026-11-16** — Assumed: a picked file that is not text is sent as one base64 line, because build steps read certificates back with `base64 --decode`, and base64 is plain characters that the key file stores bare.
 - **2026-11-16** — Assumed: the page tells text from other files by its bytes, strict UTF-8 with no zero byte, because a file's name or type says nothing reliable on every phone.
 - **2026-11-16** — Assumed: one limit for every key, with no lower one for Worker secrets, because only Worker keys reach Cloudflare, whose 5 KB limit makes `npm run secrets:push` fail; the guide says so.
+- **2026-11-16** — Assumed: archived for `/ship` as release 61.8.0, after bringing in 61.7.2; the browser module stays at 3.5.0, above 61.7.2's 3.4.2.
