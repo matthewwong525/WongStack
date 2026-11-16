@@ -12,7 +12,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · keep-popups-in-phone-view</title>
+<title>Review · 2026-11-16-keep-popups-in-phone-view</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -452,11 +452,11 @@
 })();
 </script>
 </head>
-<body data-change="keep-popups-in-phone-view" data-own-back>
+<body data-change="2026-11-16-keep-popups-in-phone-view" data-own-back>
 <main>
 <header>
   <p class="eyebrow">Review</p>
-  <h1>keep-popups-in-phone-view</h1>
+  <h1>2026-11-16-keep-popups-in-phone-view</h1>
   <p class="muted"><span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
@@ -498,6 +498,13 @@
 <li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-15</p>Asked whether to also add a zoom-out button for a phone live view → chose no: only make every part fit in the view, nothing cut off.</li>
 <li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-15</p>Assumed: move the pop-up window into the strip, not move the browser window to the screen's right edge, because the move needs no change to how the view page crops the screen; the right-edge window stays the fallback if the browser moves the pop-up back.</li>
 <li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-15</p>Assumed: the strip takes the shown window's real width (about 500 px) on a phone, not a fixed 480 px, because the browser stops near 500 px and the extra 20 px is the menu button.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-16</p>Assumed: a window as wide as the screen, as the fit leaves one on the password manager's page, keeps the 480 px strip on a phone, because shown whole it would shrink the page to a third; only a narrower window widens the strip.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-16</p>Assumed: <code>hand-over.mjs</code> needs no edit, because both of its polls already call the view's <code>front()</code> each time, pop-up or not, and the move runs there.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-16</p>Assumed: the one line goes in <code>password-manager.md</code>'s pop-up paragraph, which already sends a pop-up to the live view; <code>browsing.md</code> names no phone view.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-16</p>The by-hand check passed in a throwaway browser on its own screen: the window was 500 px, so the strip was 500. Firefox opened the stand-in pop-up inside the narrow window, so the run moved it out to x 400 first. One poll moved it to x 182, it stayed there for 5 s of polls, and a tap and typing reached it. The fallback is not needed.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-16</p>Review finding, built: the phone page and the server could disagree on the strip width. Each poll's <code>front()</code> changes the width, and a pop-up moves to that width, but the page read the width only at load, on its own fit, and on a resize. Example: the view opens on the password manager's page (strip 480), the site comes back (strip 500), and the phone still shows 480, so the moved pop-up's last 20 px and the menu button were cut off. Now each poll's fit reaches the page: <code>/view</code> already carried it, and <code>/watch</code> now carries it too, because a watch link polls only <code>/watch</code>. Design decision 2's sentence that the keep-alive fit reaches the page was wrong, and is corrected.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-16</p>Assumed: a poll's fit of the other shape (phone or wide), which another page on the same link asked for, does not change this page's layout, because taken it would crop a laptop to a phone's strip or show a phone the whole screen.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-16</p>Archived and saved for release as 61.7.2 after bringing in main (61.7.1); the browser module goes to 3.4.2, since main took 3.4.1. One hand-over test failed once in the full local run and passed alone and on the rerun: a timing flake, not this change.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>

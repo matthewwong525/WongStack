@@ -1,6 +1,7 @@
 # Everything fits in the live view on a phone
 
-**Status:** planned
+**Status:** ready-to-ship
+**Branch:** fix-mobile-extension-cutoff
 **Open questions:** none
 
 ## Why
@@ -68,3 +69,4 @@ On a phone, the live view shows only a narrow strip at the left of the browser's
 - **2026-11-16** — The by-hand check passed in a throwaway browser on its own screen: the window was 500 px, so the strip was 500. Firefox opened the stand-in pop-up inside the narrow window, so the run moved it out to x 400 first. One poll moved it to x 182, it stayed there for 5 s of polls, and a tap and typing reached it. The fallback is not needed.
 - **2026-11-16** — Review finding, built: the phone page and the server could disagree on the strip width. Each poll's `front()` changes the width, and a pop-up moves to that width, but the page read the width only at load, on its own fit, and on a resize. Example: the view opens on the password manager's page (strip 480), the site comes back (strip 500), and the phone still shows 480, so the moved pop-up's last 20 px and the menu button were cut off. Now each poll's fit reaches the page: `/view` already carried it, and `/watch` now carries it too, because a watch link polls only `/watch`. Design decision 2's sentence that the keep-alive fit reaches the page was wrong, and is corrected.
 - **2026-11-16** — Assumed: a poll's fit of the other shape (phone or wide), which another page on the same link asked for, does not change this page's layout, because taken it would crop a laptop to a phone's strip or show a phone the whole screen.
+- **2026-11-16** — Archived and saved for release as 61.7.2 after bringing in main (61.7.1); the browser module goes to 3.4.2, since main took 3.4.1. One hand-over test failed once in the full local run and passed alone and on the rerun: a timing flake, not this change.

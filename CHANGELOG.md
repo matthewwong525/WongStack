@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (patch) — Pop-ups and the toolbar fit a phone's live view
+## 61.7.2 — Pop-ups and the toolbar fit a phone's live view
 
 - **A pop-up shows whole on a phone.** In a live view on a phone, a pop-up that opens past the right edge of your view, such as 1Password's list or the browser's menu, moves left until it fits. You can tap it and type in it as before. A pop-up wider than your view starts at its left edge.
 - **The whole toolbar shows on a phone.** The browser's window is a little wider than the page, so the view now shows the window's full width, the menu button included. The page looks a little smaller.
