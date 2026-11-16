@@ -16,7 +16,7 @@ echo '{"proxy":false}' > $T/.wong-stack/browser-settings.json
 
 Run every `browse.mjs` and `hand-over.mjs` command with `HOME=$T`. The browser then starts its own server and its own virtual screen, with none of the person's sign-ins.
 
-A throwaway home can't test a 1Password sign-in: a copied profile loses 1Password's sign-in and opens its Welcome page. Test that in the shared browser, after the person says yes to a restart.
+A throwaway home can't test a 1Password sign-in: a copied profile loses 1Password's sign-in and opens its Welcome page. Test that in the shared browser, after the person says yes to a restart. A phone fit tested with a stand-in page, such as a 1Password form or pop-up, still needs one look on a real phone at the next real turn: save that look as an open thread, because twice in a row it was the only check left unseen.
 
 ## Act as several chats
 
