@@ -204,6 +204,26 @@ test('a fit the link does not answer keeps the last one', async t => {
   assert.equal(p.$('#screen').style.width, '376px', 'the wide fit, at the new width');
 });
 
+test('a poll\'s new strip width lays the screen out again, in a turn view and a watch link; another shape\'s is ignored', async t => {
+  const wider = { ...FITS.phone, width: 500 };
+  const view = { ...tabsView(), fit: FITS.phone };
+  const turns = await live(t, { view });
+  assert.equal(turns.$('#screen').style.width, '976px', '366 across a 480 strip');
+  view.fit = wider;
+  await pause(1100);
+  assert.deepEqual([turns.$('#screen').style.width, turns.$('#holder').style.width], ['936.96px', '366px'], '366 across a 500 strip: the window\'s whole width');
+  view.fit = FITS.wide;
+  await pause(1100);
+  assert.equal(turns.$('#screen').style.width, '936.96px', 'a wide fit another page asked for leaves a phone as it is');
+
+  const watch = { control: 'assistant', line: 'Clicking Save…', fit: FITS.phone };
+  const watched = await live(t, { view: { ...WATCHED, fit: FITS.phone }, watch });
+  assert.equal(watched.$('#screen').style.width, '976px');
+  watch.fit = wider;
+  await pause(1100);
+  assert.equal(watched.$('#screen').style.width, '936.96px');
+});
+
 const keys = viewer => viewer.calls.map(([name, keysym, code, down]) => { assert.deepEqual([name, code, down], ['sendKey', null, undefined]); return keysym; });
 
 test('the box types straight into the browser as it changes, with no send', async t => {

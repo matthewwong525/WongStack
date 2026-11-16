@@ -117,6 +117,14 @@ function start(RFB = globalThis.RFB) {
     Object.assign($('#holder').style, { width: `${across}px`, height });
   }
 
+  /** Takes a poll's fit when it is this page's shape and a new width: on a phone, the strip widens to the browser's
+   * window once the view raises it. Returns whether the fit changed. */
+  const follows = next => {
+    if (!next || next.kind !== fit?.kind || next.width === fit.width) return false;
+    fit = next;
+    return true;
+  };
+
   /** Tells the link this page's shape, and lays the screen out by the fit it answers. */
   async function report() {
     const response = await call('fit', { fit: shapeOf(innerWidth) });
@@ -195,6 +203,7 @@ function start(RFB = globalThis.RFB) {
   /** Shows who holds a watch's browser, from the link's `info`. */
   const render = info => {
     if (over || !info) return;
+    if (follows(info.fit)) layout();
     const shows = watchShows(info);
     watch = info.control;
     mayType = shows.hands;
@@ -226,6 +235,7 @@ function start(RFB = globalThis.RFB) {
     $('#line-text').textContent = lines.join('\n');
     if (lines.length) document.title = lines[0];
     closeAt(view.closesAt, view.now);
+    follows(view.fit);
     layout();
   };
   const followTabs = async () => {

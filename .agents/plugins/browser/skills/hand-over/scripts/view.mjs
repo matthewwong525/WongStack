@@ -217,15 +217,18 @@ function screenSize(display) {
   return { width, height };
 }
 
-/** Each browser page's window on `display`, as `{id, width, height}`; none when the search finds none.
+/** A window's place and size on `display`, as `{id, x, y, width, height}`. */
+function windowShape(display, id) {
+  const shape = xdotool(display, 'getwindowgeometry', '--shell', id);
+  const number = name => Number(new RegExp(`^${name}=(-?\\d+)$`, 'm').exec(shape)?.[1]);
+  return { id, x: number('X'), y: number('Y'), width: number('WIDTH'), height: number('HEIGHT') };
+}
+
+/** Each browser page's window on `display`, as `{id, x, y, width, height}`; none when the search finds none.
  * xdotool finds the `Navigator` window by `--classname`; `--class` finds none. */
 function pageWindows(display) {
-  const number = (shape, name) => Number(new RegExp(`^${name}=(\\d+)$`, 'm').exec(shape)?.[1]);
   try {
-    return xdotool(display, 'search', '--classname', 'Navigator').split('\n').filter(Boolean).map(id => {
-      const shape = xdotool(display, 'getwindowgeometry', '--shell', id);
-      return { id, width: number(shape, 'WIDTH'), height: number(shape, 'HEIGHT') };
-    });
+    return xdotool(display, 'search', '--classname', 'Navigator').split('\n').filter(Boolean).map(id => windowShape(display, id));
   } catch {
     return [];
   }
@@ -241,10 +244,24 @@ function fitWindows(display, screen) {
   }
 }
 
-/** True while a browser pop-up shows on `display`, such as an add-on's toolbar pop-up or a menu: Firefox draws each as
- * a window of its own, X instance name `Camoufox`, where a page's window is `Navigator`. */
-export function popupOpen(display) {
-  try { return xdotool(display, 'search', '--onlyvisible', '--classname', '^Camoufox$').trim() !== ''; } catch { return false; }
+/** The id of each browser pop-up that shows on `display`, such as an add-on's toolbar pop-up or a menu: Firefox draws
+ * each as a window of its own, X instance name `Camoufox`, where a page's window is `Navigator`. */
+function popupIds(display) {
+  try { return xdotool(display, 'search', '--onlyvisible', '--classname', '^Camoufox$').split('\n').filter(Boolean); } catch { return []; }
+}
+
+/** True while a browser pop-up shows on `display`. */
+export const popupOpen = display => popupIds(display).length > 0;
+
+/** Moves each pop-up in `ids` whose right edge passes `strip` left until it ends there, or starts at 0 when wider. No
+ * raise or focus: focus closes it. Firefox opens a pop-up rightward under its button, past a phone's strip. */
+function popupsIntoStrip(display, ids, strip) {
+  for (const id of ids) {
+    try {
+      const win = windowShape(display, id);
+      if (win.x + win.width > strip) xdotool(display, 'windowmove', id, String(Math.max(0, strip - win.width)), String(win.y));
+    } catch { /* the next poll tries again */ }
+  }
 }
 
 /** The window to keep in front among `fits`: one the person just opened, such as a password manager's own window, else
@@ -272,13 +289,21 @@ export function liveView(view, page = null) {
   let last = Promise.resolve();
   const seen = new Set();
   let kept = null;
+  // In a phone fit, the width of the window kept in front: the browser's stops near 500, past the page's 480.
+  let keptWidth = 0;
   const inTurn = job => {
     const run = last.then(job);
     last = run.catch(() => {});
     return run;
   };
   const fitted = () => ({ width: kind === 'phone' ? Math.min(PHONE_WIDTH, screen.width) : screen.width, height: screen.height - (bar ?? 0) });
-  const describe = () => screen && { kind, width: fitted().width, screen: [screen.width, screen.height] };
+  /** The strip of the screen the view shows: in a phone fit, the kept window's whole width, toolbar included. A window
+   * as wide as the screen, as `fitWindows` leaves one, stays cropped: shown whole, the page would shrink to a third. */
+  const shown = () => {
+    if (kind !== 'phone') return screen.width;
+    return Math.min(screen.width, keptWidth < screen.width ? Math.max(PHONE_WIDTH, keptWidth) : PHONE_WIDTH);
+  };
+  const describe = () => screen && { kind, width: shown(), screen: [screen.width, screen.height] };
   /** The bar above the page: how much taller its window is than the page, read with the page as tall as the screen.
    * None on the password manager's page, which takes only the width and keeps its height under the bar. */
   const measureBar = async () => {
@@ -290,14 +315,20 @@ export function liveView(view, page = null) {
   /** Sizes the page as the fit; resolves to whether the password manager's page shows. */
   const size = async () => (addon = Boolean((await page.resize(fitted().width, fitted().height))?.addonPage));
   /** Raises and focuses a window as tall as the screen and at least as wide as the fit (the browser's stops near 500).
-   * None while a pop-up shows: a raise covers it, and focus on it closes it; it takes keys with the page's focus. */
+   * While a pop-up shows, none: a raise covers it and focus closes it. On a phone, the pop-up moves into the strip. */
   const front = () => {
-    if (!screen || ended || popupOpen(view.display)) return;
+    if (!screen || ended) return;
+    const popups = popupIds(view.display);
+    if (popups.length) {
+      if (kind === 'phone') popupsIntoStrip(view.display, popups, shown());
+      return;
+    }
     const windows = pageWindows(view.display);
     const fits = windows.filter(win => win.height === screen.height && win.width >= fitted().width);
     const own = keptWindow(fits, seen, kept);
     for (const win of windows) seen.add(win.id);
     kept = own?.id ?? null;
+    keptWidth = kind === 'phone' ? own?.width ?? keptWidth : 0;
     try { if (own) xdotool(view.display, 'windowraise', own.id, 'windowfocus', own.id); } catch { /* next poll */ }
   };
   return {
@@ -383,7 +414,7 @@ export function viewRoutes({ note }, { fitted = () => null, onFit = async () => 
       return reply(response, 200, { note, ...(watch ? { watch: true } : { control: 'turn' }), fit: fitted(), closesAt, ...tabs?.(), now: Date.now() });
     }
     if ((!watch && (pathname === '/watch' || WATCH_ACTIONS.has(pathname))) || (!tabs && pathname === '/show')) return reply(response, 404);
-    if (pathname === '/watch') return request.method === 'GET' ? reply(response, 200, watch.info()) : reply(response, 405);
+    if (pathname === '/watch') return request.method === 'GET' ? reply(response, 200, { ...watch.info(), fit: fitted() }) : reply(response, 405);
     if (request.method !== 'POST') return reply(response, 405);
     if (watch && WATCH_ACTIONS.has(pathname)) {
       const now = watch[pathname.slice(1)]();

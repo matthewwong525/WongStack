@@ -10,6 +10,14 @@
 
 **Updating.** Nothing to do by hand. The next key link you open takes the longer keys and files.
 
+## 61.7.2 — Pop-ups and the toolbar fit a phone's live view
+
+- **A pop-up shows whole on a phone.** In a live view on a phone, a pop-up that opens past the right edge of your view, such as 1Password's list or the browser's menu, moves left until it fits. You can tap it and type in it as before. A pop-up wider than your view starts at its left edge.
+- **The whole toolbar shows on a phone.** The browser's window is a little wider than the page, so the view now shows the window's full width, the menu button included. The page looks a little smaller.
+- **A laptop sees no change.** A wide view already shows the whole screen.
+
+**Updating.** Nothing to do by hand.
+
 ## 61.7.1 — The Hand back button looks exactly like ✅
 
 - **The browser's *Hand back* button is the ✅ emoji itself.** Each line says *tap ✅ at the top right*, and the button there is now the same drawing the browser uses for ✅ in a page: a light green square with round corners and a white check. Before, it was a dark green circle. It still counts the tabs that wait on you, and it is still grey when nothing waits.

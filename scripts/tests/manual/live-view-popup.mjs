@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// By hand, never in CI: a throwaway Camoufox on its own virtual screen checks that a live view's polls leave an
-// add-on's pop-up open and in front, that it takes a tap and typing, and that the page comes back once it closes.
+// By hand, never in CI: a throwaway Camoufox on its own screen checks that a live view's polls leave an add-on's pop-up
+// open, in front, and taking a tap and typing; that the page comes back once it closes; and, on a phone, in the strip.
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -71,11 +71,15 @@ config.options.env.CAMOU_CONFIG_1 = JSON.stringify({ ...camou, addons: [...(camo
 const { firefox } = createRequire(import.meta.url)(join(config.driver, 'index.js'));
 const context = await firefox.launchPersistentContext(FILES.profile, persistentOptions(config, { DISPLAY }));
 const page = context.pages()[0] ?? await context.newPage();
-// The server's resize shows the tab first; here the page's window takes the whole screen, so the bar reads 0.
-const resize = async () => {
+// The server's resize shows the tab first; here the page's window takes the whole screen, so the bar reads 0. A phone's
+// fit asks the window for its narrow width, and the browser stops it near 500 px, as the server's resize does.
+const geometry = id => Object.fromEntries([...x('getwindowgeometry', '--shell', id).matchAll(/^(\w+)=(-?\d+)$/gm)].map(([, name, value]) => [name, Number(value)]));
+const resize = async width => {
   await page.bringToFront();
-  for (let tries = 0; tries < 10 && !/WIDTH=1280\b/.test(x('getwindowgeometry', '--shell', pageId())); tries++) {
-    x('windowsize', pageId(), '1280', '900');
+  const phone = width < 1280;
+  const sized = () => (phone ? geometry(pageId()).WIDTH < 1280 : geometry(pageId()).WIDTH === 1280) && geometry(pageId()).HEIGHT === 900;
+  for (let tries = 0; tries < 10 && !sized(); tries++) {
+    x('windowsize', pageId(), String(phone ? width : 1280), '900');
     x('windowmove', pageId(), '0', '0');
     await sleep(500);
   }
@@ -135,6 +139,43 @@ try {
   x('windowraise', pageId(), 'windowfocus', pageId());
   await sleep(1000);
   check('control: one raise of the page\'s window, the old poll, covers it', !onTop());
+  x('mousemove', '300', '600');
+  x('click', '1');
+  await sleep(1500);
+
+  const fit = await live.fit('phone');
+  const win = geometry(pageId());
+  check('on a phone, the strip is the browser\'s whole window, toolbar included', fit.width === Math.max(480, win.WIDTH), `strip ${fit.width}, window ${win.WIDTH}`);
+  const strip = fit.width;
+  check('on a phone, the pop-up opens', await openPopup());
+  let panel = geometry(panelId());
+  console.log(`     the browser opened it at x ${panel.X}, ${panel.WIDTH} wide, in a ${strip} px strip`);
+  if (panel.X + panel.WIDTH <= strip) {
+    x('windowmove', panelId(), String(strip - 100), String(panel.Y));
+    await sleep(300);
+    panel = geometry(panelId());
+    console.log(`     it opened inside the strip, so this run moved it out to x ${panel.X}`);
+  }
+  check('it starts past the strip\'s right edge', panel.X + panel.WIDTH > strip, `right edge ${panel.X + panel.WIDTH}`);
+  await poll();
+  await sleep(300);
+  panel = geometry(panelId());
+  check('after a poll, its right edge sits inside the strip', panel.X + panel.WIDTH <= strip, `x ${panel.X}, right edge ${panel.X + panel.WIDTH}`);
+  const edges = [];
+  for (let at = 0; at < 5; at++) {
+    await sleep(1000);
+    await poll();
+    edges.push(geometry(panelId()).X);
+  }
+  check('it stays there for 5 s of polls, with no move back', edges.every(left => left === panel.X) && open() && popupOpen(DISPLAY), edges.join(' '));
+  check('and still in front', onTop());
+  x('mousemove', String(panel.X + 40), String(panel.Y + 12));
+  x('click', '1');
+  await sleep(400);
+  x('type', '--delay', '60', 'xyz');
+  await poll();
+  await sleep(1000);
+  check('a tap on its box where it shows now, and typing, reach it', value === 'xyz', JSON.stringify(value));
 } finally {
   site.close();
   await context.close().catch(() => {});
