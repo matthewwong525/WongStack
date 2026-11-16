@@ -421,7 +421,7 @@ test('a browser pop-up, such as an add-on\'s, stays in front: no poll or fit rai
   live.front();
   await live.fit('phone');
   assert.deepEqual(raised(f), ['100'], 'only the raise before it opened');
-  assert.ok(!f.tools.calls('xdotool').some(args => args.includes('200')), 'and the pop-up is never focused: focus closes it');
+  assert.ok(!f.tools.calls('xdotool').some(args => args.includes('200') && args[0] !== 'getwindowgeometry'), 'and the pop-up is never focused: focus closes it');
   f.unset('popup');
   live.front();
   assert.deepEqual(raised(f), ['100', '100'], 'once it closes, the next poll raises the page again');
@@ -432,6 +432,39 @@ test('a browser pop-up, such as an add-on\'s, stays in front: no poll or fit rai
   f.unset('xdotool-fails');
   await live.end();
   assert.equal(live.popupOpen(), false, 'an ended view reads none');
+});
+
+const moved = f => f.tools.calls('xdotool').filter(args => args[0] === 'windowmove' && args.length === 4).map(args => args.slice(1));
+
+test('on a phone, the view shows the kept window\'s whole width, and a pop-up past it moves inside with no raise or focus', async t => {
+  const f = setup(t);
+  const page = fakePage(f);
+  const live = liveView({ size: [2560, 1328], display: ':97', ...standIn(t, f) }, page);
+  await live.fit();
+  // The browser's window stops near 500 px, wider than the 480 page.
+  f.set('windows.json', { 100: { window: [500, 720], page: [480, 663] } });
+  assert.deepEqual(await live.fit('phone'), { kind: 'phone', width: 500, screen: SCREEN }, 'the toolbar\'s right end shows');
+  assert.deepEqual(page.calls.at(-1), [480, 663], 'the page itself stays 480 wide');
+  const raises = raised(f).length;
+
+  f.set('popup', [{ x: 400, y: 30, width: 350 }, { x: 10, y: 30, width: 300 }]);
+  live.front();
+  assert.deepEqual(moved(f), [['200', '150', '30']], 'the one past the strip ends at its right edge and keeps its height; the one inside stays');
+  live.front();
+  assert.equal(moved(f).length, 1, 'once inside, the next poll moves nothing');
+  assert.equal(raised(f).length, raises, 'and nothing is raised over it');
+  assert.ok(!f.tools.calls('xdotool').some(args => args[0] !== 'getwindowgeometry' && args[0] !== 'windowmove' && (args.includes('200') || args.includes('201'))), 'or focuses it');
+
+  f.set('popup', [{ x: 300, y: 30, width: 600 }]);
+  live.front();
+  assert.deepEqual(moved(f).at(-1), ['200', '0', '30'], 'one wider than the strip starts at its left edge');
+  f.unset('popup');
+  assert.deepEqual(await live.fit('wide'), { kind: 'wide', width: 1280, screen: SCREEN });
+  f.set('popup', [{ x: 1000, y: 30, width: 350 }]);
+  live.front();
+  assert.equal(moved(f).length, 2, 'a wide view moves no pop-up');
+  f.unset('popup');
+  assert.deepEqual(await live.fit('phone'), { kind: 'phone', width: 500, screen: SCREEN }, 'back on a phone, the strip is the window\'s width again');
 });
 
 test('a first fit on the password manager\'s page reads no bar, and the first fit back on the site reads it', async t => {
@@ -614,6 +647,15 @@ test('the view\'s routes give the note, the fit, and the deadline, take a shape,
   assert.deepEqual(Object.keys((await bare('view')).json).sort(), ['control', 'fit', 'note', 'now'], 'nothing else from the page');
   assert.deepEqual((await bare('fit', { fit: 'wide' })).json, { fit: null });
   assert.equal((await bare('stop', {})).status, 400, 'Stop is gone: the route is no turn action');
+});
+
+test('a watch link\'s poll carries the fit, so a phone follows a strip that widens', async t => {
+  const fit = { kind: 'phone', width: 480, screen: SCREEN };
+  const watch = { info: () => ({ control: 'assistant', line: 'Clicking Save…' }), shown: () => {} };
+  const call = await mounted(t, viewRoutes({ note: null }, { fitted: () => fit, watch }));
+  assert.deepEqual((await call('watch')).json, { control: 'assistant', line: 'Clicking Save…', fit });
+  fit.width = 500;
+  assert.equal((await call('watch')).json.fit.width, 500);
 });
 
 test('a shared view\'s routes add its open turns and show the tab a chat\'s link names', async t => {
