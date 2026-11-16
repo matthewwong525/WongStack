@@ -11,6 +11,12 @@
 
 **Updating.** Nothing to do by hand.
 
+## 61.7.1 — The Hand back button looks exactly like ✅
+
+- **The browser's *Hand back* button is the ✅ emoji itself.** Each line says *tap ✅ at the top right*, and the button there is now the same drawing the browser uses for ✅ in a page: a light green square with round corners and a white check. Before, it was a dark green circle. It still counts the tabs that wait on you, and it is still grey when nothing waits.
+
+**Updating.** Nothing to do by hand. The new button shows at the browser's next start.
+
 ## 61.7.0 — A green check you click when you're done
 
 - **The browser's *Hand back* button is a green check.** It sits at the right end of the toolbar and still counts the tabs that wait on you. When nothing waits, it is grey and does nothing. The 🔔 stays on each tab that needs you: the bell means *this tab needs you*, and the check means *I'm done*.

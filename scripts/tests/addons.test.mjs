@@ -386,8 +386,10 @@ test('each start copies the WongStack add-on out of the repo with its port and k
   const repo = fileURLToPath(new URL('../../.agents/plugins/browser/addon/', import.meta.url));
   assert.equal(readFileSync(join(copy, 'manifest.json'), 'utf8'), readFileSync(join(repo, 'manifest.json'), 'utf8'));
   const { browser_action: action, icons } = JSON.parse(readFileSync(join(copy, 'manifest.json'), 'utf8'));
-  assert.deepEqual([action.default_icon, icons['48']], ['check.svg', 'check.svg'], 'its button is the green check');
+  assert.deepEqual([action.default_icon, icons['48']], ['check.svg', 'check.svg'], 'its button is the ✅');
   assert.ok(existsSync(join(copy, 'check.svg')) && !existsSync(join(copy, 'bell.svg')));
+  const icon = readFileSync(join(copy, 'check.svg'), 'utf8');
+  assert.ok(icon.includes('fill="#77B255"') && icon.includes('fill="#FFFFFF"') && !icon.includes('<circle'), 'its button is the ✅ drawing: a green square and a white check, not a circle');
   assert.equal(JSON.parse(readFileSync(join(copy, 'manifest.json'), 'utf8')).browser_specific_settings.gecko.id, addons.HAND_BACK_GUID);
   assert.ok(!existsSync(join(copy, 'old.js')), 'an older copy goes');
   assert.ok(!existsSync(join(repo, 'config.json')), 'the repo holds no key');
