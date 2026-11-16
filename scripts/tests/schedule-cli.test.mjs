@@ -108,9 +108,26 @@ test('save --team copies to each teammate with no folder of the owner\'s, and ap
   assert.equal(approvedVersion({ origin: ORIGIN, email: JO, key: 'weekly-plan' }, env), null);
 });
 
-test('finish saves progress, ends a met goal and gives the claim back, only for the run that holds it', async t => {
+test('finish --done on a schedule with no end is refused and changes nothing; finishing again without it releases', async t => {
   const { app, call, file } = cli(t);
   await call('save', '--file', file(plan()), '--approve');
+  const progress = appProgress(app, 'weekly-plan');
+  await progress.claim(runId(7));
+  await progress.write(runId(7), { done: ['monday'] });
+  const refused = await call('finish', '--key', 'weekly-plan', '--run', runId(7), '--progress', file({ done: ['tuesday'] }, 'p.json'), '--done', 'This run is done.');
+  assert.match(refused.error, /no end, so a run can't end it\. Finish again without --done/);
+  assert.equal(app.schedules.get('weekly-plan').ended, null, 'the schedule keeps its next run');
+  const kept = await progress.read();
+  assert.deepEqual([kept.progress, kept.claim?.run], [{ done: ['monday'] }, runId(7)], 'progress and claim are untouched');
+  const finished = await call('finish', '--key', 'weekly-plan', '--run', runId(7), '--progress', file({ done: ['tuesday'] }, 'p.json'));
+  assert.deepEqual({ ok: finished.ok, released: finished.released, ended: finished.ended }, { ok: true, released: true, ended: undefined });
+  assert.deepEqual(await progress.read(), { progress: { done: ['tuesday'] }, claim: null });
+  assert.equal(app.schedules.get('weekly-plan').ended, null);
+});
+
+test('finish saves progress, ends a met goal and gives the claim back, only for the run that holds it', async t => {
+  const { app, call, file } = cli(t);
+  await call('save', '--file', file(plan({ until: 'The plan is sent.' })), '--approve');
   const progress = appProgress(app, 'weekly-plan');
   await progress.claim(runId(7));
   assert.match((await call('finish', '--key', 'weekly-plan', '--run', runId(8))).error, /does not hold/);
