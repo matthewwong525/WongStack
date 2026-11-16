@@ -206,7 +206,7 @@ test("a run's chat opens at medium thinking or more, with the approved instructi
   const root = folder(t), { bin, calls } = fakePaseo(root);
   const runs = () => calls('run');
   const version = 'a'.repeat(64);
-  const finish = `schedule.mjs finish --key weekly-plan --run ${runId(1)} [--progress <json file>] [--done <proof the end is met>]`;
+  const finish = `schedule.mjs finish --key weekly-plan --run ${runId(1)} [--progress <json file>]`;
   const open = (models, provider, instructions = 'Plan the week.') => openSession({ schedule: { key: 'weekly-plan', name: 'Weekly plan', version, instructions,
     run: { cwd: root, provider } }, run: { id: runId(1) }, title: 'Weekly plan', env: { ...process.env, WONG_PASEO_BIN: bin, FAKE_MODELS: JSON.stringify(models) } });
   assert.deepEqual(await open([{ id: 'gpt-low', defaultThinkingOptionId: 'low' }], 'codex'), { agentId: 'agent-run', chatTitle: 'Weekly plan' });

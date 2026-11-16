@@ -105,6 +105,8 @@ async function finish(key, values, client) {
   requireValue(values.run, 'A finish names its run.');
   const progress = appProgress(client, key);
   requireValue((await progress.read()).claim?.run === values.run, 'This run does not hold the schedule\'s progress.');
+  // A run judges only an end the person approved; with none, `--done` would end a repeating schedule for good.
+  if (values.done) requireValue((await found(client, key)).schedule.until, 'This schedule has no end, so a run can\'t end it. Finish again without --done.');
   if (values.progress) await progress.write(values.run, JSON.parse(readFileSync(values.progress, 'utf8')));
   const ended = values.done ? (await send(client, 'schedule-end', 'POST', { key, reason: values.done.slice(0, 300) })).schedule.ended : null;
   return { key, run: values.run, released: !(await progress.release(values.run)), ...(ended ? { ended } : {}) };

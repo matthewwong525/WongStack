@@ -32,6 +32,8 @@ test('the first message is the instructions word for word, then a footer naming 
   assert.match(bare, /^May do: read and draft only; /m);
   assert.match(bare, /^Progress: none yet$/m);
   assert.doesNotMatch(bare, /Ends when/);
+  assert.ok(message.endsWith(' [--progress <json file>] [--done <proof the end is met>]'), 'a schedule with an end offers --done');
+  assert.ok(bare.endsWith(' [--progress <json file>]'), 'a schedule with no end never offers --done');
   const sent = Array.from({ length: 60 }, (_, n) => `inv-${1000 + n}`), until = `${'Every invoice is paid '.repeat(30)}and the client signs off.`;
   const long = firstMessage({ schedule: { ...schedule, until }, run, progress: { sent } });
   assert.ok(long.includes(`Progress: ${JSON.stringify({ sent })}\n`), 'the chat saves over the whole progress, so it sees all of it');

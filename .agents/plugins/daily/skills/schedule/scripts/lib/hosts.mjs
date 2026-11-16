@@ -44,7 +44,7 @@ export function firstMessage({ schedule, run, progress = null }) {
     ...(schedule.until ? [`Ends when: ${oneLine(schedule.until)}`] : []),
     `Progress: ${progress == null ? 'none yet' : JSON.stringify(progress)}`,
     'How a run works: .agents/skills/daily/skills/schedule/references/run.md',
-    `When you stop: ${finish} [--progress <json file>] [--done <proof the end is met>]`,
+    `When you stop: ${finish} [--progress <json file>]${schedule.until ? ' [--done <proof the end is met>]' : ''}`,
   ].join('\n');
 }
 export function paseoAdapter({ env = process.env, call } = {}) {

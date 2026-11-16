@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.9.1 — A run can't end a repeating schedule by mistake
+
+- **A run can't end a schedule that has no end.** Before, a run of a repeating schedule with no *Ends when* could finish with `--done` because its own work was done. That ended the whole schedule for good. Now the finish is refused: nothing is saved, the run keeps its place, and it finishes again without `--done`. The schedule keeps its next run.
+- **A run sees `--done` only when its schedule has an end.** The last line of a run's first message offers `--done` only beside *Ends when*.
+- **The run guide says it plainly.** `--done` is only for a schedule with an end, when that end is met. A run never ends its schedule another way.
+
+**Updating.** Nothing to do by hand. A schedule that a run ended this way stays ended: save it again under a new key to bring it back.
+
 ## 61.9.0 — A plan shows each screen as HTML in the app's real look
 
 - **A plan shows a screen as an HTML page in the app's real look.** The chat writes *Before*, today's screen, and each *After* state as pages, with the app's colors, fonts, corners, real words, and sample data. It runs no copy of the app. For this app, `look.mjs page` writes the page's stylesheet: the app's colors and parts, and the Tailwind classes the page names, made by the app's own Tailwind. A phone or desktop app's page copies its theme's colors and fonts by hand.
