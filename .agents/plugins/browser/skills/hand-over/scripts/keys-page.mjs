@@ -1,5 +1,5 @@
 // The key page's script (see hand-over.mjs `open --keys` and keys.mjs): one hidden box per key `GET /keys` lists.
-// Text over several lines is held out of sight, as a name and a line count; every guide string is set as text.
+// Several lines are held out of sight as a name and line count, a binary file as base64; guide strings are set as text.
 
 const MESSAGES = {
   empty: 'Paste a key first.',
@@ -13,7 +13,8 @@ const MESSAGES = {
   works: 'Works',
   untested: 'Saved, not tested',
 };
-const FILE_LIMIT = 16 * 1024;
+/** 24 KB of bytes is 32 KB of base64, so any accepted file fits one key (keys.mjs `LIMITS.value`). */
+const FILE_LIMIT = 24 * 1024;
 const LINE_BREAK = /\r\n?|\n/;
 const SOON_MS = 10 * 60_000;
 const COUNTS = ['', '', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
@@ -50,6 +51,27 @@ export function readableName(name) {
 /** A held key's line: where it came from and its line count, never its content. */
 export function heldLabel(source, text) {
   return `${source} · ${plural(text.trim().split(LINE_BREAK).length, 'line')}`;
+}
+
+/** A picked file's line for bytes held as base64: its name and size in KB, rounded up, never its content. */
+export function fileLabel(name, bytes) {
+  return `${name} · ${Math.ceil(bytes.byteLength / 1024)} KB, saved as base64`;
+}
+
+/** A picked file's bytes as a key: `{ text }` when they are strict UTF-8 with no zero byte, else `{ base64 }`,
+ * one line that decodes to the same bytes. The bytes decide, since a file's name or type is unreliable on a phone. */
+export function fileValue(bytes) {
+  const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (!view.includes(0)) {
+    try {
+      return { text: new TextDecoder('utf-8', { fatal: true }).decode(view) };
+    } catch {
+      // not text: fall through to base64
+    }
+  }
+  let binary = '';
+  for (let at = 0; at < view.length; at += 0x8000) binary += String.fromCharCode(...view.subarray(at, at + 0x8000));
+  return { base64: btoa(binary) };
 }
 
 /** The host of an `https` address, or null for anything else. */
@@ -112,11 +134,11 @@ function start() {
     row.anyway.hidden = true;
   }
 
-  /** Holds text out of sight, in place of the box, under its source's name and line count; null puts the box back. */
-  function hold(row, text, source, fromFile = false) {
+  /** Holds text out of sight, in place of the box, under `label`; null puts the box back. */
+  function hold(row, text, label, fromFile = false) {
     row.held = text;
     if (text !== null) row.input.value = '';
-    row.heldLine.textContent = text === null ? '' : heldLabel(source, text);
+    row.heldLine.textContent = text === null ? '' : label;
     for (const part of [row.heldLine, row.remove]) part.hidden = text === null;
     for (const part of [row.box, row.toggle]) part.hidden = text !== null;
     row.pick.textContent = fromFile ? 'Pick another file' : 'or pick a file';
@@ -125,7 +147,7 @@ function start() {
   /** Puts pasted text in a row: one line goes in the box, several are held, their breaks kept. */
   function take(row, text) {
     note(row);
-    if (LINE_BREAK.test(text.trim())) hold(row, text, 'Pasted key');
+    if (LINE_BREAK.test(text.trim())) hold(row, text, heldLabel('Pasted key', text));
     else { hold(row, null); row.input.value = text.trim(); }
     update();
   }
@@ -136,14 +158,16 @@ function start() {
     else note(row, MESSAGES.noClipboard);
   }
 
-  /** Reads a picked file on this device and holds it; one too big to be a key is never read. */
+  /** Reads a picked file on this device and holds it as text or base64; a file too big to be a key is never read. */
   async function pickFile(row, file) {
     if (!file) return;
     if (file.size > FILE_LIMIT) return note(row, MESSAGES.bigFile);
-    const text = await file.text();
-    if (!text.trim()) return note(row, MESSAGES.emptyFile);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const { text, base64 } = fileValue(bytes);
+    if (base64 === undefined && !text.trim()) return note(row, MESSAGES.emptyFile);
     note(row);
-    hold(row, text, file.name, true);
+    if (base64 === undefined) hold(row, text, heldLabel(file.name, text), true);
+    else hold(row, base64, fileLabel(file.name, bytes), true);
     update();
   }
 

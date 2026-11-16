@@ -544,6 +544,19 @@ test('a key over several lines is stored on one line that reads back with the sa
   }
 });
 
+test('a binary key file, sent as one base64 line, is saved bare and reads back as the same bytes', async t => {
+  const bytes = Buffer.from(Array.from({ length: 4500 }, (_, i) => (i * 151 + 7) % 256));
+  const value = bytes.toString('base64');
+  assert.equal(value.length, 6000, 'about a signing certificate');
+  assert.equal(formatLine('K', cleanValue(value)), `K=${value}`, 'base64 is bare: no quotes');
+  const f = fixture(t);
+  const { port, key } = opened(f, 'MAPS_API_KEY,STRIPE_SECRET_KEY');
+  assert.deepEqual((await route(port, key, 'save', { keys: { MAPS_API_KEY: value } })).json.saved, ['MAPS_API_KEY']);
+  const line = f.read(f.primary, '.env').split('\n')[1];
+  assert.equal(line, `MAPS_API_KEY=${value}`);
+  assert.deepEqual(Buffer.from(parseEnv(line).MAPS_API_KEY, 'base64'), bytes, 'the same bytes');
+});
+
 test('a picked key file and a pasted private key land on one line each of the live file', async t => {
   const f = fixture(t);
   const { port, key } = opened(f, 'MAPS_API_KEY,STRIPE_SECRET_KEY');

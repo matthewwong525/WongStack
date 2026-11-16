@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.8.0 — The key link takes longer keys and any file
+
+- **A key can be up to 32 KB.** Before, the key link refused a key over 4,096 characters with *Couldn't save this one*. A signing certificate, a long key file, or a chain of certificates now fits. GitHub holds up to 48 KB a secret, so each saved key still fits there. A Worker secret still holds at most 5 KB, and `npm run secrets:push` fails on a longer one.
+- **Any file goes through *or pick a file*.** A text file, such as a JSON key file, works as before. A file that is not text, such as a `.p12` certificate, is changed on the person's own device to base64: one line of plain letters and digits that decodes to the same bytes, as a build step reads it back with `base64 --decode`. The page shows the file's name and size, never its content. A file can be up to 24 KB.
+
+**Updating.** Nothing to do by hand. The next key link you open takes the longer keys and files.
+
 ## 61.7.2 — Pop-ups and the toolbar fit a phone's live view
 
 - **A pop-up shows whole on a phone.** In a live view on a phone, a pop-up that opens past the right edge of your view, such as 1Password's list or the browser's menu, moves left until it fits. You can tap it and type in it as before. A pop-up wider than your view starts at its left edge.
