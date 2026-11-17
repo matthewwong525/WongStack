@@ -14,11 +14,31 @@ const node = file => ({ root, args = [] }) => runCommand('node', [join(here, fil
 const bash = file => ({ root, args = [] }) => runCommand('bash', [join(here, file), ...args], { cwd: root });
 const ROUTE_SCRIPTS = { artifacts: 'routes/artifacts-run.mjs', app: 'routes/app-change.mjs' };
 
-/** Close this chat's workspace: its private link, then the workspace itself. */
+/** Removes this workspace's company folder before the close: unsaved or clashing pages stop it (7) unless discarded;
+ * a busy lock or git refusal is 8. A folder that is not the copy's is left alone and the close goes on. */
+function removeKnowledge(root, discard) {
+  const result = spawnSync('node', [join(here, '../memory/knowledge.mjs'), 'remove', ...(discard ? ['--discard'] : [])], { cwd: root, encoding: 'utf8' });
+  const said = result.stdout ?? '';
+  if (result.status === 0) return 0;
+  process.stdout.write(said);
+  if (/^(unsaved|conflict)=/m.test(said)) return 7;
+  return /^folder=blocked$/m.test(said) ? 0 : 8;
+}
+
+/** Close this chat's workspace: its private link, its knowledge folder, then the workspace itself. Exit 7 means wiki
+ * pages wait, 8 that the knowledge folder could not be removed yet. */
 function closeWorkspace({ root, args = [] }) {
   const skills = join(root, '.claude/skills');
+  const tidy = join(skills, 'daily/skills/schedule/scripts/tidy.mjs');
+  if (!args.includes('--dry-run')) {
+    // tidy.mjs's own refusals (the main checkout, no Paseo workspace) come before anything is removed.
+    const check = spawnSync('node', [tidy, 'close', ...args, '--dry-run'], { cwd: root, encoding: 'utf8' });
+    if (check.status !== 0) { process.stdout.write(check.stdout ?? ''); return check.status ?? 1; }
+    const kept = removeKnowledge(root, args.includes('--discard'));
+    if (kept) return kept;
+  }
   runCommand('node', [join(skills, 'browser/skills/hand-over/scripts/hand-over.mjs'), 'close'], { cwd: root, stdio: 'ignore' });
-  return runCommand('node', [join(skills, 'daily/skills/schedule/scripts/tidy.mjs'), 'close', ...args], { cwd: root });
+  return runCommand('node', [tidy, 'close', ...args], { cwd: root });
 }
 
 /** A new workspace through Paseo (`open …`), or the scratch folder its brief goes in (`scratch`). */

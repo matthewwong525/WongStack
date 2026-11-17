@@ -3,7 +3,7 @@ title: What one person teaches it, the team never gets
 problem: Each teammate's AI learns alone, so the rest of the team starts from zero.
 fix: One shared memory and knowledge base that every teammate's AI uses.
 order: 5
-checked: 2026-11-13
+checked: 2026-11-17
 sources:
   - wiki/stack/company-knowledge.md
   - wiki/development/memory.md
@@ -24,6 +24,8 @@ Add shared team learning to my AI setup. Build it in this project and ask me bef
 > When a chat ends, write its result and what is left as facts, then move lasting facts onto the pages
 > Pages about the company sit in their own repository: a save goes live for the team at once and prints how to undo it
 > An edit a teammate makes to a page while it moves there is carried over, or stopped when both copies changed
+> Each chat edits company pages in its own folder, so one chat's unsaved edit never stops another chat's save
+> When two saves change the same lines, the rest goes live and both versions of that page are kept to merge
 > Catch chats nobody wrapped up with a background run, so nothing is lost
 > Open questions name who checks them next, so the next teammate picks them up
 > Newest wins between facts about the same person or the whole team

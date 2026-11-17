@@ -41,11 +41,20 @@ export function tidyPages({ root }) {
   return [...wikiPages(root), ...knowledge, ...specPages(root)].map(path => ({ path, kind: kindOf(path, shipped) }));
 }
 
-/** Links the run's copy to this computer's company knowledge, as a chat start does: git holds no `knowledge/`, so
- *  the copy has none, and no company page would be a topic or due. With no copy on the computer, it links nothing. */
+/** Gives the run's copy its own company folder, so company pages are on the map, then sends every chat's held saves,
+ *  such as one a chat left with no `/close`; a clash leaves `<page>.mine.md` in the run's folder for the tidy. */
 export async function tidyPrepare({ root }) {
-  const { linkCopy, place } = await import('./knowledge.mjs');
-  linkCopy(place(root));
+  const { folderFor, folders, place } = await import('./knowledge.mjs');
+  const k = place(root);
+  if (!['made', 'ok', 'switched'].includes(folderFor(k))) return;
+  folders(k, { send: true });
+}
+
+/** Removes the run's company folder before its copy is deleted, as `/close` does for a chat: `remove --discard`
+ *  drops an edit the run never saved, and keeps the branch of a save it could not send, for the next tidy. */
+export async function tidyCleanup({ root }) {
+  const { place, remove } = await import('./knowledge.mjs');
+  remove(place(root), { discard: true });
 }
 
 /** The tools the daily tidy's full-access part refuses: the install's daily deny list, as the daily's own runs. */

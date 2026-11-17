@@ -26,9 +26,12 @@ export default {
   tidy: {
     pages: lazy('./tidy-pages.mjs', 'tidyPages'),
     deny: lazy('./tidy-pages.mjs', 'tidyDeny'),
-    // Company knowledge, linked into the run's copy before its first map.
+    // Company knowledge: its own folder in the run's copy before its first map, with every chat's held saves sent;
+    // removed again when the run ends.
     prepare: lazy('./tidy-pages.mjs', 'tidyPrepare'),
-    publish: 'save a `knowledge/` page by wiki/stack/company-knowledge.md#save-a-page; for any other, `git fetch origin main`, '
+    cleanup: lazy('./tidy-pages.mjs', 'tidyCleanup'),
+    publish: 'save a `knowledge/` page by wiki/stack/company-knowledge.md#save-a-page, and first merge a `<page>.mine.md` beside it '
+      + '(an ended chat\'s clashing save) into it and delete the `.mine`; for any other, `git fetch origin main`, '
       + '`git switch -c <branch> origin/main`, then `/ship` minus its closing question.',
   },
   sessionStart: lazy('./session-start.mjs', 'sessionStart'),

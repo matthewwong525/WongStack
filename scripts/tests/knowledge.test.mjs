@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { link, place, restore, save, status, undo, update } from '../../.agents/memory/knowledge.mjs';
+import { folderFor, folders, link, place, remove, restore, save, snapshot, status, undo, update, wipMark } from '../../.agents/memory/knowledge.mjs';
 
 Object.assign(process.env, { GIT_AUTHOR_NAME: 'Ada', GIT_AUTHOR_EMAIL: 'ada@example.com', GIT_COMMITTER_NAME: 'Ada',
   GIT_COMMITTER_EMAIL: 'ada@example.com', GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null' });
@@ -34,11 +34,30 @@ function world(t) {
     assert.equal(update(k).code, 0);
     return k;
   };
+  // A chat workspace: a worktree of the computer's code checkout, with its own folder of company knowledge.
+  const chat = (k, name, made = true) => {
+    const tree = join(dir, name);
+    git(k.primary, 'worktree', 'add', '--quiet', '--detach', tree);
+    const c = place(tree, { WONG_KNOWLEDGE_REMOTE: remote });
+    if (made) assert.equal(folderFor(c), 'made');
+    return c;
+  };
   const published = (path, ref = 'main') => { try { return git(remote, 'show', `${ref}:${path}`); } catch { return null; } };
-  return { dir, remote, computer, published };
+  // Another computer saves a page, so the published tip moves on.
+  const elsewhere = (page, text) => {
+    const other = join(dir, `other-${Math.random().toString(36).slice(2)}`);
+    git(dir, 'clone', '--quiet', remote, other);
+    writeFileSync(join(other, page), text(readFileSync(join(other, page), 'utf8')));
+    git(other, 'commit', '--quiet', '-am', `Edit ${page}`);
+    git(other, 'push', '--quiet', 'origin', 'HEAD:main');
+  };
+  const offline = k => git(k.copy, 'remote', 'set-url', 'origin', `${remote}-gone`);
+  const online = k => git(k.copy, 'remote', 'set-url', 'origin', remote);
+  return { dir, remote, computer, chat, published, elsewhere, offline, online };
 }
-const write = (k, page, text) => { mkdirSync(join(k.copy, page, '..'), { recursive: true }); writeFileSync(join(k.copy, page), text); };
-const read = (k, page) => readFileSync(join(k.copy, page), 'utf8');
+const write = (k, page, text) => { mkdirSync(join(k.dir, page, '..'), { recursive: true }); writeFileSync(join(k.dir, page), text); };
+const read = (k, page) => readFileSync(join(k.dir, page), 'utf8');
+const refs = k => git(k.copy, 'for-each-ref', '--format=%(refname) %(objectname)');
 
 test('status says copy=absent on an install with no copy and no knowledge repository', t => {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'wong-test-knowledge-')));
@@ -95,6 +114,21 @@ test('a broken link publishes nothing and leaves the page as an edit', t => {
   assert.equal(save(k, ['ops.md', 'rota.md', 'README.md'], 'Add the rota').code, 0, 'the pages together link up');
 });
 
+test('a broken link someone else already published never stops a save; a new one still does', t => {
+  const { computer, published, elsewhere } = world(t);
+  const k = computer('ada');
+  elsewhere('ops.md', () => `${OPS}See [the rota](rota.md).\n`);
+  write(k, 'README.md', `${HUB}Ask in chat.\n`);
+  const saved = save(k, ['README.md'], 'Hub note');
+  assert.equal(saved.code, 0, saved.text);
+  assert.match(published('README.md'), /Ask in chat/);
+  write(k, 'README.md', `${HUB}Ask in chat.\nSee [the pager](pager.md).\n`);
+  const broken = save(k, ['README.md'], 'Link the pager');
+  assert.equal(broken.code, 1);
+  assert.match(broken.text, /broken=knowledge\/README\.md:\d+: links to pager\.md/);
+  assert.doesNotMatch(broken.text, /rota/, 'the published broken link is not this save\'s problem');
+});
+
 test('a link to a page that is only on this computer is refused, even when that page is there', t => {
   const { computer, published } = world(t);
   const k = computer('ada');
@@ -141,13 +175,14 @@ test('saves to different lines of one page both go live; the same lines leave bo
   assert.equal(save(ada, ['ops.md'], 'Ada again').code, 0);
   write(bo, 'ops.md', read(bo, 'ops.md').replace('How we ship.', 'Bo ships.'));
   const clash = save(bo, ['ops.md'], 'Bo again');
-  assert.equal(clash.code, 1);
-  assert.match(clash.text, /^conflict=knowledge\/ops\.md$/m);
+  assert.equal(clash.code, 4, clash.text);
+  assert.match(clash.text, /^saved=none\nconflict=knowledge\/ops\.md$/m);
   assert.match(read(bo, 'ops.md'), /Ada ships\./);
   assert.match(read(bo, 'ops.mine.md'), /Bo ships\./);
   assert.equal(git(bo.copy, 'rev-parse', 'HEAD'), git(bo.copy, 'rev-parse', 'origin/main'));
   assert.match(published('ops.md'), /Ada ships\./);
-  assert.doesNotMatch(status(bo).text, /mine/, 'the copy ignores the other side of a conflict');
+  assert.doesNotMatch(status(bo).text, /mine|unsaved=/, 'the copy ignores the other side of a conflict');
+  assert.match(status(bo).text, /^conflict=knowledge\/ops\.md$/m, 'status names the page to merge');
 });
 
 test('a save that loses a race to another push tries again and lands on top', t => {
@@ -222,27 +257,293 @@ test('update finds a forced rewrite, and restore puts the lost saves back with n
   assert.equal(update(ada).code, 0);
 });
 
-test('two chats share one copy through a link, and neither saves the other\'s edits', t => {
-  const { computer, published } = world(t);
+test('a save goes live while the same folder has an unsaved edit on a page the tip changed', t => {
+  const { computer, elsewhere, published } = world(t);
   const k = computer('ada');
-  const tree = join(k.primary, '..', 'ada-chat');
-  git(k.primary, 'worktree', 'add', '--quiet', tree);
-  const chat = place(tree, { WONG_KNOWLEDGE_REMOTE: k.address });
-  assert.equal(link(chat).text, 'link=made\n');
-  assert.ok(lstatSync(chat.link).isSymbolicLink());
-  assert.equal(link(chat).text, 'link=ok\n');
-  assert.equal(link(k).text, 'link=primary\n');
-  writeFileSync(join(tree, 'knowledge', 'ops.md'), `${OPS}from the chat\n`);
-  write(k, 'README.md', `${HUB}from the other chat\n`);
-  assert.equal(save(chat, ['knowledge/ops.md'], 'Chat save').code, 0);
-  assert.match(published('ops.md'), /from the chat/);
-  assert.doesNotMatch(published('README.md'), /other chat/);
-  assert.match(status(chat).text, /link=ok[\s\S]*unsaved=knowledge\/README\.md/);
-  write(k, 'on call.md', '# On call\n');
-  write(k, 'café.md', '# Café\n');
-  assert.match(status(k).text, /^unsaved=knowledge\/on call\.md$/m);
-  assert.match(status(k).text, /^unsaved=knowledge\/café\.md$/m);
-  const kept = update(k);
-  assert.match(kept.text, /updated=|saved=/);
-  assert.match(read(k, 'README.md'), /from the other chat/);
+  write(k, 'ops.md', OPS.replace('line five', 'line five, unsaved'));
+  elsewhere('ops.md', text => text.replace('line two', 'line two, published'));
+  write(k, 'README.md', `${HUB}Saved now.\n`);
+  const result = save(k, ['README.md'], 'Save the hub');
+  assert.equal(result.code, 0, result.text);
+  assert.match(published('README.md'), /Saved now/);
+  assert.doesNotMatch(published('ops.md'), /unsaved/);
+  assert.match(read(k, 'ops.md'), /line two, published[\s\S]*line five, unsaved/, 'the edit stays, on the newest page');
+  assert.match(status(k).text, /^unsaved=knowledge\/ops\.md$/m);
+  assert.equal(git(k.copy, 'rev-parse', 'HEAD'), git(k.copy, 'rev-parse', 'origin/main'));
+});
+
+test('a held save that clashes publishes the other saves and names the page', t => {
+  const { computer, elsewhere, offline, online, published } = world(t);
+  const k = computer('ada');
+  offline(k);
+  write(k, 'ops.md', OPS.replace('How we ship.', 'Ada ships.'));
+  assert.equal(save(k, ['ops.md'], 'Ada ships').code, 3);
+  write(k, 'README.md', `${HUB}Held too.\n`);
+  assert.equal(save(k, ['README.md'], 'Hub').code, 3);
+  elsewhere('ops.md', text => text.replace('How we ship.', 'Bo ships.'));
+  online(k);
+  const result = update(k);
+  assert.equal(result.code, 4, result.text);
+  assert.match(result.text, /^saved=[0-9a-f]{40}$/m);
+  assert.match(result.text, /^conflict=knowledge\/ops\.md$/m);
+  assert.match(published('README.md'), /Held too/);
+  assert.match(published('ops.md'), /Bo ships/);
+  assert.match(read(k, 'ops.md'), /Bo ships/);
+  assert.match(read(k, 'ops.mine.md'), /Ada ships/);
+  assert.doesNotMatch(status(k).text, /pending=|behind=/);
+});
+
+test('an unsaved edit on other lines moves forward merged', t => {
+  const { computer, elsewhere } = world(t);
+  const k = computer('ada');
+  write(k, 'ops.md', OPS.replace('line five', 'line five, mine'));
+  elsewhere('ops.md', text => text.replace('line two', 'line two, theirs'));
+  const result = update(k);
+  assert.equal(result.code, 0, result.text);
+  assert.match(result.text, /^updated=/);
+  assert.match(read(k, 'ops.md'), /line two, theirs[\s\S]*line five, mine/);
+  assert.match(status(k).text, /^unsaved=knowledge\/ops\.md$/m);
+});
+
+test('same lines: the folder holds the published text, with its own beside it as .mine', t => {
+  const { computer, elsewhere } = world(t);
+  const k = computer('ada');
+  write(k, 'ops.md', OPS.replace('How we ship.', 'Mine.'));
+  elsewhere('ops.md', text => text.replace('How we ship.', 'Theirs.'));
+  const result = update(k);
+  assert.equal(result.code, 4, result.text);
+  assert.match(result.text, /^conflict=knowledge\/ops\.md$/m);
+  assert.match(read(k, 'ops.md'), /Theirs\./);
+  assert.match(read(k, 'ops.mine.md'), /Mine\./);
+});
+
+test('an untracked new page survives the move', t => {
+  const { computer, elsewhere } = world(t);
+  const k = computer('ada');
+  write(k, 'new.md', '# New\n\nNot saved yet.\n');
+  write(k, join('deep', 'page.md'), '# Deep\n\nNot saved yet.\n');
+  elsewhere('ops.md', text => `${text}more\n`);
+  assert.equal(update(k).code, 0);
+  assert.equal(read(k, 'new.md'), '# New\n\nNot saved yet.\n');
+  assert.equal(read(k, join('deep', 'page.md')), '# Deep\n\nNot saved yet.\n');
+  assert.match(read(k, 'ops.md'), /more/);
+  assert.match(status(k).text, /^unsaved=knowledge\/new\.md$/m);
+});
+
+test('a leftover wip mark is finished on the next run', t => {
+  const { computer, elsewhere } = world(t);
+  const k = computer('ada');
+  const from = git(k.dir, 'rev-parse', 'HEAD');
+  write(k, 'ops.md', OPS.replace('line five', 'line five, mine'));
+  elsewhere('README.md', text => `${text}Newer.\n`);
+  git(k.dir, 'fetch', '--quiet', 'origin');
+  const to = git(k.dir, 'rev-parse', 'origin/main');
+  writeFileSync(wipMark(k), JSON.stringify({ from, wip: snapshot(k, from), to, clash: [] }));
+  git(k.dir, 'reset', '--quiet', '--hard', to);
+  assert.doesNotMatch(read(k, 'ops.md'), /mine/, 'the stopped run had moved the folder');
+  assert.equal(update(k).code, 0);
+  assert.match(read(k, 'ops.md'), /line five, mine/);
+  assert.match(read(k, 'README.md'), /Newer/);
+  assert.equal(existsSync(wipMark(k)), false);
+});
+
+test('a save with a clash prints saved= and conflict= together and exits 4', t => {
+  const { computer, elsewhere, offline, online, published } = world(t);
+  const k = computer('ada');
+  offline(k);
+  write(k, 'ops.md', OPS.replace('How we ship.', 'Ada ships.'));
+  assert.equal(save(k, ['ops.md'], 'Ada ships').code, 3);
+  elsewhere('ops.md', text => text.replace('How we ship.', 'Bo ships.'));
+  online(k);
+  write(k, 'README.md', `${HUB}Ada's hub line.\n`);
+  const result = save(k, ['README.md'], 'Hub');
+  assert.equal(result.code, 4, result.text);
+  assert.match(result.text, /^saved=[0-9a-f]{40}\npage=knowledge\/README\.md\nLive for the team now\.\nTo undo it.*\nconflict=knowledge\/ops\.md\n/);
+  assert.match(published('README.md'), /Ada's hub line/);
+});
+
+test('two chats get their own folders, and A\'s unsaved edit is not in B', t => {
+  const { computer, chat, published } = world(t);
+  const k = computer('ada');
+  const a = chat(k, 'chat-a', false), b = chat(k, 'chat-b');
+  assert.equal(link(a).text, 'folder=made\n');
+  assert.equal(link(a).text, 'folder=ok\n');
+  assert.equal(link(k).text, 'folder=primary\n');
+  assert.ok(lstatSync(a.link).isDirectory() && !lstatSync(a.link).isSymbolicLink());
+  assert.equal(git(a.dir, 'rev-parse', '--abbrev-ref', 'HEAD'), 'chat/chat-a');
+  write(a, 'ops.md', OPS.replace('line two', 'line two by A'));
+  assert.equal(read(b, 'ops.md'), OPS);
+  write(b, 'ops.md', OPS.replace('line five', 'line five by B'));
+  const saved = save(b, ['knowledge/ops.md'], 'B saves');
+  assert.equal(saved.code, 0, saved.text);
+  assert.match(published('ops.md'), /line five by B/);
+  assert.doesNotMatch(published('ops.md'), /by A/);
+  assert.equal(read(a, 'ops.md'), OPS.replace('line two', 'line two by A'), 'A sees its own edit, not B\'s');
+  assert.match(status(a).text, /folder=ok[\s\S]*^unsaved=knowledge\/ops\.md$/m);
+  assert.doesNotMatch(status(k).text, /unsaved=/, 'the shared copy holds no draft');
+  assert.match(read(k, 'ops.md'), /line five by B/, 'the clean shared copy follows the published version');
+});
+
+test('a symlinked workspace switches and the shared copy keeps every file and save', t => {
+  const { computer, chat, offline, online } = world(t);
+  const k = computer('ada');
+  offline(k);
+  write(k, 'ops.md', `${OPS}held\n`);
+  assert.equal(save(k, ['ops.md'], 'Held').code, 3);
+  write(k, 'README.md', `${HUB}a draft\n`);
+  online(k);
+  const before = { head: git(k.copy, 'rev-parse', 'HEAD'), refs: refs(k) };
+  const c = chat(k, 'old-chat', false);
+  symlinkSync(k.copy, c.link, 'dir');
+  assert.equal(link(c).text, 'folder=switched\n');
+  assert.ok(!lstatSync(c.link).isSymbolicLink());
+  assert.equal(read(c, 'README.md'), HUB, 'the new folder starts from the published version');
+  assert.equal(git(k.copy, 'rev-parse', 'HEAD'), before.head);
+  assert.match(read(k, 'README.md'), /a draft/);
+  assert.match(read(k, 'ops.md'), /held/);
+  assert.deepEqual(refs(k).split('\n').filter(line => !line.includes('refs/heads/chat/')), before.refs.split('\n'));
+});
+
+test('a taken branch with held saves gets -2, and a free one is made again', t => {
+  const { computer, chat } = world(t);
+  const k = computer('ada');
+  const c = chat(k, 'busy');
+  write(c, 'ops.md', `${OPS}held on the branch\n`);
+  git(c.dir, 'commit', '--quiet', '-am', 'Held');
+  git(k.copy, 'worktree', 'remove', '--force', c.link);
+  assert.equal(folderFor(c), 'made');
+  assert.equal(git(c.dir, 'rev-parse', '--abbrev-ref', 'HEAD'), 'chat/busy-2');
+  assert.match(git(k.copy, 'show', 'chat/busy:ops.md'), /held on the branch/, 'the held save keeps its branch');
+  git(k.copy, 'worktree', 'remove', '--force', c.link);
+  assert.equal(folderFor(c), 'made');
+  assert.equal(git(c.dir, 'rev-parse', '--abbrev-ref', 'HEAD'), 'chat/busy-2', 'a branch with nothing held is made again');
+});
+
+test('remove refuses with unsaved pages, and never removes the shared copy', t => {
+  const { computer, chat } = world(t);
+  const k = computer('ada');
+  const c = chat(k, 'chat');
+  write(c, 'ops.md', `${OPS}unsaved\n`);
+  const refused = remove(c);
+  assert.equal(refused.code, 1);
+  assert.match(refused.text, /^removed=none\nunsaved=knowledge\/ops\.md\n/);
+  assert.ok(existsSync(join(c.dir, 'ops.md')));
+  assert.match(remove(k, { discard: true }).text, /^removed=none\n/);
+  assert.ok(existsSync(join(k.copy, '.git')));
+  write(c, 'ops.md', OPS);
+  assert.equal(remove(c).code, 0);
+  assert.equal(existsSync(c.link), false);
+  assert.equal(git(k.copy, 'branch', '--list', 'chat/chat'), '', 'a branch with nothing held is deleted');
+});
+
+test('remove --discard keeps a branch that holds a save, and folders --send publishes it and prunes the branch', t => {
+  const { computer, chat, offline, online, published } = world(t);
+  const k = computer('ada');
+  const c = chat(k, 'gone');
+  offline(k);
+  write(c, 'ops.md', `${OPS}held in a chat\n`);
+  assert.equal(save(c, ['ops.md'], 'Held in a chat').code, 3);
+  write(c, 'README.md', `${HUB}dropped\n`);
+  online(k);
+  const removed = remove(c, { discard: true });
+  assert.equal(removed.code, 0, removed.text);
+  assert.match(removed.text, /^held=1$/m);
+  assert.equal(existsSync(c.link), false);
+  assert.match(git(k.copy, 'show', 'chat/gone:ops.md'), /held in a chat/);
+  assert.match(folders(k).text, /^folder=chat\/gone path=none held=1 unsaved=0$/m);
+  const sent = folders(k, { send: true });
+  assert.equal(sent.code, 0, sent.text);
+  assert.match(sent.text, /^sent=chat\/gone saved /m);
+  assert.match(sent.text, /^pruned=chat\/gone$/m);
+  assert.match(published('ops.md'), /held in a chat/);
+  assert.doesNotMatch(published('README.md'), /dropped/);
+  assert.equal(git(k.copy, 'branch', '--list', 'chat/gone'), '');
+});
+
+test('a symlinked workspace never lists or publishes the shared copy\'s drafts', t => {
+  const { computer, chat } = world(t);
+  const k = computer('ada');
+  write(k, 'README.md', `${HUB}a draft in the shared copy\n`);
+  const c = chat(k, 'old-link', false);
+  symlinkSync(k.copy, c.link, 'dir');
+  const said = status(c);
+  assert.match(said.text, /^folder=switched$/m, 'status first makes the chat its own folder');
+  assert.doesNotMatch(said.text, /unsaved=/);
+  assert.ok(!lstatSync(c.link).isSymbolicLink());
+  assert.match(read(k, 'README.md'), /a draft in the shared copy/, 'the shared copy keeps its draft');
+  // A git folder that is not the copy's is no folder: nothing is listed or saved from it.
+  const e = chat(k, 'own-repo', false);
+  mkdirSync(e.link);
+  git(e.link, 'init', '--quiet');
+  write(e, 'README.md', 'another repository\n');
+  assert.doesNotMatch(status(e).text, /unsaved=/);
+  const refused = save(e, ['README.md'], 'Not ours');
+  assert.equal(refused.code, 1, refused.text);
+  assert.match(refused.text, /^folder=blocked$/m);
+});
+
+// The chat edited its page through the old link, so the edit is in the shared copy's tree; the save carries it over.
+// The fetch is the chat start's: the new folder starts from the newest published version.
+test('a save that switches an old link publishes the page the chat edited through it, and no other draft', t => {
+  const { computer, chat, elsewhere, published } = world(t);
+  const k = computer('ada');
+  write(k, 'README.md', `${HUB}another chat's draft\n`);
+  const c = chat(k, 'old-link', false);
+  symlinkSync(k.copy, c.link, 'dir');
+  write(c, 'ops.md', OPS.replace('line five', 'line five by the chat'));
+  elsewhere('ops.md', text => text.replace('line two', 'line two, published'));
+  git(k.copy, 'fetch', '--quiet', 'origin', '+refs/heads/main:refs/remotes/origin/main');
+  const saved = save(c, ['knowledge/ops.md'], 'Close the chat');
+  assert.equal(saved.code, 0, saved.text);
+  assert.match(saved.text, /^folder=switched\nsaved=[0-9a-f]{40}\npage=knowledge\/ops\.md\n/);
+  assert.match(published('ops.md'), /line two, published[\s\S]*line five by the chat/);
+  assert.equal(published('README.md'), HUB.trim(), 'a draft the save does not name is never published');
+  assert.ok(!lstatSync(c.link).isSymbolicLink());
+  assert.match(read(k, 'README.md'), /another chat's draft/, 'the shared copy keeps the other draft');
+  assert.equal(read(k, 'ops.md'), OPS.replace('line five', 'line five by the chat'), 'the shared copy keeps the carried page as it was');
+  assert.doesNotMatch(status(c).text, /unsaved=|conflict=/);
+});
+
+test('a carried page that clashes keeps the published text, with the chat\'s as .mine, and the other named pages publish', t => {
+  const { computer, chat, elsewhere, published } = world(t);
+  const k = computer('ada');
+  write(k, 'draft.md', '# Draft\n\nAnother chat\'s page.\n');
+  const c = chat(k, 'old-link', false);
+  symlinkSync(k.copy, c.link, 'dir');
+  write(c, 'ops.md', OPS.replace('How we ship.', 'The chat ships.'));
+  write(c, 'README.md', `${HUB}The chat's hub line.\n`);
+  elsewhere('ops.md', text => text.replace('How we ship.', 'Bo ships.'));
+  git(k.copy, 'fetch', '--quiet', 'origin', '+refs/heads/main:refs/remotes/origin/main');
+  const saved = save(c, ['ops.md', 'README.md'], 'Close the chat');
+  assert.equal(saved.code, 4, saved.text);
+  assert.match(saved.text, /^folder=switched\nsaved=[0-9a-f]{40}\npage=knowledge\/README\.md\n/);
+  assert.match(saved.text, /^conflict=knowledge\/ops\.md$/m);
+  assert.match(published('README.md'), /The chat's hub line/);
+  assert.match(published('ops.md'), /Bo ships\./);
+  assert.equal(published('draft.md'), null);
+  assert.match(read(c, 'ops.md'), /Bo ships\./);
+  assert.match(read(c, 'ops.mine.md'), /The chat ships\./);
+  assert.match(status(c).text, /^conflict=knowledge\/ops\.md$/m);
+  assert.match(read(k, 'ops.md'), /The chat ships\./, 'the shared copy keeps the chat\'s text');
+  assert.ok(existsSync(join(k.copy, 'draft.md')));
+});
+
+test('folders --send puts a closed chat\'s clash beside the newest published page in the tidy\'s folder', t => {
+  const { computer, chat, elsewhere, offline, online, published } = world(t);
+  const k = computer('ada');
+  const tidy = chat(k, 'tidy');
+  const gone = chat(k, 'gone');
+  offline(k);
+  write(gone, 'ops.md', OPS.replace('How we ship.', 'The chat ships.'));
+  assert.equal(save(gone, ['ops.md'], 'The chat ships').code, 3);
+  online(k);
+  assert.equal(remove(gone).code, 0);
+  elsewhere('ops.md', text => text.replace('How we ship.', 'Bo ships.'));
+  const sent = folders(tidy, { send: true });
+  assert.equal(sent.code, 4, sent.text);
+  assert.match(sent.text, /^sent=chat\/gone saved /m, 'the chat\'s .gitignore save goes live');
+  assert.match(sent.text, /^conflict=knowledge\/ops\.md$/m);
+  assert.match(read(tidy, 'ops.md'), /Bo ships\./, 'the tidy\'s page holds the newest published text');
+  assert.match(read(tidy, 'ops.mine.md'), /The chat ships\./);
+  assert.match(published('ops.md'), /Bo ships\./);
 });

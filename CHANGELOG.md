@@ -3,6 +3,19 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.10.0 — Each chat gets its own company folder, and a save never gets stuck
+
+- **Each chat has its own `knowledge/` folder.** It is a git worktree of the computer's shared copy, on the branch `chat/<workspace>`. One chat's unsaved edits are never in another chat's folder, so they can't stop another chat's save. Only `main` goes to the app; a chat's branch stays on the computer.
+- **Open chats switch by themselves.** At the next chat start, the old `knowledge` link becomes the chat's own folder. Only the link is removed: the shared copy keeps every file and save. A save that names a page the chat edited through the link carries it over.
+- **A save builds on the newest published version and never waits for the folder.** Then the folder moves forward, with its unsaved edits merged on top. Unsaved edits, here or in another chat, never stop a save.
+- **A clash publishes everything else.** When another save changed the same lines first, the rest goes live, the page keeps the published text, and your version sits beside it as `<page>.mine.md`. The save prints `saved=` and one `conflict=` line per page, and exits 4.
+- **Only a link problem the save adds stops it.** A broken link someone else already published no longer holds every save.
+- **New commands.** `knowledge.mjs remove [--discard]` removes this folder; unsaved pages stop it unless `--discard`, and a save not sent yet keeps its branch. `knowledge.mjs folders [--send]` lists every folder's held saves and unsaved pages, and `--send` publishes the held saves.
+- **`/close` removes the chat's folder.** It stops with exit 7 and names the pages while some are unsaved or clashing, and with exit 8 while another save runs. On discard, it drops them.
+- **The daily tidy sends what chats left behind.** Before its first map, it sends every chat's held saves, and it merges an ended chat's clash. When its run ends, it removes its own folder, through the memory profile's new `tidy.cleanup` slot.
+
+**Updating.** Nothing to do by hand. Each open chat gets its own folder at its next start. If your repo keeps its own changes to the memory profile (`.claude/memory/profile.mjs`) or the loop profile (`.claude/loop/profile.mjs`), keep the new `tidy.cleanup` line and the new close step from this version, or the daily tidy leaves its folder behind and `/close` leaves the chat's folder.
+
 ## 61.9.1 — A run can't end a repeating schedule by mistake
 
 - **A run can't end a schedule that has no end.** Before, a run of a repeating schedule with no *Ends when* could finish with `--done` because its own work was done. That ended the whole schedule for good. Now the finish is refused: nothing is saved, the run keeps its place, and it finishes again without `--done`. The schedule keeps its next run.

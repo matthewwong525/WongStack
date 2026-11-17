@@ -18,14 +18,23 @@ The app hands it out at `/api/access/knowledge/git/`, beside [the project's Git 
 
 ## The copy on your computer
 
-Each computer keeps one copy, in the primary checkout's `knowledge/` folder (git-ignored). Each workspace gets a `knowledge` link to that copy (a junction on Windows), so every chat on the computer sees the same pages. The workspace setup step and each chat's start make the link; you can also run it:
+Each computer keeps one shared copy, in the primary checkout's `knowledge/` folder (git-ignored). Each workspace gets its own `knowledge/` folder: a git worktree of the shared copy, on the branch `chat/<workspace folder>`. So one chat's unsaved edits are never in another chat's folder, and can never stop another chat's save. The primary checkout uses the shared copy itself, on `main`. Only `main` is ever sent to the app; a chat's branch stays on the computer.
+
+The workspace setup step and each chat's start make the folder. A workspace that still has the old `knowledge` link to the shared copy gets its folder at its next chat start (`folder=switched`): only the link is removed, and the shared copy keeps every file and save. Pages the chat edited through the link stay in the shared copy, so `status` does not list them: a `save` that names them carries them into the new folder, merged on the published text. You can also run it:
 
 ```bash
-node .claude/memory/knowledge.mjs status   # the copy, its link, unsaved pages, and whether the app answers
-node .claude/memory/knowledge.mjs update   # make the copy, or move it to the newest saved version
+node .claude/memory/knowledge.mjs status    # the copy, this folder, unsaved pages, clashes, and whether the app answers
+node .claude/memory/knowledge.mjs update    # make the folder, send its held saves, and move it to the newest version
+node .claude/memory/knowledge.mjs remove    # remove this folder; unsaved pages stop it unless --discard
+node .claude/memory/knowledge.mjs folders   # every folder's held saves and unsaved pages; --send publishes the held saves
 ```
 
-Git reaches the app with the copy's own sign-in helper, [`company-git-credential.mjs`](../../scripts/company-git-credential.mjs), set for that address alone. No sign-in goes in a URL, a config file or an argument. When a chat starts, the copy moves to the newest version in the background; a copy with unsaved edits is left as it is, and the chat names those pages in one line.
+Git reaches the app with the copy's own sign-in helper, [`company-git-credential.mjs`](../../scripts/company-git-credential.mjs), set for that address alone. No sign-in goes in a URL, a config file or an argument. When a chat starts, its folder sends its own held saves and moves to the newest version in the background. Its unsaved edits move with it, merged onto the newest pages. The chat names its unsaved pages and its clashes in one line each.
+
+- `/close` saves the chat's unsaved pages, then runs `remove`. A close that throws the work away runs `remove --discard` ([/close](../../.agents/plugins/loop/skills/close/SKILL.md)).
+- A save not sent yet is never dropped: `remove` keeps its branch until `folders --send` sends it.
+- [The daily tidy](../development/wiki-dream.md#edits-left-behind) sends the saves a chat left behind.
+- The shared copy follows the published version when it holds no edits of its own.
 
 ## Save a page
 
@@ -35,16 +44,20 @@ The assistant picks the pages and the words; the script does every git step:
 node .claude/memory/knowledge.mjs save knowledge/people/ada.md knowledge/people/README.md -m "Add Ada's page"
 ```
 
-A save takes only the pages you name, so two chats on one computer never save each other's edits. It puts them on top of the newest published version, checks the links by [the wiki rules](../wiki-style.md#no-orphans-no-dead-ends-full-hub-coverage), and publishes with no force. It prints:
+A save takes only the pages you name, so other edits in the folder are never saved with them. It builds the save on top of the newest published version, checks the links by [the wiki rules](../wiki-style.md#no-orphans-no-dead-ends-full-hub-coverage), and publishes with no force. Then it moves the folder to what it published, with the folder's unsaved edits merged on top. An unsaved edit never stops a save. It prints:
 
 - `saved=<commit>`, each `page=`, and the undo line: the pages are live for the team now. Tell the person which pages changed and how to undo it.
-- `broken=<problem>`: nothing was published. Fix the link (often a hub line for a new page), then save again.
+- `conflict=<page>` as well (exit 4): everything else is live, but this page clashed. See [when two saves meet](#when-two-saves-meet).
+- `broken=<problem>`: nothing was published. Fix the link (often a hub line for a new page), then save again. Only a problem the save adds stops it: a broken link already published stops no one.
 - `pending=<commit>`: the app could not be reached, or the sign-in ran out. The save is kept, and the next save or update publishes it.
 - `refused=`: not a page or a picture, or outside `knowledge/`.
 
 ## When two saves meet
 
-Saves to different pages, or to different lines of one page, both go live with no extra step. When someone else saved the same lines first, the script prints `conflict=<page>`: the page now holds their version, and `<page>.mine.md` holds yours. Write one page that keeps both, delete the `.mine` file, then save the page again. Nothing is lost, and the later save never overwrites the earlier one.
+Saves to different pages, or to different lines of one page, both go live with no extra step. When someone else saved the same lines first, the script prints `conflict=<page>` (exit 4). The rest of the save goes live at once. The page holds the published version, and `<page>.mine.md` beside it holds yours. Write one page that keeps both, delete the `.mine` file, then save the page again. Nothing is lost, and the later save never overwrites the earlier one.
+
+- An unsaved edit on the same lines as a newer published edit clashes the same way when the folder moves forward.
+- `.mine` files are never saved, and `status` names each one as `conflict=`.
 
 ## Undo a save
 

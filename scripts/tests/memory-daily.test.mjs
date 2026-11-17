@@ -229,7 +229,7 @@ test('the profile readies the copy before the first map: a page its prepare adds
   }
 });
 
-test("WongStack's profile links the copy to company knowledge: its pages are on the map, and the link is not kept, published, or followed when the copy goes", async t => {
+test("WongStack's profile gives the copy its own company folder: its pages are on the map, the folder is not kept or published, and it is removed when the copy goes", async t => {
   const { env, agent, run, left } = await dailyRepo(t, { STUB_TIDY: 'company' }, env => {
     commitOld(env.repo.root, '.gitignore', '/knowledge\n');
     const copy = join(env.repo.root, 'knowledge');
@@ -244,7 +244,9 @@ test("WongStack's profile links the copy to company knowledge: its pages are on 
   assert.match(agent.prompt(), /^due pages: 1; knowledge\/refunds\.md$/m, 'a company page is due on the first map');
   assert.deepEqual(records(env), [`Daily tidy ${DAY}: read facts up to #0. Sorted facts up to #0. Checked: knowledge/refunds.md. Linked: none. Map: due pages 1 to 0.`]);
   assert.deepEqual(git(env.repo.root, 'show', '--name-only', '--format=', `daily-tidy-${DAY}`).split('\n'), ['wiki/one.md'], 'keep and the publish leave the link out');
-  assert.match(readFileSync(join(env.repo.root, 'knowledge/refunds.md'), 'utf8'), /approved\.\nMore\.\n$/, "the edit is in the computer's one copy, which outlives the run's copy");
+  assert.equal(readFileSync(join(env.repo.root, 'knowledge/refunds.md'), 'utf8'), '# Refunds\n\nHow refunds are approved.\n',
+    "an edit the run never saved went with its own folder; the computer's shared copy is as it was");
+  assert.equal(git(join(env.repo.root, 'knowledge'), 'worktree', 'list').split('\n').length, 1, 'the run removed its company folder');
   assert.deepEqual(left(), { temp: [], worktrees: 1 });
 });
 

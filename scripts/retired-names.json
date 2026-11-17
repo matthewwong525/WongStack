@@ -331,5 +331,6 @@
   {"name": "codexPluginName", "replacement": "nothing: memory no longer names a Codex plugin"},
   {"name": "codex plugin marketplace add", "replacement": "the project's `.codex/hooks.json`, which runs each module's hooks"},
   {"name": "bell.svg", "replacement": "`check.svg`, the green check", "allow": ["scripts/tests/addons.test.mjs"], "why": "the test checks the old icon is gone from the copied add-on"},
-  {"name": "prototype.mjs", "replacement": "a page per screen, its look from `look.mjs page`", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the measured fixture keeps its before-state"}
+  {"name": "prototype.mjs", "replacement": "a page per screen, its look from `look.mjs page`", "allow": ["scripts/fixtures/context-baseline.json"], "why": "the measured fixture keeps its before-state"},
+  {"name": "linkCopy", "replacement": "`folderFor` in `.agents/memory/knowledge.mjs`: each workspace gets its own folder of company knowledge"}
 ]
