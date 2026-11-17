@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { chmodSync, copyFileSync, existsSync, readdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
-import { linkCopy, place } from "../memory/knowledge.mjs";
+import { folderFor, place } from "../memory/knowledge.mjs";
 import { isMain } from "../skills/memory/scripts/lib/cli.mjs";
 import { primaryRoot } from "../skills/memory/scripts/lib/primary-root.mjs";
 
@@ -84,9 +84,9 @@ function seedSettings(ctx) {
   return "copied";
 }
 
-// Company knowledge is one copy per computer, in the primary checkout; a workspace links to it, never copies it.
+// Company knowledge is one shared copy per computer, in the primary checkout; a workspace gets its own folder of it.
 function knowledgeLink(ctx) {
-  try { return linkCopy(place(ctx.root)); } catch (error) { return `not linked: ${error.message}`; }
+  try { return folderFor(place(ctx.root)); } catch (error) { return `not linked: ${error.message}`; }
 }
 
 function seed(ctx) {

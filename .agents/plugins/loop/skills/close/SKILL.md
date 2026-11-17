@@ -10,7 +10,7 @@ user-invocable: true
 
 ## 1. Pick a route
 
-Read `git status --porcelain`, `git log origin/main..HEAD`, `gh pr view --json state,headRefOid,url`. Paseo worktrees have `PASEO_AGENT_ID` and are outside the main checkout.
+Read `git status --porcelain`, `git log origin/main..HEAD`, `gh pr view --json state,headRefOid,url`. A Paseo worktree has `PASEO_AGENT_ID`.
 
 - **discard**: explicit request in a Paseo worktree. Elsewhere, keep; never discard the main checkout.
 - **keep**: edits or unmerged HEAD commits. Run `/save` verbatim; stop for failed push, otherwise name any red checks and continue.
@@ -22,11 +22,10 @@ Read `git status --porcelain`, `git log origin/main..HEAD`, `gh pr view --json s
 node "$(git rev-parse --show-toplevel)/.claude/plugins/loop/scripts/slot.mjs" closeWorkspace # --discard on that route
 ```
 
-After the reply, archiving stops workspace processes, not shared services.
-
-- **Exit 0:** say the workspace is closing. Archived chat remains readable.
-- **Exit 2** or `SLOT=closeWorkspace empty`: in the main checkout or outside Paseo, say there's no workspace to close; else give its `error` in plain words.
-- **Exits 3 to 5:** Paseo couldn't close it here; the Paseo app can archive it.
+- **Exit 0:** say the workspace is closing; the chat stays readable. Archiving stops its processes, not shared services.
+- **Exit 2** or `SLOT=closeWorkspace empty`: in the main checkout or outside Paseo, say there's no workspace to close; else give its `error` plainly.
+- **Exits 3 to 5:** the Paseo app can archive it.
+- **Exit 7 or 8:** work waits, such as pages to save; do as it says, then close again.
 
 ## 3. Report
 

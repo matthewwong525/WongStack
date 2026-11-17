@@ -32,20 +32,26 @@ function configLines(ctx) {
   } catch { return []; }
 }
 
-// Company knowledge: link this workspace to the computer's copy, update it in the background, and name pages left
-// unsaved or a lost history. wiki/stack/company-knowledge.md
-async function knowledgeLine(ctx) {
+// Company knowledge: give this workspace its own folder, update it in the background, and name this folder's pages
+// left unsaved, its clashes, or a lost history. wiki/stack/company-knowledge.md
+const OWN = ['ok', 'made', 'switched', 'primary'];
+export async function knowledgeLine(ctx, env = process.env) {
   try {
-    const { linkCopy, place, unsaved } = await import(pathToFileURL(KNOWLEDGE).href);
-    const k = place(ctx.root);
+    const { clashes, folderFor, place, unsaved } = await import(pathToFileURL(KNOWLEDGE).href);
+    const k = place(ctx.root, env);
     const copy = existsSync(join(k.copy, '.git'));
     if (!copy && !k.address) return '';
-    if (copy) linkCopy(k);
-    if (process.env.WONG_KNOWLEDGE_UPDATE !== '0') detached(KNOWLEDGE, ['update'], { cwd: ctx.root });
+    const folder = copy ? folderFor(k) : 'none';
+    if (env.WONG_KNOWLEDGE_UPDATE !== '0') detached(KNOWLEDGE, ['update'], { cwd: ctx.root });
     if (!copy) return '';
-    const pages = unsaved(k);
     if (existsSync(join(k.copy, '.git', 'wong-knowledge-rewritten'))) return 'Knowledge: the published history lost saves this computer holds; `knowledge.mjs restore` puts them back.';
-    return pages.length ? `Knowledge: ${pages.length} page${pages.length === 1 ? '' : 's'} with edits not saved yet: ${pages.slice(0, 5).map(page => `knowledge/${page}`).join(', ')}.` : '';
+    // A blocked folder is no folder of the copy: git there would walk up and name the code checkout's files.
+    if (!OWN.includes(folder)) return '';
+    const named = pages => pages.slice(0, 5).map(page => `knowledge/${page}`).join(', ');
+    const pages = unsaved(k), clashed = clashes(k);
+    return [pages.length && `Knowledge: ${pages.length} page${pages.length === 1 ? '' : 's'} with edits not saved yet: ${named(pages)}.`,
+      clashed.length && `Knowledge: a newer save changed the same lines of ${named(clashed)}; your version is beside each as <page>.mine.<ext>. Merge them, then save.`]
+      .filter(Boolean).join('\n');
   } catch { return ''; }
 }
 

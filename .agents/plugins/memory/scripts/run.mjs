@@ -186,6 +186,11 @@ async function prepareCopy(profile, ctx, copy) {
   try { await profile?.tidy?.prepare?.({ ...ctx, root: copy }); } catch { /* the map is made without it */ }
 }
 
+// The install undoes its prepare before the copy is removed, such as a folder of pages git does not hold.
+async function cleanupCopy(ctx, copy) {
+  try { await (await loadProfile(ctx))?.tidy?.cleanup?.({ ...ctx, root: copy }); } catch { /* the copy goes anyway */ }
+}
+
 // A missed question asked again in `copy`, which holds the tidy's page edits, by the command that missed and its own
 // miss rule: a pull that names no node, else no fact or passage that answers. A brief has no JSON: it asks as a search.
 function stillMissing(copy, { command, words }) {
@@ -305,6 +310,7 @@ async function daily(agent, force) {
       ...(done.reason ? ['--reason', done.reason] : [])]);
     memoryScript(ctx, ['upkeep']);
   } finally {
+    await cleanupCopy(ctx, copy);
     try { git(ctx.root, 'worktree', 'remove', '--force', copy); } catch { /* never made, or gone */ }
     rmSync(input, { recursive: true, force: true });
     try { git(ctx.root, 'worktree', 'prune'); } catch { /* best effort */ }

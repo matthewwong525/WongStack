@@ -4,7 +4,7 @@ The memory tidy keeps what your project remembers true and easy to find: once a 
 
 ## The daily tidy
 
-Your first chat each day starts one tidy in the background, and the chat never waits for it. It runs with your own AI plan, in its own copy of the repo, so no checkout you work in changes. The copy links this computer's [company knowledge](../stack/company-knowledge.md), so the map counts company pages too. With two computers, only one tidies each day. The tidy's own chat is never saved to memory.
+Your first chat each day starts one tidy in the background, and the chat never waits for it. It runs with your own AI plan, in its own copy of the repo, so no checkout you work in changes. The copy gets its own folder of this computer's [company knowledge](../stack/company-knowledge.md), so the map counts company pages too. With two computers, only one tidies each day. The tidy's own chat is never saved to memory.
 
 Each tidy does three things:
 
@@ -118,7 +118,11 @@ The tidy reads old chats, saved facts, and missed questions to learn what happen
 
 ## Your pages and shipped pages
 
-The tidy edits only the pages your project owns: people, the company, customers, the product, and any page you added. It saves a `knowledge/` page [at once](../stack/company-knowledge.md#save-a-page), right after the edit: the computer has one company copy, so no later step can hold the edit. A tidy stopped in the middle of one company edit leaves that edit unsaved, and the next chat start names the page. Any other page goes through a pull request. It never rewrites a page WongStack ships, because the next [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) would overwrite the edit.
+The tidy edits only the pages your project owns: people, the company, customers, the product, and any page you added. It saves a `knowledge/` page [at once](../stack/company-knowledge.md#save-a-page), right after the edit, from its own [company folder](../stack/company-knowledge.md#the-copy-on-your-computer): no later step publishes company pages. When the run ends, it removes its folder. An edit it never saved is dropped, and a save it could not send stays held for the [next tidy](#edits-left-behind). Any other page goes through a pull request. It never rewrites a page WongStack ships, because the next [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) would overwrite the edit.
+
+## Edits left behind
+
+Each chat has its own [company folder](../stack/company-knowledge.md#the-copy-on-your-computer), so a chat that ends with no `/close` can leave a save not sent. Before its first map, the tidy sends every chat's held saves with `knowledge.mjs folders --send`, and removes the branches of workspaces that are gone. A clash puts the ended chat's version beside the newest page in the tidy's own folder, as `<page>.mine.md`. The tidy merges the two as a chat would ([when two saves meet](../stack/company-knowledge.md#when-two-saves-meet)), then saves the page. A page an open chat left unsaved stays for that chat.
 
 ## Undo one
 
