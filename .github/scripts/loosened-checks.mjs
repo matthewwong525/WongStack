@@ -6,6 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parsePacked } from '../../.claude/plugins/loop/scripts/archive.mjs';
 import { parseCli, usageError } from '../../.claude/skills/memory/scripts/lib/cli.mjs';
 import { readSpec, rewrittenRequirements, sameJourney, scenarioDigest } from '../../.claude/skills/verify/scripts/kept-promises.mjs';
 import { changedFiles, git, isSettings } from './check-settings.mjs';
@@ -44,6 +45,19 @@ const SKIP_TESTS = [
 
 const PROPOSAL = /^openspec\/changes\/(archive\/)?[^/]+\/proposal\.md$/;
 const DELTA_SPEC = /^openspec\/changes\/(?:archive\/)?[^/]+\/specs\/([^/]+)\/spec\.md$/;
+const PACKED = /^openspec\/changes\/archive\/\d{4}-\d{2}-\d{2}-[^/]+\.md$/;
+
+// The files the change adds or edits that `wanted` matches, as `{ path, text }`: a packed archived change opens into
+// its parts at their old folder paths, so its proposal and delta specs count as the folder's did.
+function changedTexts(files, read, wanted) {
+  return files.filter(({ status }) => status !== 'D').flatMap(({ path }) => {
+    if (!PACKED.test(path)) return wanted.test(path) ? [{ path, text: read.after(path) ?? '' }] : [];
+    let parts = [];
+    try { parts = parsePacked(Buffer.from(read.after(path) ?? '', 'utf8'), path).files; } catch { return []; }
+    return parts.map(part => ({ path: `${path.slice(0, -3)}/${part.path}`, text: part.bytes.toString('utf8') }))
+      .filter(part => wanted.test(part.path));
+  });
+}
 
 // A kept check, by where verify-journeys.mjs keeps them.
 const isKept = path => path.startsWith('.agents/verification/journeys/') && path.endsWith('.json') && basename(path) !== 'replay.json';
@@ -133,10 +147,9 @@ function journeyOf(text) {
 // Each requirement the change's own delta specs rewrite, as JSON of [capability, requirement].
 function rewrittenByDeltas(files, read) {
   const own = new Set();
-  for (const { status, path } of files) {
-    const capability = status === 'D' ? null : DELTA_SPEC.exec(path)?.[1];
-    if (!capability) continue;
-    for (const name of rewrittenRequirements(readSpec(read.after(path) ?? ''))) own.add(JSON.stringify([capability, name]));
+  for (const { path, text } of changedTexts(files, read, DELTA_SPEC)) {
+    const capability = DELTA_SPEC.exec(path)[1];
+    for (const name of rewrittenRequirements(readSpec(text))) own.add(JSON.stringify([capability, name]));
   }
   return own;
 }
@@ -200,9 +213,8 @@ function findFlags(files, added, read) {
 // Paths named in `Check:` bullets of the proposals the change adds or edits.
 function explainedPaths(files, read) {
   const explained = new Set();
-  for (const { status, path } of files) {
-    if (status === 'D' || !PROPOSAL.test(path)) continue;
-    const log = (read.after(path) ?? '').split(/^## Decision log\s*$/m)[1]?.split(/^## /m)[0] ?? '';
+  for (const { text: proposal } of changedTexts(files, read, PROPOSAL)) {
+    const log = proposal.split(/^## Decision log\s*$/m)[1]?.split(/^## /m)[0] ?? '';
     for (const bullet of log.split(/^- /m)) {
       const text = bullet.replace(/^\*\*\d{4}-\d{2}-\d{2}\*\*\s*[—–-]+\s*/, '');
       if (!text.startsWith('Check:')) continue;

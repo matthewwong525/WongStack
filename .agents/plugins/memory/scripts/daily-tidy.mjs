@@ -7,7 +7,7 @@ import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadAreas, topicNamer } from './lib/areas.mjs';
 import { isMain, parseCli, usageError } from './lib/cli.mjs';
-import { loadProfile, openStore, repoContext } from './lib/store.mjs';
+import { archiveReader, loadProfile, openStore, repoContext } from './lib/store.mjs';
 import { pathWords } from './lib/upkeep.mjs';
 import { usageSummary } from './lib/usage.mjs';
 
@@ -226,15 +226,22 @@ async function readStore(ctx, { live = false } = {}) {
   return { records, facts, tagRows };
 }
 
-const dirsIn = path => (existsSync(path) ? readdirSync(path, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name).sort() : []);
+const ARCHIVED_PART = new RegExp(`^${CHANGES}/archive/([^/]+)(?:/(.+?))?/?$`);
 
-/** True when the checkout has `path`, git ignores it, or it is the old folder of a plan since archived. */
-function existsIn(root) {
-  const archived = new Set(dirsIn(join(root, CHANGES, 'archive')).map(name => name.replace(/^\d{4}-\d{2}-\d{2}-/, '')));
+/** True when the checkout has `path`, git ignores it, it is the old folder of a plan since archived, or it names a
+ *  finished change's file by its old path inside the packed file. */
+function existsIn(root, archive) {
+  const list = archive.list();
+  const archived = new Set(list.map(each => each.name));
+  const folders = new Set(list.map(each => each.folder));
+  const packedHas = (folder, part) => folders.has(folder)
+    && (!part || (archive.files(folder) ?? []).some(file => file === part || file.startsWith(`${part}/`)));
   return path => {
     if (existsSync(join(root, path))) return true;
     const plan = new RegExp(`^${CHANGES}/([^/]+)`).exec(path)?.[1];
     if (plan && archived.has(plan)) return true;
+    const [, folder, part] = ARCHIVED_PART.exec(path) ?? [];
+    if (folder && packedHas(folder, part)) return true;
     return spawnSync('git', ['-C', root, 'check-ignore', '-q', '--', path]).status === 0;
   };
 }
@@ -249,8 +256,8 @@ function committed(root, path) {
 }
 
 // The live facts whose words name a repo path that is gone, lowest id first; a tidy's own record is no drift.
-function goneFacts(root, facts) {
-  const check = { tops: new Set(readdirSync(root).filter(name => name !== '.git')), exists: existsIn(root), once: path => Boolean(committed(root, path)) };
+function goneFacts(root, facts, archive) {
+  const check = { tops: new Set(readdirSync(root).filter(name => name !== '.git')), exists: existsIn(root, archive), once: path => Boolean(committed(root, path)) };
   return facts.filter(fact => !isDreamFact(fact) && !saysGone(fact.body))
     .map(fact => ({ id: fact.id, slug: fact.slug, type: fact.type, paths: stalePaths(fact.body, check), body: fact.body }))
     .filter(fact => fact.paths.length).sort((a, b) => a.id - b.id);
@@ -283,7 +290,7 @@ export async function surveyMap(ctx, { root = ctx.root, checked = [], now = new 
   const usage = usageSummary(ctx, { now: now.getTime(), topicOf });
   const { found, topics } = await repoPages(files, profile, { only: 'own' });
   return mapLines({ facts, records, topicOf, steps: Object.keys(profile?.steps || {}), usage, pages: found, pageUses: pageUses(topics, usage),
-    gone: goneFacts(root, facts), checked, now });
+    gone: goneFacts(root, facts, await archiveReader(files, profile)), checked, now });
 }
 
 /** `keep`'s lines in `file`, one for each part the tidy finished; a line a kill cut short is dropped. */
@@ -337,7 +344,8 @@ async function drift({ json }) {
   const skipped = [];
   let facts = [];
   try {
-    facts = goneFacts(root, (await (await openStore(repoContext(root))).facts([{}]))[0]);
+    const ctx = repoContext(root);
+    facts = goneFacts(root, (await (await openStore(ctx)).facts([{}]))[0], await archiveReader(ctx));
   } catch (error) {
     skipped.push('fact');
     storeFailed(error, ', so no fact was checked');

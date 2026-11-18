@@ -4,6 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
+import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
 import { entryOnTop, mainVerdict } from '../../.agents/skills/ship/scripts/ship.mjs';
 
 const script = new URL('../../.agents/skills/ship/scripts/ship.mjs', import.meta.url).pathname;
@@ -395,6 +396,21 @@ test('a release numbered earlier is numbered again after another took its number
   assert.doesNotMatch(f.read('CHANGELOG.md'), /<<<<<<<|>>>>>>>/);
   assert.equal(f.read('VERSION'), '1.1.0\n');
   assert.equal(f.calls().match(/openspec archive/g).length, 1, 'archived once');
+});
+
+test('a rerun after the save packed the archive names its folder path and leaves the packed file as approved', t => {
+  const f = fixture(t);
+  f.commit({ ...f.change('demo'), 'CHANGELOG.md': withEntry(NEXT_ENTRY) });
+  assert.equal(f.run(['prepare', '--change', 'demo']).status, 0);
+  pack(join(f.work, ARCHIVE));
+  f.git('add', '-A');
+  f.git('commit', '-q', '-m', 'archive, number, and pack');
+  const packed = f.read(`${ARCHIVE}.md`);
+  const r = f.run(['prepare']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.deepEqual(['CHANGE', 'ARCHIVE', 'REVIEW'].map(r.value), ['demo', ARCHIVE, 'unchanged']);
+  assert.equal(f.read(`${ARCHIVE}.md`), packed);
+  assert.equal(f.has(ARCHIVE), false);
 });
 
 test('another file\'s conflict stops with the files, and the rerun concludes the resolved merge', t => {

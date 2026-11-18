@@ -1,12 +1,12 @@
 // The pull: what a memory node (a topic, a repo path, a change, or a fact) is and each name it connects to, and the
 // topics a topic shares facts and changes with. Read fresh on each call; nothing is stored.
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { areaDocs, loadAreas, pathAreas } from './areas.mjs';
 import { formatFact } from './digest.mjs';
 import { filesBehind } from './files.mjs';
 import { matchTopics, pageLinks } from './topics.mjs';
-import { loadProfile, openStore, StoreError } from './store.mjs';
+import { archiveReader, loadProfile, openStore, StoreError } from './store.mjs';
 import { recordUse } from './usage.mjs';
 
 export const MAX_LINES = 60;
@@ -117,32 +117,32 @@ export function nearestTopics(word, topicList) {
 }
 
 const changeDir = (root, name) => join(root, 'openspec', 'changes', name);
-function archivedFolder(root, name) {
-  const archive = join(root, 'openspec', 'changes', 'archive');
-  if (!existsSync(archive)) return null;
-  return readdirSync(archive).sort().reverse().find(folder => folder.replace(/^\d{4}-\d{2}-\d{2}-/, '') === name) ?? null;
+// The newest finished change named `name`, through the profile's archive slot, or null.
+async function archivedFolder(ctx, profile, name) {
+  return (await archiveReader(ctx, profile)).list().find(each => each.name === name)?.folder ?? null;
 }
-// The proposal of an active or archived change, with its `#` title, or null.
-function proposalOf(root, name) {
-  const folder = existsSync(join(changeDir(root, name), 'proposal.md')) ? `openspec/changes/${name}` : (() => {
-    const archived = archivedFolder(root, name);
-    return archived ? `openspec/changes/archive/${archived}` : null;
-  })();
-  if (!folder || !existsSync(join(root, folder, 'proposal.md'))) return null;
-  const title = readFileSync(join(root, folder, 'proposal.md'), 'utf8').match(/^# (.+)$/m)?.[1];
-  return { path: `${folder}/proposal.md`, title: title || name };
+// The proposal of an active or archived change, with its `#` title, or null. An archived one keeps its old path.
+async function proposalOf(ctx, profile, name) {
+  let path = `openspec/changes/${name}/proposal.md`;
+  let text = existsSync(join(ctx.root, path)) ? readFileSync(join(ctx.root, path), 'utf8') : null;
+  if (text === null) {
+    const folder = await archivedFolder(ctx, profile, name);
+    path = `openspec/changes/archive/${folder}/proposal.md`;
+    text = folder ? (await archiveReader(ctx, profile)).read(folder, 'proposal.md') : null;
+  }
+  return text === null ? null : { path, title: text.match(/^# (.+)$/m)?.[1] || name };
 }
 
 /** What `name` is: a fact, a path, a topic, a change, or null. In order: `#N`, a topic tag with no `/` (`wiki` is the
  *  topic, not the folder), a path in the repo, a topic tag or alias, a change folder or a slug the store knows. */
-export async function resolveNode(ctx, name, { areas, store }) {
+export async function resolveNode(ctx, name, { areas, store, profile }) {
   const word = String(name ?? '').trim();
   if (/^#?\d+$/.test(word)) return { kind: 'fact', id: Number(word.replace('#', '')) };
   if (!word.includes('/') && isTopic(areas, word)) return { kind: 'topic', tag: word };
   if (word && existsSync(join(ctx.root, word))) return { kind: 'path', name: word };
   const tag = canonical(areas)(word);
   if (isTopic(areas, tag)) return { kind: 'topic', tag };
-  if (word && (existsSync(changeDir(ctx.root, word)) || archivedFolder(ctx.root, word))) return { kind: 'change', name: word };
+  if (word && (existsSync(changeDir(ctx.root, word)) || await archivedFolder(ctx, profile, word))) return { kind: 'change', name: word };
   if (word && store) {
     try {
       const [[fact]] = await (await store()).facts([{ slug: word, all: true, limit: 1 }]);
@@ -272,7 +272,7 @@ async function changeFiles(ctx, profile, name) {
 
 // A change's answer: title, state, proposal; its topics; the files it touched; threads; newest facts; its chats.
 async function changeAnswer(ctx, { name, areas, profile, store, all, everyone }) {
-  const proposal = proposalOf(ctx.root, name);
+  const proposal = await proposalOf(ctx, profile, name);
   const state = ((await profile?.slugState?.(ctx)) ?? (() => undefined))(name);
   const extra = proposal ? [`Proposal: ${proposal.path} — ${proposal.title}`] : [];
   const files = section('files', FILES_TITLE, await changeFiles(ctx, profile, name));
@@ -405,7 +405,7 @@ export async function pull(ctx, { values = {}, positionals = [] }, { script = 'm
   const name = positionals.join(' ').trim();
   if (!name) throw new StoreError('usage: memory.mjs pull <topic|path|change|#fact> [--more <group>] [--json]');
   const { profile, areas, store } = await context(ctx);
-  const node = await resolveNode(ctx, name, { areas, store });
+  const node = await resolveNode(ctx, name, { areas, store, profile });
   const options = { areas, profile, store, everyone: values.everyone, all: values.all, script };
   let answer = null;
   if (node?.kind === 'fact') answer = await factAnswer(ctx, { ...options, id: node.id });

@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pack } from '../../../scripts/archive.mjs';
 import { isMain, parseCli, usageError } from '../../../scripts/lib/cli.mjs';
 import { primaryRoot } from '../../../scripts/lib/primary-root.mjs';
 import { parseEnv } from '../../../scripts/lib/env.mjs';
@@ -132,9 +133,20 @@ async function scanCredentials(root, keys, texts) {
 
 /** Rebuild the change's review page from its proposal and stage it. Bad inputs keep the old page. */
 function refreshReview(root, changeRoot) {
+  const dir = resolve(root, changeRoot);
+  if (dir.endsWith('.md') || (!existsSync(dir) && existsSync(`${dir}.md`))) return; // packed: kept as approved
   let rebuilt;
   try { rebuilt = buildReview(resolve(root, changeRoot)).kind !== 'no-page'; } catch (error) { say(`REVIEW=stale (${error.message})`); return; }
   if (rebuilt) must('git', ['add', '--', resolve(root, changeRoot, 'review.html')], 'git add of the review page');
+}
+
+/** An archived change's folder goes into its one packed file, staged in the folder's place, so no folder is saved. */
+function packArchive(root, changeRoot) {
+  const dir = resolve(root, changeRoot).replace(/\.md$/, '');
+  if (!existsSync(dir)) return;
+  try { pack(dir); } catch (error) { throw new Stop(1, [`error=${error.message}`, 'NEXT: report this message and stop; nothing was committed.']); }
+  const tracked = sh('git', ['ls-files', '--cached', '--', dir]).stdout.trim();
+  must('git', ['add', '-A', '--', `${dir}.md`, ...(tracked ? [dir] : [])], 'git add of the packed archive');
 }
 
 function unpushed(base) {
@@ -332,6 +344,7 @@ async function checkpoint(values) {
   if (local && wait) throw new Stop(4, ['REFUSED=a local route has no checks to wait for', 'NEXT: rerun without --wait to commit and run the pre-check.']);
   if (!wait) {
     if (values['change-root']) refreshReview(root, values['change-root']);
+    if (values.mode === 'archive') packArchive(root, values['change-root']);
     const staged = must('git', ['diff', '--cached', '--name-only'], 'cannot read the staged files').split('\n').filter(Boolean);
     if (!staged.length && (local || !unpushed(base))) {
       throw new Stop(4, ['REFUSED=nothing is staged and nothing waits to be pushed', `NEXT: stage the intended files and rerun, or read the gate again with: ${RERUN} --wait`]);

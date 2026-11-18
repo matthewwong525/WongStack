@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { dreamChecks, duePages, isDreamFact, lastDream, mapLines, mapText, namesChecked, pageList, pagesNamed, recordBodies, saysGone, stalePaths } from '../../.agents/plugins/memory/scripts/daily-tidy.mjs';
 import { isShipped, kindOf, shippedPaths } from '../../.agents/memory/tidy-pages.mjs';
 import { memory, node, PROFILE, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
+import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
 
 const DREAM = 'daily-tidy.mjs';
 const BRIEF = new URL('../../.agents/plugins/memory/references/tidy.md', import.meta.url);
@@ -305,6 +306,7 @@ test('drift lists stale-path facts and no plan, pages lists no spec, and neither
   write(root, 'scripts/here.mjs', '// here\n');
   write(root, 'app/keep.txt', 'kept\n');
   write(root, 'openspec/changes/archive/2026-01-01-old-plan/proposal.md', '# Old\n');
+  pack(join(root, 'openspec/changes/archive/2026-01-01-old-plan'));
   write(root, 'openspec/changes/done-plan/tasks.md', '- [x] 1.1 One\n');
   write(root, 'openspec/specs/billing/spec.md', '# Billing\n\nA spec.\n');
   write(root, 'wiki/README.md', '# Wiki\n\nThe hub.\n');
@@ -320,6 +322,7 @@ test('drift lists stale-path facts and no plan, pages lists no spec, and neither
   for (const body of [
     'The helper lives at scripts/gone.mjs, beside scripts/here.mjs.',
     'The trial notes are in openspec/changes/old-plan/trial.md.',
+    'The old plan is openspec/changes/archive/2026-01-01-old-plan/proposal.md, packed.',
     'Local keys sit in app/.dev.vars, which git ignores.',
     'Nothing here names a path.',
   ]) assert.equal((await note(env, body)).code, 0);

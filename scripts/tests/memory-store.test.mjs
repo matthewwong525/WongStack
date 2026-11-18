@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { nearTag, normalizeTag } from '../../.agents/plugins/memory/scripts/memory.mjs';
 import { findCredential, redact, secretValues } from '../../.agents/plugins/memory/scripts/lib/scan.mjs';
-import { parseEnv } from '../../.agents/plugins/memory/scripts/lib/store.mjs';
+import { archiveReader, parseEnv } from '../../.agents/plugins/memory/scripts/lib/store.mjs';
 import { writeEnvKey } from '../../.agents/memory/d1/admin.mjs';
 import { MAX_BYTES, MAX_LINES, PERSON_MAX_BYTES } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
 import { BRIEF_MAX_BYTES, renderBrief } from '../../.agents/plugins/memory/scripts/lib/brief.mjs';
@@ -947,4 +947,20 @@ test('a run saved before migration 0009 reaches no one, a schedule included', as
   const { result } = await response.json();
   assert.deepEqual({ run: result.run, daily: result.daily }, { run: null, daily: null }, "the forged 2999 consolidation reaches no schedule");
   assert.doesNotMatch(await as(env, MEMBER), /READER-|Last background/);
+});
+
+test('the archive slot reads finished changes; no slot, or a failing one, reads none', async t => {
+  const root = tempDir(t, 'archive-slot-');
+  mkdirSync(join(root, 'openspec/changes/archive/2026-10-01-done'), { recursive: true });
+  writeFileSync(join(root, 'openspec/changes/archive/2026-10-01-done/proposal.md'), '# Done\n');
+  const reader = await archiveReader({ root }, profile);
+  assert.deepEqual(reader.list().map(each => each.name), ['done']);
+  assert.equal(reader.read('2026-10-01-done', 'proposal.md'), '# Done\n');
+  for (const other of [null, {}, { archive: async () => { throw new Error('broken'); } }]) {
+    const none = await archiveReader({ root }, other);
+    assert.deepEqual([none.list(), none.files('2026-10-01-done'), none.read('2026-10-01-done', 'proposal.md')], [[], null, null]);
+  }
+  const fail = () => { throw new Error('corrupt'); };
+  const throwing = await archiveReader({ root }, { archive: async () => ({ list: fail, files: fail, read: fail }) });
+  assert.deepEqual([throwing.list(), throwing.files('2026-10-01-done'), throwing.read('2026-10-01-done', 'proposal.md')], [[], null, null]);
 });

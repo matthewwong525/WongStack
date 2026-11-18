@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 // Build a portable review page: parse proposal.md, or a review.md, into static, escaped HTML inside the shared kit.
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { findArchived, unpack } from '../../../scripts/archive.mjs';
 import { isMain } from '../../../scripts/lib/cli.mjs';
 import { slot } from '../../../scripts/slot.mjs';
 import { lookCss } from './look.mjs';
@@ -66,6 +67,7 @@ const ENTITIES = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 const USAGE = `usage: build-review.mjs <change-root> [--require-current] [--link]
        build-review.mjs <folder> --kind review [--action "<name>=<label>|<message>"]... [--confirm <name>]... [--link]
   Prints the plan as chat Markdown above the link line, for a reply that ends on the review line.
+  An archived change's name, packed file, or old folder path unpacks it to .scratch/archive/<folder>/ first.
   --link  print the page's reply link, whose buttons send notes to this chat or ask it to build; the file where none can open,
           or for a change under openspec/changes/archive/
   --kind review  a page for work that is not a plan, from <folder>/review.md: # <ask>, ## Why, ## To review, optional ## Decisions
@@ -947,6 +949,22 @@ async function printWork(root, values) {
   console.log(`${planLink(link, 'the review')}\n\n${link === page ? WORK_IN_CHAT : WORK_ON_PAGE}`);
 }
 
+// A packed archived change, named by its file, its old folder path, or its name: unpacked to `.scratch/archive/`, so
+// its approved page opens and the archive is never written. Null for any other root.
+function unpackedArchive(root) {
+  const full = resolve(root);
+  if (existsSync(full) && statSync(full).isDirectory()) return null;
+  const at = full.match(/^(.*)[\\/]openspec[\\/]changes[\\/]archive[\\/]([^\\/]+?)(?:\.md)?$/);
+  if (!at && /[\\/]/.test(root)) return null;
+  const repo = at ? at[1] : process.cwd();
+  const found = findArchived(repo, at ? at[2] : root);
+  if (!found?.packed) return null;
+  const dir = join(repo, '.scratch', 'archive', found.folder);
+  rmSync(dir, { recursive: true, force: true });
+  unpack(found.file, dir);
+  return dir;
+}
+
 if (isMain(import.meta.url)) {
   let args;
   try {
@@ -961,13 +979,16 @@ if (isMain(import.meta.url)) {
     try { await printWork(root, args.values); } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }
   } else {
     try {
-      const result = buildReview(root, { requireCurrent: args.values['require-current'] === true });
+      const archived = unpackedArchive(args.positionals[0]);
+      const root = archived ?? args.positionals[0];
+      const result = archived && existsSync(join(archived, 'review.html')) ? { kind: 'current', changed: false, warnings: [] }
+        : buildReview(root, { requireCurrent: args.values['require-current'] === true });
       for (const warning of result.warnings) console.error(`review: warning: ${warning}`);
       console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
       const page = resolve(root, 'review.html');
       const name = basename(resolve(root));
       // A shipped plan's link is its saved file: a live page would wait on the person again, with build buttons.
-      const shipped = /[\\/]openspec[\\/]changes[\\/]archive[\\/]/.test(page);
+      const shipped = Boolean(archived) || /[\\/]openspec[\\/]changes[\\/]archive[\\/]/.test(page);
       const link = args.values.link && result.kind === 'current' && !shipped ? await linked(page, notesHeader(name), planActions(name)) : page;
       const next = link === page ? REVIEW_IN_CHAT : REVIEW_ON_PAGE;
       const copy = result.kind === 'current' ? chatCopy(name, readFileSync(join(root, 'proposal.md'), 'utf8')) : '';

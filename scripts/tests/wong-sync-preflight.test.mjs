@@ -442,6 +442,16 @@ test('an install whose module is a plugin, or whose settings name one, gets the 
   assert.deepEqual(reason(), { code: 'module-plugin', paths: ['.claude/skills/memory/.claude-plugin', '.claude/settings.local.json'] });
 });
 
+test('an install that keeps finished changes as folders gets the unpacked-archive catch-up, with their count', t => {
+  const f = moduleFixture(t);
+  const reason = () => f.inspect().catchUp.reasons.find(found => found.code === 'unpacked-archive');
+  write(f.target, 'openspec/changes/archive/2026-01-01-packed.md', '<!-- openspec-archive v1 2026-01-01-packed -->\n');
+  assert.equal(reason(), undefined);
+  write(f.target, 'openspec/changes/archive/2026-01-02-one/proposal.md', '# One\n');
+  write(f.target, 'openspec/changes/archive/2026-01-03-two/proposal.md', '# Two\n');
+  assert.deepEqual(reason(), { code: 'unpacked-archive', paths: ['openspec/changes/archive'], folders: 2 });
+});
+
 test('a module that moves from a skill folder to a mapped folder stays one unit, and a moved link is no change', t => {
   const f = fixture(t, { manifest: inventory({ core: { ...inventory().core, skillDirs: ['alpha', 'memory'] } }), components: { skills: ['alpha', 'memory'] } });
   write(f.source, '.agents/skills/memory/scripts/memory.mjs', 'memory\n');

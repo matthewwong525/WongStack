@@ -1,4 +1,4 @@
-import { loadProfile, openStore } from '../store.mjs';
+import { archiveReader, loadProfile, openStore } from '../store.mjs';
 import { loadAreas } from '../areas.mjs';
 import { filesBehind } from '../files.mjs';
 import { readFacts } from '../read-facts.mjs';
@@ -24,6 +24,7 @@ async function factFiles(ctx, facts, { profile, deadline }) {
 export async function recallPacket(ctx, options, { includeFacts = true,
   factsRead = (signal) => readFacts(ctx, { positionals: [options.question], values: { ...options.filters, limit: 8, withTags: true } }, openStore(ctx, { signal, timeoutMs: 16000 })),
   documentsRead = retrieveDocuments, timeoutMs = 19000, profile } = {}) {
+  const archive = await archiveReader(ctx, profile);
   const deadline = Date.now() + Math.min(19000, timeoutMs), controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(1, deadline - Date.now()));
   let onDocumentTimeout;
@@ -37,13 +38,16 @@ export async function recallPacket(ctx, options, { includeFacts = true,
     controller.signal.addEventListener('abort', () => resolve({ facts: [], factSource: { state: 'unavailable', reason: 'fact deadline reached' } }), { once: true });
   })]);
   try {
-    const documentPromise = Promise.resolve().then(() => documentsRead(ctx, options, { deadline: deadline - 2000 }))
+    const documentPromise = Promise.resolve().then(() => documentsRead(ctx, options, { archive, deadline: deadline - 2000 }))
       .catch(() => ({ documents: [], documentSource: { state: 'unavailable', reason: 'document corpus unavailable' } }));
     const boundedDocuments = Promise.race([documentPromise, new Promise(resolve => {
       onDocumentTimeout = () => {
         let documents = [];
-        try { documents = interleaveSources(lexicalSearch(scanCorpus(ctx, { deadline: Date.now() + 400 }), options.question, { ...options, deadline: Date.now() + 800 })
-          .map(hit => verifyPassage(ctx, hit)).filter(Boolean), options.limit); } catch { /* unavailable below */ }
+        try {
+          const corpus = scanCorpus(ctx, { archive, deadline: Date.now() + 400 });
+          documents = interleaveSources(lexicalSearch(corpus, options.question, { ...options, deadline: Date.now() + 800 })
+            .map(hit => verifyPassage(ctx, hit, { archive })).filter(Boolean), options.limit);
+        } catch { /* unavailable below */ }
         resolve({ documents, documentSource: { state: documents.length ? 'partial' : 'unavailable', reason: 'document deadline reached; verified keyword evidence retained' } });
       };
       controller.signal.addEventListener('abort', onDocumentTimeout, { once: true });

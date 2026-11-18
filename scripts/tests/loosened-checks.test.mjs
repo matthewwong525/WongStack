@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, unlinkSync, wr
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
 import { TEST_FILE } from '../../.github/scripts/test-file.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -168,6 +169,20 @@ test('the reason survives the archive', t => {
   f.git('push', '-q', '-u', 'origin', 'feature');
   mkdirSync(join(f.work, 'openspec/changes/archive'), { recursive: true });
   renameSync(join(f.work, 'openspec/changes/x'), join(f.work, 'openspec/changes/archive/2026-09-27-x'));
+  f.commit();
+  assertPasses(f.check());
+});
+
+test('the reason survives the archive packed into one file', t => {
+  const f = fixture(t);
+  f.commit({
+    'app/vitest.config.ts': 'export default {};\n',
+    'openspec/changes/x/proposal.md': proposal('Check: `app/vitest.config.ts` drops the limit, because reasons.'),
+  });
+  f.git('push', '-q', '-u', 'origin', 'feature');
+  mkdirSync(join(f.work, 'openspec/changes/archive'), { recursive: true });
+  renameSync(join(f.work, 'openspec/changes/x'), join(f.work, 'openspec/changes/archive/2026-09-27-x'));
+  pack(join(f.work, 'openspec/changes/archive/2026-09-27-x'));
   f.commit();
   assertPasses(f.check());
 });

@@ -1,0 +1,1162 @@
+<!-- openspec-archive v1 2026-09-17-phone-review-opens-change-list -->
+<!-- file proposal.md utf8 5174 -->
+# Open the change list first on a phone
+
+**Status:** ready-to-ship
+**Open questions:** none
+
+## Why
+
+A review page opened on a phone drops the reviewer straight into change 1, on a stage the width of
+the screen, with the What Changes list hidden behind a button. They see one picture and no idea how
+many more there are or what the argument was — the opposite of what the list-is-the-navigation
+design promises. On a desktop the list sits beside the stage and that jump costs nothing; on a phone
+the list and the stage cannot share the screen, so the first thing shown has to be the list.
+
+## What Changes
+
+- **At phone width, a review page opened with no fragment — or at `#/` — shows the What Changes sheet over the landing stage.** No bullet is selected, the counter reads `<n> changes`, and the reviewer taps a change to open it. (review.html#/phone-open/after/sheet)
+- **`#/` always means "no change chosen" at phone width**, so closing a change or stepping back to `#/` reopens the sheet rather than leaving a near-empty stage. (review.html#/route-flow/after/list)
+- **Desktop is unchanged** — with no fragment it still opens bullet 1 and selects it in the panel, because there the list is already on screen. (review.html#/desktop-open/panel)
+- **A direct link keeps its target on a phone.** A fragment naming a visual, state, or mark opens that visual with the sheet closed, exactly as it does today. (review.html#/phone-open/direct/target)
+- **Release the payload:** bump `VERSION`, add the newest-first `CHANGELOG.md` entry, and run the link check and the OpenSpec config check. (review.html#/files/release)
+
+## Capabilities
+
+### New Capabilities
+
+None.
+
+### Modified Capabilities
+
+- `ux-wireframes`: the no-fragment opening behaviour splits by width — "The What Changes list is the
+  navigation" scopes its open-the-first-bullet rule to desktop, and "The page works on a phone"
+  gains the phone rule that the sheet opens over the landing with nothing selected.
+
+## Impact
+
+- `.claude/skills/plan/references/review-kit.html` — the `fromHash` router and the phone sheet.
+  Kit only; every page `/plan` draws from then on inherits it.
+- Already-written `review.html` files, including archived ones, keep their own copy of the kit and
+  so keep today's behaviour. Nothing rewrites them.
+- `VERSION`, `CHANGELOG.md` — the payload release.
+
+## Decision log
+
+- Asked what sits behind the open sheet on first load → chose **the landing stage**, nothing
+  pre-selected. A pre-selected change 1 behind the sheet is the same skipped-a-change-they-never-
+  chose problem one layer down.
+- Asked whether returning to the bare `#/` route on a phone reopens the sheet → chose **yes**, one
+  rule rather than a first-load special case: back from a change lands on the list.
+- Phone is decided by the `(max-width: 760px)` media query the kit already uses, not by the chrome's
+  View toggle → assumed, because the toggle changes how a *screen visual* is drawn while the layout
+  stays desktop; the sheet only exists below that breakpoint.
+- No `## UX` section and no `screen` visual → assumed: this changes reviewer chrome, which the kit
+  owns, not a product screen.
+
+- **2026-09-17** — Implemented and verified. The branch `fromHash()` at `.claude/skills/plan/references/review-kit.html:571` is six lines: at phone width a route with no first segment shows `_landing` and calls `setMenu(true)`; every other route is untouched. Walked the edited kit in a browser at 390×844 and 1280×900 — phone with no fragment opens the sheet over the landing with `7 changes` and Previous disabled, tapping a bullet closes it onto that visual, returning to `#/` reopens it, Next from the empty selection opens bullet 1, a direct fragment opens with the sheet shut and no sideways overflow, and desktop still opens bullet 1 selected. Released as 15.1.0; both `scripts/check-payload-links.mjs` and `scripts/check-openspec-config.mjs` pass. The same six-line router patch was applied to this change's own `review.html` so the page under review demonstrates the behaviour it argues for — a deliberate exception to "existing pages keep their own copy", which is about pages written before this change.
+- **2026-09-17** — Archived and checkpointed for the merge. Delta specs for `ux-wireframes` were already folded into `openspec/specs/` by the preceding save, so the archive move needed no further sync; `openspec validate --specs` passes 29/29 and the main spec carries no delta operation headers. The change now lives at `openspec/changes/archive/2026-09-17-phone-review-opens-change-list/`.
+- **2026-09-17** — Merged `origin/main` after PR #85 (v15.0.1, "a wrapped What Changes bullet keeps its picture") landed first. That fix folds a wrapped `## What Changes` bullet back onto one line before parsing — the same failure this change's review critic found independently. The review kit auto-merged cleanly and now carries both the fold and the phone router; only `VERSION` and `CHANGELOG.md` conflicted, resolved as the union of intent (15.1.0 over 15.0.1, both entries kept newest-first). `openspec validate --specs` 29/29, link check and config check pass.
+
+
+<!-- end proposal.md -->
+<!-- file design.md utf8 6290 -->
+## Context
+
+See [proposal.md](proposal.md) — Why. The kit routes from the fragment in one place:
+`fromHash()` in `.claude/skills/plan/references/review-kit.html`, whose first line reads
+*no fragment and there are bullets → `goBullet(0)`*. `goBullet` calls `setMenu(false)`, so today the
+sheet is shut before the reviewer ever sees it. Everything the phone rule needs is already there:
+`phoneMedia` (the `(max-width: 760px)` match the sheet CSS uses), `setMenu(open)`, the `_landing`
+stage with its "Choose a change" copy, and `renderCount()`, which already prints `<n> changes` and
+disables Previous when no bullet is current.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- One branch, in the router, so every route into `#/` behaves the same — first load, back button, a
+  change closing.
+- Leave the desktop path byte-identical.
+
+**Non-Goals:**
+
+- Restyling the sheet, the landing, or the toolbar.
+- Rewriting review pages already drawn from the kit, archived or live.
+
+## Decisions
+
+**The branch lives in `fromHash`, not in `goBullet`.** `fromHash` is the only place that turns
+"no fragment" into a destination, and it is also the `hashchange` handler — so putting the branch
+there covers first load and every later return to `#/` with one line, which is exactly the rule the
+Decision log settled. The alternative, teaching `goBullet` to leave the sheet open, would fire on
+every bullet tap too and would need a second flag to tell the two callers apart.
+
+**Phone is `phoneMedia.matches`, not `body[data-viewport]`.** The two look interchangeable and are
+not: `data-viewport` is the chrome's View toggle, which redraws a *screen visual* at phone width
+while the page layout — the sheet included — stays desktop. A desktop reviewer toggling View to
+Phone must not lose the panel they are reading. `phoneMedia` is the same media query the sheet's own
+CSS keys off, so the router and the layout can never disagree.
+
+**The landing stays behind the sheet.** `show('_landing', …)` already clears marks, sets the hash to
+`#/`, and leaves `current.id === '_landing'` so no panel bullet reads as current. The counter then
+falls to its existing `<n> changes` branch and Previous to its existing disabled branch — the
+no-bullet-selected state the kit already renders, now reachable on a phone.
+
+**A direct link is untouched.** The branch is guarded by *no first segment*, so any fragment naming
+a visual still routes to `show(...)` with the sheet shut. Alternatives considered: opening the sheet
+on every phone load regardless of fragment — rejected, it would bury the target of a link someone
+sent you.
+
+## Risks / Trade-offs
+
+- A reviewer who wants change 1 on a phone now taps twice, not once → Next from the empty selection
+  opens bullet 1, so the second tap is one thumb-reach away and always in the same place.
+- Rotating a phone to landscape can cross the 760px breakpoint mid-review → the branch only runs on
+  a `#/` route, so a chosen change survives the rotation; only an untouched landing re-resolves.
+- Existing review pages keep the old behaviour, so two pages open differently on a phone for as long
+  as both are around → accepted: rewriting committed and archived pages would edit the record of
+  what was planned, which the pages exist to preserve.
+
+## UX
+
+### Use-case brief
+
+**Who:** a reviewer who opens a review link on a phone, usually from chat, away from the desk.
+**Job:** find out what the change proposes, read each change, and leave notes.
+**Done:** every change is seen and the notes are copied back as a `/continue` command.
+**Context of use:** one hand, a screen below 760px. The What Changes list and the stage cannot
+share that width, so one of them is always hidden. This is the same screen the kit already draws —
+the chrome row (Changes · Prev · count · Next · Tools), the full-screen sheet, and the stage — and
+this change moves nothing in it.
+**Common case:** a link with no fragment. The reviewer wants the whole list first.
+**Edge case:** a deep link to one visual, state, or mark. That link keeps its target.
+**Frequency (assumed, to be challenged):** a few reviews a day per reviewer, most of them on a
+desktop. The phone read is rare, but it is the one that fails today, and the desktop path is the one
+that must not change.
+
+### Flow
+
+Open the link → the list over the landing → tap a change → its picture on the stage. Two taps to a
+chosen change, against one tap to a change nobody chose. Next from the empty selection opens change
+1, so the reviewer who wants the first change keeps a one-tap path, in the same place as every other
+step. Back to `#/` — a closed change or the back button — returns to the list. A fragment that names
+a visual skips the list and opens the target with the sheet shut.
+
+### Hierarchy
+
+**Phone, at `#/`:** the primary action is to choose a change. The sheet holds the screen, so the
+rows are the only target; the chrome keeps no filled button. Behind the sheet the landing is muted
+("Choose a change"), the counter reads `<n> changes`, and Previous is disabled — the kit's existing
+no-selection state, now reachable.
+**Phone, with a change open:** the visual is the content and the chrome stays one row.
+**Desktop:** unchanged. The panel is always on screen, so change 1 opens and is marked current.
+
+### Review
+
+The picture is [review.html](review.html).
+
+- `review.html#/phone-open/after/sheet` — the sheet over the landing, counter `5 changes`,
+  Previous disabled
+- `review.html#/phone-open/today` — what a phone shows today: change 1 on the stage, sheet shut
+- `review.html#/phone-open/direct/target` — a fragment link opens its target, sheet shut
+- `review.html#/route-flow/after/list` — today's lane against the new lane, including the return
+  to `#/`
+- `review.html#/desktop-open/panel` — desktop width, panel beside the stage, bullet 1 current
+- `review.html#/files/release` — the files this change touches
+
+### Components
+
+Nothing new. The change composes parts the kit already has: `phoneMedia`, `setMenu(open)`, the
+`_landing` stage, `show()`, and `renderCount()`'s existing `<n> changes` and disabled-Previous
+branches. The review page uses kit primitives only — topbar, tag, box, table, input, hero,
+skeleton, lane/step/arrow, tree list, callout and notes.
+
+<!-- end design.md -->
+<!-- file tasks.md utf8 2312 -->
+## 1. The review kit router
+
+- [x] 1.1 In `.claude/skills/plan/references/review-kit.html`, branch `fromHash()` so a route with no first segment opens the What Changes sheet at phone width instead of `goBullet(0)`: show the `_landing` stage and call `setMenu(true)` when `phoneMedia.matches`, and keep `goBullet(0)` otherwise — per `review.html#/phone-open/after/sheet`.
+- [x] 1.2 Confirm the branch is guarded by *no first segment*, so a fragment naming a visual, state, or mark still routes to `show(...)` with the sheet shut — per `review.html#/phone-open/direct/target`.
+- [x] 1.3 Confirm the desktop path is untouched: with no fragment at desktop width the stage still opens bullet 1 and the panel still marks it current — per `review.html#/desktop-open/panel`.
+- [x] 1.4 Confirm the `#/` rule holds on every arrival, not only the first: `fromHash` is also the `hashchange` handler, so a back navigation to `#/` on a phone reopens the sheet — per `review.html#/route-flow/after/list`.
+- [x] 1.5 Add no CSS, colour, font, or network reference, and leave the `proposal:start` / `proposal:end` markers and the sheet's own styles as they are.
+
+## 2. Evidence
+
+- [x] 2.1 Open the edited kit in a browser at 390px with no fragment and confirm the sheet is open over the landing, no bullet is current, the counter reads `<n> changes`, and Previous is disabled.
+- [x] 2.2 At 390px, tap a bullet and confirm the sheet closes onto that visual; return to `#/` and confirm the sheet opens again.
+- [x] 2.3 At 390px, tap Next from the empty selection and confirm it opens bullet 1.
+- [x] 2.4 At 390px, open a fragment naming a visual and confirm it opens with the sheet shut.
+- [x] 2.5 At desktop width, open with no fragment and confirm bullet 1 opens and is marked current, exactly as before the change.
+
+## 3. Release
+
+- [x] 3.1 Bump `VERSION` (minor — new behaviour, no break).
+- [x] 3.2 Add the newest-first `CHANGELOG.md` entry for that version, saying a phone opens on the change list, `#/` means no change chosen, desktop is unchanged, and existing review pages keep their own copy of the kit — per `review.html#/files/release`.
+- [x] 3.3 Run `node scripts/check-payload-links.mjs` and fix anything it reports dead.
+- [x] 3.4 Run `node scripts/check-openspec-config.mjs` and fix anything it reports.
+
+<!-- end tasks.md -->
+<!-- file specs/ux-wireframes/spec.md utf8 5644 -->
+## MODIFIED Requirements
+
+### Requirement: The What Changes list is the navigation
+
+`review.html` SHALL show a panel with the proposal's `## Why` and a numbered list of its `## What Changes` bullets, and a stage that shows one visual at a time. At desktop width, on open with no fragment or with `#/`, the stage SHALL open the first bullet and select it in the panel; at phone width those same routes SHALL open the What Changes list instead, as "The page works on a phone" defines. It SHALL NOT repeat the full Why and change list in the stage. With no bullets, the stage SHALL show a short empty message. Previous SHALL be disabled at the first bullet, and at phone width with no bullet selected. Choosing a bullet SHALL show its visual with its marked elements highlighted and SHALL mark that bullet as current. A bullet with no anchor SHALL open a text stage that shows the bullet in full and says it has no visual. Two bullets MAY share one visual. The panel SHALL show each bullet's visual kind beside its anchor.
+
+#### Scenario: The file opens
+
+- **WHEN** a reviewer opens `review.html` at desktop width from a clone with no server and no network
+- **THEN** the panel shows Why and the numbered What Changes list, the first bullet is current, and the stage shows that bullet's visual or text fallback
+
+#### Scenario: A bullet is chosen
+
+- **WHEN** the reviewer clicks bullet 3, whose anchor is `#/receive-flow/after/new`
+- **THEN** the stage shows the `receive-flow` visual in its `after` state with every `new` element highlighted, and bullet 3 is marked current
+
+#### Scenario: A bullet has no visual
+
+- **WHEN** the reviewer clicks a bullet with no anchor
+- **THEN** the stage shows that bullet's text and says it has no visual, and the bullet is marked current
+
+#### Scenario: A direct link opens
+
+- **WHEN** the file opens with a valid visual, state, and mark fragment
+- **THEN** that target opens instead of the first bullet
+
+#### Scenario: The first bullet has no usable visual
+
+- **WHEN** the file opens at desktop width and the first bullet has no anchor or an invalid anchor
+- **THEN** the file opens its text fallback and marks the first bullet as current
+
+#### Scenario: The proposal is empty
+
+- **WHEN** the proposal has no What Changes bullets
+- **THEN** the stage shows a short empty message, no repeated proposal, and disabled step controls
+
+#### Scenario: Previous at the first change
+
+- **WHEN** the first change is current
+- **THEN** Previous is disabled and the left arrow does not show an overview
+
+### Requirement: The page works on a phone
+
+Below a phone-width breakpoint, `review.html` SHALL show the stage at full width with no horizontal overflow, SHALL offer the What Changes list as a full-screen sheet opened from a button in the chrome and closed by choosing a bullet, SHALL offer previous and next controls that step through the bullets and show the position, SHALL dock the note box to the bottom of the screen with a text field of at least 16px, and SHALL stack a `diff`'s columns. On open with no fragment or with `#/`, the sheet SHALL open over the landing stage with no bullet selected and the position SHALL read the change count; every later arrival at `#/` SHALL open it again, because `#/` means no change is chosen. A fragment that names a visual, a state, or a mark SHALL open that target with the sheet closed. Next with no bullet selected SHALL open the first bullet. The stepping controls SHALL also work at desktop width, with the left and right arrow keys. At phone widths of 320px and above, the collapsed toolbar SHALL use one row no taller than 56px, with Changes, Previous, the position, Next, and Tools. Tools SHALL disclose state selection and note actions, expose its expanded state, and allow those controls to wrap. The long change title and desktop hint SHALL not consume phone toolbar space. Desktop controls SHALL remain exposed.
+
+#### Scenario: Opened on a phone
+
+- **WHEN** the file is opened at a phone width
+- **THEN** the stage fills the width, nothing scrolls sideways, and the list is behind a Changes button
+
+#### Scenario: A phone opens on the change list
+
+- **WHEN** a reviewer opens `review.html` at phone width with no fragment
+- **THEN** the What Changes sheet is open over the landing stage, no bullet is marked current, the position reads the change count, and Previous is disabled
+
+#### Scenario: A change is chosen from the sheet
+
+- **WHEN** the reviewer taps a bullet in that sheet
+- **THEN** the sheet closes and the stage shows that bullet's visual or text fallback, with the bullet marked current
+
+#### Scenario: Back to the change list on a phone
+
+- **WHEN** the reviewer returns to `#/` at phone width after opening a change
+- **THEN** the sheet opens again over the landing stage with no bullet selected
+
+#### Scenario: A direct link on a phone
+
+- **WHEN** the file is opened at phone width with a valid visual fragment
+- **THEN** that visual opens with the sheet closed
+
+#### Scenario: Stepping through changes
+
+- **WHEN** the reviewer taps next twice from bullet 1
+- **THEN** the stage shows bullet 3's visual and the chrome reads `3 / <n>`
+
+#### Scenario: A note on a phone
+
+- **WHEN** annotate mode is on at phone width and the reviewer taps an element
+- **THEN** the note box appears docked to the bottom of the screen and the keyboard does not zoom the page
+
+#### Scenario: Phone tools open and close
+
+- **WHEN** a reviewer opens Tools on a phone
+- **THEN** state selection and note actions are reachable, and the Changes sheet starts below the expanded toolbar
+- **AND** closing Tools restores the compact row without changing the selected visual
+
+<!-- end specs/ux-wireframes/spec.md -->
+<!-- file .openspec.yaml utf8 40 fence=~~~ -->
+~~~yaml
+schema: spec-driven
+created: 2026-09-17
+
+~~~
+<!-- end .openspec.yaml -->
+<!-- file review.html utf8 54191 fence=~~~ -->
+~~~html
+<!doctype html>
+<!--
+  ─────────────────────────────────────────────────────────────────────────────
+  REVIEW KIT — fill this in; do not restyle it.
+
+  Copy this file to openspec/changes/<name>/review.html. It is the reviewer's
+  page for the change: the proposal's What Changes list on the left is the
+  navigation, and each entry opens a picture of that change on the stage. The
+  look is fixed on purpose: every WongStack review page reads the same way, and
+  a reviewer learns the chrome once.
+
+  WHAT YOU FILL, WHAT THE TOOLING FILLS
+  - You fill: the <section class="visual"> blocks, one per What Changes bullet,
+    and the data-mark attributes the bullets point at.
+  - The sync script fills: everything between the two comment markers named
+    "proposal:start" and "proposal:end" (they sit just below, around the
+    example proposal). Never hand-edit that block — /save overwrites it from
+    proposal.md on every checkpoint. Leave both markers in place.
+  - The kit owns: the chrome, the panel, the landing, routing, the annotate
+    layer and the pins. Reviewer chrome, not the product. Leave it alone.
+
+  HOW TO FILL IT
+  1. Title: replace CHANGE-NAME in the <title> and in the chrome with the
+     change name. The page reads the change name from the title.
+  2. One <section class="visual"> per What Changes bullet that has something
+     to show. Two bullets may share one visual. A bullet with nothing to draw
+     needs no section — it opens a text stage on its own.
+  3. Give every visual:
+       id="<slug>"            the anchor: #/<slug>
+       data-kind="screen|flow|diff|tree"    which of the four kinds it is
+       data-states="a b c"    only for a visual with more than one state;
+                              the first listed is the landing state. Any names
+                              you like — "default empty loading error" for a
+                              screen's usual set, but "annotating phone" or
+                              "after today" are equally valid. Each one needs
+                              its own <div class="state state-<name>"> block,
+                              or that state shows an empty frame.
+       data-state="<first>"   the state it opens in
+  4. Anchor each bullet in proposal.md by appending
+       (review.html#/<visual>[/<state>][/<mark>])
+     The state segment is optional — a segment that is not one of the visual's
+     states is read as a mark. So #/list/search, #/list/empty/create and
+     #/receive-flow/after/new all work.
+     A MARK MUST NEVER SHARE A NAME WITH A STATE of the same visual, or the
+     router reads it as the state and highlights nothing.
+  5. Mark what the bullet changes with data-mark="<mark>" on the elements it
+     touches. Choosing that bullet outlines every one of them.
+  6. Mark the layout choices that matter with <i class="callout">N</i> and put
+     a matching numbered line in that visual's .notes block.
+  7. Delete the example visuals below. Keep the <style> and <script> untouched.
+
+  THE FOUR VISUAL KINDS
+    screen  a low-fidelity wireframe of a UI screen, with its states. Every
+            screen in the flow, each with the empty, loading and error states
+            the design names. Exactly ONE .btn.primary visible at a time —
+            counted per state, because markup outside a state block shows in
+            every state. Give it data-go="<id>" so the flow is clickable.
+            A change that adds or restructures a screen uses this kind, and
+            wiki/ux-principles.md governs what the screen should be.
+    flow    a sequence of steps, as .lane rows of .step boxes and .arrow
+            separators. Use two lanes with data-states="after today" to argue
+            a process change: the .lane.today row draws dashed and muted.
+            This is the kind for a skill, a runbook, or any change to how a
+            job gets done.
+    diff    before and after text, as two labelled <pre> columns whose lines
+            are .line, and .del or .add for what goes and what arrives. The
+            kind for a rule, a config value, a template, or prose.
+    tree    files added, edited, or removed, as an <ul> whose items are .add,
+            .edit or .del, each with an optional <span class="why">.
+
+  MOBILE
+  - The page itself reflows below 760px: the stage takes the width, the list
+    becomes a sheet behind the Changes button, and ‹ › step through the
+    bullets. You get that for free.
+  - A SCREEN MUST CONSIDER THE PHONE. The chrome's View toggle walks any
+    screen at phone width. Use class="phone-only" and class="desktop-only" to
+    give one screen both layouts. When the use-case brief says the job is done
+    on a phone, draw the phone layout first and check every state at phone
+    width — a screen that only works at 960px is not finished.
+
+  HARD RULES
+  - No network. No CDN link, no web font, no remote image, no analytics. The
+    file must render from file:// with no server and no connection, years from
+    now, out of the change's archive folder.
+  - No new CSS, no colour, no brand, no design-system token, no product
+    typography. Compose the primitives below and nothing else. Low fidelity is
+    the contract: this is an argument about the change, not a picture of the
+    product. The one accent colour is the reviewer's, for marks and pins.
+  - No real data and no real copy where a placeholder does the job.
+  - Nothing at the top level of the script may throw before the first render,
+    and the script uses no optional chaining and no optional catch binding —
+    a phone browser that refuses localStorage on file:// must still render.
+
+  THE PRIMITIVES
+    screen: .topbar + .logo + .nav (span.on = current)   the app frame
+            .btn / .btn.primary / .btn.ghost             actions
+            .input / .input.wide, .field > label         form fields
+            table                                         rows of data
+            .box                                          empty / error panel
+            .skeleton (+ .s for a short one)              loading
+            .hero                                         image placeholder
+            .kv (dt/dd)                                   label-value pairs
+            .tag                                          status chip
+    flow:   .lane (+ .today), .lane .label, .step (+ .gone), .arrow
+    diff:   .diff > div > .label + pre > .line (+ .add / .del)
+    tree:   .tree ul > li.add / li.edit / li.del + .why
+    any:    .row / .row.between, .muted, .caption, .phone-only,
+            .desktop-only, .callout + .notes, data-mark
+
+  Owner: .claude/skills/plan/SKILL.md — the review stage. The judgment a
+  screen serves (hierarchy, one primary action, designed empty states) is in
+  wiki/ux-principles.md.
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review — phone-review-opens-change-list</title>
+<style>
+  :root { --ink:#333; --line:#9a9a9a; --fill:#e9e9e9; --fill2:#f6f6f6; --note:#fff4c2; --mark:#1a73e8; --markbg:#eaf2fd; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.4 "Helvetica Neue", Arial, sans-serif; color:var(--ink); background:#d9d9d9; }
+  a { color:inherit; }
+
+  /* chrome: the reviewer's toolbar */
+  .chrome { position:sticky; top:0; z-index:9; background:#222; color:#eee; padding:8px 14px; display:flex; gap:18px; align-items:center; flex-wrap:wrap; font-size:13px; min-height:41px; }
+  .chrome b { font-weight:600; }
+  .chrome .group { display:flex; gap:6px; align-items:center; }
+  .chrome .group:empty { display:none; }
+  .chrome button { font:inherit; padding:3px 9px; background:#444; color:#eee; border:1px solid #666; border-radius:3px; cursor:pointer; }
+  .chrome button[aria-pressed="true"] { background:#eee; color:#222; }
+  .chrome button.annotate[aria-pressed="true"] { background:var(--mark); color:#fff; border-color:var(--mark); }
+  .chrome .hint { opacity:.7; margin-left:auto; }
+  .chrome .tools { display:contents; }
+  .chrome .tools-toggle { display:none; }
+
+  /* layout: What Changes panel + stage */
+  .layout { display:flex; align-items:flex-start; }
+  .panel { flex:0 0 340px; position:sticky; top:41px; max-height:calc(100vh - 41px); overflow:auto; background:#fff; border-right:2px solid var(--line); padding:16px 18px; font-size:13px; }
+  .panel h2 { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#666; margin:18px 0 6px; }
+  .panel h2:first-child { margin-top:0; }
+  .panel p { margin:0 0 8px; }
+  .panel ol.changes { margin:0; padding:0; list-style:none; counter-reset:c; }
+  .panel ol.changes li { counter-increment:c; position:relative; margin:0 0 4px; padding:6px 8px 6px 30px; border:1px solid transparent; border-radius:3px; cursor:pointer; }
+  .panel ol.changes li::before { content:counter(c); position:absolute; left:8px; top:7px; width:16px; height:16px; border-radius:50%; background:var(--fill); color:#666; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .panel ol.changes li:hover { background:var(--fill2); }
+  .panel ol.changes li.on { border-color:var(--mark); background:var(--markbg); }
+  .panel ol.changes li.on::before { background:var(--mark); color:#fff; }
+  .panel ol.changes li .kind { display:block; font-size:11px; color:var(--mark); margin-top:2px; }
+  .panel ol.changes li.dead .kind { color:#c00; }
+  .panel ol.changes li.text .kind { color:#888; }
+  .panel code { background:var(--fill); padding:0 3px; }
+  .panel .notes-list { margin:0; padding-left:18px; }
+  .panel .notes-list li { margin:0 0 6px; cursor:pointer; }
+  .panel .notes-list .where { color:#666; font-size:11px; display:block; }
+  .panel .empty { color:#666; list-style:none; margin-left:-18px; }
+  .stage { flex:1; min-width:0; }
+
+  /* one visual at a time */
+  .visual { display:none; }
+  .visual[data-active] { display:block; }
+  .frame { max-width:960px; margin:24px auto; background:#fff; border:2px solid var(--line); box-shadow:0 2px 0 #bbb; }
+  .visual.screen .frame { min-height:560px; }
+  .visual:not(.screen) .frame { padding:24px; }
+  .caption { max-width:960px; margin:24px auto 0; font-size:12px; color:#666; }
+  .caption + .frame { margin-top:6px; }
+  .state { display:none; }
+  .state[data-on] { display:block; }
+
+  /* lo-fi screen primitives — the screen visual's vocabulary */
+  .topbar { display:flex; align-items:center; gap:16px; padding:12px 20px; border-bottom:2px solid var(--line); background:var(--fill2); }
+  .logo { width:34px; height:34px; border:2px solid var(--line); background:var(--fill); position:relative; }
+  .logo::before, .logo::after { content:""; position:absolute; inset:0; background:linear-gradient(to top right, transparent 48%, var(--line) 48%, var(--line) 52%, transparent 52%); }
+  .logo::after { transform:scaleX(-1); }
+  .nav { display:flex; gap:14px; }
+  .nav span { padding:4px 0; border-bottom:2px solid transparent; }
+  .nav span.on { border-color:var(--ink); font-weight:600; }
+  .body { padding:20px; }
+  h1 { font-size:20px; margin:0; }
+  .row { display:flex; gap:12px; align-items:center; }
+  .row.between { justify-content:space-between; }
+  .btn { display:inline-block; padding:7px 14px; border:2px solid var(--ink); border-radius:3px; background:#fff; cursor:pointer; user-select:none; }
+  .btn.primary { background:var(--ink); color:#fff; }
+  .btn.ghost { border-color:transparent; text-decoration:underline; }
+  .input { display:inline-block; min-width:220px; padding:7px 10px; border:2px solid var(--line); border-radius:3px; background:#fff; color:#888; }
+  table { width:100%; border-collapse:collapse; margin-top:16px; }
+  th { text-align:left; font-size:12px; color:#666; border-bottom:2px solid var(--line); padding:8px 6px; }
+  td { padding:10px 6px; border-bottom:1px solid #ddd; }
+  tr.click { cursor:pointer; }
+  .tag { display:inline-block; padding:1px 8px; border:1px solid var(--line); border-radius:10px; font-size:12px; }
+  .box { border:2px dashed var(--line); background:var(--fill2); padding:30px; text-align:center; color:#666; margin-top:16px; }
+  .skeleton { height:14px; background:var(--fill); margin:14px 0; width:70%; }
+  .skeleton.s { width:40%; }
+  .kv { display:grid; grid-template-columns:140px 1fr; gap:8px 12px; margin:16px 0; }
+  .kv dt { color:#666; } .kv dd { margin:0; }
+  .muted { color:#666; }
+  .hero { height:120px; background:var(--fill); border:2px solid var(--line); position:relative; margin:12px 0; }
+  .hero::before, .hero::after { content:""; position:absolute; inset:0; background:linear-gradient(to top right, transparent 49.5%, var(--line) 49.5%, var(--line) 50.5%, transparent 50.5%); }
+  .hero::after { transform:scaleX(-1); }
+  .callout { display:inline-flex; width:18px; height:18px; border-radius:50%; background:#c00; color:#fff; font-size:11px; font-weight:700; align-items:center; justify-content:center; vertical-align:middle; margin-left:6px; }
+  .notes { max-width:960px; margin:0 auto 40px; background:var(--note); border:1px solid #d8c66a; padding:12px 18px; font-size:13px; }
+  .notes ol { margin:6px 0 0; padding-left:20px; }
+  .notes .brief { margin:0 0 6px; }
+
+  /* flow: lanes of steps */
+  .lane { display:flex; align-items:center; gap:10px; padding:10px 0; flex-wrap:wrap; }
+  .lane + .lane { border-top:1px solid #ddd; }
+  .lane .label { flex:0 0 70px; font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#666; }
+  .lane.today .step { color:#777; border-style:dashed; }
+  .step { padding:8px 12px; border:2px solid var(--line); border-radius:3px; background:var(--fill2); }
+  .step.gone { text-decoration:line-through; color:#999; }
+  .arrow { color:#999; }
+  .arrow::before { content:"→"; }
+
+  /* diff: before / after text */
+  .diff { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .diff > div > .label, .tree .label { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:#666; margin-bottom:6px; }
+  .diff pre { margin:0; padding:10px 12px; background:var(--fill2); border:1px solid #ddd; font:12px/1.5 Menlo, Consolas, monospace; white-space:pre-wrap; }
+  .diff .line { display:block; }
+  .diff .del { color:#999; text-decoration:line-through; }
+  .diff .add { border-left:3px solid var(--mark); margin-left:-12px; padding-left:9px; background:var(--markbg); }
+
+  /* tree: files touched */
+  .tree ul { list-style:none; margin:0; padding:0; font:13px/1.8 Menlo, Consolas, monospace; }
+  .tree li { padding-left:4px; }
+  .tree li::before { display:inline-block; width:18px; color:#888; }
+  .tree li.add::before { content:"+"; color:var(--mark); font-weight:700; }
+  .tree li.edit::before { content:"~"; }
+  .tree li.del::before { content:"−"; }
+  .tree li.del { color:#999; text-decoration:line-through; }
+  .tree li .why { color:#666; font:12px "Helvetica Neue", Arial, sans-serif; margin-left:10px; }
+
+  /* text stage: a bullet with no visual, and the landing */
+  .textstage h1 { font-size:22px; margin:0 0 12px; }
+  .textstage p { font-size:16px; max-width:640px; }
+  .textstage ol { font-size:15px; max-width:640px; padding-left:22px; }
+  .textstage ol li { margin:0 0 6px; cursor:pointer; }
+  .textstage ol li:hover { text-decoration:underline; }
+  .textstage .muted { font-size:13px; }
+
+  /* highlight: the mark named by the hash */
+  .marked { outline:3px solid var(--mark); outline-offset:3px; box-shadow:0 0 0 6px var(--markbg); }
+  tr.marked { outline-offset:0; }
+  .diff .add.marked, .tree li.marked { outline-offset:0; box-shadow:none; }
+
+  /* annotate */
+  body.annotating .visual[data-active] .frame, body.annotating .panel { cursor:crosshair; }
+  .hovering { outline:2px dashed var(--mark); outline-offset:2px; }
+  .pin { display:inline-flex; width:18px; height:18px; border-radius:3px; background:var(--mark); color:#fff; font-size:11px; font-weight:700; align-items:center; justify-content:center; vertical-align:middle; margin-left:6px; cursor:pointer; }
+  .pin.stale { background:#999; }
+  .popover { position:fixed; z-index:10; width:300px; background:#fff; border:2px solid var(--mark); border-radius:4px; padding:10px; box-shadow:0 4px 14px rgba(0,0,0,.25); font-size:13px; }
+  .popover .where { color:#666; font-size:11px; margin-bottom:6px; word-break:break-word; }
+  .popover textarea { width:100%; height:70px; font:inherit; padding:6px; border:1px solid var(--line); border-radius:3px; resize:vertical; }
+  .popover .row { margin-top:8px; }
+  .popover button { font:inherit; padding:4px 10px; border:1px solid var(--line); background:#fff; border-radius:3px; cursor:pointer; }
+  .popover button.save { background:var(--mark); color:#fff; border-color:var(--mark); }
+  .popover .del { margin-left:auto; color:#c00; }
+  .toast { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#222; color:#eee; padding:8px 14px; border-radius:3px; font-size:13px; z-index:11; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.show { opacity:1; }
+  #copybuf { position:fixed; left:-9999px; top:0; }
+  .error { color:#c00; }
+
+  /* chrome extras: step through changes, phone/desktop view, the panel toggle */
+  .chrome .count { opacity:.8; min-width:44px; text-align:center; white-space:nowrap; }
+  .chrome .menu { display:none; }
+  .panel { top:var(--chrome-h, 41px); max-height:calc(100vh - var(--chrome-h, 41px)); }
+
+  /* viewport: walk a screen at phone width from a desktop */
+  body[data-viewport="phone"] .visual.screen .frame { max-width:390px; min-height:700px; }
+  body[data-viewport="phone"] .desktop-only, body[data-viewport="desktop"] .phone-only { display:none !important; }
+  .visual.screen .body { overflow-x:auto; }
+
+  /* phone: stage full width, the list is a sheet, the note box docks to the bottom */
+  @media (max-width: 760px) {
+    body { font-size:15px; }
+    .chrome { display:grid; grid-template-columns:auto 1fr auto; gap:6px; padding:6px 8px; }
+    .chrome > b, .chrome .hint, .chrome #viewport { display:none !important; }
+    .chrome .menu, .chrome .tools-toggle { display:inline-block; }
+    .chrome > .group { justify-content:center; gap:4px; }
+    .chrome .tools { display:none; grid-column:1 / -1; min-width:0; }
+    .chrome .tools.open { display:flex; flex-wrap:wrap; gap:8px; padding-top:6px; }
+    .chrome .tools .group { flex-wrap:wrap; min-width:0; }
+    .chrome .tools button { max-width:100%; overflow-wrap:anywhere; }
+    .layout { display:block; }
+    .panel { display:none; position:fixed; left:0; right:0; bottom:0; z-index:8; border-right:0; padding:14px 16px 40px; }
+    body.menu .panel { display:block; }
+    .panel ol.changes li { padding:10px 10px 10px 32px; }
+    .frame { margin:12px 8px; }
+    .caption { margin:12px 8px 0; }
+    .notes { margin:0 8px 24px; }
+    .visual:not(.screen) .frame { padding:14px; }
+    .visual.screen .frame { min-height:0; }
+    .body { padding:14px; }
+    .diff { grid-template-columns:1fr; }
+    .textstage p, .textstage ol { font-size:16px; }
+    .popover { left:8px !important; right:8px; bottom:8px; top:auto !important; width:auto; }
+    .popover textarea { font-size:16px; height:90px; }
+    .popover button { padding:8px 14px; }
+    .chrome button { min-height:40px; min-width:40px; padding:6px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="chrome">
+  <b>Review · phone-review-opens-change-list</b>
+  <button class="menu" id="menu" aria-expanded="false" aria-controls="panel">Changes</button>
+  <div class="group"><button id="prev" title="Previous change" aria-label="Previous change">‹</button><span class="count" id="count"></span><button id="next" title="Next change" aria-label="Next change">›</button></div>
+  <button class="tools-toggle" id="tools-toggle" aria-expanded="false" aria-controls="tools">Tools</button>
+  <div class="tools" id="tools">
+  <div class="group" id="states"></div>
+  <div class="group" id="viewport"><span>View:</span><button data-vp="desktop">Desktop</button><button data-vp="phone">Phone</button></div>
+  <div class="group">
+    <button class="annotate" id="annotate" aria-pressed="false">✎ Annotate</button>
+    <button id="copy">Copy notes</button>
+  </div>
+  </div>
+  <span class="hint">Click a change on the left. Grey = layout only. Blue = what changes. Red dots = reasoning below.</span>
+</div>
+
+<!-- ══ THE PROPOSAL BLOCK — machine-filled; do not hand-edit ═══════════
+     /save runs sync-review-proposal.mjs on every checkpoint, which replaces
+     everything between the two markers with proposal.md's current Why and
+     What Changes. Keep the markers. The example below is what a filled block
+     looks like; it goes when you delete the example visuals. -->
+<script type="text/markdown" id="proposal">
+<!-- proposal:start -->
+## Why
+
+A review page opened on a phone drops the reviewer straight into change 1, on a stage the width of
+the screen, with the What Changes list hidden behind a button. They see one picture and no idea how
+many more there are or what the argument was — the opposite of what the list-is-the-navigation
+design promises. On a desktop the list sits beside the stage and that jump costs nothing; on a phone
+the list and the stage cannot share the screen, so the first thing shown has to be the list.
+
+## What Changes
+
+- **At phone width, a review page opened with no fragment — or at `#/` — shows the What Changes sheet over the landing stage.** No bullet is selected, the counter reads `<n> changes`, and the reviewer taps a change to open it. (review.html#/phone-open/after/sheet)
+- **`#/` always means "no change chosen" at phone width**, so closing a change or stepping back to `#/` reopens the sheet rather than leaving a near-empty stage. (review.html#/route-flow/after/list)
+- **Desktop is unchanged** — with no fragment it still opens bullet 1 and selects it in the panel, because there the list is already on screen. (review.html#/desktop-open/panel)
+- **A direct link keeps its target on a phone.** A fragment naming a visual, state, or mark opens that visual with the sheet closed, exactly as it does today. (review.html#/phone-open/direct/target)
+- **Release the payload:** bump `VERSION`, add the newest-first `CHANGELOG.md` entry, and run the link check and the OpenSpec config check. (review.html#/files/release)
+<!-- proposal:end -->
+</script>
+
+<div class="layout">
+<aside class="panel" id="panel"></aside>
+<div class="stage" id="stage">
+
+<!-- short fallback for an empty proposal or an invalid direct link -->
+<section class="visual textstage" id="_landing" data-kind="text">
+  <div class="frame" id="landing"></div>
+</section>
+
+<!-- text stage for a bullet with no visual -->
+<section class="visual textstage" id="_text" data-kind="text">
+  <div class="frame" id="textframe"></div>
+</section>
+
+<!-- ══ VISUAL 1 · kind=screen — the review page on a phone: what a reviewer
+     lands on today, what they land on after this change, and what a direct
+     link still does. Phone-first: this screen's whole job happens at 390px. -->
+<section class="visual screen" id="phone-open" data-kind="screen" data-title="Review on a phone" data-states="after today direct" data-state="after">
+  <p class="caption">The review page at phone width. The What Changes sheet overlays the stage from the bottom edge, and the landing sits muted behind it. Phone here is the <code>(max-width: 760px)</code> media query the sheet already uses, not the chrome's View toggle. <i class="callout">1</i> Today: <a href="#/phone-open/today">#/phone-open/today</a> · Direct link: <a href="#/phone-open/direct/target">#/phone-open/direct/target</a> · Desktop: <a href="#/desktop-open/panel">#/desktop-open</a>.</p>
+  <div class="frame">
+
+    <div class="state state-after">
+      <div class="topbar">
+        <span class="tag">Changes</span>
+        <span class="muted">‹</span>
+        <span data-mark="sheet">5 changes <i class="callout">2</i></span>
+        <span class="tag">› <i class="callout">3</i></span>
+        <span class="tag">Tools</span>
+      </div>
+      <div class="body" style="display:flex;flex-direction:column;min-height:520px">
+        <div class="muted">
+          <h1 data-mark="sheet">Choose a change <i class="callout">4</i></h1>
+          <p>Use the change list or Next to open a visual.</p>
+        </div>
+        <div style="margin-top:auto" data-mark="sheet">
+          <div class="topbar"><b>What Changes</b><span class="muted" style="margin-left:auto">Tap a change to open it</span></div>
+          <table>
+            <tbody>
+              <tr class="click" data-go="phone-open"><td>1</td><td>Phone opens on the change list <span class="muted">· screen</span></td></tr>
+              <tr class="click" data-go="route-flow"><td>2</td><td>#/ means no change chosen <span class="muted">· flow</span></td></tr>
+              <tr class="click" data-go="desktop-open"><td>3</td><td>Desktop is unchanged <span class="muted">· screen</span></td></tr>
+              <tr class="click" data-go="phone-open"><td>4</td><td>A direct link keeps its target <span class="muted">· screen</span></td></tr>
+              <tr class="click" data-go="files"><td>5</td><td>Release the payload <span class="muted">· tree</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="state state-today">
+      <div class="topbar">
+        <span class="tag" data-mark="sheet" data-go="phone-open">Changes</span>
+        <span class="muted">‹</span>
+        <span>1 / 5</span>
+        <span class="tag">›</span>
+        <span class="tag">Tools</span>
+      </div>
+      <div class="body">
+        <p class="muted">Change 1 · screen</p>
+        <h1>Phone opens on the change list</h1>
+        <div class="hero"></div>
+        <p class="muted">Today a phone lands here: one picture the reviewer did not choose, and no sight of the other four changes. The list is behind <span class="btn ghost" data-go="phone-open">Changes</span>.</p>
+      </div>
+    </div>
+
+    <div class="state state-direct">
+      <div class="topbar">
+        <span class="tag">Changes</span>
+        <span class="muted">‹</span>
+        <span>2 / 5</span>
+        <span class="tag">›</span>
+        <span class="tag">Tools</span>
+      </div>
+      <div class="body">
+        <p class="muted">Opened link: <code>review.html#/route-flow/after/list</code> <i class="callout">5</i></p>
+        <p class="muted">Change 2 · flow</p>
+        <h1 data-mark="target">#/ means no change chosen</h1>
+        <div class="hero" data-mark="target"></div>
+        <p class="muted">The sheet stays shut: the link named a target, so the target opens. Step back to <span class="btn ghost" data-go="phone-open">the change list</span> whenever the reviewer wants the rest.</p>
+      </div>
+    </div>
+
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> a reviewer on a phone, opening a review link to judge what a change proposes. <b>Done:</b> they have seen every change and left their notes. <b>Context:</b> a phone, away from the desk, usually a link from chat; the list and the stage cannot share the screen. <b>Common case:</b> a link with no fragment — read the whole list. <b>Edge case:</b> a deep link to one visual. <b>Frequency:</b> assumed a few reviews a day per reviewer, most of them on a desktop; the phone read is the one that fails today. <b>Primary action:</b> choose a change — the sheet's rows are the target, so the chrome keeps no filled button of its own.</p>
+    <ol>
+      <li>Phone is the <code>(max-width: 760px)</code> media query, not the chrome's View toggle. The toggle redraws a screen visual at phone width while the page layout stays desktop, so a desktop reviewer who toggles View must not lose the panel they are reading. The media query is the same one the sheet's own CSS keys off, so the router and the layout can never disagree.</li>
+      <li>No bullet is current, so the counter falls to the kit's existing <code>&lt;n&gt; changes</code> branch and Previous to its existing disabled branch. Nothing new is drawn — a state the kit already had becomes reachable on a phone.</li>
+      <li>Next from the empty selection opens change 1. A reviewer who wants the first change taps twice, and the second tap is always in the same place.</li>
+      <li>The landing stays behind the sheet, muted, with no change pre-selected. A change 1 opened behind the sheet is the same problem one layer down: a change the reviewer never chose.</li>
+      <li>State <b>direct</b>: a fragment that names a visual, a state, or a mark opens that target with the sheet shut. Opening the sheet on every phone load would bury the target of a link someone sent you.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══ VISUAL 2 · kind=flow — how a reviewer reaches a change, and what
+     coming back to #/ gives them. Today lane dashed, after lane solid. -->
+<section class="visual flow" id="route-flow" data-kind="flow" data-states="after today" data-state="after">
+  <p class="caption">Reaching a change on a phone, and what <code>#/</code> means when the reviewer comes back. The screen: <a href="#/phone-open/after/sheet">#/phone-open</a>.</p>
+  <div class="frame">
+    <div class="lane today">
+      <span class="label">Today</span>
+      <span class="step">Open the page</span><span class="arrow"></span>
+      <span class="step">Change 1 on the stage</span><span class="arrow"></span>
+      <span class="step gone">Tap Changes to find the list</span><span class="arrow"></span>
+      <span class="step">Tap a change</span><span class="arrow"></span>
+      <span class="step">Change on the stage</span><span class="arrow"></span>
+      <span class="step">Back to #/ · near-empty stage</span>
+    </div>
+    <div class="lane after">
+      <span class="label">After</span>
+      <span class="step">Open the page</span><span class="arrow"></span>
+      <span class="step" data-mark="list">The list, over the landing</span><span class="arrow"></span>
+      <span class="step">Tap a change</span><span class="arrow"></span>
+      <span class="step">Change on the stage</span><span class="arrow"></span>
+      <span class="step" data-mark="list">Back to #/ · the list again <i class="callout">1</i></span>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> the same phone reviewer, finding the next change and coming back for it.</p>
+    <ol>
+      <li>One rule, not a first-load special case: <code>#/</code> means no change is chosen. The branch sits in the router's hash handler, so first load, the back button, and a change closing all land on the list. Today the same route still ends on a near-empty stage.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══ VISUAL 3 · kind=screen — desktop width, unchanged. It is here to
+     show why the two widths differ: the list is already on screen. -->
+<section class="visual screen" id="desktop-open" data-kind="screen" data-title="Review on a desktop">
+  <p class="caption">The same page at desktop width — this change leaves it alone. Phone width: <a href="#/phone-open/after/sheet">#/phone-open</a>.</p>
+  <div class="frame">
+    <div class="topbar">
+      <div class="logo"></div>
+      <div class="nav"><span class="on">Review · phone-review-opens-change-list</span></div>
+      <span class="muted desktop-only" style="margin-left:auto">‹ 1 / 5 › · State · View · ✎ Annotate · Copy notes</span>
+    </div>
+    <div class="body">
+      <div class="desktop-only">
+        <div class="row" style="align-items:flex-start">
+          <div data-mark="panel">
+            <p class="muted"><b>Why</b></p>
+            <div class="skeleton"></div><div class="skeleton s"></div>
+            <p class="muted"><b>What Changes</b> <i class="callout">1</i></p>
+            <p><span class="tag">1 · Phone opens on the change list</span></p>
+            <p class="muted">2 · #/ means no change chosen</p>
+            <p class="muted">3 · Desktop is unchanged</p>
+            <p class="muted">4 · A direct link keeps its target</p>
+            <p class="muted">5 · Release the payload</p>
+          </div>
+          <div style="flex:1">
+            <p class="muted">Change 1 · screen</p>
+            <h1>Phone opens on the change list</h1>
+            <div class="hero"></div>
+            <p class="muted">No fragment still opens bullet 1 and marks it current.</p>
+          </div>
+        </div>
+      </div>
+      <div class="phone-only" data-mark="panel">
+        <p class="muted">Desktop width only — the layout above does not exist here.</p>
+        <dl class="kv">
+          <dt>Desktop</dt><dd>The list sits beside the stage, so no fragment opens change 1 and marks it current.</dd>
+          <dt>Phone</dt><dd>The list becomes the sheet, so no fragment opens the list instead.</dd>
+        </dl>
+        <p class="muted">The phone rule: <a href="#/phone-open/after/sheet">#/phone-open</a>.</p>
+      </div>
+    </div>
+  </div>
+  <div class="notes">
+    <p class="brief"><b>Who / job:</b> a reviewer at a desk, the same job on a screen wide enough for the list and the picture together. <b>Frequency:</b> assumed most reviews. <b>Primary action:</b> choose a change, in a panel that is always on screen.</p>
+    <ol>
+      <li>The list is already beside the stage, so opening change 1 costs the reviewer nothing and saves a click. The phone rule changes nothing here: the desktop path stays as it is.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ══ VISUAL 4 · kind=tree — the files this change touches. -->
+<section class="visual tree" id="files" data-kind="tree">
+  <p class="caption">Files this change touches. One code file; the rest is the plan and the payload release.</p>
+  <div class="frame">
+    <ul>
+      <li class="edit">.claude/skills/plan/references/review-kit.html <i class="callout">1</i> <span class="why">the fromHash branch: no first segment and a phone → the landing, sheet open</span></li>
+      <li class="edit" data-mark="release">VERSION <i class="callout">2</i> <span class="why">payload release</span></li>
+      <li class="edit" data-mark="release">CHANGELOG.md <span class="why">newest-first entry</span></li>
+      <li class="add">openspec/changes/phone-review-opens-change-list/proposal.md <span class="why">why and what changes</span></li>
+      <li class="add">openspec/changes/phone-review-opens-change-list/design.md <span class="why">decisions, and the UX section</span></li>
+      <li class="add">openspec/changes/phone-review-opens-change-list/specs/ux-wireframes/spec.md <span class="why">two modified requirements</span></li>
+      <li class="add">openspec/changes/phone-review-opens-change-list/tasks.md <span class="why">the work</span></li>
+      <li class="add">openspec/changes/phone-review-opens-change-list/review.html <span class="why">this page</span></li>
+    </ul>
+  </div>
+  <div class="notes">
+    <ol>
+      <li>The kit is the only code file. Every page <code>/plan</code> draws from now on inherits the rule, and pages already written keep their own copy of the kit — so nothing rewrites the record of what was planned.</li>
+      <li>The release is more than these two files: <code>node scripts/check-payload-links.mjs</code> and <code>node scripts/check-openspec-config.mjs</code> both run before the change ships, and both must pass.</li>
+    </ol>
+  </div>
+</section>
+
+</div><!-- /stage -->
+</div><!-- /layout -->
+
+<div class="toast" id="toast"></div>
+<textarea id="copybuf" aria-hidden="true"></textarea>
+
+<script>
+  // kit: a load-time failure shows on the page instead of a blank stage
+  window.addEventListener('error', function (e) {
+    var p = document.getElementById('panel');
+    if (p) p.innerHTML = '<p class="error"><b>Review script error:</b> ' + String(e.message).replace(/</g, '&lt;') + ' <span class="muted">(line ' + e.lineno + ')</span></p>' + p.innerHTML;
+  });
+
+  // ── routing: #/<visual>[/<state>][/<mark>] ──
+  const FILE = 'review.html';
+  const CHANGE = document.title.replace(/^Review — /, '');
+  const visuals = [...document.querySelectorAll('.visual')];
+  const $states = document.getElementById('states');
+  const $panel = document.getElementById('panel');
+  let current = { id: '_landing', state: 'default', mark: null };
+  let bullets = [];   // [{text, anchor, id, state, mark, ok}]
+
+  function statesOf(v) { return (v.dataset.states || 'default').split(' '); }
+  // resolve the two optional segments: a state if it names one, else a mark
+  function resolve(id, a, b) {
+    const v = visuals.find(x => x.id === id);
+    if (!v || id[0] === '_') return null;
+    const allowed = statesOf(v);
+    let state, mark;
+    if (a && allowed.includes(a)) { state = a; mark = b || null; }
+    else if (a && b) return null;               // a is not a state, but a mark follows: bad state
+    else { state = allowed[0]; mark = a || null; }
+    if (mark && !v.querySelector('[data-mark="' + mark + '"]')) return null;
+    return { v, state, mark };
+  }
+  function show(id, a, b) {
+    const r = resolve(id, a, b);
+    const v = r ? r.v : visuals.find(x => x.id === (id === '_text' ? '_text' : '_landing'));
+    const state = r ? r.state : 'default', mark = r ? r.mark : null;
+    visuals.forEach(x => x.toggleAttribute('data-active', x === v));
+    if (v.classList.contains('screen')) {
+      v.dataset.state = state;
+      // reveal the block whose class matches the state name — any name, not a fixed four
+      v.querySelectorAll('.state').forEach(function (b) { b.toggleAttribute('data-on', b.classList.contains('state-' + state)); });
+    }
+    current = { id: v.id, state, mark };
+    document.querySelectorAll('.marked').forEach(x => x.classList.remove('marked'));
+    if (mark) v.querySelectorAll('[data-mark="' + mark + '"]').forEach(x => x.classList.add('marked'));
+    if (v.classList.contains('flow')) v.querySelectorAll('.lane').forEach(l => l.style.opacity = (state === 'today' && !l.classList.contains('today')) || (state === 'after' && l.classList.contains('today')) ? .45 : 1);
+    renderStates(v, state);
+    renderPanelState();
+    renderPins();
+    const multi = statesOf(v).length > 1;
+    const want = v.id[0] === '_' ? '#/' : '#/' + v.id + (multi && (state !== statesOf(v)[0] || mark) ? '/' + state : '') + (mark ? '/' + mark : '');
+    if (location.hash !== want) { try { history.replaceState(null, '', want); } catch (e) { location.hash = want; } }
+  }
+  function showText(i) {      // a bullet with no visual
+    const b = bullets[i];
+    document.getElementById('textframe').innerHTML = '<p class="muted">Change ' + (i + 1) + ' · no visual — behaviour only</p><h1>' + inline(b.text) + '</h1>';
+    current = { id: '_text', state: 'default', mark: null, bullet: i };
+    document.querySelectorAll('.marked').forEach(function (x) { x.classList.remove('marked'); });
+    visuals.forEach(x => x.toggleAttribute('data-active', x.id === '_text'));
+    renderStates(null); renderPanelState(); renderPins();
+    try { history.replaceState(null, '', '#/change/' + (i + 1)); } catch (e) { location.hash = '#/change/' + (i + 1); }
+  }
+  function renderStates(v, state) {
+    $states.innerHTML = '';
+    if (!v || statesOf(v).length < 2) return;
+    const lab = document.createElement('span'); lab.textContent = 'State:'; $states.appendChild(lab);
+    statesOf(v).forEach(st => {
+      const b = document.createElement('button');
+      b.textContent = st; b.setAttribute('aria-pressed', st === state);
+      b.onclick = () => show(v.id, st, current.mark); $states.appendChild(b);
+    });
+  }
+  function fromHash() {
+    const seg = location.hash.split('/').slice(1);
+    // no change chosen: a phone opens the list over the landing, a desktop opens the first bullet
+    if (!seg[0] && bullets.length) {
+      if (!phoneMedia.matches) return goBullet(0);
+      show('_landing', null, null);
+      return setMenu(true);
+    }
+    if (seg[0] === 'change' && bullets[+seg[1] - 1]) return goBullet(+seg[1] - 1);
+    show(seg[0] || '_landing', seg[1] || null, seg[2] || null);
+  }
+  window.addEventListener('hashchange', fromHash);
+
+  // ── proposal panel + landing ──
+  function inline(md) {
+    return md.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+  }
+  function parseProposal() {
+    const raw = document.getElementById('proposal').textContent.replace(/<!--[\s\S]*?-->/g, '');
+    const sections = {}; let cur = null;
+    raw.split('\n').forEach(line => {
+      const h = line.match(/^## (.+)/);
+      if (h) { cur = h[1].trim(); sections[cur] = []; return; }
+      if (cur) sections[cur].push(line);
+    });
+    const why = (sections['Why'] || []).join('\n').trim().split(/\n\s*\n/).map(p => '<p>' + inline(p.replace(/\n/g, ' ')) + '</p>').join('');
+    bullets = []; let tail = [];
+    (sections['What Changes'] || []).forEach(line => {
+      const li = line.match(/^- (.+)/);
+      if (!li) { if (line.trim()) tail.push(line.trim()); return; }
+      const m = li[1].match(/\(?(?:review\.html)?#\/([\w-]+)(?:\/([\w-]+))?(?:\/([\w-]+))?\)?\s*$/);
+      if (m) {
+        const r = resolve(m[1], m[2] || null, m[3] || null);
+        bullets.push({ text: li[1].slice(0, m.index).trim(), anchor: '#/' + [m[1], m[2], m[3]].filter(Boolean).join('/'), id: m[1], state: r ? r.state : null, mark: r ? r.mark : null, ok: !!r, kind: r ? r.v.dataset.kind : null });
+      } else bullets.push({ text: li[1].trim(), anchor: null });
+    });
+    return { why, tail: tail.map(t => '<p>' + inline(t) + '</p>').join('') };
+  }
+  function renderPanel() {
+    const p = parseProposal();
+    let html = '<h2>Why</h2>' + p.why + '<h2>What Changes</h2><ol class="changes">';
+    bullets.forEach((b, i) => {
+      const cls = !b.anchor ? 'text' : b.ok ? '' : 'dead';
+      const kind = !b.anchor ? 'no visual' : b.ok ? b.kind + ' · ' + b.anchor : 'dead link · ' + b.anchor + ' — no such visual, state, or mark';
+      html += '<li class="' + cls + '" data-i="' + i + '">' + inline(b.text) + '<span class="kind">' + kind + '</span></li>';
+    });
+    html += '</ol>' + p.tail + '<h2>Notes <span id="notecount"></span></h2><ol class="notes-list" id="notelist"></ol>';
+    $panel.innerHTML = html;
+    document.getElementById('landing').innerHTML = bullets.length
+      ? '<h1>Choose a change</h1><p class="muted">Use the change list or Next to open a visual.</p>'
+      : '<h1>No changes to review</h1><p class="muted">This proposal has no What Changes entries yet.</p>';
+  }
+  function renderPanelState() {
+    $panel.querySelectorAll('ol.changes li').forEach((li, i) => {
+      const b = bullets[i];
+      const on = current.id === '_text' ? current.bullet === i
+        : !!b.anchor && b.id === current.id && (!b.state || b.state === current.state) && (b.mark || null) === current.mark;
+      li.classList.toggle('on', on);
+    });
+    renderCount();
+  }
+  function goBullet(i) { const b = bullets[i]; setMenu(false); if (!b.anchor || !b.ok) showText(i); else show(b.id, b.state, b.mark); }
+
+  // ── annotate ──
+  const ANNOTATABLE = '.btn, .input, tr, .box, .tag, .hero, .kv dt, .kv dd, h1, .nav span, .logo, .notes li, .notes .brief, .step, .lane .label, .diff .line, .diff pre, .tree li, .caption, .textstage p, .panel ol.changes li, .panel p';
+  const KEY = 'rv-notes:' + CHANGE;
+  const store = {
+    get() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; } },
+    set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) {} }
+  };
+  let notes = store.get();
+  let annotating = false;
+  const $ann = document.getElementById('annotate');
+  $ann.onclick = () => setAnnotating(!annotating);
+  function setAnnotating(on) {
+    annotating = on; $ann.setAttribute('aria-pressed', on); document.body.classList.toggle('annotating', on);
+    closePopover(); document.querySelectorAll('.hovering').forEach(x => x.classList.remove('hovering'));
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closePopover(); return; }
+    if (e.key === 'a' && !e.target.matches('textarea,input')) setAnnotating(!annotating);
+  });
+  function target(el) {
+    if (el.closest('.popover, .chrome, .pin')) return null;
+    const scope = el.closest('.visual[data-active], .panel');
+    if (!scope) return null;
+    const t = el.closest(ANNOTATABLE);
+    return t && scope.contains(t) ? { scope, el: t } : null;
+  }
+  document.addEventListener('mouseover', e => {
+    if (!annotating) return;
+    document.querySelectorAll('.hovering').forEach(x => x.classList.remove('hovering'));
+    const t = target(e.target); if (t) t.el.classList.add('hovering');
+  });
+  function pathOf(scope, el) {
+    const steps = [];
+    for (let n = el; n && n !== scope; n = n.parentElement) steps.unshift([...n.parentElement.children].indexOf(n));
+    return steps.join('.');
+  }
+  function elAt(scope, path) { let n = scope; for (const i of path.split('.')) n = n && n.children[i]; return n || null; }
+  function labelOf(el) {
+    const c = el.cloneNode(true); c.querySelectorAll('.pin, .callout, .kind, .why').forEach(x => x.remove());
+    const text = (el.tagName === 'TR' ? [...c.cells].map(td => td.textContent.trim()).join(' · ') : c.textContent).replace(/\s+/g, ' ').trim().slice(0, 60);
+    const kind = el.classList.contains('btn') ? 'button' : el.classList.contains('input') ? 'input' : el.tagName === 'TR' ? 'row'
+      : el.classList.contains('box') ? 'panel' : el.tagName === 'H1' ? 'heading' : el.classList.contains('step') ? 'step'
+      : el.classList.contains('line') ? 'line' : el.closest('.tree') ? 'file' : el.closest('.panel') ? 'bullet' : el.tagName.toLowerCase();
+    return kind + ' "' + text + '"';
+  }
+  function whereOf(n) {
+    if (n.scope === 'panel') return 'What Changes';
+    const v = visuals.find(x => x.id === n.visual);
+    return '#/' + n.visual + (v && statesOf(v).length > 1 ? '/' + n.state : '');
+  }
+
+  document.addEventListener('click', e => {
+    if (e.target.closest('.popover')) return;
+    const pin = e.target.closest('.pin');
+    if (pin) { e.preventDefault(); openPopover(notes.find(n => n.id === pin.dataset.note), pin); return; }
+    if (annotating) {
+      const t = target(e.target);
+      if (t) {
+        e.preventDefault();
+        const scope = t.scope.classList.contains('panel') ? 'panel' : 'visual';
+        openPopover({ id: null, scope, visual: current.id, state: current.state, path: pathOf(t.scope, t.el), label: labelOf(t.el), text: '' }, t.el);
+        return;
+      }
+      return;
+    }
+    const li = e.target.closest('.panel ol.changes li');
+    if (li) { goBullet(+li.dataset.i); return; }
+    const a = e.target.closest('.panel a[href*="#/"]');
+    if (a) { e.preventDefault(); const s = a.getAttribute('href').split('#/')[1].split('/'); show(s[0], s[1], s[2]); return; }
+    const go = e.target.closest('[data-go]');
+    if (go) show(go.dataset.go, null, null);
+  });
+
+  let $pop = null;
+  function openPopover(note, anchorEl) {
+    closePopover();
+    $pop = document.createElement('div'); $pop.className = 'popover';
+    $pop.innerHTML = '<div class="where">' + whereOf(note) + ' · ' + inline(note.label) + '</div>'
+      + '<textarea placeholder="What should change here?"></textarea>'
+      + '<div class="row"><button class="save">Save</button><button class="cancel">Cancel</button>' + (note.id ? '<button class="del">Delete</button>' : '') + '</div>';
+    const ta = $pop.querySelector('textarea'); ta.value = note.text;
+    $pop.querySelector('.save').onclick = () => {
+      const text = ta.value.trim(); if (!text) return closePopover();
+      if (note.id) note.text = text; else { note.id = String(Date.now()); note.text = text; notes.push(note); }
+      persist(); closePopover();
+    };
+    $pop.querySelector('.cancel').onclick = closePopover;
+    const del = $pop.querySelector('.del'); if (del) del.onclick = () => { notes = notes.filter(n => n.id !== note.id); persist(); closePopover(); };
+    ta.onkeydown = ev => { if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) $pop.querySelector('.save').click(); };
+    document.body.appendChild($pop);
+    // beside the element: right if there is room, else below, else above — never over it
+    if (phoneMedia.matches) { ta.focus(); return; }
+    const r = anchorEl.getBoundingClientRect(), W = 300, H = $pop.offsetHeight || 160;
+    let top = r.top, left = r.right + 10;
+    if (left + W > innerWidth) { left = Math.max(8, Math.min(r.left, innerWidth - W - 8)); top = r.bottom + 8; if (top + H > innerHeight) top = r.top - H - 8; }
+    if (top < 50) top = 50;
+    $pop.style.top = top + 'px'; $pop.style.left = left + 'px';
+    ta.focus();
+  }
+  function closePopover() { if ($pop) { $pop.remove(); $pop = null; } }
+  function persist() { store.set(notes); renderPins(); }
+  function renderPins() {
+    document.querySelectorAll('.pin').forEach(p => p.remove());
+    const $list = document.getElementById('notelist'); if (!$list) return;
+    $list.innerHTML = '';
+    document.getElementById('notecount').textContent = notes.length ? '(' + notes.length + ')' : '';
+    if (!notes.length) $list.innerHTML = '<li class="empty">Turn on Annotate, click anything, type. Copy notes puts them on your clipboard as a /continue command.</li>';
+    notes.forEach((n, i) => {
+      const scope = n.scope === 'panel' ? $panel : document.getElementById(n.visual);
+      const el = scope && elAt(scope, n.path);
+      const stale = !el || labelOf(el) !== n.label;
+      if (el) { const pin = document.createElement('i'); pin.className = 'pin' + (stale ? ' stale' : ''); pin.dataset.note = n.id; pin.textContent = i + 1; (el.tagName === 'TR' ? el.cells[0] : el).appendChild(pin); }
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="where">' + whereOf(n) + ' · ' + inline(n.label) + (stale ? ' · <b>moved?</b>' : '') + '</span>' + inline(n.text);
+      li.onclick = () => { if (n.scope === 'visual') show(n.visual, n.state, null); const p = document.querySelector('.pin[data-note="' + n.id + '"]'); if (p) { p.scrollIntoView({ block: 'center' }); openPopover(n, p); } };
+      $list.appendChild(li);
+    });
+  }
+
+  // ── copy: a runnable /continue block ──
+  function notesText() {
+    const lines = ['/continue ' + CHANGE, 'Review notes from ' + FILE + ' (' + notes.length + '):'];
+    notes.forEach((n, i) => lines.push((i + 1) + '. ' + whereOf(n) + ' · ' + n.label + ' — ' + n.text));
+    return lines.join('\n');
+  }
+  document.getElementById('copy').onclick = function () {
+    if (!notes.length) return toast('No notes yet');
+    const text = notesText(), buf = document.getElementById('copybuf'); buf.value = text;
+    const done = () => toast('Copied ' + notes.length + ' note' + (notes.length === 1 ? '' : 's') + ' — paste into Claude');
+    const fallback = () => { buf.select(); buf.setSelectionRange(0, 99999); document.execCommand('copy'); done(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  };
+  function toast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 1800); }
+
+  // ── phone: the chrome's height drives the panel; the list is a sheet; step through changes ──
+  function chromeHeight() { document.documentElement.style.setProperty('--chrome-h', document.querySelector('.chrome').offsetHeight + 'px'); }
+  window.addEventListener('resize', chromeHeight);
+  function setMenu(open) {
+    document.body.classList.toggle('menu', open);
+    document.getElementById('menu').setAttribute('aria-expanded', open);
+  }
+  document.getElementById('menu').onclick = () => setMenu(!document.body.classList.contains('menu'));
+  document.getElementById('tools-toggle').onclick = function () {
+    const open = document.getElementById('tools').classList.toggle('open');
+    this.setAttribute('aria-expanded', open);
+    chromeHeight();
+  };
+  function currentBullet() { const li = document.querySelector('.panel ol.changes li.on'); return li ? +li.dataset.i : -1; }
+  function renderCount() {
+    const i = currentBullet();
+    document.getElementById('count').textContent = i < 0 ? bullets.length + ' changes' : (i + 1) + ' / ' + bullets.length;
+    document.getElementById('prev').disabled = i <= 0;
+    document.getElementById('next').disabled = i >= bullets.length - 1;
+    const v = document.querySelector('.visual[data-active]');
+    document.getElementById('viewport').style.display = v && v.classList.contains('screen') ? '' : 'none';
+    chromeHeight();
+  }
+  document.getElementById('prev').onclick = () => { const i = currentBullet(); if (i > 0) goBullet(i - 1); };
+  document.getElementById('next').onclick = () => { const i = currentBullet(); if (i < bullets.length - 1) goBullet(i + 1); };
+  document.addEventListener('keydown', e => { if (e.target.matches('textarea,input')) return; if (e.key === 'ArrowRight') document.getElementById('next').click(); if (e.key === 'ArrowLeft') document.getElementById('prev').click(); });
+
+  // ── viewport: phone or desktop layout of a screen; a phone is a phone already ──
+  const phoneMedia = matchMedia('(max-width: 760px)');
+  function setViewport(vp) {
+    document.body.dataset.viewport = vp;
+    document.querySelectorAll('#viewport button').forEach(b => b.setAttribute('aria-pressed', b.dataset.vp === vp));
+  }
+  document.querySelectorAll('#viewport button').forEach(b => b.onclick = () => setViewport(b.dataset.vp));
+  setViewport(phoneMedia.matches ? 'phone' : 'desktop');
+  phoneMedia.addEventListener('change', e => setViewport(e.matches ? 'phone' : 'desktop'));
+
+  renderPanel();
+  fromHash();
+  chromeHeight();
+</script>
+</body>
+</html>
+
+~~~
+<!-- end review.html -->

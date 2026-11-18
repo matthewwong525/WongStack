@@ -131,6 +131,16 @@ Only a proposal the branch adds or edits counts, archived ones included, so an o
 
 The change folder on the feature branch is the plan; its archive on the default branch is the record. There are no GitHub planning issues: [the loop's rules](../../.agents/plugins/loop/references/rules.md#where-the-plan-and-record-live) own it.
 
+### A finished change is one file
+
+`/ship`'s save packs each archived change into one file, `openspec/changes/archive/<date>-<name>.md`, not a folder. A folder per change, and one per spec inside it, pushed this repo toward the 5,000 folders a file watcher can follow; past that, every chat on the repo lags.
+
+- **It reads as a page.** The plan's Markdown goes in as it is, so GitHub shows the proposal, design, tasks, and specs as one page. Other text, such as `review.html`, shows as code; a picture is one line of encoded text.
+- **Every byte comes back.** Each file is kept with its byte count, so unpacking gives back the same files. A count that does not land on its end line fails and names the file.
+- **The old path still works.** A fact, a recall hit, or a link that names `openspec/changes/archive/<folder>/<file>` finds that file in the packed file.
+- **Open one:** [`archive.mjs`](../../.agents/plugins/loop/scripts/archive.mjs)` unpack <name>` writes its files to `.scratch/archive/<folder>/`. `build-review.mjs <name>` does the same and prints the approved review page. `unpack <name> --edit` turns it back into its folder to change it, and the next save packs it again.
+- **The OpenSpec CLI never reads the archive**: it only writes a new `<date>-<name>/` folder there, and the save inside `/ship` packs it into the commit, so `/ship`'s own edits before it still land. An update packs an older install's folders once ([`archive.mjs migrate`](../../.agents/plugins/loop/scripts/archive.mjs)), and keeps any folder that does not come back exactly.
+
 ## Spec deltas are optional
 
 Most changes are `proposal.md` and `tasks.md` only. A change writes delta specs **only** when it formally revises a capability's spec; `/save` folds them into `openspec/specs/`, and `/ship` archives with the specs synced.

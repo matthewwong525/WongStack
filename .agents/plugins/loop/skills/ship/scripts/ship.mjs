@@ -143,10 +143,13 @@ function numberRelease(base) {
   return { release: line === 'release=none' ? 'none' : line.replace(/^release=/, '').replace(' from=', ' from ') };
 }
 
+// The change's archive by its folder path: the folder OpenSpec just wrote, or an earlier run's save packed into
+// `<folder>.md`, which /save packs again from the folder.
 function archiveFolders(changesDir, name) {
   const dir = join(changesDir, 'archive');
-  const dated = new RegExp(`^\\d{4}-\\d{2}-\\d{2}-${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`);
-  return existsSync(dir) ? readdirSync(dir).filter(entry => dated.test(entry)).map(entry => join(dir, entry)) : [];
+  const dated = new RegExp(`^\\d{4}-\\d{2}-\\d{2}-${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\.md)?$`);
+  const found = existsSync(dir) ? readdirSync(dir).filter(entry => dated.test(entry)).map(entry => entry.replace(/\.md$/, '')) : [];
+  return [...new Set(found)].map(entry => join(dir, entry));
 }
 
 /** The change to archive: the flag's, else the one this branch touches, records, or already archived. */
@@ -369,7 +372,8 @@ async function prepare(values) {
   say(`ARCHIVE=${archive ? relative(root, archive) : 'none'}`);
   say(`RELEASE=${numbered.release}`);
   say(`SYNC=${synced}`);
-  if (archive) say(`REVIEW=${markReady(archive)}`);
+  // A packed archive is an earlier run's save: already ready, and kept as it was approved.
+  if (archive) say(`REVIEW=${existsSync(archive) ? markReady(archive) : 'unchanged'}`);
   // What came in was checked by nobody here; the tree /save will commit is checked once, now.
   const checked = broughtIn ? await recheck(root, base) : '';
   if (broughtIn) say(`LOCAL_CHECKS=${checked}`);

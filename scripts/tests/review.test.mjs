@@ -6,6 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { assemble, buildReview, chatCopy, notesHeader, planActions, planLink, previewActions, previewNotesHeader, REVIEW_IN_CHAT, REVIEW_ON_PAGE, WORK_IN_CHAT, workActions, workNotesHeader } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { needs } from './fixtures/needs.mjs';
 
@@ -443,6 +444,25 @@ test('--link on a shipped change prints its saved file, and opens no page that w
   assert.match(out.stdout, new RegExp(`^${planLink(join(resolve(archived), 'review.html')).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'));
   assert.equal(existsSync(join(home, '.wong-stack')), false, 'no link opened');
   renameSync(archived, root);
+}));
+
+test('a packed shipped change unpacks to scratch and prints its approved page, by path or by name', () => fixture(root => {
+  writeFileSync(join(root, 'review.html'), '<!-- wong-review:3 -->\nthe approved page\n');
+  const repo = dirname(root);
+  const archived = join(repo, 'openspec', 'changes', 'archive', '2026-11-08-example');
+  mkdirSync(dirname(archived), { recursive: true });
+  renameSync(root, archived);
+  const approved = readFileSync(join(archived, 'review.html'));
+  const file = pack(archived);
+  const scratch = join(repo, '.scratch', 'archive', '2026-11-08-example');
+  for (const [arg, cwd] of [[archived, repo], [file, repo], ['example', repo]]) {
+    const out = spawnSync(process.execPath, [builder, arg], { encoding: 'utf8', cwd, timeout: 30_000 });
+    assert.equal(out.status, 0, out.stderr);
+    assert.match(out.stdout, /^review: current, unchanged$/m);
+    assert.ok(out.stdout.includes(join(scratch, 'review.html')), out.stdout);
+    assert.deepEqual(readFileSync(join(scratch, 'review.html')), approved);
+  }
+  assert.equal(existsSync(archived), false, 'the archive stays packed');
 }));
 
 test('the review line sends a live page to its buttons and a file to the chat', () => {

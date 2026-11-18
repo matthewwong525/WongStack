@@ -49,22 +49,37 @@ export function safeSource(root, path, copy = path?.startsWith('knowledge/') ? k
   } catch { return null; }
 }
 
-export function scanCorpus(ctx, { listFiles, deadline = Date.now() + 4000, maxBytes = 32 * 1024 * 1024, maxFileBytes = 2 * 1024 * 1024 } = {}) {
+const NO_ARCHIVE = { list: () => [], files: () => null, read: () => null };
+const PART = /^openspec\/changes\/archive\/([^/]+)\/(.+)$/;
+// A finished change's part with no file of its own: read inside its packed file, by its old path.
+function packedPart(path, archive) {
+  const [, folder, part] = path.match(PART) ?? [];
+  return folder ? archive.read(folder, part) : null;
+}
+// Each packed change's parts at their old paths, so it is searched as its folder was; none past the deadline.
+const packedPaths = (archive, deadline) => archive.list().filter(each => each.packed)
+  .flatMap(({ folder }) => Date.now() < deadline ? (archive.files(folder) ?? []).map(part => `openspec/changes/archive/${folder}/${part}`) : []);
+
+export function scanCorpus(ctx, { listFiles, archive = NO_ARCHIVE, deadline = Date.now() + 4000, maxBytes = 32 * 1024 * 1024, maxFileBytes = 2 * 1024 * 1024 } = {}) {
   const root = realpathSync(ctx.root), copy = knowledgeCopy(root);
   const listed = (cwd, args) => execFileSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', ...args],
     { cwd, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024, timeout: 3000, windowsHide: true }).split('\0');
-  const paths = listFiles ? listFiles(root) : [...listed(root, ['--', 'wiki', 'openspec']),
-    ...(copy ? listed(copy, []).filter(Boolean).map(path => `knowledge/${path}`) : [])];
+  const paths = [...(listFiles ? listFiles(root) : [...listed(root, ['--', 'wiki', 'openspec']),
+    ...(copy ? listed(copy, []).filter(Boolean).map(path => `knowledge/${path}`) : [])]), ...packedPaths(archive, deadline)];
   const entries = {};
   let bytes = 0, omitted = 0;
   const priority = { wiki: 0, knowledge: 1, specs: 2, active: 3, archive: 4 };
   for (const path of [...new Set(paths)].sort((a, b) => (priority[sourceRole(a)] ?? 5) - (priority[sourceRole(b)] ?? 5) || a.localeCompare(b))) {
-    const role = sourceRole(path), file = role && safeSource(root, path, copy);
-    if (!file) continue;
+    const role = sourceRole(path);
+    if (!role) continue;
+    if (Date.now() >= deadline) { omitted++; continue; }
+    const file = safeSource(root, path, copy);
     try {
-      const size = statSync(file).size;
-      if (Date.now() >= deadline || size > maxFileBytes || bytes + size > maxBytes) { omitted++; continue; }
-      const text = readFileSync(file, 'utf8');
+      const packed = !file && role === 'archive' ? packedPart(path, archive) : null;
+      if (!file && packed === null) continue;
+      const size = file ? statSync(file).size : Buffer.byteLength(packed);
+      if (size > maxFileBytes || bytes + size > maxBytes) { omitted++; continue; }
+      const text = file ? readFileSync(file, 'utf8') : packed;
       bytes += size;
       entries[path] = { path, role, hash: hashText(text), bytes: Buffer.byteLength(text), text };
     } catch { omitted++; } // A moved file during the scan never invalidates other sources.
@@ -78,13 +93,14 @@ export function scopedEntries(corpus, { scope = 'current', change } = {}) {
 }
 
 // Final validation reopens originals: a ranked hit is only a candidate.
-export function verifyPassage(ctx, candidate, { beforeRead = () => {} } = {}) {
+export function verifyPassage(ctx, candidate, { beforeRead = () => {}, archive = NO_ARCHIVE } = {}) {
   beforeRead(candidate);
   const file = safeSource(ctx.root, candidate.path);
-  if (!file) return null;
+  const packed = !file && sourceRole(candidate.path) === 'archive' ? packedPart(candidate.path, archive) : null;
+  if (!file && packed === null) return null;
   try {
-    if (statSync(file).size > 2 * 1024 * 1024) return null;
-    const text = readFileSync(file, 'utf8'), hash = hashText(text), lines = text.split(/\r?\n/);
+    if ((file ? statSync(file).size : Buffer.byteLength(packed)) > 2 * 1024 * 1024) return null;
+    const text = file ? readFileSync(file, 'utf8') : packed, hash = hashText(text), lines = text.split(/\r?\n/);
     if (hash !== candidate.hash || !Number.isInteger(candidate.startLine) || !Number.isInteger(candidate.endLine)
       || candidate.startLine < 1 || candidate.endLine < candidate.startLine || candidate.endLine > lines.length) return null;
     const excerpt = lines.slice(candidate.startLine - 1, candidate.endLine).join('\n');

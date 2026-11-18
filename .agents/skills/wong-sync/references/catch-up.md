@@ -1,6 +1,6 @@
 # Catching up an older install
 
-An install from before 19.0.0 updates in place: one sync plan also makes the moves it missed, and keeps every local file. The preflight's `catchUp.reasons` lists which moves apply, each as a code with the paths it saw. Plan a step below only when its code is listed; `catchUp.needed` with no reasons means an old version with a current layout.
+An install from before 19.0.0 updates in place: one sync plan also makes the moves it missed, and keeps every local file. The preflight's `catchUp.reasons` lists which moves apply. Plan a step below only when its code is listed; `catchUp.needed` with no reasons means an old version with a current layout.
 
 Each step keeps the person's own text: a move is `git mv` or a reviewed merge, never delete and re-copy. Name every preserved local file in the plan's design.
 
@@ -16,7 +16,7 @@ Each step keeps the person's own text: a move is `git mv` or a reviewed merge, n
 5. **`generated-openspec` — leftover OpenSpec skills.** List each `openspec-*` skill folder as a removal for review. WongStack's verbs replace them. Keep a folder whose content the person wrote, and say why.
 6. **`deploy-token`, `deploy-key-name` — the CI deploy token.** In the build, before publish, run [the deploy key step](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4d-the-ci-deploy-token) from the source checkout on the update, whose workflows are new. It rolls the token into `CLOUDFLARE_DEPLOY_TOKEN` and deletes the old `CLOUDFLARE_API_TOKEN`. Say plainly: live deploys pause until publish. Before 18.0.0 the old secret was their own token: have them roll it and update `.env`.
 7. **`no-baseline` — no file list at the installed commit.** Every current payload unit is `added`, and each the repo has is `locally-adapted`: treat it as possibly edited; read it against upstream and merge, never overwrite. `merge-check.mjs` reports `skipped`; the plan's review is the check.
-8. **`mini-apps-folder` — mini apps in the old separate folder.** Each app in `mini-apps/apps/<name>/`, the code's paths, becomes part of the main app ([mini apps](../../../../wiki/stack/mini-apps.md)). Name every app in the plan, and move each in the shape of the example, Hello:
+8. **`mini-apps-folder` — mini apps in the old separate folder.** Each app in `mini-apps/apps/<name>/` becomes part of the main app ([mini apps](../../../../wiki/stack/mini-apps.md)). Name every app in the plan; move each in the shape of the example, Hello:
    - Its page becomes `app/src/apps/<name>/App.tsx`, exporting `App`, with its `app.json` beside it and its `style.css` rules as classes on the ready-made parts. Drop its copy of the site header: the main app's frame draws it.
    - Its `api.mjs` routes become `app/worker/apps/<name>/api.ts`, exporting `routes`, with each handler in its own file. Keep every address and every table it reads, so its data stays.
    - Its `.mjs` logic becomes `.ts`, and its `node --test` tests become Vitest tests beside the code, covering every line.
@@ -26,6 +26,7 @@ Each step keeps the person's own text: a move is `git mv` or a reviewed merge, n
 9. **`own-pages` — own pages in the code repo.** After `wiki-elsewhere`, they go to the knowledge repo by [moving an older install's pages](../../../../wiki/stack/company-knowledge.md#move-an-older-installs-pages). A held move holds `wiki-elsewhere`, keeping `docsPath`. Its install-record task sets `components.knowledgeMove: 'held'`; the move's drops it.
 10. **`module-link` — a module kept as a folder link**, such as `.claude/skills/memory`. Remove it before the copy, and `.agents/plugins/<name>/` unless it holds the repo's own files.
 11. **`module-plugin` — a module loaded as a plugin.** The project's settings now run each module's hooks, so a plugin would run them twice. The update removes the plugin files. In `.claude/settings.json` and `.claude/settings.local.json`, delete each `enabledPlugins` key `<module>@skills-dir` for a WongStack module. Delete a hook the project added that runs the same `.claude/skills/<module>/scripts/<file>` as a shipped one, and keep every other local hook. Name in the plan any hook that runs a module script by another path, for the person to decide.
+12. **`unpacked-archive` — archive folders.** Before publish, run `node .claude/skills/loop/scripts/archive.mjs migrate`; the plan names its `folders` count.
 
 The install-record task comes last, after every step above, and advances the record once.
 

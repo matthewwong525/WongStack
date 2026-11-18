@@ -1,0 +1,1526 @@
+<!-- openspec-archive v1 2026-10-22-inbox-private-links -->
+<!-- file proposal.md utf8 11458 -->
+# Every private link and form listed in your inbox, and decisions that read your own words
+
+**Status:** ready-to-ship
+**Branch:** sulky-mule
+**Open questions:** none
+
+## Why
+
+Plans and decisions sit in the inbox, but a key, password, card or form still arrives only as a link inside the chat that asked, so you hunt through chats to find what waits on you. You want them all on the inbox's one list. The value you type, and anything personal on a form, should still never pass through the app. Two small things also get in the way when answering decisions. A note you type is added to a choice instead of being your answer. And a link in a question can't be tapped. A card you already answered in the asking chat also stays in the inbox, out of date.
+
+## What Changes
+
+- **Every private link shows in your inbox, with *Open*.** When the assistant sends a key link, a password link, a card form or a live view, the inbox lists it too under *Needs you*: what it's for, when it closes, and an *Open* button. *Open* takes you to the same private link as today, so what you type goes only from your device to your computer, never through the app. The link leaves the list once it's done, closed or out of time. The chat still carries the link as before.
+  ```screen
+  <div class="card col gap phone">
+    <div class="row gap"><h3>Inbox</h3><span class="grow"/><span class="tag-outline">Computer online</span></div>
+    <div class="row gap"><b>Needs you</b><span class="tag">3</span></div>
+    <div class="row gap"><div class="col grow"><span>Stripe key</span><span class="muted">Key · open until 5:30 PM</span></div><button class="btn-primary">Open</button></div>
+    <div class="sep"></div>
+    <div class="row gap"><div class="col grow"><span>Pay City of Markham</span><span class="muted">Card · open until 6:10 PM</span></div><button class="btn-primary">Open</button></div>
+    <div class="sep"></div>
+    <div class="row gap"><div class="col grow"><span>New client intake</span><span class="muted">Form · open until tomorrow</span></div><button class="btn-primary">Open</button></div>
+  </div>
+  ```
+  ```mermaid
+  flowchart TD
+    app[inbox] -.->|lists it| you[your device]
+    you -->|Open| link[private link]
+    link --> computer[your computer]
+  ```
+- **Forms open the same way.** A form the assistant makes for you, such as an intake form, is listed in the inbox with *Open* and opens at its own link, as today. A form can hold personal details, so the app keeps none of what it shows or what you type. Plans still open right inside the inbox.
+  ```mermaid
+  flowchart LR
+    page[a page for you] --> plan{a plan?}
+    plan -->|yes| inside[opens inside the inbox]
+    plan -->|no| listed[listed, opened by link]
+  ```
+- **Typing in a decision is your answer.** Each question and approval has one box under its choices, *Or type your own answer*. On a pick-one question, typing there replaces the choice you picked, and the assistant reads your words as the answer, as Claude's question box works. On a question where you can tick several, your words go with the boxes you ticked, never instead of them. The separate *+ Add a note* goes away.
+  ```screen
+  <div class="row gap">
+    <div class="card col gap grow">
+      <span class="muted">Before</span>
+      <span>Which supplier first?</span>
+      <button class="btn-primary">1 Acme</button>
+      <button class="btn-ghost">2 Boxco</button>
+      <button class="btn-ghost">3 Your own answer</button>
+      <button class="btn-ghost">+ Add a note</button>
+    </div>
+    <div class="card col gap grow">
+      <span class="muted">After</span>
+      <span>Which supplier first?</span>
+      <button class="btn-ghost">1 Acme</button>
+      <button class="btn-ghost">2 Boxco</button>
+      <input placeholder="Or type your own answer">
+    </div>
+  </div>
+  ```
+- **Links in a decision are clickable.** A web address in a question or a choice is a link. Tapping it opens the page in a new tab without picking that choice.
+  ```screen
+  <div class="card col gap phone">
+    <div class="row gap"><span>Use this quote?</span><span class="tag-outline">acme.example/q/42 ↗</span></div>
+    <button class="btn-ghost">1 Approve</button>
+    <button class="btn-ghost">2 Don't approve</button>
+    <input placeholder="Or type your own answer">
+  </div>
+  ```
+- **A decision you answer in its own chat leaves the inbox.** If you answer the agent directly in the chat that asked, the daily watch sees it start working again or stop asking. It closes that card, so a later tap can't send an old answer. The daily chat says *Answered in its chat: …*. An answer typed in the daily chat closes the card as it does today.
+  ```mermaid
+  stateDiagram-v2
+    [*] --> InInbox: agent asks
+    InInbox --> Gone: answered in the inbox
+    InInbox --> Gone: answered in the daily chat
+    InInbox --> Gone: answered in its own chat
+    Gone --> [*]
+  ```
+- **What the app keeps, said plainly.** For a listed link the app keeps its title, what kind it is, when it closes, and its address, until it closes. Someone who can read the app's data could open that address while it's open. On a key, password or card page they could type a value but never read one. On a form they could see what the assistant filled in. Nothing you type passes through the app.
+  | Listed link | The app keeps | Never in the app |
+  |-|-|-|
+  | key, password, card | title, address, closing time | what you type |
+  | form | title, address, closing time | the form and your answers |
+
+Non-goals: no password vault; keys and passwords stay on your computer, as today. No change to what a private page asks for or how it saves. Plans keep opening inside the inbox. Without the inbox, every link works exactly as today.
+
+## Capabilities
+
+### New Capabilities
+
+None.
+
+### Modified Capabilities
+
+- `inbox`: lists private links and forms under *Needs you* as items that hold only a title, a kind, a closing time and an address, each opened with *Open*. Decisions take a choice or the person's own words, with no separate note; a tick-several question sends its ticks and the words together. Web addresses in a decision are links. A decision answered in its agent's own chat closes.
+- `reply-links`: a page other than a plan opens through the tunnel as before and is also listed in the inbox.
+- `browser-logins`: every private link is also listed in the inbox while it's open; the inbox holds its address, never what's typed into it.
+- `daily-routine`: the watch closes an inbox decision once its agent is answered in its own chat, and the chief reads typed words on an approval as the person's answer, not as approval.
+
+## Impact
+
+- `schema/migrations/`: one additive migration rebuilding `inbox_items` with `link` added to its kinds.
+- `app/worker/apps/inbox/`: `PUT item` takes `link` items with a JSON body `{what, url}`, an `https` address on the tunnel's host; a `link` item takes no taps.
+- `app/src/apps/inbox/`: a link row under *Needs you*; `Decision.tsx` and `drafts.ts` drop the note for one own-answer box; a small linkify helper for decisions.
+- `.agents/skills/hand-over/scripts/`: `lib/inbox.mjs` gains `listLink`; `hand-over.mjs` lists each private link it opens and closes it when the link ends; `reply-link.mjs` lists non-plan pages. The test that kept `hand-over.mjs` from `lib/inbox.mjs` becomes one that checks only the listing's fields leave the computer.
+- `.agents/skills/daily/scripts/daily.mjs`: the watch closes items whose agent moved on; `references/chief.md` gets one line.
+- Wiki: `wiki/development/browsing.md` (private links listed), `reply-links.md` (forms listed; own answer; links), `daily.md` (answered in its own chat).
+- `CHANGELOG.md` gets a minor entry, with no hand step to update.
+
+## Decision log
+
+- **2026-10-22** — Asked (settled before planning) where forms, keys and passwords go → chose the inbox at `/apps/inbox`, each person seeing only their own.
+- **2026-10-22** — Asked (settled before planning) about card numbers → chose to keep them on the private link only, for good.
+- **2026-10-22** — Asked how a password vault in the app would open, what the assistant could use, whether the owner could open a teammate's, and what it starts with → chose Face ID or PIN with a passphrase backup, only what the person marks, private to each, starting empty.
+- **2026-10-22** — Asked on the review page to rethink the vault: *too risky, keep it local* → dropped the vault; keys and passwords stay on the computer, as today.
+- **2026-10-22** — Asked how key and password requests show up without the vault → chose listed in the inbox and opened by their private link, so a value never passes through the app.
+- **2026-10-22** — Asked how ordinary forms open → chose listed and opened by link too, because a form may hold personal details the person didn't notice.
+- **2026-10-22** — Asked whether card forms and live views are listed too → chose yes, listed with *Open*; the card still goes only to the computer.
+- **2026-10-22** — Asked on the review page that a typed note be the answer itself, as Claude's question box works → one *Or type your own answer* box replaces both the own-answer choice and *+ Add a note*, on questions and approvals.
+- **2026-10-22** — Asked on the review page that, on a tick-several question, typed words add to the ticked boxes rather than cancel them → questions gain a tick-several form, set when the agent's own question allows several answers, sending the ticked choices and the words together.
+- **2026-10-22** — Asked on the review page that links in decisions be clickable → web addresses in a question and its choices become links that open in a new tab without picking.
+- **2026-10-22** — Asked whether the chief updates decisions answered in the chat → found the daily chat already closes them, but an answer in the agent's own chat did not; the watch now closes those.
+- **2026-10-22** — Assumed: the chat still prints each link as today, and the inbox lists it besides, because the chat may be where the person is, and the fallback stays identical.
+- **2026-10-22** — Assumed: a listed link shows its title and kind, never a page's note or picture, because a card form's note can hold a ticket number or amount.
+- **2026-10-22** — Assumed: typed words on an approval go to the chief as the person's answer, and only a plain yes counts as approval, because a risky step must never go ahead on a guess.
+- **2026-10-22** — Assumed: the listing is best-effort, so a link opens at once even when the app is slow or away, because the link is what the person needs.
+- **2026-10-22** — Assumed: no inbox rows in the sample data, because items belong to one signed-in person, close within a day, and a seeded link would point at a dead address; the preview check makes its own throwaway items.
+- **2026-10-22** — Built every task but the preview check. The second look found that a stalled app could hold up a link's end and the reply-link command; the inbox removal now runs beside the tunnel shutdown, and the command exits once it prints.
+- **2026-10-22** — Preview walk (task 6.2) found an own-chat answer the agent replied to in seconds left its card in the inbox: the watch looks once a minute and saw the agent idle both times. The watch now also closes the card when the agent's last message changed since its stop, with a test.
+- **2026-10-22** — Archived after the preview walk passed; numbered 44.6.0.
+
+<!-- end proposal.md -->
+<!-- file design.md utf8 10637 -->
+# Design
+
+## Context
+
+See [proposal.md](proposal.md) for why. The state this starts from:
+
+- **The inbox** ([archived design](../archive/2026-10-22-inbox-mini-app/design.md)). `inbox_items.kind` is `CHECK (kind IN ('plan','approval','question'))`. `PUT item` upserts from the computer through [`lib/inbox.mjs`](../../../.agents/skills/hand-over/scripts/lib/inbox.mjs). `reply-link.mjs serve-inbox` checks in every 10 s while an item is open and closes items past `closes_at`. A test holds `hand-over.mjs` away from `lib/inbox.mjs`.
+- **Private links.** [`hand-over.mjs`](../../../.agents/skills/hand-over/scripts/hand-over.mjs) `open` prints `HANDOVER_LINK=<origin>/#<fragment>`. [`linkFragment`](../../../.agents/skills/hand-over/scripts/hand-over.mjs) packs `key`, `site`, `user` and `emailFirst`. A background `watch` process serves the link until done, `close`, the deadline, or giving way, and records the end in `FILES.state`. Non-plan reply-link pages open through `reply-link.mjs`'s shared tunnel.
+- **Decisions.** [`Decision.tsx`](../../../app/src/apps/inbox/Decision.tsx) renders choices as `Button role="radio"`, with *Your own answer* as a last choice for questions only, and a separate `Note` (500 characters) for both kinds. [`drafts.ts`](../../../app/src/apps/inbox/drafts.ts) keeps `{pick, own, note}` per item version. `textOf` joins the choice's text and the note. The Worker's `POST tap` already takes `send` with text on any item.
+- **The daily watch.** [`daily.mjs`](../../../.agents/skills/daily/scripts/daily.mjs) `inboxAdd` stores only item ids in `<day>.inbox.json`. `watch` polls `paseo ls` and `permit ls` every 60 s, and `actions()` logs every `reply` and `answer` the chief sent.
+
+## Goals / Non-Goals
+
+**Goals:**
+
+- One list shows everything waiting on the person, and nothing typed into a private page or form passes through the app.
+- A listing never delays or blocks a link opening.
+- Decisions send exactly what the person meant, and never go stale after a chat answer.
+
+**Non-Goals:**
+
+- Storing any secret or form content in the app; a vault.
+- Changing what any private page asks for, how it saves, or how long it stays open.
+
+## Decisions
+
+### 1. A `link` item holds an address, nothing more
+
+The migration rebuilds `inbox_items` in one transaction with kinds `plan|approval|question|link`: create the new table, copy, drop, rename. Its body is JSON `{what, url}`, where `what` is `key|login|card|form|view`. `PUT item` checks `url` is `https` on a `*.trycloudflare.com` host with no username or password part, at most 2 KB, and the title at most 200 characters. A `link` item has no actions, so `POST tap` answers 400 for it. *Alternative: reuse `question` with a URL.* Rejected: the list would render it as a decision, and tap rules would apply.
+
+### 2. The computer lists each link without waiting on it
+
+`lib/inbox.mjs` gains `listLink(client, {id, what, title, url, closesAt, workspace})` and reuses `closeItem`. Both race a 3 s timeout and swallow every failure. The address listed is built separately from the chat's:
+
+- **Key, card, view:** `<origin>/#key=<key>`, the same as the chat's.
+- **Login:** the key plus `site` and `emailFirst`, never `user`. The page already treats a missing username as empty.
+- **Form (reply-link page):** its tunnel address and key, as `reply-link.mjs open` prints.
+
+Titles come from what the opener already has, never a page's `note`, picture, or values. A key link's title is the guide's `title`, or the readable name `keys.mjs` makes. A login's is *Save your `<site>` login*, or *Save your logins*. A card form's is the form file's `title`. A live view's is *Help the browser past a check*. A form's is its `--header`, cut to 200 characters.
+
+`hand-over.mjs open` lists the link after printing `HANDOVER_LINK`, in the background `watch` process so `open` returns at once. The same process closes the item on every end it already records: `send`, `close-command`, `cancel-route`, `deadline`, `gave-way`, `watch`, `error`, and a signal. A crash leaves `closes_at` to end it. `reply-link.mjs open` lists a non-plan page after its link answers, and `close` and the server's stop close it. The old boundary test becomes one that runs every `hand-over.mjs` mode against a fake client. It checks that exactly the six fields above leave the computer, and no value, username, note, or page content.
+
+### 3. A link row, opened in a new tab
+
+`List.tsx` puts `link` items in *Needs you* after questions, as a `LinkRow`. It shows the title, a word for `what` (*Key*, *Login*, *Card*, *Form*, *Live view*), and the closing time in the inbox's existing format. *Open* is an `<a href={url} target="_blank" rel="noopener noreferrer">` styled with `buttonVariants`, so the tunnel never learns the inbox's address. There is no detail view.
+
+### 4. One own-answer box replaces the note
+
+The draft becomes `{pick, own}`, and `note` drops out. Zod's `object` strips the old key, so saved drafts still read. Every question and approval shows its choices, then a `Textarea` with placeholder *Or type your own answer*, always visible. Typing sets `pick` to the own-answer slot, one past the choices. Picking a choice keeps the typed words but deselects them. `pickOf` returns `{label: own, action: 'send', text: own}` for that slot, and `textOf` returns the choice's text alone.
+
+A question's detail may carry `multi: true`. `detailOf` in `daily.mjs` accepts it, and `chief.md` sets it when the agent's own question allows several answers. Its draft is `{ticks: number[], own}`: choices render as `checkbox` rows, typing changes no tick, and the answer is one `send` whose text is each ticked label on its own line, then the own words. It is answered once something is ticked or typed. *Alternative: treat the words as one more tick.* Same result, but a separate box reads more clearly on a phone. The `N` key focuses the box; `Z` still clears the draft. An approval's own words go as `send`, which the Worker already allows, and reach the chief as `Inbox answer for <title> (<agent>): <words>`. `chief.md` gains one rule: words on an approval are the person's answer, and only a plain yes is an approval; otherwise relay them as a question to the agent, or ask.
+
+### 5. Links are parsed, never injected
+
+`linkify(text)` in `app/src/apps/inbox/linkify.tsx` splits on `https?://[^\s<>"]+`, trims trailing `.,;:!?)`, and returns text and `<a target="_blank" rel="noopener noreferrer">` nodes. React escapes the rest, so no HTML is ever set. The question heading and each choice label use it. A choice can't hold an `<a>` inside a `<button>`, so a choice becomes a `div role="radio" tabIndex={0}` styled with `buttonVariants`, picking on click, Enter and Space. The link's `onClick` stops the event from reaching it. Keyboard and screen-reader behavior keep the radio group's roles.
+
+### 6. The watch closes decisions answered in their own chat
+
+`inboxAdd` stores `{id, agent, at, request}` per item, reading old plain ids as `{id}`. `request` is the permit id when the question came from an `asking` card. Each round, for every open item whose agent the chief has not sent a `reply` or `answer` to since `at`:
+
+- **From a card:** the item closes once that request id is no longer pending.
+- **From a stop:** the item closes once the agent's status is `running`, or once its last message differs from the one the watch saw at its stop, since a quick reply can start and end between two rounds.
+
+The watch then calls `inboxClose`, prints `{event: 'answered-elsewhere', title, agent, item}`, and `chief.md` says to write *Answered in its chat: `<title>`*. A tap already waiting on a closed item expires through the existing rules, so it's never delivered. *Alternative: let the agent close its own item.* Rejected: agents don't know their question became an inbox item; the watch already sees both sides.
+
+## Risks / Trade-offs
+
+- **The app holds live addresses.** Someone who can read D1 could open a link while it's open. → They can't read a value. Key and password pages carry no values, the login listing drops the username, and a form shows only what the assistant filled in. The proposal says so, and rows are blanked on close by the existing rule.
+- **A form's address shows its content to whoever holds it.** That's no wider than today's chat, and stored only for the link's day.
+- **A listing failing silently.** → The chat still carries every link, so nothing depends on the listing.
+- **The watch closing an item too early.** A stopped agent briefly marked `running` by the chief's own reply would close the item. → The *no chief reply or answer since `at`* rule, with a test.
+- **Choice rows as `div`s.** → Tests cover click, Enter, Space, `aria-checked` and focus; the shared look stays `buttonVariants`.
+
+## Migration Plan
+
+The migration applies on deploy. An older computer lists nothing, and its links work as before. An older app answers `PUT item` for `link` with 400, which the computer ignores. Rollback: revert the Worker; `link` rows are hidden, and they close by time.
+
+## UX
+
+### Use-case brief
+
+The person, often on a phone, opens the inbox to clear what waits on them. Now that includes a key to paste, a login to save, a card to pay with, or a form to fill. Done means the row is gone after they finish on the opened page. The common case is one or two links a day; edge cases are a link that closed while listed, and the computer offline (the link itself is down then). For decisions, the person picks, or types their own answer, and taps a link to check something first. Mirror the existing plan row in [`List.tsx`](../../../app/src/apps/inbox/List.tsx) for link rows, and the existing decision card for answers.
+
+### Flow
+
+- **Link:** inbox → *Open* → the private page in a new tab → finish there → the row leaves the list on the next refresh.
+- **Decision:** read → tap a link to check (new tab) → pick, or type an answer → *Send*.
+
+### Hierarchy
+
+- **Link row:** *Open* is the one primary action; the kind and closing time are muted.
+- **Decision:** choices first, then the own-answer box; *Send* stays the bar's one primary.
+
+### Review
+
+[review.html](review.html). *Every private link shows in your inbox* sketches the list with link rows; *Typing in a decision is your answer* sketches the card before and after; *Links in a decision are clickable* sketches a linked question.
+
+### Components
+
+`card`, `button` (`buttonVariants` for the *Open* link and choice rows), `badge`, `textarea` from `app/src/components/ui/`, plus `checkbox` added with `npx shadcn@latest add checkbox` for tick-several questions. Nothing is hand-styled.
+
+<!-- end design.md -->
+<!-- file tasks.md utf8 5016 -->
+# Tasks
+
+## 1. App: link items
+
+- [x] 1.1 Add `schema/migrations/20261023120000_inbox_link_items.sql` rebuilding `inbox_items` with `link` among its kinds, in one transaction (design decision 1). Extend the data-pipeline test to apply it to a database holding inbox rows and check none are lost.
+- [x] 1.2 Extend `app/worker/apps/inbox/item-put.ts` to take `link` items, checking `{what, url}` by design decision 1, and make `tap.ts` refuse taps on them. Extend `api.test.ts`: a `link` with an `http`, non-tunnel, credentialed or over-long address is refused; a tap on a `link` gets 400; another person never sees one; a closed `link` leaves `GET items`.
+- [x] 1.3 Add `LinkRow` to `app/src/apps/inbox/` and list `link` items under *Needs you* after questions (design decision 3). Test that the row shows the title, kind word and closing time, and that *Open* is a new-tab link with `noopener noreferrer` and no tap.
+
+## 2. App: decisions
+
+- [x] 2.1 Change `drafts.ts` and `Decision.tsx` by design decision 4: drop the note, always show *Or type your own answer* on questions and approvals, make typing pick it and picking a choice deselect it, send own words as `send`, and point `N` at the box. Update `App.test.tsx`: typing after a pick sends only the words; an approval's words send `send`, not `approve`; an old draft with a `note` still reads; `N` focuses the box.
+- [x] 2.2 Add tick-several questions by design decision 4: `npx shadcn@latest add checkbox` from `app/`, a `multi` flag accepted by `daily.mjs` `detailOf` and set by `chief.md` when the agent's question allows several answers, `{ticks, own}` drafts, and one `send` carrying the ticked labels then the words. Test: typing unticks nothing; ticks and words arrive together in order; words alone or ticks alone can be sent; nothing ticked or typed can't. Extend `daily.test.mjs` for `multi`.
+- [x] 2.3 Add `linkify.tsx` and use it in the question heading and choice labels, turning choices into `div role="radio"` rows (design decision 5). Test: an `https` address becomes a new-tab link and tapping it picks nothing; `javascript:` and bare words stay text; trailing punctuation is left out of the link; click, Enter and Space pick a row and `aria-checked` follows.
+
+## 3. Computer: listing links
+
+- [x] 3.1 Add `listLink` to `lib/inbox.mjs`, with a 3 s limit and no thrown error (design decision 2). Make `hand-over.mjs`'s `watch` process list each link after it answers and close the item on every recorded end. Make `reply-link.mjs` list a non-plan page and close it on `close` and stop. Build the login address without `user`.
+- [x] 3.2 Replace the boundary test in `scripts/tests/hand-over.test.mjs` with one that runs each mode (keys, passwords with site and username, form, view) against a fake client. It checks that only `{id, what, title, url, closesAt, workspace}` is sent, that no value, username, note or picture is, and that the item closes on done, close, deadline and gave-way. Add reply-link tests: a form is listed and closed; a plan is not listed as a link; a listing that hangs past 3 s doesn't delay `REPLY_LINK`.
+
+## 4. Daily: answered in its own chat
+
+- [x] 4.1 Extend `daily.mjs` by design decision 6: `inboxAdd` keeps `{id, agent, at, request}`, and `watch` closes and prints `answered-elsewhere` for an item whose agent moved on with no chief reply since. Add one line each to `references/chief.md`, for `answered-elsewhere` and for words on an approval, offset by a cut in the same file. Extend `scripts/tests/daily.test.mjs`: a card answered in its own chat closes; a stopped agent that runs closes its item; an agent the chief just replied to keeps its item; old plain-id state still reads.
+
+## 5. Docs and release
+
+- [x] 5.1 Update `wiki/development/browsing.md` (every private link is also listed in the inbox, address only), `wiki/development/reply-links.md` (forms are listed and open by link; one own-answer box; links in decisions), `wiki/development/passwords.md` (a link opened from the inbox asks for the username) and `wiki/development/daily.md` (answered in its own chat). Run `node scripts/check-payload-links.mjs`.
+- [x] 5.2 Add a `## Next (minor) — Every private link and form listed in your inbox` entry to `CHANGELOG.md`. Its **Updating.** note: no step is needed; links show in the inbox once the computer is signed in to the app; decisions take your own words in one box.
+
+## 6. Verification
+
+- [x] 6.1 Run `node .github/scripts/checks.mjs --worktree` and `cd app && npm test`; all pass, including `measure-context.mjs --check` after bringing `main` in.
+- [x] 6.2 After implementation, `/save`. On the preview, signed in as the person, confirm: a throwaway key link and a throwaway form each show under *Needs you*; *Open* reaches them in a new tab; each row leaves once its link is done or closed. A throwaway question with a link in it opens the link without picking. Typed words reach a throwaway chat alone. A throwaway question answered in its own chat leaves the inbox at the next watch round.
+
+<!-- end tasks.md -->
+<!-- file specs/browser-logins/spec.md utf8 4434 -->
+## MODIFIED Requirements
+
+### Requirement: Every private link goes through Cloudflare and closes itself
+A password link, a key link, and a private form SHALL each open at a new address through Cloudflare's tunnel, with a secret key only the link carries, including when the person is at the computer the agent runs on. The agent SHALL give the person a link only once it answers from outside that computer. Each link SHALL default to a 24-hour time limit from opening and SHALL honor an explicit time override. A link SHALL stop working on successful completion, on closure, or at its time limit, even if the agent's session has ended, and a closed link SHALL never work again. When the computer can reach the person's inbox, every private link, a live view included, SHALL also be listed there while it is open, with its title, kind, closing time and address only; nothing typed into it SHALL pass through the app, and opening the link SHALL never wait on the listing.
+
+#### Scenario: The person sits at the agent's computer
+
+- **WHEN** the person asks to save a password while at the computer the agent runs on
+- **THEN** the link is a Cloudflare address, the same kind a phone would get
+
+#### Scenario: A card form while the inbox is on
+
+- **WHEN** a payment needs a card and the computer can reach the inbox
+- **THEN** the private form opens at a Cloudflare address, the inbox lists it with *Open* until it ends, and the card goes only from the person's device to the computer
+
+#### Scenario: Nobody finishes
+
+- **WHEN** 24 hours pass on a private form without a send or a close
+- **THEN** the link stops working, and the agent tells the person it timed out and offers a new one
+
+### Requirement: A login with no saved password gets a pre-filled password link
+
+When a site asks for a password login and no saved login matches, the agent SHALL ask whether the person is ready, then send the password link with the site's website filled in. When the site asks for the email or username on a page of its own before any password, the agent SHALL send that link at the first page, asking for the username and the password together, with the password optional; a login saved with no password SHALL type only the username, and a later password page SHALL get the password link with the username filled in. When the agent's browser shows a page on that site as the link opens, the page SHALL open with one picture of that page, taken before the link opens, which the person can view full screen and zoom; a page on another site SHALL give no picture. The page SHALL keep all its usual ways in, an export included, and SHALL carry the filled-in site and username only in the link, never to the server, a log, or a file. The inbox's listing of the link MAY name the site and carry it in its address, but SHALL never carry the username, so a link opened from the inbox asks for it. Once the person saves and continues, the agent SHALL log in with the saved login and carry on. When a login page offers only another provider's sign-in, the agent SHALL follow it to the provider's own login page and treat that page the same way.
+
+#### Scenario: A first login to a site
+
+- **WHEN** a task meets Netflix's login page and no saved login matches
+- **THEN** the person gets the password link with netflix.com already in the website box and a picture of Netflix's login page above it, fills only the username and password, and the agent logs in with them
+
+#### Scenario: A login that asks for the email first
+
+- **WHEN** a site's first login page shows only an email box and no saved login matches
+- **THEN** the agent asks nothing in the chat and sends one password link where the password is optional, then types the email, and the password too when one was given
+
+#### Scenario: A site with only a Sign in with Google button
+
+- **WHEN** the login page offers no password form and no saved Google login matches
+- **THEN** the agent opens Google's sign-in and sends the password link with Google's website filled in
+
+#### Scenario: The browser is on another site
+
+- **WHEN** the agent sends a password link for netflix.com while its browser shows a page on another site
+- **THEN** the page opens with no picture
+
+#### Scenario: Opened from the inbox
+
+- **WHEN** the password link for a rejected netflix.com login is opened from the inbox
+- **THEN** the page has netflix.com filled in and an empty username box, and the app never held the username
+
+<!-- end specs/browser-logins/spec.md -->
+<!-- file specs/daily-routine/spec.md utf8 1673 -->
+## MODIFIED Requirements
+
+### Requirement: The chief sends approvals and questions to the inbox when it is on
+
+When the person's inbox is available, the chief SHALL put each approval and each *needs you* question in the inbox instead of asking them in the daily chat, and SHALL write one line in the chat saying what waits there, with the inbox link. An answer from the inbox SHALL be relayed as the person's own answer; words the person typed on an approval SHALL count as approval only when they plainly say so. An answer the person types in the daily chat SHALL still count, and SHALL close the matching inbox item. When the person answers the agent in its own chat instead, the watch SHALL close that agent's open inbox items once the agent works again or stops asking, and the chief SHALL say so in one line. Where the inbox is unavailable, the chief SHALL ask in the chat as before.
+
+#### Scenario: An approval while the inbox is on
+
+- **WHEN** a watched agent asks to send a customer email and the inbox is available
+- **THEN** the chat shows one line that an approval waits in the inbox, and the person's *Approve* there reaches the agent
+
+#### Scenario: The person answers in the chat instead
+
+- **WHEN** an approval waits in the inbox and the person types *approve it* in the daily chat
+- **THEN** the chief relays the approval and the inbox item closes
+
+#### Scenario: The person answers in the agent's own chat
+
+- **WHEN** a question waits in the inbox and the person answers it in the agent's own chat, and the agent starts working
+- **THEN** the item leaves the inbox, a later tap on it is never delivered, and the daily chat says it was answered in its chat
+
+<!-- end specs/daily-routine/spec.md -->
+<!-- file specs/inbox/spec.md utf8 3357 -->
+## MODIFIED Requirements
+
+### Requirement: The inbox lists what waits on the signed-in person
+
+The live app SHALL offer an inbox mini app, behind the company sign-in, that lists the signed-in person's open items in three groups: what needs them (questions, and the private links and forms waiting on them), approvals, and plans to review. It SHALL list only items sent by a computer signed in as that same person, and SHALL never show one person's item to another. The inbox SHALL refresh itself while it is open.
+
+#### Scenario: Two people on one team
+
+- **WHEN** Sam's computer sends a plan and Jo opens the inbox
+- **THEN** Jo does not see Sam's plan, and Sam sees it under *Plans to review*
+
+#### Scenario: Nothing is waiting
+
+- **WHEN** the person opens the inbox with no open items
+- **THEN** it says nothing is waiting and how items arrive, not a blank page
+
+### Requirement: The inbox never holds a secret
+
+No page that collects a password, key, card or other secret, and no form other than a plan, SHALL ever be shown inside the inbox, and the inbox SHALL offer no way to enter a secret. Such a page MAY be listed as a link item holding only its title, its kind, its closing time and its address. *Open* SHALL take the person to the page's own private link in a new tab, sending the inbox's address nowhere. A link item SHALL take no taps and SHALL leave the list once its link ends.
+
+#### Scenario: A key is needed
+
+- **WHEN** an agent needs an API key while the inbox is on
+- **THEN** the key page opens at its own private link, the inbox lists it with *Open*, and the key never reaches the app
+
+#### Scenario: The link finished
+
+- **WHEN** the person saves the key on the private link
+- **THEN** the key's row leaves the inbox
+
+## ADDED Requirements
+
+### Requirement: A decision takes a choice or the person's own words
+
+Each question and approval SHALL offer its choices and one box for the person's own answer, and no separate note. On a pick-one decision, typing in the box SHALL replace any picked choice, and the person's words SHALL be sent as the whole answer. A question MAY allow several choices; then each choice SHALL be a box to tick, typing SHALL untick nothing, and the ticked choices and the person's words SHALL be sent together.
+
+#### Scenario: Typing instead of picking
+
+- **WHEN** the person picks *Acme*, then types *ask Boxco for a second quote first* and sends
+- **THEN** the agent receives only *ask Boxco for a second quote first*
+
+#### Scenario: Ticking several and typing
+
+- **WHEN** a question allows several choices, and the person ticks *Acme* and *Boxco*, then types *and check Crateco*
+- **THEN** the agent receives *Acme*, *Boxco* and *and check Crateco* together
+
+#### Scenario: Typed words on an approval
+
+- **WHEN** the person types *only to Kim, not the whole list* on an approval
+- **THEN** the chief receives those words as the answer, not as *Approve*
+
+### Requirement: Links in a decision open
+
+A web address in a question or one of its choices SHALL show as a link that opens in a new tab, and tapping it SHALL not pick that choice. Only `http` and `https` addresses SHALL become links.
+
+#### Scenario: A quote's address in an approval
+
+- **WHEN** an approval reads *Use this quote? https://acme.example/q/42* and the person taps the address
+- **THEN** the quote opens in a new tab and nothing is picked
+
+<!-- end specs/inbox/spec.md -->
+<!-- file specs/reply-links/spec.md utf8 1439 -->
+## MODIFIED Requirements
+
+### Requirement: A reply link opens in the inbox when it can
+
+When the computer is signed in to the live app and the app has the inbox, opening a plan's reply link SHALL put the page in the person's inbox and give its inbox address, and SHALL start no tunnel for it. Any other page SHALL open through the tunnel as before and, when the inbox is available, SHALL also be listed there with its address only, never its content, until the link closes. Otherwise every page SHALL open through the tunnel as before. While any inbox item is open, the computer SHALL collect the person's taps, deliver them under the same fixed-message, version and once-per-action rules, and report each result back. A rebuilt page SHALL replace its inbox copy at the same address.
+
+#### Scenario: Signed in with the inbox
+
+- **WHEN** a plan is made on a computer signed in to an app that has the inbox
+- **THEN** the plan's link is its inbox address and no tunnel starts
+
+#### Scenario: A form while the inbox is on
+
+- **WHEN** the assistant opens an intake form on a computer signed in to an app with the inbox
+- **THEN** the form opens at a tunnel link, the inbox lists it with *Open*, and the app holds neither the form nor the answers
+
+#### Scenario: Not signed in
+
+- **WHEN** a page is opened on a computer that is not signed in, or whose app has no inbox yet
+- **THEN** it opens at a tunnel link, as before, and nothing is listed
+
+<!-- end specs/reply-links/spec.md -->
+<!-- file .openspec.yaml utf8 40 fence=~~~ -->
+~~~yaml
+schema: spec-driven
+created: 2026-10-22
+
+~~~
+<!-- end .openspec.yaml -->
+<!-- file review.html utf8 83622 fence=~~~ -->
+~~~html
+<!-- wong-review:3 -->
+<!doctype html>
+<!--
+  WongStack review kit. build-review.mjs writes the proposal as static HTML at the
+  review:content marker, puts the app's look (look.mjs) at the look marker, the light and dark switch (theme.js) at the
+  theme marker, and the change name in place of its token. The one script adds Note buttons, drawing fit and full screen, notes, drafts, and copy. It loads nothing from the network;
+  opened through a reply link (reply-link.mjs), it sends the saved notes to the chat, and its footer
+  asks the chat to build, or to build and publish, with saved unsent notes.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Review · 2026-10-22-inbox-private-links</title>
+<style>
+  /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
+   look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
+   shadcn's neutral light and dark colours stays only for a colour it can't find. Every page starts light, even on a
+   dark device; theme.js adds `.dark` to the root element when the person switches, and draws the switch (.theme-toggle).
+   The parts below draw app/src/components/ui/ (button, input, card, badge, skeleton) in plain CSS. Each sits in
+   :where(), so a page's own rule always wins.
+   Nothing here loads a file: these pages fetch nothing from the network. */
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+}
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+}
+
+/* Tailwind's shadow-xs, shadow-sm and shadow-lg; Radix's popover shadow, and its upward twin for a box docked at the
+   bottom, so a layer reads as above the page; and the 3px focus ring at half strength. */
+:root {
+  color-scheme: light;
+  --look-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --look-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --look-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --look-shadow-overlay: 0 10px 38px -10px rgb(0 0 0 / 0.35), 0 10px 20px -15px rgb(0 0 0 / 0.2);
+  --look-shadow-up: 0 -8px 24px rgb(0 0 0 / 0.12);
+  --look-ring: color-mix(in oklab, var(--ring) 50%, transparent);
+}
+.dark { color-scheme: dark; }
+
+:where(body) {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+:where(h1, h2, h3) { font-weight: 600; letter-spacing: -0.025em; }
+:where(a) { color: inherit; text-underline-offset: 0.25rem; }
+::selection { background: var(--primary); color: var(--primary-foreground); }
+:where(:focus-visible) { outline: 3px solid var(--ring); outline-offset: 2px; }
+
+/* Button (button.tsx): outline by default; .btn-primary, and the pages' button.primary and button.main, filled. */
+:where(button, .btn) {
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: var(--look-shadow-xs);
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+:where(button, .btn):where(:hover:not(:disabled)) { background: var(--accent); color: var(--accent-foreground); }
+:where(button.primary, button.main, .btn-primary) { border-color: var(--primary); background: var(--primary); color: var(--primary-foreground); box-shadow: none; }
+:where(button.primary, button.main, .btn-primary):where(:hover:not(:disabled)) { background: color-mix(in oklab, var(--primary) 90%, transparent); color: var(--primary-foreground); }
+:where(.btn-ghost) { border-color: transparent; background: transparent; box-shadow: none; }
+:where(button, .btn):where(:disabled) { opacity: 0.5; cursor: default; }
+
+/* Field (input.tsx): a thin border, a soft shadow, and the ring on focus. */
+:where(input:not([type=checkbox], [type=radio], [type=file], [type=range], [type=button], [type=submit]), select, textarea, .field) {
+  border: 1px solid var(--input);
+  border-radius: calc(var(--radius) - 2px);
+  background: transparent;
+  color: var(--foreground);
+  box-shadow: var(--look-shadow-xs);
+  font: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+:where(input, textarea)::placeholder { color: var(--muted-foreground); }
+:where(input, select, textarea, .field):where(:focus-visible) { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px var(--look-ring); }
+:where(input, select, textarea, .field):where([aria-invalid=true]) { border-color: var(--destructive); }
+:where(input[type=checkbox], input[type=radio]) { accent-color: var(--primary); }
+
+/* Card (card.tsx) and tag (badge.tsx, secondary). */
+:where(.card) {
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--look-shadow-sm);
+}
+:where(.tag) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.33;
+  white-space: nowrap;
+}
+:where(.tag-outline) { border-color: var(--border); background: transparent; color: var(--foreground); }
+
+/* Skeleton (skeleton.tsx): a grey block that pulses while what it stands for loads, and holds still when motion is
+   off. .sr-only keeps the words of a loading state for a screen reader alone. */
+:where(.skeleton) { display: block; border-radius: calc(var(--radius) - 2px); background: var(--accent); animation: look-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+@keyframes look-pulse { 50% { opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { :where(.skeleton) { animation: none; } }
+:where(.sr-only) { position: absolute; max-width: 1px; max-height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+/* The light and dark switch (theme.js): a ghost icon button, 44px, in the page's top right corner, above the page and
+   below a note box or full-screen view. It scrolls away with the page's top, so it never sits over text read later.
+   In a page's [data-theme-toggle] slot it sits in line. The icon shows the look it switches to: moon on light. */
+.theme-toggle {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--foreground);
+}
+@media (hover: hover) { .theme-toggle:hover { background: var(--accent); color: var(--accent-foreground); } }
+[data-theme-toggle] .theme-toggle { position: static; flex: none; }
+.theme-toggle svg { width: 1.25rem; height: 1.25rem; pointer-events: none; }
+
+  * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
+  body { --pad:12px; margin:0; padding-bottom:var(--bar, 76px); font:16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; overflow-wrap:anywhere; }
+  main { max-width:700px; margin:0 auto; padding:0 12px; }
+  code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
+  code { background:var(--muted); border-radius:4px; padding:.1em .3em; font-size:.88em; }
+  [hidden] { display:none !important; }
+  header { padding:20px 48px 4px 0; }
+  .eyebrow { margin:0; color:var(--muted-foreground); font-size:14px; font-weight:500; }
+  h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
+  .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
+  .jump a { display:inline-block; padding:8px 0; }
+  .hint, .muted { color:var(--muted-foreground); font-size:14px; margin:4px 0 0; }
+  #script-error { color:var(--destructive); font-weight:600; }
+  section { margin:24px 0; scroll-margin-top:8px; }
+  h2 { margin:0 0 8px; color:var(--muted-foreground); font-size:14px; font-weight:500; letter-spacing:0; }
+  .card { padding:var(--pad); margin:0 0 10px; }
+  .card p { margin:0 0 10px; } .card p:last-child { margin-bottom:0; }
+  .items, .decisions, .note-list { list-style:none; margin:0; padding:0; }
+  .item { display:grid; grid-template-columns:26px minmax(0,1fr); gap:0 10px; overflow:hidden; }
+  .item, .decision { scroll-margin-top:8px; }
+  .num { flex:0 0 26px; height:26px; border-radius:50%; background:var(--secondary); color:var(--secondary-foreground); font-size:13px; font-weight:600; display:flex; align-items:center; justify-content:center; }
+  .body { flex:1; min-width:0; }
+  [data-note] { border-radius:4px; }
+  [data-note]:hover, .noting { background:var(--accent); }
+  .item > .drawing { position:relative; grid-column:1 / -1; margin:10px calc(-1 * var(--pad)) 0; }
+  .item > .drawing:last-child { margin-bottom:calc(-1 * var(--pad)); }
+  .drawing summary { display:flex; align-items:center; gap:6px; min-height:44px; padding:0 var(--pad); border-top:1px solid var(--border); color:var(--muted-foreground); font-size:14px; cursor:pointer; list-style:none; }
+  .drawing summary::-webkit-details-marker { display:none; }
+  .drawing summary::before { content:'\25B8'; display:inline-block; width:1em; }
+  .drawing[open] summary::before { transform:rotate(90deg); }
+  .drawing[open] .show, .drawing:not([open]) .hide { display:none; }
+  .drawing .count { color:var(--foreground); font-weight:600; }
+  .frame { overflow:auto; border-top:1px solid var(--border); background:var(--muted); touch-action:pan-y; }
+  .js .frame { overflow:hidden; cursor:zoom-in; }
+  .art { display:block; width:max-content; margin:0; padding:.6em .8em; font-size:13px; line-height:1.2; white-space:pre; overflow-wrap:normal; }
+  .art.pic { box-sizing:content-box; white-space:normal; --pele-bg:transparent; --pele-fg:var(--foreground); --pele-muted:var(--muted-foreground); --pele-line:var(--foreground); --pele-border:var(--ring); --pele-surface:var(--card); --pele-surface-alt:var(--muted); --pele-accent:var(--foreground); --pele-error:var(--destructive); --pele-critical:var(--destructive); }
+  .art.pic svg { display:block; width:100%; height:auto; }
+  /* A hand-drawn sketch: named colours become classes painted from the look; text inherits the page's ink and font at a fixed size. */
+  .art.sketch svg { fill:var(--foreground); font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size:13px; }
+  .art.sketch .f-bg { fill:var(--background); } .art.sketch .f-fg { fill:var(--foreground); } .art.sketch .f-muted { fill:var(--muted); } .art.sketch .f-subtle { fill:var(--muted-foreground); }
+  .art.sketch .f-line { fill:var(--border); } .art.sketch .f-card { fill:var(--card); } .art.sketch .f-danger { fill:var(--destructive); }
+  .art.sketch .s-bg { stroke:var(--background); } .art.sketch .s-fg { stroke:var(--foreground); } .art.sketch .s-muted { stroke:var(--muted); } .art.sketch .s-subtle { stroke:var(--muted-foreground); }
+  .art.sketch .s-line { stroke:var(--border); } .art.sketch .s-card { stroke:var(--card); } .art.sketch .s-danger { stroke:var(--destructive); }
+  /* A screen: the look's parts in em, so the kit's fit and zoom scale it; its controls sit in an inert box and never take a tap. */
+  .art.screen { line-height:1.4; } .art.screen:not([style]) { width:auto; max-width:49.2em; margin-right:1px; }
+  .art.screen .sk { pointer-events:none; user-select:none; } .art.screen .sk > * + * { margin-top:.6em; }
+  .art.screen :is(h3, h4, p, ul, ol) { margin:0; } .art.screen h3 { font-size:1.15em; } .art.screen h4, .art.screen small { font-size:.9em; }
+  .art.screen .card { margin:0; padding:1em; } .art.screen :is(button, .btn) { min-width:0; min-height:0; padding:.45em 1em; font-size:1em; } .art.screen .tag { margin:0; font-size:.85em; }
+  .art.screen :is(input:not([type=checkbox], [type=radio]), textarea, select, .field) { display:block; box-sizing:border-box; width:100%; padding:.45em .7em; }
+  .art.screen .skeleton { animation:none; min-height:1em; } .art.screen hr, .art.screen .sep { border:0; border-top:1px solid var(--border); margin:.6em 0; }
+  .art.screen .row { display:flex; align-items:center; flex-wrap:wrap; } .art.screen .col { display:flex; flex-direction:column; }
+  .art.screen .gap { gap:.6em; } .art.screen .grow { flex:1 1 0; min-width:0; } .art.screen .muted { margin:0; color:var(--muted-foreground); font-size:inherit; } .art.screen .danger { color:var(--destructive); }
+  .art.screen .sk-bar { display:block; height:.75em; border-radius:.375em; background:color-mix(in oklab, var(--muted-foreground) 25%, transparent); }
+  .art.screen .tbl, .art.screen table { width:100%; border-collapse:collapse; } .art.screen :is(th, td) { padding:.35em .6em; text-align:left; border-bottom:1px solid var(--border); }
+  .item > .table { grid-column:1 / -1; margin:10px calc(-1 * var(--pad)) 0; overflow-x:auto; border-top:1px solid var(--border); }
+  .item > .table:last-child { margin-bottom:calc(-1 * var(--pad)); }
+  .tbl { width:100%; border-collapse:collapse; font-size:14px; }
+  .tbl th, .tbl td { padding:6px var(--pad); text-align:left; vertical-align:top; border-bottom:1px solid var(--border); }
+  .tbl th { color:var(--muted-foreground); font-weight:500; background:var(--muted); }
+  .tbl tbody tr:last-child td { border-bottom:0; }
+  .art .pin { min-width:1.8em; min-height:1.6em; margin-left:.4em; padding:0 .5em; border-radius:.8em; font-size:.85em; line-height:1.5em; }
+  .enlarge { position:absolute; top:6px; right:var(--pad); min-height:32px; padding:2px 10px; font-size:13px; }
+  .add { min-width:0; min-height:34px; margin-left:6px; padding:0 12px; border-radius:17px; box-shadow:none; color:var(--muted-foreground); font-size:13px; vertical-align:middle; }
+  .zoom { display:flex; align-items:center; gap:6px; }
+  .zoom .level { margin-right:auto; color:var(--muted-foreground); font-size:13px; }
+  #viewer { position:fixed; top:0; left:0; right:0; bottom:0; z-index:8; display:flex; flex-direction:column; background:var(--background); }
+  #viewer .zoom { flex:none; padding:calc(6px + env(safe-area-inset-top)) 12px 6px; border-bottom:1px solid var(--border); }
+  #viewer .vframe { flex:1; min-height:0; overflow:auto; background:var(--muted); touch-action:pan-x pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+  #viewer .vhint { flex:none; margin:0; padding:6px 12px calc(6px + env(safe-area-inset-bottom)); border-top:1px solid var(--border); color:var(--muted-foreground); font-size:13px; }
+  body.viewing { overflow:hidden; }
+  .meta { margin:0 0 4px !important; color:var(--muted-foreground); font-size:13px; }
+  .tag { margin-right:8px; vertical-align:1px; }
+  .tag.assumed { border-color:var(--border); border-style:dashed; background:transparent; color:var(--foreground); }
+  .tag.check { border-color:var(--foreground); border-style:dotted; background:transparent; color:var(--foreground); }
+  .hit { outline:3px solid var(--ring); outline-offset:3px; }
+  button { font-size:14px; min-width:40px; min-height:40px; padding:4px 12px; }
+  .pin { min-width:24px; min-height:24px; margin-left:6px; padding:0 7px; border-radius:12px; border-color:var(--primary); background:var(--primary); box-shadow:none; color:var(--primary-foreground); font:600 12px/22px system-ui, sans-serif; vertical-align:middle; }
+  .pin.draft { border-color:var(--foreground); border-style:dashed; background:var(--background); color:var(--foreground); }
+  .entry { display:block; width:100%; margin:0 0 8px; padding:8px 10px; text-align:left; font-weight:400; }
+  .entry .where { display:block; color:var(--muted-foreground); font-size:13px; }
+  .entry .tag { margin:0 0 0 6px; }
+  #chip { position:absolute; z-index:9; border-color:var(--input); box-shadow:var(--look-shadow-overlay); }
+  #editor { position:absolute; z-index:6; width:260px; padding:10px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--input); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-overlay); }
+  #editor.docked { position:fixed; left:0; right:0; bottom:0; width:auto; display:flex; flex-direction:column; overflow:auto; border-width:1px 0 0; border-radius:0; box-shadow:var(--look-shadow-up); padding:8px 12px max(8px, env(safe-area-inset-bottom)); }
+  #editor.docked .where { flex:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #editor.docked textarea { flex:1 1 auto; min-height:44px; }
+  #editor.docked .row { flex:none; }
+  #editor .where { margin:0 0 6px; color:var(--muted-foreground); font-size:13px; }
+  #editor .moved { margin:0 0 6px; font-size:13px; font-weight:600; }
+  #editor textarea { display:block; width:100%; min-height:76px; padding:6px 8px; font:16px/1.4 system-ui, sans-serif; resize:vertical; }
+  #editor .row { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .bar { position:fixed; left:0; right:0; bottom:0; z-index:4; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); align-items:stretch; gap:8px; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--background); border-top:1px solid var(--border); }
+  .bar:has(#ready[hidden]) { grid-template-columns:1fr; }
+  .bar > button, #ready > button { min-width:0; height:64px; padding:6px; white-space:normal; line-height:1.3; }
+  body.docked .bar, body.viewing .bar { display:none; }
+  #ready { display:contents; }
+  #ready-confirm { position:absolute; right:12px; bottom:calc(100% + 8px); width:272px; max-width:calc(100vw - 24px); max-height:calc(100dvh - var(--bar, 76px) - 24px); overflow:auto; padding:12px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--border); border-radius:calc(var(--radius) + 4px); box-shadow:var(--look-shadow-lg); }
+  #ready-confirm .row { display:flex; gap:8px; margin-top:10px; }
+  #ready-confirm button { flex:1; min-height:44px; }
+  #ready-confirm p { margin:0; font-size:14px; }
+  #ready-says { position:absolute; right:12px; bottom:calc(100% + 8px); max-width:calc(100vw - 24px); margin:0; padding:8px 12px; background:var(--popover); color:var(--popover-foreground); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--look-shadow-lg); font-size:14px; font-weight:500; pointer-events:none; }
+  .bar:has(#ready-confirm:not([hidden])) #ready-says { bottom:calc(100% + 16px + var(--choices, 0px)); }
+  .spinner { display:inline-block; width:14px; height:14px; margin-right:6px; vertical-align:-2px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion:reduce) { .spinner { animation:none; } }
+  .session, #editor .copies { color:var(--muted-foreground); font-size:13px; }
+  #editor .copies { flex:none; margin:6px 0 0; }
+  .pin.sent { background:var(--background); color:var(--foreground); }
+  #toast { position:fixed; left:50%; bottom:calc(var(--bar, 76px) - 4px); z-index:7; max-width:90vw; transform:translateX(-50%); padding:8px 14px; border-radius:var(--radius); background:var(--primary); color:var(--primary-foreground); box-shadow:var(--look-shadow-lg); font-size:14px; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #toast.show { opacity:1; }
+  #copybuf { position:fixed; left:0; top:0; width:1px; height:1px; opacity:0; pointer-events:none; }
+  @media (min-width:701px) {
+    body { --pad:16px; font-size:20px; }
+    h1 { font-size:30px; }
+    .eyebrow, h2, .hint, .muted, .num, .drawing summary, .add, .meta, .entry .where, #editor .where, #editor .moved, .session, #editor .copies, #ready-confirm p, #ready-says { font-size:16px; }
+    button { font-size:18px; }
+    .entry { font-size:20px; }
+    .bar { grid-template-columns:repeat(3, minmax(0, 1fr)); padding-left:max(12px, calc((100vw - 700px) / 2 + 12px)); padding-right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
+    .bar:has(#ready[hidden]) { grid-template-columns:1fr; }
+    .bar > button, #ready > button { height:44px; }
+    #ready-confirm, #ready-says { right:max(12px, calc((100vw - 700px) / 2 + 12px)); }
+    #ready-confirm { width:320px; }
+  }
+</style>
+<script>
+// The light and dark switch outside the app: inlined in the review page's <head>, served to private pages as /theme.js.
+// It applies the saved choice before paint, then adds the button; storage that is off still switches, unremembered.
+(function () {
+  var KEY = 'wongstack-theme';
+  var SVG = 'http://www.w3.org/2000/svg';
+  // lucide's moon and sun. The icon shows the look a tap switches to.
+  var ICONS = {
+    moon: [['path', { d: 'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z' }]],
+    sun: [['circle', { cx: '12', cy: '12', r: '4' }]].concat(['M12 2v2', 'M12 20v2', 'm4.93 4.93 1.41 1.41', 'm17.66 17.66 1.41 1.41', 'M2 12h2', 'M20 12h2', 'm6.34 17.66-1.41 1.41', 'm19.07 4.93-1.41 1.41'].map(function (d) { return ['path', { d: d }]; })),
+  };
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { saved = null; }
+  root.classList.toggle('dark', saved === 'dark');
+
+  function icon(name) {
+    var svg = document.createElementNS(SVG, 'svg');
+    var attrs = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' };
+    Object.keys(attrs).forEach(function (k) { svg.setAttribute(k, attrs[k]); });
+    ICONS[name].forEach(function (part) {
+      var el = document.createElementNS(SVG, part[0]);
+      Object.keys(part[1]).forEach(function (k) { el.setAttribute(k, part[1][k]); });
+      svg.appendChild(el);
+    });
+    return svg;
+  }
+
+  function draw(button) {
+    var dark = root.classList.contains('dark');
+    button.setAttribute('aria-label', dark ? 'Switch to light' : 'Switch to dark');
+    button.setAttribute('aria-pressed', dark ? 'true' : 'false');
+    button.textContent = '';
+    button.appendChild(icon(dark ? 'sun' : 'moon'));
+  }
+
+  function mount() {
+    if (!document.body || document.querySelector('.theme-toggle')) return;
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'theme-toggle';
+    draw(button);
+    button.addEventListener('click', function () {
+      var dark = !root.classList.contains('dark');
+      root.classList.toggle('dark', dark);
+      try { localStorage.setItem(KEY, dark ? 'dark' : 'light'); } catch (e) { /* switched, not remembered */ }
+      draw(button);
+    });
+    var slot = document.querySelector('[data-theme-toggle]');
+    if (slot) slot.appendChild(button);
+    else document.body.insertBefore(button, document.body.firstChild);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount);
+  else mount();
+})();
+</script>
+</head>
+<body data-change="2026-10-22-inbox-private-links">
+<main>
+<header>
+  <p class="eyebrow">Review</p>
+  <h1>2026-10-22-inbox-private-links</h1>
+  <p class="muted"><span class="note-count">0 notes</span></p>
+  <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
+  <p class="hint">Tap + Note to comment. <span class="copies">Saving a note copies all your notes.</span> Open a drawing and tap it to see it full screen.</p>
+  <p id="script-error" role="alert" hidden></p>
+</header>
+<section id="why" aria-labelledby="why-h"><h2 id="why-h">Why</h2>
+<div class="card">
+<p data-note="why-1" tabindex="0">Plans and decisions sit in the inbox, but a key, password, card or form still arrives only as a link inside the chat that asked, so you hunt through chats to find what waits on you. You want them all on the inbox's one list. The value you type, and anything personal on a form, should still never pass through the app. Two small things also get in the way when answering decisions. A note you type is added to a choice instead of being your answer. And a link in a question can't be tapped. A card you already answered in the asking chat also stays in the inbox, out of date.</p>
+</div></section>
+<section id="changes" aria-labelledby="changes-h"><h2 id="changes-h">What Changes</h2>
+<ol class="items">
+<li class="item card" id="item-1"><span class="num">1</span><div class="body"><div class="text" data-note="item-1" tabindex="0"><b>Every private link shows in your inbox, with <i>Open</i>.</b> When the assistant sends a key link, a password link, a card form or a live view, the inbox lists it too under <i>Needs you</i>: what it's for, when it closes, and an <i>Open</i> button. <i>Open</i> takes you to the same private link as today, so what you type goes only from your device to your computer, never through the app. The link leaves the list once it's done, closed or out of time. The chat still carries the link as before.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic screen" data-note="item-1-picture-1" tabindex="0" style="width:27.692em"><div class="sk" inert><div class="card col gap phone">
+  <div class="row gap"><h3>Inbox</h3><span class="grow"></span><span class="tag-outline">Computer online</span></div>
+  <div class="row gap"><b>Needs you</b><span class="tag">3</span></div>
+  <div class="row gap"><div class="col grow"><span>Stripe key</span><span class="muted">Key · open until 5:30 PM</span></div><button class="btn-primary">Open</button></div>
+  <div class="sep"></div>
+  <div class="row gap"><div class="col grow"><span>Pay City of Markham</span><span class="muted">Card · open until 6:10 PM</span></div><button class="btn-primary">Open</button></div>
+  <div class="sep"></div>
+  <div class="row gap"><div class="col grow"><span>New client intake</span><span class="muted">Form · open until tomorrow</span></div><button class="btn-primary">Open</button></div>
+</div></div></div></div></details><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic" data-note="item-1-picture-2" tabindex="0" style="width:11.923em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 155 402" width="155" height="402" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_app_you_0"><path d="M77.13,56L77.13,122" stroke-dasharray="3 4"/><path class="pele-marker" d="M77.13,129L73.77,121L80.49,121Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_you_link_0"><path d="M77.13,177L77.13,243"/><path class="pele-marker" d="M77.13,250L73.77,242L80.49,242Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_link_computer_0"><path d="M77.13,298L77.13,339"/><path class="pele-marker" d="M77.13,346L73.77,338L80.49,338Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="L_app_you_0"><rect x="55.63" y="78.5" width="43" height="21" rx="3" fill="var(--_bg)"/><text x="77.13" y="93.9" text-anchor="middle">lists it</text></g><g class="pele-edge-label" data-id="L_you_link_0"><rect x="56.01" y="199.5" width="42.24" height="21" rx="3" fill="var(--_bg)"/><text x="77.13" y="214.9" text-anchor="middle">Open</text></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect" data-id="app" transform="translate(77.13,32)"><rect x="-37.12" y="-24" width="74.24" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">inbox</text></g><g class="pele-node pele-shape-rect" data-id="you" transform="translate(77.13,153)"><rect x="-58.9" y="-24" width="117.81" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">your device</text></g><g class="pele-node pele-shape-rect" data-id="link" transform="translate(77.13,274)"><rect x="-56.23" y="-24" width="112.46" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">private link</text></g><g class="pele-node pele-shape-rect" data-id="computer" transform="translate(77.13,370)"><rect x="-69.13" y="-24" width="138.26" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">your computer</text></g></g></svg></div></div></details></li>
+<li class="item card" id="item-2"><span class="num">2</span><div class="body"><div class="text" data-note="item-2" tabindex="0"><b>Forms open the same way.</b> A form the assistant makes for you, such as an intake form, is listed in the inbox with <i>Open</i> and opens at its own link, as today. A form can hold personal details, so the app keeps none of what it shows or what you type. Plans still open right inside the inbox.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic" data-note="item-2-picture-1" tabindex="0" style="width:46.077em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-flowchart" viewBox="0 0 599 152" width="599" height="152" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_r:var(--pele-radius,4px);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="flowchart"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge" data-id="L_page_plan_0"><path d="M146.29,76L187.29,76"/><path class="pele-marker" d="M194.29,76L186.29,79.36L186.29,72.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_plan_inside_0"><path d="M301.17,68C317.82,68 317.82,32 334.47,32L388.75,32"/><path class="pele-marker" d="M395.75,32L387.75,35.36L387.75,28.64Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge" data-id="L_plan_listed_0"><path d="M301.17,84C317.82,84 317.82,120 334.47,120L388.75,120"/><path class="pele-marker" d="M395.75,120L387.75,123.36L387.75,116.64Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="L_plan_inside_0"><rect x="336.47" y="21.5" width="29.78" height="21" rx="3" fill="var(--_bg)"/><text x="351.36" y="36.9" text-anchor="middle">yes</text></g><g class="pele-edge-label" data-id="L_plan_listed_0"><rect x="339.58" y="109.5" width="23.57" height="21" rx="3" fill="var(--_bg)"/><text x="351.36" y="124.9" text-anchor="middle">no</text></g></g><g class="pele-nodes"><g class="pele-node pele-shape-rect" data-id="page" transform="translate(77.14,76)"><rect x="-69.14" y="-24" width="138.29" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">a page for you</text></g><g class="pele-node pele-shape-diam" data-id="plan" transform="translate(254.13,76)"><polygon points="0,-37.4 59.84,0 0,37.4 -59.84,0" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">a plan?</text></g><g class="pele-node pele-shape-rect" data-id="inside" transform="translate(493.35,32)"><rect x="-97.6" y="-24" width="195.2" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">opens inside the inbox</text></g><g class="pele-node pele-shape-rect" data-id="listed" transform="translate(488.46,120)"><rect x="-92.7" y="-24" width="185.41" height="48" fill="var(--_s)" stroke="var(--_b)" style="rx:var(--_r)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">listed, opened by link</text></g></g></svg></div></div></details></li>
+<li class="item card" id="item-3"><span class="num">3</span><div class="body"><div class="text" data-note="item-3" tabindex="0"><b>Typing in a decision is your answer.</b> Each question and approval has one box under its choices, <i>Or type your own answer</i>. On a pick-one question, typing there replaces the choice you picked, and the assistant reads your words as the answer, as Claude's question box works. On a question where you can tick several, your words go with the boxes you ticked, never instead of them. The separate <i>+ Add a note</i> goes away.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic screen" data-note="item-3-picture-1" tabindex="0"><div class="sk" inert><div class="row gap">
+  <div class="card col gap grow">
+    <span class="muted">Before</span>
+    <span>Which supplier first?</span>
+    <button class="btn-primary">1 Acme</button>
+    <button class="btn-ghost">2 Boxco</button>
+    <button class="btn-ghost">3 Your own answer</button>
+    <button class="btn-ghost">+ Add a note</button>
+  </div>
+  <div class="card col gap grow">
+    <span class="muted">After</span>
+    <span>Which supplier first?</span>
+    <button class="btn-ghost">1 Acme</button>
+    <button class="btn-ghost">2 Boxco</button>
+    <input placeholder="Or type your own answer">
+  </div>
+</div></div></div></div></details></li>
+<li class="item card" id="item-4"><span class="num">4</span><div class="body"><div class="text" data-note="item-4" tabindex="0"><b>Links in a decision are clickable.</b> A web address in a question or a choice is a link. Tapping it opens the page in a new tab without picking that choice.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic screen" data-note="item-4-picture-1" tabindex="0" style="width:27.692em"><div class="sk" inert><div class="card col gap phone">
+  <div class="row gap"><span>Use this quote?</span><span class="tag-outline">acme.example/q/42 ↗</span></div>
+  <button class="btn-ghost">1 Approve</button>
+  <button class="btn-ghost">2 Don't approve</button>
+  <input placeholder="Or type your own answer">
+</div></div></div></div></details></li>
+<li class="item card" id="item-5"><span class="num">5</span><div class="body"><div class="text" data-note="item-5" tabindex="0"><b>A decision you answer in its own chat leaves the inbox.</b> If you answer the agent directly in the chat that asked, the daily watch sees it start working again or stop asking. It closes that card, so a later tap can't send an old answer. The daily chat says <i>Answered in its chat: …</i>. An answer typed in the daily chat closes the card as it does today.</div></div><details class="drawing"><summary><span class="show">Show drawing</span><span class="hide">Hide drawing</span><span class="count"></span></summary><div class="frame"><div class="art pic" data-note="item-5-picture-1" tabindex="0" style="width:41.231em"><svg xmlns="http://www.w3.org/2000/svg" class="pele pele-state" viewBox="0 0 536 318" width="536" height="318" style="max-width:100%;height:auto;--_bg:var(--pele-bg,#fff);--_fg:var(--pele-fg,#1f1f1f);--_m:var(--pele-muted,#6e6e6e);--_l:var(--pele-line,#1f1f1f);--_s:var(--pele-surface,#f3f3f3);--_a:var(--pele-surface-alt,#e6e6e6);--_b:var(--pele-border,#8a8a8a);--_c:var(--pele-accent,#5b7bd5);color:var(--_fg);--_fm:var(--pele-font-mono,monospace);font:16px sans-serif;letter-spacing:normal;word-spacing:normal;text-transform:none;direction:ltr;font-family:var(--pele-font,system-ui, -apple-system, &quot;Segoe UI&quot;, Roboto, sans-serif)" fill="var(--_fg)" role="graphics-document document" aria-roledescription="state"><g class="pele-edges" fill="none" stroke="var(--_l)" stroke-linecap="round"><g class="pele-edge pele-transition" data-id="edge0"><path d="M259.11,22L259.11,84"/><path class="pele-marker" d="M259.11,91L255.75,83L262.47,83Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge1"><path d="M243.11,135C243.11,143.5 82.09,145 82.09,153.5L82.09,178.5C82.09,183.28 243.11,187.59 243.11,192.38L243.11,197"/><path class="pele-marker" d="M243.11,204L239.75,196L246.47,196Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge2"><path d="M259.11,135L259.11,197"/><path class="pele-marker" d="M259.11,204L255.75,196L262.47,196Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge3"><path d="M275.11,135C275.11,143.07 444.68,145.43 444.68,153.5L444.68,178.5C444.68,183.04 275.11,187.83 275.11,192.38L275.11,197"/><path class="pele-marker" d="M275.11,204L271.75,196L278.47,196Z" fill="var(--_l)" stroke="none"/></g><g class="pele-edge pele-transition" data-id="edge4"><path d="M259.11,248L259.11,285"/><path class="pele-marker" d="M259.11,292L255.75,284L262.47,284Z" fill="var(--_l)" stroke="none"/></g></g><g class="pele-edge-labels" font-size="14"><g class="pele-edge-label" data-id="edge0"><rect x="221.25" y="42.5" width="75.7" height="21" rx="3" fill="var(--_bg)"/><text x="259.11" y="57.9" text-anchor="middle">agent asks</text></g><g class="pele-edge-label" data-id="edge1"><rect x="10" y="155.5" width="144.18" height="21" rx="3" fill="var(--_bg)"/><text x="82.09" y="170.9" text-anchor="middle">answered in the inbox</text></g><g class="pele-edge-label" data-id="edge2"><rect x="174.18" y="155.5" width="169.85" height="21" rx="3" fill="var(--_bg)"/><text x="259.11" y="170.9" text-anchor="middle">answered in the daily chat</text></g><g class="pele-edge-label" data-id="edge3"><rect x="364.03" y="155.5" width="161.29" height="21" rx="3" fill="var(--_bg)"/><text x="444.68" y="170.9" text-anchor="middle">answered in its own chat</text></g></g><g class="pele-nodes"><g class="pele-node pele-state-start" data-id="root_start" transform="translate(259.11,15)"><circle r="7" fill="var(--_l)"/></g><g class="pele-node pele-state" data-id="InInbox" transform="translate(259.11,113)"><rect x="-42.24" y="-22" width="84.48" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">InInbox</text></g><g class="pele-node pele-state" data-id="Gone" transform="translate(259.11,226)"><rect x="-35.57" y="-22" width="71.14" height="44" rx="10" fill="var(--_s)" stroke="var(--_b)"/><text class="pele-label" x="0" y="5.6" text-anchor="middle">Gone</text></g><g class="pele-node pele-state-end" data-id="root_end" transform="translate(259.11,301)"><circle r="8.5" fill="var(--_bg)" stroke="var(--_l)"/><circle r="5" fill="var(--_l)"/></g></g></svg></div></div></details></li>
+<li class="item card" id="item-6"><span class="num">6</span><div class="body"><div class="text" data-note="item-6" tabindex="0"><b>What the app keeps, said plainly.</b> For a listed link the app keeps its title, what kind it is, when it closes, and its address, until it closes. Someone who can read the app's data could open that address while it's open. On a key, password or card page they could type a value but never read one. On a form they could see what the assistant filled in. Nothing you type passes through the app.</div></div><div class="table"><table class="tbl"><thead><tr><th>Listed link</th><th>The app keeps</th><th>Never in the app</th></tr></thead><tbody><tr data-note="item-6-row-1" tabindex="0"><td>key, password, card</td><td>title, address, closing time</td><td>what you type</td></tr><tr data-note="item-6-row-2" tabindex="0"><td>form</td><td>title, address, closing time</td><td>the form and your answers</td></tr></tbody></table></div></li>
+</ol>
+<p class="aside">Non-goals: no password vault; keys and passwords stay on your computer, as today. No change to what a private page asks for or how it saves. Plans keep opening inside the inbox. Without the inbox, every link works exactly as today.</p>
+
+</section>
+<section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
+<ol class="decisions">
+<li class="decision card" id="decision-1" data-note="decision-1" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked (settled before planning) where forms, keys and passwords go → chose the inbox at <code>/apps/inbox</code>, each person seeing only their own.</li>
+<li class="decision card" id="decision-2" data-note="decision-2" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked (settled before planning) about card numbers → chose to keep them on the private link only, for good.</li>
+<li class="decision card" id="decision-3" data-note="decision-3" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked how a password vault in the app would open, what the assistant could use, whether the owner could open a teammate's, and what it starts with → chose Face ID or PIN with a passphrase backup, only what the person marks, private to each, starting empty.</li>
+<li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked on the review page to rethink the vault: <i>too risky, keep it local</i> → dropped the vault; keys and passwords stay on the computer, as today.</li>
+<li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked how key and password requests show up without the vault → chose listed in the inbox and opened by their private link, so a value never passes through the app.</li>
+<li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked how ordinary forms open → chose listed and opened by link too, because a form may hold personal details the person didn't notice.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked whether card forms and live views are listed too → chose yes, listed with <i>Open</i>; the card still goes only to the computer.</li>
+<li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked on the review page that a typed note be the answer itself, as Claude's question box works → one <i>Or type your own answer</i> box replaces both the own-answer choice and <i>+ Add a note</i>, on questions and approvals.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked on the review page that, on a tick-several question, typed words add to the ticked boxes rather than cancel them → questions gain a tick-several form, set when the agent's own question allows several answers, sending the ticked choices and the words together.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked on the review page that links in decisions be clickable → web addresses in a question and its choices become links that open in a new tab without picking.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-10-22</p>Asked whether the chief updates decisions answered in the chat → found the daily chat already closes them, but an answer in the agent's own chat did not; the watch now closes those.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: the chat still prints each link as today, and the inbox lists it besides, because the chat may be where the person is, and the fallback stays identical.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: a listed link shows its title and kind, never a page's note or picture, because a card form's note can hold a ticket number or amount.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: typed words on an approval go to the chief as the person's answer, and only a plain yes counts as approval, because a risky step must never go ahead on a guess.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: the listing is best-effort, so a link opens at once even when the app is slow or away, because the link is what the person needs.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-10-22</p>Assumed: no inbox rows in the sample data, because items belong to one signed-in person, close within a day, and a seeded link would point at a dead address; the preview check makes its own throwaway items.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-22</p>Built every task but the preview check. The second look found that a stalled app could hold up a link's end and the reply-link command; the inbox removal now runs beside the tunnel shutdown, and the command exits once it prints.</li>
+<li class="decision card" id="decision-18" data-note="decision-18" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-22</p>Preview walk (task 6.2) found an own-chat answer the agent replied to in seconds left its card in the inbox: the watch looks once a minute and saw the agent idle both times. The watch now also closes the card when the agent's last message changed since its stop, with a test.</li>
+<li class="decision card" id="decision-19" data-note="decision-19" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-10-22</p>Archived after the preview walk passed; numbered 44.6.0.</li>
+</ol>
+</section>
+<section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
+<p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
+<ul class="note-list" id="note-list"></ul>
+</section>
+</main>
+<button type="button" id="chip" hidden>Add note</button>
+<div id="editor" role="dialog" aria-labelledby="editor-where" hidden>
+  <p class="where" id="editor-where"></p>
+  <p class="moved">Possibly moved: its text changed, so this note is not attached.</p>
+  <textarea aria-label="Note text" rows="3" placeholder="A question or a change"></textarea>
+  <div class="row"><button type="button" class="primary" data-act="save">Save</button><button type="button" data-act="discard">Discard</button><button type="button" data-act="delete">Delete note</button><button type="button" data-act="close">Close</button></div>
+  <p class="copies">Saving a note copies all your notes.</p>
+  <p class="session" hidden>Notes last for this session only.</p>
+</div>
+<div id="viewer" role="dialog" aria-modal="true" aria-label="Drawing, full screen" hidden>
+  <div class="zoom"><span class="level"></span><button type="button" aria-label="Zoom out">−</button><button type="button">Fit</button><button type="button" aria-label="Zoom in">+</button><button type="button" class="primary">Close</button></div>
+  <div class="vframe"></div>
+  <p class="vhint">Drag to move · pinch or + to zoom · tap a line or picture to note it</p>
+</div>
+<div class="bar" data-busy="false"><button type="button" class="primary" id="copy"><span class="spinner" hidden aria-hidden="true"></span><span id="copy-label">Copy notes</span></button>
+  <div id="ready" hidden>
+    <button type="button" data-ready="build"><span class="spinner" hidden aria-hidden="true"></span><span>Build it</span></button>
+    <button type="button" data-ready="publish" aria-expanded="false" aria-controls="ready-confirm">Build and publish</button>
+    <div id="ready-confirm" role="group" aria-label="Build and publish? This goes live and can't be undone." hidden><p>Goes live, can't be undone.</p><div class="row"><button type="button" class="primary" data-ready="yes"><span class="spinner" hidden aria-hidden="true"></span><span>Yes, publish</span></button><button type="button" data-ready="cancel">Cancel</button></div></div>
+  </div>
+  <p id="ready-says" role="status" aria-live="polite" hidden><span class="spinner" hidden aria-hidden="true"></span><span id="ready-message"></span></p>
+</div>
+<div id="toast" role="status"></div>
+<textarea id="copybuf" aria-hidden="true" tabindex="-1" readonly></textarea>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  window.addEventListener('error', function (e) {
+    $('script-error').hidden = false;
+    $('script-error').textContent = 'Review script error: ' + e.message + ' (line ' + e.lineno + ')';
+  });
+  const root = document.documentElement;
+  root.classList.add('js');
+  const CHANGE = document.body.getAttribute('data-change');
+  const KEY = 'wong-review3:' + CHANGE;
+  const phone = window.matchMedia ? window.matchMedia('(max-width: 700px)') : { matches: false };
+  const chip = $('chip'), editor = $('editor'), ta = editor.querySelector('textarea');
+  const viewer = $('viewer'), vframe = viewer.querySelector('.vframe'), vbar = viewer.querySelector('.zoom'), vb = vbar.querySelectorAll('button');
+  const all = function (sel, fn) { Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
+  const esc = function (s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+
+  // ── storage: a refused store keeps notes for this session ──
+  let store = null, data = { notes: [], drafts: {} };
+  const ok = function (r, id) { return r && typeof r.label === 'string' && typeof r.text === 'string' && /^[\w-]+$/.test(id); };
+  try { store = window.localStorage; store.getItem(KEY); } catch (e) { store = null; }
+  function load(text) {
+    try {
+      const saved = JSON.parse(text || 'null');
+      if (saved && Array.isArray(saved.notes)) data.notes = saved.notes.filter(function (n) { return ok(n, n && n.id); });
+      if (saved && saved.drafts) Object.keys(saved.drafts).forEach(function (id) { if (ok(saved.drafts[id], id)) data.drafts[id] = saved.drafts[id]; });
+    } catch (e) { /* unreadable notes start empty */ }
+  }
+  load(store ? store.getItem(KEY) : null);
+  function persist() {
+    if (store) { try { store.setItem(KEY, JSON.stringify(data)); } catch (e) { store = null; } }
+    render();
+  }
+
+  // ── targets: a data-note id names its location; the label pins a note to its text ──
+  function where(id) {
+    const m = /^(why|item|decision)-(\d+)(?:-(line|picture|row)-(\d+))?$/.exec(id) || [];
+    if (m[1] === 'why') return { at: '#/why', kind: 'paragraph ' + m[2], spot: 'Why, paragraph ' + m[2] };
+    const part = m[3] === 'line' ? 'drawing line ' + m[4] : m[3] ? m[3] + ' ' + m[4] : '';
+    if (m[1] === 'item') return { at: '#/' + m[2], kind: part || 'item', spot: 'Change #' + m[2] + (part ? ', ' + part : '') };
+    return { at: '#/decisions/' + m[2], kind: 'decision', spot: 'Decision #' + m[2] };
+  }
+  function labelOf(el) {
+    const c = el.cloneNode(true);
+    Array.prototype.forEach.call(c.querySelectorAll('.pin, .meta, .add, title, desc'), function (n) { n.parentNode.removeChild(n); });
+    // A picture's labels are separate SVG text elements: join them with spaces so they read as words.
+    // A table row's cells read joined with a dot.
+    // A screen's words sit in many small boxes: join every piece of text with a space.
+    const row = el.tagName === 'TR', cells = row ? c.querySelectorAll('td') : el.classList.contains('screen') ? texts(c)
+      : el.classList.contains('pic') ? c.querySelectorAll('text') : [c];
+    const text = Array.prototype.map.call(cells, function (n) { return n.textContent.replace(/\s+/g, ' ').trim(); }).join(row ? ' · ' : ' ').replace(/\s+/g, ' ').trim();
+    return where(el.getAttribute('data-note')).kind + ' "' + (text.length > 60 ? text.slice(0, 59) + '…' : text) + '"';
+  }
+  function texts(c) {
+    const found = [], walk = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
+    while (walk.nextNode()) found.push(walk.currentNode);
+    return found;
+  }
+  function find(id, label) {
+    const el = document.querySelector('[data-note="' + id + '"]');
+    return el && labelOf(el) === label ? el : null;
+  }
+  // A row's pin and Note button go in its last cell: a table row holds only cells.
+  function slot(el) { return el.tagName === 'TR' ? el.lastElementChild : el; }
+  function noteOf(id) { return data.notes.filter(function (n) { return n.id === id; })[0] || null; }
+
+  // ── render pins, Note buttons, counts, and the notes list ──
+  function render() {
+    all('.pin, .add', function (p) { p.parentNode.removeChild(p); });
+    const n = data.notes.length, d = Object.keys(data.drafts).length;
+    const count = plural(n) + (d ? ' · ' + d + (d === 1 ? ' draft' : ' drafts') : '');
+    all('.note-count', function (el) { el.textContent = count; });
+    all('.session', function (el) { el.hidden = !!store; });
+    const ids = data.notes.map(function (x) { return x.id; }).concat(Object.keys(data.drafts).filter(function (id) { return !noteOf(id); }));
+    $('note-list').innerHTML = ids.length ? '' : '<li class="muted">No notes yet.</li>';
+    ids.forEach(function (id) {
+      const note = noteOf(id), draft = data.drafts[id], rec = note || draft, num = note ? data.notes.indexOf(note) + 1 : 0, sent = !!(note && note.sent);
+      const el = find(id, rec.label);
+      if (el) {
+        const pin = document.createElement('button');
+        pin.type = 'button'; pin.className = draft ? 'pin draft' : sent ? 'pin sent' : 'pin'; pin.setAttribute('data-open', id);
+        pin.textContent = (num || '') + (num && (draft || sent) ? ' · ' : '') + (draft ? 'Draft' : sent ? 'Sent' : '');
+        pin.setAttribute('aria-label', (num ? 'Open note ' + num : 'Open draft') + (num && draft ? ' and its draft' : ''));
+        slot(el).appendChild(pin);
+      }
+      const li = document.createElement('li');
+      li.innerHTML = '<button type="button" class="entry" data-open="' + id + '"><span class="where">' + (num ? num + '. ' : '')
+        + esc(where(id).at + ' · ' + rec.label) + (draft ? '<span class="tag">Draft</span>' : '') + (sent ? '<span class="tag">Sent</span>' : '') + (el ? '' : '<span class="tag">possibly moved</span>')
+        + '</span>' + esc(draft ? draft.text : note.text) + '</button>';
+      $('note-list').appendChild(li);
+    });
+    all('[data-note]', function (el) {
+      if (el.closest('.art') || el.querySelector('.pin')) return;
+      const id = el.getAttribute('data-note'), add = document.createElement('button');
+      add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
+      add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
+      slot(el).appendChild(add);
+    });
+    drawings.forEach(function (d) {
+      const k = d.art.querySelectorAll('.pin').length;
+      d.count.textContent = k ? ' · ' + k + (k === 1 ? ' note' : ' notes') : '';
+      fit(d);
+    });
+    bar();
+  }
+
+  // ── still-tap to note: a mouse on text, or any pointer on a full-screen drawing line, shows the chip ──
+  let chipFor = null, tap = null;
+  const pointers = {};
+  function showChip(el, x, y, keyboard) {
+    const id = el.getAttribute('data-note');
+    chipFor = el;
+    chip.textContent = noteOf(id) || data.drafts[id] ? 'Edit note' : 'Add note';
+    chip.hidden = false;
+    const w = chip.offsetWidth, vw = root.clientWidth;
+    chip.style.left = Math.max(8, Math.min(x - w / 2, vw - w - 8)) + window.pageXOffset + 'px';
+    chip.style.top = y + 12 + window.pageYOffset + 'px';
+    if (keyboard) chip.focus({ preventScroll: true });
+  }
+  function hideChip() { chip.hidden = true; chipFor = null; }
+  document.addEventListener('pointerdown', function (e) {
+    if (e.isPrimary) Object.keys(pointers).forEach(function (k) { delete pointers[k]; });
+    pointers[e.pointerId] = true;
+    tap = Object.keys(pointers).length === 1 && e.button === 0 ? { id: e.pointerId, x: e.clientX, y: e.clientY, t: Date.now(), target: e.target } : null;
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (tap && e.pointerId === tap.id && Math.abs(e.clientX - tap.x) + Math.abs(e.clientY - tap.y) > 8) tap = null;
+  });
+  document.addEventListener('pointercancel', function (e) { delete pointers[e.pointerId]; tap = null; });
+  document.addEventListener('pointerup', function (e) {
+    const t = tap;
+    delete pointers[e.pointerId]; tap = null;
+    if (!t || t.id !== e.pointerId || Date.now() - t.t > 500) return;
+    if (t.target.closest('a, button, input, textarea, select, label, summary, #editor')) return;
+    const el = t.target.closest('[data-note]');
+    const offer = el && (el.closest('#viewer') || (e.pointerType === 'mouse' && !el.closest('.frame')));
+    if (offer) showChip(el, e.clientX, e.clientY, false); else hideChip();
+  });
+  chip.addEventListener('click', function () { if (chipFor) openEditor(chipFor.getAttribute('data-note'), chipFor); });
+  document.addEventListener('click', function (e) {
+    const t = e.target.closest ? e.target.closest('[data-open]') : null;
+    if (!t) return;
+    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id), el = rec ? find(id, rec.label) : t.closest('[data-note]');
+    if (el && t.classList.contains('entry')) { reveal(el); el.scrollIntoView({ block: 'center' }); }
+    openEditor(id, el);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      if (open) closeEditor(true);
+      else if (chipFor) { const el = chipFor; hideChip(); el.focus(); }
+      else if (view) closeViewer(true);
+    } else if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('[data-note]')) {
+      e.preventDefault();
+      const r = e.target.getBoundingClientRect();
+      showChip(e.target, r.left + 48, r.top + Math.min(r.height, 24), true);
+    }
+  });
+
+  // ── the editor: beside its target on a desktop, docked at the bottom of the visible screen on a phone ──
+  let open = null;
+  function openEditor(id, el) {
+    closeViewer(false); closeEditor(false); hideChip();
+    if (el) reveal(el);
+    const note = noteOf(id), draft = data.drafts[id];
+    const label = draft ? draft.label : note ? note.label : labelOf(el);
+    open = { id: id, label: label, el: el };
+    $('editor-where').textContent = where(id).at + ' · ' + label;
+    editor.querySelector('.moved').hidden = !!el;
+    editor.querySelector('[data-act="delete"]').hidden = !note;
+    ta.value = draft ? draft.text : note ? note.text : '';
+    editor.hidden = false;
+    if (el) el.classList.add('noting');
+    place();
+    ta.focus({ preventScroll: editor.classList.contains('docked') });
+  }
+  function closeEditor(restore) {
+    if (!open) return;
+    const el = open.el;
+    open = null; editor.hidden = true;
+    document.body.classList.remove('docked'); document.body.style.paddingBottom = '';
+    bar();
+    if (el) { el.classList.remove('noting'); if (restore) el.focus({ preventScroll: true }); }
+  }
+  function place() {
+    const docked = phone.matches || !open.el;
+    editor.classList.toggle('docked', docked);
+    document.body.classList.toggle('docked', docked);
+    editor.style.left = editor.style.top = editor.style.bottom = editor.style.maxHeight = '';
+    if (docked) {
+      dock();
+      document.body.style.paddingBottom = editor.offsetHeight + 24 + 'px';
+      keepVisible();
+      return;
+    }
+    const r = open.el.getBoundingClientRect(), w = editor.offsetWidth, vw = root.clientWidth;
+    let left = r.right + 12, top = r.top;
+    if (left + w > vw - 8) { left = Math.max(8, Math.min(r.left, vw - w - 8)); top = r.bottom + 8; }
+    editor.style.left = left + window.pageXOffset + 'px';
+    editor.style.top = top + window.pageYOffset + 'px';
+  }
+  // The visible screen: a phone keyboard shrinks it, and a host app may shrink the page too, so place from its top.
+  function screen() {
+    const vv = window.visualViewport;
+    return vv ? { top: vv.offsetTop, h: vv.height } : { top: 0, h: window.innerHeight };
+  }
+  function dock() {
+    if (!open || !editor.classList.contains('docked')) return;
+    const s = screen();
+    editor.style.maxHeight = s.h + 'px';
+    editor.style.bottom = 'auto';
+    editor.style.top = s.top + Math.max(0, s.h - editor.offsetHeight) + 'px';
+  }
+  function keepVisible() {
+    if (!open || !open.el) return;
+    const r = open.el.getBoundingClientRect(), s = screen(), limit = s.top + s.h - editor.offsetHeight - 8;
+    if (r.bottom > limit) window.scrollBy(0, Math.min(r.top - s.top - 8, r.bottom - limit));
+  }
+  let seen = screen().h;
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', function () {
+      const h = screen().h, keyboard = Math.abs(h - seen) > 100;
+      seen = h; dock();
+      if (keyboard) keepVisible();
+    });
+    window.visualViewport.addEventListener('scroll', dock);
+  }
+  ta.addEventListener('input', function () {
+    if (!open) return;
+    const note = noteOf(open.id), text = ta.value;
+    if (!text.trim() || (note && text === note.text)) delete data.drafts[open.id];
+    else data.drafts[open.id] = { label: open.label, text: text };
+    persist();
+  });
+  editor.addEventListener('click', function (e) {
+    const act = e.target.getAttribute('data-act');
+    if (!act || !open) return;
+    const id = open.id, note = noteOf(id), text = ta.value.trim();
+    if (act === 'save') {
+      if (!text) { ta.focus(); return; }
+      if (!note) data.notes.push({ id: id, label: open.label, text: text });
+      else if (note.text !== text) { note.text = text; delete note.sent; }
+    }
+    if (act === 'delete') data.notes = data.notes.filter(function (n) { return n.id !== id; });
+    if (act !== 'close') delete data.drafts[id];
+    closeEditor(true); persist();
+    if (act === 'save' && live) toast('Saved. Tap Send notes to send it to the chat.');
+    else if (act === 'save') {
+      const n = unsent().length;
+      copyNotes(function () { toast('Saved and copied ' + plural(n) + '. Paste them into chat.'); },
+        function () { toast('Saved. Tap Copy notes to copy them.'); });
+    }
+  });
+
+  // ── drawings: fitted by font size on the page; a tap shows one full screen, where it zooms and scrolls natively ──
+  const BASE = 13, drawings = [];
+  let view = null;
+  const V = { f: BASE, lo: BASE, hi: BASE };
+  function size(art, f, max) {
+    art.style.fontSize = f + 'px';
+    for (let i = 0; i < 3 && art.offsetWidth > max; i += 1) { f *= max / art.offsetWidth; art.style.fontSize = f + 'px'; }
+    return f;
+  }
+  function fit(d) {
+    if (!d.fig.open || view === d) return;
+    d.art.style.fontSize = BASE + 'px';
+    const w = d.art.offsetWidth, fw = d.frame.clientWidth - 1;
+    if (w > 0 && fw > 0) size(d.art, BASE * Math.min(1.25, fw / w), fw);
+  }
+  function reveal(el) {
+    const fig = el.closest('details');
+    if (fig && !fig.open) { fig.open = true; drawings.forEach(fit); }
+  }
+  function scale(f, cx, cy) {
+    f = Math.max(V.lo, Math.min(V.hi, f));
+    const k = f / V.f, x = (vframe.scrollLeft + cx) * k - cx, y = (vframe.scrollTop + cy) * k - cy;
+    V.f = f; view.art.style.fontSize = f + 'px';
+    vframe.scrollLeft = x; vframe.scrollTop = y;
+    const atFit = f <= V.lo * 1.001;
+    vbar.firstChild.textContent = (atFit ? 'Fit · ' : '') + Math.round(f / BASE * 100) + '%';
+    vb[0].disabled = atFit; vb[2].disabled = f >= V.hi * 0.999;
+  }
+  function openViewer(d) {
+    hideChip();
+    view = d; viewer.hidden = false; document.body.classList.add('viewing');
+    vframe.appendChild(d.art);
+    d.art.style.fontSize = BASE + 'px';
+    const fw = vframe.clientWidth - 1;
+    V.lo = size(d.art, BASE * fw / Math.max(1, d.art.offsetWidth), fw);
+    V.hi = Math.max(V.lo * 4, 40); V.f = V.lo;
+    vframe.scrollLeft = vframe.scrollTop = 0;
+    scale(V.lo, 0, 0);
+    vb[3].focus({ preventScroll: true });
+  }
+  function closeViewer(restore) {
+    if (!view) return;
+    const d = view;
+    view = null;
+    d.frame.insertBefore(d.art, d.frame.firstChild);
+    viewer.hidden = true; document.body.classList.remove('viewing');
+    fit(d); bar();
+    if (restore) d.enlarge.focus({ preventScroll: true });
+  }
+  vbar.addEventListener('click', function (e) {
+    const i = Array.prototype.indexOf.call(vb, e.target);
+    if (i === 3) closeViewer(true);
+    else if (i >= 0) scale([V.f / 1.25, V.lo, V.f * 1.25][i], vframe.clientWidth / 2, vframe.clientHeight / 2);
+  });
+  vframe.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const r = vframe.getBoundingClientRect();
+    scale(V.f * (e.deltaY < 0 ? 1.1 : 1 / 1.1), e.clientX - r.left, e.clientY - r.top);
+  }, { passive: false });
+  // One finger scrolls natively; two fingers pinch around their midpoint.
+  let pinch = null;
+  const span = function (t) { return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) || 1; };
+  vframe.addEventListener('touchstart', function (e) { if (e.touches.length === 2) pinch = { f: V.f, dist: span(e.touches) }; }, { passive: true });
+  vframe.addEventListener('touchmove', function (e) {
+    if (!pinch || e.touches.length !== 2) return;
+    if (e.cancelable) e.preventDefault();
+    const r = vframe.getBoundingClientRect(), t = e.touches;
+    scale(pinch.f * span(t) / pinch.dist, (t[0].clientX + t[1].clientX) / 2 - r.left, (t[0].clientY + t[1].clientY) / 2 - r.top);
+  }, { passive: false });
+  vframe.addEventListener('touchend', function (e) { if (e.touches.length < 2) pinch = null; });
+  document.addEventListener('gesturestart', function (e) { if (view) e.preventDefault(); });
+  all('.drawing', function (fig) {
+    const frame = fig.querySelector('.frame'), enlarge = document.createElement('button');
+    enlarge.type = 'button'; enlarge.className = 'enlarge'; enlarge.textContent = 'Full screen';
+    frame.appendChild(enlarge);
+    const d = { fig: fig, frame: frame, art: fig.querySelector('.art'), count: fig.querySelector('.count'), enlarge: enlarge };
+    drawings.push(d);
+    fig.addEventListener('toggle', function () { fit(d); });
+    frame.addEventListener('click', function (e) { if (!e.target.closest('[data-open]')) openViewer(d); });
+  });
+
+  // ── direct links: #/why, #/<n>, #/decisions/<n> ──
+  function jump() {
+    const m = /^#\/(?:decisions\/(\d+)|(\d+)|(why|changes|decisions))$/.exec(location.hash);
+    const el = m ? $(m[1] ? 'decision-' + m[1] : m[2] ? 'item-' + m[2] : m[3]) : null;
+    if (!el) return;
+    all('.hit', function (n) { n.classList.remove('hit'); });
+    el.classList.add('hit');
+    el.scrollIntoView({ block: 'start' });
+  }
+
+  // ── copy: saved notes only, as notes on the plan: each asks or changes something ──
+  // A note sent through a reply link is in the chat already, so it is never copied or sent again.
+  function unsent() { return data.notes.filter(function (n) { return !n.sent; }); }
+  function snapshot() { return unsent().map(function (n) { return { id: n.id, label: n.label, text: n.text }; }); }
+  function acknowledge(notes) {
+    notes.forEach(function (submitted) {
+      data.notes.forEach(function (current) {
+        if (current.id === submitted.id && current.label === submitted.label && current.text === submitted.text) current.sent = true;
+      });
+    });
+    persist();
+  }
+  function bullets(notes) {
+    return notes.map(function (n) {
+      const w = where(n.id);
+      return '- ' + w.spot + ' (' + n.label.slice(w.kind.length + 1) + '): ' + n.text.replace(/\s*\n\s*/g, ' ');
+    });
+  }
+  function notesText() {
+    return ['Notes on the plan ' + CHANGE + ' from the review page. Don\'t build yet.'].concat(bullets(unsent())).join('\n');
+  }
+  function toast(text) {
+    $('toast').textContent = text; $('toast').classList.add('show');
+    setTimeout(function () { $('toast').classList.remove('show'); }, 2000);
+  }
+  function plural(n) { return n + (n === 1 ? ' note' : ' notes'); }
+  // One routine for Copy notes and Save: the Clipboard API, else select #copybuf and execCommand, then hand focus back.
+  function copyNotes(done, failed) {
+    const buf = $('copybuf');
+    buf.value = notesText();
+    const fallback = function () {
+      const back = document.activeElement;
+      buf.select();
+      const ok = document.execCommand('copy');
+      if (back && back !== buf && back.focus) back.focus({ preventScroll: true });
+      if (ok) done(); else failed();
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(buf.value).then(done, fallback); else fallback();
+  }
+  // Nothing to copy or send: say why. True when it spoke.
+  function nothing(verb) {
+    if (unsent().length) return false;
+    toast(data.notes.length ? 'Every note is already sent.' : 'No saved notes yet. Drafts are not ' + verb + '.');
+    return true;
+  }
+
+  // ── reply link: at a web address with #key=, the bar's button sends unsent notes to the chat that made the plan ──
+  // `live` is the link's key while the link is open. The key stays in memory and this tab's session, never in a link.
+  let live = null, connecting = false, pending = null;
+  function setLive(key) {
+    live = key;
+    if (!key) hideActions();
+    all('.copies', function (el) { el.textContent = key ? 'Send notes sends your saved notes to the chat.' : 'Saving a note copies all your notes.'; });
+    bar();
+  }
+  // One request owns every reply control until the response body has been read.
+  function busy(kind) {
+    pending = kind;
+    bar();
+  }
+  function linkKey() {
+    if (!/^https?:$/.test(location.protocol) || !window.fetch) return null;
+    const m = /(?:^#|&)key=([0-9a-f]{64})(?:&|$)/.exec(location.hash), at = 'wong-reply-key:' + location.pathname;
+    try {
+      if (m) window.sessionStorage.setItem(at, m[1]);
+      return m ? m[1] : window.sessionStorage.getItem(at);
+    } catch (e) { return m ? m[1] : null; }
+  }
+  function ask(path, key, body) {
+    if (hosted) return hostedAsk(path, body);
+    const headers = { 'x-reply-key': key };
+    if (body) headers['content-type'] = 'application/json';
+    return fetch(path, { method: body ? 'POST' : 'GET', cache: 'no-store', headers: headers, body: body ? JSON.stringify(body) : undefined });
+  }
+  async function sendNotes() {
+    const notes = snapshot(), n = notes.length;
+    if (pending || connecting || nothing('sent')) return;
+    busy('send'); says('Sending your notes…');
+    // A closed link or an unreachable chat: the same tap copies, and the page goes back to Copy notes.
+    const closed = function () {
+      setLive(null); says('This link has closed. Copy your notes into chat.');
+      copyNotes(function () { toast('This link has closed. Copied ' + plural(n) + ': paste them into chat.'); },
+        function () { toast('This link has closed. Tap Copy notes to copy them.'); });
+    };
+    try {
+      const r = await ask('send', live, { text: bullets(notes).join('\n') });
+      if (r.status === 429) { says('Wait a few seconds, then tap Send notes again.'); toast('Wait a few seconds, then tap Send notes again.'); return; }
+      if (r.status === 409) { says('The plan changed. Reload to read it first.'); toast('The plan changed. Reload to read it first.'); return; }
+      if (!r.ok) { closed(); return; }
+      const answer = await r.json();
+      if (!answer || answer.sent !== true) { closed(); return; }
+      acknowledge(notes);
+      says('Sent ' + plural(n) + ' to the chat.');
+      toast('Sent ' + plural(n) + ' to the chat.');
+    } catch (e) { closed(); }
+    finally { busy(null); }
+  }
+  $('copy').addEventListener('click', function () {
+    if (pending || connecting) return;
+    if (live) { sendNotes(); return; }
+    const n = unsent().length;
+    if (nothing('copied')) return;
+    copyNotes(function () { toast('Copied ' + plural(n) + '. Paste them into chat.'); },
+      function () { toast('Copy failed. Copy the notes list by hand.'); });
+  });
+
+  // ── visible build choices, with publish confirmation above the footer ──
+  let version = null;
+  const publishButton = $('ready').querySelector('[data-ready="publish"]');
+  function says(text) { $('ready-message').textContent = text; $('ready-says').hidden = !text; }
+  function closeActions(focus) {
+    const wasOpen = !$('ready-confirm').hidden;
+    $('ready-confirm').hidden = true;
+    publishButton.setAttribute('aria-expanded', 'false');
+    if (focus && wasOpen && !$('ready').hidden) publishButton.focus({ preventScroll: true });
+    bar();
+  }
+  function hideActions() {
+    const focused = $('ready').contains(document.activeElement);
+    closeActions(false);
+    $('ready').hidden = true;
+    if (focused) $('copy').focus({ preventScroll: true });
+    bar();
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('ready-confirm').hidden) { e.preventDefault(); closeActions(true); }
+  });
+  document.addEventListener('pointerdown', function (e) {
+    if (!$('ready').contains(e.target)) closeActions(false);
+  });
+  $('ready').addEventListener('focusout', function (e) {
+    if (e.relatedTarget && !$('ready').contains(e.relatedTarget)) closeActions(false);
+  });
+  // Only the row contributes to page padding; popovers and status never increase its height.
+  function bar() {
+    const el = $('copy').parentNode, waiting = connecting || !!pending;
+    $('copy-label').textContent = connecting ? 'Connecting…' : pending === 'send' ? 'Sending…' : live ? 'Send notes' : 'Copy notes';
+    $('copy').disabled = waiting;
+    $('copy').querySelector('.spinner').hidden = !(connecting || pending === 'send');
+    el.setAttribute('data-busy', String(waiting));
+    $('copy').setAttribute('aria-busy', String(connecting || pending === 'send'));
+    root.style.setProperty('--choices', $('ready-confirm').offsetHeight + 'px');
+    $('ready-says').querySelector('.spinner').hidden = !waiting;
+    all('[data-ready]', function (b) {
+      const step = b.getAttribute('data-ready');
+      b.disabled = waiting;
+      b.setAttribute('aria-busy', String(pending === (step === 'yes' ? 'publish' : step) && step !== 'publish'));
+      const spinner = b.querySelector('.spinner');
+      if (spinner) {
+        const active = pending === (step === 'yes' ? 'publish' : step);
+        spinner.hidden = !active;
+        b.querySelector('span:last-child').textContent = active ? 'Sending…' : step === 'yes' ? 'Yes, publish' : 'Build it';
+      }
+    });
+    if (el.offsetHeight) root.style.setProperty('--bar', el.offsetHeight + 19 + 'px');
+  }
+  function offer(answer) {
+    const names = answer && answer.actions;
+    if (!Array.isArray(names) || names.indexOf('build') < 0 || names.indexOf('publish') < 0 || typeof answer.version !== 'string') return;
+    version = answer.version;
+    $('ready').hidden = false;
+    bar();
+  }
+  async function act(name) {
+    if (pending || connecting || !live) return;
+    const notes = snapshot();
+    busy(name); says('Sending your request…');
+    const closed = function () { setLive(null); says('This link has closed. Copy your notes and choose in the chat.'); toast('This link has closed. Copy your notes and choose in the chat.'); };
+    try {
+      const body = { action: name, version: version };
+      if (notes.length) body.text = bullets(notes).join('\n');
+      const r = await ask('act', live, body);
+      if (r.status === 429) { says('Wait a few seconds, then tap again.'); return; }
+      const a = await r.json() || {};
+      const line = r.status === 200 && a.sent === true ? 'Asked the chat to build' + (name === 'publish' ? ' and publish.' : '.')
+        : r.status === 409 && a.changed === true ? 'The plan changed. Reload to read it first.'
+        : r.status === 409 && a.done === true ? 'The chat was already asked.' : '';
+      if (r.status === 410 || r.status === 403) { closed(); return; }
+      if (!line) { says('The request was not confirmed. Your notes are saved. Try again.'); return; }
+      if (r.status === 200 && a.sent === true) acknowledge(notes);
+      hideActions(); says(line);
+    } catch (e) { says('The request was not confirmed. Your notes are saved. Try again.'); }
+    finally { busy(null); }
+  }
+  $('ready').addEventListener('click', function (e) {
+    const button = e.target.closest('[data-ready]');
+    if (!button || pending || connecting) return;
+    const step = button.getAttribute('data-ready');
+    if (step === 'build' || step === 'yes') act(step === 'yes' ? 'publish' : 'build');
+    else if (step === 'cancel' || step === 'publish') {
+      says('');
+      $('ready-confirm').hidden = step === 'cancel';
+      publishButton.setAttribute('aria-expanded', String(step === 'publish'));
+      bar();
+      $('ready').querySelector('[data-ready="' + (step === 'cancel' ? 'publish' : 'cancel') + '"]').focus({ preventScroll: true });
+    }
+  });
+
+  let width = root.clientWidth;
+  window.addEventListener('resize', function () {
+    if (root.clientWidth !== width) {
+      width = root.clientWidth; hideChip();
+      if (view) { const d = view; closeViewer(false); openViewer(d); }
+    }
+    drawings.forEach(fit);
+    if (open) place();
+    bar();
+  });
+  // ── hosted: in the live app's inbox, a sealed frame that reaches the inbox only through the port its first greeting carries ──
+  let hosted = null, port = null;
+  const CODES = { sent: 200, changed: 409, done: 409, soon: 429, closed: 410, expired: 410 };
+  function post(message) { port.postMessage(message); }
+  // The inbox answers a tap only once the chat has it, or once it is refused, cancelled or failed.
+  function hostedAsk(path, body) {
+    return new Promise(function (resolve) {
+      hosted.reply = function (state) {
+        const status = Object.prototype.hasOwnProperty.call(CODES, state) ? CODES[state] : 502;
+        const answer = status === 200 ? { sent: true } : state === 'changed' ? { changed: true } : state === 'done' ? { done: true } : { sent: false };
+        resolve({ ok: status === 200, status: status, json: function () { return Promise.resolve(answer); } });
+      };
+      post({ type: 'inbox:tap', action: path === 'send' ? 'send' : body.action, text: body.text || '' });
+    });
+  }
+  // The inbox's switch owns the look: this frame can't remember a choice, so its own switch goes. Unknown looks change nothing.
+  function look(theme) { if (theme === 'light' || theme === 'dark') document.documentElement.classList.toggle('dark', theme === 'dark'); }
+  function heard(m) {
+    if (!m || typeof m !== 'object') return;
+    if (m.type === 'inbox:theme') look(m.theme);
+    else if (m.type === 'inbox:notes' && (typeof m.value === 'string' || m.value === null)) { load(m.value); render(); }
+    else if (hosted.reply && m.type === 'inbox:result') { const reply = hosted.reply; hosted.reply = null; reply(m.state); }
+  }
+  window.addEventListener('message', function (e) {
+    const m = e.data;
+    if (hosted || window.parent === window || e.source !== window.parent || !e.ports || !e.ports[0] || !m || m.type !== 'inbox:hello'
+      || typeof m.version !== 'string' || !Array.isArray(m.actions)) return;
+    hosted = { reply: null };
+    port = e.ports[0];
+    port.onmessage = function (ev) { heard(ev.data); };
+    document.querySelectorAll('.theme-toggle').forEach(function (button) { button.remove(); });
+    look(m.theme);
+    // Notes live with the inbox page: this frame has no storage of its own.
+    store = { setItem: function (key, value) { post({ type: 'inbox:notes-set', key: key, value: value }); } };
+    post({ type: 'inbox:notes-get', key: KEY });
+    setLive('inbox'); offer(m); render();
+  });
+  // In a frame, a link opens its own tab: the frame never leaves this page.
+  document.addEventListener('click', function (e) {
+    const a = window.parent !== window && e.target.closest ? e.target.closest('a[href]') : null;
+    if (a && a.getAttribute('href').charAt(0) !== '#') { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+  }, true);
+  window.addEventListener('hashchange', jump);
+  render();
+  jump();
+  const key = linkKey();
+  if (key) {
+    connecting = true; says('Connecting to the chat…'); bar();
+    (async function () {
+      try {
+        const r = await ask('alive', key);
+        if (!r.ok) return;
+        const answer = await r.json();
+        if (!answer || typeof answer !== 'object') return;
+        setLive(key); offer(answer);
+      } catch (e) { /* not live: the page copies */ }
+      finally { connecting = false; says(''); bar(); }
+    }());
+  }
+}());
+</script>
+</body>
+</html>
+
+~~~
+<!-- end review.html -->
