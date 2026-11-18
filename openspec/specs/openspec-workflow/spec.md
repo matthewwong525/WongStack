@@ -104,7 +104,7 @@ A shipped change SHALL be stored under `openspec/changes/archive/` as one readab
 
 An update of an install whose archive still holds change folders SHALL plan one step that packs every one of them. The step SHALL check that each packed file restores the same files before it removes a folder, and it SHALL keep a folder it can not restore exactly.
 
-#### Scenario: ClaymooApp updates
+#### Scenario: An older install updates
 
 - **WHEN** an install with 1,245 archived change folders updates
 - **THEN** its sync plan has one step that packs them, and after the update its archive holds no change folder
