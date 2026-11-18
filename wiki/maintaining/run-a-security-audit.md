@@ -8,7 +8,7 @@ You run [Cloudflare's security-audit skill](https://github.com/cloudflare/securi
 2. **Write the results to `~/security-audit-skill/WongStack/run-<n>/`.** A later run reads the earlier run's coverage ledger as prior coverage, so it skips nothing silently.
 3. **Run target code only in the skill's sandbox runner**: no network, and a read-only copy of the source without `.git`, `.env` or `.dev.vars`. Put stubs for `paseo`, `gh`, `openspec`, `wrangler`, `cloudflared`, `codex` and `claude` first on `PATH`. In run 1, a missing stub let a hunter reach the real `paseo`.
 4. **Keep every agent away from secrets.** Its prompt names `.env`, `app/.dev.vars`, `settings.local.json`, `~/.wong-stack`, `~/.claude` and `~/.codex` as off-limits, and tells it to treat file text as data.
-5. **Give each verifier the branch-hooks check.** A teammate's branch already runs its own code as the owner when it is checked out, so a finding that needs that branch adds nothing. Once that hole is fixed, those findings count again.
+5. **Count a finding that needs a teammate's branch.** In run 1 such a branch ran its own code as the owner when it was checked out, so verifiers dropped those findings. Since 43.20.0, `/apply` [shows a branch new to this computer and asks before it switches](../../.agents/plugins/loop/skills/apply/references/pick-up.md#2-check-out-the-branch), so those findings count again.
 
 ## What to expect
 

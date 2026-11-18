@@ -13,6 +13,8 @@ claude -p --setting-sources user --settings /tmp/only-my-hook.json \
 
 `--setting-sources user` drops the project's hooks; the `--settings` file adds back just yours, with the same `command` line. Read the stream for `hook_started`, the hook's feedback as a `user` row, and the agent's next step.
 
+For a second turn, start with `claude -p --session-id <uuid>` and go on with `--resume <uuid>`, not `--continue`: `--continue` takes the folder's newest chat, which in a worktree can be your own chat, so it answers as you.
+
 A headless run has no question box: `AskUserQuestion` is not callable. Test what your hook asks for there too, because scheduled and background runs are headless.
 
 ## With the question box
