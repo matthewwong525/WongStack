@@ -613,6 +613,12 @@ function catchUpNeeds(target, record, installedVersion, baseline, own, mapped) {
   const named = ['.claude/settings.json', '.claude/settings.local.json']
     .filter(path => at(path) === 'file' && readFileSync(resolve(target, path), 'utf8').includes('@skills-dir'));
   if (plugins.length || named.length) reasons.push({ code: 'module-plugin', paths: [...plugins, ...named] });
+  // Finished changes kept as folders: the update packs each into one file, so the folder count stays low.
+  const archive = resolve(target, 'openspec/changes/archive');
+  if (at('openspec/changes/archive') === 'dir') {
+    const folders = readdirSync(archive, { withFileTypes: true }).filter(entry => entry.isDirectory()).length;
+    if (folders) reasons.push({ code: 'unpacked-archive', paths: ['openspec/changes/archive'], folders });
+  }
   if (baseline === 'empty') reasons.push({ code: 'no-baseline', paths: [] });
   return { needed: reasons.length > 0 || below(installedVersion, [19, 0, 0]), reasons };
 }

@@ -414,6 +414,27 @@ test('a body update that fails is reported as stale, and the gate is still read'
   assert.equal(lastLine(r), 'SAVE_GATE_RESULT=SUCCESS');
 });
 
+test('an archive-mode save packs the archived folder into one file and commits it in the folder\'s place', t => {
+  const f = fixture(t, { gh: { pr: PR, checks: PASS } });
+  const folder = 'openspec/changes/archive/2026-10-04-demo';
+  f.stage(`${folder}/proposal.md`, '# Demo\n\n**Status:** ready\n**Branch:** work\n\n## Why\n\nIt is faster.\n\n## What Changes\n\n- One thing.\n');
+  f.stage(`${folder}/tasks.md`, '- [x] 1.1 Done\n');
+  f.write(`${folder}/review.html`, '<!-- wong-review:3 -->\nold page\n');
+  f.stage('app.txt', 'two\n');
+  const r = f.save(['--change-root', folder, '--mode', 'archive']);
+  assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+  assert.equal(f.git('ls-tree', '-r', '--name-only', 'HEAD', 'openspec'), `${folder}.md`);
+  assert.match(f.git('show', `HEAD:${folder}.md`), /^<!-- openspec-archive v1 2026-10-04-demo -->\n<!-- file proposal\.md utf8/);
+  assert.equal(existsSync(join(f.work, folder)), false);
+  assert.match(f.body(), /## Tasks[\s\S]*1\.1 Done/);
+  // A rerun with the folder already packed keeps the packed file as it was.
+  f.stage('app.txt', 'three\n');
+  const again = f.save(['--change-root', folder, '--mode', 'archive']);
+  assert.equal(again.status, 0, `${again.stdout}${again.stderr}`);
+  assert.doesNotMatch(again.stdout, /REVIEW=stale/);
+  assert.equal(f.git('ls-tree', '-r', '--name-only', 'HEAD', 'openspec'), `${folder}.md`);
+});
+
 test('a body that cannot be rendered stops before the push', t => {
   const f = fixture(t);
   f.stage('app.txt', 'two\n');

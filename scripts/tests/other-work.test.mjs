@@ -143,6 +143,8 @@ test('changesIn and archivedIn split active and archived change folders', () => 
   const files = ['openspec/changes/a/proposal.md', 'openspec/changes/a/tasks.md', 'openspec/changes/archive/2026-x/p.md', 'app/x.ts'];
   assert.deepEqual(changesIn(files), ['a']);
   assert.deepEqual(archivedIn(files), ['openspec/changes/archive/2026-x']);
+  assert.deepEqual(archivedIn(['openspec/changes/archive/2026-09-01-packed.md', 'openspec/changes/archive/.gitkeep']),
+    ['openspec/changes/archive/2026-09-01-packed']);
 });
 
 test('isLive needs unpublished work or a running agent', () => {
@@ -331,6 +333,9 @@ test('savedBranches leaves out a branch whose archived change is already on the 
   assert.deepEqual(savedBranches(fakeGit(answers).git, 'origin/main').map(entry => entry.branch), ['add-recipes'], 'an archive the base does not hold has not shipped');
   const shipped = fakeGit({ ...answers, 'cat-file -e origin/main:openspec/changes/archive/2026-09-01-add-recipes': '' });
   assert.deepEqual(savedBranches(shipped.git, 'origin/main'), []);
+  // The base holds it packed into one file, while the branch still has the folder.
+  const packed = fakeGit({ ...answers, 'cat-file -e origin/main:openspec/changes/archive/2026-09-01-add-recipes.md': '' });
+  assert.deepEqual(savedBranches(packed.git, 'origin/main'), []);
 });
 
 test('savedBranches lists nothing when there is no base to compare with', () => {

@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import { findArchived, listArchived, readArchived } from '../plugins/loop/scripts/archive.mjs';
 import { longestArea, normalizePath, pathAreas, realPath } from '../skills/memory/scripts/lib/areas.mjs';
 import { readHead } from '../skills/memory/scripts/lib/store.mjs';
 import { codeUsers } from './lib/callers.mjs';
@@ -21,10 +22,9 @@ export function currentSlug({ root, branch }) {
   return null;
 }
 
-// Change state of every slug, from one read of the archive folder.
+// Change state of every slug, from one read of the archive.
 export function slugState({ root }) {
-  const archive = join(root, 'openspec', 'changes', 'archive');
-  const shipped = new Set(existsSync(archive) ? readdirSync(archive).map(name => name.replace(/^\d{4}-\d{2}-\d{2}-/, '')) : []);
+  const shipped = new Set(listArchived(root).map(each => each.name));
   return slug => existsSync(join(root, 'openspec', 'changes', slug)) ? 'active' : shipped.has(slug) ? 'shipped' : 'conversation';
 }
 
@@ -46,11 +46,15 @@ export function personPage(ctx) {
 }
 
 // Every word inside a backticked span of a change's proposal, design, and tasks: the paths it names.
-// The name may be an archived change's `archive/<folder>`.
+// The name may be an archived change's `archive/<folder>`, packed or a folder.
 export function changePaths({ root }, name) {
-  const dir = join(root, 'openspec', 'changes', name);
-  return ['proposal.md', 'design.md', 'tasks.md'].map(file => join(dir, file)).filter(existsSync)
-    .flatMap(file => [...readFileSync(file, 'utf8').matchAll(/`([^`\n]+)`/g)])
+  const folder = name.match(/^archive\/([^/]+)$/)?.[1];
+  const read = folder ? file => readArchived(root, folder, file) : file => {
+    const path = join(root, 'openspec', 'changes', name, file);
+    return existsSync(path) ? readFileSync(path, 'utf8') : null;
+  };
+  return ['proposal.md', 'design.md', 'tasks.md'].map(read).filter(text => text !== null)
+    .flatMap(text => [...text.matchAll(/`([^`\n]+)`/g)])
     .flatMap(([, span]) => span.split(/[\s"'()]+/).filter(Boolean));
 }
 
@@ -74,19 +78,16 @@ function namesPath(named, path, areas, root) {
 // Up to `limit` archived changes, newest first: those naming one of the paths, then those sharing only an area.
 // Read from the archive on each call, so nothing is kept up to date. `skip` is a change's own name.
 export function pastChanges(root, paths, tags, areas, { skip, limit = 5 } = {}) {
-  const archive = join(root, 'openspec', 'changes', 'archive');
-  if (!existsSync(archive)) return [];
   const asked = [...new Set(paths.filter(looksLikePath).map(path => bare(path, root)).filter(Boolean))];
   const ranked = [[], []];
-  for (const folder of readdirSync(archive).sort().reverse()) {
-    if (folder.replace(/^\d{4}-\d{2}-\d{2}-/, '') === skip) continue;
+  for (const { folder, name } of listArchived(root)) {
+    if (name === skip) continue;
     const named = [...new Set(changePaths({ root }, `archive/${folder}`).filter(looksLikePath).map(word => bare(word, root)).filter(Boolean))];
     if (asked.some(path => namesPath(named, path, areas, root))) ranked[0].push(folder);
     else if ([...pathAreas(named, areas, root).keys()].some(tag => tags.includes(tag))) ranked[1].push(folder);
   }
   return ranked.flat().slice(0, limit).map(folder => {
-    const proposal = join(archive, folder, 'proposal.md');
-    const title = existsSync(proposal) && readFileSync(proposal, 'utf8').match(/^# (.+)$/m)?.[1];
+    const title = readArchived(root, folder, 'proposal.md')?.match(/^# (.+)$/m)?.[1];
     return { folder, title: title || folder, proposal: `openspec/changes/archive/${folder}/proposal.md` };
   });
 }
@@ -122,15 +123,20 @@ const here = (root, path) => existsSync(join(root, path));
 const planFiles = (root, name) => [...new Set(changePaths({ root }, name).filter(looksLikePath).map(word => kept(word, root))
   .map(path => path && realPath(path, root)).filter(Boolean))].map(path => ({ path, churn: 0 }));
 
-// Each archived slug's archive commit, newest first, so a slug archived twice keeps its newest.
+// Each archived slug's archive commit, newest first, so a slug archived twice keeps its newest: the commit that added
+// its folder's proposal or its packed file. A packed file added as its folder went was only migrated, so it is skipped.
 async function archiveCommits(git) {
-  const out = await git(['log', '--diff-filter=A', '--format=@%H', '--name-only', '--', 'openspec/changes/archive/*/proposal.md']);
+  const out = await git(['log', '--diff-filter=AD', '--name-status', '--format=@%H', '--',
+    'openspec/changes/archive/*/proposal.md', 'openspec/changes/archive/*.md']);
   const commits = new Map();
-  let commit;
-  for (const line of out.split('\n')) {
-    if (line.startsWith('@')) commit = line.slice(1);
-    const slug = line.match(/^openspec\/changes\/archive\/\d{4}-\d{2}-\d{2}-([^/]+)\/proposal\.md$/)?.[1];
-    if (slug && !commits.has(slug)) commits.set(slug, { commit, order: commits.size });
+  for (const [commit, ...lines] of out.split(/^@/m).filter(Boolean).map(block => block.split('\n'))) {
+    const rows = lines.map(line => line.split('\t')).filter(([, path]) => path);
+    const removed = new Set(rows.filter(([status]) => status === 'D').map(([, path]) => path));
+    for (const [status, path] of rows) {
+      const [, folder, slug, inFolder] = path.match(/^openspec\/changes\/archive\/(\d{4}-\d{2}-\d{2}-([^/]+?))(\/proposal)?\.md$/) ?? [];
+      if (status !== 'A' || !slug || (!inFolder && removed.has(`openspec/changes/archive/${folder}/proposal.md`))) continue;
+      if (!commits.has(slug)) commits.set(slug, { commit, order: commits.size });
+    }
   }
   return commits;
 }
@@ -167,11 +173,9 @@ export async function changeFiles({ root }, slugs, { deadline = Date.now() + 150
     else archived.push(slug);
   }
   if (!archived.length) return found;
-  const archive = join(root, 'openspec', 'changes', 'archive');
-  const folders = existsSync(archive) ? readdirSync(archive).sort().reverse() : [];
   const fallback = slug => {
-    const folder = folders.find(name => name.replace(/^\d{4}-\d{2}-\d{2}-/, '') === slug);
-    return folder ? planFiles(root, `archive/${folder}`) : [];
+    const found = findArchived(root, slug);
+    return found ? planFiles(root, `archive/${found.folder}`) : [];
   };
   const commits = await archiveCommits(git).catch(() => new Map());
   const read = await Promise.all(archived.map(slug => commits.has(slug)

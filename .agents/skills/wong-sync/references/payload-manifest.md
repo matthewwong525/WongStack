@@ -43,7 +43,7 @@ Pre-inventory installs use an empty baseline: all units are `added`. Missing `HE
 
 Two more fields keep `schemaVersion: 1`:
 
-- `catchUp: { needed, reasons }` derives code/path reasons from layout, record, `deploy.yml` and own wiki pages. Any reason or version below 19.0.0 means needed; [catch-up](catch-up.md) owns each code's move.
+- `catchUp: { needed, reasons }` derives code/path reasons from the target's files and record. Any reason or version below 19.0.0 means needed; [catch-up](catch-up.md) owns each code's move.
 - `updating` lists newer changelog entries newest-first as `{ version, title, note }`; note is Updating/Moving-an-existing-install text or null. Unreadable changelog/version sets `updatingComplete: false`, without error.
 
 Reports expose paths/classes/counts only. Invalid/non-ancestor commits, invalid inventory, unsafe paths, missing markers, read/Git failures or oversized changes return `status: error`; [`wong-sync`](../SKILL.md) handles them.

@@ -16,14 +16,12 @@ Run `openspec context --json` and `openspec list --json` from the working repo. 
 
 ## Validate and archive
 
-Run `openspec validate "<name>" --strict --no-interactive` before readiness or archive. `openspec instructions archive --change "<name>" --json` is advisory. After task and gate preflight, `openspec archive "<name>" --yes` archives, syncing unsynced deltas; add `--skip-specs` only when the deltas already equal the main specs. Report a missing or changed CLI field; never guess a replacement and claim success.
+Run `openspec validate "<name>" --strict --no-interactive` before readiness or archive. `openspec instructions archive --change "<name>" --json` is advisory. After task and gate preflight, `openspec archive "<name>" --yes` archives, syncing unsynced deltas; add `--skip-specs` only when the deltas already equal the main specs. Report a missing or changed CLI field; never guess a replacement and claim success. `/ship` packs it into [one file](https://github.com/matthewwong525/WongStack/blob/main/wiki/development/the-change-loop.md#a-finished-change-is-one-file).
 
 Two delta shapes need a workaround:
 
 - **Dropping a scenario.** A MODIFIED block must keep every main-spec scenario, so REMOVE the requirement and ADD it under a new name.
 - **Retiring a capability.** Set `retire_capabilities: true` in the change's `.openspec.yaml`; archiving with validation on then deletes the emptied spec.
-
-OpenSpec never runs git; see [the loop's rules](../../../references/rules.md).
 
 ## Reconcile deltas
 

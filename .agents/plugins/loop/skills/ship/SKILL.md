@@ -22,7 +22,7 @@ node "$SHIP" finish
 
 Attached review notes → [apply them to the existing change](../plan/SKILL.md#review-notes) first, then keep publishing.
 
-Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch go on in the same tree; Step 3's save cuts the feature branch.
+Check [preconditions](../save/references/preconditions.md), then run `prepare`. Uncommitted changes on the default branch stay put; Step 3's save cuts the feature branch.
 
 ### The pull-in: nothing to ship yet
 
@@ -47,7 +47,7 @@ Run `node .claude/plugins/loop/scripts/slot.mjs stepTitle set SHIP --task "<plan
 
 ## Step 3 — delegate the checkpoint to /save
 
-`prepare` numbers the `## Next` changelog entry, merging `main` first when behind, then reruns the local checks: allow 15 minutes.
+`prepare` numbers the `## Next` changelog entry, merging `main` first when behind, then reruns the local checks: allow 15 minutes. `/save` packs `ARCHIVE`; `archive.mjs unpack <name> --edit` reopens it.
 
 **Invoke the `save` skill once (plus one after Step 4's fix) as ordinary `/save` inside `/ship` and follow it verbatim**, with `prepare`'s `CHANGE` and `ARCHIVE` if any. Proceed only on `SUCCESS`, `NONE`, or `LOCAL`. Any other result → stop before merge and report `/save`'s reason; never repeat, bypass, or reinterpret the gate.
 
@@ -59,7 +59,7 @@ Any verdict but `FAILURE` → report it and merge. `FAILURE` after `/verify`'s o
 
 ## Step 5 — merge and sync
 
-Run `finish` once; allow 12 minutes. It merges the gated commit, runs the project's after-merge part, and looks at the live app. A skipped sync, a secrets error, or `PLAN_PAGE=skipped` is one report line, never a failed ship. Not merged → report the error and stop, unless `NEXT:` gives a recovery; then `finish` again only on a result Step 3 proceeds on.
+Run `finish` once; allow 12 minutes. It merges, runs the project's after-merge part, and looks at the live app. A skipped sync, a secrets error, or `PLAN_PAGE=skipped` is a report line, not a failure. Not merged → report the error and stop, unless `NEXT:` gives a recovery; then `finish` again only on a result Step 3 proceeds on.
 
 Merge, not rebase, unless asked. Never check out, switch, stash, reset, or force a branch to make the sync succeed, or delete a local branch.
 
@@ -69,6 +69,6 @@ Merge, not rebase, unless asked. Never check out, switch, stash, reset, or force
 
 ## Step 6 — report
 
-Lead with the outcome in plain words: *it is live*, what changed for the person, the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) to the archived `review.html`. Always add **Checks loosened**, each `Check:` bullet in the archived Decision log, and **Choices I made**, each `Assumed` line this ship added and each `MOVED=` plan, one plain line each; omit when none. Only when asked, add `finish`'s and `/save`'s lines, the archive path, the walk's verdict and evidence (a merged-anyway `FAILURE` says the person chose it), and the secret key names.
+Lead with the outcome in plain words: *it is live*, what changed for the person, the live link, then [the plan's link](../explore/references/asking-the-user.md#print-the-plans-link) from [`build-review.mjs <name>`](../plan/scripts/build-review.mjs). Always add **Checks loosened**, each `Check:` bullet in the archived Decision log, and **Choices I made**, each `Assumed` line this ship added and each `MOVED=` plan, one plain line each; omit when none. Only when asked, add `finish`'s and `/save`'s lines, the archive path, the walk's verdict and evidence (a merged-anyway `FAILURE` says the person chose it), and the secret key names.
 
 Then end by [next work](../plan/references/new-workspace.md#next-work). A failed live look, or a `/ship` from `/close`, never asks to close.

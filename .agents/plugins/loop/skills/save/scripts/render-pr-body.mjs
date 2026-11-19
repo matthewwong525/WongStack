@@ -2,6 +2,7 @@
 // Assemble a body file. The save skill owns summary judgment and publication.
 import { existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, isAbsolute, relative, resolve, sep } from 'node:path';
+import { readPacked } from '../../../scripts/archive.mjs';
 import { isMain } from '../../../scripts/lib/cli.mjs';
 
 function webUrl(value) {
@@ -15,23 +16,34 @@ function webUrl(value) {
 export function renderPrBody({ repoRoot = '.', changeRoot, mode, repoUrl, branch, summaryFile, previewUrl }) {
   if (!changeRoot || !summaryFile || !branch || !['active', 'archive'].includes(mode)) throw new Error('change root, mode, branch, and summary file are required');
   const root = resolve(repoRoot);
-  const selected = resolve(root, changeRoot);
+  // A shipped change is one packed file, named by it or by its old folder path: each part is read inside it.
+  const folder = resolve(root, changeRoot);
+  const packed = mode === 'archive' && (folder.endsWith('.md') || (!existsSync(folder) && existsSync(`${folder}.md`)));
+  const selected = packed && !folder.endsWith('.md') ? `${folder}.md` : folder;
   const path = relative(root, selected).split(sep).join('/');
   if (!path || path === '..' || path.startsWith('../') || isAbsolute(path)) throw new Error('change must be inside the selected repository');
-  const proposal = readFileSync(resolve(selected, 'proposal.md'), 'utf8');
+  const part = file => {
+    if (!packed) return readFileSync(resolve(selected, file), 'utf8');
+    const text = readPacked(selected, file);
+    if (text === null) throw new Error(`${path} holds no ${file}`);
+    return text;
+  };
+  const proposal = part('proposal.md');
   const status = proposal.match(/^\*\*Status:\*\*[ \t]*([^\r\n]*)/m)?.[1].trim();
   if (!status) throw new Error('proposal is missing Status');
-  const tasks = readFileSync(resolve(selected, 'tasks.md'), 'utf8');
+  const tasks = part('tasks.md');
   const summary = readFileSync(summaryFile, 'utf8').trim();
   if (!summary || !tasks.trim()) throw new Error('summary and tasks must not be empty');
   const repo = webUrl(repoUrl);
   const preview = previewUrl ? webUrl(previewUrl) : null;
   const encodedPath = path.split('/').map(encodeURIComponent).join('/');
   const link = `${repo}/blob/${encodeURIComponent(branch)}/${encodedPath}`;
-  const name = mode === 'archive' ? basename(selected).replace(/^\d{4}-\d{2}-\d{2}-/, '') : basename(selected);
+  const name = mode === 'archive' ? basename(selected).replace(/\.md$/, '').replace(/^\d{4}-\d{2}-\d{2}-/, '') : basename(selected);
   let body = `## Summary\n\n**Status:** ${status}\n\n${summary}\n\n## Tasks\n\n${tasks}`;
   if (!body.endsWith('\n')) body += '\n';
-  if (existsSync(resolve(selected, 'review.html'))) {
+  if (packed && readPacked(selected, 'review.html') !== null) {
+    body += `\n## Review\n\n[Review page](${link}), packed with the plan — in a clone, \`node .claude/plugins/loop/scripts/archive.mjs unpack ${name}\` opens it; GitHub shows the source.\n`;
+  } else if (!packed && existsSync(resolve(selected, 'review.html'))) {
     body += `\n## Review\n\n[Interactive review](${link}/review.html) — open from a clone to view and annotate offline; GitHub shows the source.\n`;
   }
   if (preview) body += `\n## Preview\n\n[${preview}](${preview})\n`;

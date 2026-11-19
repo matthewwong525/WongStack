@@ -1,9 +1,10 @@
 // The pull: related topics' score and caps, and `pull <node>` for a topic, a path, a change, a fact, and a word
 // that is no node, inside its line and byte caps, with the store answering and not.
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
+import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
 import { MAX_BYTES, MAX_LINES, MORE_ITEMS, related } from '../../.agents/plugins/memory/scripts/lib/pull.mjs';
 import { memory, rows, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
@@ -120,6 +121,17 @@ test('pull <change> and show <change>: title, topics, threads, facts, chats', as
     assert.match(result.stdout, /## Open threads\n- \[thread\] Should related/);
     assert.match(result.stdout, /## Facts, newest first\n(- \[\w+\] .+\n){3}/);
   }
+});
+
+test('pull <change> on a shipped change packed into one file reads its proposal by the old path', async t => {
+  const env = await seeded(t);
+  const folder = join(env.repo.root, 'openspec/changes/archive/2026-10-01-topic-web');
+  mkdirSync(dirname(folder), { recursive: true });
+  renameSync(join(env.repo.root, 'openspec/changes/topic-web'), folder);
+  pack(folder);
+  const result = await memory(env.repo, env.fake, ['pull', 'topic-web']);
+  assert.equal(result.code, 0, result.stderr);
+  assert.match(result.stdout, /^Proposal: openspec\/changes\/archive\/2026-10-01-topic-web\/proposal\.md — Pull any node$/m);
 });
 
 test('pull #N: the whole fact, its topics and change, and what replaced it', async t => {

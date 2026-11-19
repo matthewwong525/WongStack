@@ -49,6 +49,9 @@ export function checkpointEvidence({ repo = '.', ref = 'HEAD', base, changesDir 
     : splitNull(git('ls-tree', '-r', '-z', '--name-only', sha, '--', changes));
   const proposals = new Map();
   for (const path of sorted(tracked)) {
+    // A packed archived change: only its name counts, and its Branch line is never read.
+    const packed = path.startsWith(`${changes}/archive/`) && /^\d{4}-\d{2}-\d{2}-[^/]+\.md$/.exec(path.slice(changes.length + 9));
+    if (packed) proposals.set(`archive/${packed[0].slice(0, -3)}`, null);
     if (!path.startsWith(`${changes}/`) || !path.endsWith('/proposal.md')) continue;
     const name = path.slice(changes.length + 1, -'/proposal.md'.length);
     if (!/^[^/]+$/.test(name) && !/^archive\/[^/]+$/.test(name)) continue;
@@ -61,7 +64,7 @@ export function checkpointEvidence({ repo = '.', ref = 'HEAD', base, changesDir 
   const record = (path, source) => {
     if (!path.startsWith(`${changes}/`)) return;
     const parts = path.slice(changes.length + 1).split('/');
-    const name = parts[0] === 'archive' ? parts.slice(0, 2).join('/') : parts[0];
+    const name = parts[0] === 'archive' ? `archive/${parts[1]?.replace(/\.md$/, '')}` : parts[0];
     if (!proposals.has(name)) return;
     if (!sources.has(name)) sources.set(name, new Set());
     sources.get(name).add(source);
@@ -71,6 +74,13 @@ export function checkpointEvidence({ repo = '.', ref = 'HEAD', base, changesDir 
     const source = entry.status === '??' ? 'untracked' : 'worktree';
     record(entry.path, source);
     if (entry.from) record(entry.from, source);
+  }
+  // A packed file whose folder this diff removes was only migrated, never shipped here.
+  const removed = [...splitNull(git('diff', '--no-renames', '--name-only', '--diff-filter=D', '-z', `${baseSha}...${sha}`, '--')),
+    ...dirtyPaths.flatMap(entry => [entry.status.includes('D') && entry.path, entry.from]).filter(Boolean)];
+  for (const path of removed) {
+    const folder = path.startsWith(`${changes}/archive/`) && path.slice(changes.length + 9).split('/');
+    if (folder?.length > 1) sources.delete(`archive/${folder[0]}`);
   }
   const names = sorted(sources.keys());
   return {

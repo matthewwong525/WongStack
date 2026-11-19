@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
+import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
 import { checkpointEvidence } from '../../.agents/skills/save/scripts/checkpoint-evidence.mjs';
 import { renderPrBody, writePrBody } from '../../.agents/skills/save/scripts/render-pr-body.mjs';
 
@@ -66,6 +67,21 @@ test('evidence preserves sources, rename paths, ambiguity, and remote isolation 
     const direct = run(root, 'node', join(project, alias, 'skills/save/scripts/checkpoint-evidence.mjs'), '--json');
     assert.deepEqual(JSON.parse(direct), local);
   }
+});
+
+test('a packed file whose folder the same diff removes was migrated, so only a newly archived change counts', t => {
+  const root = fixture(t);
+  file(root, 'openspec/changes/archive/2026-09-01-old/proposal.md', '# Old\n');
+  run(root, 'git', 'add', '.');
+  run(root, 'git', 'commit', '-m', 'old');
+  run(root, 'git', 'branch', '-f', 'main');
+  pack(join(root, 'openspec/changes/archive/2026-09-01-old'));
+  file(root, 'openspec/changes/archive/2026-09-22-new/proposal.md', '# New\n');
+  pack(join(root, 'openspec/changes/archive/2026-09-22-new'));
+  assert.deepEqual(checkpointEvidence({ repo: root, base: 'main' }).archive, ['2026-09-22-new']);
+  run(root, 'git', 'add', '-A');
+  run(root, 'git', 'commit', '-m', 'migrate and archive');
+  assert.deepEqual(checkpointEvidence({ repo: root, base: 'main' }).archive, ['2026-09-22-new']);
 });
 
 test('selected root and base, same-name folders, and invalid refs remain explicit', t => {
@@ -165,4 +181,24 @@ test('the body renders a change record only; a mini-app mode is gone', t => {
   file(root, 'summary.txt', 'Adds a tip calculator.\n');
   const options = { repoRoot: root, changeRoot: 'app/src/apps/tips', mode: 'mini-app', repoUrl: 'https://github.com/example/repo', branch: 'mini/tips', summaryFile: join(root, 'summary.txt') };
   assert.throws(() => renderPrBody(options), /mode/);
+});
+
+test('a packed archived change is a candidate by name, and its body reads the packed parts', t => {
+  const { root, tasks, options } = bodyFixture(t, true);
+  file(root, `${options.changeRoot}/review.html`, '<!doctype html>');
+  pack(join(root, options.changeRoot));
+  run(root, 'git', 'add', '.');
+  run(root, 'git', 'commit', '-m', 'ship');
+  const evidence = checkpointEvidence({ repo: root, base: 'main' });
+  assert.deepEqual(evidence.archive, ['2026-09-22-review work']);
+  assert.deepEqual(evidence.sources['archive/2026-09-22-review work'], ['branch']);
+  for (const changeRoot of [options.changeRoot, `${options.changeRoot}.md`]) {
+    const body = renderPrBody({ ...options, changeRoot });
+    assert(body.includes(`## Tasks\n\n${tasks}`));
+    assert(body.includes('/archive/2026-09-22-review%20work.md), packed with the plan'));
+    assert(body.includes('archive.mjs unpack review work'));
+  }
+  rmSync(join(root, `${options.changeRoot}.md`));
+  file(root, `${options.changeRoot}.md`, '<!-- openspec-archive v1 2026-09-22-review work -->\n');
+  assert.throws(() => renderPrBody(options), /holds no proposal\.md/);
 });

@@ -127,5 +127,6 @@ jobs:
           node scripts/check-retired-names.mjs
           node scripts/check-attachments.mjs
           node scripts/check-module-versions.mjs
+          node .agents/plugins/loop/scripts/archive.mjs check
           openspec validate --specs --strict --no-interactive
           node scripts/measure-context.mjs --check

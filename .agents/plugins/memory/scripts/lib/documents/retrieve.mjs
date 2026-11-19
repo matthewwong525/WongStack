@@ -1,8 +1,11 @@
+import { archiveReader } from '../store.mjs';
 import { scanCorpus, verifyPassage } from './corpus.mjs';
 import { interleaveSources, lexicalSearch } from './lexical.mjs';
 
 // One path: scan the checkout, rank by words, then reopen each original before it is returned.
-export async function retrieveDocuments(ctx, options, { corpus = scanCorpus(ctx), beforeVerify = () => {}, deadline = Date.now() + 16000 } = {}) {
+export async function retrieveDocuments(ctx, options, { archive, corpus, beforeVerify = () => {}, deadline = Date.now() + 16000 } = {}) {
+  archive ??= await archiveReader(ctx);
+  corpus ??= scanCorpus(ctx, { archive });
   let lexicalPartial = false, reason = null;
   const lookup = source => {
     const hits = lexicalSearch(source, options.question, { ...options, deadline: Math.min(deadline + 1000, Date.now() + 1000) });
@@ -11,13 +14,13 @@ export async function retrieveDocuments(ctx, options, { corpus = scanCorpus(ctx)
   };
   let rejected = 0;
   const verified = interleaveSources(lookup(corpus), 32).map(candidate => {
-    const result = Date.now() >= deadline + 1500 ? null : verifyPassage(ctx, candidate, { beforeRead: beforeVerify });
+    const result = Date.now() >= deadline + 1500 ? null : verifyPassage(ctx, candidate, { beforeRead: beforeVerify, archive });
     if (!result) rejected++; return result;
   }).filter(Boolean);
   // A race can invalidate a ranked hit; rescan for fresh keyword evidence once.
   if (rejected) {
-    const fresh = scanCorpus(ctx, { deadline: Math.min(deadline, Date.now() + 1500) });
-    verified.push(...interleaveSources(lookup(fresh), 32).map(hit => Date.now() >= deadline + 1500 ? null : verifyPassage(ctx, hit)).filter(Boolean));
+    const fresh = scanCorpus(ctx, { archive, deadline: Math.min(deadline, Date.now() + 1500) });
+    verified.push(...interleaveSources(lookup(fresh), 32).map(hit => Date.now() >= deadline + 1500 ? null : verifyPassage(ctx, hit, { archive })).filter(Boolean));
     reason = 'sources changed during lookup; refreshed keyword passages returned';
   }
   const documents = interleaveSources(verified, options.limit);

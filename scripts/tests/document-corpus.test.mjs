@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { scanCorpus, scopedEntries, sourceRole, safeSource, verifyPassage } from '../../.agents/skills/memory/scripts/lib/documents/corpus.mjs';
 import { lexicalSearch, interleaveSources, passages } from '../../.agents/skills/memory/scripts/lib/documents/lexical.mjs';
 import { validateRetrieval } from '../../.agents/skills/memory/scripts/lib/documents/input.mjs';
 import { retrieveDocuments } from '../../.agents/skills/memory/scripts/lib/documents/retrieve.mjs';
 import { tempDir } from './fixtures/memory/harness.mjs';
+import { archiveReader, pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
 
 function fixture(t) {
   const root = tempDir(t, 'documents-'), commonDir = join(root, '.git');
@@ -157,4 +158,34 @@ test('a scan that runs out of time returns what it read, marked partial with a r
   const result = await retrieveDocuments(ctx, validateRetrieval('approved checks'), { corpus });
   assert.deepEqual(result.documents.map(doc => doc.path), ['wiki/a.md']);
   assert.equal(result.documentSource.state, 'partial'); assert.match(result.documentSource.reason, /scan incomplete/);
+});
+test('a packed archived change is read by its old part paths, in history scope only', async t => {
+  const { ctx, put } = fixture(t);
+  put('openspec/changes/archive/2026-09-25-old-store/proposal.md', '# Old store\nThe ledger moved because approved checks were slow.\n');
+  put('openspec/changes/archive/2026-09-25-old-store/review.html', '<html>ledger</html>\n');
+  pack(join(ctx.root, 'openspec/changes/archive/2026-09-25-old-store'));
+  const archive = archiveReader(ctx.root);
+  const path = 'openspec/changes/archive/2026-09-25-old-store/proposal.md';
+  assert.deepEqual(Object.keys(scanCorpus(ctx, { archive }).entries).filter(each => each.includes('old-store')), [path]);
+  const history = await retrieveDocuments(ctx, validateRetrieval('Why did the ledger move?', { scope: 'history' }), { archive });
+  assert.deepEqual(history.documents.map(doc => [doc.path, doc.role]), [[path, 'archive']]);
+  assert.match(history.documents[0].text, /ledger moved/);
+  const current = await retrieveDocuments(ctx, validateRetrieval('Why did the ledger move?'), { archive });
+  assert.equal(current.documents.length, 0);
+});
+test('a corrupt packed change is skipped, and a scan past its deadline opens no packed change', t => {
+  const { ctx, put } = fixture(t);
+  for (const name of ['2026-09-25-bad', '2026-09-26-good']) {
+    put(`openspec/changes/archive/${name}/proposal.md`, '# Old store\nThe ledger moved.\n');
+    pack(join(ctx.root, 'openspec/changes/archive', name));
+  }
+  const bad = join(ctx.root, 'openspec/changes/archive/2026-09-25-bad.md');
+  writeFileSync(bad, readFileSync(bad, 'utf8').replace(/proposal\.md utf8 \d+/, 'proposal.md utf8 3'));
+  const archive = archiveReader(ctx.root);
+  assert.deepEqual(Object.keys(scanCorpus(ctx, { archive }).entries).filter(each => each.includes('/archive/')),
+    ['openspec/changes/archive/2026-09-26-good/proposal.md']);
+  let opened = 0;
+  const counted = { list: archive.list, files: folder => { opened++; return archive.files(folder); }, read: (...args) => { opened++; return archive.read(...args); } };
+  const late = scanCorpus(ctx, { archive: counted, deadline: Date.now() - 1 });
+  assert.deepEqual([opened, Object.keys(late.entries).length], [0, 0]);
 });

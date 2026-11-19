@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.11.0 — Each finished plan is kept as one file, so Paseo stops lagging
+
+- **A finished plan is one file.** `openspec/changes/archive/<date>-<name>.md` holds every file the plan's folder held: the proposal, design, tasks, specs, review page, and pictures. Each comes back byte for byte. GitHub shows the plan as one page. Before, each plan kept a folder, plus one per spec, and a repo past 5,000 folders made every Paseo chat on it lag.
+- **`/ship`'s save packs the plan into its commit.** The OpenSpec tool never reads the archive, so listing, checking, and archiving plans work as before.
+- **Every step that reads finished plans reads the packed file.** Memory's `pull`, recall, and daily tidy, the review page builder, the other-work check, and `/save` find a finished plan as before. An old path to a file inside a plan, in a fact or a page, still finds that file.
+- **An old review page still opens.** `build-review.mjs <name>` unpacks the plan to `.scratch/archive/<folder>/` and prints its page there. `archive.mjs unpack <name>` writes its files the same way; `--edit` turns it back into its folder, and the next save packs it again.
+- **New commands.** `.claude/skills/loop/scripts/archive.mjs pack`, `unpack`, `migrate`, and `check`. The memory profile gets an `archive` slot, which reads finished plans through the loop.
+
+**Updating.** The update plan gets one to-do: pack every finished plan in one go, with `node .claude/skills/loop/scripts/archive.mjs migrate`. It checks that each packed file gives back the same files before it removes a folder, and keeps any folder that does not. If your repo keeps its own changes to the memory profile (`.claude/memory/profile.mjs`), keep the new `archive` line, or memory finds no finished plan.
+
 ## 61.10.0 — Each chat gets its own company folder, and a save never gets stuck
 
 - **Each chat has its own `knowledge/` folder.** It is a git worktree of the computer's shared copy, on the branch `chat/<workspace>`. One chat's unsaved edits are never in another chat's folder, so they can't stop another chat's save. Only `main` goes to the app; a chat's branch stays on the computer.

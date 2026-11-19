@@ -2,12 +2,13 @@
 // read of the files each change touched, against a throwaway git repo.
 import assert from 'node:assert/strict';
 import { execFile, execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
 import { filesBehind, namedPaths } from '../../.agents/plugins/memory/scripts/lib/files.mjs';
-import { changeFiles } from '../../.agents/memory/lookup.mjs';
+import { changeFiles, pastChanges } from '../../.agents/memory/lookup.mjs';
+import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
 import { tempDir } from './fixtures/memory/harness.mjs';
 
 const files = (root, map) => Object.entries(map).forEach(([path, body]) => {
@@ -150,4 +151,29 @@ test('an active change gives its plan paths that exist; a repo with no git gives
   rmSync(join(root, '.git'), { recursive: true, force: true });
   const found = await changeFiles({ root }, ['old-change']);
   assert.deepEqual(found.get('old-change'), [{ path: 'src/big.mjs', churn: 0 }]);
+});
+
+test('a migration that packs the archive keeps each change on its own commit, and a packed ship commit counts', async t => {
+  const root = history(t);
+  pack(join(root, 'openspec/changes/archive/2026-01-01-old-change'));
+  commit(root, {}, 'chore: pack the archive');
+  files(root, { 'openspec/changes/archive/2026-02-01-packed-ship/proposal.md': '# Packed\n' });
+  pack(join(root, 'openspec/changes/archive/2026-02-01-packed-ship'));
+  commit(root, { 'src/small.mjs': 'fresh\n' }, 'feat: packed ship');
+  const found = await changeFiles({ root }, ['old-change', 'packed-ship']);
+  assert.deepEqual(found.get('old-change').map(file => file.path), ['src/big.mjs', 'src/moved.mjs', 'src/deleted.mjs', 'src/small.mjs']);
+  assert.deepEqual(found.get('packed-ship'), [{ path: 'src/small.mjs', churn: 4 }]);
+  rmSync(join(root, '.git'), { recursive: true, force: true });
+  assert.deepEqual((await changeFiles({ root }, ['old-change'])).get('old-change'), [{ path: 'src/big.mjs', churn: 0 }]);
+});
+
+test('past changes skip a corrupt packed plan and still list the rest', t => {
+  const root = tempDir(t, 'files-corrupt-');
+  for (const folder of ['2026-01-01-bad', '2026-01-02-good']) {
+    files(root, { [`openspec/changes/archive/${folder}/proposal.md`]: '# Touches `src/a.mjs`\n' });
+    pack(join(root, 'openspec/changes/archive', folder));
+  }
+  const bad = join(root, 'openspec/changes/archive/2026-01-01-bad.md');
+  writeFileSync(bad, readFileSync(bad, 'utf8').replace(/proposal\.md utf8 \d+/, 'proposal.md utf8 3'));
+  assert.deepEqual(pastChanges(root, ['src/a.mjs'], [], {}).map(each => each.folder), ['2026-01-02-good']);
 });

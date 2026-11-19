@@ -48,6 +48,7 @@ export const STEPS = [
   { name: 'retired-names', when: 'always', command: 'node scripts/check-retired-names.mjs' },
   { name: 'attachments', when: 'always', command: 'node scripts/check-attachments.mjs' },
   { name: 'module-versions', when: 'always', command: 'node scripts/check-module-versions.mjs' },
+  { name: 'archive', when: 'always', command: 'node .agents/plugins/loop/scripts/archive.mjs check' },
   { name: 'specs', when: 'always', tool: 'openspec', command: 'openspec validate --specs --strict --no-interactive' },
   { name: 'context-budget', when: 'always', command: 'node scripts/measure-context.mjs --check' },
 ];

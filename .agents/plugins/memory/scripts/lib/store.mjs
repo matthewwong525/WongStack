@@ -74,6 +74,15 @@ export async function loadProfile(ctx) {
   return existsSync(file) ? (await import(pathToFileURL(file).href)).default : null;
 }
 
+const NO_ARCHIVE = { list: () => [], files: () => null, read: () => null };
+const guarded = (call, none) => (...args) => { try { return call(...args); } catch { return none; } };
+/** The repo's finished changes through the profile's `archive` slot; no slot, or one that fails, gives none.
+ *  A read that throws, such as one corrupt plan, gives nothing for that plan alone. */
+export async function archiveReader(ctx, profile) {
+  const reader = await (async () => (profile === undefined ? await loadProfile(ctx) : profile)?.archive?.(ctx))().catch(() => null);
+  return reader ? { list: guarded(reader.list, []), files: guarded(reader.files, null), read: guarded(reader.read, null) } : NO_ARCHIVE;
+}
+
 // The profile's store, each operation wrapped: a refused sign-in leaves a mark so session start shows no stale digest.
 export async function openStore(ctx, options = {}) {
   const profile = await loadProfile(ctx);

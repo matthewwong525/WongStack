@@ -34,6 +34,8 @@ export default {
       + '(an ended chat\'s clashing save) into it and delete the `.mine`; for any other, `git fetch origin main`, '
       + '`git switch -c <branch> origin/main`, then `/ship` minus its closing question.',
   },
+  // Finished changes, one packed file each: a reader with list(), files(folder), and read(folder, path).
+  archive: async ctx => (await import('../plugins/loop/scripts/archive.mjs')).archiveReader(ctx.root),
   sessionStart: lazy('./session-start.mjs', 'sessionStart'),
   // WongStack's admin jobs on its own store: migrations, people, and old keys.
   commands: lazy('./d1/admin.mjs', 'adminCommands'),

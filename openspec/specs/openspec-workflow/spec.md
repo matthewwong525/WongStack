@@ -84,3 +84,27 @@ When `/apply` cannot or should not check out a saved change's branch here, becau
 
 - **WHEN** `/apply add-auth` runs and `add-auth`'s branch is checked out in another worktree
 - **THEN** it recaps the change, says where the branch is open, and asks what next, with nothing built here
+
+### Requirement: A finished change is kept as one file
+
+A shipped change SHALL be stored under `openspec/changes/archive/` as one readable text file, not a folder. The file SHALL hold every file the change's folder held, each restored byte for byte, so no folder is added per finished change. Every WongStack step that reads a finished change SHALL read the packed file, and the old path to a file inside a finished change SHALL still find that file.
+
+#### Scenario: Shipping a change packs it
+
+- **WHEN** `/ship` archives a change
+- **THEN** the saved archive holds one file for that change and no folder
+- **AND** the OpenSpec CLI still lists, validates, and archives other changes
+
+#### Scenario: An old path still finds its file
+
+- **WHEN** a memory fact or a page names a file inside a finished change by its old folder path
+- **THEN** memory, the review page builder, and the other WongStack steps find that file in the packed file
+
+### Requirement: An update packs an older install's finished changes
+
+An update of an install whose archive still holds change folders SHALL plan one step that packs every one of them. The step SHALL check that each packed file restores the same files before it removes a folder, and it SHALL keep a folder it can not restore exactly.
+
+#### Scenario: An older install updates
+
+- **WHEN** an install with 1,245 archived change folders updates
+- **THEN** its sync plan has one step that packs them, and after the update its archive holds no change folder

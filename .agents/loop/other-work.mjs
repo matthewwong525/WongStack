@@ -121,15 +121,19 @@ function changesOnDisk(dir) {
   }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** The archived change folders a list of paths adds under `openspec/changes/archive/`. */
+/** The archived changes a list of paths adds under `openspec/changes/archive/`, as folder paths: a packed
+ *  `<folder>.md` names its folder. */
 export function archivedIn(files) {
   const dirs = new Set();
   for (const file of files) {
-    const match = /^(openspec\/changes\/archive\/[^/]+)\//.exec(file);
+    const match = /^(openspec\/changes\/archive\/(?:[^/]+(?=\/)|\d{4}-\d{2}-\d{2}-[^/]+(?=\.md$)))/.exec(file);
     if (match) dirs.add(match[1]);
   }
   return [...dirs];
 }
+
+// True when `base` holds the archived change, packed or as a folder: a branch from before the packing still counts.
+const onBase = (has, base, folder) => has(`${base}:${folder}.md`) || has(`${base}:${folder}`);
 
 // One worktree's unpublished state, compared with `base`. A branch whose archived change is already
 // on `base` shipped by squash merge, so its leftover commits count as none ahead.
@@ -137,7 +141,7 @@ function worktreeState(dir, base) {
   const dirty = lines(tryGit(dir, 'status', '--porcelain')).map(line => line.slice(3));
   let ahead = base ? Number(tryGit(dir, 'rev-list', '--count', `${base}..HEAD`) ?? 0) : 0;
   let changed = base && ahead ? lines(tryGit(dir, 'diff', '--name-only', `${base}...HEAD`)) : [];
-  if (archivedIn(changed).some(folder => tryGit(dir, 'cat-file', '-e', `${base}:${folder}`) !== null)) {
+  if (archivedIn(changed).some(folder => onBase(ref => tryGit(dir, 'cat-file', '-e', ref) !== null, base, folder))) {
     ahead = 0;
     changed = [];
   }
@@ -157,7 +161,7 @@ export function savedBranches(git, base, skip = new Set()) {
     const branch = ref.slice('refs/remotes/origin/'.length);
     if (!base || branch === 'HEAD' || `origin/${branch}` === base || skip.has(branch)) continue;
     const files = lines(git('diff', '--name-only', `${base}...${ref}`));
-    if (archivedIn(files).some(folder => git('cat-file', '-e', `${base}:${folder}`) !== null)) continue;
+    if (archivedIn(files).some(folder => onBase(ref => git('cat-file', '-e', ref) !== null, base, folder))) continue;
     const changes = changesIn(files).map(name => {
       const proposal = git('show', `${ref}:openspec/changes/${name}/proposal.md`);
       if (proposal === null) return null;
