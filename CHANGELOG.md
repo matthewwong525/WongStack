@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 61.11.1 — Daily tidy of the wiki pages
+
+- **The development hub says where a schedule lives.** Its line for host schedules now says that with no app, a schedule is a Paseo schedule on this computer, as the host schedules page says.
+- **Adding a module counts the build loop's commands right.** It has seven commands, not eight.
+- **The Notion page says how search sorts.** Notion search sorts only by the last edit, so *the newest pages* are the pages edited most recently.
+
+**Updating.** Nothing to do by hand.
+
 ## 61.11.0 — Each finished plan is kept as one file, so Paseo stops lagging
 
 - **A finished plan is one file.** `openspec/changes/archive/<date>-<name>.md` holds every file the plan's folder held: the proposal, design, tasks, specs, review page, and pictures. Each comes back byte for byte. GitHub shows the plan as one page. Before, each plan kept a folder, plus one per spec, and a repo past 5,000 folders made every Paseo chat on it lag.
