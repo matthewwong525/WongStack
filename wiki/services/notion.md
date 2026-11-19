@@ -22,6 +22,8 @@ Notion needs a `Notion-Version` header on every call. Put it in `forward.headers
 
 `POST search` and `POST databases/*/query` only read, so they are look-ups.
 
+**Search sorts only by `last_edited_time`.** So *the newest pages* means the pages edited most recently, not the pages made most recently.
+
 ## Calls
 
 `node scripts/company-api.mjs api notion` lists the calls we use. `api notion <call>` shows how we use one and its quirks: [each service's definition](../stack/service-catalogue.md#each-services-definition).
