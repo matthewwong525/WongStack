@@ -1,5 +1,5 @@
 <!-- openspec-archive v1 2026-11-18-pack-archived-changes -->
-<!-- file proposal.md utf8 5713 -->
+<!-- file proposal.md utf8 6266 -->
 # Each finished plan is kept as one file, so Paseo stops lagging
 
 **Status:** ready-to-ship
@@ -78,6 +78,9 @@ Paseo watches each repo's folders for changes, but only up to 5,000 folders. Pas
 - **2026-11-18** — Assumed: the old path `openspec/changes/archive/<folder>/<file>` stays the address in facts, recall citations, and links, resolved into the packed file, so no fact or page needs an edit.
 - **2026-11-18** — Assumed: `/save` packs the archive in its commit, not `prepare`, because `/save`, `/verify`, and a fix still edit the archived proposal and tasks after `prepare`; `archive.mjs unpack <name> --edit` reopens a packed one for a later edit.
 - **2026-11-18** — Archive checkpoint: `/ship` archived the change and numbered it 61.11.0; this repo's 455 finished plans are packed and each restores byte for byte; local checks pass.
+- **2026-11-19** — Check: `.github/workflows/payload.yml` nothing is loosened; it adds the packed-archive check step, because a broken packed file must fail the payload checks.
+- **2026-11-19** — Check: `.github/scripts/loosened-checks.mjs` nothing is loosened; it also reads a packed archive's proposal and delta specs, because a packed change would otherwise hide its `Check:` bullets.
+- **2026-11-19** — Asked: the live guard can't read packed plans and fails on this change, and it is not a required check → chose publish anyway, this once.
 
 <!-- end proposal.md -->
 <!-- file design.md utf8 5863 -->
@@ -223,7 +226,7 @@ created: 2026-11-18
 
 ~~~
 <!-- end .openspec.yaml -->
-<!-- file review.html utf8 116043 fence=~~~ -->
+<!-- file review.html utf8 117019 fence=~~~ -->
 ~~~html
 <!-- wong-review:3 -->
 <!doctype html>
@@ -728,6 +731,9 @@ created: 2026-11-18
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-18</p>Assumed: the old path <code>openspec/changes/archive/&lt;folder&gt;/&lt;file&gt;</code> stays the address in facts, recall citations, and links, resolved into the packed file, so no fact or page needs an edit.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-18</p>Assumed: <code>/save</code> packs the archive in its commit, not <code>prepare</code>, because <code>/save</code>, <code>/verify</code>, and a fix still edit the archived proposal and tasks after <code>prepare</code>; <code>archive.mjs unpack &lt;name&gt; --edit</code> reopens a packed one for a later edit.</li>
 <li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-18</p>Archive checkpoint: <code>/ship</code> archived the change and numbered it 61.11.0; this repo's 455 finished plans are packed and each restores byte for byte; local checks pass.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-19</p>Check: <code>.github/workflows/payload.yml</code> nothing is loosened; it adds the packed-archive check step, because a broken packed file must fail the payload checks.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag check">check</span>2026-11-19</p>Check: <code>.github/scripts/loosened-checks.mjs</code> nothing is loosened; it also reads a packed archive's proposal and delta specs, because a packed change would otherwise hide its <code>Check:</code> bullets.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-19</p>Asked: the live guard can't read packed plans and fails on this change, and it is not a required check → chose publish anyway, this once.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
