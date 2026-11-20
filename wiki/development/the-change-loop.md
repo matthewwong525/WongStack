@@ -30,7 +30,7 @@ Entering late never skips a stop: **no verb merges as a way of stopping.** A pau
 
 A person need not know the verbs. *Go test X* is research, run and reported before any plan. Asked for a change to the repo's code or process with no verb, the agent starts at `/plan` and stops twice:
 
-1. **`/plan`** asks only what it must and ends on [the plan's link](../../.agents/plugins/loop/skills/explore/references/asking-the-user.md#print-the-plans-link), never a question. Tap *Build it* on the page, or *Build and publish* to run `/ship` with no stop at the preview. A chat message asking to change the waiting plan updates it.
+1. **`/plan`** asks only what it must and ends on [the plan's link](../../.agents/plugins/loop/skills/explore/references/asking-the-user.md#print-the-plans-link), never a question. The link opens the plan's [review page](../review-pages.md). Tap *Build it* on the page, or *Build and publish* to run `/ship` with no stop at the preview. A chat message asking to change the waiting plan updates it.
 2. On yes, **`/apply`** builds, uploads a preview from the agent host, and asks *publish it?* A change that leaves the app untouched gets no preview; the agent says so and still asks.
 3. On yes, **`/ship`**: one save, CI, the walk, and the merge.
 
@@ -107,6 +107,7 @@ A verb works for work that changes no repo file too, such as research or a messa
 
 - **A finished build is checked on this computer first** by [`checks.mjs --worktree`](../../.github/scripts/checks.mjs), which runs CI's checks for the changed files. It is the loop's `precheck`. [Artifacts](../stack/artifacts-route.md) runs CI in Cloudflare.
 - **The app's suite runs inside CI as an ordinary check**, found by an `npm test` script at the repo root **or any immediate subdirectory**; a repo without tests passes, and gets no package manifest.
+- **CI deploys with its own narrow Cloudflare token**, never your own: [the CI deploy token](../stack/cloudflare-credentials.md#the-ci-deploy-token).
 - **A branch that leaves the main app untouched skips its suite**: when every path it changes against the default branch is under `wiki/` or `openspec/`, or ends in `.md`. The Test and Deploy jobs skip inside the job, saying so; a required check still reports green. A [mini app](../stack/mini-apps.md) is main-app code: changing one runs the suite and deploys. The WongStack source repo's Payload checks run on every push, since skill Markdown is the payload; only a branch entirely under `wiki/` or `openspec/` skips their script tests. The Test job skips its wiki check when the branch changes no Markdown file and removes or moves none, since no link can break. Passed code skips too ([`already-passed.sh`](../../.github/scripts/already-passed.sh)): a merge identical to a passed branch head, or a push of only docs since a passed commit, named in the summary. Any doubt runs it.
 
 [`checks.mjs`](../../.github/scripts/checks.mjs) owns discovery, tests and quality reports on both routes, and on this computer with `--worktree`.
