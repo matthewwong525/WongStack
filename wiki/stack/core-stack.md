@@ -33,5 +33,6 @@ Pin these versions where the scaffold needs them (Vite's Cloudflare plugin and t
 - How code and data ship, and how a bad migration is recovered: the [deploy and data pipeline](d1-pipeline.md).
 - Shared app and assistant actions: [company actions](company-api.md).
 - The automatic login wall in front of the app: [Cloudflare Access](cloudflare-access.md).
+- Who may sign in to the app, and what each person's assistant may do: [employee access](employee-access.md).
 - The tokens the pipeline needs: [Cloudflare credentials](cloudflare-credentials.md).
 - Back to the stack overview: [Cloudflare stack](README.md).

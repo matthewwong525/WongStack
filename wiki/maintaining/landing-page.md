@@ -21,7 +21,7 @@ The site compares WongStack with no other product: a wrong claim about another c
 
 ## No hosting offer
 
-The page never offers or mentions a WongStack paid plan, price, trial, subscription, account or sign-in, or a rented server, and it names no server provider. WongStack is free and runs on the visitor's own computer; a page that says otherwise sells something that does not exist.
+The page never offers or mentions a WongStack paid plan, price, trial, subscription, account or sign-in, or a rented server, and it names no server provider. WongStack is free and runs on the visitor's own computer; a page that says otherwise sells something that does not exist. The hosted app that once ran at wongstack.com is shut down: [its archive](hosted-app-archive.md) says what is gone and what is kept.
 
 **No WongStack price, not no price.** The page names one cost: what another company charges for an account the install uses, said with that company's name, such as Cloudflare's paid plan. Every such sentence is in `COST_LINES` in [`site/src/install.ts`](../../site/src/install.ts), and the page prints those strings as they are.
 
