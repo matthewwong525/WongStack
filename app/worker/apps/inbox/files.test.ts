@@ -2,7 +2,7 @@
 import { expect, it } from "vitest";
 import type { AccessIdentity } from "../../access-slots";
 import { handleApp } from "../index";
-import { FILE_LIMITS } from "./files";
+import { FILE_LIMITS, safeName, startsAsNamed, typeOf } from "./files";
 import { body } from "../../../tests/body";
 import { fakeEnv } from "../../../tests/env";
 import { START, sam, jo, machine, db, call, PLAN, APPROVAL, plan, approval, put, tap, checkin, later } from "../../../tests/inbox";
@@ -158,4 +158,12 @@ it("refuses a file that says it is too big, sends no body, passes the item's or 
     expect(await send(sam, {})).toMatchObject({ status: 507, json: { error: { code: "full" } } });
   } finally { Object.assign(FILE_LIMITS, room); }
   expect([count("inbox_files"), count("inbox_file_parts")]).toEqual([1, 1]);
+});
+
+it("names a known ending's type, checks its first bytes, and takes any other ending as plain bytes", () => {
+  expect([typeOf("Q2.XLSX"), typeOf("q2.xlsm"), typeOf("a.constructor"), typeOf("README")])
+    .toEqual(["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/octet-stream", "application/octet-stream", "application/octet-stream"]);
+  expect([startsAsNamed("q2.xlsx", ascii("PK\x03\x04")), startsAsNamed("q2.pdf", ascii("PK\x03\x04")), startsAsNamed("q2.xlsm", ascii("anything"))])
+    .toEqual([true, false, true]);
+  expect(["q2.xlsm", "", "a/b", "a\\b", "a\tb", "x".repeat(201)].map(safeName)).toEqual([true, false, false, false, false, false]);
 });

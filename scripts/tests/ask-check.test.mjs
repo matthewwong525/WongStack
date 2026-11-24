@@ -4,7 +4,8 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { endsWithChoices, endsWithQuestion, LINKS_REASON, linksDecision, readTurn, REASON, REMINDER, stopDecision, turnLinks, waitForCall } from '../../.agents/loop/ask-check.mjs';
+import { endsWithChoices, endsWithQuestion, LINKS_REASON, linksDecision, readTurn, REASON, REMINDER, REVIEW_REASON, reviewBlocks, stopDecision, turnLinks, turnReview, waitForCall }
+  from '../../.agents/loop/ask-check.mjs';
 
 const cli = new URL('../../.agents/loop/ask-check.mjs', import.meta.url).pathname;
 
@@ -243,4 +244,88 @@ test('waitForCall waits for the call\'s own row, which Claude Code writes after 
   assert.equal(waitForCall(path.join(tmpdir(), 'wong-test-ask-check-missing.jsonl'), 'toolu_9', 100), false);
 });
 
-test('the reminder names the link rule', () => assert.match(REMINDER, /full link in its text/));
+test('the reminder names the link rule and the review rule', () => {
+  assert.match(REMINDER, /full link in its text/);
+  assert.match(REMINDER, /what the person must read to answer/);
+});
+
+test('the stop reason asks for the review in the question, not a bare question', () => {
+  assert.match(REASON, /Put in the question what they must read to answer\./);
+  assert.doesNotMatch(REASON, /Don't repeat the report/);
+});
+
+// The review check: a question that holds none of the turn's drafts, tables or quotes is sent back once; a list goes.
+const DRAFT = 'Here is the reply:\n\n```text\nHi Dana,\nYour kit ships tomorrow from Markham, tracked by email.\nThanks, Carol\n```';
+const TABLE = 'Counts:\n\n| Kit | Count |\n|---|---|\n| Snowman Cocoa | 12 |\n| Under the Sea | 4 |';
+const card = (question, options = []) => ({ question, options });
+const asks = (file, ...items) => ({ tool_name: 'AskUserQuestion', transcript_path: file, tool_input: { questions: items } });
+
+test('reviewBlocks keeps fences, tables and quotes, and drops lists, pictures, tap lines and plain sentences', () => {
+  assert.deepEqual(reviewBlocks(DRAFT), ['Your kit ships tomorrow from Markham, tracked by email.']);
+  assert.deepEqual(reviewBlocks(TABLE), ['Snowman Cocoa | 12']);
+  assert.deepEqual(reviewBlocks('> Hi Dana,\n> Your kit ships **tomorrow**.'), ['Your kit ships tomorrow.']);
+  assert.deepEqual(reviewBlocks('Changes:\n- The form checks the email\n- A wrong code shows a red line\n- The button waits'), []);
+  assert.deepEqual(reviewBlocks('```text\nPlan ──► kit demand ──► shift hours\n```'), []);
+  assert.deepEqual(reviewBlocks('```mermaid\nflowchart TD\n  A["Something to review"] --> B\n```'), []);
+  assert.deepEqual(reviewBlocks(`The preview is up and works.\n\n[👉 Tap here to see the preview](${PLAN})`), []);
+  assert.deepEqual(reviewBlocks('> one quote line'), []);
+  assert.deepEqual(reviewBlocks(`\`\`\`\n${'word '.repeat(20)}\n\`\`\``), ['word '.repeat(12)]);
+});
+
+test('turnReview reads assistant text since the person last answered, not tool results', () => {
+  const answered = printed('Your questions have been answered: "Send it?"="Send it"', 'toolu_2');
+  assert.deepEqual(turnReview([human('go'), said(text(TABLE), ask('Send it?')), answered, said(text(DRAFT))]), {
+    blocks: ['Your kit ships tomorrow from Markham, tracked by email.'],
+    sentBack: false,
+  });
+  assert.deepEqual(turnReview([human('go'), said(tool('Bash')), printed(TABLE)]), { blocks: [], sentBack: false });
+  assert.equal(turnReview([human('go'), said(text(DRAFT), ask('Send it?')), printed(`${REVIEW_REASON}\nHi`, 'toolu_2')]).sentBack, true);
+});
+
+test('review sends back a bare card under a draft once, naming how the draft begins', t => {
+  const file = transcript(t, [human('answer Dana'), said(text(DRAFT), ask('Send this reply to Dana?'))]);
+  assert.deepEqual(linksDecision(asks(file, card('Send this reply to Dana?')), {}), {
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'deny',
+      permissionDecisionReason: `${REVIEW_REASON}\nYour kit ships tomorrow from Markham, tracked by email.`,
+    },
+  });
+  const again = transcript(t, [human('answer Dana'), said(text(DRAFT), ask('Send this reply to Dana?')), printed(`${REVIEW_REASON}\nYour kit`, 'toolu_2'), said(ask('Send it?'))]);
+  assert.equal(linksDecision(asks(again, card('Send this reply to Dana?')), {}), null);
+});
+
+test('the link check runs first and shares the one send-back', t => {
+  const file = transcript(t, [human('plan it'), said(text(`${TABLE}\n\n[👉 Tap here to see the plan](${PLAN})`))]);
+  assert.match(linksDecision(asks(file, card('Build it?')), {}).hookSpecificOutput.permissionDecisionReason, /^This question leaves out a link/);
+  const after = transcript(t, [human('plan it'), said(text(TABLE), ask('Build it?')), printed(`${LINKS_REASON}\n${PLAN}`, 'toolu_2')]);
+  assert.equal(linksDecision(asks(after, card('Build it?')), {}), null);
+});
+
+test('review lets the question go out', async t => {
+  const draft = [human('answer Dana'), said(text(DRAFT))];
+  const cases = {
+    'the same draft in the question': [transcript(t, draft), card('Send this reply to Dana?\n\nHi Dana,\nYour kit ships tomorrow from Markham, tracked by email.\nThanks, Carol')],
+    'the draft in an option preview': [transcript(t, draft), card('Send it?', [{ label: 'Send it', preview: 'Your kit ships tomorrow from Markham, tracked by email.' }])],
+    'a table row reformatted in the question': [transcript(t, [human('count'), said(text(TABLE))]), card('Order more? Snowman Cocoa: 12; Under the Sea: 4.')],
+    'a table row with an underscore name, word for word': [transcript(t, [human('count'), said(text('Counts:\n\n| Field | Value |\n|---|---|\n| order_count_total | 12 |'))]), card('Order more? order_count_total | 12')],
+    'a page link in the question': [transcript(t, draft), card('The draft is long: https://admin.example.invalid/inbox/p/7. Send it?')],
+    'a file path in the question': [transcript(t, draft), card('Read /home/me/repo/.scratch/draft.md, then: send it?')],
+    'only plain sentences above': [transcript(t, [human('go'), said(text('Done. The preview is up.\n\nThe form now checks the email first.'))]), card('Publish it?')],
+    'a list of changes above': [transcript(t, [human('go'), said(text('Done.\n\n- The form checks the email\n- A wrong code shows a red line\n- The button waits'))]), card('Publish it?')],
+    'a question that offers to close the chat': [transcript(t, [human('count'), said(text(TABLE))]), card('The counts are saved. Close this chat?')],
+    'a mermaid fence above': [transcript(t, [human('go'), said(text('```mermaid\nflowchart TD\n  A["Something to review"] --> B["Card"]\n```'))]), card('Plan it?')],
+    'a draft only a tool printed': [transcript(t, [human('go'), said(tool('Bash')), printed(DRAFT)]), card('Send it?')],
+    'a draft before the person answered': [transcript(t, [...draft, said(ask('Send it?')), printed('Your questions have been answered: "Send it?"="Send it"', 'toolu_2'), said(text('Sent.'))]), card('Publish it?')],
+  };
+  for (const [name, [file, item]] of Object.entries(cases)) {
+    await t.test(name, () => assert.equal(linksDecision(asks(file, item), {}), null));
+  }
+});
+
+test('a long draft line, cut to 60 characters mid-word, still matches the card that holds it whole', t => {
+  const line = 'Your Snowman Cocoa kit ships tomorrow from our Markham warehouse, tracked by email the same day.';
+  const file = transcript(t, [human('answer Dana'), said(text(`\`\`\`text\nHi Dana,\n${line}\nThanks, Carol\n\`\`\``))]);
+  assert.equal(linksDecision(asks(file, card(`Send this reply to Dana?\n\nHi Dana,\n${line}\nThanks, Carol`)), {}), null);
+  assert.equal(linksDecision(asks(file, card('Send this reply to Dana?')), {}).hookSpecificOutput.permissionDecisionReason, `${REVIEW_REASON}\n${line.slice(0, 60)}`);
+});

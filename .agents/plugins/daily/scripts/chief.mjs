@@ -441,7 +441,7 @@ export const ASK_TOOLS = { claude: 'AskUserQuestion', codex: 'request_user_input
 export function askText(agent) {
   const tool = ASK_TOOLS[agent] ?? ASK_TOOLS[RUN_AGENTS[0]];
   return `The person is away and answers by tap. Ask what you need from them now with ${tool}: 2 to 4 short options, `
-    + `your recommended one first, marked (Recommended). Don't repeat the report. If ${tool} isn't callable here, end the turn and say nothing more.`;
+    + `your recommended one first, marked (Recommended). Put in the question what they must read to answer. If ${tool} isn't callable here, end the turn and say nothing more.`;
 }
 
 /** The env a command runs with: a background run with no Paseo id acts under the stand-in, so an install's jobs run. */

@@ -1368,6 +1368,14 @@ VALUES ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000
 UPDATE inbox_items SET updated_at = created_at WHERE updated_at = 0;
 INSERT INTO inbox_shares (token, installation_id, email, item_id, created_at, stopped_at)
 VALUES ('seedGiftCardSalesNov01', '11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000011', 1792224100000, NULL);
+-- The page carries its numbers as a file to download: one part, named by its sha256.
+INSERT INTO inbox_page_files (installation_id, email, item_id, name, size, type, sha256, created_at)
+VALUES ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000011', 'gift-card-sales-november.csv', 50,
+  'text/csv', 'ab5128a2a1fe41952d3763ff585fb28432bffc3be7156021549e548f92da382f', 1792224000000);
+INSERT INTO inbox_page_file_parts (installation_id, email, item_id, sha256, n, created_at, data)
+VALUES ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000011',
+  'ab5128a2a1fe41952d3763ff585fb28432bffc3be7156021549e548f92da382f', 0, 1792224000000,
+  X'64657369676e2c63617264730a536e6f77666c616b652c3138300a4769667420626f782c3133320a506c61696e2c3130300a');
 INSERT INTO inbox_taps (installation_id, email, id, item_id, action, text, version, created_at, state, claimed_at, answered_at)
 VALUES
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'c0000000000000000000000000000001', 'a0000000000000000000000000000008', 'send',

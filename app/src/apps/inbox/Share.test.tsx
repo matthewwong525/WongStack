@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { pageFileUrl } from './downloads'
 
 const PLAN = 'c'.repeat(32)
 const plan = { id: PLAN, kind: 'plan', title: 'One inbox', workspace: 'lousy-dingo', actions: ['build', 'publish'], version: 'v1', createdAt: 1,
@@ -33,7 +34,12 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.restoreAllMocks() })
 const until = async (check: () => boolean) => {
   for (let i = 0; i < 200 && !check(); i++) await act(async () => { await new Promise(done => setTimeout(done, 5)) })
 }
-const open = () => render(<MemoryRouter initialEntries={[`/apps/inbox/?item=${PLAN}`]}><Routes><Route path="/apps/:name/*" element={<App />} /></Routes></MemoryRouter>)
+/** The address's query, as the app leaves it. */
+function Where() {
+  return <p data-testid="where">{useLocation().search}</p>
+}
+const open = (entry = `/apps/inbox/?item=${PLAN}`) => render(<MemoryRouter initialEntries={[entry]}><Where />
+  <Routes><Route path="/apps/:name/*" element={<App />} /></Routes></MemoryRouter>)
 
 it('opens a plain page from its own sealed address, greets it with nothing, and shows no answer line', async () => {
   item = { ...plan, actions: [], plain: true, shared: null }
@@ -46,6 +52,7 @@ it('opens a plain page from its own sealed address, greets it with nothing, and 
   expect(frameWindow.postMessage).not.toHaveBeenCalled()
   expect(screen.queryByRole('status')).toBeNull()
   expect(screen.getByRole('button', { name: 'Share with team' })).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Download' })).toBeNull()
   // A page that loads another address starts again, says so, and after three tries shows no more.
   fireEvent.load(screen.getByTitle('One inbox'))
   expect(screen.getByRole('status').textContent).toBe('This page tried to leave the page.')
@@ -75,4 +82,37 @@ it('shares a page with the team, copies its link, and stops it; a failed share s
   await until(() => screen.queryByRole('button', { name: 'Share with team' }) !== null)
   expect(calls.find(call => call.path === '/apps/inbox/api/share-stop')?.body).toEqual({ id: PLAN })
   expect(screen.queryByText(/Anyone who can open the Inbox/)).toBeNull()
+})
+
+describe('a page with files', () => {
+  const files = [{ name: 'q2-sales.xlsx', size: 10 }, { name: 'notes.txt', size: 2 }]
+  let saved: string[]
+  beforeEach(() => {
+    saved = []
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
+      saved.push(`${this.getAttribute('href')} ${this.hasAttribute('download')}`)
+    })
+    item = { ...plan, actions: [], plain: true, shared: null, pageFiles: files }
+  })
+  const urls = (names: string[]) => names.map(name => `${pageFileUrl(PLAN, name)} true`)
+
+  it('downloads each file once from the printed link, says so, and drops download from the address', async () => {
+    open(`/apps/inbox/?item=${PLAN}&download=1`)
+    await until(() => saved.length === 2)
+    expect(saved).toEqual(urls(['q2-sales.xlsx', 'notes.txt']))
+    expect(screen.getByRole('status').textContent).toBe('Downloading 2 files…')
+    expect(screen.getByTestId('where').textContent).toBe(`?item=${PLAN}`)
+    expect(screen.getByRole('button', { name: 'Share with team' })).toBeTruthy()
+  })
+
+  it('downloads nothing by itself from the Archive, and Download saves the files', async () => {
+    item = { ...item, pageFiles: files.slice(0, 1) }
+    open()
+    await screen.findByRole('button', { name: 'Download' })
+    await act(async () => { await new Promise(done => setTimeout(done, 20)) })
+    expect([saved, screen.queryByRole('status')]).toEqual([[], null])
+    fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+    expect(saved).toEqual(urls(['q2-sales.xlsx']))
+    expect(screen.getByRole('status').textContent).toBe('Downloading q2-sales.xlsx…')
+  })
 })

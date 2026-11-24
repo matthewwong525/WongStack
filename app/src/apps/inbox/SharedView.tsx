@@ -4,6 +4,8 @@ import { Loading } from '@/components/Loading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Failed, readShared } from './api'
+import { DownloadButton } from './Download'
+import { sharedFileUrl } from './downloads'
 import { appLook, PAGE_COLUMN } from './frame'
 import { PageFrame } from './PlanView'
 
@@ -15,8 +17,8 @@ const ENDED = {
 const day = (at: number) => new Date(at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 const failure = (error: unknown) => !(error instanceof Failed) ? 'error' : error.status === 410 ? 'stopped' : error.status === 404 ? 'missing' : 'error'
 
-/** A page a teammate shared from their inbox, at `?shared=<token>`: its title, who shared it, and the page, sealed and
- *  read-only. Nothing here reaches the maker's chat. wiki/development/plain-pages.md#share-with-team */
+/** A page a teammate shared, at `?shared=<token>`: its title, who shared it, a Download for its files, and the page,
+ *  sealed and read-only; its files download once, on open. wiki/development/plain-pages.md#share-with-team */
 export function SharedView({ token }: { token: string }) {
   const navigate = useNavigate()
   const [shown, setShown] = useState<Shown | null>(null)
@@ -36,10 +38,15 @@ export function SharedView({ token }: { token: string }) {
     frame.current?.contentWindow?.postMessage({ type: 'inbox:hello', item: token, version: 'shared', actions: [], readOnly: true, workspace: '',
       files: [], theme: appLook() }, '*', [port2])
   }
+  const urlOf = useCallback((name: string) => sharedFileUrl(token, name), [token])
   if (shown) return <div className={PAGE_COLUMN}>
-    <div className="flex min-w-0 flex-col gap-0.5">
-      <h1 className="truncate font-semibold">{shown.title}</h1>
-      <p className="text-sm text-muted-foreground">Shared by {shown.sharedBy} · updated {day(shown.updatedAt)}</p>
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <h1 className="truncate font-semibold">{shown.title}</h1>
+        <p className="text-sm text-muted-foreground">Shared by {shown.sharedBy} · updated {day(shown.updatedAt)}</p>
+      </div>
+      {shown.files.length > 0 && <div className="ml-auto flex flex-wrap items-center gap-2">
+        <DownloadButton files={shown.files} urlOf={urlOf} auto /></div>}
     </div>
     <PageFrame title={shown.title} src={`/apps/inbox/api/shared-frame?token=${encodeURIComponent(token)}`} frameRef={frame} onLoad={greet} />
   </div>

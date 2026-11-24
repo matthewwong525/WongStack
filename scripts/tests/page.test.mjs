@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { linksOpenOwnTab as inApp } from '../../app/worker/apps/inbox/sealed.ts';
-import { buildPage, linksOpenOwnTab, main, putPage } from '../../.agents/skills/page/scripts/page.mjs';
+import { buildPage, filePage, linksOpenOwnTab, main, pageFiles, putPage, sizeText } from '../../.agents/skills/page/scripts/page.mjs';
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 const ORIGIN = 'https://business.example.com';
@@ -17,12 +18,13 @@ function folder(t, files) {
   return dir;
 }
 
-/** A company client that records each call and answers as the inbox does; `refuse` makes it answer 403. */
+/** A company client that records each call and answers as the inbox does; `refuse` makes it answer 403. A file's
+ *  raw bytes are kept as they came. */
 function client(refuse = false) {
   const sent = [];
   return { sent, target: () => ORIGIN, http: async (path, init) => {
-    const body = JSON.parse(init.body ?? '{}');
-    sent.push({ path, body });
+    const body = Buffer.isBuffer(init.body) ? init.body : JSON.parse(init.body ?? '{}');
+    sent.push({ path, body, init });
     return refuse ? { status: 403, value: null } : { status: 200, value: path.endsWith('share') ? { token: 'k7Qm2xW9' } : { id: body.id } };
   } };
 }
@@ -102,4 +104,64 @@ test('the command takes one folder and a title, and says to sign in when it has 
   assert.match(said.mock.calls.map(call => call.arguments[0]).join('\n'), /over 800 KB[\s\S]*not signed in to the app; run node scripts\/company-api\.mjs login/);
   assert.equal(await main([dir, '--title', ' Kit sales ', '--share'], async () => client()), 0);
   assert.match(printed.mock.calls[0].arguments[0], /team link: https:\/\/business\.example\.com\/apps\/inbox\/\?shared=k7Qm2xW9$/);
+});
+
+test("with files and no folder, the page shows each file's name and size, escaped", () => {
+  const html = filePage('Q2 <sales>', [{ name: 'q2-sales.xlsx', size: 48 * 1024 }, { name: 'a&b.pdf', size: Math.round(2.4 * 1024 * 1024) }]);
+  assert.match(html, /^<!doctype html>.*<base target="_blank">/);
+  assert.match(html, /<h1>Q2 &#60;sales&#62;<\/h1>/);
+  assert.match(html, /<li><span>q2-sales\.xlsx<\/span><span class="size">48 KB<\/span><\/li>/);
+  assert.match(html, /<li><span>a&#38;b\.pdf<\/span><span class="size">2\.4 MB<\/span><\/li>/);
+  assert.match(html, /get them again/);
+  assert.match(filePage('Q2', [{ name: 'a.csv', size: 1 }]), /get it again/);
+  assert.deepEqual([sizeText(1), sizeText(1024 * 1024 - 1), sizeText(25 * 1024 * 1024)], ['1 KB', '1024 KB', '25.0 MB']);
+});
+
+test('a page carries 5 files at most, each found, with something in it, within 25 MB, and named once', t => {
+  const dir = folder(t, { 'a.csv': 'x', 'b\\c.csv': 'y', 'empty.csv': '' });
+  assert.deepEqual(pageFiles([join(dir, 'a.csv')]), [{ name: 'a.csv', path: join(dir, 'a.csv'), size: 1 }]);
+  assert.throws(() => pageFiles(Array(6).fill(join(dir, 'a.csv'))), /5 files at most/);
+  assert.throws(() => pageFiles([join(dir, 'missing.csv')]), /no file at/);
+  assert.throws(() => pageFiles([join(dir, 'empty.csv')]), /not a file with something in it/);
+  assert.throws(() => pageFiles([dir]), /not a file with something in it/);
+  assert.throws(() => pageFiles([join(dir, 'b\\c.csv')]), /not a name the inbox takes/);
+  const big = folder(t, { 'big.zip': Buffer.alloc(25 * 1024 * 1024 + 1) });
+  assert.throws(() => pageFiles([join(big, 'big.zip')]), /26 MB; a page's file is 25 MB at most/);
+  const other = folder(t, { 'a.csv': 'z' });
+  assert.throws(() => pageFiles([join(dir, 'a.csv'), join(other, 'a.csv')]), /share a name/);
+});
+
+test('each file uploads before the page names it, and the printed link downloads them', async t => {
+  const dir = folder(t, { 'q2-sales.xlsx': 'PK sales' });
+  const shop = client();
+  const id = 'c'.repeat(32);
+  const sha256 = createHash('sha256').update('PK sales').digest('hex');
+  const files = pageFiles([join(dir, 'q2-sales.xlsx')]);
+  const lines = await putPage(shop, { html: filePage('Q2', files), title: 'Q2', id, workspace: 'desk', files });
+  assert.equal(lines[0], `page: ${ORIGIN}/apps/inbox/?item=${id}&download=1`);
+  assert.deepEqual(shop.sent.map(call => [call.init.method, call.path]), [
+    ['PUT', `/apps/inbox/api/page-file?id=${id}&name=q2-sales.xlsx&sha256=${sha256}`], ['PUT', '/apps/inbox/api/item']]);
+  assert.equal(String(shop.sent[0].body), 'PK sales');
+  assert.ok(shop.sent[0].init.signal instanceof AbortSignal);
+  assert.deepEqual(shop.sent[1].body.files, [{ name: 'q2-sales.xlsx', size: 8, sha256 }]);
+  // A refused upload stops before the page is put, and says why in words; no answer says to sign in.
+  const refusing = code => ({ ...shop, http: async path => path.includes('page-file') ? { status: 413, value: { error: { code } } } : { status: 200, value: {} } });
+  await assert.rejects(putPage(refusing('too_large'), { html: '<p/>', title: 't', id, workspace: 'w', files }),
+    /did not take q2-sales\.xlsx: a page's file is 25 MB at most; zip or split it/);
+  await assert.rejects(putPage(refusing('other'), { html: '<p/>', title: 't', id, workspace: 'w', files }), /did not take q2-sales\.xlsx; sign in/);
+  await assert.rejects(putPage({ ...shop, http: async () => { throw new Error('offline'); } }, { html: '<p/>', title: 't', id, workspace: 'w', files }),
+    /did not take q2-sales\.xlsx; sign in/);
+});
+
+test('the command takes files with no folder, and writes the page that lists them', async t => {
+  t.mock.method(console, 'error', () => {});
+  const printed = t.mock.method(console, 'log', () => {});
+  const dir = folder(t, { 'q2-sales.csv': 'kit,sold' });
+  assert.equal(await main(['--title', 'Q2']), 2);
+  assert.equal(await main(['a', 'b', '--title', 'Q2']), 2);
+  const shop = client();
+  assert.equal(await main(['--title', 'Q2 sales', '--file', join(dir, 'q2-sales.csv')], async () => shop), 0);
+  assert.match(shop.sent[1].body.body, /<h1>Q2 sales<\/h1>.*q2-sales\.csv/);
+  assert.match(printed.mock.calls[0].arguments[0], /\?item=[0-9a-f]{32}&download=1/);
+  assert.equal(await main(['--title', 'Q2', '--file', join(dir, 'missing.csv')], async () => shop), 1);
 });

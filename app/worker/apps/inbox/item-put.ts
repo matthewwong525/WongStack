@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { pageFiles, replaceFiles } from "./page-files.ts";
 import { actionName, agent, agentId, detail, fail, inboxAction, itemId, KINDS, LIMITS, link, mine, settleTaps, start, START_ACTIONS } from "./store.ts";
 
 type Input = { id: string; kind: (typeof KINDS)[number]; title: string; workspace: string; body: string; actions: string[]; version: string; closesAt: number; hidden?: boolean;
-  chat?: string; plain?: true };
+  chat?: string; plain?: true; files?: z.infer<typeof pageFiles> };
 
 const parsed = <T>(schema: z.ZodType<T>, body: string): T | null => {
   try { return schema.safeParse(JSON.parse(body)).data ?? null; } catch { return null; }
@@ -15,7 +16,8 @@ const startSound = (body: string, actions: string[]) => {
 };
 /** Why the item's body can't be kept, or null: an approval or question needs its words; a link its address alone; a
  *  plan card its state and plan; an agent's status its state, taking no taps. */
-const fault = ({ kind, body, actions, plain }: Input) => {
+const fault = ({ kind, body, actions, plain, files }: Input) => {
+  if (files?.length && !plain) return fail("bad_plain", 400);
   if (plain) return kind === "plan" && actions.length === 0 ? null : fail("bad_plain", 400);
   if (kind === "link") return actions.length === 0 && parsed(link, body) ? null : fail("bad_link", 400);
   if (kind === "start") return startSound(body, actions) ? null : fail("bad_start", 400);
@@ -35,6 +37,7 @@ export const itemPut = inboxAction<Input>({
     hidden: z.boolean().optional().describe("The item takes taps but shows in no list, such as a chat's watch."),
     chat: agentId.optional().describe("The agent id of the chat that sent it."),
     plain: z.literal(true).optional().describe("A plain page: a plan's HTML with no actions, which asks nothing and goes straight to the Archive."),
+    files: pageFiles.optional().describe("A plain page's files, each uploaded first with PUT page-file: its name, size and sha256."),
   }),
   output: z.strictObject({ id: itemId, version: z.string() }), encoding: "json", effect: "write",
   limits: { inputBytes: 3145728, outputBytes: 65536, timeoutMs: 15000 },
@@ -44,13 +47,15 @@ export const itemPut = inboxAction<Input>({
     if (refused) return refused;
     // A waiting tap on an item that had closed stays expired: reopening never sends it.
     await settleTaps(at);
+    const files = await replaceFiles(at, input.id, input.files ?? []);
+    if (files instanceof Response) return files;
     // A plain page ends as it is put, so it goes straight to the Archive. Each put sets when the newest version came.
-    await mine(at, `INSERT INTO inbox_items (installation_id, email, id, kind, title, workspace, body, actions, version, created_at, updated_at,
+    await at.db.batch([mine(at, `INSERT INTO inbox_items (installation_id, email, id, kind, title, workspace, body, actions, version, created_at, updated_at,
       closes_at, hidden, chat, plain) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, ?11, ?12, ?13, ?14) ON CONFLICT (installation_id, email, id)
       DO UPDATE SET kind = excluded.kind, title = excluded.title, workspace = excluded.workspace, body = excluded.body, actions = excluded.actions,
       version = excluded.version, updated_at = excluded.updated_at, closes_at = excluded.closes_at, closed_at = NULL, hidden = excluded.hidden,
       chat = COALESCE(excluded.chat, inbox_items.chat), plain = excluded.plain`, input.id, input.kind, input.title, input.workspace, input.body, JSON.stringify(input.actions), input.version, at.now,
-    input.plain ? at.now : input.closesAt, input.hidden ? 1 : 0, input.chat ?? null, input.plain ? 1 : 0).run();
+    input.plain ? at.now : input.closesAt, input.hidden ? 1 : 0, input.chat ?? null, input.plain ? 1 : 0), ...files]);
     await at.wake(null);
     return Response.json({ id: input.id, version: input.version });
   },

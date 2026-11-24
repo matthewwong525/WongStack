@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Send a file on a page, and put the review on the card
+
+- **Ask a chat for a file.** Say *send me the file*, and the chat puts it on a page in your Inbox with `/page --file`. Tap the link it prints: the page opens and the file downloads. A page carries up to 5 files, 25 MB each, of any kind.
+- **Get the file again.** Open the page from the Archive and tap **Download** at the top. A page opened from the Archive downloads nothing by itself.
+- **Share the file with the team.** A teammate who opens the page's team link gets the files at once. A stopped link gives no file.
+- **The review goes on the question card.** Some hosts hide the text above a question card, so a question now holds what you must read to answer, or a link to a page when it is long. In Claude Code, a check sends a question back one time when it leaves out a draft, a table, or a quote that the reply showed.
+
+**Updating.** The update adds two tables to your app's database; the next publish applies them. Nothing to do by hand.
+
 ## 61.13.0 — A short review page top, and more notes on one part
 
 - **A review page opens with a short top.** It shows the name, *Review · 0 notes*, and the section links in one row, which scrolls sideways on a phone. The how-to hint moves into the empty *Your notes* section. On a phone, *Why* now starts about a third of the way down, not half way.
