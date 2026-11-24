@@ -1,0 +1,78 @@
+{
+  "format": "verify-journey-1",
+  "id": "a-plain-page-arrives",
+  "scenario": {
+    "capability": "team-shared-pages",
+    "requirement": "An agent can put a plain page in a person's inbox",
+    "scenario": "A plain page arrives"
+  },
+  "thenDigest": "7fc5062d3cfaad9421cae1bde20ba19924b25630f73e4a2ab3036f3f14c65bad",
+  "probe": "browser",
+  "writes": false,
+  "sourcePaths": [
+    ".agents/memory/areas.json",
+    ".agents/plugins/loop/skills/plan/scripts/build-review.mjs",
+    ".agents/skills/page/SKILL.md",
+    ".agents/skills/page/scripts/page.mjs",
+    ".agents/skills/reply-link/scripts/lib/inbox.mjs",
+    ".agents/skills/wong-setup/references/cloudflare.md",
+    ".agents/skills/wong-setup/references/seed/wiki-development-README.md",
+    ".agents/skills/wong-setup/references/tools.md",
+    ".agents/skills/wong-sync/references/catch-up.md",
+    ".agents/skills/wong-sync/references/payload-files.json",
+    ".agents/skills/wong-sync/references/payload-manifest.md",
+    "app/src/apps/inbox/App.tsx",
+    "app/src/apps/inbox/Archive.tsx",
+    "app/src/apps/inbox/PlanView.tsx",
+    "app/src/apps/inbox/Share.tsx",
+    "app/src/apps/inbox/SharedView.tsx",
+    "app/src/apps/inbox/api.ts",
+    "app/src/apps/inbox/frame.ts",
+    "app/src/apps/inbox/leave.ts",
+    "app/worker/apps/inbox/api.ts",
+    "app/worker/apps/inbox/item-put.ts",
+    "app/worker/apps/inbox/item.ts",
+    "app/worker/apps/inbox/reviews.ts",
+    "app/worker/apps/inbox/sealed.ts",
+    "app/worker/apps/inbox/share.ts",
+    "app/worker/apps/inbox/store.ts",
+    "schema/migrations/20261123120000_inbox_shared_pages.sql",
+    "schema/seed.sql"
+  ],
+  "recordedAt": "9a32643ab02c48c0aa7b431edd8f04d4bd74ab9a",
+  "steps": [
+    [
+      "network",
+      "route",
+      "**/apps/inbox/api/reviews*",
+      "--body",
+      "{\"waiting\":[],\"archived\":[{\"id\":\"a0000000000000000000000000000011\",\"title\":\"Gift card sales, November\",\"workspace\":\"sales-report\",\"createdAt\":1795480822072,\"closesAt\":1795480822072,\"endedAt\":1795480822072,\"answered\":false,\"plain\":true,\"shared\":true},{\"id\":\"b1\",\"title\":\"Approve these 3 ads?\",\"workspace\":\"ads\",\"createdAt\":1795300000000,\"closesAt\":1795300000000,\"endedAt\":1795300000000,\"answered\":true,\"plain\":false,\"shared\":false}],\"more\":false}"
+    ],
+    [
+      "network",
+      "route",
+      "**/apps/inbox/api/items",
+      "--body",
+      "{\"computerOnline\": true}"
+    ],
+    [
+      "open",
+      "{url}/apps/inbox/"
+    ],
+    [
+      "wait",
+      "--load",
+      "networkidle"
+    ],
+    [
+      "wait",
+      "--text",
+      "Gift card sales"
+    ]
+  ],
+  "expect": [
+    {
+      "text": "Page · Shared"
+    }
+  ]
+}
