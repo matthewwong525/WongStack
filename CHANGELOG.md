@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Make a page and share it with the team
+## 61.12.0 — Make a page and share it with the team
 
 - **Ask a chat for a page.** Say *make me an HTML page* or type `/page`, and the chat makes a chart, a small tool, or a report and puts it in your Inbox. A plain page asks for no answer: it has no bar, and it goes directly to the Archive, marked *Page*.
 - **Share any page with the team.** An opened page has **Share with team**. Then **Copy link** gives a link that each person who can open the Inbox can open, read-only, with your email's name and the date of the last change. **Stop sharing** turns the link off for good.
