@@ -31,6 +31,16 @@ export async function probe(client) {
 /** Writes an item: `{id, kind, title, workspace, body, actions, version, closesAt}`, and `plain: true` for a page that
  * asks nothing. */
 export const upload = (client, item) => ask(client, 'item', 'PUT', item);
+// A 25 MB file on a slow line takes minutes, not the 20 seconds a call gets.
+const UPLOAD_MS = 15 * 60_000;
+/** Uploads one file for the person's plain page `id`, raw, before the page names it: `{status, value}`, or null when
+ * no answer came. */
+export async function uploadPageFile(client, id, { name, sha256, bytes }) {
+  try {
+    return await client.http(`${BASE}page-file?${new URLSearchParams({ id, name, sha256 })}`,
+      { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: bytes, signal: AbortSignal.timeout(UPLOAD_MS) });
+  } catch { return null; }
+}
 /** Shares the person's page `id` with the team: `{token}`, the same while it stays shared, or null. */
 export const sharePage = (client, id) => ask(client, 'share', 'POST', { id });
 

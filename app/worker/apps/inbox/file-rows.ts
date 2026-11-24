@@ -18,3 +18,17 @@ export const pruneFiles = (at: Scope, before: number) => [
   mine(at, "DELETE FROM inbox_file_parts WHERE installation_id = ?1 AND created_at < ?3", before),
   mine(at, "DELETE FROM inbox_files WHERE installation_id = ?1 AND email = ?2 AND created_at < ?3", before),
 ];
+
+// A page's file parts no page names: an upload whose page never came, or one a page put again dropped.
+const UNNAMED = `NOT EXISTS (SELECT 1 FROM inbox_page_files f WHERE f.installation_id = inbox_page_file_parts.installation_id
+  AND f.email = inbox_page_file_parts.email AND f.item_id = inbox_page_file_parts.item_id AND f.sha256 = inbox_page_file_parts.sha256)`;
+
+/** Deletes every person's page-file parts sent before `before` that no page names. The app's room counts all. */
+export const pruneUploads = (at: Scope, before: number) =>
+  mine(at, `DELETE FROM inbox_page_file_parts WHERE installation_id = ?1 AND created_at < ?3 AND ${UNNAMED}`, before);
+
+/** Deletes the files of the caller's items that `items` selects: a query of ids, with `values` from ?3. */
+export const dropPageFiles = (at: Scope, items: string, ...values: number[]) => [
+  mine(at, `DELETE FROM inbox_page_files WHERE installation_id = ?1 AND email = ?2 AND item_id IN (${items})`, ...values),
+  mine(at, `DELETE FROM inbox_page_file_parts WHERE installation_id = ?1 AND email = ?2 AND item_id IN (${items})`, ...values),
+];

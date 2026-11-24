@@ -8,7 +8,7 @@ import { fail, inboxAction, itemId, mine, openItem, scope, type Scope, settleTap
 const MB = 1024 * 1024;
 export const FILE_LIMITS = { file: 25 * MB, item: 100 * MB, installation: 300 * MB, name: 200, question: 300 };
 // A part's base64 fits the computer's 1 MB answer limit, and a D1 row's 2 MB.
-const PART_BYTES = 512 * 1024;
+export const PART_BYTES = 512 * 1024;
 
 const at = (bytes: Uint8Array, offset: number, text: string) => [...text].every((c, i) => bytes[offset + i] === c.charCodeAt(0));
 const PNG = (b: Uint8Array) => [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((x, i) => b[i] === x);
@@ -29,15 +29,25 @@ const TYPES: Record<string, { type: string; starts: (bytes: Uint8Array) => boole
   zip: { type: "application/zip", starts: b => ZIP(b) || at(b, 0, "PK\x05\x06") },
 };
 
-/** The kind of file `name` names, or null: a short name, no folder or control character, ending as the page takes. */
+/** Whether `name` is a file's own name: short, with no folder or control character. */
+export const safeName = (name: string) => name.length > 0 && name.length <= FILE_LIMITS.name && !/[/\\\p{Cc}]/u.test(name);
+const known = (name: string) => {
+  const ending = /\.([a-z0-9]+)$/i.exec(name)?.[1].toLowerCase() ?? "";
+  return Object.hasOwn(TYPES, ending) ? TYPES[ending] : undefined;
+};
+/** The content type `name`'s ending says, else bytes of no known kind. */
+export const typeOf = (name: string) => known(name)?.type ?? "application/octet-stream";
+/** Whether `bytes`, a file's first part, start as `name`'s ending says; a name of no known kind takes any bytes. */
+export const startsAsNamed = (name: string, bytes: Uint8Array) => known(name)?.starts(bytes) ?? true;
+
+/** The kind of file `name` names, or null: a safe name, ending as the page takes. */
 function fileType(name: string) {
-  if (name.length > FILE_LIMITS.name || /[/\\\p{Cc}]/u.test(name)) return null;
-  return TYPES[/\.([a-z0-9]+)$/i.exec(name)?.[1].toLowerCase() ?? ""] ?? null;
+  return safeName(name) ? known(name) ?? null : null;
 }
 
 const refuse = (status: number, text: string) => new Response(text, { status, headers: { "Cache-Control": "no-store" } });
 /** Why the upload stopped, as its answer. */
-class Stop extends Error {
+export class Stop extends Error {
   readonly answer: Response;
   constructor(answer: Response) { super("stopped"); this.answer = answer; }
 }
@@ -48,23 +58,20 @@ const waitingBytes = async (at: Scope, item: string) => (await mine(at, `SELECT
   (SELECT COALESCE(SUM(length(data)), 0) FROM inbox_file_parts WHERE installation_id = ?1) AS installation`, item)
   .all<{ item: number; installation: number }>()).results[0];
 
-/** Writes the body into parts, checking its first bytes and every limit as it comes; resolves to its size. */
-async function storeParts(at: Scope, id: string, body: ReadableStream<Uint8Array>, kind: (typeof TYPES)[string], room: { item: number; installation: number }) {
+/** Reads `body` into parts of 512 KB: `seen` hears each chunk and the size so far, and may throw to stop; `write` keeps
+ *  each part in order. Resolves to the size. */
+export async function readParts(body: ReadableStream<Uint8Array>, seen: (chunk: Uint8Array, size: number) => void | Promise<void>,
+  write: (part: Uint8Array, n: number) => Promise<void>) {
   const reader = body.getReader();
-  let part = new Uint8Array(PART_BYTES), filled = 0, n = 0, size = 0;
-  const flush = async () => {
-    if (n === 0 && !kind.starts(part.subarray(0, filled))) throw new Stop(fail("bad_file", 400));
-    await mine(at, "INSERT INTO inbox_file_parts (installation_id, email, file_id, n, data, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-      id, n, part.slice(0, filled), at.now).run();
-    n += 1; filled = 0; part = new Uint8Array(PART_BYTES);
-  };
+  const part = new Uint8Array(PART_BYTES);
+  let filled = 0, n = 0, size = 0;
+  const flush = async () => { await write(part.slice(0, filled), n); n += 1; filled = 0; };
   try {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > FILE_LIMITS.file || room.item + size > FILE_LIMITS.item) throw new Stop(fail("too_large", 413));
-      if (room.installation + size > FILE_LIMITS.installation) throw new Stop(fail("full", 507));
+      await seen(value, size);
       for (let offset = 0; offset < value.byteLength;) {
         const take = Math.min(PART_BYTES - filled, value.byteLength - offset);
         part.set(value.subarray(offset, offset + take), filled);
@@ -74,6 +81,19 @@ async function storeParts(at: Scope, id: string, body: ReadableStream<Uint8Array
     }
   } finally { await reader.cancel().catch(() => undefined); }
   if (filled) await flush();
+  return size;
+}
+
+/** Writes the body into parts, checking its first bytes and every limit as it comes; resolves to its size. */
+async function storeParts(at: Scope, id: string, body: ReadableStream<Uint8Array>, kind: (typeof TYPES)[string], room: { item: number; installation: number }) {
+  const size = await readParts(body, (_chunk, size) => {
+    if (size > FILE_LIMITS.file || room.item + size > FILE_LIMITS.item) throw new Stop(fail("too_large", 413));
+    if (room.installation + size > FILE_LIMITS.installation) throw new Stop(fail("full", 507));
+  }, async (data, n) => {
+    if (n === 0 && !kind.starts(data)) throw new Stop(fail("bad_file", 400));
+    await mine(at, "INSERT INTO inbox_file_parts (installation_id, email, file_id, n, data, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+      id, n, data, at.now).run();
+  });
   if (!size) throw new Stop(fail("bad_file", 400));
   return size;
 }

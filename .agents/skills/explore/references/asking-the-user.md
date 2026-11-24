@@ -55,7 +55,7 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 
 ## End every reply with the next step
 
-**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never only in your reasoning. **A question about a link repeats it whole in its question text**, as some hosts hide text above the card; an option may name a link, never hold it. Only a finished plan, ending on [its link and review line](#print-the-plans-link), and replies to *Review the plan* and *See the preview* end without a question.
+**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never only in your reasoning. **The question text repeats each link it asks about whole, and [what they must read to answer](#put-the-review-on-the-card)**; an option may name a link, never hold it. Only a finished plan, ending on [its link and review line](#print-the-plans-link), and replies to *Review the plan* and *See the preview* end without a question.
 
 - Finished standalone `/explore`: *Plan it (Recommended)* / *Keep thinking* / *Stop*.
 - Blocked task: the ways to clear it, below the intact blocker report.
@@ -63,6 +63,10 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 - Finished task that will clearly come back: one [routine or app offer](../../../loop/references/rules.md#offer-a-routine-or-an-app).
 - Asked-for work left after a publish, outside Paseo: the next part *(Recommended)* ([next work](../../plan/references/new-workspace.md#next-work)).
 - Finished work in a Paseo worktree: *Close this chat?*: *Close it (Recommended)*, any offer, *Keep it open*; only *Close it* runs [`/close`](../../close/SKILL.md).
+
+## Put the review on the card
+
+Some hosts hide the text above a question card, so **the question holds what the person must read to answer**: a draft, a table, the changes. **Past about 40 lines, use `/page`**; the question holds a short summary and its full link.
 
 ## Print the plan's link
 

@@ -163,6 +163,7 @@
       "schema/migrations/20261107120000_inbox_chats.sql",
       "schema/migrations/20261112120000_drop_inbox_chats.sql",
       "schema/migrations/20261123120000_inbox_shared_pages.sql",
+      "schema/migrations/20261124120000_inbox_page_files.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",

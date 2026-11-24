@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 62.1.0 — Send a file on a page, and put the review on the card
+
+- **Ask a chat for a file.** Say *send me the file*, and the chat puts it on a page in your Inbox with `/page --file`. Tap the link it prints: the page opens and the file downloads. A page carries up to 5 files, 25 MB each, of any kind.
+- **Get the file again.** Open the page from the Archive and tap **Download** at the top. A page opened from the Archive downloads nothing by itself.
+- **Share the file with the team.** A teammate who opens the page's team link gets the files at once. A stopped link gives no file.
+- **The review goes on the question card.** Some hosts hide the text above a question card, so a question now holds what you must read to answer, or a link to a page when it is long. In Claude Code, a check sends a question back one time when it leaves out a draft, a table, or a quote that the reply showed.
+
+**Updating.** The update adds two tables to your app's database; the next publish applies them. Nothing to do by hand.
+
 ## 62.0.0 — WongStack is one stack
 
 - **Every command is a normal folder.** `/plan`, `/memory`, `/daily`, `/schedule`, `/services`, the browser, and the others each sit in one folder in `.claude/skills/`. The build loop's shared files sit in `.claude/loop/`. The old `plugins` folder goes.
