@@ -23,7 +23,7 @@ Real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex and Claude r
 
 On Windows, link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`, so a refused link fails instead of becoming a copy.
 
-[Catch-up](catch-up.md) moves pre-19.0.0 real agent folders and reversed `AGENTS.md` links, plus other missed migrations.
+[Catch-up](catch-up.md) moves an older layout.
 
 `components.skills` preserves local skill names. Explore dependencies beyond the copying inventory. Never copy target-owned notes, app code, business docs, `knowledge/` or OpenSpec records; seed no knowledge sections, including `wiki/people/`.
 
@@ -50,7 +50,7 @@ Reports expose paths/classes/counts only. Invalid/non-ancestor commits, invalid 
 
 Before advancing the record, [`merge-check.mjs`](../scripts/merge-check.mjs) with `--from <installed commit>` checks merged locally-adapted/modified units. Missing added lines report file/source lines/count/first missing line. Exit 0 means none missing, 1 means missing, 2 means usage/read failure; no baseline is `skipped`. Moved/reworded lines pass; review catches rewording.
 
-**improve-code** ships the [improvement brief](../../../../wiki/development/repository-improvement.md): optional focus/outcome, findings-only mode, and one supported improvement plan.
+**improve-code** ships the [improvement brief](../../../../wiki/development/repository-improvement.md).
 
 **save/ship** ship [`checkpoint.mjs`](../../../plugins/loop/skills/save/scripts/checkpoint.mjs) and [`ship.mjs`](../../../plugins/loop/skills/ship/scripts/ship.mjs) for checkpoint/prepare/finish. Source payload/session-measurement scripts stay meta-only.
 
@@ -76,7 +76,7 @@ Merge target `paseo.json`, preserving its keys. Make `worktree.setup` a list; ap
 
 ## The stack pack
 
-Every install takes the pack. Copy/adapt drop-ins; merge config [fragments](stack-pack-fragments.md) into target files. `wiki/stack/` ships; [walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core for other hosts.
+Copy/adapt drop-ins; merge config [fragments](stack-pack-fragments.md) into target files. `wiki/stack/` ships; [walkthrough](../../../../wiki/development/staging-walkthrough.md) stays core for other hosts.
 
 Create database IDs/secrets in the target. Copy no live `database_id` or source database name; exclude source `app/wrangler*.jsonc`. [Provisioning](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4c-the-two-app-databases-and-the-config) builds both configs.
 
@@ -84,7 +84,7 @@ Create database IDs/secrets in the target. Copy no live `database_id` or source 
 
 React/Vite Worker starter with tests/package manifest. `app/worker/index.ts` routes memory and authenticated walk requests into their skill modules; keep only those imports/branches and memory's authenticated root callback in the app. Adapt that callback using the signed-identity validator; add no page/binding.
 
-The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide removal, explained and previewed. Update Tutorial and its test only while Home (older flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise preserve its removal. `/apps/` redirects home; compile the app list from `app/src/apps/`. Tests run root/one-folder-down `npm test`, passing when none exists. Copy no root package manifest. Plan each older screen's move onto shared UI parts.
+The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide removal. Update Tutorial and its test only while Home (older flat layout: `app/src/App.tsx`) renders `<Tutorial />`; otherwise preserve its removal. `/apps/` redirects home; compile the app list from `app/src/apps/`. Tests run root/one-folder-down `npm test`, passing when none exists. Copy no root package manifest. Plan each older screen's move onto shared UI parts.
 
 [Mini apps](../../../../wiki/stack/mini-apps.md): hello/access/inbox/knowledge ship; scaffold exclusions omit source-only apps. Preserve target apps/routes/branding/welcome removal/independent memory. Access bootstrap/migrations ship explicitly; repo access stays manual. Merge target key entries; never replace populated `app/worker/keys.ts`.
 
@@ -92,7 +92,7 @@ The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide remo
 
 [Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `/schedule` inside Daily's folder, its host references, and Node helpers; no cloud runner/bootstrap/model setup.
 
-An install owns its `.agents/daily/`, except WongStack's [profile](../../../daily/profile.mjs), the one shipped file there; [`.claude/inbox/`](../../../inbox/schedules.mjs) ships WongStack's schedule store. It also owns old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records. Never add those live records to this inventory or overwrite them. A schedule's instructions, progress and runs live in the app, not in the repo. Updates preserve deployed cloud resources and native host jobs, and [run and move none of the old data](../../../../wiki/stack/host-schedules.md#existing-schedules).
+An install owns its `.agents/daily/`, except WongStack's [profile](../../../daily/profile.mjs), the one shipped file there; [`.claude/inbox/`](../../../inbox/schedules.mjs) ships WongStack's schedule store. It also owns old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records. Never add those live records to this inventory or overwrite them. Updates preserve deployed cloud resources and native host jobs, and [run and move none of the old data](../../../../wiki/stack/host-schedules.md#existing-schedules).
 
 ## OpenSpec integration and migration
 

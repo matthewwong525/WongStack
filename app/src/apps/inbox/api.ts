@@ -5,14 +5,18 @@ const tap = z.object({ id: z.string(), item: z.string(), action: z.string(), tex
   state: z.enum(['waiting', 'delivering', 'sent', 'failed', 'changed', 'cancelled', 'expired']) })
 // A closed review page: when it closed, and each answer that reached the chat.
 const archived = z.object({ endedAt: z.number(), answers: z.array(z.object({ action: z.string(), text: z.string(), at: z.number() })) })
+// A plain page asks nothing; `shared` is its open team link's token.
 const item = z.object({ id: z.string(), kind: z.string(), title: z.string(), workspace: z.string(), actions: z.array(z.string()),
-  version: z.string(), body: z.string(), tap: tap.nullable(), files: z.array(z.string()), archived: archived.optional() })
+  version: z.string(), body: z.string(), tap: tap.nullable(), files: z.array(z.string()), archived: archived.optional(),
+  plain: z.boolean().default(false), shared: z.string().nullable().default(null) })
 const review = z.object({ id: z.string(), title: z.string(), workspace: z.string(), createdAt: z.number(), closesAt: z.number(),
-  endedAt: z.number().nullable(), answered: z.boolean() })
+  endedAt: z.number().nullable(), answered: z.boolean(), plain: z.boolean().default(false), shared: z.boolean().default(false) })
 const reviews = z.object({ waiting: z.array(review), archived: z.array(review), more: z.boolean() })
 const list = z.object({ computerOnline: z.boolean() })
 const one = z.object({ item, computerOnline: z.boolean() })
 const tapped = z.object({ tap })
+const token = z.object({ token: z.string() })
+const sharedPage = z.object({ title: z.string(), sharedBy: z.string(), updatedAt: z.number() })
 const refused = z.object({ error: z.object({ code: z.string() }) })
 const timing = z.object({ mode: z.enum(['once', 'recurring']), cron: z.string().optional(), every: z.string().optional(), timezone: z.string(),
   dueAt: z.string().optional() })
@@ -40,6 +44,10 @@ export type Refusal = 'changed' | 'done' | 'soon' | 'closed' | 'gone' | 'failed'
 export const label = (action: string) => action.charAt(0).toUpperCase() + action.slice(1)
 /** A moment as a list or an answer line shows it: *3 Nov, 14:02*. */
 export const when = (at: number) => new Date(at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+/** What an Archive row says under its title: a waiting page's folder, else what it is, whether the team has its link,
+ *  when it ended, and its folder: *Page · Shared, 23 Nov, 09:00 · stock*. */
+export const archiveLine = (row: Review, now = Date.now()) => row.endedAt === null && row.closesAt > now ? `Waiting · ${row.workspace}`
+  : `${row.plain ? 'Page' : row.answered ? 'Answered' : 'No answer'}${row.shared ? ' · Shared' : ''}, ${when(row.endedAt ?? row.closesAt)} · ${row.workspace}`
 /** Whether a tap is still on its way: waiting for the computer, or taken by it. */
 export const pending = (tap: Tap) => tap.state === 'waiting' || tap.state === 'delivering'
 /** The list carries this many characters of an answer; a longer one is read in full from its tap. */
@@ -65,6 +73,13 @@ export const readPlan = (id: string) => call(one, `item?id=${encodeURIComponent(
 /** The person's review pages matching `q`; `before` reads the Archive's next page after that row. */
 export const readReviews = (q: string, before?: Review) => call(reviews, `reviews?${new URLSearchParams({
   ...(q.trim() && { q: q.trim() }), ...(before && { before: `${before.createdAt}:${before.id}` }) })}`)
+/** Shares the page with the team: its link's token, the same one while it stays shared. */
+export const sharePage = (id: string) => call(token, 'share', { id }).then(answer => answer.token)
+export const stopSharing = (id: string) => call(z.object({ stopped: z.literal(true) }), 'share-stop', { id })
+/** The address a teammate opens for the link `token`. */
+export const sharedLink = (token: string) => `${location.origin}/apps/inbox/?shared=${token}`
+/** A page a teammate shared: its title, who shared it, and when its newest version came. Fails 410 once stopped. */
+export const readShared = (value: string) => call(sharedPage, `shared?token=${encodeURIComponent(value)}`)
 export const readTap = (id: string) => call(tapped, `tap?id=${id}`).then(answer => answer.tap)
 export const cancelTap = (id: string) => call(tapped, 'tap-cancel', { id }).then(answer => answer.tap)
 export const readSchedules = () => call(schedules, 'schedules')

@@ -52,3 +52,9 @@ export function frameMessage(data: unknown, plan: { actions: string[]; key: stri
   if (parsed?.type === 'inbox:back' || parsed?.type === 'inbox:file') return parsed
   return parsed && parsed.key === plan.key ? parsed : null
 }
+
+/** The app's look, which its header switch sets on the root: the sealed page can't read the app's saved choice. */
+export const appLook = () => document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+
+/** Fills the window under Layout's 3.5rem header and main's 2rem margins: only the frame scrolls, its bar below. */
+export const PAGE_COLUMN = '-mb-8 flex h-[calc(100dvh-5.5rem)] flex-col gap-3'

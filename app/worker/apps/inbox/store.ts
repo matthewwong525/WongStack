@@ -90,6 +90,8 @@ const ERRORS = {
   done: "That was already sent.", not_waiting: "That tap is no longer waiting.", too_large: "The body or file is larger than this inbox takes: 1.6 MB a page, 25 MB a file, 100 MB an item's files.",
   bad_detail: "An approval or question needs its words as JSON.", bad_link: "A link needs its kind and an https tunnel address, and no actions.",
   bad_start: "A plan card needs its state, a plan within the limits once ready, and go and skip.", bad_agent: "An agent's status needs its state and short lines, and no actions.",
+  bad_plain: "A plain page is a plan's HTML with no actions.", not_page: "Only a page can be shared or shown in a frame.",
+  stopped: "This page is no longer shared.",
   bad_action: "The item offers no such action, or the notes are empty.", files_gone: "A file sent with this is no longer held; pick it again.",
   too_soon: "Wait a few seconds, then try again.", retired: "This part of the Inbox is gone; the Inbox lists the plans that wait for you.",
   bad_file: "This is not a file the page takes, or it is empty.", full: "The inbox holds too many waiting files; try again later.",

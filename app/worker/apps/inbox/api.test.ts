@@ -312,10 +312,10 @@ it("lists the caller's review pages alone: waiting ones, then the Archive, newes
   const listed = (await call(sam, "GET", "reviews")).json;
   expect(titles(listed.waiting)).toEqual(["100% off sale", "Weekly profit summary"]);
   expect(listed.waiting[0]).toEqual({ id: page(4), title: "100% off sale", workspace: "lousy-dingo", createdAt: START + 3000,
-    closesAt: plan.closesAt, endedAt: null, answered: false });
+    closesAt: plan.closesAt, endedAt: null, answered: false, plain: false, shared: false });
   expect(listed.archived).toEqual([
-    { id: page(3), title: "Stock check", workspace: "lousy-dingo", createdAt: START + 2000, closesAt: START + 3000, endedAt: START + 3000, answered: false },
-    { id: page(2), title: "Profit by channel", workspace: "lousy-dingo", createdAt: START + 1000, closesAt: plan.closesAt, endedAt: START + 1000, answered: true },
+    { id: page(3), title: "Stock check", workspace: "lousy-dingo", createdAt: START + 2000, closesAt: START + 3000, endedAt: START + 3000, answered: false, plain: false, shared: false },
+    { id: page(2), title: "Profit by channel", workspace: "lousy-dingo", createdAt: START + 1000, closesAt: plan.closesAt, endedAt: START + 1000, answered: true, plain: false, shared: false },
   ]);
   expect(listed.more).toBe(false);
   expect(titles((await call(sam, "GET", "reviews", { q: "PROFIT" })).json.waiting)).toEqual(["Weekly profit summary"]);
@@ -402,15 +402,17 @@ it("starts staging with a sample day in Fay's inbox, one agent per group, and a 
   expect(detail.options.map(option => String(option).length > 180)).toEqual([true, true]);
 });
 
-it("starts staging with Fay's review pages: two waiting, and an Archive answered with notes, with Build it, and not at all", async () => {
+it("starts staging with Fay's review pages: two waiting, an Archive answered with notes, with Build it, and not at all, and a shared plain page", async () => {
   const { DB } = seeded().env;
   const fay = person("fay@example.invalid");
   const read = async (route: string) => body(await handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}`), fakeEnv({ DB }), fay));
   const { waiting, archived } = await read("reviews");
   expect(titles(waiting)).toEqual(["Weekly profit summary", "New BFCM landing page"]);
-  expect(archived.map(row => [row.title, row.answered])).toEqual([["Weekly profit summary", true], ["Stock check each Friday", true],
-    ["BFCM countdown banner", false]]);
-  const pages = await Promise.all(archived.map(row => read(`item?id=${row.id}`)));
+  expect(archived.map(row => [row.title, row.answered, row.plain, row.shared])).toEqual([["Weekly profit summary", true, false, false],
+    ["Stock check each Friday", true, false, false], ["BFCM countdown banner", false, false, false], ["Gift card sales, November", false, true, true]]);
+  const shared = await read("shared?token=seedGiftCardSalesNov01");
+  expect(shared).toEqual({ title: "Gift card sales, November", sharedBy: "fay", updatedAt: 1792224000000 });
+  const pages = await Promise.all(archived.slice(0, 3).map(row => read(`item?id=${row.id}`)));
   expect(pages.map(({ item }) => [item.workspace, item.archived.answers.map(answer => answer.action), String(item.body).includes(`data-change="${item.workspace}"`)]))
     .toEqual([["weekly-profit-summary", ["send"], true], ["stock-check-friday", ["build"], true], ["bfcm-landing-page", [], true]]);
 });

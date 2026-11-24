@@ -54,6 +54,7 @@ const scripts = {
   '.agents/plugins/memory/scripts/daily-tidy.mjs': ['since'],
   '.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs': [],
   '.agents/skills/reply-link/scripts/reply-link.mjs': [],
+  '.agents/skills/page/scripts/page.mjs': [],
   '.agents/skills/browser/scripts/browse.mjs': [],
   '.agents/skills/browser/skills/shop/scripts/shop.mjs': [],
   '.agents/skills/ship/scripts/number-release.mjs': [],

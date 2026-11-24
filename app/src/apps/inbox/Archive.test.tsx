@@ -2,13 +2,13 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { when, type Review } from './api'
+import { archiveLine, when, type Review } from './api'
 import { Archive } from './Archive'
 
 const HOUR = 3_600_000
 const NOW = Date.UTC(2026, 10, 3, 12, 0)
 const row = (n: number, more: Partial<Review> = {}): Review => ({ id: n.toString(16).padStart(32, '0'), title: `Page ${n}`, workspace: 'desk',
-  createdAt: NOW - n * HOUR, closesAt: NOW - n * HOUR + 24 * HOUR, endedAt: NOW - n * HOUR + HOUR, answered: true, ...more })
+  createdAt: NOW - n * HOUR, closesAt: NOW - n * HOUR + 24 * HOUR, endedAt: NOW - n * HOUR + HOUR, answered: true, plain: false, shared: false, ...more })
 const waiting = [row(100, { title: 'Weekly profit summary', closesAt: NOW + 21 * HOUR, endedAt: null })]
 // An expired page with no answer has no end of its own: its closing time shows.
 const archived = [row(1, { title: 'Profit by channel' }), row(2, { title: 'Stock check', answered: false, endedAt: null, closesAt: NOW - HOUR })]
@@ -132,4 +132,13 @@ it('drops more pages that arrive after a new search', async () => {
   await search('stock')
   await late.give(Response.json({ waiting: [], archived: [row(3, { title: 'Older page' })], more: false }))
   expect(links()).toEqual([`Stock checkNo answer, ${when(archived[1].closesAt)} · desk`])
+})
+
+it('names a plain page Page, and a page the team has a link to Shared', async () => {
+  answer = () => Response.json({ waiting: [], archived: [row(1, { title: 'Kit sales', plain: true, shared: true, workspace: 'sales-report' }),
+    row(2, { title: 'Stock left', plain: true }), row(3, { title: 'Ads', shared: true })], more: false })
+  await open()
+  expect(links()).toEqual([`Kit salesPage · Shared, ${when(row(1).endedAt!)} · sales-report`, `Stock leftPage, ${when(row(2).endedAt!)} · desk`,
+    `AdsAnswered · Shared, ${when(row(3).endedAt!)} · desk`])
+  expect(archiveLine(row(4, { answered: false, shared: true }), NOW)).toBe(`No answer · Shared, ${when(row(4).endedAt!)} · desk`)
 })

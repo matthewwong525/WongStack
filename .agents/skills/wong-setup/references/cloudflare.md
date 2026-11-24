@@ -52,7 +52,7 @@ Later `.env` means `DURABLE_ENV`; replace or append only the exact `KEY=` line.
 
 ### 1c. Ask for the token
 
-If `CLOUDFLARE_API_TOKEN` in `DURABLE_ENV` is empty, ask for it with the filled-in token link from [the credentials page](../../../../wiki/stack/cloudflare-credentials.md#create-the-token), read from that page rather than copied here: open it, check the two rows, Create, copy. If the link fails, give the page's click path, calling out **Account Resources**, the field people miss. Say what it is for: *"This token stays on this computer. I use it to set up your hosting and to make a smaller token for automatic publishing."*
+If `CLOUDFLARE_API_TOKEN` in `DURABLE_ENV` is empty, ask for it with the filled-in token link from [the credentials page](../../../../wiki/stack/cloudflare-credentials.md#create-the-token): open it, check the two rows, Create, copy. If the link fails, give the page's click path, calling out **Account Resources**, the field people miss. Say what it is for: *"This token stays on this computer. I use it to set up your hosting and to make a smaller token for automatic publishing."*
 
 They paste it into the durable file, or to you to write. Re-read `DURABLE_ENV`; export the value unprinted. **No token → setup stops here and writes nothing else**; pasting it later continues from this step.
 
@@ -118,7 +118,7 @@ Resolve a reachable owner email before provisioning; reject `.invalid` and GitHu
 
 ### 4b. The memory store
 
-[The memory convention](../../../../wiki/development/memory.md) owns what it holds, who reads it, and why only the production Worker binds it; it has no staging twin.
+[The memory convention](../../../../wiki/development/memory.md) owns what it holds and who reads it; it has no staging twin.
 
 1. **Is R2 on?** A bucket-list error saying to enable R2 means no; the report says `"r2": false`. No token can turn R2 on ([without R2](../../../../wiki/development/memory.md#without-r2)), so continue without a bucket, and let [the card list](#the-card-list) at the close give the steps: *"Memory works without it; it just won't keep full session transcripts until R2 is on."*
 2. **The database.** It reuses or creates `<repo>-memory`.

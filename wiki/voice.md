@@ -25,5 +25,4 @@ leverage → use · due to the fact that → because.
 needs a second read to parse.
 
 **Simplified Technical English.** The `WONG-STACK` block of [`AGENTS.md`](../AGENTS.md) owns
-this rule: follow ASD-STE100, best-effort. In practice that is one meaning per word, short
-sentences, active voice, and no synonyms for variety. Never rewrite a quote to comply.
+this rule: one meaning per word, short sentences, active voice, and no synonyms for variety.

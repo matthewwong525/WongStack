@@ -100,6 +100,10 @@ A reviewer notes a card with its *Note* button, and a *Why* paragraph, a decisio
 
 The notes list groups notes under *Why*, each card, and *Decisions*. Notes stay in the browser, or in the Inbox page around it, never in a repo file.
 
+## A plain page
+
+A page that asks for nothing, such as a chart or a report, is a [plain page](development/plain-pages.md), not a review page. It has no bar. You can share it, or a review page, with the team.
+
 ## A page for other work
 
 Use one for work that changes no repo file and needs a person's OK, such as ads to approve. Write `review.md` in a folder outside tracked files, such as `.scratch/<name>/`:

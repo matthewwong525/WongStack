@@ -28,8 +28,11 @@ export async function probe(client) {
   return (await ask(client, 'items', 'GET')) ? client.target() : null;
 }
 
-/** Writes an item: `{id, kind, title, workspace, body, actions, version, closesAt}`. */
+/** Writes an item: `{id, kind, title, workspace, body, actions, version, closesAt}`, and `plain: true` for a page that
+ * asks nothing. */
 export const upload = (client, item) => ask(client, 'item', 'PUT', item);
+/** Shares the person's page `id` with the team: `{token}`, the same while it stays shared, or null. */
+export const sharePage = (client, id) => ask(client, 'share', 'POST', { id });
 
 // A private link opens whether or not the app answers: a listing, or its close, waits at most this long.
 const LINK_WAIT_MS = 3_000;

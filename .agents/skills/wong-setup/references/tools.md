@@ -8,7 +8,7 @@
 
 ## 1. The tools
 
-Check each with `command -v`, in this order: the clone needs `git`, OpenSpec needs Node:
+Check each with `command -v`, in this order:
 
 | Tool | Ready when |
 |---|---|

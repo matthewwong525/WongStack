@@ -1,10 +1,10 @@
 # Catching up an older install
 
-An install from before 19.0.0 updates in place: one sync plan also makes the moves it missed, and keeps every local file. The preflight's `catchUp.reasons` lists which moves apply. Plan a step below only when its code is listed; `catchUp.needed` with no reasons means an old version with a current layout.
+An install from before 19.0.0 updates in place: one sync plan also makes the moves it missed. The preflight's `catchUp.reasons` lists which moves apply. Plan a step below only when its code is listed; `catchUp.needed` with no reasons means an old version with a current layout.
 
 Each step keeps the person's own text: a move is `git mv` or a reviewed merge, never delete and re-copy. Name every preserved local file in the plan's design.
 
-1. **`agent-folder`, `codex-folder` — the shared agent folder.** The target keeps one real `.agents/` folder, with `.claude` and `.codex` as links to it, as [the agent folder](payload-manifest.md#the-agent-folder) says.
+1. **`agent-folder`, `codex-folder` — the shared agent folder.** The target shape is [the agent folder](payload-manifest.md#the-agent-folder)'s.
    - A real `.claude/` folder: `git mv .claude .agents`, then `ln -s .agents .claude`.
    - A reversed link (`.agents` links to a real `.claude/`): remove the `.agents` link, `git mv .claude .agents`, then `ln -s .agents .claude`.
    - No `.codex`: `ln -s .agents .codex`, so Codex reads the same hooks and settings.

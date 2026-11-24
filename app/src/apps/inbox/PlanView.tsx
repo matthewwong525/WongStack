@@ -1,26 +1,46 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, type Ref, useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { Loading } from '@/components/Loading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { type Archived, Failed, FILE_MAX, FILE_REFUSALS, label, pending, readInbox, readPlan, sendFile, sendTap, type Plan, type Tap } from './api'
 import { AnswerLine } from './AnswerLine'
-import { actionLabels, frameMessage, notesKey, ownBack } from './frame'
+import { actionLabels, appLook, frameMessage, notesKey, ownBack, PAGE_COLUMN } from './frame'
+import { afterLoad, leaveLine, START, stopped } from './leave'
 import { LINE_REFRESH_MS, REFRESH_MS, useLine } from './line'
+import { ShareControls, SharedNote } from './Share'
 import { TapLine } from './TapLine'
-
-/** The app's look, which its header switch sets on the root: the sealed page can't read the app's saved choice. */
-const appLook = () => document.documentElement.classList.contains('dark') ? 'dark' : 'light'
 
 function Back({ to }: { to: string }) {
   return <Button asChild variant="ghost" className="justify-self-start"><Link to={to}>Back</Link></Button>
 }
 
-/** The row above an opened item: Back, and where it came from. The card or page shows the title, so it is for screen
- *  readers here. */
-function Top({ item, back }: { item: Plan['item']; back: string }) {
-  return <div className="flex min-w-0 items-center gap-2"><Back to={back} /><h1 className="sr-only">{item.title}</h1>
-    <p className="min-w-0 truncate text-sm text-muted-foreground">{item.workspace}</p></div>
+/** The row above an opened item: Back, where it came from, and the page's share controls, which wrap under Back on a
+ *  phone. The page shows the title, so it is for screen readers here. */
+function Top({ item, back, children }: { item: Plan['item']; back: string; children?: ReactNode }) {
+  return <div className="flex min-w-0 flex-wrap items-center gap-2"><Back to={back} /><h1 className="sr-only">{item.title}</h1>
+    <p className="min-w-0 truncate text-sm text-muted-foreground">{item.workspace}</p>{children}</div>
+}
+
+/** A page sealed in a frame, edge to edge; popups let its links open their own tab. `src` loads a sealed address;
+ *  else `body` is the frame's own document, whose review page keeps its port by version. */
+export function PageFrame({ title, body, src, frameRef, onLoad }: { title: string; body?: string; src?: string;
+  frameRef?: Ref<HTMLIFrameElement>; onLoad?: () => void }) {
+  const seen = useRef(START)
+  const [tries, setTries] = useState(0)
+  // A sealed address that loads again left it: the frame starts again, says so, and after three tries shows no more.
+  const loaded = () => {
+    if (!src) { onLoad?.(); return }
+    seen.current = afterLoad(seen.current)
+    if (seen.current.tries === tries) onLoad?.()
+    else setTries(seen.current.tries)
+  }
+  const line = src && leaveLine(tries)
+  return <>
+    {line && <p role="status" className="text-sm text-muted-foreground">{line}</p>}
+    {!stopped(tries) && <iframe key={tries} ref={frameRef} title={title} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+      {...(src ? { src } : { srcDoc: body })} className="ml-[calc(50%-50vw)] min-h-0 w-screen max-w-none flex-1" onLoad={loaded} />}
+  </>
 }
 
 /** Keeps the line open beside an open plan; while its tap waits, asks on each look, and on a timer, whether the
@@ -127,15 +147,24 @@ export function PlanView({ id }: { id: string }) {
     {!gone && <Loading label="Loading…" className="grid gap-3"><Skeleton className="h-8" /><Skeleton className="h-96" /></Loading>}
   </div>
   const { item } = plan
+  const shared = (token: string | null) => setPlan(shown => shown && { ...shown, item: { ...shown.item, shared: token } })
+  const share = <ShareControls id={item.id} token={item.shared} onChange={shared} />
+  const note = item.shared && <SharedNote token={item.shared} />
+  // A plain page asks nothing, so it takes no hello and shows no answer: it loads from its own sealed address.
+  if (item.plain) return <div className={PAGE_COLUMN}>
+    <Top item={item} back={back}>{share}</Top>
+    {note}
+    <PageFrame key={item.version} title={item.title} src={`/apps/inbox/api/frame?id=${encodeURIComponent(item.id)}`} />
+  </div>
   const answered: Archived | undefined = item.archived
     ?? (tap?.state === 'sent' && sentAt !== null ? { endedAt: sentAt, answers: [{ action: tap.action, text: tap.text, at: sentAt }] } : undefined)
-  // Fills the window under Layout's 3.5rem header and main's 2rem margins: only the frame scrolls, its bar at the foot.
-  // A page drawing its own Back scrolls it away; an older one gets Top. Popups let links open a tab past the sandbox.
-  return <div className="-mb-8 flex h-[calc(100dvh-5.5rem)] flex-col gap-3">
-    {ownBack(item.body) ? <h1 className="sr-only">{item.title}</h1> : <Top item={item} back={back} />}
+  // A page drawing its own Back scrolls it away, so its share controls get their own row; an older one gets Top.
+  return <div className={PAGE_COLUMN}>
+    {ownBack(item.body) ? <><h1 className="sr-only">{item.title}</h1><div className="flex flex-wrap items-center gap-2">{share}</div></>
+      : <Top item={item} back={back}>{share}</Top>}
+    {note}
     {answered ? <AnswerLine archived={answered} labels={actionLabels(item.body)} /> : <Watch waiting={waiting} look={look} />}
     {tap && !answered && <TapLine tap={tap} online={plan.computerOnline} copy={tap.text || label(tap.action)} onChange={settle} onReload={() => void load()} />}
-    <iframe key={item.version} ref={frame} title={item.title} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" srcDoc={item.body}
-      className="ml-[calc(50%-50vw)] min-h-0 w-screen max-w-none flex-1" onLoad={() => greet(item)} />
+    <PageFrame key={item.version} title={item.title} body={item.body} frameRef={frame} onLoad={() => greet(item)} />
   </div>
 }
