@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Send a file on a page, and put the review on the card
+## 62.1.0 — Send a file on a page, and put the review on the card
 
 - **Ask a chat for a file.** Say *send me the file*, and the chat puts it on a page in your Inbox with `/page --file`. Tap the link it prints: the page opens and the file downloads. A page carries up to 5 files, 25 MB each, of any kind.
 - **Get the file again.** Open the page from the Archive and tap **Download** at the top. A page opened from the Archive downloads nothing by itself.
