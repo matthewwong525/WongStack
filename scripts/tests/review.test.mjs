@@ -125,6 +125,26 @@ test('the page renders the proposal as static content', needsDom, () => fixture(
   window.close();
 }));
 
+test('a built page opens with a short top: the name, one line with the kind and note count, and one row of links', needsDom, () => fixture(root => {
+  buildReview(root, { requireCurrent: true });
+  const html = page(root);
+  const { window, document, errors } = dom(html);
+  assert.deepEqual(errors, []);
+  const header = document.querySelector('main > header');
+  assert.deepEqual([...header.children].map(el => el.tagName), ['H1', 'P', 'NAV', 'P'], 'name, kind line, links, and the hidden script error');
+  assert.equal(header.querySelector('h1').textContent, 'example');
+  assert.equal(header.querySelector('.muted').textContent, 'Review · 0 notes');
+  assert.equal(header.querySelector('.hint, .back, .eyebrow'), null, 'no hint, Back row or eyebrow at the top');
+  // The links stay on one row and scroll sideways on a narrow screen.
+  const jump = /\.jump \{([^}]*)\}/.exec(html)?.[1] ?? '';
+  assert.match(jump, /flex-wrap:nowrap/);
+  assert.match(jump, /overflow-x:auto/);
+  // The hint waits in the empty notes section, and gives way to the first note.
+  assert.equal(document.querySelector('#notes .hint').hidden, false);
+  assert.match(document.querySelector('#note-list').textContent, /No notes yet\./);
+  window.close();
+}));
+
 test('a proposal without a Decision log has no Decisions section or jump link', () => fixture(root => {
   buildReview(root, { requireCurrent: true });
   assert.doesNotMatch(page(root), /id="decisions"|href="#decisions"|No decision is recorded/);
@@ -674,9 +694,10 @@ test('in the inbox a preview page names the build, offers only Publish, and send
   window.document.execCommand = () => true;
   await loaded(window);
   assert.equal(document.querySelector('h1').textContent, 'Built: look, then publish?');
-  assert.equal(document.querySelector('.eyebrow').textContent, 'example');
+  assert.equal(document.querySelector('main > header .muted').textContent, 'example · 0 notes');
   assert.equal(document.title, 'Preview · example');
-  assert.match(document.querySelector('.hint').textContent, /^Tap a picture to see it full screen, then tap it to note it\./);
+  assert.equal(document.querySelector('main > header .hint'), null, 'no hint at the top');
+  assert.match(document.querySelector('#notes .hint').textContent, /^Tap a picture to see it full screen, then tap it to note it\./);
   document.getElementById('copy').click();
   const port = hosted(window, ['publish']);
   assert.deepEqual(port.posted, [{ type: 'inbox:notes-get', key: 'wong-review3:example-preview' }]);

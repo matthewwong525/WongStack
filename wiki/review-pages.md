@@ -6,7 +6,7 @@ A review page is one HTML page that shows a person what an agent plans or made, 
 
 Every review page shows the same parts, in this order:
 
-1. **The ask**, in one line: the title of the page, such as *Approve these 3 ads?*
+1. **The top**: the ask as the title, such as *Approve these 3 ads?*, then *Review · 2 notes*, then one row of section links that scrolls sideways on a phone. The how-to hint sits under *Your notes* until the first note, so the first card starts high on a phone.
 2. **Why**: a few short paragraphs.
 3. **The cards**: the things to review, numbered, each with its picture or words.
 4. **What the build needs**, on a plan: [each key, login, file, or answer](#what-the-build-needs), *Ready* or *Needs you*. An answer is asked in the chat first, so it is *Ready*.
@@ -93,7 +93,7 @@ Each numbered card has **OK** and **Note**. *OK* marks the card accepted; tap *U
 
 ## Notes on words and spots
 
-A reviewer notes a card with its *Note* button, and a *Why* paragraph, a decision, or a table row with *+ Note*. Two more kinds name a smaller part:
+A reviewer notes a card with its *Note* button, and a *Why* paragraph, a decision, or a table row with *+ Note*. A sent note stays, marked *Sent*, and the button adds a new one, so a part noted in an earlier version takes a note on the next. An unsent note opens again to edit, not twice. Two more kinds name a smaller part:
 
 - **Selected words.** Select words in one paragraph or card, and the page offers *Note*. The note keeps the words and finds them again by their text, such as `- Card #2 ("Shop now"): Say Buy now.`
 - **A picture spot.** Open a picture, a drawing, an ad, or a [whole page](#the-page-card) full screen, and tap a point. The note keeps the point in percent, so it stays in place at any size. The page draws it as a numbered pin, full screen and on the card's picture, such as `- Card #1, picture 1, spot at 50% across and 25% down on "Spring sale"`.

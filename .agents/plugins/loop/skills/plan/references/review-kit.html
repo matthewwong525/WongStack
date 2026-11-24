@@ -22,13 +22,16 @@
   code, pre, .ln { font-family:ui-monospace, Menlo, Consolas, monospace; }
   code { background:var(--muted); border-radius:4px; padding:.1em .3em; font-size:.88em; }
   [hidden] { display:none !important; }
-  header { padding:20px 48px 4px 0; }
+  /* A short top: the name, one line with the kind and note count, and one row of links that scrolls sideways. The 48px
+     clears the standalone theme switch. */
+  header { padding:12px 48px 0 0; }
   .back { display:flex; align-items:center; gap:8px; min-width:0; margin:0 0 8px; }
   .back .muted { margin:0; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .eyebrow { margin:0; color:var(--muted-foreground); font-size:14px; font-weight:500; }
-  h1 { margin:2px 0 4px; font-size:22px; line-height:1.25; }
-  .jump { display:flex; flex-wrap:wrap; gap:0 18px; margin:4px 0 0; padding:0; list-style:none; }
-  .jump a { display:inline-block; padding:8px 0; }
+  h1 { margin:0; font-size:22px; line-height:1.25; }
+  header .muted { margin:2px 0 0; }
+  .jump { display:flex; flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; gap:0 14px; margin:0; padding:0; list-style:none; white-space:nowrap; }
+  .jump a { display:inline-block; padding:6px 0; font-size:14px; }
+  header + section { margin-top:12px; }
   .hint, .muted { color:var(--muted-foreground); font-size:14px; margin:4px 0 0; }
   #script-error { color:var(--destructive); font-weight:600; }
   section { margin:24px 0; scroll-margin-top:8px; }
@@ -193,7 +196,7 @@
   @media (min-width:701px) {
     body { --pad:16px; font-size:20px; }
     h1 { font-size:30px; }
-    .eyebrow, h2, .hint, .muted, .num, .add, .meta, .entry .where, #editor .where, #editor .moved, .session, #editor .copies, #ready-confirm p, #ready-says { font-size:16px; }
+    .jump a, h2, .hint, .muted, .num, .add, .meta, .entry .where, #editor .where, #editor .moved, .session, #editor .copies, #ready-confirm p, #ready-says { font-size:16px; }
     button { font-size:18px; }
     .entry { font-size:20px; }
     .bar { padding-left:max(12px, calc((100% - 700px) / 2 + 12px)); padding-right:max(12px, calc((100% - 700px) / 2 + 12px)); }
@@ -225,17 +228,16 @@
 <body data-change="CHANGE-NAME" data-own-back>
 <main>
 <header>
-  <p class="eyebrow">Review</p>
   <h1>CHANGE-NAME</h1>
-  <p class="muted"><span class="note-count">0 notes</span></p>
+  <p class="muted"><span class="kind">Review</span> · <span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
-  <p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
   <p id="script-error" role="alert" hidden></p>
 </header>
 <!-- review:content -->
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
 <p class="session" hidden>Storage is off. Notes and drafts last for this session only.</p>
 <ul class="note-list" id="note-list"></ul>
+<p class="hint"><span class="lead">Tap Note to comment.</span> <span class="copies">Saving a note copies all your notes.</span> <span class="tail">Tap a picture to see it full screen.</span></p>
 </section>
 </main>
 <button type="button" id="chip" hidden>Add note</button>
@@ -282,7 +284,7 @@
   const REVIEW = document.body.getAttribute('data-kind') === 'review', NOUN = REVIEW ? 'Card' : 'Change', PAGE = REVIEW ? 'page' : 'plan';
   if (PREVIEW) {
     document.title = 'Preview · ' + NAME;
-    document.querySelector('.eyebrow').textContent = NAME;
+    document.querySelector('header .kind').textContent = NAME;
     document.querySelector('h1').textContent = 'Built: look, then publish?';
     document.querySelector('.hint .lead').textContent = 'Tap a picture to see it full screen, then tap it to note it.';
     document.querySelector('.hint .tail').textContent = '';
@@ -336,8 +338,8 @@
 
   // ── targets: a data-note id names its location; the label pins a note to its text ──
   function where(id) {
-    const m = /^(why|item|decision)-(\d+)(?:-(line|picture|row)-(\d+))?(?:-(words|spot)-\d+)?$/.exec(id) || [];
-    if (m[5]) return Object.assign(where(id.replace(/-(words|spot)-\d+$/, '')), m[5] === 'words' ? { kind: 'words' } : {});
+    const m = /^(why|item|decision)-(\d+)(?:-(line|picture|row)-(\d+))?(?:-(words|spot|more)-\d+)?$/.exec(id) || [];
+    if (m[5]) return Object.assign(where(id.replace(/-(words|spot|more)-\d+$/, '')), m[5] === 'words' ? { kind: 'words' } : {});
     if (m[1] === 'why') return { at: '#/why', kind: 'paragraph ' + m[2], spot: 'Why, paragraph ' + m[2] };
     const part = m[3] === 'line' ? 'drawing line ' + m[4] : m[3] ? m[3] + ' ' + m[4] : '';
     if (m[1] === 'item') return { at: '#/' + m[2], kind: part || 'item', spot: NOUN + ' #' + m[2] + (part ? ', ' + part : '') };
@@ -360,9 +362,9 @@
     while (walk.nextNode()) found.push(walk.currentNode);
     return found;
   }
-  // A note on words or a spot sits on its base target: words are found again by their quote, a spot by the base's label.
+  // A note on words, a spot, or one more note sits on its base target: words are found again by their quote, the rest by the base's label.
   function find(id, rec) {
-    const m = /^(.*)-(words|spot)-\d+$/.exec(id), el = document.querySelector('[data-note="' + (m ? m[1] : id) + '"]');
+    const m = /^(.*)-(words|spot|more)-\d+$/.exec(id), el = document.querySelector('[data-note="' + (m ? m[1] : id) + '"]');
     if (!el) return null;
     if (m && m[2] === 'words') return textOf(el).indexOf(rec.quote) >= 0 ? el : null;
     return labelOf(el) === rec.label ? el : null;
@@ -389,6 +391,14 @@
   // A row's pin and Note button go in its last cell: a table row holds only cells.
   function slot(el) { return el.tagName === 'TR' ? el.lastElementChild : el; }
   function noteOf(id) { return data.notes.filter(function (n) { return n.id === id; })[0] || null; }
+  // The base target's own note, or one more note on it (`-more-k`): a sent note leaves room for the next.
+  function onBase(id, base) { return id === base || (id.indexOf(base + '-more-') === 0 && /^\d+$/.test(id.slice(base.length + 6))); }
+  // The note a Note button opens on a base target: its unsent note or draft; else a new one, beside any sent note.
+  function noteFor(base) {
+    const ids = data.notes.map(function (n) { return n.id; }).concat(Object.keys(data.drafts)).filter(function (id) { return onBase(id, base); });
+    const unsent = ids.filter(function (id) { return data.drafts[id] || !noteOf(id).sent; })[0];
+    return unsent || (noteOf(base) ? nextId(base, 'more') : base);
+  }
 
   // ── render pins, Note buttons, counts, and the notes list ──
   function render() {
@@ -430,7 +440,8 @@
     all('[data-note]', function (el) {
       const id = el.getAttribute('data-note');
       // An item's words take their note through the Note button beside OK; a part takes its notes full screen.
-      if (el.closest('.art, .stage') || el.matches('.items > .item .text') || el.querySelector('.pin[data-open="' + id + '"]')) return;
+      const unsentPin = Array.prototype.some.call(el.querySelectorAll('.pin:not(.sent)'), function (p) { return onBase(p.getAttribute('data-open'), id); });
+      if (el.closest('.art, .stage') || el.matches('.items > .item .text') || unsentPin) return;
       const add = document.createElement('button');
       add.type = 'button'; add.className = 'add'; add.setAttribute('data-open', id);
       add.textContent = '+ Note'; add.setAttribute('aria-label', 'Note on ' + where(id).kind);
@@ -454,6 +465,7 @@
         + esc(held.map(function (f) { return f.name; }).join(', ')) + '</li>');
     });
     if (ids.length || $('note-list').querySelector('.answers')) { const none = $('note-list').querySelector('li.muted'); if (none) none.remove(); }
+    document.querySelector('#notes .hint').hidden = !$('note-list').querySelector('li.muted');
     drawFiles();
     views.forEach(counts);
     bar();
@@ -469,7 +481,8 @@
     if (readOnly) return;
     const id = el.getAttribute('data-note');
     chipFor = el; chipExtra = extra || null;
-    chip.textContent = extra && extra.quote ? 'Note' : !extra && (noteOf(id) || data.drafts[id]) ? 'Edit note' : 'Add note';
+    const next = noteFor(id);
+    chip.textContent = extra && extra.quote ? 'Note' : !extra && (noteOf(next) || data.drafts[next]) ? 'Edit note' : 'Add note';
     chip.hidden = false;
     const w = chip.offsetWidth, vw = root.clientWidth;
     chip.style.left = Math.max(8, Math.min(x - w / 2, vw - w - 8)) + window.pageXOffset + 'px';
@@ -519,13 +532,15 @@
   chip.addEventListener('click', function () {
     if (!chipFor) return;
     const id = chipFor.getAttribute('data-note'), extra = chipExtra;
-    openEditor(extra ? nextId(id, extra.quote ? 'words' : 'spot') : id, chipFor, extra);
+    openEditor(extra ? nextId(id, extra.quote ? 'words' : 'spot') : noteFor(id), chipFor, extra);
   });
   document.addEventListener('click', function (e) {
     const t = e.target.closest ? e.target.closest('[data-open]') : null;
     if (!t) return;
-    const id = t.getAttribute('data-open'), rec = data.drafts[id] || noteOf(id);
-    const el = rec ? find(id, rec) : t.closest('[data-note]') || document.querySelector('[data-note="' + id + '"]');
+    // A pin or a notes-list entry opens its own note, sent or not; a Note button opens the part's next note.
+    const exact = t.classList.contains('pin') || t.classList.contains('entry');
+    const id = exact ? t.getAttribute('data-open') : noteFor(t.getAttribute('data-open')), rec = data.drafts[id] || noteOf(id);
+    const el = rec ? find(id, rec) : t.closest('[data-note]') || document.querySelector('[data-note="' + t.getAttribute('data-open') + '"]');
     if (el && t.classList.contains('entry')) { reveal(el, rec && rec.k); el.scrollIntoView({ block: 'center' }); }
     openEditor(id, el);
   });
