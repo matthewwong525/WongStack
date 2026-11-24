@@ -185,7 +185,7 @@ browserTest('saving a note copies every saved note and says so', async () => {
   await draft(page, 'why-1', 'Say who reads it.');
   assert.equal(await page.locator('#editor textarea').getAttribute('placeholder'), 'A question or a change');
   assert.equal(await page.locator('#editor .copies').innerText(), 'Saving a note copies all your notes.');
-  assert.match(await page.locator('header .hint').innerText(), /Saving a note copies all your notes\./);
+  assert.match(await page.locator('#notes .hint').innerText(), /Saving a note copies all your notes\./);
   await page.locator('#editor [data-act="save"]').click();
   await page.waitForFunction(() => document.getElementById('toast').textContent.startsWith('Saved and copied 1 note.'));
   await note(page, 'item-2', 'Name the reason.');
@@ -451,7 +451,7 @@ browserTest('on a reply link, saving copies nothing and one tap sends every note
   const { page, context, errors, requests, sends } = await openLive();
   await isLive(page);
   assert.deepEqual(requests, [{ path: 'alive', method: 'GET', key: LINK_KEY, body: null }]);
-  assert.match(await page.locator('header .hint').innerText(), /Send notes sends your saved notes to the chat\./);
+  assert.match(await page.locator('#notes .hint').innerText(), /Send notes sends your saved notes to the chat\./);
   await draft(page, 'why-1', 'Say who reads it.');
   assert.equal(await page.locator('#editor .copies').innerText(), 'Send notes sends your saved notes to the chat.');
   await page.locator('#editor [data-act="save"]').click();
@@ -483,6 +483,65 @@ browserTest('on a reply link, saving copies nothing and one tap sends every note
   await isLive(page);
   assert.equal(await page.locator('.pin.sent').count(), 3);
   assert.equal(await page.evaluate(() => [...document.querySelectorAll('a')].some(a => a.href.includes('key='))), false, 'no link carries the key');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a part with a sent note opens an empty note, saves a second one, and sends only the new one', async () => {
+  const { page, context, errors, sends } = await openLive();
+  await isLive(page);
+  assert.equal(await page.locator('#notes .hint').isVisible(), true, 'the hint waits in the empty notes section');
+  await note(page, 'why-1', 'First thought.');
+  assert.equal(await page.locator('.add[data-open="why-1"]').count(), 0, 'an unsent note takes the part\'s Note button');
+  assert.equal(await page.locator('#notes .hint').isVisible(), false, 'the hint gives way to the first note');
+  await page.locator('#copy').click();
+  await toastIs(page, 'Sent 1 note to the chat.');
+  assert.equal(await at(page, 'why-1').locator('.pin').innerText(), '1 · Sent');
+  await page.locator('.add[data-open="why-1"]').click();
+  assert.equal(await page.locator('#editor textarea').inputValue(), '', 'a new note opens empty, beside the sent one');
+  await page.locator('#editor textarea').fill('Second thought.');
+  await page.locator('#editor [data-act="save"]').click();
+  assert.equal(await at(page, 'why-1').locator('.pin').count(), 2, 'both notes keep their pin on the part');
+  await page.locator('#copy').click();
+  await toastIs(page, 'Sent 1 note to the chat.');
+  assert.match(sends()[1].body.text, /^- Why, paragraph 1 .*: Second thought\.$/);
+  assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('wong-review3:review-fixture')).notes.map(n => [n.id, Boolean(n.sent)])),
+    [['why-1', true], ['why-1-more-1', true]]);
+  // The sent pin still opens the old note to read.
+  await at(page, 'why-1').locator('.pin[data-open="why-1"]').click();
+  assert.equal(await page.locator('#editor textarea').inputValue(), 'First thought.');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('a card\'s Note opens its unsent note to edit and makes no second one; once sent, it starts the next', async () => {
+  const { page, context, errors, sends } = await openLive();
+  await isLive(page);
+  await note(page, 'item-2', 'Name the reason.');
+  await page.locator('.verdict [data-open="item-2"]').click();
+  assert.equal(await page.locator('#editor textarea').inputValue(), 'Name the reason.');
+  await page.locator('#editor textarea').fill('Name the real reason.');
+  await page.locator('#editor [data-act="save"]').click();
+  assert.equal(await page.locator('#note-list .entry').count(), 1, 'the edit made no second note');
+  await page.locator('#copy').click();
+  await toastIs(page, 'Sent 1 note to the chat.');
+  await page.locator('.verdict [data-open="item-2"]').click();
+  assert.equal(await page.locator('#editor textarea').inputValue(), '');
+  await page.locator('#editor textarea').fill('One more.');
+  await page.locator('#editor [data-act="save"]').click();
+  assert.equal(await page.locator('#note-list .entry').count(), 2);
+  await page.locator('#copy').click();
+  await toastIs(page, 'Sent 1 note to the chat.');
+  assert.match(sends()[1].body.text, /^- Change #2 .*: One more\.$/);
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+browserTest('on a phone the short top puts Why in the top third of the screen', async () => {
+  const { page, context, errors } = await open(fixture().url, { width: 390, height: 844 });
+  const top = await page.locator('#why h2').evaluate(el => el.getBoundingClientRect().top);
+  assert.ok(top < 844 / 3, `Why starts ${top}px down`);
+  assert.equal(await page.locator('header .jump').evaluate(el => el.getBoundingClientRect().height < 40), true, 'the links stay on one row');
   assert.deepEqual(errors, []);
   await context.close();
 });
@@ -1025,7 +1084,7 @@ browserTest('the page starts light on a dark device, and the switch turns it dar
   // Phone-sized: a 44px target in the top right that covers no header text.
   const fit = await page.evaluate(() => {
     const box = document.querySelector('.theme-toggle').getBoundingClientRect();
-    const hits = [...document.querySelectorAll('header .eyebrow, header h1, header .muted, header .jump a')].filter(el => {
+    const hits = [...document.querySelectorAll('header h1, header .muted, header .jump a')].filter(el => {
       const r = el.getBoundingClientRect();
       return r.left < box.right && r.right > box.left && r.top < box.bottom && r.bottom > box.top;
     }).map(el => el.textContent);

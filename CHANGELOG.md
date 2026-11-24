@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — A short review page top, and more notes on one part
+
+- **A review page opens with a short top.** It shows the name, *Review · 0 notes*, and the section links in one row, which scrolls sideways on a phone. The how-to hint moves into the empty *Your notes* section. On a phone, *Why* now starts about a third of the way down, not half way.
+- **A part you noted before takes a new note.** A sent note stays on its part, marked *Sent*. *Note* or *+ Note* beside it opens an empty note, and *Send notes* sends only the new one. Tap the *Sent* pin to read the old note. A note not yet sent opens again to edit, so *Note* never starts a second one.
+
+**Updating.** Nothing to do by hand. A review page made before the update keeps its old top until its chat builds it again.
+
 ## 61.12.0 — Make a page and share it with the team
 
 - **Ask a chat for a page.** Say *make me an HTML page* or type `/page`, and the chat makes a chart, a small tool, or a report and puts it in your Inbox. A plain page asks for no answer: it has no bar, and it goes directly to the Archive, marked *Page*.
