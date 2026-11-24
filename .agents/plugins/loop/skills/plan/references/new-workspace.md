@@ -67,7 +67,7 @@ node "$W" newWorkspace open --title '<part>' --brief <file>
 
 Open every workspace this way: a raw `paseo run --new-workspace --new-branch`, or Paseo's Handoff skill, keeps a slug name and skips the medium-thinking floor. Title it in the person's words, like *Sign in with Google*; the script refuses a placeholder like `main`.
 
-The workspace starts from the fresh default branch, never this one. Outside a Paseo agent (`PASEO_AGENT_ID` unset), add `--agent claude` or `--agent codex` for the agent you are.
+Outside a Paseo agent (`PASEO_AGENT_ID` unset), add `--agent claude` or `--agent codex` for the agent you are.
 
 Exit `2` is bad input or Paseo refusing: show `error`. Exits `3` to `5`, or `SLOT=newWorkspace empty`, opened nothing: show `error` and `fallback.app`, then do the parts here.
 
@@ -88,7 +88,7 @@ A part that builds on another opens now too; its plan records what it builds on,
 
 ## Report
 
-Before your plan, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* Add any `warning` the script prints. On `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person. A technical reader also gets the workspace id and branch.
+Before your plan, give one line per workspace: *Opened a new workspace, "<title>": it will plan <part> and wait for you there.* Add any `warning` the script prints. On `setupSkippedReason`, say the workspace has no secrets yet and give `paseo workspace setup <workspaceId>`; never approve setup for the person.
 
 ## Pick up saved work
 

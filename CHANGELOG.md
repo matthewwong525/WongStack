@@ -3,6 +3,15 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Question cards show what you must review
+
+- **A question card holds what you must read to answer.** A draft, a table, the list of changes or a report goes in the card's question text, not only in the chat above it. Some apps hide the text above a card, so you no longer ask the chat to write it again. A copy above the card is fine.
+- **Too long for a card, a page or file with its link.** When the thing to review is longer than about 40 lines, the card gives a short summary and the full link. The asking guide's new section *Put the review on the card* says how.
+- **Claude Code sends a card back once when it leaves the review out.** When the reply printed a draft, a table or a quote since you last spoke or answered, and the card holds none of it and no link, the card goes back to the chat once, with how the text begins. Lists, drawings and *Close this chat?* cards are not checked, and the link check still runs first.
+- **The send-back reasons say the same.** The typed-question send-back, Daily's check-in prompt and the reminder after a long chat is shortened now say to put in the question what you must read, not "Don't repeat the report".
+
+**Updating.** Nothing to do by hand.
+
 ## 61.11.1 — Daily tidy of the wiki pages
 
 - **The development hub says where a schedule lives.** Its line for host schedules now says that with no app, a schedule is a Paseo schedule on this computer, as the host schedules page says.

@@ -23,8 +23,6 @@ Real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex and Claude r
 
 On Windows, link with `MSYS=winsymlinks:nativestrict ln -s AGENTS.md CLAUDE.md`, so a refused link fails instead of becoming a copy.
 
-[Catch-up](catch-up.md) moves pre-19.0.0 real agent folders and reversed `AGENTS.md` links, plus other missed migrations.
-
 `components.skills` preserves local skill names. Explore dependencies beyond the copying inventory. Never copy target-owned notes, app code, business docs, `knowledge/` or OpenSpec records; seed no knowledge sections, including `wiki/people/`.
 
 Setup also copies the values-blank `.env.example`, outside `payload-files.json`, so a sync never updates it.
@@ -49,12 +47,6 @@ Two more fields keep `schemaVersion: 1`:
 Reports expose paths/classes/counts only. Invalid/non-ancestor commits, invalid inventory, unsafe paths, missing markers, read/Git failures or oversized changes return `status: error`; [`wong-sync`](../SKILL.md) handles them.
 
 Before advancing the record, [`merge-check.mjs`](../scripts/merge-check.mjs) with `--from <installed commit>` checks merged locally-adapted/modified units. Missing added lines report file/source lines/count/first missing line. Exit 0 means none missing, 1 means missing, 2 means usage/read failure; no baseline is `skipped`. Moved/reworded lines pass; review catches rewording.
-
-**improve-code** ships the [improvement brief](../../../../wiki/development/repository-improvement.md): optional focus/outcome, findings-only mode, and one supported improvement plan.
-
-**save/ship** ship [`checkpoint.mjs`](../../../plugins/loop/skills/save/scripts/checkpoint.mjs) and [`ship.mjs`](../../../plugins/loop/skills/ship/scripts/ship.mjs) for checkpoint/prepare/finish. Source payload/session-measurement scripts stay meta-only.
-
-**plan** ships its builder, [kit](../../../plugins/loop/skills/plan/references/review-kit.html), [CLI contract](../../../plugins/loop/skills/plan/references/openspec-cli.md) and [drawing guide](../../../plugins/loop/skills/plan/references/drawings.md). Build/rebuild standalone `review.html` from `proposal.md` alone, bundling the viewer. Cited owner pages must ship; the payload-link check enforces closure.
 
 ### Planning an update
 

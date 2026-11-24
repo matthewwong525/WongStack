@@ -37,7 +37,7 @@ Write every plan, question, and report in plain words, for everyone. Give more d
 Use the first callable tool:
 
 1. Codex **`request_user_input`**
-2. Claude **`AskUserQuestion`**; Claude Code's stop hook returns a typed question once
+2. Claude **`AskUserQuestion`**
 3. Another host's equivalent structured question tool
 4. **Numbered chat** with the same questions, options, recommendation, and custom-answer path, then wait.
 
@@ -55,7 +55,7 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 
 ## End every reply with the next step
 
-**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never only in your reasoning. **A question about a link repeats it whole in its question text**, as some hosts hide text above the card; an option may name a link, never hold it. Only a finished plan, ending on [its link and review line](#print-the-plans-link), and replies to *Review the plan* and *See the preview* end without a question.
+**Call [the question tool](#which-tool-carries-it)** before you finish: ask **what the user must decide for the work to continue**, in this format. Write the report and each link as its own chat line first, never only in your reasoning, and put what they must read to answer in the question too ([put the review on the card](#put-the-review-on-the-card)). **A question about a link repeats it whole in its question text**; an option may name a link, never hold it. Only a finished plan, ending on [its link and review line](#print-the-plans-link), and replies to *Review the plan* and *See the preview* end without a question.
 
 - Finished standalone `/explore`: *Plan it (Recommended)* / *Keep thinking* / *Stop*.
 - Blocked task: the ways to clear it, below the intact blocker report.
@@ -63,6 +63,14 @@ This page sets how a question **looks**, never which actions **need** one. An ac
 - Finished task that will clearly come back, when `node .claude/plugins/loop/scripts/slot.mjs schedule` prints `true`: one [routine or app offer](../../../references/rules.md#offer-a-routine-or-an-app).
 - Asked-for work left after a publish, outside Paseo: the next part *(Recommended)* ([next work](../../plan/references/new-workspace.md#next-work)).
 - Finished work in a Paseo worktree: *Close this chat?*: *Close it (Recommended)*, any offer, *Keep it open*; only *Close it* runs [`/close`](../../close/SKILL.md).
+
+## Put the review on the card
+
+Some hosts hide the text above a question card, so **the question text holds what the person must read to answer**.
+
+- **A draft, a table, the list of changes, a report, or a picture's path goes in the question text.** A copy in the chat above is fine, never the only copy.
+- **Longer than about 40 lines, or too wide for a card → a page or file the person can open.** The question holds a two- or three-line summary and its full link; [the link rule](#end-every-reply-with-the-next-step) then applies.
+- **`option.preview` may show each option side by side** where the host shows it, never the only copy of what all options share.
 
 ## Print the plan's link
 

@@ -9,7 +9,7 @@ This runbook turns a fresh install into a running app with session memory. [`/wo
 ## Boundaries
 
 - **No commits or pushes.** Step 1a makes the GitHub repository; everything else lands uncommitted for `/save`. The exceptions: one empty first commit on company knowledge's `main`, and on the Artifacts route the project's.
-- **One script does the Cloudflare work, not `wrangler`**, so no app dependency is needed: [`provision.mjs`](../scripts/provision.mjs), in the source checkout, needs only Node ([required tools](../../../../wiki/development/required-tools.md)). Each command prints one JSON report: created, reused, names, URLs. A stop exits 1 with `error.reason` (`token`, `cloudflare`, or `repo`) and a plain `error.cause`; translate it with the [failure map](failure-map.md).
+- **One script does the Cloudflare work, not `wrangler`**, so no app dependency is needed: [`provision.mjs`](../scripts/provision.mjs), in the source checkout, needs only Node ([required tools](../../../../wiki/development/required-tools.md)). A stop exits 1 with `error.reason` (`token`, `cloudflare`, or `repo`) and a plain `error.cause`; translate it with the [failure map](failure-map.md).
 - **Never print a token value**: not in a summary, an error, or an echoed command.
 - **The user token stays on the host**, only in the primary worktree's `.env`. No step copies it or makes it a GitHub secret.
 - **Ask before creating or deleting anything billable**, as [a choice with a recommendation](../../../plugins/loop/skills/explore/references/asking-the-user.md): say what you will make, then make it.
@@ -114,7 +114,7 @@ P provision --repo <owner/name> --base <base> --owner-email <reachable-owner-ema
 
 Resolve a reachable owner email before provisioning; reject `.invalid` and GitHub noreply addresses. The git author email may remain private. Private setup reuses or creates Zero Trust/PIN and unavailable Workers, then gives each its own app before any content publishes. Review overlapping apps first; keep unrelated ones. Machine credentials go to ignored `.env`; public ids to `components.access`. See [Access](../../../../wiki/stack/cloudflare-access.md).
 
-**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, `--open-without-login` lets setup finish: the report's `access.mode` is `open`, no Access resources are made, and the config carries `WORKSPACE_LOGIN: "off"` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly and go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key until then. I'll show you how to add the card at the end."* Any other Access stop still stops setup; an already private site never opens.
+**Open until the card.** When Cloudflare wants a card before it turns on Zero Trust, the report's `access.mode` is `open` ([open until the card](../../../../wiki/stack/cloudflare-access.md#open-until-the-card)). Say it plainly and go on: *"Cloudflare wants a card on file before it turns on the private email login, so for now anyone with your site's link can see it. Your memory stays private behind its own key until then. I'll show you how to add the card at the end."* Any other Access stop still stops setup; an already private site never opens.
 
 ### 4b. The memory store
 
@@ -145,8 +145,6 @@ With no config, write the [fragment](../../wong-sync/references/stack-pack-fragm
 **Company knowledge.** The script makes `<base>-knowledge` with one empty commit, records it, and binds only the live app to it; it never changes one that holds pages.
 
 Last, it refreshes the binding types in `app/`; a failure is a `warnings` line, no stop.
-
-The same Worker serves the [mini apps](../../../../wiki/stack/mini-apps.md) under `/apps/`; they need no Worker or config of their own.
 
 **Moving older mini apps.** [The update's catch-up step](../../wong-sync/references/catch-up.md) `mini-apps-folder` moves them in, with the old mini-app Worker's `/apps/` routing, as reviewed changes. Delete the old `<repo>-mini` and `<repo>-mini-staging` Workers and `staging-mini` environment only after production serves `/apps/` and every app.
 
