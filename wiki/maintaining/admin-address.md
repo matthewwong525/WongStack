@@ -1,6 +1,6 @@
 # The app's admin address
 
-This repo's own app, the Worker `wongstack` in [`app/`](../../app/), answers at `admin.wongstack.com` and at its own `workers.dev` address. It is **meta-only**: an install picks its own address, and no install receives [`app/wrangler.jsonc`](../../app/wrangler.jsonc).
+This repo's own app, the [Worker](../stack/core-stack.md) `wongstack` in [`app/`](../../app/), answers at `admin.wongstack.com` and at its own `workers.dev` address. It is **meta-only**: an install picks its own address, and no install receives [`app/wrangler.jsonc`](../../app/wrangler.jsonc).
 
 ## Two addresses, one app
 
