@@ -1,7 +1,7 @@
-// Where a payload file lands in an install, .agents/skills/wong-sync/scripts/install-path.mjs.
+// Where an older release's payload file landed in an install, .agents/skills/wong-sync/scripts/install-path.mjs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, lstatSync, readdirSync, readFileSync, readlinkSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 import { INVENTORY, installPath, installText, mappedDirs } from '../../.agents/skills/wong-sync/scripts/install-path.mjs';
 
@@ -35,29 +35,6 @@ test('a module page keeps its links inside the module, and moves a link out of i
   assert.equal(installText('wiki/page.md', page, []), page);
 });
 
-// The browser and Daily moved from sibling folders into one folder each (2.0.0): each file's new source path lands in
-// its module's install folder, and no mapped entry still names an old sibling folder or its install folder.
-test('each old browser and Daily file lands in its module\'s one install folder', () => {
-  const real = mappedDirs(JSON.parse(readFileSync(new URL(`../../${INVENTORY}`, import.meta.url), 'utf8')));
-  const moves = [
-    // [old source path, new source path, new install path]
-    ['.claude/plugins/browser/browser/SKILL.md', '.claude/plugins/browser/SKILL.md', '.claude/skills/browser/SKILL.md'],
-    ['.claude/plugins/browser/browser/scripts/browse.mjs', '.claude/plugins/browser/scripts/browse.mjs', '.claude/skills/browser/scripts/browse.mjs'],
-    ['.claude/plugins/browser/hand-over/scripts/keys.mjs', '.claude/plugins/browser/skills/hand-over/scripts/keys.mjs', '.claude/skills/browser/skills/hand-over/scripts/keys.mjs'],
-    ['.claude/plugins/browser/shop/references/shopping.md', '.claude/plugins/browser/skills/shop/references/shopping.md', '.claude/skills/browser/skills/shop/references/shopping.md'],
-    ['.claude/plugins/daily/daily/scripts/daily.mjs', '.claude/plugins/daily/scripts/daily.mjs', '.claude/skills/daily/scripts/daily.mjs'],
-    ['.claude/plugins/daily/daily/hooks/claude.json', '.claude/plugins/daily/hooks/claude.json', '.claude/skills/daily/hooks/claude.json'],
-    ['.claude/plugins/daily/schedule/references/run.md', '.claude/plugins/daily/skills/schedule/references/run.md', '.claude/skills/daily/skills/schedule/references/run.md'],
-  ];
-  for (const [old, now, install] of moves) {
-    assert.equal(installPath(now, real), install, old);
-    assert.notEqual(installPath(old, real), install, `${old} is no source path now`);
-  }
-  // A command's SKILL.md alone may land in .claude/skills/<command>/; its folder stays in the module.
-  const OLD = /^\.claude\/(?:plugins\/(?:browser\/(?:browser|hand-over|shop)|daily\/(?:daily|schedule))|skills\/(?:hand-over|shop|schedule))(?:\/|$)/;
-  assert.deepEqual(real.flat().filter(path => OLD.test(path) && !path.endsWith('/SKILL.md')), [], 'a mapped entry names an old folder');
-});
-
 const daily = [['.claude/plugins/daily', '.claude/skills/daily'], ['.claude/plugins/daily/skills/schedule/SKILL.md', '.claude/skills/schedule/SKILL.md']];
 
 test('a module command\'s SKILL.md lands in its own top-level skill folder; its other files stay in the module', () => {
@@ -81,22 +58,14 @@ test('an older release\'s /daily:schedule installs as /schedule in Markdown and 
   assert.equal(installText('wiki/page.md', '`/daily:schedule`', daily.slice(0, 1)), '`/daily:schedule`', 'a module copied alone keeps its name');
 });
 
-test('every module command outside the loop has its file entry and source link, and no entry\'s target is another shipped skill', () => {
+// The current list maps nothing: each command ships as its own whole folder, so no two shipped skills share a name.
+test('the current file list maps no folder, and ships each command as one skill folder', () => {
   const manifest = JSON.parse(readFileSync(new URL(`../../${INVENTORY}`, import.meta.url), 'utf8'));
-  const real = mappedDirs(manifest);
-  const plugins = new URL('../../.agents/plugins/', import.meta.url);
-  const commands = readdirSync(plugins).filter(module => module !== 'loop' && existsSync(new URL(`${module}/skills`, plugins)))
-    .flatMap(module => readdirSync(new URL(`${module}/skills`, plugins))
-      .filter(command => existsSync(new URL(`${module}/skills/${command}/SKILL.md`, plugins)))
-      .map(command => `.claude/plugins/${module}/skills/${command}/SKILL.md`));
-  assert.ok(commands.length >= 4);
-  for (const command of commands) assert.ok(real.some(([from]) => from === command), `${command} has no mapped file entry`);
-  for (const command of commands) {
-    const [, module, name] = command.match(/^\.claude\/plugins\/([^/]+)\/skills\/([^/]+)\//);
-    const link = new URL(`../skills/${name}`, plugins);
-    assert.equal(lstatSync(link).isSymbolicLink() && readlinkSync(link), `../plugins/${module}/skills/${name}`, `${name} has no source link`);
+  assert.deepEqual(mappedDirs(manifest), []);
+  const shipped = manifest.core.skillDirs;
+  for (const name of ['memory', 'daily', 'schedule', 'access', 'services', 'browser', 'hand-over', 'shop', 'plan', 'save']) {
+    assert.ok(shipped.includes(name), name);
+    assert.ok(existsSync(new URL(`../../.agents/skills/${name}/SKILL.md`, import.meta.url)), name);
   }
-  const names = real.map(([, to]) => to.match(/^\.claude\/skills\/([^/]+)/)?.[1]).filter(Boolean);
-  const shipped = [...names, ...manifest.core.skillDirs];
   assert.deepEqual(shipped.filter((name, i) => shipped.indexOf(name) !== i), [], 'two shipped skills share a name');
 });

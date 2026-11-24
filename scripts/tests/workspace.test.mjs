@@ -7,10 +7,11 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import {
-  agentSettings, childEnv, floorThinking, flooredThinking, openWorkspace, parseCreated, renameArgs, runArgs, workspaceTitle,
-} from '../../.agents/skills/daily/skills/schedule/scripts/workspace.mjs';
+  agentSettings, childEnv, floorThinking, flooredThinking, openWorkspace, parseCreated, renameArgs, reviewedCheckout, runArgs, workspaceTitle,
+} from '../../.agents/skills/schedule/scripts/workspace.mjs';
+import { EXIT } from '../../.agents/skills/daily/scripts/lib/paseo.mjs';
 
-const cli = new URL('../../.agents/skills/daily/skills/schedule/scripts/workspace.mjs', import.meta.url).pathname;
+const cli = new URL('../../.agents/skills/schedule/scripts/workspace.mjs', import.meta.url).pathname;
 const CALLER = { Provider: 'claude', Model: 'claude-opus-5-5', Thinking: 'high', Mode: 'bypassPermissions' };
 const CREATED = 'Created workspace ws-42 - clever-otter (clever-otter)\nsetup needs approval\nTip: pass --workspace <id>';
 
@@ -287,29 +288,13 @@ test('a teammate\'s branch opens nothing without --reviewed at its newest commit
   assert.equal(spawnSync('git', ['-C', root, 'rev-parse', '--verify', '--quiet', 'refs/heads/teammate-work']).status, 1);
 });
 
-test('the review check opens plainly with no profile part, and refuses when the part fails or the profile is broken', t => {
-  const { base, root } = repo(t);
-  const tip = ownerBranch(root, 'feat/auth');
-  const profile = body => { const file = path.join(tmp(t, 'workspace-profile-'), 'profile.mjs'); writeFileSync(file, body); return file; };
-  const open = (file, at) => {
-    const paseo = fakePaseo(t);
-    const env = { ...paseo.env, WONG_DAILY_PROFILE: file, FAKE_RUN_WORKTREE: path.join(base, at) };
-    return { paseo, r: runCli(root, ['open', '--title', 'T', '--brief', brief(t, '/apply t'), '--checkout', 'feat/auth'], env) };
-  };
-  const plain = open(path.join(base, 'no-profile.mjs'), 'plain');
-  assert.equal(plain.r.status, 0, JSON.stringify(plain.r.json));
-  assert.equal(plain.paseo.runs().length, 1);
-  assert.equal(plain.r.json.commit, null, 'no part: the branch opens as it is');
-  git(root, 'worktree', 'remove', '--force', path.join(base, 'plain'));
-  for (const [body, why] of [['export default { checkout() { throw new Error("no git here"); } };', /no git here/],
-    ['export default { checkout: ', /./]]) {
-    const { paseo, r } = open(profile(body), 'refused');
-    assert.equal(r.status, 2, JSON.stringify(r.json));
-    assert.match(r.json.error, /^The review check for "feat\/auth" failed, so the workspace does not open: /);
-    assert.match(r.json.error, why);
-    assert.equal(paseo.runs().length, 0);
-  }
-  assert.equal(git(root, 'rev-parse', 'feat/auth'), tip);
+test('a review check that fails refuses, so nothing opens unreviewed', async () => {
+  class PickupError extends Error {}
+  const pickup = { PickupError, pinBranch: () => 'pinned', reviewBranch: () => { throw new Error('no git here'); } };
+  await assert.rejects(reviewedCheckout('/p', 'feat/auth', null, { dryRun: false, pickup }), error => error.code === EXIT.input
+    && /^The review check for "feat\/auth" failed, so the workspace does not open: no git here$/.test(error.message));
+  pickup.reviewBranch = () => { throw new PickupError('not reviewed'); };
+  await assert.rejects(reviewedCheckout('/p', 'feat/auth', null, { dryRun: false, pickup }), { message: 'not reviewed', code: EXIT.input });
 });
 
 test('a teammate\'s `main`, where origin publishes `master`, still needs --reviewed', t => {

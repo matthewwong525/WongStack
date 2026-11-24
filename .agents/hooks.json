@@ -8,11 +8,6 @@
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/reply-link/scripts/helper.mjs\" start",
             "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/wong-sync/scripts/codex-plugin.mjs\" --check",
-            "timeout": 3
           }
         ]
       },
@@ -33,16 +28,6 @@
           {
             "type": "command",
             "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/daily/scripts/session-start.mjs\" --agent codex",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/access/scripts/session-start.mjs\"",
             "timeout": 5
           }
         ]

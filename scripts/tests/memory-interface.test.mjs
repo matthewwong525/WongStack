@@ -1,13 +1,13 @@
 // The store contract against the stand-in and against WongStack's D1 store, and one trip over the wire.
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { after, test } from 'node:test';
-import { checkStore } from '../../.agents/plugins/memory/store/contract.mjs';
-import { httpStore } from '../../.agents/plugins/memory/store/interface.mjs';
-import { openStore } from '../../.agents/plugins/memory/scripts/lib/store.mjs';
+import { checkStore } from '../../.agents/skills/memory/store/contract.mjs';
+import { httpStore } from '../../.agents/skills/memory/store/interface.mjs';
+import { openStore } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { d1Store, handleMemory } from '../../.agents/memory/d1/store.mjs';
 import { d1Binding } from './fixtures/memory/harness.mjs';
 import { standInStore } from './fixtures/memory/stand-in-store.mjs';
@@ -56,20 +56,19 @@ test('the wire carries each call to the store and its refusals back', async t =>
   assert.equal((await fetch('http://memory.test/_memory/query', { method: 'POST', body: '{}' })).status, 404, 'only /v2/ answers');
 });
 
-test('a profile that gives only a url and headers gets the plugin\'s own client', async t => {
-  const root = mkdtempSync(join(tmpdir(), 'memory-profile-'));
+test('parts that give only a url and headers get memory\'s own client', async t => {
+  const root = mkdtempSync(join(tmpdir(), 'memory-parts-'));
   const ana = { role: 'member', subject: 'ana', email: 'ana@example.com' };
-  mkdirSync(join(root, '.agents', 'memory'), { recursive: true });
-  writeFileSync(join(root, '.agents', 'memory', 'profile.mjs'), `export default { connect: () => ({ url: 'http://memory.test/_memory',
+  writeFileSync(join(root, 'parts.mjs'), `export default { connect: () => ({ url: 'http://memory.test/_memory',
     headers: () => ({ 'x-test-caller': ${JSON.stringify(JSON.stringify(ana))} }) }) };\n`);
   const { binding, bucket } = d1Backend();
-  const realFetch = globalThis.fetch, profile = process.env.WONG_MEMORY_PROFILE;
-  delete process.env.WONG_MEMORY_PROFILE;
+  const realFetch = globalThis.fetch, parts = process.env.WONG_MEMORY_PARTS;
+  process.env.WONG_MEMORY_PARTS = join(root, 'parts.mjs');
   globalThis.fetch = async (url, init) => handleMemory(new Request(url, init), { MEMORY_DB: binding, MEMORY_BUCKET: bucket },
     async request => JSON.parse(request.headers.get('x-test-caller') || 'null'));
   t.after(() => {
     globalThis.fetch = realFetch;
-    if (profile !== undefined) process.env.WONG_MEMORY_PROFILE = profile;
+    if (parts === undefined) delete process.env.WONG_MEMORY_PARTS; else process.env.WONG_MEMORY_PARTS = parts;
     rmSync(root, { recursive: true, force: true });
   });
   const store = await openStore({ root, stateDir: join(root, 'state') });

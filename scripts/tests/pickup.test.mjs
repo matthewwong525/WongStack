@@ -292,7 +292,7 @@ test('a teammate branch that edits the hooks\' shared library runs nothing on pi
     commit(dir, 'README.md');
   });
   const marker = path.join(base, 'branch-code-ran');
-  const library = '.agents/plugins/memory/scripts/lib/cli.mjs';
+  const library = '.agents/skills/memory/scripts/lib/cli.mjs';
   git(teammate, 'switch', '-q', '-c', 'teammate-change');
   appendFileSync(path.join(teammate, library),
     `\nimport { appendFileSync as markBranchCode } from 'node:fs';\nmarkBranchCode(${JSON.stringify(marker)}, \`\${process.argv[1]}\\n\`);\n`);
@@ -319,9 +319,8 @@ test('a teammate branch that edits the hooks\' shared library runs nothing on pi
     spawnSync('sh', ['-c', command], { cwd: owner, env, input: event, encoding: 'utf8', timeout: 30_000 });
     return size() > start;
   });
-  // Access's start hook imports no shared library, so the control would not see it run.
-  const node = commands.filter(command => /\bnode "/.test(command) && !command.includes('/skills/access/'));
-  assert.equal(node.length, 27);
+  const node = commands.filter(command => /\bnode "/.test(command));
+  assert.equal(node.length, 26);
   assert.deepEqual(runHooks(), []);
   assert.ok(!existsSync(marker), 'branch code ran after the pickup');
 

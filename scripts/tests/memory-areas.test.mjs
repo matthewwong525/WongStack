@@ -6,10 +6,10 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { areaMap, areasOf } from '../../.agents/plugins/memory/scripts/lib/areas.mjs';
+import { areaMap, areasOf } from '../../.agents/skills/memory/scripts/lib/areas.mjs';
 import { topics } from '../../.agents/memory/topics.mjs';
 import { codeUsers } from '../../.agents/memory/lib/callers.mjs';
-import { editedPaths } from '../../.agents/plugins/memory/scripts/before-edit.mjs';
+import { editedPaths } from '../../.agents/skills/memory/scripts/before-edit.mjs';
 import { memory, node, rows, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -31,7 +31,7 @@ const retag = (env, value) => memory(env.repo, env.fake, ['retag', '--file', inp
 const factLines = result => result.stdout.trim().split('\n').filter(line => line.startsWith('- ['));
 
 test('the list maps .claude/ like .agents/, and the most specific folder wins', () => {
-  assert.deepEqual(areasOf('.claude/plugins/memory/scripts/memory.mjs', AREAS), ['memory']);
+  assert.deepEqual(areasOf('.claude/skills/memory/scripts/memory.mjs', AREAS), ['memory']);
   assert.deepEqual(areasOf('.agents/memory/d1/store.mjs', AREAS), ['memory']);
   assert.deepEqual(areasOf('.codex/skills/plan/SKILL.md', AREAS), ['plan']);
   assert.deepEqual(areasOf('app/worker/apps/x.ts', AREAS).sort(), ['mini-apps', 'worker']);
@@ -400,7 +400,7 @@ test("a page named among an area's docs matches that area, and the lookup prints
   const loaded = await memory(env.repo, env.fake, ['areas', 'openspec/specs/memory/spec.md']);
   assert.equal(loaded.code, 0, loaded.stderr);
   assert.match(loaded.stdout, /^Areas: openspec \(openspec\/specs\/memory\/spec\.md\), memory \(openspec\/specs\/memory\/spec\.md\)\n/);
-  assert.match(loaded.stdout, /^Code: openspec\/, \.agents\/plugins\/memory\/, \.agents\/skills\/memory\/, \.agents\/memory\/$/m);
+  assert.match(loaded.stdout, /^Code: openspec\/, \.agents\/skills\/memory\/, \.agents\/memory\/$/m);
 });
 
 const daysAgo = days => new Date(Date.now() - days * 86400000).toISOString().replace(/\.\d{3}Z$/, 'Z');

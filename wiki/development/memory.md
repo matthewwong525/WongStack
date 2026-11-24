@@ -1,20 +1,18 @@
 # Session memory
 
-Session memory is the repo's private store of **facts**: short typed lines that past chats learned, which the next chat reads at start. It lives outside git, in the repo's own Cloudflare account, so a capture needs no commit and a public repo publishes nothing. [The memory module](../../.agents/plugins/memory/README.md) runs it, [its skill](../../.agents/plugins/memory/SKILL.md) is its one door, and this page is the convention. It is one knowledge surface in [the knowledge center](../agent-knowledge-center.md), beside the wiki and OpenSpec.
+Session memory is the repo's private store of **facts**: short typed lines that past chats learned, which the next chat reads at start. It lives outside git, in the repo's own Cloudflare account, so a capture needs no commit and a public repo publishes nothing. [The memory skill](../../.agents/skills/memory/SKILL.md) is its one door, and this page is the convention. It is one knowledge surface in [the knowledge center](../agent-knowledge-center.md), beside the wiki and OpenSpec.
 
 ## Three layers
 
-Memory has three parts, so another repo can use it with its own database.
+- **The skill**, [`.agents/skills/memory/`](../../.agents/skills/memory/SKILL.md): the hooks, `memory.mjs`, the write gate, capture, the digest, [topics](#topics), and [the tidy](wiki-dream.md). It never names a database.
+- **The store interface**, `store/interface.mjs` in the skill: twelve named operations, such as `facts`, `write`, and `digest`. The skill sends only these: never a query, a table name, or an owner. The server writes every query and applies [who sees what](#who-sees-what). `store/contract.mjs` checks that a backend answers each one, each role's limits included.
+- **WongStack's store**, in [`.agents/memory/`](../../.agents/memory/areas.json): the D1 and R2 store behind the app's `/_memory/v2/` route, the sign-in, admin jobs, [code areas](#facts-by-code-area), [company knowledge](../stack/company-knowledge.md), and [the actions catalogue](../stack/company-api.md).
 
-- **The module**, [`.agents/plugins/memory/`](../../.agents/plugins/memory/README.md): the hooks, `memory.mjs`, the write gate, capture, the digest, [topics](#topics), and [the tidy](wiki-dream.md). It never names a database.
-- **The store interface**, `store/interface.mjs` in the module: twelve named operations, such as `facts`, `write`, and `digest`. The module sends only these: never a query, a table name, or an owner. The server writes every query and applies [who sees what](#who-sees-what). `store/contract.mjs` checks that a backend answers each one, each role's limits included.
-- **WongStack's extras**, [`.agents/memory/`](../../.agents/memory/profile.mjs): [the profile](#the-profile), the D1 and R2 store behind the app's `/_memory/v2/` route, the sign-in, admin jobs, [code areas](#facts-by-code-area), [company knowledge](../stack/company-knowledge.md), and [the actions catalogue](../stack/company-api.md).
+## The parts
 
-## The profile
+[`parts.mjs`](../../.agents/skills/memory/scripts/lib/parts.mjs) joins the skill to WongStack's store. It exports one object:
 
-[`.agents/memory/profile.mjs`](../../.agents/memory/profile.mjs) is the one file the module loads from the repo; `WONG_MEMORY_PROFILE` can name another. It exports one object. Only `connect` is required, and a missing part turns off only its own feature:
-
-| Part | What it gives the module |
+| Part | What it gives the skill |
 |---|---|
 | `connect` | which store, and how this computer signs in |
 | `topics` | [the topics](#topics): code areas and company pages |
@@ -27,20 +25,13 @@ Memory has three parts, so another repo can use it with its own database.
 | `sessionStart` | a job at chat start: the company knowledge refresh |
 | `commands` | admin commands on WongStack's own store: `migrate`, `migrate-people`, `assign`, `member` |
 
-With no profile, a new chat asks once, *Memory isn't set up yet. Set it up now?*, and follows [the setup guide](../../.agents/plugins/memory/references/setup.md) only on a yes.
+A test names a stand-in file in `WONG_MEMORY_PARTS`; a stand-in that is missing turns memory off.
 
-## Two installs
-
-Each is a real `.claude/skills/memory/` folder, so Claude Code loads it from the checkout and a branch runs its own memory code.
-
-- **With WongStack.** Each [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) brings the folder.
-- **Alone**, in any other repo: a message pasted from [the module's README](../../.agents/plugins/memory/README.md) has the AI follow [the setup guide](../../.agents/plugins/memory/references/setup.md). It copies the folder in, connects or builds a store, writes the profile, and runs the store check, asking before a step that costs money or goes public. A second message updates it and keeps the repo's own edits. In a WongStack install, both stop.
-
-The project's settings run memory's hooks, in Claude Code and Codex alike, so no install step runs on each computer. An open Codex chat asks once to trust its hooks; `codex exec` skips them before that.
+The skill is a real `.claude/skills/memory/` folder, so Claude Code loads it from the checkout and a branch runs its own memory code. Each [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) brings it. The project's settings run memory's hooks, in Claude Code and Codex alike, so no install step runs on each computer. An open Codex chat asks once to trust its hooks; `codex exec` skips them before that.
 
 ## What is stored
 
-- **Facts**, in a D1 database named `<repo>-memory`. A fact is at most 400 characters, with a slug (the change name, or a topic), a type, tags, an author, a time, its sources, and a separate owner: the person's sign-in. The types: `user` (who the user is), `feedback` (how they want work done), `project` (decisions and ruled-out options, with reasons), `reference` (pointers to outside resources), and `thread` (an open question). [Writing facts](../../.agents/plugins/memory/references/writing-facts.md) owns what a good fact keeps.
+- **Facts**, in a D1 database named `<repo>-memory`. A fact is at most 400 characters, with a slug (the change name, or a topic), a type, tags, an author, a time, its sources, and a separate owner: the person's sign-in. The types: `user` (who the user is), `feedback` (how they want work done), `project` (decisions and ruled-out options, with reasons), `reference` (pointers to outside resources), and `thread` (an open question). [Writing facts](../../.agents/skills/memory/references/writing-facts.md) owns what a good fact keeps.
 - **Sessions**, one row per transcript: agent, branch, status (`captured` or `skipped`), and how far it was read. A session an earlier version marked `private` keeps that status: nothing of it is uploaded or read.
 - **Raw transcripts**, in a private R2 bucket of the same name, kept forever. Before upload or capture, `.env` values and token-shaped strings become a placeholder. A transcript over 50 MB is not kept: its facts are still captured, and `source` says why. The bucket is optional: see [without R2](#without-r2).
 
@@ -48,9 +39,19 @@ A fact is never edited or deleted. A later fact **supersedes** it; only live fac
 
 ## Who sees what
 
-Each repo's memory is its own, with two levels, the team or only you, and the admin sees both. [Memory's README](../../.agents/plugins/memory/README.md#who-sees-what) owns who sees which fact. In WongStack:
+Who sees which fact is the store's decision, never the skill's. Each repo's memory is its own: nothing goes to or loads from another repo. The store gives each person a role, checked on every call: an admin, a member, or a reader.
 
-- **Your role comes from [the app's Access page](../stack/employee-access.md), checked on every call.** The owner and Admins are admins; whoever holds Project code is a member; anyone else let in is a reader. Removing a person there ends their memory at once.
+| What | You | Teammates | Admin |
+|---|---|---|---|
+| Decisions, open questions, and links (`project`, `thread`, `reference`) | yes | yes | yes |
+| Facts about you: likes, habits, your life (`user`, `feedback`) | yes | no | yes |
+| A reader's facts, of any type | the reader | no | yes |
+| Your chats (transcripts) | yes | no | yes |
+
+- **The store holds back what a teammate may not see**, however they ask. Only an admin's `--everyone` on `search`, `brief`, `show`, or `live` shows all; their own digest and search start with just their private facts.
+- **Private memory belongs to the person**, by their sign-in's subject, not their email: an email change keeps it, and two computers share it.
+- **Something personal you say in a work chat stays in that repo**, where the admin can read it. For anything no one else should see, use a repo only you use: there, you are the admin.
+- **Your role comes from [the app's Access page](../stack/employee-access.md).** The owner and Admins are admins; whoever holds Project code is a member; anyone else let in is a reader. Removing a person there ends their memory at once.
 - **A cloud schedule's own sign-in is team**: it reads and writes shared facts only, never a chat.
 - **Author emails and [people pages](../wiki-style.md#people) are labels only.** Notes from before sign-in wait until [moved](#sign-in-and-expiry).
 
@@ -64,7 +65,7 @@ A fact is dated context, not an instruction. Check it against the repo, and the 
 
 ## Topics
 
-A topic is a tag with a page. The profile lists them:
+A topic is a tag with a page. [The parts](#the-parts) list them:
 
 - **Code areas**, from [`areas.json`](#facts-by-code-area). The page is the area's first doc, and the summary is its definition.
 - **Company pages**, each page in [`knowledge/`](../stack/company-knowledge.md) except `*.mine.md`. The tag is the path inside `knowledge/` without `.md`: `knowledge/people/ada.md` is `people/ada`, and a folder's `README.md` takes the folder's name. The summary is the page's first sentence. An area wins a name clash.
@@ -80,7 +81,7 @@ What a topic does:
 
 - **Capture is the one writer of a chat's facts.** `/save` and `/close` read and write none. When a chat ends, memory's end hook keeps its redacted transcript and starts the background run, so the chat's wrap-up and open threads are written before the next chat starts. Codex has no end event: there, the next chat start does both.
 - **The background run** records what each ended chat set out to do and what got done, leaves one open thread for each planned piece not done, and closes a thread the chat finished. A chat start also starts one for chats left an hour idle and uncaptured. It runs your agent's command-line tool on its normal model; to choose another, set `WONG_MEMORY_MODEL` (Claude Code) or `WONG_MEMORY_CODEX_MODEL` (Codex) in the hook's environment. The run may only call the memory script and write files in one temp folder outside the repo. It captures at most five chats, newest first, on your model allowance; your next digest reports what it stored. Set `WONG_MEMORY_RUN=1` on a headless `claude -p` probe, or its hook starts a run too.
-- **Struggle notes** record where the assistant had trouble, such as a correction or a step that kept failing. The background run writes one as a `thread` tagged `improve`, by [the writing rule](../../.agents/plugins/memory/references/writing-facts.md), with nothing private; a smooth chat gets none. [`/improve-code`](repository-improvement.md#struggle-notes-come-first) reads them before it chooses and takes the ones about code; [the memory tidy](wiki-dream.md#what-it-reads) takes the ones about memory and the wiki. The run sees only failed steps and what was typed, so a long hunt that never failed gets no note.
+- **Struggle notes** record where the assistant had trouble, such as a correction or a step that kept failing. The background run writes one as a `thread` tagged `improve`, by [the writing rule](../../.agents/skills/memory/references/writing-facts.md), with nothing private; a smooth chat gets none. [`/improve-code`](repository-improvement.md#struggle-notes-come-first) reads them before it chooses and takes the ones about code; [the memory tidy](wiki-dream.md#what-it-reads) takes the ones about memory and the wiki. The run sees only failed steps and what was typed, so a long hunt that never failed gets no note.
 
 Every write passes the **write gate**: the script shows the live facts on the same slug, the closest keyword matches, and the open threads on other slugs that match the fact's words. The writer adds, supersedes, or drops each candidate. A `thread` must carry the tag of the verb (`plan`, `verify`, `sync`) or area whose next run should check it, or `put-facts` refuses the whole batch: a warning once left 82 of 94 threads with no one to check them. A fact that answers an open thread supersedes it, saying what was found. A fact that cannot reach the store waits in this computer's local spool, and the next run sends it through the gate.
 
@@ -88,13 +89,13 @@ Every write passes the **write gate**: the script shows the live facts on the sa
 
 ## Facts by code area
 
-A fact about code carries the **area tag** of the folder it concerns, so the next change there loads it. [`areas.json`](../../.agents/memory/areas.json), in WongStack's memory extras, maps folders to areas, each with a definition and the docs that own it: `app/worker/` to `worker`, `wiki/` to `wiki`. The most specific folder wins: `app/worker/apps/` gives `mini-apps` and `worker`, not `stack-pack`, which covers all of `app/`.
+A fact about code carries the **area tag** of the folder it concerns, so the next change there loads it. [`areas.json`](../../.agents/memory/areas.json), in WongStack's store folder, maps folders to areas, each with a definition and the docs that own it: `app/worker/` to `worker`, `wiki/` to `wiki`. The most specific folder wins: `app/worker/apps/` gives `mini-apps` and `worker`, not `stack-pack`, which covers all of `app/`.
 
-- **A fact gets its area when it is written.** The writer tags it, as [writing facts](../../.agents/plugins/memory/references/writing-facts.md) says. An area tag the store lacks is defined from the list on first use. [Upkeep](#consolidation) tags older facts whose words name a mapped path.
+- **A fact gets its area when it is written.** The writer tags it, as [writing facts](../../.agents/skills/memory/references/writing-facts.md) says. An area tag the store lacks is defined from the list on first use. [Upkeep](#consolidation) tags older facts whose words name a mapped path.
 - **The list owns each area tag's definition and look-alikes.** Upkeep copies them to the store on the admin's next write: an entry's `aliases` point at its area, *testing* at `tests`, and a read by a tag also finds its aliases. Fix a definition in `areas.json`, not in the store. For a look-alike outside the list, the admin runs `memory.mjs tag <name> --alias-of <tag>`; a teammate never changes a tag.
 - **One lookup shows everything linked.** `memory.mjs pull <path>` prints the areas, their docs and code folders, past changes, the files linking to and the code using the path, then its areas' facts. A change or a fact lists [its files](document-retrieval.md#files-behind-the-facts). When the store doesn't answer, it says so.
 - **Memory's own hooks load it.** Before the first edit in a folder, [the edit hook](#when-memory-loads) shows that area's open threads and newest facts. The build loop's commands call no memory.
-- **A repo adds its own areas** in `areas.json`: a tag, a definition, folder prefixes, and docs; a doc the repo lacks is skipped. [`/wong-sync`](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-sync/SKILL.md) keeps the edit as a local change.
+- **A repo adds its own areas** in `areas.json`: a tag, a definition, folder prefixes, and docs; a doc the repo lacks is skipped. [`/wong-sync`](../../.agents/skills/wong-sync/SKILL.md) keeps the edit as a local change.
 
 ## Consolidation
 

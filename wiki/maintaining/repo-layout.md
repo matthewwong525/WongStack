@@ -13,12 +13,13 @@ CLAUDE.md  ─▶ AGENTS.md    the doctrine file
 Git tracks the real paths — `.agents/**` and `AGENTS.md` — plus the three links. Nothing is
 duplicated: a payload file is **one file with several names**, not copies to keep in sync.
 
-More links are in this repo only: each `.agents/skills/<name>` that a [module](adding-a-module.md)
-owns links into `.agents/plugins/`, such as `.agents/skills/memory ─▶ ../plugins/memory` and
-`.agents/skills/plan ─▶ ../plugins/loop/skills/plan`, so Claude Code loads each module from the
-checkout. No install gets them: the payload's `mapped` entries copy each module to real
-`.agents/skills/<name>/` folders, and every other folder link stays behind. `find .agents -type l`
-lists them.
+The source tree is the install tree. Each command is a real folder, `.agents/skills/<name>/`, with
+its `SKILL.md`, `references/`, and `scripts/`. Code that several commands share sits outside the
+skills folder: the build loop's in `.agents/loop/` (its `scripts/` and `references/` too), and
+memory's store in `.agents/memory/`. Data that other tools read by path stays where they read it:
+memory's D1 migrations and `areas.json` in `.agents/memory/`, Access's `slots.json` in
+`.agents/access/`, and each install's own `.agents/daily/` files. `find .agents -type l` lists no
+link under `.agents/`.
 
 ## Editing
 

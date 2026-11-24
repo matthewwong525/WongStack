@@ -55,7 +55,7 @@ Other browsing, sign-ins, stored credentials, and token management through APIs 
 
 ## Receive a key through a private link
 
-When a task lacks a key, or the person asks for *the key link*, send a private link in the same reply: [the key link](../../.agents/plugins/browser/skills/hand-over/references/key-link.md) owns the steps. It writes the primary worktree's file and any seeded [branch copy](#worktrees-and-branch-copies).
+When a task lacks a key, or the person asks for *the key link*, send a private link in the same reply: [the key link](../../.agents/skills/hand-over/references/key-link.md) owns the steps. It writes the primary worktree's file and any seeded [branch copy](#worktrees-and-branch-copies).
 
 ## Worktrees and branch copies
 
@@ -75,7 +75,7 @@ Route each edit by its kind, so `main` sees an edit only when it is safe:
 | Rotate a value (the old one no longer works) | both, now | the primary must not keep a dead value |
 | Delete a key, or set a value only this branch needs | the branch copy only | `main` still reads the old one until the merge |
 
-[`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies to the primary only what this branch changed, compared three ways against the baseline, so a key another branch added to the primary is kept and a rotation made there is not reverted. A key both sides changed is skipped and named for you to resolve. Without a baseline it applies adds only and names the rest. Every command prints key names, never values; `status` shows what is still pending.
+[`/ship`](../../.agents/skills/ship/SKILL.md) runs `worktree-secrets.mjs promote` after the merge. It applies to the primary only what this branch changed, compared three ways against the baseline, so a key another branch added to the primary is kept and a rotation made there is not reverted. A key both sides changed is skipped and named for you to resolve. Without a baseline it applies adds only and names the rest. Every command prints key names, never values; `status` shows what is still pending.
 
 WongStack tools read primary `.env` first; branch-only settings belong to the app. After merging outside `/ship`, run `promote` before deleting the worktree. Abandoned worktrees need no promotion.
 

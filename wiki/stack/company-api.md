@@ -28,7 +28,7 @@ Only explicitly reviewed harmless infrastructure uses `{ kind: "infrastructure" 
 
 Each business call reads installation, membership, apps and key levels together from a D1 session beginning at the primary. The server retains no positive permission cache between requests. A request admitted before a removal may finish; the next request observes the committed removal, including with the same unexpired app login. Missing or unavailable authority returns a safe unavailable response. Preserve this mapping and every existing custom handler during updates.
 
-[Access](employee-access.md) knows its owner by the recorded sign-in email. The [Access module](../../.agents/plugins/access/README.md) answers its routes, and its `gate` makes the app check above. Its people-management routes are administration, absent from action discovery. Before permissions start, every signed-in person keeps their existing access. Repository authentication stays manual through its provider.
+[Access](employee-access.md) knows its owner by the recorded sign-in email. The [Access skill](../../.agents/skills/access/SKILL.md)'s server code answers its routes, and its `gate` makes the app check above. Its people-management routes are administration, absent from action discovery. Before permissions start, every signed-in person keeps their existing access. Repository authentication stays manual through its provider.
 
 ## List the keys a route uses
 
@@ -85,7 +85,7 @@ node scripts/company-api.mjs call hello.greeting --file - <<'JSON'
 JSON
 ```
 
-`login` confirms the HTTPS company origin for this OS user. It uses [cloudflared’s employee sign-in](https://developers.cloudflare.com/cloudflare-one/tutorials/cli/), opens the employee’s browser, checks discovery, and privately records the target outside the repository. Install a missing helper at [the point of need](../development/required-tools.md); the employee finishes login in their own browser ([when a step needs you](../../.agents/plugins/browser/references/browsing.md#when-a-step-needs-you)). On a headless host, only a validated provider login URL is shown while the helper waits. It waits about two minutes, and a link opened later does nothing: start `login` when the person can open the link at once, and run it again after *sign-in did not complete*. Never print the token or raw login output.
+`login` confirms the HTTPS company origin for this OS user. It uses [cloudflared’s employee sign-in](https://developers.cloudflare.com/cloudflare-one/tutorials/cli/), opens the employee’s browser, checks discovery, and privately records the target outside the repository. Install a missing helper at [the point of need](../development/required-tools.md); the employee finishes login in their own browser ([when a step needs you](../../.agents/skills/browser/references/browsing.md#when-a-step-needs-you)). On a headless host, only a validated provider login URL is shown while the helper waits. It waits about two minutes, and a link opened later does nothing: start `login` when the person can open the link at once, and run it again after *sign-in did not complete*. Never print the token or raw login output.
 
 Keep `~/.cloudflared` owned by the current OS user, mode 0700, with token files mode 0600. The helper captures token output privately and sends it only in request headers to the connected origin. Cloudflared caches the normal session; expiry or removal requires the employee’s own login again. Changed public routing requires an explicit connection. Redirects, arbitrary server URLs and outside schema references are refused. The helper never borrows owner, deploy, business, memory or verification credentials for company calls.
 
@@ -120,7 +120,7 @@ node scripts/company-api.mjs call memory.show --file - <<'JSON'
 JSON
 ```
 
-The [memory-owned adapter](../../.agents/memory/operations.mjs) validates its supported inputs and invokes the existing read commands. Its result is bounded text with a `truncated` flag. It exposes no raw SQL, credential selection, admin-wide option or arbitrary command. It also works independently through [the memory skill](../../.agents/plugins/memory/SKILL.md).
+The [memory-owned adapter](../../.agents/memory/operations.mjs) validates its supported inputs and invokes the existing read commands. Its result is bounded text with a `truncated` flag. It exposes no raw SQL, credential selection, admin-wide option or arbitrary command. It also works independently through [the memory skill](../../.agents/skills/memory/SKILL.md).
 
 Company target choices never select memory’s destination: the client keeps the primary checkout’s production record. Memory and company actions share one sign-in, so `company-api.mjs login` renews both, and [the app's Access page](employee-access.md) sets memory's role. A memory call with no live sign-in fails and says to run `login` again ([sign-in and expiry](../development/memory.md#sign-in-and-expiry)). A company action whose session ended prints the same step. Automatic capture, read hooks and the memory write gate stay as they are. Preview memory remains unavailable with 404.
 

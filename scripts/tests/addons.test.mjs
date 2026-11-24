@@ -383,7 +383,7 @@ test('each start copies the WongStack add-on out of the repo with its port and k
   mkdirSync(copy, { recursive: true });
   writeFileSync(join(copy, 'old.js'), '');
   assert.deepEqual(addons.handBackArgs({ port: 4123, key: 'button-key' }), ['--addon', copy]);
-  const repo = fileURLToPath(new URL('../../.agents/plugins/browser/addon/', import.meta.url));
+  const repo = fileURLToPath(new URL('../../.agents/skills/browser/addon/', import.meta.url));
   assert.equal(readFileSync(join(copy, 'manifest.json'), 'utf8'), readFileSync(join(repo, 'manifest.json'), 'utf8'));
   const { browser_action: action, icons } = JSON.parse(readFileSync(join(copy, 'manifest.json'), 'utf8'));
   assert.deepEqual([action.default_icon, icons['48']], ['check.svg', 'check.svg'], 'its button is the ✅');

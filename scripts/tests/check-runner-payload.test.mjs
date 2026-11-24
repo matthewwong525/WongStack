@@ -19,8 +19,7 @@ test('the pack lists exactly the check runner\'s own files', () => {
 });
 
 test('the scripts the verbs call on this route ship with their skills', () => {
-  const mapped = Object.keys(inventory.core.mapped);
-  for (const skill of ['save', 'ship', 'explore']) assert.ok(mapped.includes(`.claude/plugins/loop/skills/${skill}`), skill);
+  for (const skill of ['save', 'ship', 'explore']) assert.ok(inventory.core.skillDirs.includes(skill), skill);
   assert.ok(inventory.core.dirs.includes('.claude/loop'), 'the route scripts ship in .claude/loop');
   for (const file of ['.agents/skills/save/scripts/delivery-route.mjs', '.agents/loop/routes/artifacts-credential.mjs', '.agents/loop/routes/artifacts-run.mjs', '.agents/loop/routes/publish-artifacts.sh']) assert.ok(read(file).length > 0, file);
   // The run reader imports the runner's naming rule, so the pack file it needs is listed.

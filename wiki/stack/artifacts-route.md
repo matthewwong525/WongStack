@@ -33,7 +33,7 @@ Both routes need this plan, because company knowledge is kept in Cloudflare. Set
 3. **Step 2 widens for this route**: `P widen --route artifacts`. It adds [three permissions](cloudflare-credentials.md#how-two-permission-rows-become-enough) to a normal provision: the repository, the check runner's container, and a read of the account's plan. Report them with the rest.
 4. **After Step 3 picks the account, look at the plan**: `P plan`. It creates nothing.
    - `"route": "artifacts"` → go on.
-   - `"reason": "free-plan"` → **stop before creating anything.** Say: *"Every way to install WongStack needs Cloudflare's paid plan, about $5 a month. I can wait while you turn it on, or stop here."* Offer both as [a choice](../../.agents/plugins/loop/skills/explore/references/asking-the-user.md). Turned on → run `P plan` again. Stop → end; nothing was created.
+   - `"reason": "free-plan"` → **stop before creating anything.** Say: *"Every way to install WongStack needs Cloudflare's paid plan, about $5 a month. I can wait while you turn it on, or stop here."* Offer both as [a choice](../../.agents/skills/explore/references/asking-the-user.md). Turned on → run `P plan` again. Stop → end; nothing was created.
    - `"reason": "windows"` → say this route is not ready on Windows yet, and offer GitHub the same way.
 5. **Step 4 names and provisions with the route**: `P names --route artifacts --repo <folder name>`, then `P provision --route artifacts --repo <folder name> --base <base> …` with the runbook's other flags. In place of the CI deploy token secret (4d) and the workflow (4e), it makes:
    - the project's repository, `<base>`, in the account's `wongstack` Artifacts namespace, and points `origin` at it;
@@ -61,18 +61,18 @@ A result that can not be read is **unverified**: a save reports it and carries o
 
 ## How the verbs differ
 
-[`delivery-route.mjs`](../../.agents/plugins/loop/skills/save/scripts/delivery-route.mjs) prints `artifacts` or `github` from where `origin` points and what the install record says. Every verb's scripts ask it, so the steps below are the only differences. A record and an origin that disagree stop the verb: the save and publish commands print `error=the delivery route could not be told` and exit 1, and never fall back to GitHub.
+[`delivery-route.mjs`](../../.agents/skills/save/scripts/delivery-route.mjs) prints `artifacts` or `github` from where `origin` points and what the install record says. Every verb's scripts ask it, so the steps below are the only differences. A record and an origin that disagree stop the verb: the save and publish commands print `error=the delivery route could not be told` and exit 1, and never fall back to GitHub.
 
 - **Preconditions.** No `gh` check. `origin` and `openspec` are checked as before.
-- **`/save`.** [`checkpoint.mjs`](../../.agents/plugins/loop/skills/save/scripts/checkpoint.mjs) is the one command on both routes, and here it calls no `gh`:
+- **`/save`.** [`checkpoint.mjs`](../../.agents/skills/save/scripts/checkpoint.mjs) is the one command on both routes, and here it calls no `gh`:
   - It pushes the branch (`git push -u origin HEAD`), opens no pull request, renders no body, and prints no `PR_URL`.
-  - It waits with [`wait-for-checks.sh`](../../.agents/plugins/loop/skills/save/scripts/wait-for-checks.sh) and reads the preview with [`preview-url.sh`](../../.agents/plugins/loop/skills/save/scripts/preview-url.sh), which read the check run and print what they print on GitHub.
+  - It waits with [`wait-for-checks.sh`](../../.agents/skills/save/scripts/wait-for-checks.sh) and reads the preview with [`preview-url.sh`](../../.agents/skills/save/scripts/preview-url.sh), which read the check run and print what they print on GitHub.
   - A `FAILURE` is the failing stage's own output, printed under `RESULT: FAILURE`, with no `FAILED_CHECK`, `RERUN` or `CAUSE` lines; fix from it. There is no rerun: a failure outside the change is reported.
   - `RECEIPT=none`: the saved-revision receipt is not written, so `/verify` reads the gate again with the waiter.
   - `SAVE_HEAD=`, `PREVIEW_URL=`, `ATTEMPT=`, `NEXT:` and `SAVE_GATE_RESULT=` are as on GitHub, and the three-fix count too.
-- **`/ship`.** [`ship.mjs`](../../.agents/plugins/loop/skills/ship/scripts/ship.mjs) runs both halves on both routes, and here it calls no `gh`:
+- **`/ship`.** [`ship.mjs`](../../.agents/skills/ship/scripts/ship.mjs) runs both halves on both routes, and here it calls no `gh`:
   - `prepare` fetches `main`, then reads its checks with `node .claude/loop/routes/artifacts-run.mjs result "$(git rev-parse origin/main)" refs/heads/main`. `SUCCESS` or `NONE` is `ok`, `FAILURE` stops, and anything else is unverified and stops, a run still going included. `INTERRUPTED` is [restarted](#a-run-that-was-cut-off) and waited for once; a second stops.
-  - `finish` runs [`merge.sh`](../../.agents/plugins/loop/skills/ship/scripts/merge.sh), which hands over to [`publish-artifacts.sh`](../../.agents/loop/routes/publish-artifacts.sh); that prints `merged=`, `commit=` and `main=`. `finish` gives [`live-look.sh`](../../.agents/loop/staging/live-look.sh) the `commit=` value, not a pull request's merge commit.
+  - `finish` runs [`merge.sh`](../../.agents/skills/ship/scripts/merge.sh), which hands over to [`publish-artifacts.sh`](../../.agents/loop/routes/publish-artifacts.sh); that prints `merged=`, `commit=` and `main=`. `finish` gives [`live-look.sh`](../../.agents/loop/staging/live-look.sh) the `commit=` value, not a pull request's merge commit.
   - `moved=yes` → `main` moved and nothing was published. `NEXT:` says to bring `main` in with `prepare --sync`, `/save`, and run `finish` again on `SUCCESS` or `NONE`.
   - Exit 3 → the change is on `main`, but `main` is red, unread, or cut off. `finish` skips the live look, and `NEXT:` says to report it and stop, never to push again. `main=INTERRUPTED` → `NEXT:` gives the [restart](#a-run-that-was-cut-off) first.
 - **`/apply`, picking up saved work.** A handle is a change name. With none, [`other-work.mjs`](../../.agents/loop/other-work.mjs) lists `savedBranches`: each remote branch holding an unarchived change, with its Status. The drift check counts commits only.

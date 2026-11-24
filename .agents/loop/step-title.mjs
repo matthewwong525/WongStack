@@ -10,7 +10,7 @@ import { isMain, parseCli, usageError } from '../skills/memory/scripts/lib/cli.m
 import { LOOP_STEPS, STEPS, stepName, withoutStep } from '../skills/daily/scripts/chats.mjs';
 import { paseoRecord } from '../skills/daily/scripts/chief.mjs';
 import { findPaseo, runPaseo } from '../skills/daily/scripts/lib/paseo.mjs';
-import { PLACEHOLDERS, renameArgs } from '../skills/daily/skills/schedule/scripts/workspace.mjs';
+import { PLACEHOLDERS, renameArgs } from '../skills/schedule/scripts/workspace.mjs';
 
 const USAGE = `usage: step-title.mjs set <STEP> [--task <words>]   a skill moves this chat to STEP
 --task words, cut at a word to 60 characters, replace the earlier ones unless the person renamed the chat in Paseo.

@@ -4,14 +4,14 @@ import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
-import { nearTag, normalizeTag } from '../../.agents/plugins/memory/scripts/memory.mjs';
-import { findCredential, redact, secretValues } from '../../.agents/plugins/memory/scripts/lib/scan.mjs';
-import { archiveReader, parseEnv } from '../../.agents/plugins/memory/scripts/lib/store.mjs';
+import { nearTag, normalizeTag } from '../../.agents/skills/memory/scripts/memory.mjs';
+import { findCredential, redact, secretValues } from '../../.agents/skills/memory/scripts/lib/scan.mjs';
+import { archiveReader, parseEnv } from '../../.agents/skills/memory/scripts/lib/store.mjs';
 import { writeEnvKey } from '../../.agents/memory/d1/admin.mjs';
-import { MAX_BYTES, MAX_LINES, PERSON_MAX_BYTES } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
-import { BRIEF_MAX_BYTES, renderBrief } from '../../.agents/plugins/memory/scripts/lib/brief.mjs';
-import { wordTags } from '../../.agents/plugins/memory/scripts/lib/upkeep.mjs';
-import profile from '../../.agents/memory/profile.mjs';
+import { MAX_BYTES, MAX_LINES, PERSON_MAX_BYTES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
+import { BRIEF_MAX_BYTES, renderBrief } from '../../.agents/skills/memory/scripts/lib/brief.mjs';
+import { wordTags } from '../../.agents/skills/memory/scripts/lib/upkeep.mjs';
+import profile from '../../.agents/skills/memory/scripts/lib/parts.mjs';
 import { memory, rows, SECRET, setup, signInAs, tempDir, testToken, writeJsonFile } from './fixtures/memory/harness.mjs';
 import { ftsQuery, hashKey } from '../../.agents/memory/d1/store.mjs';
 
@@ -384,7 +384,7 @@ const tagFact = (env, id, tag) => {
   env.fake.db.prepare('INSERT INTO fact_tags (fact_id, tag) VALUES (?, ?)').run(id, tag);
 };
 // A temp repo holds no copy of the plugin, so the digest names the script by its full path.
-const CLI = fileURLToPath(new URL('../../.agents/plugins/memory/scripts/memory.mjs', import.meta.url));
+const CLI = fileURLToPath(new URL('../../.agents/skills/memory/scripts/memory.mjs', import.meta.url));
 const STEP_SEARCH = `When a step starts, load its own: \`node ${CLI} search --type thread --tag <step>\`.`;
 const CLOSING = n => `${n} live facts. Pull a topic for its facts: \`node ${CLI} pull <topic>\`; search them: \`node ${CLI} search <terms>\`.`;
 
@@ -785,10 +785,10 @@ test('a put-facts whose upkeep fails still stores its fact and exits 0, and the 
 
 test('concurrent first starts publish one complete private machine ID and a corrupt ID never rotates', async t => {
   const { execFile } = await import('node:child_process');
-  const { machineId } = await import('../../.agents/plugins/memory/scripts/lib/machine-id.mjs');
+  const { machineId } = await import('../../.agents/skills/memory/scripts/lib/machine-id.mjs');
   const { statSync } = await import('node:fs');
   const dir = tempDir(t, 'identity-'); const file = join(dir, 'machine-id');
-  const module = new URL('../../.agents/plugins/memory/scripts/lib/machine-id.mjs', import.meta.url).href;
+  const module = new URL('../../.agents/skills/memory/scripts/lib/machine-id.mjs', import.meta.url).href;
   const start = () => new Promise((resolve, reject) => execFile(process.execPath, ['--input-type=module', '-e', `import { machineId } from ${JSON.stringify(module)}; process.stdout.write(machineId(process.argv[1]));`, file], (error, stdout) => error ? reject(error) : resolve(stdout)));
   const ids = await Promise.all(Array.from({ length: 8 }, start));
   assert.equal(new Set(ids).size, 1); assert.equal(machineId(file), ids[0]);
@@ -802,7 +802,7 @@ test('a sandbox that refuses the permission change still reads the stored machin
   const { execFileSync } = await import('node:child_process');
   const id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   const file = join(tempDir(t, 'identity-sandbox-'), 'machine-id'); writeFileSync(file, `${id}\n`, { mode: 0o600 });
-  const module = new URL('../../.agents/plugins/memory/scripts/lib/machine-id.mjs', import.meta.url).href;
+  const module = new URL('../../.agents/skills/memory/scripts/lib/machine-id.mjs', import.meta.url).href;
   // chmodSync fails EPERM, as under Codex's sandbox; patched before the module binds it.
   const script = `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
 fs.chmodSync = () => { throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' }); };

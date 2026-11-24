@@ -1,6 +1,6 @@
 // A memory store in plain arrays, for the core's tests: the same answers and the same who-sees-what as d1Store,
 // with no database. `standInStore()` holds one data set; `as(caller)` is that caller's view of it.
-import { MAX_TRANSCRIPT_BYTES, StoreError } from '../../../../.agents/plugins/memory/store/interface.mjs';
+import { MAX_TRANSCRIPT_BYTES, StoreError } from '../../../../.agents/skills/memory/store/interface.mjs';
 
 const SOURCES = ['save', 'backfill', 'migration', 'consolidation'];
 const RUN_STATUS = { capture: ['ok', 'failed'], consolidation: ['ok', 'failed'], daily: ['started', 'ok', 'failed'] };

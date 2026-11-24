@@ -511,9 +511,8 @@ async function setup(t, { r2 = true, email = EMAIL, subdomain, ...cloudflareOpti
   execFileSync('git', ['init', '-q', '-b', 'main', dir]);
   writeFileSync(join(dir, '.git/info/exclude'), '.env*\n');
   if (email) execFileSync('git', ['-C', dir, 'config', 'user.email', email]);
-  // WongStack's memory connection signs in through Access, so an install carries both modules.
-  for (const part of ['.agents/plugins/memory', '.agents/plugins/access', '.agents/memory']) cpSync(join(repoRoot, part), join(dir, part), { recursive: true });
-  for (const module of ['memory', 'access']) symlinkSync(`../plugins/${module}`, join(dir, '.agents/skills', module));
+  // WongStack's memory connection signs in through Access, so an install carries both.
+  for (const part of ['.agents/skills/memory', '.agents/skills/access', '.agents/memory']) cpSync(join(repoRoot, part), join(dir, part), { recursive: true });
   symlinkSync('.agents', join(dir, '.claude'));
   mkdirSync(join(dir, 'app'));
   cpSync(join(repoRoot, 'app/package.json'), join(dir, 'app/package.json'));
@@ -1734,7 +1733,7 @@ async function artifactsSetup(t, setupOptions) {
   execFileSync('git', ['-C', env.dir, 'config', 'user.name', 'Ada']);
   mkdirSync(join(env.dir, 'scripts/check-runner'), { recursive: true });
   for (const file of RUNNER_FILES) cpSync(join(repoRoot, 'scripts/check-runner', file), join(env.dir, 'scripts/check-runner', file));
-  for (const dir of ['.agents/loop', '.agents/plugins/loop/scripts']) cpSync(join(repoRoot, dir), join(env.dir, dir), { recursive: true });
+  for (const dir of ['.agents/loop', '.agents/loop/scripts']) cpSync(join(repoRoot, dir), join(env.dir, dir), { recursive: true });
   const tools = fakeTools(env.fake);
   return {
     ...env, tools,

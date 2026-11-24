@@ -824,10 +824,10 @@ test('the code check sees a file that changed, went, or came; the primary checko
   writeFileSync(late, 'x');
   assert.equal(changed(), true, 'and so does a new one');
 
-  const here = join('/work/tree', '.agents/plugins/browser/scripts');
+  const here = join('/work/tree', '.agents/skills/browser/scripts');
   const linked = ownCode(here, () => ({ root: '/work/tree', primary: '/work/main' }));
   assert.ok(linked.includes(join(here, 'browser-server.mjs')));
-  assert.ok(linked.includes('/work/main/.agents/plugins/browser/scripts/browser-server.mjs'), 'a merge lands in the primary checkout');
+  assert.ok(linked.includes('/work/main/.agents/skills/browser/scripts/browser-server.mjs'), 'a merge lands in the primary checkout');
   assert.ok(ownCode(here, () => ({ root: '/work/main', primary: '/work/main' })).every(file => file.startsWith(here)), 'the primary itself counts once');
   assert.ok(ownCode(here, () => { throw new Error('not a checkout'); }).every(file => file.startsWith(here)), 'outside a checkout, only its own');
   rmSync(dir, { recursive: true, force: true });

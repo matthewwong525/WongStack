@@ -25,7 +25,7 @@ Recall ends with up to eight files and docs that its facts are about, each with 
 
 ```text
 Files (from the facts above; a place to start, not a full list):
-- .agents/plugins/memory/scripts/lib/pull.mjs (#1798)
+- .agents/skills/memory/scripts/lib/pull.mjs (#1798)
 - wiki/development/memory.md (#1798, #597)
 ```
 

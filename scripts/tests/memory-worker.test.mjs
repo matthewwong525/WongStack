@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { d1Store, handleMemory, hashKey, newKey } from '../../.agents/memory/d1/store.mjs';
 import { keyMachine } from '../../.agents/memory/d1/connect.mjs';
-import { MAX_TRANSCRIPT_BYTES } from '../../.agents/plugins/memory/store/interface.mjs';
+import { MAX_TRANSCRIPT_BYTES } from '../../.agents/skills/memory/store/interface.mjs';
 import { d1Binding, fakeSignIn, memory, node, setup, signInAs, tempDir, TEST_AUD, testToken, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const OWNER = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
