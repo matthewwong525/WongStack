@@ -9,7 +9,7 @@ import './line.test.kit'
 const HOUR = 3_600_000
 const NOW = Date.UTC(2026, 10, 11, 12)
 const page = (id: string, title: string, hoursAgo: number, workspace = 'desk'): Review => ({ id: id.repeat(32), title, workspace,
-  createdAt: NOW - hoursAgo * HOUR, closesAt: NOW + (24 - hoursAgo) * HOUR, endedAt: null, answered: false })
+  createdAt: NOW - hoursAgo * HOUR, closesAt: NOW + (24 - hoursAgo) * HOUR, endedAt: null, answered: false, plain: false, shared: false })
 const older = page('a', '3 invoices are late', 5, 'MyApp')
 const newer = page('b', 'Daily becomes a module any project can add', 1, 'durable-hamster')
 

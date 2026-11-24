@@ -22,12 +22,14 @@ const titlePatterns = (query: string) => searchWords(query).map(word => `%${word
 const PAGE = 50;
 const time = z.number().int().nonnegative();
 const review = z.strictObject({ id: itemId, title: z.string(), workspace: z.string(), createdAt: time, closesAt: time,
-  endedAt: time.nullable(), answered: z.boolean() });
-type Found = Pick<ItemRow, "id" | "title" | "workspace" | "created_at" | "closes_at" | "closed_at"> & { answered: number };
+  endedAt: time.nullable(), answered: z.boolean(), plain: z.boolean(), shared: z.boolean() });
+type Found = Pick<ItemRow, "id" | "title" | "workspace" | "created_at" | "closes_at" | "closed_at"> & { answered: number; plain: number; shared: number };
 
 // Every column here sits in the inbox_items_reviews index, so the list never reads a kept page.
-const COLUMNS = `id, title, workspace, created_at, closes_at, closed_at, EXISTS (SELECT 1 FROM inbox_taps t
-  WHERE t.installation_id = i.installation_id AND t.email = i.email AND t.item_id = i.id AND t.state = 'sent') AS answered`;
+const COLUMNS = `id, title, workspace, created_at, closes_at, closed_at, plain, EXISTS (SELECT 1 FROM inbox_taps t
+  WHERE t.installation_id = i.installation_id AND t.email = i.email AND t.item_id = i.id AND t.state = 'sent') AS answered,
+  EXISTS (SELECT 1 FROM inbox_shares s WHERE s.installation_id = i.installation_id AND s.email = i.email AND s.item_id = i.id
+    AND s.stopped_at IS NULL) AS shared`;
 const MINE = "FROM inbox_items i WHERE installation_id = ?1 AND email = ?2 AND kind = 'plan' AND hidden = 0";
 const NEWEST = "ORDER BY created_at DESC, id DESC";
 
@@ -45,7 +47,8 @@ function narrowing(q: string, before: string | undefined) {
 }
 
 const shown = (now: number) => (row: Found): z.infer<typeof review> => ({ id: row.id, title: row.title, workspace: row.workspace,
-  createdAt: row.created_at, closesAt: row.closes_at, endedAt: endedAt(row, now), answered: row.answered === 1 });
+  createdAt: row.created_at, closesAt: row.closes_at, endedAt: endedAt(row, now), answered: row.answered === 1,
+  plain: row.plain === 1, shared: row.shared === 1 });
 
 /** The caller's archived review pages, newest first, one page past `before`, and whether more follow. */
 async function archive(at: Scope, q: string, before?: string) {

@@ -26,6 +26,7 @@
   "core": {
     "skillDirs": [
       "reply-link",
+      "page",
       "improve-code",
       "connect",
       "lesson",
@@ -65,6 +66,7 @@
       "wiki/development/wiki-dream.md",
       "wiki/development/document-retrieval.md",
       "wiki/development/reply-links.md",
+      "wiki/development/plain-pages.md",
       "wiki/development/finish-steps.md",
       "wiki/development/watch-link.md",
       "wiki/development/daily.md",
@@ -168,6 +170,7 @@
       "schema/migrations/20261106130000_sealed_keys.sql",
       "schema/migrations/20261107120000_inbox_chats.sql",
       "schema/migrations/20261112120000_drop_inbox_chats.sql",
+      "schema/migrations/20261123120000_inbox_shared_pages.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",

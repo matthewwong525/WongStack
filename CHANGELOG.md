@@ -3,6 +3,14 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Make a page and share it with the team
+
+- **Ask a chat for a page.** Say *make me an HTML page* or type `/page`, and the chat makes a chart, a small tool, or a report and puts it in your Inbox. A plain page asks for no answer: it has no bar, and it goes directly to the Archive, marked *Page*.
+- **Share any page with the team.** An opened page has **Share with team**. Then **Copy link** gives a link that each person who can open the Inbox can open, read-only, with your email's name and the date of the last change. **Stop sharing** turns the link off for good.
+- **A page can't leave its frame.** A page that loads a different address starts again; after three tries it stops and says so. Its links open in a new tab.
+
+**Updating.** The update adds one table to your app's database; the next publish applies it. Nothing to do by hand.
+
 ## 61.11.1 — Daily tidy of the wiki pages
 
 - **The development hub says where a schedule lives.** Its line for host schedules now says that with no app, a schedule is a Paseo schedule on this computer, as the host schedules page says.

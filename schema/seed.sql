@@ -1356,6 +1356,18 @@ FROM (SELECT '11111111-1111-4111-8111-111111111111' AS installation_id, 'fay@exa
    (SELECT replace(replace(replace(replace(body, 'weekly-profit-summary', 'stock-check-friday'), 'Each Monday you add up last week''s orders and refunds by hand. It takes an hour.', 'Gift card designs run out over the weekend, and nobody sees it until Monday.'), 'A profit summary each Monday.</b> Orders, refunds and ad spend for the week, in one short message.', 'A stock check each Friday.</b> Each design with fewer than 20 cards left, in one short message.'), 'The same numbers in the Inbox.</b> Open it from the message to see each day.', 'A list in the Inbox.</b> Open it from the message to see each design.') FROM inbox_items WHERE id = 'a0000000000000000000000000000006') AS page, 'seed-1' AS version, 1792483200000 AS created_at, 1792569600000 AS closes_at, 1792486800000 AS closed_at
   UNION ALL SELECT '11111111-1111-4111-8111-111111111111' AS installation_id, 'fay@example.invalid' AS email, 'a0000000000000000000000000000010' AS id, 'BFCM countdown banner' AS title, 'bfcm-landing-page' AS workspace,
    (SELECT replace(replace(replace(replace(body, 'weekly-profit-summary', 'bfcm-landing-page'), 'Each Monday you add up last week''s orders and refunds by hand. It takes an hour.', 'The BFCM landing page still shows last year''s offer.'), 'A profit summary each Monday.</b> Orders, refunds and ad spend for the week, in one short message.', 'The new offer on top.</b> The $20 gift card leads, and free shipping sits below it.'), 'The same numbers in the Inbox.</b> Open it from the message to see each day.', 'A countdown to Friday.</b> It stops at midnight on Monday.') FROM inbox_items WHERE id = 'a0000000000000000000000000000006') AS page, 'seed-1' AS version, 1792310400000 AS created_at, 1792396800000 AS closes_at, NULL AS closed_at);
+-- Fay's plain page: a report with no answer to give, put straight in the Archive, and shared with the team by its link.
+INSERT INTO inbox_items (installation_id, email, id, kind, title, workspace, body, actions, version, created_at, updated_at, closes_at, closed_at, plain)
+VALUES ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000011', 'plan', 'Gift card sales, November',
+  'sales-report', '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Gift card sales, November</title></head><body>
+<h1>Gift card sales, November</h1><p>412 cards sold for $8,240. The $20 card sold best, with 230 cards.</p>
+<p><a href="#designs">Each design</a> · <a href="https://example.com/orders">All orders</a></p>
+<h2 id="designs">Each design</h2><ul><li>Snowflake: 180</li><li>Gift box: 132</li><li>Plain: 100</li></ul></body></html>',
+  '[]', 'seed-1', 1792224000000, 1792224000000, 1792224000000, NULL, 1);
+-- Each other sample item has had one version, so its newest version came when it was made.
+UPDATE inbox_items SET updated_at = created_at WHERE updated_at = 0;
+INSERT INTO inbox_shares (token, installation_id, email, item_id, created_at, stopped_at)
+VALUES ('seedGiftCardSalesNov01', '11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'a0000000000000000000000000000011', 1792224100000, NULL);
 INSERT INTO inbox_taps (installation_id, email, id, item_id, action, text, version, created_at, state, claimed_at, answered_at)
 VALUES
   ('11111111-1111-4111-8111-111111111111', 'fay@example.invalid', 'c0000000000000000000000000000001', 'a0000000000000000000000000000008', 'send',

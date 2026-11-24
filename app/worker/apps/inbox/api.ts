@@ -1,5 +1,5 @@
-// The inbox's server side: items, taps, sent files and schedules, each for the signed-in person alone.
-// wiki/development/reply-links.md
+// The inbox's server side: items, taps, sent files and schedules, each for the signed-in person alone, and the pages
+// they share with the team. wiki/development/reply-links.md
 import type { Route } from "../../api/contract.ts";
 import { checkin } from "./checkin.ts";
 import { claim } from "./claim.ts";
@@ -18,6 +18,7 @@ import { pause, resume, runCancel, runNow, scheduleDelete, scheduleEnd } from ".
 import { scheduleProgress, scheduleProgressClaim, scheduleProgressPut } from "./schedule-progress.ts";
 import { schedulePut, teamSchedulePut } from "./schedule-put.ts";
 import { scheduleDetail, schedules } from "./schedules.ts";
+import { frame, share, sharedFrame, sharedPage, shareStop } from "./share.ts";
 import { tapCancel } from "./tap-cancel.ts";
 import { tapResult } from "./tap-result.ts";
 import { tapStatus } from "./tap-status.ts";
@@ -30,5 +31,7 @@ export const routes = new Map<string, Route>([
   ["POST delete", scheduleDelete], ["POST run-now", runNow], ["POST run-cancel", runCancel], ["POST claim", claim],
   ["POST run-result", runResult], ["PUT team-schedule", teamSchedulePut], ["POST schedule-approved", scheduleApproved],
   ["POST schedule-end", scheduleEnd], ["GET schedule-progress", scheduleProgress], ["PUT schedule-progress", scheduleProgressPut],
-  ["POST schedule-progress-claim", scheduleProgressClaim], ["PUT mirror", mirror], ["POST file", fileUpload], ["GET file", fileRead], ...retiredRoutes,
+  ["POST schedule-progress-claim", scheduleProgressClaim], ["PUT mirror", mirror], ["POST file", fileUpload], ["GET file", fileRead],
+  ["POST share", share], ["POST share-stop", shareStop], ["GET frame", frame], ["GET shared", sharedPage], ["GET shared-frame", sharedFrame],
+  ...retiredRoutes,
 ]);

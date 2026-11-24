@@ -357,7 +357,7 @@ function refuser(fence, where, what, how) {
 
 const outside = (from, to) => /^\.\.(?:[\\/]|$)/.test(relative(from, to)) || isAbsolute(relative(from, to));
 // A file inside the page's own folder, by name and by its real path, so a link can't lead out; `base` resolves it.
-function local(path, base, root, stop, missing) {
+export function local(path, base, root, stop, missing) {
   if (isAbsolute(path) || outside(root, resolve(base, path))) stop(`${path} is outside the change's folder`);
   let real, bytes;
   try { real = realpathSync(resolve(base, path)); bytes = readFileSync(real); } catch { stop(missing); }
@@ -441,7 +441,7 @@ const attrOf = (tag, name) => new RegExp(`\\s${name}\\s*=\\s*("[^"]*"|'[^']*'|[^
 const unquote = raw => decode(/^["']/.test(raw) ? raw.slice(1, -1) : raw, m => m);
 
 // One page and its files; `stop` names the card and the proposal line, and every address is checked once.
-function inliner(root, stop, card = 'a live card') {
+export function inliner(root, stop, card = 'a live card') {
   const web = ref => {
     if (WEB.test(ref.trim()) || /^https?:/i.test(ref.trim())) stop(`${ref} is a web address; ${card} loads nothing from the web: copy it into the folder`);
   };

@@ -12,7 +12,7 @@ const sam: AccessIdentity = { kind: "user", id: "sam@example.com", claims: { ema
   iss: "https://business.cloudflareaccess.com", aud: "business-app", exp: 9999999999 } };
 const PLAN = "a".repeat(32);
 
-/** Each statement the inbox's routes send while a review page is put, tapped, closed, cleaned up, listed and joined. */
+/** Each statement the inbox's routes send while a review page is put, tapped, closed, cleaned up, listed and shared. */
 async function statements() {
   const db = database();
   const sent = new Set<string>();
@@ -31,6 +31,11 @@ async function statements() {
   await call("GET", "item", { id: PLAN });
   await call("GET", "reviews", { q: "one inbox" });
   await call("GET", "reviews", { q: "inbox", before: `${Date.now()}:${PLAN}` });
+  const { token } = await (await call("POST", "share", { id: PLAN })).json() as { token: string };
+  await call("GET", "frame", { id: PLAN });
+  await call("GET", "shared", { token });
+  await call("GET", "shared-frame", { token });
+  await call("POST", "share-stop", { id: PLAN });
   return { sql: db.sql, sent: [...sent].filter(query => /\binbox_items\b/.test(query)) };
 }
 
@@ -39,6 +44,7 @@ it("applies every migration in the test database", () => {
   const files = readdirSync(folder).filter(file => file.endsWith(".sql"));
   expect(files).toContain("20261103120000_inbox_kept_reviews.sql");
   expect(files).toContain("20261112120000_drop_inbox_chats.sql");
+  expect(files).toContain("20261123120000_inbox_shared_pages.sql");
   expect(sql.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'index' AND name LIKE 'inbox_items_%'").get()).toEqual({ n: 3 });
 });
 

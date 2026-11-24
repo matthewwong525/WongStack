@@ -2,7 +2,7 @@
 
 How this project plans, builds, and publishes changes.
 
-- [The change loop](the-change-loop.md), [loosened checks](loosened-checks.md), [reply links](reply-links.md)
+- [The change loop](the-change-loop.md), [loosened checks](loosened-checks.md), [reply links](reply-links.md), [plain pages](plain-pages.md)
 - [Staging](staging-walkthrough.md), [kept checks](kept-checks.md), [code improvement](repository-improvement.md), [daily](daily.md), [chats in line](chats-in-line.md)
 - [Required tools](required-tools.md), [secrets](secrets.md)
 - [A teammate's first day](first-day/README.md)
