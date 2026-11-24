@@ -1,3 +1,400 @@
+<!-- openspec-archive v1 2026-11-24-no-modules -->
+<!-- file proposal.md utf8 10505 -->
+# WongStack is one stack, with no add-alone parts
+
+**Status:** ready-to-ship
+**Branch:** remove-plugins-from-wongstack
+**Open questions:** none
+
+## Why
+
+WongStack is split into five parts that another project can add one at a time: the build loop, memory, Daily, the browser, and Access. Each part has its own version, its own setup guide, its own copy of its hooks, and a go-between file that joins it to the rest. Nobody adds one part alone. The split only adds files to keep in step and rules to follow, and every change pays for it.
+
+## What Changes
+
+- **Every command is a normal folder.** `/plan`, `/memory`, `/daily`, `/schedule`, `/services`, the browser, and the others each sit in one folder in the skills folder, like `/ui` or `/page` do today. The `plugins` folder goes.
+  ```text
+  Before
+  .agents/
+  ├── plugins/      each: version, guide,
+  │   ├── loop/           hooks, README
+  │   ├── memory/  daily/
+  │   └── browser/  access/
+  ├── skills/       mostly links into plugins/
+  └── loop/ memory/ daily/ browser/
+      └── profile.mjs   go-between
+
+  After
+  .agents/
+  ├── skills/
+  │   ├── plan/ apply/ save/ ship/ …
+  │   ├── memory/  daily/  schedule/
+  │   ├── browser/  shop/  hand-over/
+  │   └── access/  services/
+  ├── loop/         the loop's shared code
+  └── settings.json + hooks.json
+  ```
+- **The code calls the code it needs, with no go-between.** A step that needs the chat's title, a preview, or the memory store calls that code straight. The five go-between files and the code that reads them go.
+- **One version.** WongStack's version number is the only one. The five part versions go.
+- **No "add one part to your project".** The five paste-in setup guides, the five part READMEs, and the rule page for making a part go. What they said that WongStack itself still needs moves to the wiki page that owns it.
+- **One list of hooks.** The settings files already run every hook. The second copy in each part goes, and with it the test that kept the two copies the same.
+- **Your update moves you over.** `/wong-sync` moves an install to the new folders and keeps your own files, such as Daily's team page and people pages. Nothing you set up, saved, or scheduled changes.
+- **BREAKING:** a project that added one part alone by its paste-in guide can no longer update that part by itself. Links to the old setup guides on GitHub stop working.
+
+**Non-goals:** changing what any command does; renaming any command; changing the memory store, schedules, or the app.
+
+## What the build needs
+
+- **Nothing.**
+
+## Capabilities
+
+### New Capabilities
+
+None.
+
+### Modified Capabilities
+
+- `payload-layout`: replaces the three module rules (a module's links stay inside it, each module command loads by its bare name, no module loads as a plugin) with one rule: WongStack ships as one stack, each command one skill folder, one hook list, one version.
+- `loop-module`: removes adding the loop alone, updating it alone, and running it with empty slots.
+- `memory-plugin`: removes the profile, adding memory alone, updating per module, and memory's own hook copy.
+- `daily-module`: removes the profile, adding Daily alone, the setup question at chat start, updating alone, and Daily's own hook copy; Daily with no company app now keys off the app, not a profile.
+- `browser-module`: removes adding the browser alone, running with no other part, and updating alone.
+- `access-module`: removes the one-module install, the slots, adding Access alone, the setup question, other modules' slots, and updating alone.
+
+## Impact
+
+- Moves: `.agents/plugins/<module>/` → `.agents/skills/<module>/` for memory, daily, browser, access; each nested `skills/<command>/` → `.agents/skills/<command>/`; the loop's seven commands → `.agents/skills/<command>/`; the loop's `scripts/`, `references/` → `.agents/loop/`. Source skill links replaced by real folders.
+- Removes: `.agents/plugins/`; `.agents/{loop,memory,daily,browser}/profile.mjs`; `slot.mjs` and its callers' `slot.mjs <part>` lines; each module's `VERSION`, `README.md`, `references/setup.md`, `hooks/`; `scripts/check-module-versions.mjs`; `scripts/tests/{module-install,module-hooks,module-versions,slot,loop-profile}.test.mjs`; the `codex-plugin.mjs --check` start hook; `wiki/maintaining/adding-a-module.md`.
+- Edits: every link and command line into `.agents/plugins/` (about 170 files: skills, wiki, tests, verification journeys, workflows); `payload-files.json` `mapped` entries become `skillDirs` and `dirs`; `payload-manifest.md`, `catch-up.md` (a new `module-folders` step), `install-path.mjs`, `preflight.mjs`; `.agents/rules/payload.md`; `scripts/retired-names.json` (`.agents/plugins/`, `slot.mjs`, `profile.mjs`); `AGENTS.md`, `README.md`; `CHANGELOG.md` `## Next (major)`.
+- Open work on branches that edit `.agents/plugins/` moves its edits to the new paths on its next save.
+
+## Decision log
+
+- **2026-11-24** — Asked how much of the split goes → chose all of it: no plugin folders, no go-between files, one version, one hook list; one part can no longer be added alone.
+- **2026-11-24** — Asked when to move, with about eight open branches editing the plugin folders → chose now; each open branch moves its edits on its next save.
+- **2026-11-24** — Assumed: the loop's shared code and rules join WongStack's existing `.agents/loop/` folder, not a skill folder, because seven commands share it and `.agents/loop/` already holds the loop's WongStack code.
+- **2026-11-24** — Assumed: files other tools read by path, such as memory's D1 migrations, `areas.json`, and Access's `slots.json`, stay where they are; only code moves, because a moved migrations folder changes the deploy settings for every install.
+- **2026-11-24** — Assumed: `codex-plugin.mjs` stays only as an update step for older installs, not a check in every chat, because v61 installs may still have the old Codex plugins.
+- **2026-11-24** — Assumed: capability names such as `memory-plugin` stay, because renaming a capability moves its history and changes no behavior.
+- **2026-11-24** — Assumed: the save route reads `github` only for a GitHub origin with a working `gh`, else `local`, in `delivery-route.mjs`'s `ownRoute`, the test the loop's profile part ran.
+- **2026-11-24** — Assumed: the save step's pre-check note says "not run (the project has no pre-check)" when no check script exists, the words the loop's profile gave.
+- **2026-11-24** — Assumed: memory's parts are WongStack code at `.agents/skills/memory/scripts/lib/parts.mjs`; a test names a stand-in file by `WONG_MEMORY_PARTS`, and a missing stand-in reads as no store, so tests keep their no-store case.
+- **2026-11-24** — Assumed: `install-path.mjs` and the preflight's mapping code stay, because an update from an older release rebuilds that release's text through its `mapped` list; the current list maps nothing.
+- **2026-11-24** — Assumed: `module-link` and `module-plugin` read a fixed list of the old module and command folders, since the current list no longer names them.
+- **2026-11-24** — Assumed: Access's start hook and its setup check go with the setup guide, because an install always has the app's keys and the hook only pointed to that guide.
+- **2026-11-24** — Assumed: `wong-sync/SKILL.md` keeps its `codex-plugin.mjs` step for every update, because it does nothing on an install with no old Codex plugin.
+- **2026-11-24** — Assumed: `D who` reports its source as "app", `D check` names a failing store as `storeError`, `/schedule` uses the app store when `.agents/inbox/` exists and Paseo otherwise, and a failed part writes one journal line.
+- **2026-11-24** — Assumed: a key link reads `.env` and `app/.dev.vars`, take-key uses `.env` only when there is no `scripts/company-api.mjs`, and a private page always gets the app's look.
+- **2026-11-24** — Assumed: the retired names list the profile files by folder (`loop/profile.mjs`, `memory/profile.mjs`), because a bare `profile.mjs` matches other files.
+- **2026-11-24** — Assumed: the context baseline stays as recorded; the instruction words fall below it, and recording a new one makes the next check compare equal totals.
+- **2026-11-24** — Check: `scripts/tests/slot.test.mjs` is deleted, with `slot.mjs`, the file it tested.
+- **2026-11-24** — Check: `scripts/tests/module-hooks.test.mjs`, `scripts/tests/module-install.test.mjs`, and `scripts/tests/module-versions.test.mjs` are deleted, because the module hook copies, setup guides, and versions they checked are gone.
+- **2026-11-24** — Check: `scripts/tests/access-session-start.test.mjs` is deleted, with Access's start hook.
+- **2026-11-24** — Check: `.github/workflows/payload.yml` no longer runs `check-module-versions.mjs` and lints `.agents/loop` once, because the script and the plugins folder are gone; `scripts/tests/.c8rc.json` drops the plugins paths, and `.agents/loop` and `.agents/skills` still cover the moved code.
+- **2026-11-24** — Check: `.github/workflows/document-search.yml` now watches `.agents/skills/memory/**`, where the memory code moved; `.github/scripts/loosened-checks.mjs` imports `archive.mjs` from its new folder. Neither is loosened.
+- **2026-11-24** — Check: the review test for a missing `reviewLink` part, the loop-isolation test in `cli-conventions.test.mjs`, memory's ask-once-with-no-profile test, the daily profile and slot tests, and the hand-over and keys profile tests are removed, because each tested a profile part or slot that no longer exists.
+- **2026-11-24** — Assumed: the 61.x install part of task 5.2 is shown by the preflight test that reports `module-folders` for the old layout, not by a full sync of a real install, because a full sync opens its own plan and change in the target.
+- **2026-11-24** — Assumed: the second look's two fixes (the workspace pick-up line names `workspace.mjs`; `/apply` names `other-work.mjs`) were made inline, and `close-workspace.test.mjs` now fails on a bare `node "$W"` line.
+- **2026-11-24** — Saved for the CI gate as task 5.3, inside `/ship`.
+- **2026-11-24** — The first CI run failed only `hand-over.test.mjs` "a watch link and a turn by link keep each other out" (the link page did not answer in time); it passed 3 of 3 locally and on one rerun, and the move did not change how that page starts.
+- **2026-11-24** — Archive checkpoint: archived as 62.0.0 inside `/ship`; specs synced.
+
+<!-- end proposal.md -->
+<!-- file design.md utf8 8035 -->
+# Design
+
+## Context
+
+See proposal.md for why. Today:
+
+- `.agents/plugins/<module>/` holds five modules: loop, memory, daily, browser, access. Each has `VERSION`, `README.md`, `references/setup.md`; memory, daily, and access also have `hooks/claude.json` and `hooks/codex.json`, which `scripts/tests/module-hooks.test.mjs` keeps equal to `.agents/settings.json` and `.agents/hooks.json`.
+- `.agents/skills/` links into the modules (`memory → ../plugins/memory`, `plan → ../plugins/loop/skills/plan`, `schedule → ../plugins/daily/skills/schedule`, and others).
+- Each module reaches WongStack only through a profile: `.agents/{loop,memory,daily,browser}/profile.mjs` and `.agents/access/slots.json`. The loop reads its profile through `.agents/plugins/loop/scripts/slot.mjs <part>`, which every loop skill calls (`slot.mjs stepTitle set PLAN`, `slot.mjs otherWork`, `slot.mjs --run precheck`, …). Memory, Daily, and the browser load theirs through their own loaders.
+- Installs already get real folders: `payload-files.json` `mapped` sends each module to `.claude/skills/<module>/`, the loop to `.claude/skills/loop/` plus one folder per command, and only the `SKILL.md` of a nested command (`schedule`, `services`, `hand-over`, `shop`) to `.claude/skills/<command>/`. The profiles ship as WongStack files in `dirs` (`.claude/loop`, `.claude/memory`, `.claude/browser`), so no install has its own profile.
+
+## Goals / Non-Goals
+
+**Goals:** the source tree equals the install tree; no module concept left in code, checks, or docs; no change to any command's behavior.
+
+**Non-Goals:** renaming commands or capabilities; moving data files other tools read by path; reworking `.agents/inbox/`, `reply-link`, or other non-module skills.
+
+## Decisions
+
+### The layout
+
+| Today | After |
+| --- | --- |
+| `.agents/plugins/memory/` | `.agents/skills/memory/` |
+| `.agents/plugins/daily/` (less `skills/schedule/`) | `.agents/skills/daily/` |
+| `.agents/plugins/daily/skills/schedule/` | `.agents/skills/schedule/` |
+| `.agents/plugins/browser/` (less `skills/`) | `.agents/skills/browser/` |
+| `.agents/plugins/browser/skills/{hand-over,shop}/` | `.agents/skills/{hand-over,shop}/` |
+| `.agents/plugins/access/` (less `skills/`) | `.agents/skills/access/` |
+| `.agents/plugins/access/skills/services/` | `.agents/skills/services/` |
+| `.agents/plugins/loop/skills/<cmd>/` | `.agents/skills/<cmd>/` (seven) |
+| `.agents/plugins/loop/{scripts,references}/` | `.agents/loop/{scripts,references}/` |
+
+Every move is `git mv`, so history follows and open branches' edits rename cleanly. A nested command gets its whole folder, not only `SKILL.md`: the split between a command's `SKILL.md` and its scripts existed only so a module stayed one folder. Alternative considered: keep `.agents/skills/loop/` as the loop's shared folder, as installs have it now. Rejected: a skills-folder entry with no `SKILL.md` looks like a skill, and `.agents/loop/` already holds the loop's WongStack code.
+
+### No profile, no slot
+
+Each profile part is a thin wrapper around a WongStack file. The caller calls that file straight:
+
+- Loop skills: `slot.mjs stepTitle …` → `node .claude/loop/step-title.mjs …`; `slot.mjs otherWork` → `node .claude/loop/other-work.mjs`; `slot.mjs --run precheck` → the precheck command itself. Each slot line in a skill is replaced by the command its profile part runs today. A part whose value is a constant (such as `guards`) inlines into the script that read it.
+- Memory, Daily, browser: their loaders (`loadProfile`-style imports) become direct imports of the WongStack file the profile pointed to. A part that tested for the company app (Daily's schedule store, browser's inbox) keeps that test at the call site, so an install with no app behaves as today.
+- Access: `slots.json` stays as data at `.agents/access/slots.json`, since the app's route reads it; the code that read it through a slot loader reads the file straight.
+- Then `slot.mjs`, `scripts/tests/slot.test.mjs`, `loop-profile.test.mjs`, and every `profile.mjs` go. Tests that set `WONG_LOOP_PROFILE` or a fake profile call the target script with a stand-in path instead.
+
+Alternative considered: keep `slot.mjs` and the profiles, move only folders. Rejected by the person: the go-between is the plugin layer.
+
+### Files that stay put
+
+`.agents/memory/` keeps `d1/` (wrangler's migrations directory) and `areas.json`; `.agents/daily/` keeps install-owned `team.md`, `people/`, and schedule records; `.agents/access/slots.json` stays. Their code files (`knowledge.mjs`, `lookup.mjs`, `operations.mjs`, `session-start.mjs`, `tidy-pages.mjs`, `topics.mjs`, `send-key.mjs`, …) move into the skill that runs them when only that skill runs them, and stay when a hook, the app, or another skill also does. The build moves a file only after `grep` shows every caller.
+
+### Hooks and versions
+
+`.agents/settings.json` and `.agents/hooks.json` already run every hook; the per-module `hooks/` folders, `module-hooks.test.mjs`, each `VERSION`, and `scripts/check-module-versions.mjs` (and its CI step) go. Hook command paths change only where a script moved.
+
+### Docs
+
+Each module `README.md` and `references/setup.md` goes. Any fact a WongStack page still needs (how the loop works without GitHub, memory's tidy, Daily's no-app path) moves to the wiki page that owns it: `wiki/development/the-change-loop.md`, `wiki/development/memory.md`, `wiki/development/daily.md`, `wiki/stack/access-screens.md`, and the browsing reference. `wiki/maintaining/adding-a-module.md` goes; `wiki/maintaining/adding-a-skill.md` keeps the skill rules. Full `https://github.com/…/blob/main/.agents/plugins/…` links, added so a lone module had no dead link, become relative links again. `scripts/check-payload-links.mjs` and `memory.mjs pull <page>` find the links to fix.
+
+### Installs
+
+`payload-files.json` drops `mapped`: the moved command folders join `skillDirs`, `.claude/loop` stays in `dirs` with its new `scripts/` and `references/`. A new `catch-up.md` step, `module-folders`, moves an install: delete `.claude/skills/loop/` (its files now come at `.claude/loop/`), replace each nested command's lone `SKILL.md` with the full folder, delete `.claude/{loop,memory,daily,browser}/profile.mjs`, each module's `VERSION`, `README.md`, `references/setup.md`, and `hooks/`, and keep every install-owned file under `.agents/daily/`. A local edit inside a moved file is carried over by the normal three-way merge. `install-path.mjs` and `preflight.mjs` lose their mapped-path code; `install-path.test.mjs` checks the new paths. `codex-plugin.mjs` leaves the start hook and stays as the update's last step for installs older than 61.0.0.
+
+`scripts/retired-names.json` gets `.agents/plugins/`, `.claude/plugins/`, `slot.mjs`, and `profile.mjs`, so CI fails on a line that brings them back. The release is `## Next (major)`.
+
+## Risks / Trade-offs
+
+- [About eight open branches edit `.agents/plugins/`] → moves are `git mv`, so git follows the rename when each branch brings in `main`; a branch that adds a new file under `.agents/plugins/` moves it by hand. The changelog's **Updating.** note says so.
+- [A removed slot hid a fallback for an install with no app] → each profile part is read before it goes, and any `if` it held moves to its call site; the install test runs the scaffold with and without the stack pack.
+- [About 170 files change in one release] → one mechanical pass for paths (script plus `grep`), then one pass per surface for the slot and profile removal, with the full test suite after each.
+- [The skill-text budget in `measure-context.mjs`] → this change removes text, so it can only go down; rerun `--check` and record the new baseline.
+- [Public links to the old setup guides stop working] → accepted by the person.
+
+## Migration Plan
+
+Ships as one major release. Installs move on their next `/wong-sync` through the `module-folders` catch-up step. Rollback: revert the merge; installs that already synced take the revert on their next sync.
+
+<!-- end design.md -->
+<!-- file tasks.md utf8 5415 -->
+# Tasks
+
+## 1. Move the folders
+
+- [x] 1.1 Replace each `.agents/skills/<name>` link into `.agents/plugins/` with the real folder by `git mv`, per design's layout table (memory, daily, schedule, browser, hand-over, shop, access, services, and the loop's seven commands); move the loop's `scripts/` and `references/` into `.agents/loop/`. Verify `find .agents -type l` lists only `.claude`/`.codex`-style top links and `.agents/plugins/` is gone.
+- [x] 1.2 Rewrite every path to `.agents/plugins/…` and `.claude/plugins/…` across skills, wiki, tests, fixtures, verification journeys, workflows, `AGENTS.md`, and `README.md` with a scratch script in `.scratch/`; turn full `https://github.com/…/blob/main/.agents/plugins/…` links back into relative links. Verify `grep -rn "plugins/" --exclude-dir=node_modules --exclude-dir=archive .` finds only history (`CHANGELOG.md`, archived changes, `retired-names.json`) and `node scripts/check-payload-links.mjs` passes.
+- [x] 1.3 Update hook command paths in `.agents/settings.json` and `.agents/hooks.json` for any moved script, and drop the `codex-plugin.mjs --check` start hook. Verify each hook script path exists and a fresh chat start prints the memory digest once.
+
+## 2. Remove the profiles and slots
+
+- [x] 2.1 Loop: replace each `slot.mjs <part>` and `slot.mjs --run <part>` line in the seven loop skills and their references, and each `slot()` import in loop scripts, with the command or function `.agents/loop/profile.mjs` runs for that part; inline constant parts. Delete `slot.mjs`, `.agents/loop/profile.mjs`, `slot.test.mjs`, `loop-profile.test.mjs`; repoint tests that set `WONG_LOOP_PROFILE`. Verify `grep -rn "slot.mjs\|WONG_LOOP_PROFILE"` is empty and `node --test scripts/tests/` for loop, ship, save, close, and archive tests pass.
+- [x] 2.2 Memory: replace the profile loader in memory's scripts with direct imports of `.agents/memory/` code (store connect, topics, steps, slug, person, lookup, tidy, archive, session start, commands); delete `.agents/memory/profile.mjs`; move code only memory's skill runs into `.agents/skills/memory/`, keep `d1/` and `areas.json`. Verify `memory.mjs recall`, `pull`, and `session-start.mjs` work and memory tests pass.
+- [x] 2.3 Daily: same for `.agents/daily/profile.mjs` (schedules, person, chat name, offered choices, asked in text, prepare run, checkout), keeping the no-app test at its call site; keep install-owned files under `.agents/daily/`. Verify `daily-module.test.mjs` (renamed to what it now tests) and schedule tests pass, including the no-app Paseo path.
+- [x] 2.4 Browser: same for `.agents/browser/profile.mjs` (look, wake chat, chat target, inbox, key files, send key); keep the git-ignored `.env` fallback where the inbox is missing. Verify browser, hand-over, and key-link tests pass.
+- [x] 2.5 Access: read `.agents/access/slots.json` straight where code went through a slot loader. Verify Access screen and store tests pass and a missing key slot still refuses.
+
+## 3. Remove the module extras
+
+- [x] 3.1 Delete each module's `VERSION`, `README.md`, `references/setup.md`, and `hooks/`; delete `scripts/check-module-versions.mjs` and its CI and payload-check steps, and `module-install`, `module-hooks`, `module-versions` tests. Verify CI workflow files name no deleted script and `node scripts/payload-checks.mjs` runs.
+- [x] 3.2 Move each fact a deleted README or setup guide holds that WongStack still uses into its owning wiki page (`the-change-loop.md`, `memory.md`, `daily.md`, `access-screens.md`, browsing reference); delete `wiki/maintaining/adding-a-module.md` and fix every link to it. Verify the wiki link and hub checks pass.
+- [x] 3.3 Add `.agents/plugins/`, `.claude/plugins/`, `slot.mjs`, and `profile.mjs` to `scripts/retired-names.json` with their replacement. Verify the retired-names test fails on a scratch line that names one, then passes without it.
+
+## 4. Installs
+
+- [x] 4.1 `payload-files.json`: drop `mapped`; add the moved command folders to `skillDirs` and keep `.claude/loop` in `dirs`; update its `$comment`, `payload-manifest.md`, `install-path.mjs`, and `preflight.mjs`. Verify `install-path.test.mjs`, `setup-install.test.mjs`, and `install-cost.test.mjs` pass with the new paths.
+- [x] 4.2 Add the `module-folders` step to `catch-up.md` and its preflight detection, per design's Installs section; keep `codex-plugin.mjs` as the update's last step for installs older than 61.0.0, and update `wong-sync/SKILL.md`. Verify a preflight test on a 61.x-shaped fixture reports `module-folders` and a current fixture does not.
+- [x] 4.3 Write `CHANGELOG.md` `## Next (major) — WongStack is one stack` with an **Updating.** note in plain words, including that an open branch moves a new file under the old folder by hand. Update `.agents/rules/payload.md` and `wiki/maintaining/repo-layout.md` for the new layout.
+
+## 5. Checks
+
+- [x] 5.1 Run the full test suite, `node scripts/check-payload-links.mjs`, `node scripts/check-openspec-config.mjs`, and `node scripts/measure-context.mjs --check` (record the lower baseline). Verify all pass.
+- [x] 5.2 Run a scratch install from the branch into an empty folder, and a sync of a 61.x install fixture; verify each command loads by its bare name, `/plan` sets the chat title, `memory.mjs recall` answers, and no file under `plugins/` or any `profile.mjs` is left.
+- [x] 5.3 `/save` and check the CI gate passes.
+
+<!-- end tasks.md -->
+<!-- file specs/access-module/spec.md utf8 1104 -->
+## REMOVED Requirements
+
+### Requirement: Access installs as one module
+
+**Reason**: Replaced by payload-layout's "WongStack ships as one stack"; Access is a skill folder like any other.
+**Migration**: None; people, roles, apps, and key levels stay as they are.
+
+### Requirement: Setup adds Access from one pasted message
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+### Requirement: A repo with no Access set up is asked once
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+### Requirement: Other modules use Access through their own slots
+
+**Reason**: No modules remain; WongStack's parts call Access directly.
+**Migration**: None.
+
+### Requirement: An Access-only repo updates and keeps its edits
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+<!-- end specs/access-module/spec.md -->
+<!-- file specs/browser-module/spec.md utf8 691 -->
+## REMOVED Requirements
+
+### Requirement: A repo adds the browser module by one pasted message
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+### Requirement: The module runs with no other part of WongStack
+
+**Reason**: The browser is part of WongStack and calls its parts directly.
+**Migration**: None; key links, live views, and Shop work as before.
+
+### Requirement: An update keeps the repo's own edits
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+<!-- end specs/browser-module/spec.md -->
+<!-- file specs/daily-module/spec.md utf8 2413 -->
+## MODIFIED Requirements
+
+### Requirement: Daily works in a repo with no app
+
+In an install with no company app, `/schedule` SHALL save each schedule as a Paseo schedule after the person's OK, when Paseo is on the computer, and SHALL say plainly what it can not do there, such as a check script or a deny list. With neither, `/schedule` SHALL say it needs an app or Paseo, save nothing, and, for a script, give the line the person can add to the computer's own timer, without editing a timer itself. *Keep my chats in line* SHALL then run from Daily's worker on its own pass, with the same limits, and SHALL be pausable by asking. Check-ins, the journal, the morning and pass add-ons, the person's own jobs, and the Needs-you chats SHALL work with no app.
+
+#### Scenario: A weekly schedule with Paseo and no app
+
+- **WHEN** Jo, in an install with no app and with Paseo, asks for a weekly sales summary and says OK
+- **THEN** a Paseo schedule opens a chat with those instructions each week, and the chat says the computer and Paseo must stay on
+
+#### Scenario: No app and no Paseo
+
+- **WHEN** Jo asks for a weekly report in an install with no app and no Paseo
+- **THEN** no schedule is saved, and the chat says what Daily needs to keep one
+
+## REMOVED Requirements
+
+### Requirement: A repo plugs into Daily through named slots
+
+**Reason**: Daily has no profile; it calls WongStack's schedule store, person, and chat names directly, and checks for the app itself.
+**Migration**: None; schedules and chats work as before.
+
+### Requirement: Setup installs Daily from one pasted message
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+### Requirement: A chat start asks once before Daily is set up
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+### Requirement: An update keeps the repo's edits to Daily
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+### Requirement: Daily installs as one module whose hooks the project runs
+
+**Reason**: Replaced by payload-layout's "WongStack ships as one stack", which owns the hook list for every part.
+**Migration**: None.
+
+<!-- end specs/daily-module/spec.md -->
+<!-- file specs/loop-module/spec.md utf8 676 -->
+## REMOVED Requirements
+
+### Requirement: A project adds the build loop from one pasted message
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+### Requirement: Each step does its job with every slot empty
+
+**Reason**: The loop has no slots; it calls WongStack's code directly.
+**Migration**: None; each step works as before in WongStack.
+
+### Requirement: An update keeps the project's edits
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+<!-- end specs/loop-module/spec.md -->
+<!-- file specs/memory-plugin/spec.md utf8 918 -->
+## REMOVED Requirements
+
+### Requirement: A repo plugs into the plugin in one place
+
+**Reason**: Memory has no profile; it calls WongStack's store, topics, and person page directly.
+**Migration**: None; topics, step tags, and lookups work as before.
+
+### Requirement: Setup installs memory from one pasted message
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+### Requirement: An install updates only the modules it has
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+### Requirement: Memory installs as one folder whose hooks the project runs
+
+**Reason**: Replaced by payload-layout's "WongStack ships as one stack", which owns the hook list for every part.
+**Migration**: None.
+
+<!-- end specs/memory-plugin/spec.md -->
+<!-- file specs/payload-layout/spec.md utf8 1961 -->
+## ADDED Requirements
+
+### Requirement: WongStack ships as one stack
+
+The source and every install SHALL hold each command as one real folder in the skills folder, with no plugin folder, no folder link, and no module that can be added alone. WongStack SHALL have one version, and the project's own settings SHALL be the only list of its hooks, each hook running once. No shipped code SHALL reach another part through a profile or slot file; it SHALL call that part directly. An update SHALL move an older install to this layout, keep every file the install owns, and leave no old module file behind.
+
+#### Scenario: A chat in a new workspace
+
+- **WHEN** a person opens a chat in a new workspace of an install, trusted folder or not, and asks for a schedule
+- **THEN** the memory digest and Daily's start check run once each, `/schedule` loads once by its bare name, and no plugin or module is listed
+
+#### Scenario: An older install updates
+
+- **WHEN** an install on 61.x, with its own Daily team page and an edit to a memory script, takes the update
+- **THEN** each command sits in its own skills folder, no profile, module version, setup guide, or module hook file is left, the team page is unchanged, and the script edit is kept or named as a clash
+
+## REMOVED Requirements
+
+### Requirement: A module's docs link nothing outside the module by a relative path
+
+**Reason**: WongStack ships as one stack; no part is added, set up, or updated alone.
+**Migration**: Use WongStack whole; `/wong-sync` updates every part together.
+
+### Requirement: Each module command loads in every chat of an install
+
+**Reason**: Replaced by "WongStack ships as one stack": each command is its own folder in the source too.
+**Migration**: None; commands keep their bare names.
+
+### Requirement: No module loads as a plugin
+
+**Reason**: Replaced by "WongStack ships as one stack", which keeps the no-plugin and run-once-from-settings promise without modules.
+**Migration**: None.
+
+<!-- end specs/payload-layout/spec.md -->
+<!-- file .openspec.yaml utf8 40 fence=~~~ -->
+~~~yaml
+schema: spec-driven
+created: 2026-11-24
+
+~~~
+<!-- end .openspec.yaml -->
+<!-- file review.html utf8 122936 fence=~~~ -->
+~~~html
 <!-- wong-review:3 -->
 <!doctype html>
 <!--
@@ -12,7 +409,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · no-modules</title>
+<title>Review · 2026-11-24-no-modules</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -454,10 +851,10 @@
 })();
 </script>
 </head>
-<body data-change="no-modules" data-own-back>
+<body data-change="2026-11-24-no-modules" data-own-back>
 <main>
 <header>
-  <h1>no-modules</h1>
+  <h1>2026-11-24-no-modules</h1>
   <p class="muted"><span class="kind">Review</span> · <span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p id="script-error" role="alert" hidden></p>
@@ -531,6 +928,8 @@
 <li class="decision card" id="decision-24" data-note="decision-24" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-24</p>Assumed: the 61.x install part of task 5.2 is shown by the preflight test that reports <code>module-folders</code> for the old layout, not by a full sync of a real install, because a full sync opens its own plan and change in the target.</li>
 <li class="decision card" id="decision-25" data-note="decision-25" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-24</p>Assumed: the second look's two fixes (the workspace pick-up line names <code>workspace.mjs</code>; <code>/apply</code> names <code>other-work.mjs</code>) were made inline, and <code>close-workspace.test.mjs</code> now fails on a bare <code>node &quot;$W&quot;</code> line.</li>
 <li class="decision card" id="decision-26" data-note="decision-26" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-24</p>Saved for the CI gate as task 5.3, inside <code>/ship</code>.</li>
+<li class="decision card" id="decision-27" data-note="decision-27" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-24</p>The first CI run failed only <code>hand-over.test.mjs</code> &quot;a watch link and a turn by link keep each other out&quot; (the link page did not answer in time); it passed 3 of 3 locally and on one rerun, and the move did not change how that page starts.</li>
+<li class="decision card" id="decision-28" data-note="decision-28" tabindex="0"><p class="meta"><span class="tag log">log</span>2026-11-24</p>Archive checkpoint: archived as 62.0.0 inside <code>/ship</code>; specs synced.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -1799,3 +2198,6 @@
 </script>
 </body>
 </html>
+
+~~~
+<!-- end review.html -->

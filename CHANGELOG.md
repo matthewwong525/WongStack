@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (major) — WongStack is one stack
+## 62.0.0 — WongStack is one stack
 
 - **Every command is a normal folder.** `/plan`, `/memory`, `/daily`, `/schedule`, `/services`, the browser, and the others each sit in one folder in `.claude/skills/`. The build loop's shared files sit in `.claude/loop/`. The old `plugins` folder goes.
 - **The code calls the code it needs.** The go-between files (`profile.mjs` and `slot.mjs`) go. A step that needs the chat's title, a preview, or the memory store calls that code straight.
