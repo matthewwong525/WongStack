@@ -34,7 +34,7 @@ export const itemPut = inboxAction<Input>({
     version: z.string().min(1).max(100).describe("The body's version."), closesAt: z.number().int().positive().describe("When the item closes, in ms."),
     hidden: z.boolean().optional().describe("The item takes taps but shows in no list, such as a chat's watch."),
     chat: agentId.optional().describe("The agent id of the chat that sent it."),
-    plain: z.literal(true).optional().describe("A plain page: a plan's HTML with no actions, which asks nothing and goes straight to the Archive."),
+    plain: z.literal(true).optional().describe("A plain page: a plan's HTML with no actions, which asks nothing and goes straight to Artifacts."),
   }),
   output: z.strictObject({ id: itemId, version: z.string() }), encoding: "json", effect: "write",
   limits: { inputBytes: 3145728, outputBytes: 65536, timeoutMs: 15000 },
@@ -44,7 +44,7 @@ export const itemPut = inboxAction<Input>({
     if (refused) return refused;
     // A waiting tap on an item that had closed stays expired: reopening never sends it.
     await settleTaps(at);
-    // A plain page ends as it is put, so it goes straight to the Archive. Each put sets when the newest version came.
+    // A plain page ends as it is put, so it goes straight to Artifacts. Each put sets when the newest version came.
     await mine(at, `INSERT INTO inbox_items (installation_id, email, id, kind, title, workspace, body, actions, version, created_at, updated_at,
       closes_at, hidden, chat, plain) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, ?11, ?12, ?13, ?14) ON CONFLICT (installation_id, email, id)
       DO UPDATE SET kind = excluded.kind, title = excluded.title, workspace = excluded.workspace, body = excluded.body, actions = excluded.actions,

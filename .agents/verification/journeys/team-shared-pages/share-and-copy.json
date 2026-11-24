@@ -22,7 +22,7 @@
     ".agents/skills/wong-sync/references/payload-files.json",
     ".agents/skills/wong-sync/references/payload-manifest.md",
     "app/src/apps/inbox/App.tsx",
-    "app/src/apps/inbox/Archive.tsx",
+    "app/src/apps/inbox/Artifacts.tsx",
     "app/src/apps/inbox/PlanView.tsx",
     "app/src/apps/inbox/Share.tsx",
     "app/src/apps/inbox/SharedView.tsx",

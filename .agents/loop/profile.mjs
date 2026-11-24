@@ -73,7 +73,7 @@ async function afterMerge({ root, change }) {
 export default {
   stepTitle: node('step-title.mjs'),
   otherWork: node('other-work.mjs'),
-  reviewLink: lazy('../skills/reply-link/scripts/reply-link.mjs', 'openReplyLink'),
+  reviewLink: lazy('../skills/reply-link/scripts/reply-link.mjs', 'openReviewLink'),
   newWorkspace,
   closeWorkspace,
   schedule: true,

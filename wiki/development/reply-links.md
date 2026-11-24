@@ -1,6 +1,6 @@
 # Reply links
 
-A reply link opens a page the agent made at a web address, and the page's buttons reach the chat that made it: one sends what you wrote, with nothing to copy and paste, and others send a fixed action with optional notes. A plan's review page is the first page that uses one; [`reply-link.mjs`](../../.agents/skills/reply-link/scripts/reply-link.mjs) opens them. Part of [development](README.md).
+A reply link opens a page the agent made at a web address, and the page's buttons reach the chat that made it: one sends what you wrote, with nothing to copy and paste, and others send a fixed action with optional notes. A plan's review page uses one, and so can any page a chat writes; [`reply-link.mjs`](../../.agents/skills/reply-link/scripts/reply-link.mjs) opens them. Part of [development](README.md).
 
 It is not a [private link](../../.agents/plugins/browser/references/browsing.md#how-private-links-work). A private link takes a secret the agent must never see, and nothing typed into it reaches the chat. A reply link does the opposite: everything you send goes into the chat. **Never send a password, a key, or a card through one.**
 
@@ -17,34 +17,36 @@ Each new or changed plan prints *👉 Tap here to see the plan* as one reply lin
 
 ## In your inbox first
 
-When this computer is signed in to [your company app](../stack/company-api.md) and you can open its Inbox, a plan's link opens there, at `/apps/inbox/?item=<id>`, behind your company sign-in. No tunnel starts. Otherwise it opens through a tunnel. Only a [review page](../review-pages.md) opens inside the inbox: a plan's, a built preview's, or one for other work. Another page keeps its tunnel.
+When the project has [a company app](../stack/company-api.md), every reply link opens in its Inbox, at `/apps/inbox/?item=<id>`, behind your company sign-in: a [review page](../review-pages.md) and any page a chat wrote itself. No tunnel starts.
 
-- **The inbox opens on the pages waiting for you.** Without `?item=`, it lists each review page that waits on you, newest first, under *Needs you*, and a tap opens the page. With none, it says *Nothing waits for you.* A badge shows whether this computer is online. It lists no chats: a chat's question or approval waits in its own chat, by [your chat list](daily.md#your-chat-list).
-- **The Archive keeps every past review page.** It lists each closed page, newest first, with *Answered* or *No answer* and when. It marks a [plain page](plain-pages.md) *Page*, and one [shared with the team](plain-pages.md#share-with-team) *Shared*. Search finds a page, waiting or closed, by words in its title, and *Show more* reads 50 more. *Back* from a page goes to the inbox.
+- **Signed out, or with the inbox out of reach, no link opens.** The chat gives you the page's file and the sign-in link ([where no link opens](#where-no-link-opens)). A project with an app never falls back to a tunnel: a tunnel is slow to start, dies with the computer, and needs `cloudflared`.
+- **A project with no company app opens its links at a tunnel**, where this page names one.
+- **The inbox opens on what is open.** Without `?item=`, it lists under *Open* each page that waits on you, newest first, and a tap opens it. With none, it says *Nothing open.* A badge shows whether this computer is online. It lists no chats: a chat's question waits in its own chat, by [your chat list](daily.md#your-chat-list).
+- **Artifacts keeps every closed page.** It lists each one, newest first, with *Answered*, *No answer* or *Page*, and when. A [plain page](plain-pages.md) goes straight there; one [shared with the team](plain-pages.md#share-with-team) says *Shared*. Search finds a page, open or closed, by words in its title, and no page shows twice. *Show more* reads 50 more. *Back* goes to the inbox.
 - **Schedules is a button in the top bar.** It opens [your schedules](../stack/host-schedules.md#manage-a-schedule), and their *Back* returns to the inbox.
 - **A tap waits in the app until this computer takes it.** The app tells the computer at once down [the live line](../stack/live-line.md); the computer takes the taps on its own plans, wakes the chat, and reports back. With the line down, it checks every 10 seconds instead. The page shows *Waiting…*, or *Waiting for your computer* when it hasn't checked in for a minute, then *Sending…* once the computer has it, then *Sent* once the chat has it.
 - **A plan closes once the chat has your answer.** Notes, *Build it* or *Build and publish* close the plan as soon as the chat gets them. A send that doesn't arrive keeps the plan open, so you can try again; a rebuilt plan comes at [a new link](#a-day-then-a-new-link).
-- **A plan closes when its change ships.** Once [`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md) merges it, its waiting pages move to the Archive, wherever they opened. A shipped plan's link is its saved file.
-- **A closed review page stays in the Archive.** It opens read-only, under a line that says what reached the chat and when, such as *Archived · Build it, 3 Nov, 14:02*, with your notes. Its buttons and notes go, and a tap sends nothing. Other items, such as an approval, still go a day after they close.
+- **A plan closes when its change ships.** Once [`/ship`](../../.agents/plugins/loop/skills/ship/SKILL.md) merges it, its waiting pages move to *Artifacts*, wherever they opened. A shipped plan's link is its saved file.
+- **A closed page stays in *Artifacts*.** It opens read-only, under a line that says what reached the chat and when, such as *Archived · Build it, 3 Nov, 14:02*, with your notes. Its buttons and notes go, and a tap sends nothing. Other items, such as an approval, still go a day after they close.
 - **A tap never fires late or twice.** *Cancel* stops a tap until the computer takes it. One still waiting when its plan closes is dropped. A taken tap whose result doesn't come back in 2 minutes shows *Didn't arrive* and never goes again. A plan rebuilt since you opened it says *This plan changed* and asks you to reload. A plan that closes while you read it says so, with *Back*.
 - **One tap per plan every 5 seconds.** The app refuses a faster one, and the computer wakes a chat no faster, as at a tunnel.
 - **The app's bar stays put while you read a plan.** It stays at the top of every page, and nothing hides or slides. *Back* and the plan's workspace sit at the top of the plan's own page, so they scroll away with its words; scroll back to the top to tap *Back*. A plan built before 2026-10-31 shows *Back* fixed above it until its chat builds it again.
-- **The page runs sealed.** It sits in a frame that can run its own script but can't reach the app's sign-in or data. It talks to the inbox only on a private channel handed to it when it first loads, and its notes only under its own plan's name. Its links open in a new tab, so the frame never shows another site; a page that loads there later gets no channel.
+- **The page runs sealed.** It sits in a frame that can run its own script but can't reach the app's sign-in or data. It talks to the inbox only on a private channel handed to it when it first loads, and its notes only under its own plan's name. Its links open in a new tab, so the frame never shows another site; a page that loads there later gets no channel. A page a chat wrote gets [a small bridge](reply-link-pages.md#the-page-bridge) in its inbox copy, never in its file.
 - **The app never holds the chat or its messages.** It keeps the page, its button names and your taps; the chat and each button's message stay on this computer. So a tap in the app can send only the messages this computer fixed.
 
 ## A day, then a new link
 
-A link stays open for 24 hours from when the chat printed it, in the inbox and at a tunnel alike. Building the plan again moves the time on and keeps the same link while the plan waits on you; once you've sent your answer, the rebuilt plan comes back at a new link.
+A link stays open for 24 hours from when the chat printed it. Building the plan again moves the time on and keeps the same link while the plan waits on you; once you've sent your answer, the rebuilt plan comes back at a new link.
 
 - **A closed link costs you nothing.** When the link has closed, or the chat can't be reached, the same tap copies your notes and says so: *This link has closed. Copied 2 notes: paste them into chat.* The button then reads *Copy notes*, as on a file. The build buttons go, and you choose in the chat.
 - **Say *new link*.** The chat runs the plan's build command again and prints a fresh link. Notes you saved at the old address stay there: send or copy them before you ask.
-- **A dead connection shows Cloudflare's error page**, not ours. Say *new link*.
+- **At a tunnel, a dead connection shows Cloudflare's error page**, not ours. Say *new link*.
 
 ## Files from a page
 
 A page's [file question](../review-pages.md#files) sends each file to the computer the chat runs on, as soon as you pick it. The send or button then names the files, and the chat gets a `Files:` line for each, with its question, name, size, and the path where it is saved.
 
-- **Through a tunnel, the file goes straight to this computer.** It needs the link's key, as a send does. The computer saves it in `.scratch/<page folder>-uploads/`, readable only by you; `reply-link.mjs open --uploads <dir>` picks another folder.
+- **Through a tunnel (no app), the file goes straight to this computer.** It needs the link's key, as a send does. The computer saves it in `.scratch/<page folder>-uploads/`, readable only by you; `reply-link.mjs open --uploads <dir>` picks another folder.
 - **From your Inbox, the file waits in your company app.** The app keeps it until the computer takes your tap. The computer reads it, checks it, and saves it as a tunnel's file; an item with no page file uses `.scratch/inbox-uploads/`. Then the app deletes it. It deletes it too when you cancel the tap or the chat can't be woken. No one can open a file 24 hours after it came, whether or not the computer comes back; the app deletes it the next time the Inbox is used. The database's restore history can keep deleted data for up to 30 days. A file the app deleted before your page sent it shows again under its question, marked to pick again, and its need opens again. The app keeps 300 MB of waiting files at most, for all its people together, and refuses more until the computer takes some.
 - **Each file is checked twice**, on the page and on the computer: 25 MB a file, 100 MB a link's files, sent or not, and a type its question takes. The first bytes must match the name's type, so a `logo.png` that is not a PNG is refused.
 - **A file you never sent goes when the link closes.** A sent file stays in its folder for the chat to use; git never takes `.scratch/`.
@@ -54,10 +56,12 @@ A page's [file question](../review-pages.md#files) sends each file to the comput
 
 The chat prints the page's file, and the page copies notes as it always has. It asks you to install nothing. That happens when:
 
-- the host has no way to send a chat a message (`REPLY_REASON=no-chat`);
-- [Cloudflare's tunnel tool](required-tools.md#installing-cloudflared) is not installed (`no-cloudflared`);
-- the tunnel did not come up within 30 seconds (`tunnel-down`);
+- this computer is signed out of the company app (`REPLY_REASON=signed-out`): the chat also gives the sign-in link from `node scripts/company-api.mjs login`;
+- the inbox did not answer or take the page (`inbox-down`);
+- the host has no way to send a chat a message (`no-chat`);
 - `REPLY_LINK=off` is set, as the tests do (`off`).
+
+With no app, two more come from the tunnel: [`cloudflared`](required-tools.md#installing-cloudflared) is not installed (`no-cloudflared`), or the tunnel did not come up within 30 seconds (`tunnel-down`).
 
 A page opened from the plan's file, or from a pull request, is the same page with *Copy notes* and no build buttons.
 
@@ -74,81 +78,4 @@ A page opened from the plan's file, or from a pull request, is the same page wit
 
 ## Open one for another page
 
-Any single self-contained HTML file can open this way: a form with one *Submit*, a list to approve.
-
-```bash
-node .claude/skills/reply-link/scripts/reply-link.mjs open "$page" --header "Answers from the intake form."   # prints REPLY_LINK=<url>
-node .claude/skills/reply-link/scripts/reply-link.mjs close "$page"
-node .claude/skills/reply-link/scripts/reply-link.mjs list
-```
-
-`--header` is the fixed first line of every message the page sends; write it so the chat knows what to do with the text. `--hours N` changes the 24 hours. On `REPLY_LINK=none`, offer the file and take the answers in chat.
-
-The page reads the key from its own address and asks three routes beside itself:
-
-| Route | Does |
-|---|---|
-| `GET alive` | `200 {closesAt, actions, version}` while the link is open |
-| `POST send` with `{"text": "…"}` | `200 {"sent": true}` once the chat has it; anything else means it did not arrive |
-| `POST act` with `{"action": "…", "version": "…", "text": "optional notes"}` | `200 {"sent": true}` once the chat has [the button's message](#give-a-page-a-button) |
-
-All need the key in an `x-reply-key` header. A closed link answers `410`, a second send inside 5 seconds `429`.
-
-```js
-const key = new URLSearchParams(location.hash.slice(1)).get('key');
-async function submit(text) {
-  const response = await fetch('send', { method: 'POST', headers: { 'content-type': 'application/json', 'x-reply-key': key }, body: JSON.stringify({ text }) });
-  return response.ok && (await response.json()).sent === true;
-}
-```
-
-When `submit` is false, show the text for the person to copy: the page must never say *sent* on anything but `sent: true`. The file is read from disk on every visit, so a rebuilt page shows at the same link.
-
-One server and one tunnel serve every open page, and both stop once no page is open. Inbox items get their own small process, [`reply-link.mjs serve-inbox`](../../.agents/skills/reply-link/scripts/reply-link.mjs), which holds [the live line](../stack/live-line.md), delivers taps, and stops once no item it can reach is open; run as [the helper](../stack/live-line.md#the-helper), it never stops. Each serves every project on the computer, whichever [company app](../stack/company-api.md) it uses: an item, or a listed form, remembers the app it was put in, and is checked in, reported and closed there. An app the computer can't reach keeps its items waiting; the others' taps still go through. A closed chat's item closes through another folder signed in to its app; with none, each round tries again until its time runs out. A copy that changes either process raises `PROTOCOL` in that file past every other copy's number on the computer, so the next open replaces the one running. To try a changed copy beside the running one, give it a temporary `HOME` and a stand-in `paseo` in `HANDOVER_PASEO_BIN`. The chat is woken through [`lib/wake.mjs`](../../.agents/skills/reply-link/scripts/lib/wake.mjs), the one place that names how: a host with another way to wake a chat adds it there.
-
-### Give a page a button
-
-A [review page](../review-pages.md#a-page-for-other-work) gets labelled buttons from its builder; this section is for a page you write yourself.
-
-A button sends one message you fix when the link opens: *Send all* on a list of drafts, *Approve* on a quote.
-
-```bash
-node .claude/skills/reply-link/scripts/reply-link.mjs open "$page" --header "Changes to the drafts." \
-  --action "send-all=Send every draft in $page as it stands."
-```
-
-`--action <name>=<message>` repeats, 6 at most. A name is lowercase letters, digits, and hyphens; a message is one line of 300 characters at most. Opening the file again replaces them all. **The page sends the name and optionally reviewer text.** The chat receives the registered instruction, then a newline and the notes; the fixed header is not included. Omitted or empty text sends the instruction alone.
-
-```js
-const state = await (await fetch('alive', { headers: { 'x-reply-key': key } })).json();   // once, right after load
-async function act(action) {
-  const response = await fetch('act', { method: 'POST', headers: { 'content-type': 'application/json', 'x-reply-key': key }, body: JSON.stringify({ action, version: state.version }) });
-  return response.ok && (await response.json()).sent === true;
-}
-```
-
-Show a button only when `state.actions` lists its name. `version` names the file as the page read it, and `act` refuses what the person has not seen:
-
-| Answer | Means |
-|---|---|
-| `409 {"changed": true}` | the file was rebuilt since the page loaded: ask the person to reload |
-| `409 {"done": true}` | the chat already got this button's message for this version |
-| `400` | the link has no such button |
-| `502 {"sent": false}` | the chat did not get it; the tap can be tried again |
-
-`act` shares `send`'s 5 seconds. Confirm on the page before a button that can't be undone, as [a plan's *Build and publish*](#a-plans-link) does.
-
-### Put an item with no page
-
-A chat that needs a button but no page puts an item straight in [the inbox](#in-your-inbox-first):
-
-```bash
-node .claude/skills/reply-link/scripts/reply-link.mjs item --title "Email watch" --header "Email watch" --hours 8 \
-  --action "round=Take the new notes and picks." --hidden --keep-open --stop "The watch stopped after 8 hours."   # prints REPLY_ITEM=<id>
-```
-
-The Inbox lists only review pages, so an item with no page shows no card: something else must tap it, such as a mini app's Submit. The item takes the same taps as a page's button. An open item of the same chat with the same title is replaced, not doubled. On `REPLY_ITEM=none`, no chat can be woken here.
-
-- `--hidden`: the inbox shows no card for it, but a tap still reaches the chat.
-- `--keep-open`: a tap does not close it. Each tap wakes the chat again, and moves its close to `--hours` from that tap.
-- `--stop "<message>"`: the one message the chat gets when the item runs out of time. A lost chat gets none.
+A form, a list to approve, or an inbox item with no page opens a reply link too: [reply link pages](reply-link-pages.md) shows how.

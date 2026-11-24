@@ -13,7 +13,7 @@ import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { lookCss } from '../../plan/scripts/look.mjs';
 import { computerId, guardShared, hasOwnHelper, helperFiles, leaveShared, ownHelper, primaryOf, readApps, rememberApp } from './lib/computer.mjs';
 import { logAction } from './lib/helper-log.mjs';
-import { checkin, closeItem, companyFor, inTime, listLink, openSocket, probe, readFile, tapResult, upload, waitingReviews } from './lib/inbox.mjs';
+import { checkin, closeItem, companyFor, hasApp, openSocket, probe, readFile, tapResult, upload, waitingReviews } from './lib/inbox.mjs';
 import { appLines, nextPoll, waiter } from './lib/line.mjs';
 import { bytesRefused, FILE_LIMITS, filesLines, nameRefused, removeFile, saveFile, savedPath, uploadsFor } from './lib/uploads.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from '../../browser/skills/hand-over/scripts/lib/tunnel.mjs';
@@ -25,10 +25,11 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
        reply-link.mjs close <file> | close-plan <change> | list
   open    show one self-contained HTML file at a link that closes itself and print
           REPLY_LINK=<url>; its page sends text to this chat under the header line.
-          A plan's review page opens in the live app's inbox when it answers this person;
-          any other page, or no inbox, opens at a tunnel, and the inbox lists that link after it prints.
-          Prints REPLY_LINK=none and REPLY_REASON=off|no-chat|no-cloudflared|tunnel-down
-          where no link can open, and exits 0: fall back to the file
+          Any page opens in the company app's inbox when it answers this person. A project with an
+          app never opens a tunnel; a project with no app opens the page at a tunnel.
+          Prints REPLY_LINK=none and REPLY_REASON=off|no-chat|signed-out|inbox-down (a project with
+          an app) or no-cloudflared|tunnel-down (no app) where no link can open, and exits 0:
+          fall back to the file
           --header: the fixed first line of every message the page sends
           --hours: how long the link stays open (default 24)
           --action: a button the page may offer, and the one-line message a tap on it
@@ -47,7 +48,7 @@ export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300
 const HOURS = 24;
 // Raised when the server or inbox helper changes: one from older code is swapped for this one. The shared page server
 // takes the highest copy; a project's own helper compares only its own project's copies.
-export const PROTOCOL = 16;
+export const PROTOCOL = 17;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act|file)?$/;
@@ -322,7 +323,6 @@ async function serve(port, tunnelPid) {
     server.close();
     server.closeAllConnections();
     await killTunnel(tunnelPid);
-    await unlist(openPages(state));
     // The links close with the server: a file no send named goes too.
     for (const name of (() => { try { return readdirSync(state.uploads); } catch { return []; } })()) dropUnsent(state, name.replace(/\.json$/, ''));
     if (readJson(state.server)?.pid === process.pid) for (const file of [state.server, state.log, state.config]) rmSync(file, { force: true });
@@ -420,6 +420,16 @@ async function ensureServer(state, env) {
 const itemFile = (state, id) => join(state.items, `${id}.json`);
 const PLAN_MARK = '<!-- wong-review:3 -->';
 const sha = text => createHash('sha256').update(text).digest('hex');
+const BRIDGE = `<script>${readFileSync(new URL('./lib/bridge.js', import.meta.url), 'utf8')}</script>`;
+
+/** A hand-written page as the inbox shows it: the bridge first in its `<head>`, so its own script finds the key. A
+ *  review-kit page talks to the inbox itself. The file on disk, and so its version, stays as written. */
+export function bridged(text) {
+  if (text.startsWith(PLAN_MARK)) return text;
+  const head = /<head\b[^>]*>/i.exec(text) ?? /<html\b[^>]*>/i.exec(text) ?? /^\s*<!doctype[^>]*>/i.exec(text);
+  const at = head ? head.index + head[0].length : 0;
+  return text.slice(0, at) + BRIDGE + text.slice(at);
+}
 
 /** An inbox item as written, or null when it is missing or malformed; one past its deadline is still read, to close. */
 function readItem(state, id) {
@@ -444,7 +454,7 @@ function titleOf(text, file) {
 }
 
 /** What the app keeps of an item: its words, actions and chat's agent id, never its target chat or messages. */
-const shown = (item, body) => ({ id: item.id, kind: item.kind, title: item.title, workspace: item.workspace, body,
+const shown = (item, body) => ({ id: item.id, kind: item.kind, title: item.title, workspace: item.workspace, body: item.file === null ? body : bridged(body),
   actions: Object.keys(item.actions), version: item.version, closesAt: item.deadline, ...(item.hidden && { hidden: true }),
   ...(item.chat && { chat: item.chat }) });
 
@@ -483,16 +493,15 @@ export async function startInbox(state, env) {
   writeInbox(state, child.pid);
 }
 
-/** Puts an item in the person's inbox: `{id, link}`, or null where it does not answer. `spec` is `{kind, header,
- * actions, hours, target, cwd}`, a plan's `file` or an item's `title` and `body`; may name its `id` and `workspace`. */
-export async function openInboxItem(spec, { env = process.env, clientFor = companyFor, start = startInbox } = {}) {
+/** Puts an item in the person's inbox: `{id, link}`, or `{reason}` where it can't: `signed-out` with no sign-in,
+ * `inbox-down` where the app does not take it. */
+async function placeItem(spec, { env = process.env, clientFor = companyFor, start = startInbox } = {}) {
   const file = spec.file ?? null;
   const body = file === null ? spec.body : readFileSync(file, 'utf8');
-  // Only a plan's review page can talk to the inbox around it; any other page keeps its tunnel.
-  if (file !== null && !body.startsWith(PLAN_MARK)) return null;
   const client = await clientFor(spec.cwd);
-  const origin = client && await probe(client);
-  if (!origin) return null;
+  if (!client) return { reason: 'signed-out' };
+  const origin = await probe(client);
+  if (!origin) return { reason: 'inbox-down' };
   // A project with its own helper keeps its items there: the shared helper never sees them.
   const state = stateFor(env, spec.cwd);
   mkdirSync(state.items, { recursive: true, mode: 0o700 });
@@ -503,11 +512,18 @@ export async function openInboxItem(spec, { env = process.env, clientFor = compa
     uploads: spec.uploads ?? uploadsFor(file ?? join(spec.cwd, 'inbox', 'item'), spec.cwd),
     app: { cwd: spec.cwd, origin }, ...(spec.hidden && { hidden: true }), ...(spec.keepOpen && { keepOpen: true, hours: spec.hours }),
     ...(spec.stop && { stop: spec.stop }), ...(env.PASEO_AGENT_ID && { chat: env.PASEO_AGENT_ID.slice(0, 128) }) };
-  if (!(await upload(client, shown(item, body)))) return null;
+  if (!(await upload(client, shown(item, body)))) return { reason: 'inbox-down' };
   writeItem(state, item);
   rememberApp(spec.cwd, env);
   await start(state, env);
   return { id: item.id, link: `${origin}/apps/inbox/?item=${item.id}` };
+}
+
+/** Puts an item in the person's inbox: `{id, link}`, or null where it does not answer. `spec` is `{kind, header,
+ * actions, hours, target, cwd}`, a page's `file` or an item's `title` and `body`; may name its `id` and `workspace`. */
+export async function openInboxItem(spec, options = {}) {
+  const placed = await placeItem(spec, options);
+  return placed.link ? placed : null;
 }
 
 /** Closes the item in the app, then here; true once the app took it. Until then, or its deadline, it stays here
@@ -519,7 +535,7 @@ async function endItem(state, client, item, now = Date.now()) {
   return closed;
 }
 
-/** The app an item or listed page was put in; one from older code names none, and was opened from its chat's folder. */
+/** The app an item was put in; one from older code names none, and was opened from its chat's folder. */
 const appOf = record => record.app ?? { cwd: record.target?.cwd };
 
 /** Each record's client, signed in from its app's folder once per folder, else from a remembered folder signed in to
@@ -826,50 +842,38 @@ export async function serveInbox({ service = false, project = null, env = proces
   }
 }
 
-/** Lists a tunnel page in the inbox as a form, by its link alone, and marks it with its app so its close closes the
- * item there. */
-async function listPage(state, page, link, cwd = process.cwd()) {
-  const client = await companyFor(cwd);
-  const item = { id: page.id, what: 'form', title: page.header.slice(0, 200), url: link, closesAt: page.deadline, workspace: basename(cwd).slice(0, 100) };
-  if (!client || !(await listLink(client, item)) || !readPage(state, page.id)) return;
-  writeFileSync(pageFile(state, page.id), `${JSON.stringify({ ...page, listed: true, app: { cwd, origin: client.target() } })}\n`, { mode: 0o600 });
-}
-
-/** Closes each of `pages` the inbox lists, in the app that lists it. */
-export async function unlist(pages, { clientFor = companyFor } = {}) {
-  const clientOf = clientsFor(clientFor);
-  await Promise.all(pages.filter(page => page.listed).map(async page => {
-    const client = await clientOf(page);
-    if (client) await closeItem(client, page.id);
-  }));
-}
-
-/** `{link}` for the file's reply link, the inbox's first, or `{link: null, reason}` where none can open. A page at a
- * tunnel that is no plan comes back as `page`, for the inbox to list. */
-async function openLink({ file, header, actions = {}, hours = HOURS, env = process.env, cwd = process.cwd(), inbox = {}, uploads }) {
+/** `{link}` for the file's reply link, or `{link: null, reason}` where none can open. A project with an app opens it in
+ * the inbox only; one with none, at a tunnel. `inbox` takes test stand-ins, `hasApp` and `tunnel` among them. */
+export async function openLink({ file, header, actions = {}, hours = HOURS, env = process.env, cwd = process.cwd(), inbox = {}, uploads }) {
   const checked = checkActions(Object.entries(actions));
   if (env.REPLY_LINK === 'off') return { link: null, reason: 'off' };
   const target = chatTarget(env, cwd);
   if (!canWake(target, env)) return { link: null, reason: 'no-chat' };
   const real = realpathSync(file);
   const folder = resolve(cwd, uploads ?? uploadsFor(real, cwd));
-  const item = await openInboxItem({ file: real, kind: 'plan', header, actions: checked, hours, target, cwd, uploads: folder }, { env, ...inbox });
-  if (item) return { link: item.link };
+  const { hasApp: appHere = hasApp, tunnel = ensureServer, ...stand } = inbox;
+  const item = await placeItem({ file: real, kind: 'plan', header, actions: checked, hours, target, cwd, uploads: folder }, { env, ...stand });
+  if (item.link) return { link: item.link };
+  if (appHere(cwd)) return { link: null, reason: item.reason };
   const state = files(env);
   const page = register(state, { file: real, header, actions: checked, hours, target, uploads: folder });
-  const server = await ensureServer(state, env);
+  const server = await tunnel(state, env);
   if (server.reason) {
     rmSync(pageFile(state, page.id), { force: true });
     return { link: null, reason: server.reason };
   }
-  const plan = readFileSync(real, 'utf8').startsWith(PLAN_MARK);
-  return { link: `${server.origin}/p/${page.id}/#key=${page.key}`, ...(!plan && { page }) };
+  return { link: `${server.origin}/p/${page.id}/#key=${page.key}` };
 }
 
 /** The file's reply link, or null, quickly and quietly, where none can open: the caller then offers the file.
  * `header` is every message's first line; `actions` maps each button to its message; `inbox` takes test stand-ins. */
 export async function openReplyLink(options) {
   try { return (await openLink(options)).link; } catch { return null; }
+}
+
+/** `{link}`, or `{link: null, reason}`: a review page's builder tells a signed-out chat to sign in. */
+export async function openReviewLink(options) {
+  try { return await openLink(options); } catch { return { link: null, reason: 'failed' }; }
 }
 
 /** The file's real path, or exit 1 once it has said the file is missing. */
@@ -881,11 +885,9 @@ function realFile(file) {
 }
 
 async function open(file, { header, actions, hours, uploads }) {
-  const { link, reason, page } = await openLink({ file: realFile(file), header, actions, hours, uploads });
+  const { link, reason } = await openLink({ file: realFile(file), header, actions, hours, uploads });
   console.log(`REPLY_LINK=${link ?? 'none'}`);
   if (!link) console.log(`REPLY_REASON=${reason}`);
-  // The chat has its link first: the inbox's listing waits at most 3 s, and a failed one changes nothing.
-  if (page) await inTime(listPage(files(), page, link));
 }
 
 async function close(file) {
@@ -896,7 +898,6 @@ async function close(file) {
   if (page) {
     rmSync(pageFile(state, page.id), { force: true });
     dropUnsent(state, page.id);
-    await unlist([page]);
   }
   const item = statesFor(process.env, process.cwd()).flatMap(openItems).find(open => open.file === path);
   if (item) await closeInboxItem(item.id);

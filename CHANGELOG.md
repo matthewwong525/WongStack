@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Every reply-link page opens in your Inbox; Open and Artifacts
+
+- **Every page a chat opens with a reply link opens in your Inbox.** A plan, a built preview, a page for other work, and a page a chat wrote itself, such as a form, all open there, titled by the page's own title. The page's buttons reach the same chat as before, and its file never changes. A page you write yourself reads its key as `window.REPLY_KEY` first ([reply link pages](wiki/development/reply-link-pages.md#the-page-bridge)).
+- **A project with a company app never starts a tunnel for a reply link.** Signed out, or with the Inbox out of reach, the chat gives you the page's file and the sign-in link from `node scripts/company-api.mjs login`, and takes your answer in the chat. `reply-link.mjs open` says why with `REPLY_REASON=signed-out` or `inbox-down`. A project with no app opens its links at a tunnel, as before, and no longer lists them in an Inbox ([where no link opens](wiki/development/reply-links.md#where-no-link-opens)).
+- **The Inbox's lists are *Open* and *Artifacts*.** *Needs you* is now *Open*, and with nothing there it says *Nothing open.* The Archive is now *Artifacts*: every closed page, newest first. Search finds a page, open or closed, and no page shows twice.
+- **A build need can be *Optional*.** On a plan's page, an *Optional* item in *What the build needs* shows its form, and the build buttons never wait for it ([what the build needs](wiki/review-pages.md#what-the-build-needs)).
+- **The reply-link guide is two pages.** [Reply links](wiki/development/reply-links.md) says how a link works for you; [reply link pages](wiki/development/reply-link-pages.md) says how to open one for a page you write.
+
+**Updating.** Nothing to do by hand. The next reply link replaces the running reply-link helper. If your repo keeps its own loop profile (`.claude/loop/profile.mjs`), change its `reviewLink` line to call `openReviewLink`, as the new profile does, so a signed-out plan gets its sign-in line.
+
 ## 61.13.0 — A short review page top, and more notes on one part
 
 - **A review page opens with a short top.** It shows the name, *Review · 0 notes*, and the section links in one row, which scrolls sideways on a phone. The how-to hint moves into the empty *Your notes* section. On a phone, *Why* now starts about a third of the way down, not half way.
@@ -893,7 +903,7 @@ Memory's list of areas gains one entry, for the address of the app the WongStack
 
 ## 45.10.1 — Try a changed reply link without stopping the running one
 
-- **The reply-link guide says how to try a changed copy safely.** Run it with a temporary home folder and a stand-in `paseo`, so the computer's running helper and its open pages stay as they are ([reply links](wiki/development/reply-links.md#open-one-for-another-page)).
+- **The reply-link guide says how to try a changed copy safely.** Run it with a temporary home folder and a stand-in `paseo`, so the computer's running helper and its open pages stay as they are ([reply links](wiki/development/reply-link-pages.md#open-one-for-another-page)).
 
 ## 45.10.0 — Review pages that ask and run the real thing
 
@@ -1027,7 +1037,7 @@ Memory's list of areas gains one entry, for the address of the app the WongStack
 
 ## 44.22.0 — Hidden Inbox items
 
-- **A chat can put an item in the Inbox with no page.** `reply-link.mjs item` gives it a title, the first line of each message and its buttons; the same chat and title replaces it ([put an item with no page](wiki/development/reply-links.md#put-an-item-with-no-page)).
+- **A chat can put an item in the Inbox with no page.** `reply-link.mjs item` gives it a title, the first line of each message and its buttons; the same chat and title replaces it ([put an item with no page](wiki/development/reply-link-pages.md#put-an-item-with-no-page)).
 - **A hidden item shows no card.** A tap on it, such as a Submit in a mini app, still reaches its chat.
 - **A kept-open item stays open.** Each tap wakes the chat again and moves its close; when time runs out, the chat gets one stop message.
 - **Publishing no longer stops when a spec has the change's name.** The check asks for the change by its kind.
@@ -1871,7 +1881,7 @@ The live line's page now says how to test it against your test app from a script
 - **Notes still build nothing.** Only the two buttons start a build.
 - **Whoever holds a plan's link can now start that plan's build and its publish.** Until now the link could only add notes. It is still printed only in your chat, carries its own secret, and closes after 8 hours. The page sends a button's name and nothing else, so nobody holding the link can tell the chat to do anything but those two things.
 - **No live link, no buttons.** A plan opened as a file, or through a closed link, shows neither button; you choose in the chat as before.
-- **Other pages can offer buttons the same way.** The assistant names each button and its exact message when it opens the link, such as *Send all* on a mail review page. [Reply links](wiki/development/reply-links.md#give-a-page-a-button) says how.
+- **Other pages can offer buttons the same way.** The assistant names each button and its exact message when it opens the link, such as *Send all* on a mail review page. [Reply links](wiki/development/reply-link-pages.md#give-a-page-a-button) says how.
 
 **Updating.** Nothing needs doing by hand. A plan made before the update gets the two buttons when your assistant builds its page again.
 

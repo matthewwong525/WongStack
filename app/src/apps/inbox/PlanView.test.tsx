@@ -200,7 +200,7 @@ it('queues a tap from the page on the version shown, waits for the computer, the
   expect(heard).toEqual([])
   tapState = 'sent'
   await act(async () => { await vi.advanceTimersByTimeAsync(TAP_POLL_MS) })
-  // Answered: the page reads as its Archive will show it, before the computer closes it.
+  // Answered: the page reads as Artifacts will show it, before the computer closes it.
   expect(screen.getAllByRole('status').map(el => el.textContent)).toEqual([`Archived · Build, ${when(Date.now())}`])
   await until(() => heard.length > 0)
   expect(heard).toEqual([{ type: 'inbox:result', state: 'sent' }])

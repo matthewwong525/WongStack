@@ -5,7 +5,8 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
-import { PREVIEW_IN_CHAT, writePreview } from '../../.agents/skills/apply/scripts/preview-review.mjs';
+import { PREVIEW_IN_CHAT, PREVIEW_ON_PAGE, previewLines, writePreview } from '../../.agents/skills/apply/scripts/preview-review.mjs';
+import { SIGN_IN } from '../../.agents/skills/plan/scripts/build-review.mjs';
 
 // The scripts run as WongStack's: its profile names the route, in whatever folder they start.
 process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
@@ -48,6 +49,28 @@ test('pairs and a new screen build a preview page in .scratch/, and print its fi
   assert.equal(spawnSync('git', ['status', '--porcelain', '--untracked-files=all'], { cwd: dir, encoding: 'utf8' }).stdout, '?? shots/inbox-live.png\n?? shots/inbox-preview.png\n?? shots/new.png\n');
   assert.equal(run(dir, ['demo', '--pair', 'Inbox|shots/inbox-live.png|shots/inbox-preview.png']).status, 0);
   assert.deepEqual(readdirSync(join(folder, 'pictures')).sort(), ['1-live.png', '1-preview.png']);
+}));
+
+test('a preview\'s lines: its link and Publish, else its file, with the sign-in line when signed out', () => {
+  const page = '/w/.scratch/demo-preview/review.html', at = 'https://app.example.com/apps/inbox/?item=1';
+  assert.equal(previewLines({ link: at }, page), `[👉 Tap here to see the preview](${at})\n\n${PREVIEW_ON_PAGE}`);
+  assert.equal(previewLines({ link: page }, page), `[👉 Tap here to see the preview](${page})\n\n${PREVIEW_IN_CHAT}`);
+  assert.equal(previewLines({ link: page, reason: 'signed-out' }, page), `[👉 Tap here to see the preview](${page})\n${SIGN_IN}\n\n${PREVIEW_IN_CHAT}`);
+});
+
+test('--link in a project with an app, signed out, prints the file and the sign-in line, and opens no tunnel', () => checkout(dir => {
+  mkdirSync(join(dir, 'scripts'));
+  writeFileSync(join(dir, 'scripts', 'company-api.mjs'), '');
+  mkdirSync(join(dir, '.claude'));
+  writeFileSync(join(dir, '.claude', '.wong-stack.json'), JSON.stringify({ components: { companyApi: { origin: 'https://app.example.com' } } }));
+  const env = { ...process.env, HOME: dir, REPLY_LINK: '', PASEO_AGENT_ID: 'a-chat', HANDOVER_PASEO_BIN: process.execPath };
+  const linked = spawnSync(process.execPath, [script, 'demo', '--pair', 'New page||shots/new.png', '--link'], { cwd: dir, env, encoding: 'utf8' });
+  assert.equal(linked.status, 0, linked.stderr);
+  const page = join(dir, '.scratch', 'demo-preview', 'review.html');
+  assert.equal(linked.stdout, `[👉 Tap here to see the preview](${page})\n${SIGN_IN}\n\n${PREVIEW_IN_CHAT}\n`);
+  assert.equal(existsSync(join(dir, '.wong-stack', 'reply-link', 'server.json')), false, 'no tunnel server');
+  const off = spawnSync(process.execPath, [script, 'demo', '--pair', 'New page||shots/new.png', '--link'], { cwd: dir, env: { ...env, REPLY_LINK: 'off' }, encoding: 'utf8' });
+  assert.equal(off.stdout, `[👉 Tap here to see the preview](${page})\n\n${PREVIEW_IN_CHAT}\n`, 'links off: the file, and no sign-in line');
 }));
 
 test('a bad pair, a missing picture, a bad name, or no checkout stops with one line', () => checkout(dir => {

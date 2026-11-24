@@ -10,8 +10,8 @@ import { SearchField } from './SearchField'
 const SEARCH_DELAY_MS = 250
 type List = Awaited<ReturnType<typeof readReviews>> & { q: string }
 
-/** The person's answered or closed review pages, newest first. A search finds pages by title, waiting ones too. */
-export function Archive() {
+/** Every closed page a chat put in the person's inbox, newest first. A search finds pages by title, open ones too. */
+export function Artifacts() {
   const [query, setQuery] = useState('')
   const [list, setList] = useState<List | null>(null)
   const [failed, setFailed] = useState(false)
@@ -29,15 +29,15 @@ export function Archive() {
     setList(current => current?.q === from.q ? { ...current, archived: [...current.archived, ...next.archived], more: next.more } : current)
   }, () => setMoreFailed(true))
   const shown = failed ? null : list
-  // Needs you shows the waiting pages; a search finds them here too.
+  // Open shows the open pages, so only a search lists them here too, and no page shows twice.
   const rows = shown ? [...(shown.q.trim() ? shown.waiting : []), ...shown.archived] : []
-  return <section className="grid gap-1" aria-labelledby="archive">
-    <h2 id="archive" className="mb-1 text-sm font-semibold">Archive</h2>
-    <div className="mb-2"><SearchField value={query} onChange={setQuery} onEscape={() => setQuery('')} label="Search reviews by title" autoFocus={false} /></div>
+  return <section className="grid gap-1" aria-labelledby="artifacts">
+    <h2 id="artifacts" className="mb-1 text-sm font-semibold">Artifacts</h2>
+    <div className="mb-2"><SearchField value={query} onChange={setQuery} onEscape={() => setQuery('')} label="Search artifacts by title" autoFocus={false} /></div>
     {failed && <p role="alert" className="flex items-center gap-2 text-sm">Past pages could not be loaded.
       <Button size="sm" variant="outline" onClick={() => { setFailed(false); setAttempt(count => count + 1) }}>Retry</Button></p>}
     {!failed && !list && <Loading label="Loading…" className="grid gap-2"><Skeleton className="h-10" /><Skeleton className="h-10" /></Loading>}
-    {shown && rows.length === 0 && <p className="text-sm text-muted-foreground">{shown.q.trim() ? 'No page matches.' : 'No answered pages yet.'}</p>}
+    {shown && rows.length === 0 && <p className="text-sm text-muted-foreground">{shown.q.trim() ? 'No artifact matches.' : 'No artifacts yet.'}</p>}
     {rows.map(row => <Link key={row.id} to={`/apps/inbox/?item=${row.id}`} className="grid gap-0.5 rounded-md px-2 py-2 hover:bg-muted">
       <span className="min-w-0 truncate">{row.title}</span>
       <span className="text-sm text-muted-foreground">{archiveLine(row)}</span>

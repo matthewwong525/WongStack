@@ -54,7 +54,7 @@ You keep no chat open for the daily: say these in any chat, and it does them thr
 
 ## Your chat list
 
-The Inbox opens on the plans waiting for you, by [the Inbox](reply-links.md#in-your-inbox-first): one row per review page, newest first, and a tap opens the page. The Archive is below. The app keeps no list of your chats: a chat's question waits in its own chat.
+The Inbox opens on the pages open for you, under *Open*, by [the Inbox](reply-links.md#in-your-inbox-first): one row per page, newest first, and a tap opens the page. With none, it says *Nothing open.* *Artifacts*, every closed page, is below. The app keeps no list of your chats: a chat's question waits in its own chat.
 
 ## A background run's handoff
 

@@ -18,7 +18,7 @@ function searchWords(query: string) {
 /** Each search word as a `LIKE … ESCAPE '\\'` pattern found anywhere: `100%` finds only itself, `a_b` never `axb`. */
 const titlePatterns = (query: string) => searchWords(query).map(word => `%${word.replace(/[\\%_]/g, character => `\\${character}`)}%`);
 
-/** The Archive reads this many pages at a time; *Show more* reads the next. */
+/** Artifacts reads this many pages at a time; *Show more* reads the next. */
 const PAGE = 50;
 const time = z.number().int().nonnegative();
 const review = z.strictObject({ id: itemId, title: z.string(), workspace: z.string(), createdAt: time, closesAt: time,
@@ -66,8 +66,8 @@ async function waiting(at: Scope, q: string) {
   return results.map(shown(at.now));
 }
 
-/** GET reviews → the caller's review pages: those waiting on them, then the Archive of every closed one. `q` finds
- *  pages by the words of their title; `before` reads the Archive's next page, and no waiting pages. */
+/** GET reviews → the caller's review pages: those waiting on them, then Artifacts, every closed one. `q` finds
+ *  pages by the words of their title; `before` reads Artifacts' next page, and no waiting pages. */
 export const reviews = inboxAction<{ q?: string; before?: string }>({
   operationId: "inbox.reviews", summary: "List your review pages", description: "The signed-in person's review pages: waiting ones, then archived ones, newest first.",
   input: z.strictObject({

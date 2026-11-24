@@ -1423,7 +1423,7 @@
     } else if (hosted.reply && m.type === 'inbox:result') {
       if (Array.isArray(m.files)) keepHeld(m.files);
       const reply = hosted.reply; hosted.reply = null; reply(m.state);
-      // A tap that reached the chat closes the page in the inbox, so it reads as answered now, as its Archive shows it.
+      // A tap that reached the chat closes the page in the inbox, so it reads as answered now, as Artifacts shows it.
       if (m.state === 'sent') closePage();
     } else if (m.type === 'inbox:file-result' && waiting[m.ref]) {
       const done = waiting[m.ref];

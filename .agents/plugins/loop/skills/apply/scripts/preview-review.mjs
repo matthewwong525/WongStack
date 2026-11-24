@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { isMain, parseCli, usageError } from '../../../scripts/lib/cli.mjs';
-import { buildReview, linked, planLink, previewActions, previewNotesHeader } from '../../plan/scripts/build-review.mjs';
+import { buildReview, linked, linkLines, previewActions, previewNotesHeader } from '../../plan/scripts/build-review.mjs';
 
 const USAGE = `usage: preview-review.mjs <change-name> [--approved "<title>|<approved picture>|<built picture>"]...
          [--pair "<title>|<live picture>|<preview picture>"]... [--note <line>]... [--link]
@@ -16,6 +16,10 @@ const USAGE = `usage: preview-review.mjs <change-name> [--approved "<title>|<app
 export const PREVIEW_ON_PAGE = 'Look at the preview, then tap Publish or Send notes on its page.';
 export const PREVIEW_IN_CHAT = 'Look at the preview. When you\'re ready, say "publish it", or send notes.';
 const fence = '```';
+
+/** The chat's lines for a preview page: its link (and the sign-in line when signed out), then what to do next. */
+export const previewLines = (shown, page) =>
+  `${linkLines(shown, 'the preview')}\n\n${shown.link === page ? PREVIEW_IN_CHAT : PREVIEW_ON_PAGE}`;
 
 // Each option's two sides: the file name each picture takes, and the label it shows.
 const SIDES = {
@@ -67,10 +71,7 @@ if (isMain(import.meta.url)) {
     const result = buildReview(dir, { requireCurrent: true, kind: 'preview' });
     for (const warning of result.warnings) console.error(`preview: warning: ${warning}`);
     const page = join(dir, 'review.html');
-    let link = page;
-    if (values.link) {
-      link = await linked(page, previewNotesHeader(change), previewActions(change));
-    }
-    console.log(`${planLink(link, 'the preview')}\n\n${link === page ? PREVIEW_IN_CHAT : PREVIEW_ON_PAGE}`);
+    const shown = values.link ? await linked(page, previewNotesHeader(change), previewActions(change)) : { link: page };
+    console.log(previewLines(shown, page));
   } catch (error) { console.error(`preview: ${error.message}`); process.exitCode = 1; }
 }

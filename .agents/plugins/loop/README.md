@@ -44,7 +44,7 @@ When the project has no GitHub remote, or `gh` can not run, the loop uses the **
 | Part | What it does | When it is missing |
 |---|---|---|
 | `precheck` | The command `/apply`, `/save`, and `/ship` run before they go on | No local check; `/ship` merges on a yes |
-| `reviewLink` | A link that opens the review page with reply buttons | The page opens as a file; you reply in the chat |
+| `reviewLink` | A link that opens the review page with reply buttons, or `{link, reason}`; `signed-out` adds a sign-in line under the file | The page opens as a file; you reply in the chat |
 | `route` | The save route by name: `github`, `local`, or one `routeRun` runs | `github` with a GitHub remote and a working `gh`, else `local` |
 | `routeRun` | Runs a save route the loop does not own | That route stops and says so |
 | `guards` | More checks `/apply` runs before the preview | Skipped |

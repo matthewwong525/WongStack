@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { readInbox, readReviews, when, type Review } from './api'
-import { Archive } from './Archive'
+import { Artifacts } from './Artifacts'
 import { useFresh } from './line'
 
 type List = { waiting: Review[]; computerOnline: boolean }
@@ -25,7 +25,7 @@ function Row({ page }: { page: Review }) {
   </CardContent></Card>
 }
 
-/** The review pages waiting on the person, newest first, then the Archive. */
+/** The review pages open for the person, newest first, then Artifacts, every closed page. */
 export function Waiting() {
   const [list, setList] = useState<List | null>(null)
   const [failed, setFailed] = useState(false)
@@ -45,11 +45,11 @@ export function Waiting() {
       <AlertDescription><Button size="sm" onClick={load}>Retry</Button></AlertDescription>
     </Alert>}
     {!failed && !list && <Loading label="Loading…" className="mb-6 grid gap-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-14" /><Skeleton className="h-14" /></Loading>}
-    {list && list.waiting.length === 0 && <p className="mb-6 text-sm text-muted-foreground">Nothing waits for you.</p>}
-    {list && list.waiting.length > 0 && <section className="mb-6 grid gap-2" aria-labelledby="needs">
-      <h2 id="needs" className="flex items-center gap-2 text-sm font-semibold">Needs you<Badge variant="secondary">{list.waiting.length}</Badge></h2>
+    {list && list.waiting.length === 0 && <p className="mb-6 text-sm text-muted-foreground">Nothing open.</p>}
+    {list && list.waiting.length > 0 && <section className="mb-6 grid gap-2" aria-labelledby="open">
+      <h2 id="open" className="flex items-center gap-2 text-sm font-semibold">Open<Badge variant="secondary">{list.waiting.length}</Badge></h2>
       {list.waiting.map(page => <Row key={page.id} page={page} />)}
     </section>}
-    <Archive />
+    <Artifacts />
   </>
 }
