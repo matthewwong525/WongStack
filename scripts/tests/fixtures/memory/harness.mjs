@@ -13,8 +13,8 @@ import { tokenClaims } from '../../../../.agents/memory/d1/connect.mjs';
 import { d1Query } from '../d1.mjs';
 
 const REPO = resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
-const SCRIPTS = join(REPO, '.agents/plugins/memory/scripts');
-export const PROFILE = join(REPO, '.agents/memory/profile.mjs');
+const SCRIPTS = join(REPO, '.agents/skills/memory/scripts');
+export const PROFILE = join(REPO, '.agents/skills/memory/scripts/lib/parts.mjs');
 const TOKEN = 'test-memory-token-value';
 export const SECRET = 'super-secret-value-123';
 export const TEST_AUD = 'test-aud';
@@ -134,7 +134,7 @@ function envFor(repo, fake, extra = {}) {
     WONG_MEMORY_CLIENT_ID: '',
     WONG_MEMORY_CLIENT_SECRET: '',
     WONG_MEMORY_API: fake.api,
-    WONG_MEMORY_PROFILE: PROFILE,
+    WONG_MEMORY_PARTS: PROFILE,
     WONG_MEMORY_STATE_DIR: repo.stateBase,
     XDG_DATA_HOME: repo.dataHome,
     WONG_CLOUDFLARE_API: fake.api,

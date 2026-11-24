@@ -2,12 +2,11 @@
 // Puts WongStack's files into an empty folder the same way on every install: payload, links, hubs, ignore rules,
 // rules file and install record. Source-only, like provision.mjs. Doc: ../SKILL.md#install-through-the-normal-workflow
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { isMain } from '../../memory/scripts/lib/cli.mjs';
-import { installPath, installsAsText, installText, mappedDirs } from '../../wong-sync/scripts/install-path.mjs';
 
 const USAGE = `usage: install.mjs --source <source checkout> --target <empty folder> [--repo <upstream url>]
 
@@ -21,7 +20,7 @@ export const CATEGORIES = ['core', 'ui', 'pack', 'scaffold'];
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SEED = join(HERE, '..', 'references', 'seed');
 // The plans folder's rules ship with the build loop module; setup writes them from this checkout's copy.
-const OPENSPEC_CONFIG = join(HERE, '../../../plugins/loop/references/openspec-config.yaml');
+const OPENSPEC_CONFIG = join(HERE, '../../../loop/references/openspec-config.yaml');
 /** Each path the manifest's `seededBySetup` lists, and the template in `references/seed/` that writes it. */
 export const SEEDS = { 'wiki/README.md': 'wiki-README.md', 'wiki/development/README.md': 'wiki-development-README.md', '.gitignore': 'gitignore' };
 const LINK_FIX = 'on Windows, turn on Developer Mode, reopen the assistant, and run setup again (references/failure-map.md#getting-the-computer-ready)';
@@ -32,17 +31,16 @@ const HEADER = '# AGENTS.md\n\nThe assistant reads this file first in every chat
 
 /** A repo path in the inventory's logical form: `.agents/` reads as `.claude/`. */
 const logical = path => path.replace(/^\.agents(?=\/)/, '.claude');
-const physical = path => path.replace(/^\.claude(?=\/)/, '.agents');
 const under = (path, dir) => path === dir || path.startsWith(`${dir}/`);
 
 export class InstallError extends Error {}
 
-// The source paths an install receives: every category's files, skill folders, whole and mapped folders,
+// The source paths an install receives: every category's files, skill folders, and whole folders,
 // without anything `exclude` names, by file or by folder.
 export function targetFiles(paths, manifest) {
   const categories = CATEGORIES.map(name => manifest[name] ?? {});
   const files = new Set(categories.flatMap(category => category.files ?? []));
-  const dirs = categories.flatMap(category => [...(category.dirs ?? []), ...Object.keys(category.mapped ?? {}),
+  const dirs = categories.flatMap(category => [...(category.dirs ?? []),
     ...(category.skillDirs ?? []).map(skill => `.claude/skills/${skill}`)]);
   const excluded = categories.flatMap(category => category.exclude ?? []);
   return paths.filter(path => {
@@ -68,9 +66,6 @@ function checkEmpty(target) {
     throw new InstallError(`${target} already has saved history; setup installs only into an empty folder`);
   }
 }
-
-/** Where an install keeps a source file: a mapped folder's file lands at its install path. */
-export const installedAt = (path, manifest) => physical(installPath(logical(path), mappedDirs(manifest)));
 
 /** Writes a new file, never over one. */
 function put(target, path, text) {
@@ -108,7 +103,6 @@ function writeAll({ source, target, repo, today, openspec }) {
   const commit = git(source, ['rev-parse', 'HEAD']).trim();
   const block = readSource(source, 'AGENTS.md').match(BLOCK)?.[0];
   if (!block) throw new InstallError('the source AGENTS.md has no WONG-STACK block');
-  const mapped = mappedDirs(manifest);
 
   // The links come first: a computer that refuses them stops before any file is copied.
   mkdirSync(join(target, '.agents'));
@@ -116,18 +110,12 @@ function writeAll({ source, target, repo, today, openspec }) {
   link(target, '.agents', '.codex', 'dir');
   for (const path of [...files, '.env.example']) {
     if (!existsSync(join(source, path))) throw new InstallError(`the source has no ${path}`);
-    const to = installedAt(path, manifest);
-    if (installsAsText(path)) {
-      put(target, to, installText(logical(path), readFileSync(join(source, path), 'utf8'), mapped));
-      chmodSync(join(target, to), statSync(join(source, path)).mode);
-    } else {
-      mkdirSync(dirname(join(target, to)), { recursive: true });
-      copyFileSync(join(source, path), join(target, to), constants.COPYFILE_EXCL);
-    }
+    mkdirSync(dirname(join(target, path)), { recursive: true });
+    copyFileSync(join(source, path), join(target, path), constants.COPYFILE_EXCL);
   }
-  put(target, 'AGENTS.md', `${HEADER}${installText('AGENTS.md', block, mapped)}\n`);
+  put(target, 'AGENTS.md', `${HEADER}${block}\n`);
   link(target, 'AGENTS.md', 'CLAUDE.md', 'file');
-  for (const [path, template] of Object.entries(SEEDS)) put(target, path, installText(path, readFileSync(join(SEED, template), 'utf8'), mapped));
+  for (const [path, template] of Object.entries(SEEDS)) put(target, path, readFileSync(join(SEED, template), 'utf8'));
 
   const paseo = JSON.parse(readFileSync(join(target, 'paseo.json'), 'utf8'));
   const setup = paseo.worktree?.setup;

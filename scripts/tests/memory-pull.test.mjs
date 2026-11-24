@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
-import { MAX_BYTES, MAX_LINES, MORE_ITEMS, related } from '../../.agents/plugins/memory/scripts/lib/pull.mjs';
+import { pack } from '../../.agents/loop/scripts/archive.mjs';
+import { MAX_BYTES, MAX_LINES, MORE_ITEMS, related } from '../../.agents/skills/memory/scripts/lib/pull.mjs';
 import { memory, rows, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const files = (root, map) => Object.entries(map).forEach(([path, body]) => {
@@ -226,7 +226,7 @@ test('with the store not answering, a topic prints its local parts and one line 
 });
 
 test('the memory helper page sets its limits and four answer parts, and names no chat app as a requirement', () => {
-  const page = readFileSync(new URL('../../.agents/plugins/memory/references/recall-helper.md', import.meta.url), 'utf8');
+  const page = readFileSync(new URL('../../.agents/skills/memory/references/recall-helper.md', import.meta.url), 'utf8');
   for (const limit of [/12 pulls/, /3 page parts/, /2 `M source <id>` reads/, /at most 300 words/]) assert.match(page, limit);
   for (const part of ['Applies', 'Open', 'The person', 'Not followed']) assert.match(page, new RegExp(`\\*\\*${part}\\*\\*`));
   assert.doesNotMatch(page, /Claude|Codex|Cursor|Paseo/);

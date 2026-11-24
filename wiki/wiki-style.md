@@ -51,7 +51,7 @@ The wiki is long-term memory for **repeatable knowledge**: facts that stay true 
 
 Find the current person by `git config user.email`. When no page lists it, write a short one (name and email) in the next save, without asking; the first page also makes the hub and links it from its root `README.md`.
 
-When a person asks for more detail than [plain words](../.agents/plugins/loop/skills/explore/references/asking-the-user.md#write-in-plain-words) from now on, such as branch names, write it on their page, never from one message.
+When a person asks for more detail than [plain words](../.agents/skills/explore/references/asking-the-user.md#write-in-plain-words) from now on, such as branch names, write it on their page, never from one message.
 
 ### Where a fact goes
 

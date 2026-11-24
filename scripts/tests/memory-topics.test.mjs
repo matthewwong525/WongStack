@@ -7,11 +7,11 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { topics } from '../../.agents/memory/topics.mjs';
-import { matchTopics, pageLinks, summaryOf, topicLines } from '../../.agents/plugins/memory/scripts/lib/topics.mjs';
+import { matchTopics, pageLinks, summaryOf, topicLines } from '../../.agents/skills/memory/scripts/lib/topics.mjs';
 
 const REPO = fileURLToPath(new URL('../..', import.meta.url));
-const HOOK = join(REPO, '.agents/plugins/memory/scripts/topic-match.mjs');
-const PROFILE = join(REPO, '.agents/memory/profile.mjs');
+const HOOK = join(REPO, '.agents/skills/memory/scripts/topic-match.mjs');
+const PROFILE = join(REPO, '.agents/skills/memory/scripts/lib/parts.mjs');
 
 const company = (tag, hub = null, summary = `All about ${tag}.`) => ({ tag, kind: 'company', page: `knowledge/${tag}.md`, summary, aliases: [], paths: [], docs: [], hub });
 const code = (tag, aliases = []) => ({ tag, kind: 'code', page: null, summary: `The ${tag} code.`, aliases, paths: [], docs: [], hub: null });
@@ -28,7 +28,7 @@ function tempRepo(t, files) {
 }
 
 function hook(root, prompt, session = 'chat-1') {
-  const env = { ...process.env, WONG_MEMORY_PROFILE: PROFILE, WONG_MEMORY_STATE_DIR: join(root, '.state') };
+  const env = { ...process.env, WONG_MEMORY_PARTS: PROFILE, WONG_MEMORY_STATE_DIR: join(root, '.state') };
   const result = spawnSync(process.execPath, [HOOK], { cwd: root, env, encoding: 'utf8', input: JSON.stringify({ prompt, session_id: session, cwd: root }) });
   assert.equal(result.status, 0, result.stderr);
   return result.stdout ? JSON.parse(result.stdout).hookSpecificOutput.additionalContext : '';

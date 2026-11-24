@@ -2,7 +2,7 @@
 
 The separate [retained preflight regression practice](preflight-regression.md) owns the disposable exact-source red/green demonstration and repair-decision cases; it is not a memory-service observation.
 
-This meta-only pilot captures the real [`memory.mjs areas`](../../../.agents/plugins/memory/scripts/memory.mjs) entry point from the source revision checked out by the [payload workflow](../../../.github/workflows/payload.yml). Its expectations live in the [memory scenarios](../../../openspec/specs/memory/spec.md); the producer supplies observations, never a verdict. The fixture and producer are not copied to installed projects.
+This meta-only pilot captures the real [`memory.mjs areas`](../../../.agents/skills/memory/scripts/memory.mjs) entry point from the source revision checked out by the [payload workflow](../../../.github/workflows/payload.yml). Its expectations live in the [memory scenarios](../../../openspec/specs/memory/spec.md); the producer supplies observations, never a verdict. The fixture and producer are not copied to installed projects.
 
 ## Run and inspect
 
@@ -25,7 +25,7 @@ Match `capture.json`'s repository, workflow, head/subject revision, run and atte
 
 The head manifest's `pair` names the selected `baselineSha`, capture folder and source cleanup observations. `baseline/capture.json` keeps the same workflow/head/run/attempt identity while its `subjectSha` identifies the observed baseline checkout. Both subjects use the current head's driver and fixture bytes in separate roots. Per-case `comparison` records the digest of seeded files plus the lookup path, the driver digest, and Node version/platform/architecture/locale. Root paths and capture timestamps are excluded from comparison; raw commands and streams remain intact. A merge-base equal to the head, missing old entry point or incomplete baseline capture/cleanup leaves a named comparison gap and preserves independent head evidence.
 
-Record the expressly selected merge-base before comparing. The [collector commands](../../../.agents/plugins/loop/skills/verify/references/ci-evidence.md) download the exact head capture and check the baseline identity and matching inputs/method/environment. Their `comparable` state proves eligibility, never correctness or improvement; grade both raw results against the current named scenario. Missing comparison metadata keeps otherwise valid head observations usable.
+Record the expressly selected merge-base before comparing. The [collector commands](../../../.agents/skills/verify/references/ci-evidence.md) download the exact head capture and check the baseline identity and matching inputs/method/environment. Their `comparable` state proves eligibility, never correctness or improvement; grade both raw results against the current named scenario. Missing comparison metadata keeps otherwise valid head observations usable.
 
 ## Isolation and follow-up
 

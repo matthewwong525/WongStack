@@ -1,7 +1,0 @@
-{
-  "hooks": {
-    "SessionStart": [
-      { "matcher": "startup", "hooks": [{ "type": "command", "command": "node \"$(git rev-parse --show-toplevel)/.claude/skills/access/scripts/session-start.mjs\"", "timeout": 5 }] }
-    ]
-  }
-}

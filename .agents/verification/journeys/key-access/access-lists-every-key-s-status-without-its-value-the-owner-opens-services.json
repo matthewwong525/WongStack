@@ -11,9 +11,9 @@
   "writes": false,
   "sourcePaths": [
     ".agents/memory/areas.json",
-    ".agents/plugins/loop/skills/plan/SKILL.md",
-    ".agents/plugins/loop/skills/plan/references/look.css",
-    ".agents/plugins/loop/skills/plan/references/review-kit.html",
+    ".agents/skills/plan/SKILL.md",
+    ".agents/skills/plan/references/look.css",
+    ".agents/skills/plan/references/review-kit.html",
     ".agents/rules/code.md",
     ".agents/rules/payload.md",
     ".agents/skills/ui/SKILL.md",

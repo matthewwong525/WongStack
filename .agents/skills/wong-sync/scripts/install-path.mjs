@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Where a payload file lands in an install, and its text there: a module folder ships from `.agents/plugins/<name>/`
-// to `.agents/skills/<name>/`, and a link, import, or repo path into it follows. Doc: ../references/payload-manifest.md
+// Where an older release's payload file landed, and its text there: its `mapped` folders moved on install. The current
+// list maps nothing; the update reads an older install's base text through this. Doc: ../references/catch-up.md
 import { readFileSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';

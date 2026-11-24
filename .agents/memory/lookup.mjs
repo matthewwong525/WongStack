@@ -4,7 +4,7 @@ import { execFile } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
-import { findArchived, listArchived, readArchived } from '../plugins/loop/scripts/archive.mjs';
+import { findArchived, listArchived, readArchived } from '../loop/scripts/archive.mjs';
 import { longestArea, normalizePath, pathAreas, realPath } from '../skills/memory/scripts/lib/areas.mjs';
 import { readHead } from '../skills/memory/scripts/lib/store.mjs';
 import { codeUsers } from './lib/callers.mjs';

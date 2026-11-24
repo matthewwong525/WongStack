@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
+import { pack } from '../../.agents/loop/scripts/archive.mjs';
 import { checkpointEvidence } from '../../.agents/skills/save/scripts/checkpoint-evidence.mjs';
 import { renderPrBody, writePrBody } from '../../.agents/skills/save/scripts/render-pr-body.mjs';
 

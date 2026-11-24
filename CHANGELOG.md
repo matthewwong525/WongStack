@@ -3,6 +3,16 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (major) — WongStack is one stack
+
+- **Every command is a normal folder.** `/plan`, `/memory`, `/daily`, `/schedule`, `/services`, the browser, and the others each sit in one folder in `.claude/skills/`. The build loop's shared files sit in `.claude/loop/`. The old `plugins` folder goes.
+- **The code calls the code it needs.** The go-between files (`profile.mjs` and `slot.mjs`) go. A step that needs the chat's title, a preview, or the memory store calls that code straight.
+- **One version.** WongStack's version is the only one. Each part's own version, README, setup guide, and second copy of its hooks go.
+- **Nothing you use changes.** Each command does the same thing under the same name. Your memory, schedules, keys, and app stay as they are.
+- **BREAKING:** a project that added one part alone, by its setup guide, can no longer update that part by itself. Links to the old setup guides on GitHub stop working.
+
+**Updating.** The update moves your copy to the new folders and keeps your own files, such as Daily's team page and people pages. A file you changed in an old folder moves to its new folder first, then takes the update. Unfinished work on another branch can add a new file in an old folder: `.claude/skills/loop/`, or a `skills/` folder inside memory, Daily, the browser, or Access. Before you save that work again, move the file by hand to its new folder: `.claude/loop/`, or `.claude/skills/<command>/`.
+
 ## 61.13.0 — A short review page top, and more notes on one part
 
 - **A review page opens with a short top.** It shows the name, *Review · 0 notes*, and the section links in one row, which scrolls sideways on a phone. The how-to hint moves into the empty *Your notes* section. On a phone, *Why* now starts about a third of the way down, not half way.

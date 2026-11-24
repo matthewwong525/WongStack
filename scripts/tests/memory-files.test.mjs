@@ -6,9 +6,9 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { promisify } from 'node:util';
-import { filesBehind, namedPaths } from '../../.agents/plugins/memory/scripts/lib/files.mjs';
+import { filesBehind, namedPaths } from '../../.agents/skills/memory/scripts/lib/files.mjs';
 import { changeFiles, pastChanges } from '../../.agents/memory/lookup.mjs';
-import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
+import { pack } from '../../.agents/loop/scripts/archive.mjs';
 import { tempDir } from './fixtures/memory/harness.mjs';
 
 const files = (root, map) => Object.entries(map).forEach(([path, body]) => {

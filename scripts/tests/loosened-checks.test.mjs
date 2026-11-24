@@ -5,7 +5,7 @@ import { mkdirSync, mkdtempSync, renameSync, rmSync, symlinkSync, unlinkSync, wr
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
+import { pack } from '../../.agents/loop/scripts/archive.mjs';
 import { TEST_FILE } from '../../.github/scripts/test-file.mjs';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');

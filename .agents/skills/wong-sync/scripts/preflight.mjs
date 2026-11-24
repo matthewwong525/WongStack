@@ -555,9 +555,18 @@ function skillNames(target) {
   return [...names].sort();
 }
 
+// Each command folder an install kept as a module, or a module's command, before WongStack became one stack.
+const MODULES = ['memory', 'daily', 'access', 'browser'];
+const MODULE_FOLDERS = [...MODULES, 'loop', 'explore', 'plan', 'apply', 'save', 'ship', 'verify', 'close',
+  'schedule', 'hand-over', 'shop', 'services'].map(name => `.claude/skills/${name}`);
+const MODULE_LEFTOVERS = ['.claude/plugins', '.claude/skills/loop',
+  ...['daily', 'browser', 'access'].map(name => `.claude/skills/${name}/skills`),
+  ...['loop', 'memory', 'daily', 'browser'].map(name => `.claude/${name}/profile.mjs`),
+  ...MODULES.map(name => `.claude/skills/${name}/VERSION`)];
+
 // The moves an install may still need, from its layout (lstat only, plus deploy.yml's secret name) and its
 // record. references/catch-up.md owns what each code asks of the plan.
-function catchUpNeeds(target, record, installedVersion, baseline, own, mapped) {
+function catchUpNeeds(target, record, installedVersion, baseline, own) {
   const reasons = [];
   const at = path => kindAt(resolve(target, path));
   const agents = at('.agents');
@@ -606,13 +615,16 @@ function catchUpNeeds(target, record, installedVersion, baseline, own, mapped) {
     reasons.push({ code: 'own-pages', paths: [...new Set(pages.map(top))].sort() });
   }
   // A module kept as a folder link becomes a real folder: the link leaves before its files are copied.
-  const moduleLinks = mapped.map(([, to]) => to).filter(path => at(path) === 'link');
+  const moduleLinks = MODULE_FOLDERS.filter(path => at(path) === 'link');
   if (moduleLinks.length) reasons.push({ code: 'module-link', paths: moduleLinks });
   // A module plugin's files, or a settings file that names one: the update moves the install off plugins.
-  const plugins = [...mapped.map(([, to]) => `${to}/.claude-plugin`), '.claude-plugin/marketplace.json'].filter(path => at(path) !== null);
+  const plugins = [...MODULE_FOLDERS.map(path => `${path}/.claude-plugin`), '.claude-plugin/marketplace.json'].filter(path => at(path) !== null);
   const named = ['.claude/settings.json', '.claude/settings.local.json']
     .filter(path => at(path) === 'file' && readFileSync(resolve(target, path), 'utf8').includes('@skills-dir'));
   if (plugins.length || named.length) reasons.push({ code: 'module-plugin', paths: [...plugins, ...named] });
+  // The module layout: the loop's shared folder, nested commands, profiles, and module versions.
+  const moduleFiles = MODULE_LEFTOVERS.filter(path => at(path) !== null);
+  if (moduleFiles.length) reasons.push({ code: 'module-folders', paths: moduleFiles });
   // Finished changes kept as folders: the update packs each into one file, so the folder count stays low.
   const archive = resolve(target, 'openspec/changes/archive');
   if (at('openspec/changes/archive') === 'dir') {
@@ -683,7 +695,7 @@ export function preflight(options) {
     },
     changes,
     catchUp: catchUpNeeds(compared.target, record, installedVersion, compared.baseline,
-      ownWikiFiles(compared.target, record, shippedPaths(compared)), compared.mapped),
+      ownWikiFiles(compared.target, record, shippedPaths(compared))),
     updating,
     updatingComplete,
     diagnostics: [],

@@ -8,7 +8,6 @@ import { dirname, join, posix, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { headingAnchors } from "../.agents/memory/lib/links.mjs";
 import { SEEDS } from "../.agents/skills/wong-setup/scripts/install.mjs";
-import { installPath, mappedDirs } from "../.agents/skills/wong-sync/scripts/install-path.mjs";
 import { parseCli } from "./lib-cli.mjs";
 
 const { values } = parseCli({
@@ -44,8 +43,6 @@ function git(...args) {
 function walk(dir) {
   const out = [];
   if (!existsSync(dir)) return out;
-  // A mapped entry may name one file.
-  if (!statSync(dir).isDirectory()) return [toPosix(relative(ROOT, dir))];
   for (const entry of readdirSync(dir)) {
     // Never payload, and full of third-party READMEs with their own broken links.
     if (entry === "node_modules" || entry === "dist" || entry === ".wrangler" || entry === ".git") continue;
@@ -64,10 +61,6 @@ const TARGET_PROVIDED = MANIFEST.seededBySetup.files;
 const SEED_DIR = ".agents/skills/wong-setup/references/seed";
 const seedOf = (p) => (SEEDS[p] ? `${SEED_DIR}/${SEEDS[p]}` : null);
 
-// A mapped folder ships at its install path: each install path read from its source file.
-const MAPPED = mappedDirs(MANIFEST);
-const SOURCE_OF = new Map();
-
 /** The files a target receives, as logical paths: every category, plus a real `AGENTS.md` and its `CLAUDE.md`. */
 function payload() {
   const files = new Set(["CLAUDE.md", "AGENTS.md"]);
@@ -82,12 +75,6 @@ function payload() {
         .map(logical)
         .filter((f) => !(cat.exclude ?? []).includes(f))
         .forEach((f) => files.add(f));
-    }
-    for (const from of Object.keys(cat.mapped ?? {})) {
-      for (const f of walk(join(ROOT, physical(from))).map(logical)) {
-        SOURCE_OF.set(installPath(f, MAPPED), f);
-        files.add(installPath(f, MAPPED));
-      }
     }
   };
   for (const category of ["core", "ui", "pack", "scaffold"]) addCategory(MANIFEST[category]);
@@ -135,8 +122,7 @@ function checkDead(files) {
   for (const file of [...files, ...Object.keys(SEEDS)]) {
     // The rules file is scanned once, as the block `CLAUDE.md` reads through its link.
     if (!file.endsWith(".md") || file === "AGENTS.md") continue;
-    const source = SOURCE_OF.get(file) ?? file;
-    const abs = join(ROOT, file === "CLAUDE.md" ? realPath("CLAUDE.md") : seedOf(file) ?? physical(source));
+    const abs = join(ROOT, file === "CLAUDE.md" ? realPath("CLAUDE.md") : seedOf(file) ?? physical(file));
     if (!existsSync(abs)) continue;
     let raw = readFileSync(abs, "utf8");
     // Only the block between the markers travels, so only that is checked; the rest belongs to this repo.
@@ -149,8 +135,7 @@ function checkDead(files) {
     for (const { target } of references(body, { imports: true })) {
       const [path, anchor] = target.split(/#(.*)/s);
       if (!path) continue;
-      // Resolved from the source file, then moved as the sync moves it: a link into a mapped folder lands there.
-      const resolved = installPath(logical(posix.normalize(posix.join(posix.dirname(source), path))), MAPPED);
+      const resolved = logical(posix.normalize(posix.join(posix.dirname(file), path)));
       const bare = resolved.replace(/\/$/, "");
       // A link into a directory resolves if the directory itself ships.
       const hit = targets.has(resolved) || targets.has(bare) || [...targets].some((f) => f.startsWith(bare + "/"));
@@ -293,7 +278,7 @@ function checkSymlinked() {
   return found;
 }
 
-/** Skill folders no manifest category lists: they stay in the source repo. A linked folder, like memory, is not one. */
+/** Skill folders no manifest category lists: they stay in the source repo. */
 function sourceOnlySkills() {
   const listed = new Set(Object.values(MANIFEST).flatMap((category) => category?.skillDirs ?? []));
   const dir = join(ROOT, ".agents/skills");

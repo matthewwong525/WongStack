@@ -5,13 +5,13 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { dreamChecks, duePages, isDreamFact, lastDream, mapLines, mapText, namesChecked, pageList, pagesNamed, recordBodies, saysGone, stalePaths } from '../../.agents/plugins/memory/scripts/daily-tidy.mjs';
+import { dreamChecks, duePages, isDreamFact, lastDream, mapLines, mapText, namesChecked, pageList, pagesNamed, recordBodies, saysGone, stalePaths } from '../../.agents/skills/memory/scripts/daily-tidy.mjs';
 import { isShipped, kindOf, shippedPaths } from '../../.agents/memory/tidy-pages.mjs';
 import { memory, node, PROFILE, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
-import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
+import { pack } from '../../.agents/loop/scripts/archive.mjs';
 
 const DREAM = 'daily-tidy.mjs';
-const BRIEF = new URL('../../.agents/plugins/memory/references/tidy.md', import.meta.url);
+const BRIEF = new URL('../../.agents/skills/memory/references/tidy.md', import.meta.url);
 const TIDY = new URL('../../.agents/memory/tidy-pages.mjs', import.meta.url).href;
 const PAYLOAD = {
   core: { skillDirs: ['memory'], files: ['wiki/wiki-style.md', 'wiki/development/memory.md'] },
@@ -28,7 +28,7 @@ const dayAgo = days => ago(days).slice(0, 10);
 // A profile with WongStack's store and tidy pages alone, or the one given.
 function profile(env, text = `import base from '${pathToFileURL(PROFILE).href}';\nimport { tidyPages } from '${TIDY}';\nexport default { connect: base.connect, tidy: { pages: tidyPages } };\n`) {
   write(env.repo.home, 'profile.mjs', text);
-  return { env: { WONG_MEMORY_PROFILE: join(env.repo.home, 'profile.mjs') } };
+  return { env: { WONG_MEMORY_PARTS: join(env.repo.home, 'profile.mjs') } };
 }
 const dream = (env, ...args) => node(env.repo, env.fake, DREAM, args, profile(env));
 const put = (env, body) => memory(env.repo, env.fake, ['put-facts', '--file', writeJsonFile(env.repo.home, `in-${Math.random()}.json`, {
@@ -56,7 +56,7 @@ test('an earlier dream fact gives its date, the highest fact id it read, and the
     { id: 901, created_at: '2026-09-20T08:00:00Z', body: 'Dream 2026-09-20: read facts up to #900. Checked: wiki/people/README.md.' },
     { id: 1240, created_at: '2026-10-01T08:00:00Z', body: 'Dream 2026-10-01: read facts up to #1234. Checked: wiki/people/README.md, wiki/people/a-b.md.' },
     // Upkeep tags `dream` any fact naming the tidy's files; only a tidy's own record counts.
-    { id: 1250, created_at: '2026-10-03T08:00:00Z', body: 'Session 2026-10-03: edited .agents/plugins/memory/scripts/daily-tidy.mjs and wiki/people/c.md, PR #9.' },
+    { id: 1250, created_at: '2026-10-03T08:00:00Z', body: 'Session 2026-10-03: edited .agents/skills/memory/scripts/daily-tidy.mjs and wiki/people/c.md, PR #9.' },
   ];
   assert.deepEqual(lastDream(facts), { since: '2026-10-01', afterFact: 1234, sorted: 0, pages: ['wiki/people/README.md', 'wiki/people/a-b.md'], dream: 1240 });
   assert.deepEqual(lastDream([{ id: 7, created_at: '2026-10-02T00:00:00Z', body: 'Dream 2026-10-02: nothing to add.' }]),
@@ -576,5 +576,5 @@ test('the brief gives a goal, limits and tools, and no fixed steps', () => {
   assert.match(brief, /\*\*large topics\*\*:.* A topic your own sorting made large is yours to split\./);
   assert.doesNotMatch(brief, /^\s*\d+\. /m, 'no numbered step');
   assert.doesNotMatch(brief, /--daily|--dry-run|openspec|needs you|for the person/i, 'no old flag, no spec check, and no list for a person');
-  assert.equal(existsSync(new URL('../../.agents/plugins/memory/skills', import.meta.url)), false, 'the command is gone');
+  assert.equal(existsSync(new URL('../../.agents/skills/memory/skills', import.meta.url)), false, 'the command is gone');
 });

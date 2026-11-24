@@ -1,11 +1,12 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeJson } from '../../.agents/skills/daily/scripts/chief.mjs';
 import { cardsDir, chatList, findChat, writeCard } from '../../.agents/skills/daily/scripts/chat-list.mjs';
-import { forgetProfile, loadProfile } from '../../.agents/skills/daily/scripts/lib/slot.mjs';
+import { folderOf, writeState } from '../../.agents/loop/step-title.mjs';
 
 const NOW = Date.parse('2026-11-08T15:00:00Z');
 const HOUR = 3600e3;
@@ -45,14 +46,12 @@ test("a chat in Paseo takes its Paseo title as its name", () => {
   assert.equal(list(home)[0].name, 'Checkout page');
 });
 
-test("a chat outside Paseo takes the profile's step and task as its name, with the step's mark", async t => {
-  const home = temp();
-  const file = join(home, 'profile.mjs');
-  writeFileSync(file, "export default { chatName: () => ({ step: 'APPLY', task: 'Fix the invoice total' }) };\n");
-  t.after(forgetProfile);
-  await loadProfile({ WONG_DAILY_PROFILE: file });
-  hook(home, { key: 'claude-a' });
-  assert.equal(list(home)[0].name, '🔨 Fix the invoice total');
+test("a chat outside Paseo takes its saved step and task as its name, with the step's mark", () => {
+  const home = temp(), cwd = join(home, 'repo');
+  execFileSync('git', ['init', '-q', cwd]);
+  writeState(folderOf(cwd), 'claude-a', { step: 'APPLY', task: 'Fix the invoice total' });
+  hook(home, { key: 'claude-a', cwd });
+  assert.equal(list(home, { ownRepo: dir => dir === cwd })[0].name, '🔨 Fix the invoice total');
 });
 
 test('a background run, a sub-agent, a notice, a bad key, a bad card or one from another tool writes or lists nothing', () => {
