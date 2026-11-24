@@ -1,3 +1,177 @@
+<!-- openspec-archive v1 2026-11-24-review-kit-short-top-more-notes -->
+<!-- file proposal.md utf8 3992 -->
+# A review page opens with a short top, and a part takes more notes
+
+**Status:** ready-to-ship
+**Branch:** review-kit-short-top-more-notes
+**Open questions:** none
+
+## Why
+
+On a phone, a review page's top fills half the screen before the first words: a *Review* label, the name, the note count, section links that wrap to two rows, and a three-line hint. And after you send notes and the plan comes back revised, a part you noted before takes no new note: *Note* opens the old, sent note, so you must clear it to add one. ClaymooApp fixed both on 2026-11-24, and every WongStack review page has the same top and the same notes.
+
+## What Changes
+
+- **The top is three short lines: the name, *Review · 0 notes*, and the section links in one row.** The *Review* label joins the note count. The links get smaller and stay on one row; on a narrow screen the row scrolls sideways. The how-to hint (*Tap Note to comment…*) moves into the empty *Your notes* section and goes when the first note comes. A finished build's page keeps its own words, the build's name and *Built: look, then publish?*, on the same short top. *Why* now starts about a third of the way down a phone, not half way.
+  ```text
+  Before                 After
+  Review                 my-change
+  my-change              Review · 0 notes
+  0 notes                Why Changes Needs …
+  Why Changes Needs …    Why
+  Decisions Notes        ┌──────────────┐
+  Tap Note to comment…
+  (3 lines)
+  Why
+  ```
+- **A part you noted before takes a new note.** A sent note stays on its part, marked *Sent*. Beside it, *+ Note* (or the card's *Note*) opens an empty note, and saving adds a second note on the same part. Only the new note goes with your next *Send notes*. Tap the *Sent* pin to read the old one. A note not yet sent opens again to edit, so one part never holds two open notes from *Note*.
+
+**Non-goals:** no change to the Inbox, its Back row, or its light or dark look; no change to the cards, the bottom bar, or what a note says.
+
+## What the build needs
+
+- **Nothing.**
+
+## Capabilities
+
+### New Capabilities
+
+### Modified Capabilities
+- `review-pages`: a review page's top is short, with the hint in the empty notes section; a sent note never blocks a new note on the same part.
+
+## Impact
+
+- `.agents/plugins/loop/skills/plan/references/review-kit.html`: the short top and its CSS; a `-more-k` note id in `where()`, `find()` and the Note buttons.
+- `scripts/tests/review.test.mjs`, `scripts/tests/review-browser.test.mjs`.
+- `wiki/review-pages.md`, `CHANGELOG.md`, `.agents/plugins/loop/VERSION`.
+
+## Decision log
+
+- **2026-11-24** — Assumed: port the review kit's short top and many notes on one part from ClaymooApp's `artifact-top-bar`, because both fix the shared kit and help every repo's review pages.
+- **2026-11-24** — Assumed: a page in the Inbox keeps its own *Back* row and still follows the app's light or dark look, not ClaymooApp's change, because WongStack's Inbox relies on the page's *Back* (`data-own-back`) and its spec promises the app's look; ClaymooApp moved both into its own app bar, which stays in ClaymooApp.
+- **2026-11-24** — Assumed: the hint shows only while *Your notes* is empty, because each card's *Note* and *OK* already name the action and a new reader still finds the hint there.
+- **2026-11-24** — Assumed: a finished build's page keeps its name and *Built: look, then publish?* on the same short layout, because those words say what it asks.
+- **2026-11-24** — Assumed: an unsent note or draft on a part is edited in place, not doubled, because two open notes on one part would split one thought; only a sent note makes room for a new one.
+- **2026-11-24** — Assumed: editing a sent note's text from its pin still works and sends it again, because that was the only way before and someone may rely on it.
+- **2026-11-24** — Assumed: archived at ship; branch CI and main's re-run payload check passed, and every task is ticked.
+
+<!-- end proposal.md -->
+<!-- file design.md utf8 3773 -->
+# Design
+
+## Context
+
+The review kit (`.agents/plugins/loop/skills/plan/references/review-kit.html`) makes every review page. Its `<header>` holds an `.eyebrow` (*Review*, or the build's name on a preview), the `h1`, a `.muted` note count, a wrapping `.jump` row and a `.hint`. A part's note id is its `data-note` id (`item-2`), and `noteOf(id)` returns the first note with that id, so a sent note opens again and *Save* overwrites it. Words and spots already take a fresh `-words-k` / `-spot-k` id by `nextId()`.
+
+## Goals / Non-Goals
+
+**Goals:** a short top on every review page, standalone and in the Inbox; a sent note never blocks a new note on its part.
+
+**Non-Goals:** the Inbox frame's Back row and its `inbox:theme` look, which WongStack's Inbox relies on; the app.
+
+## Decisions
+
+### The short top
+
+- Markup: `<header>` holds `h1`, then `<p class="muted"><span class="kind">Review</span> · <span class="note-count">0 notes</span></p>`, then `nav .jump`, then `#script-error`. The `.eyebrow` goes; the `PREVIEW` branch writes the build's name into `header .kind`.
+- CSS: `header { padding:12px 48px 0 0 }` (the 48 px still clears the standalone theme switch), `h1 { margin:0 }`, `.jump { flex-wrap:nowrap; overflow-x:auto; scrollbar-width:none; gap:0 14px }`, `.jump a { font-size:14px; padding:6px 0 }` (16 px at 701 px and wider), `header + section { margin-top:12px }`.
+- The `.hint` moves to the end of `#notes`; `render()` hides it unless `#note-list` holds the *No notes yet.* line. The `PREVIEW` / `REVIEW` hint swaps follow it. Read-only pages already hide `.hint`.
+- The Inbox frame's `backRow()` still prepends `.back` to the header, so a hosted page shows *Back* above the name; its CSS stays.
+
+### Many notes on one part
+
+- Add a third suffix kind, `-more-k`, to `where()`, `find()` and `nextId()`; `where()` and `find()` treat it as its base (same label, same place).
+- `noteFor(base)`: an unsent note or draft on the base or on any `-more-k` of it → that id; else, when the base holds a note (so a sent one) → `nextId(base, 'more')`; else the base id.
+- A *Note* / *+ Note* / chip tap resolves through `noteFor()`. A pin or a notes-list entry still opens its exact note, sent ones included (editing a sent note's text clears `sent`, as before).
+- `render()`: skip *+ Note* only while the part holds an unsent pin, so *+ Note* sits beside a sent pin.
+- Sending, acknowledging and stored-notes checks need no change: each note keeps its own id, and a `-more-k` id passes the stored-id check.
+
+## Risks / Trade-offs
+
+- **Pages built before the update keep the tall top** → the kit is sealed into each page; a page built again gets the short top.
+- **A new reader misses the hint at the top** → each card's *Note* and *OK* name the action; the hint still shows under *Your notes*.
+- **A pin edit of a sent note can leave two unsent notes on one part** → both still send; *Note* never starts a second open note.
+
+## UX
+
+### Use-case brief
+A person reviews a plan, a build, or other work on a review page, often on a phone, and may note the same part again after a revision. Done = *Why* shows high on the first screen, and a part takes a new note after a send. Mirrors today's review page.
+
+### Flow
+Open the page → read → *Note* on a card → *Save* → *Send notes* → the plan comes back revised → *Note* on the same card → an empty note → *Save* → *Send notes* sends only the new note.
+
+### Hierarchy
+The page's words are the content; the top is a name, one line, and one row of links. *Send notes* stays the bar's one primary action.
+
+### Review
+- The short top: review.html#/1
+- Many notes on one part: review.html#/2
+
+### Components
+Existing kit parts only: `.muted`, `.jump`, `.hint`, `.pin`, `.add`, the verdict's *Note*.
+
+<!-- end design.md -->
+<!-- file tasks.md utf8 1184 -->
+## 1. Review kit
+
+- [x] 1.1 Short top in `review-kit.html`: `h1`, the `.kind` · `.note-count` line, a one-row `.jump`; the `.eyebrow` goes, the preview writes its name into `.kind`; the hint moves into `#notes` and shows only while it is empty. Verify the short-top test in `review.test.mjs` and the preview test.
+- [x] 1.2 Many notes on one part: the `-more-k` id in `where()`, `find()` and `nextId()`; `noteFor()` for *Note*, *+ Note* and the chip; *+ Note* beside a sent pin. Verify the two new tests in `review-browser.test.mjs`.
+
+## 2. Tests
+
+- [x] 2.1 Point the browser tests that read `header .hint` or `.eyebrow` at the new places, and add a phone check that *Why* starts in the top third. Verify `node --test scripts/tests/review*.test.mjs scripts/tests/preview-review.test.mjs` with `CHROME_PATH` set.
+
+## 3. Docs and release
+
+- [x] 3.1 `wiki/review-pages.md`: the top and the sent-note rule. Verify `node scripts/check-payload-links.mjs`.
+- [x] 3.2 Add the `## Next (minor)` entry to `CHANGELOG.md`, and raise the loop module's `VERSION` to 3.5.0. Verify `node scripts/check-module-versions.mjs`.
+
+## 4. Checks
+
+- [x] 4.1 Run `node scripts/payload-checks.mjs`; it passes.
+
+<!-- end tasks.md -->
+<!-- file specs/review-pages/spec.md utf8 1630 -->
+## ADDED Requirements
+
+### Requirement: A review page's top is short
+
+A review page SHALL open with only its name, one line with its kind and note count, and one row of section links, then its first section. The section links SHALL stay on one row, scrolling sideways when the screen is too narrow. The how-to hint SHALL NOT sit at the top; it SHALL show in the notes section while it holds no notes.
+
+#### Scenario: Opening a plan on a phone
+
+- **WHEN** a person opens a plan's review page on a phone 390 px wide
+- **THEN** the *Why* heading shows within the top third of the screen, under the name, *Review · 0 notes* and one row of links
+
+#### Scenario: No notes yet
+
+- **WHEN** the person scrolls to *Your notes* before adding one
+- **THEN** it says there are no notes yet, with the hint on how to add one
+
+### Requirement: A sent note never blocks a new note
+
+A part of a review page SHALL take a new note whenever every note on it is sent. A sent note SHALL stay on its part, marked sent, and SHALL NOT be sent again unless its text changes. A part's *Note* button SHALL open the part's unsent note or draft when it has one, and SHALL NOT start a second one.
+
+#### Scenario: Noting the same card in the next version
+
+- **WHEN** a person sent a note on card 2, the plan comes back revised, and they tap *Note* on card 2
+- **THEN** an empty note opens, saving it adds a second note on card 2, and *Send notes* sends only the new note
+
+#### Scenario: A note not yet sent
+
+- **WHEN** card 2 holds a saved note that is not yet sent and the person taps *Note* on it
+- **THEN** that note opens to edit, and no second note is made
+
+<!-- end specs/review-pages/spec.md -->
+<!-- file .openspec.yaml utf8 40 fence=~~~ -->
+~~~yaml
+schema: spec-driven
+created: 2026-11-24
+
+~~~
+<!-- end .openspec.yaml -->
+<!-- file review.html utf8 113435 fence=~~~ -->
+~~~html
 <!-- wong-review:3 -->
 <!doctype html>
 <!--
@@ -12,7 +186,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · review-kit-short-top-more-notes</title>
+<title>Review · 2026-11-24-review-kit-short-top-more-notes</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -454,10 +628,10 @@
 })();
 </script>
 </head>
-<body data-change="review-kit-short-top-more-notes" data-own-back>
+<body data-change="2026-11-24-review-kit-short-top-more-notes" data-own-back>
 <main>
 <header>
-  <h1>review-kit-short-top-more-notes</h1>
+  <h1>2026-11-24-review-kit-short-top-more-notes</h1>
   <p class="muted"><span class="kind">Review</span> · <span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p id="script-error" role="alert" hidden></p>
@@ -496,6 +670,7 @@
 <li class="decision card" id="decision-4" data-note="decision-4" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-24</p>Assumed: a finished build's page keeps its name and <i>Built: look, then publish?</i> on the same short layout, because those words say what it asks.</li>
 <li class="decision card" id="decision-5" data-note="decision-5" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-24</p>Assumed: an unsent note or draft on a part is edited in place, not doubled, because two open notes on one part would split one thought; only a sent note makes room for a new one.</li>
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-24</p>Assumed: editing a sent note's text from its pin still works and sends it again, because that was the only way before and someone may rely on it.</li>
+<li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-24</p>Assumed: archived at ship; branch CI and main's re-run payload check passed, and every task is ticked.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -1764,3 +1939,6 @@
 </script>
 </body>
 </html>
+
+~~~
+<!-- end review.html -->
