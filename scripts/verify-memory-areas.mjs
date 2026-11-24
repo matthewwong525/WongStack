@@ -21,11 +21,11 @@ const CASES = [
 const sha256 = body => createHash('sha256').update(body).digest('hex');
 
 function childEnv(sandbox, sourceRoot) {
-  // Do not inherit credentials, service settings, git routing or Node startup hooks. The fixture has no profile of
-  // its own, so it reads the source's: its areas map, and a store it can not reach.
-  const profile = join(sourceRoot, '.agents/memory/profile.mjs');
+  // Do not inherit credentials, service settings, git routing or Node startup hooks. The fixture reads the source's
+  // parts: its areas map, and a store it can not reach.
+  const parts = join(sourceRoot, '.agents/skills/memory/scripts/lib/parts.mjs');
   return {
-    ...(existsSync(profile) ? { WONG_MEMORY_PROFILE: profile } : {}),
+    ...(existsSync(parts) ? { WONG_MEMORY_PARTS: parts } : {}),
     PATH: process.env.PATH,
     LANG: 'C.UTF-8',
     GIT_CONFIG_NOSYSTEM: '1',

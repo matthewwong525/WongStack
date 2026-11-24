@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parsePacked } from '../../.claude/plugins/loop/scripts/archive.mjs';
+import { parsePacked } from '../../.claude/loop/scripts/archive.mjs';
 import { parseCli, usageError } from '../../.claude/skills/memory/scripts/lib/cli.mjs';
 import { readSpec, rewrittenRequirements, sameJourney, scenarioDigest } from '../../.claude/skills/verify/scripts/kept-promises.mjs';
 import { changedFiles, git, isSettings } from './check-settings.mjs';

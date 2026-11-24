@@ -28,12 +28,12 @@ test('a command removed from the workflow, or moved to another condition, is nam
   const always = workflow.replace(/( {6}- name: Lint scripts\n) {8}if: [^\n]*\n/, '$1');
   assert.deepEqual(workflowDrift(always), ['lint: listed as code, but the workflow runs it always']);
   const conditional = workflow.replace('      - name: Release checks\n', "      - name: Release checks\n        if: ${{ steps.scope.outputs.docs_only != 'true' }}\n");
-  assert.equal(workflowDrift(conditional).length, 8, 'all eight release checks drift together');
+  assert.equal(workflowDrift(conditional).length, 7, 'all seven release checks drift together');
 });
 
 test('the changed paths pick the steps by the workflow\'s rule', () => {
-  assert.deepEqual(names(selectSteps()), ['lint', 'shellcheck', 'script-tests', 'payload-links', 'openspec-config', 'retired-names', 'attachments', 'module-versions', 'archive', 'specs', 'context-budget']);
-  assert.deepEqual(names(selectSteps({ docsOnly: true })), ['private-names', 'install-cost', 'payload-links', 'openspec-config', 'retired-names', 'attachments', 'module-versions', 'archive', 'specs', 'context-budget']);
+  assert.deepEqual(names(selectSteps()), ['lint', 'shellcheck', 'script-tests', 'payload-links', 'openspec-config', 'retired-names', 'attachments', 'archive', 'specs', 'context-budget']);
+  assert.deepEqual(names(selectSteps({ docsOnly: true })), ['private-names', 'install-cost', 'payload-links', 'openspec-config', 'retired-names', 'attachments', 'archive', 'specs', 'context-budget']);
   assert.deepEqual(names(selectSteps({ docsOnly: true, only: ['lint', 'specs'] })), ['lint', 'specs']);
 });
 
@@ -53,8 +53,8 @@ function fixture(t, { deps = true } = {}) {
     if (mode) chmodSync(join(root, path), mode);
   };
   const stub = name => `console.log('${name} ran');\nif (process.env.FAIL === '${name}') { console.error('${name}: a problem'); process.exit(1); }\n`;
-  for (const name of ['check-payload-links', 'check-openspec-config', 'check-retired-names', 'check-attachments', 'check-module-versions', 'measure-context']) write(`scripts/${name}.mjs`, stub(name));
-  write('.agents/plugins/loop/scripts/archive.mjs', stub('archive'));
+  for (const name of ['check-payload-links', 'check-openspec-config', 'check-retired-names', 'check-attachments', 'measure-context']) write(`scripts/${name}.mjs`, stub(name));
+  write('.agents/loop/scripts/archive.mjs', stub('archive'));
   write('scripts/tests/private-names.test.mjs', "import test from 'node:test';\ntest('no private name', () => {});\n");
   write('scripts/tests/install-cost.test.mjs', "import test from 'node:test';\ntest('one cost', () => {});\n");
   write('scripts/tests/package.json', '{}\n');

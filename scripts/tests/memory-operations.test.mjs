@@ -6,7 +6,7 @@ import { callMemory, memoryOperations } from '../../.agents/memory/operations.mj
 import { selectOperations } from '../../.agents/memory/lib/operations.mjs';
 import { readArguments, READ_OPTIONS } from '../../.agents/skills/memory/scripts/lib/read-options.mjs';
 import { memory, node, PROFILE, rows, setup, writeJsonFile } from './fixtures/memory/harness.mjs';
-import { loadDigest, olderNote } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
+import { loadDigest, olderNote } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { tempDir } from './fixtures/memory/harness.mjs';
 
 // operations.mjs sits in WongStack's extras, beside the plugin the harness runs scripts from.
@@ -97,9 +97,9 @@ test('preserves memory-key redaction from the primary .env, bounds text and hide
 
 test('the memory transport refuses redirects before a credential can reach another origin', async t => {
   const { repo } = await setup(t);
-  const { openStore } = await import('../../.agents/plugins/memory/scripts/lib/store.mjs');
-  const saved = process.env.WONG_MEMORY_PROFILE; process.env.WONG_MEMORY_PROFILE = PROFILE;
-  t.after(() => { if (saved === undefined) delete process.env.WONG_MEMORY_PROFILE; else process.env.WONG_MEMORY_PROFILE = saved; });
+  const { openStore } = await import('../../.agents/skills/memory/scripts/lib/store.mjs');
+  const saved = process.env.WONG_MEMORY_PARTS; process.env.WONG_MEMORY_PARTS = PROFILE;
+  t.after(() => { if (saved === undefined) delete process.env.WONG_MEMORY_PARTS; else process.env.WONG_MEMORY_PARTS = saved; });
   let called = 0;
   t.mock.method(globalThis, 'fetch', async (_url, init) => { called++; assert.equal(init.redirect, 'manual'); return new Response(null, { status: 302, headers: { Location: 'https://attacker.example.com' } }); });
   const ctx = { root: repo.root, primaryRoot: repo.root, machineId: repo.machineId, stateDir: repo.stateDir, author: 'dev@example.com' };

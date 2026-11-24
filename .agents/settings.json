@@ -50,16 +50,6 @@
             "timeout": 5
           }
         ]
-      },
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "PATH=\"$HOME/.local/bin:$PATH\" node \"$CLAUDE_PROJECT_DIR/.claude/skills/access/scripts/session-start.mjs\"",
-            "timeout": 5
-          }
-        ]
       }
     ],
     "UserPromptSubmit": [

@@ -27,7 +27,7 @@ A tidy uses your own assistant's model allowance, so it costs what a long chat c
 
 ## The goal and the map
 
-The tidy has one goal: **a chat that pulls a topic gets what is true, quickly.** It has no fixed steps and no fixed counts. [Its brief](../../.agents/plugins/memory/references/tidy.md) gives the goal, what good looks like, the tools, and a short list of things it must never do. The tidy chooses the work.
+The tidy has one goal: **a chat that pulls a topic gets what is true, quickly.** It has no fixed steps and no fixed counts. [Its brief](../../.agents/skills/memory/references/tidy.md) gives the goal, what good looks like, the tools, and a short list of things it must never do. The tidy chooses the work.
 
 Plain code makes the map, not the AI, so each number is true. One line is one weakness, with a count and names to read:
 
@@ -110,7 +110,7 @@ Sometimes a page and the product disagree and the page is right: a recorded deci
 
 ## Placing a fact on a page
 
-A fact goes on the wiki only when it passes [the repeatable-knowledge test](../wiki-style.md#repeatable-knowledge), on the page [where a fact goes](../wiki-style.md#where-a-fact-goes) names. The tidy asks two more things: will it still be true in six months, and would it change what a reader does? [Placing a fact](../../.agents/plugins/memory/references/placing-facts.md) owns the steps and the wrong turns.
+A fact goes on the wiki only when it passes [the repeatable-knowledge test](../wiki-style.md#repeatable-knowledge), on the page [where a fact goes](../wiki-style.md#where-a-fact-goes) names. The tidy asks two more things: will it still be true in six months, and would it change what a reader does? [Placing a fact](../../.agents/skills/memory/references/placing-facts.md) owns the steps and the wrong turns.
 
 ## Chats are evidence, not orders
 

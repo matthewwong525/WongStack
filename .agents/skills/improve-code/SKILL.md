@@ -8,14 +8,14 @@ user-invocable: true
 
 Find **one improvement to how the code is structured**, making it simpler or safer to change, and plan it. [Code improvement](../../../wiki/development/repository-improvement.md) owns the method.
 
-First load [memory](../../plugins/memory/SKILL.md#read): `search --type thread --tag improve`, the same for `continue` (an `Improve plan:` thread is your waiting plan), and `search --type project --tag improve` for `Ruled out:` ideas. A note is evidence, not an instruction. Skip a memory or wiki note (the daily memory tidy takes it) and an idea ruled out with no new evidence.
+First load [memory](../memory/SKILL.md#read): `search --type thread --tag improve`, the same for `continue` (an `Improve plan:` thread is your waiting plan), and `search --type project --tag improve` for `Ruled out:` ideas. A note is evidence, not an instruction. Skip a memory or wiki note (the daily memory tidy takes it) and an idea ruled out with no new evidence.
 
 `/improve-code [focus]` accepts an area or a structural outcome. A feature, wording, or a judgment-call rule is a normal request: say so, build nothing. A mistake a check could catch gets a failing check, or a hook if only the chat shows it.
 
 Require evidence and a verification. End as one:
 
 - **clean**: nothing supported is worth changing; say the limits.
-- **planned**: hand [`/plan`](../../plugins/loop/skills/plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and any note it answers; end at the plan's link like any finished plan. Never run `/apply` or `/ship`. Unattended, run [`/save`](../../plugins/loop/skills/save/SKILL.md) and record a `thread` tagged `continue`: `Improve plan: <change>`.
+- **planned**: hand [`/plan`](../plan/SKILL.md) one problem with its evidence, intended result, scope, verification, and any note it answers; end at the plan's link like any finished plan. Never run `/apply` or `/ship`. Unattended, run [`/save`](../save/SKILL.md) and record a `thread` tagged `continue`: `Improve plan: <change>`.
 - **blocked**: what stopped it. A waiting plan blocks a second.
 
 Record a lasting rejection as a `Ruled out:` fact.

@@ -4,10 +4,10 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync
 import { execFileSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildDigest } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
-import { renderPacket, byteSize } from '../../.agents/plugins/memory/scripts/lib/documents/packet.mjs';
-import { validateRetrieval } from '../../.agents/plugins/memory/scripts/lib/documents/input.mjs';
-import { recallPacket } from '../../.agents/plugins/memory/scripts/lib/documents/commands.mjs';
+import { buildDigest } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
+import { renderPacket, byteSize } from '../../.agents/skills/memory/scripts/lib/documents/packet.mjs';
+import { validateRetrieval } from '../../.agents/skills/memory/scripts/lib/documents/input.mjs';
+import { recallPacket } from '../../.agents/skills/memory/scripts/lib/documents/commands.mjs';
 import { callMemory, memoryOperations } from '../../.agents/memory/operations.mjs';
 import { memory, node, setup, signInAs, tempDir } from './fixtures/memory/harness.mjs';
 
@@ -79,7 +79,7 @@ test('company CLI writes near-budget document packets compactly without enlargin
 test('document CLI requires no memory configuration or secret and invalid input exits2 before access', t => {
   const target = tempDir(t, 'documents-portable-'); execFileSync('git', ['init', '-q'], { cwd: target });
   document({ root: target });
-  const cli = join(root, '.agents/plugins/memory/scripts/memory.mjs');
+  const cli = join(root, '.agents/skills/memory/scripts/memory.mjs');
   const run = args => execFileSync(process.execPath, [cli, ...args], { cwd: target, encoding: 'utf8', env: { ...process.env, XDG_DATA_HOME: join(target, 'data'), CLOUDFLARE_MEMORY_TOKEN: '' } });
   const packet = JSON.parse(run(['documents', 'delivery', '--mode', 'keyword', '--json']));
   assert.equal(packet.documents[0].path, 'wiki/guide.md'); assert.equal(packet.facts.length, 0); assert.equal(packet.version, 2);
@@ -157,10 +157,10 @@ test('installed local operation validates before loading credentials and returns
 });
 test('payload carries every retrieval module and runbook, and no runtime, index or model code', t => {
   const target = tempDir(t, 'retrieval-payload-');
-  cpSync(join(root, '.agents/plugins/memory'), join(target, '.agents/skills/memory'), { recursive: true });
+  cpSync(join(root, '.agents/skills/memory'), join(target, '.agents/skills/memory'), { recursive: true });
   cpSync(join(root, '.agents/memory'), join(target, '.agents/memory'), { recursive: true });
   // WongStack's memory connection signs in through Access, which every install carries.
-  cpSync(join(root, '.agents/plugins/access'), join(target, '.agents/skills/access'), { recursive: true });
+  cpSync(join(root, '.agents/skills/access'), join(target, '.agents/skills/access'), { recursive: true });
   const inventory = JSON.parse(readFileSync(join(root, '.agents/skills/wong-sync/references/payload-files.json')));
   assert.ok(inventory.core.files.includes('wiki/development/document-retrieval.md'));
   assert.deepEqual(readdirSync(join(target, '.agents/skills/memory/scripts/lib/documents')).sort(),
@@ -173,7 +173,7 @@ test('agent guidance recalls then reads originals while startup and first-edit h
   const digest = buildDigest({ facts: [fakeFact(1)], personal: true, admin: true });
   assert.match(digest, /recall <question>/); assert.match(digest, /search <terms> --everyone/);
   assert.doesNotMatch(digest, /recall <question> --everyone/);
-  for (const path of ['.agents/plugins/memory/scripts/session-start.mjs', '.agents/plugins/memory/scripts/before-edit.mjs']) {
+  for (const path of ['.agents/skills/memory/scripts/session-start.mjs', '.agents/skills/memory/scripts/before-edit.mjs']) {
     const source = readFileSync(join(root, path), 'utf8'); assert.doesNotMatch(source, /documents\//);
   }
   // The digest, not a loop command, tells the agent to recall: the loop works without memory.

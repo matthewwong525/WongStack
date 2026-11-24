@@ -138,44 +138,16 @@ The normal app scaffold and stack pack SHALL distribute the contract registry, d
 - **WHEN** a target updates company API support around its existing business app
 - **THEN** its own code and checks are preserved and only reviewed selected actions enter discovery
 
-### Requirement: A module's docs link nothing outside the module by a relative path
+### Requirement: WongStack ships as one stack
 
-Every Markdown file in a module SHALL link only files inside that module by a relative path; a page outside it SHALL be linked by its full web address. What a module needs to act SHALL live in the module itself, and WongStack's wiki SHALL link down to the module for it, not hold the rule the module follows. A wiki heading whose text moved into a module SHALL stay, pointing down, so links from installs keep working.
+The source and every install SHALL hold each command as one real folder in the skills folder, with no plugin folder, no folder link, and no module that can be added alone. WongStack SHALL have one version, and the project's own settings SHALL be the only list of its hooks, each hook running once. No shipped code SHALL reach another part through a profile or slot file; it SHALL call that part directly. An update SHALL move an older install to this layout, keep every file the install owns, and leave no old module file behind.
 
-#### Scenario: A module installed alone
+#### Scenario: A chat in a new workspace
 
-- **WHEN** a module is copied alone into a project with no WongStack wiki
-- **THEN** every relative link in its Markdown opens a file in that project, and the module's test fails on any that would not
+- **WHEN** a person opens a chat in a new workspace of an install, trusted folder or not, and asks for a schedule
+- **THEN** the memory digest and Daily's start check run once each, `/schedule` loads once by its bare name, and no plugin or module is listed
 
-#### Scenario: An old link to a moved heading
+#### Scenario: An older install updates
 
-- **WHEN** an install's own page links a WongStack wiki heading whose rule moved into a module
-- **THEN** the heading is still there and points to the module's page that now owns the rule
-
-### Requirement: Each module command loads in every chat of an install
-
-A WongStack install, from setup or an update, SHALL give each command a module keeps in its own `skills/<command>/` folder a top-level skill in the repo's skills folder, so the command loads by its bare name in every chat, also where the host loads no plugin, such as a folder the person did not trust. The command SHALL load once. Its other files SHALL stay inside the module. Every shipped page, guide, and message SHALL name the command by its bare name, such as `/schedule`, never by the module's prefix. An update SHALL move an older install's command to its top-level place and keep the install's own edits. A project skill that already has the name SHALL be named in the update plan and kept; the install record's skill rename SHALL give WongStack's command another name.
-
-#### Scenario: A chat in an untrusted folder
-
-- **WHEN** a person opens a chat in a new Paseo workspace of an install and asks to make a schedule
-- **THEN** the install's `/schedule` loads and handles it, and Claude Code's own cloud schedules do not
-
-#### Scenario: A project with its own `shop` skill
-
-- **WHEN** an install that has its own `shop` skill takes the update
-- **THEN** the update plan names the clash, keeps the project's skill, and installs WongStack's command only under the name the install record gives it
-
-### Requirement: No module loads as a plugin
-
-The source and every install SHALL load no WongStack module as a plugin: no module folder SHALL hold a plugin manifest, and the root SHALL hold no plugin list. The project's own settings for each agent SHALL run each module's hooks, once each, so they run in every chat, also in a folder the person did not trust. Each command a module keeps in its own `skills/<command>/` folder SHALL load by its bare name as a top-level skill. An update SHALL move an older install off plugins: it SHALL remove the module plugin files, add the module hooks to the project's settings, turn off any module plugin the settings name, drop a hook the project added by hand that runs the same module script, and remove WongStack's module plugins from that computer's Codex. A Codex chat on a computer that still has them SHALL name the one command that removes them, and go on.
-
-#### Scenario: A chat in an untrusted folder
-
-- **WHEN** a person opens a new Claude Code chat in a Paseo workspace of an install the person never trusted
-- **THEN** the memory digest and Daily's start check run, Daily's stop check runs at the end of each reply, each hook runs once, `/schedule` loads once, and no module plugin is listed
-
-#### Scenario: An install that ran Daily's hooks by hand
-
-- **WHEN** an install whose settings run Daily's hooks by hand and turn Daily's plugin off takes the update
-- **THEN** its settings run each Daily hook once, name no module plugin, and keep every other hook it added
+- **WHEN** an install on 61.x, with its own Daily team page and an edit to a memory script, takes the update
+- **THEN** each command sits in its own skills folder, no profile, module version, setup guide, or module hook file is left, the team page is unchanged, and the script edit is kept or named as a clash

@@ -5,14 +5,14 @@ import { execFileSync } from 'node:child_process';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadAreas } from '../../../.agents/plugins/memory/scripts/lib/areas.mjs';
-import { FILES_LIMIT, filesBehind } from '../../../.agents/plugins/memory/scripts/lib/files.mjs';
-import { loadProfile } from '../../../.agents/plugins/memory/scripts/lib/store.mjs';
+import { loadAreas } from '../../../.agents/skills/memory/scripts/lib/areas.mjs';
+import { FILES_LIMIT, filesBehind } from '../../../.agents/skills/memory/scripts/lib/files.mjs';
+import { loadParts } from '../../../.agents/skills/memory/scripts/lib/store.mjs';
 
 const root = resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 const N = Number(process.argv[2]) || 60;
 const ctx = { root };
-const profile = await loadProfile(ctx);
+const profile = await loadParts();
 const areas = await loadAreas(ctx, profile);
 const STOP = new Set('the a an and or of to in on for with its it is are be can any your you from by at as that this then not no each one new own'.split(' '));
 const words = text => text.toLowerCase().split(/[^a-z0-9]+/).filter(word => word.length > 2 && !STOP.has(word));

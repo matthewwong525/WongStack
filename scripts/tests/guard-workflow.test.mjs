@@ -17,8 +17,8 @@ const GUARD_FILES = [
   '.github/scripts/test-file.mjs',
   '.agents/skills/memory/scripts/lib/cli.mjs',
   '.agents/skills/verify/scripts/kept-promises.mjs',
-  '.agents/plugins/loop/scripts/archive.mjs',
-  '.agents/plugins/loop/scripts/lib/cli.mjs',
+  '.agents/loop/scripts/archive.mjs',
+  '.agents/loop/scripts/lib/cli.mjs',
 ];
 
 // Built at run time, so this file never holds a marker the check would flag.

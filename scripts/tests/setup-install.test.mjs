@@ -35,14 +35,12 @@ test('an install into an empty folder holds the payload, the links, the hubs, th
   assert.equal(readlinkSync(join(target, 'CLAUDE.md')), 'AGENTS.md');
   assert.ok(lstatSync(join(target, '.agents')).isDirectory());
   assert.ok(existsSync(join(target, '.claude/skills/save/SKILL.md')), 'skills read through the link');
-  assert.ok(lstatSync(join(target, '.agents/skills/memory')).isDirectory(), 'the memory module is a real folder');
+  assert.ok(lstatSync(join(target, '.agents/skills/memory')).isDirectory(), 'memory is a real folder');
   assert.ok(existsSync(join(target, '.claude/skills/memory/scripts/memory.mjs')));
-  assert.ok(!existsSync(join(target, '.agents/plugins')), 'no source-only module folder');
   assert.deepEqual(report.links, ['.claude', '.codex', 'CLAUDE.md']);
   assert.ok(existsSync(join(target, '.claude/skills/daily/SKILL.md')), 'the daily skill ships');
-  assert.match(readFileSync(join(target, '.claude/skills/schedule/SKILL.md'), 'utf8'), /^# \/schedule$/m, 'a module command loads in every chat');
-  assert.ok(!existsSync(join(target, '.claude/skills/daily/skills/schedule/SKILL.md')), 'and loads once');
-  assert.ok(existsSync(join(target, '.claude/skills/daily/skills/schedule/scripts/schedule.mjs')), 'its scripts stay in the module');
+  assert.match(readFileSync(join(target, '.claude/skills/schedule/SKILL.md'), 'utf8'), /^# \/schedule$/m, 'the schedule command ships');
+  assert.ok(existsSync(join(target, '.claude/skills/schedule/scripts/schedule.mjs')), 'with its scripts');
   assert.match(readFileSync(join(target, 'AGENTS.md'), 'utf8'), /`\/schedule`/, 'the rules name it /schedule');
   assert.ok(!existsSync(join(target, '.claude/skills/daily/team.md')) &&!existsSync(join(target, '.claude/skills/daily/people')), 'with no steps');
   assert.ok(existsSync(join(target, '.env.example')));
@@ -76,13 +74,13 @@ test('the program writes every path the manifest says setup seeds, from a templa
   for (const template of Object.values(SEEDS)) {
     assert.ok(existsSync(join(repo, '.agents/skills/wong-setup/references/seed', template)), template);
   }
-  assert.ok(existsSync(join(repo, '.agents/plugins/loop/references/openspec-config.yaml')), 'the plans rules ship with the loop');
+  assert.ok(existsSync(join(repo, '.agents/loop/references/openspec-config.yaml')), 'the plans rules ship with the loop');
   assert.deepEqual(targetFiles(Object.keys(SEEDS), manifest), [], 'a seeded file is not payload');
 });
 
 test("the daily skill ships without the team's or anyone's steps", () => {
-  const daily = ['SKILL.md', 'scripts/daily.mjs', 'team.md', 'people/jo-lee.md', 'people/sam.md'].map(file => `.agents/plugins/daily/${file}`);
-  assert.deepEqual(targetFiles(daily, manifest), ['.agents/plugins/daily/SKILL.md', '.agents/plugins/daily/scripts/daily.mjs']);
+  const daily = ['SKILL.md', 'scripts/daily.mjs', 'team.md', 'people/jo-lee.md', 'people/sam.md'].map(file => `.agents/skills/daily/${file}`);
+  assert.deepEqual(targetFiles(daily, manifest), ['.agents/skills/daily/SKILL.md', '.agents/skills/daily/scripts/daily.mjs']);
 });
 
 test('a folder with files, or with saved history, is refused and left as it was', (t) => {
@@ -126,18 +124,17 @@ test('it never writes over a file, and a stop removes everything it wrote', (t) 
   rmSync(`${target}-2`, { recursive: true, force: true });
 });
 
-test('a mapped module folder installs as a real folder at its install path, its links moved with it', (t) => {
+test('a command installs as a real skill folder, its links unchanged and a folder link left behind', (t) => {
   const source = folder(t);
-  const inventory = { core: { files: ['paseo.json', 'wiki/page.md'], mapped: { '.claude/plugins/memory': '.claude/skills/memory' } } };
+  const inventory = { core: { files: ['paseo.json', 'wiki/page.md'], skillDirs: ['memory'] } };
   const files = { [INVENTORY]: JSON.stringify(inventory), 'paseo.json': '{}', '.env.example': '', VERSION: '1.0.0\n',
-    '.agents/plugins/memory/scripts/memory.mjs': 'memory\n', '.agents/plugins/memory/SKILL.md': '[sync](../../skills/wong-sync/SKILL.md)\n',
-    'wiki/page.md': '[memory](../.agents/plugins/memory/SKILL.md)\n', 'AGENTS.md': '<!-- WONG-STACK:BEGIN -->\nrules\n<!-- WONG-STACK:END -->\n' };
+    '.agents/skills/memory/scripts/memory.mjs': 'memory\n', '.agents/skills/memory/SKILL.md': '[sync](../wong-sync/SKILL.md)\n',
+    'wiki/page.md': '[memory](../.agents/skills/memory/SKILL.md)\n', 'AGENTS.md': '<!-- WONG-STACK:BEGIN -->\nrules\n<!-- WONG-STACK:END -->\n' };
   for (const [path, text] of Object.entries(files)) {
     mkdirSync(dirname(join(source, path)), { recursive: true });
     writeFileSync(join(source, path), text);
   }
-  fs.symlinkSync('../plugins/memory', join(source, '.agents/skills/memory'));
-  fs.symlinkSync('../../skills', join(source, '.agents/plugins/memory/stray'));
+  fs.symlinkSync('../../skills', join(source, '.agents/skills/memory/stray'));
   execFileSync('git', ['init', '-q', source]);
   execFileSync('git', ['-C', source, 'add', '-A']);
   execFileSync('git', ['-C', source, '-c', 'user.name=A', '-c', 'user.email=a@example.com', 'commit', '-q', '-m', 'source']);
@@ -149,7 +146,6 @@ test('a mapped module folder installs as a real folder at its install path, its 
   assert.equal(readFileSync(join(target, '.agents/skills/memory/scripts/memory.mjs'), 'utf8'), 'memory\n');
   assert.equal(readFileSync(join(target, '.agents/skills/memory/SKILL.md'), 'utf8'), '[sync](../wong-sync/SKILL.md)\n');
   assert.equal(readFileSync(join(target, 'wiki/page.md'), 'utf8'), '[memory](../.agents/skills/memory/SKILL.md)\n');
-  assert.ok(!existsSync(join(target, '.agents/plugins')), 'the source folder stays behind');
   assert.ok(!existsSync(join(target, '.agents/skills/memory/stray')), 'a stray folder link stays behind');
 });
 

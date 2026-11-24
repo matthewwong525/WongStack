@@ -13,7 +13,7 @@ Every install starts empty and takes **every** category.
 
 ## The agent folder
 
-Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. `mapped` installs each module folder under `.claude/plugins/` as a real skill folder, such as [the loop](../../../plugins/loop/README.md)'s commands as `.claude/skills/<name>/` and the browser, Daily and memory each as one folder, `.claude/skills/<name>/`, with its nested commands inside it in `skills/`; the longest entry wins. A file entry moves one nested command's `SKILL.md` to `.claude/skills/<command>/`, so it loads in every chat as `/<command>`. Modules load as plain skills, with no plugin, and the project's settings run their hooks. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
+Logical `.claude/` paths live in real `.agents/`, linked as `.claude` and `.codex`. The source tree is the install tree: each command, such as `/plan` or `/memory`, is a real folder in `.claude/skills/<name>/`, and [the loop](../../../../wiki/development/the-change-loop.md)'s shared files are in `.claude/loop/`. Every skill loads as a plain skill, with no plugin, and the project's settings run every hook. [Setup's install program](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/scripts/install.mjs) makes them. Hooks and config serve both agents; Codex config enables Default-mode questions. Codex loads `.agents/skills` natively, once.
 
 Real `AGENTS.md` holds `WONG-STACK`; `CLAUDE.md` links to it. Codex and Claude read their respective names; the inventory block remains `CLAUDE.md`. Sync preserves every target-owned line:
 
@@ -35,7 +35,7 @@ Setup also copies the values-blank `.env.example`, outside `payload-files.json`,
 
 Skill mappings use logical `.claude/` paths: string arrays map names to themselves; objects or source/local pairs preserve renames. New skills keep upstream names until another is recorded.
 
-Read source symlinks one Git hop. Folder, chained or broken links are no unit; real files win at the same path. Copy a mapped unit or the marked `CLAUDE.md` block by `node <source path>/.claude/skills/wong-sync/scripts/install-path.mjs --source <source path> <sourcePath> > <targetPath>`; links point at install paths.
+Read source symlinks one Git hop. Folder, chained or broken links are no unit; real files win at the same path. Copy the marked `CLAUDE.md` block, or a unit of an older release's `mapped` folder, by `node <source path>/.claude/skills/wong-sync/scripts/install-path.mjs --source <source path> <sourcePath> > <targetPath>`; links point at install paths.
 
 Compare Git blobs, limiting `CLAUDE.md` to the marked block. Upstream units are `added|modified|removed`; target classes are `missing`, `installed-equivalent` (recorded source), `latest-equivalent` (refreshed source), or protected `locally-adapted` (neither).
 
@@ -52,9 +52,9 @@ Before advancing the record, [`merge-check.mjs`](../scripts/merge-check.mjs) wit
 
 **improve-code** ships the [improvement brief](../../../../wiki/development/repository-improvement.md).
 
-**save/ship** ship [`checkpoint.mjs`](../../../plugins/loop/skills/save/scripts/checkpoint.mjs) and [`ship.mjs`](../../../plugins/loop/skills/ship/scripts/ship.mjs) for checkpoint/prepare/finish. Source payload/session-measurement scripts stay meta-only.
+**save/ship** ship [`checkpoint.mjs`](../../save/scripts/checkpoint.mjs) and [`ship.mjs`](../../ship/scripts/ship.mjs) for checkpoint/prepare/finish. Source payload/session-measurement scripts stay meta-only.
 
-**plan** ships its builder, [kit](../../../plugins/loop/skills/plan/references/review-kit.html), [CLI contract](../../../plugins/loop/skills/plan/references/openspec-cli.md) and [drawing guide](../../../plugins/loop/skills/plan/references/drawings.md). Build/rebuild standalone `review.html` from `proposal.md` alone, bundling the viewer. Cited owner pages must ship; the payload-link check enforces closure.
+**plan** ships its builder, [kit](../../plan/references/review-kit.html), [CLI contract](../../plan/references/openspec-cli.md) and [drawing guide](../../plan/references/drawings.md). Build/rebuild standalone `review.html` from `proposal.md` alone, bundling the viewer. Cited owner pages must ship; the payload-link check enforces closure.
 
 ### Planning an update
 
@@ -68,7 +68,7 @@ Add these report instructions to each sync's explore/plan handoff, in order, ver
 
 ## The memory store and its hooks
 
-**memory** is [a module](../../../plugins/memory/SKILL.md) with its [writing bar](../../../plugins/memory/references/writing-facts.md); [`.claude/memory/`](../../../memory/profile.mjs) holds WongStack's profile, D1 store, and migrations. [Retrieval](../../../../wiki/development/document-retrieval.md) ships fallback and pinned setup metadata, never caches. Merge hooks into target settings/hooks, never replace; Codex asks once to trust them. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require an admin `memory.mjs migrate` after merge/deploy. Machine ownership needs trusted replacement credentials; old private history stays unassigned. [Memory](../../../../wiki/development/memory.md) owns other details.
+**memory** is [a skill](../../memory/SKILL.md) with its [writing bar](../../memory/references/writing-facts.md); [`.claude/memory/`](../../../memory/areas.json) holds WongStack's D1 store, migrations, and code areas. [Retrieval](../../../../wiki/development/document-retrieval.md) ships fallback and pinned setup metadata, never caches. Merge hooks into target settings/hooks, never replace; Codex asks once to trust them. Use [setup's runbook](https://github.com/matthewwong525/WongStack/blob/main/.agents/skills/wong-setup/references/cloudflare.md#4b-the-memory-store). Added migrations require an admin `memory.mjs migrate` after merge/deploy. Machine ownership needs trusted replacement credentials; old private history stays unassigned. [Memory](../../../../wiki/development/memory.md) owns other details.
 
 ## The Paseo project file
 
@@ -90,9 +90,9 @@ The [welcome](../../../../wiki/stack/mini-apps.md) offers a first app/guide remo
 
 ## Schedules
 
-[Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `/schedule` inside Daily's folder, its host references, and Node helpers; no cloud runner/bootstrap/model setup.
+[Host schedules](../../../../wiki/stack/host-schedules.md) live in the company app, on its clock. Core ships `/schedule` in its own folder, its host references, and Node helpers; no cloud runner/bootstrap/model setup.
 
-An install owns its `.agents/daily/`, except WongStack's [profile](../../../daily/profile.mjs), the one shipped file there; [`.claude/inbox/`](../../../inbox/schedules.mjs) ships WongStack's schedule store. It also owns old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records. Never add those live records to this inventory or overwrite them. Updates preserve deployed cloud resources and native host jobs, and [run and move none of the old data](../../../../wiki/stack/host-schedules.md#existing-schedules).
+An install owns its `.agents/daily/`; [`.claude/inbox/`](../../../inbox/schedules.mjs) ships WongStack's schedule store. It also owns `.claude/skills/daily/team.md`, `.claude/skills/daily/people/`, old `daily/team.md`, `daily/people/`, and old `schedules/<name>.json` records. Never add those live records to this inventory or overwrite them. Updates preserve deployed cloud resources and native host jobs, and [run and move none of the old data](../../../../wiki/stack/host-schedules.md#existing-schedules).
 
 ## OpenSpec integration and migration
 

@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { assemble, buildReview, chatCopy, notesHeader, planActions, planLink, previewActions, previewNotesHeader, REVIEW_IN_CHAT, REVIEW_ON_PAGE, WORK_IN_CHAT, workActions, workNotesHeader } from '../../.agents/skills/plan/scripts/build-review.mjs';
-import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
+import { pack } from '../../.agents/loop/scripts/archive.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { needs } from './fixtures/needs.mjs';
 
@@ -385,20 +385,6 @@ test('--link prints the file where no reply link can open', () => fixture(root =
     assert.equal(out.stdout, file);
     assert.equal(out.stderr, '');
   }
-  assert.equal(existsSync(join(home, '.wong-stack')), false, 'nothing was registered');
-}));
-
-// The module alone: a project with no reviewLink part gets the file, even where a reply link could open.
-test('--link prints the file when the profile has no reviewLink part', () => fixture(root => {
-  const home = join(dirname(root), 'home');
-  const bin = join(home, 'bin');
-  mkdirSync(bin, { recursive: true });
-  fakeTunnel(bin, join(home, 'calls.log'));
-  fakePaseo(bin, join(home, 'sent.jsonl'));
-  const env = { ...process.env, ...TUNNEL_ENV, REPLY_LINK: '', PASEO_AGENT_ID: 'a-chat', HOME: home, PATH: `${bin}:/usr/bin:/bin`, WONG_LOOP_PROFILE: join(home, 'none.mjs') };
-  const out = spawnSync(process.execPath, [builder, root, '--require-current', '--link'], { encoding: 'utf8', env, timeout: 30_000 });
-  assert.equal(out.status, 0, out.stderr);
-  assert.equal(out.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${copy}${REVIEW_IN_CHAT}\n`);
   assert.equal(existsSync(join(home, '.wong-stack')), false, 'nothing was registered');
 }));
 

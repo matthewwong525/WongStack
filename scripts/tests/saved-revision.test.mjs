@@ -8,8 +8,6 @@ import { gateSnapshot, savedRevision } from '../../.agents/skills/save/scripts/s
 
 import { HEAD, OLD, githubFixture } from '../fixtures/saved-revision.mjs';
 
-// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
-process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
 const receipt = { repository: 'team/repo', branch: 'work', headSha: HEAD, gateResult: 'SUCCESS', gateIdentity: gateSnapshot(
   [{ __typename: 'CheckRun', name: 'payload', detailsUrl: 'https://github.com/team/repo/actions/runs/10/job/1', status: 'COMPLETED', conclusion: 'SUCCESS' }],
   [{ id: 10, run_attempt: 1, workflow_id: 2, event: 'push', status: 'completed', conclusion: 'success' }],

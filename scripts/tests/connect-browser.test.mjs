@@ -7,13 +7,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { whereIs } from '../../.agents/skills/browser/scripts/connect-browser.mjs';
-import { VIEWER } from '../../.agents/skills/browser/skills/hand-over/scripts/view.mjs';
+import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { fakeViewer, fakeViewTools } from './fixtures/fake-view-tools.mjs';
 
 const HELPER = fileURLToPath(new URL('../../.agents/skills/browser/scripts/connect-browser.mjs', import.meta.url));
-const HAND_OVER = fileURLToPath(new URL('../../.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs', import.meta.url));
+const HAND_OVER = fileURLToPath(new URL('../../.agents/skills/hand-over/scripts/hand-over.mjs', import.meta.url));
 
 // A stand-in scripts/cf-secrets.mjs: it logs its argv and a digest of its stdin, never the stdin itself.
 const CF_SECRETS = `import { appendFileSync, readFileSync } from 'node:fs';
@@ -275,15 +275,15 @@ test('an app with no lock for keys yet takes the key through this computer\'s Cl
   nowhere(f, NOTION_KEY);
 });
 
-test('with no profile, take-key keeps the key in this computer\'s ignored .env alone, and refuses when .env is not ignored', t => {
+test('with no company app, take-key keeps the key in this computer\'s ignored .env alone, and refuses when .env is not ignored', t => {
   const f = onServer(t);
-  const none = { WONG_BROWSER_PROFILE: '' };
-  const refused = f.run(['take-key', '--tool', 'notion'], none);
+  rmSync(join(f.primary, 'scripts', 'company-api.mjs'));
+  const refused = f.run(['take-key', '--tool', 'notion']);
   assert.equal(refused.status, 1);
   assert.match(refused.stderr, /TOOL_NOTION is not saved: \.env is not git-ignored here/);
   assert.equal(existsSync(join(f.primary, '.env')), false);
   writeFileSync(join(f.primary, '.gitignore'), '.dev.vars\n.env\n');
-  const kept = f.run(['take-key', '--tool', 'notion'], none);
+  const kept = f.run(['take-key', '--tool', 'notion']);
   assert.equal(kept.stdout, 'TOOL_NOTION saved on this computer only, ends in …91c0, in .env\n', kept.stderr);
   assert.equal(readFileSync(join(f.primary, '.env'), 'utf8'), `TOOL_NOTION=${NOTION_KEY}\n`);
   assert.equal(readFileSync(join(f.primary, 'app', '.dev.vars'), 'utf8'), 'OTHER_KEY=kept\nTOOL_STRIPE=old\n', 'the app file is untouched');

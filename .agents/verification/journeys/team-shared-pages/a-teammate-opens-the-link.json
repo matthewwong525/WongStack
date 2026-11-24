@@ -11,7 +11,7 @@
   "writes": false,
   "sourcePaths": [
     ".agents/memory/areas.json",
-    ".agents/plugins/loop/skills/plan/scripts/build-review.mjs",
+    ".agents/skills/plan/scripts/build-review.mjs",
     ".agents/skills/page/SKILL.md",
     ".agents/skills/page/scripts/page.mjs",
     ".agents/skills/reply-link/scripts/lib/inbox.mjs",

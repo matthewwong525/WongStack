@@ -5,12 +5,12 @@ on:
   push:
     branches: ['**']
     paths:
-      - '.agents/plugins/memory/**'
+      - '.agents/skills/memory/**'
       - 'scripts/tests/document-portable.test.mjs'
       - '.github/workflows/document-search.yml'
   pull_request:
     paths:
-      - '.agents/plugins/memory/**'
+      - '.agents/skills/memory/**'
       - 'scripts/tests/document-portable.test.mjs'
       - '.github/workflows/document-search.yml'
   workflow_dispatch:

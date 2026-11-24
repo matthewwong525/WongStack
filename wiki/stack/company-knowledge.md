@@ -31,7 +31,7 @@ node .claude/memory/knowledge.mjs folders   # every folder's held saves and unsa
 
 Git reaches the app with the copy's own sign-in helper, [`company-git-credential.mjs`](../../scripts/company-git-credential.mjs), set for that address alone. No sign-in goes in a URL, a config file or an argument. When a chat starts, its folder sends its own held saves and moves to the newest version in the background. Its unsaved edits move with it, merged onto the newest pages. The chat names its unsaved pages and its clashes in one line each.
 
-- `/close` saves the chat's unsaved pages, then runs `remove`. A close that throws the work away runs `remove --discard` ([/close](../../.agents/plugins/loop/skills/close/SKILL.md)).
+- `/close` saves the chat's unsaved pages, then runs `remove`. A close that throws the work away runs `remove --discard` ([/close](../../.agents/skills/close/SKILL.md)).
 - A save not sent yet is never dropped: `remove` keeps its branch until `folders --send` sends it.
 - [The daily tidy](../development/wiki-dream.md#edits-left-behind) sends the saves a chat left behind.
 - The shared copy follows the published version when it holds no edits of its own.

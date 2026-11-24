@@ -33,43 +33,6 @@ Every fact the store returns SHALL carry its sources as links, and the plugin SH
 - **WHEN** a save names another person's session as a fact's source
 - **THEN** the store refuses that fact and stores nothing from the write
 
-### Requirement: A repo plugs into the plugin in one place
-
-A repo SHALL connect the plugin to its store, and add its own topics, step tags, current change, person page, and lookup extras, through one profile file. A topic pull SHALL let the profile add the repo's own records with that topic, such as notes, beside memory's facts. A missing optional part SHALL turn only its own feature off. A repo with no profile SHALL get one short line, once per chat, that has the AI ask the person whether to set memory up; it SHALL NOT start setup without a yes, and the chat SHALL go on.
-
-#### Scenario: A repo with no profile
-
-- **WHEN** memory's folder is in a repo with no memory profile, and a person opens a chat and later resumes it
-- **THEN** the AI asks once in that chat whether to set memory up, starts no setup unasked, and nothing fails
-
-### Requirement: Setup installs memory from one pasted message
-
-A person SHALL be able to add memory to any repo by pasting one message, which names the setup guide's web address, into any AI tool, with nothing installed first. Setup SHALL copy the memory folder into the repo as a real folder and write the repo's own parts outside it. It SHALL fill each missing part from what the repo has: a store the repo can already reach, else a server part in the repo's own app, else, with no app, an offer of WongStack's hosting setup. It SHALL ask before each step that costs money or makes something public. It SHALL NOT report memory ready until memory's own check passes against the store, including each role's limits. It SHALL then save its work in the repo and ask before it sends that work anywhere. It SHALL change nothing in a full WongStack install.
-
-#### Scenario: A repo with an app and no store
-
-- **WHEN** a person pastes the install message into an AI tool in a repo with its own app and database, no memory, and no WongStack
-- **THEN** the AI copies memory in as a real folder, adds the server part to that app, writes the profile, runs the check until it passes, asks before it deploys or creates a database, saves the work in the repo, and asks before it pushes
-
-#### Scenario: Setup in a WongStack install
-
-- **WHEN** the setup guide is followed in a full WongStack install
-- **THEN** it says memory already comes with each update, and changes nothing
-
-### Requirement: An install updates only the modules it has
-
-An update SHALL change only the module folders a repo already has, and SHALL leave the repo's own parts outside them as they are. A full WongStack install SHALL get memory's updates with WongStack's update. A repo with memory alone SHALL update memory with one pasted message. That update SHALL keep the repo's own edits inside the folder. When an edit and the new version change the same lines, it SHALL stop, name each such file, and change no file.
-
-#### Scenario: A local edit is kept
-
-- **WHEN** a repo with memory alone changed one line of a memory script, and a person pastes the update message
-- **THEN** the folder takes the new version with that line kept, memory's check runs, and nothing outside the folder changes
-
-#### Scenario: An edit that conflicts
-
-- **WHEN** the repo's edit and the new version change the same line
-- **THEN** the update stops, names that file, and the folder stays as it was
-
 ### Requirement: The plugin brings its own tidy
 
 The plugin SHALL bring the memory tidy, so any repo with memory can file facts onto their topic pages and check those pages. A repo SHALL add its own pages to check, and how edits publish, through its profile; with none, the tidy SHALL check the topic pages and leave its edits unpublished on a branch.
@@ -111,17 +74,3 @@ The first chat a person starts each day on a computer with memory SHALL start on
 
 - **WHEN** the plugin is newer than the store it reaches
 - **THEN** no daily tidy starts, the chat start says once that the store is older, and capture at chat end works as before
-
-### Requirement: Memory installs as one folder whose hooks the project runs
-
-The core memory SHALL ship as one folder that carries the list of its start-of-chat, message, before-edit, and end-of-chat hooks for Claude Code and Codex. Every repo that has memory, a full WongStack install or memory alone, SHALL hold it as a real folder in its skills folder and SHALL run those hooks from the project's own settings, never through a plugin, so they run in every chat, trusted folder or not. Claude Code and Codex SHALL load it from the repo's own checkout with no install step on the computer, so a branch runs its own copy. No repo SHALL need a plugin shop to get memory.
-
-#### Scenario: An install after its update
-
-- **WHEN** a WongStack install takes this release with its update, and a person opens a new Claude Code chat in it, in a folder the person never trusted
-- **THEN** memory is a real folder in the install's skills folder with no plugin manifest, the digest loads, the before-edit warning shows on the first edit in a mapped folder, and a message naming a topic gets its summary
-
-#### Scenario: Memory alone
-
-- **WHEN** a person adds memory alone to a repo by the setup guide, and opens a Codex chat there
-- **THEN** the repo's own Codex hooks file runs memory's hooks, and the chat installs no Codex plugin

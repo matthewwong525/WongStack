@@ -6,9 +6,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
-process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
-
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const script = join(repo, '.agents/skills/save/scripts/preview-url.sh');
 
@@ -32,7 +29,8 @@ exit 0
   chmodSync(join(bin, 'gh'), 0o755);
   const work = join(root, 'work');
   mkdirSync(work);
-  for (const args of [['init', '-q'], ['-c', 'user.email=f@example.test', '-c', 'user.name=F', 'commit', '-q', '--allow-empty', '-m', 'base']]) {
+  // A GitHub origin, so the route is github.
+  for (const args of [['init', '-q'], ['remote', 'add', 'origin', 'https://github.com/fixture/repo.git'], ['-c', 'user.email=f@example.test', '-c', 'user.name=F', 'commit', '-q', '--allow-empty', '-m', 'base']]) {
     spawnSync('git', args, { cwd: work });
   }
   const result = spawnSync('bash', [script], { cwd: work, encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } });

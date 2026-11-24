@@ -4,7 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, wr
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
-import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
+import { pack } from '../../.agents/loop/scripts/archive.mjs';
 import { entryOnTop, mainVerdict } from '../../.agents/skills/ship/scripts/ship.mjs';
 
 const script = new URL('../../.agents/skills/ship/scripts/ship.mjs', import.meta.url).pathname;
@@ -23,6 +23,7 @@ const { appendFileSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const dir = process.env.FAKE_DIR;
 const line = process.argv.slice(2).join(' ');
+if (line === '--version') { if (process.env.FAKE_NO_GH) process.exit(1); process.stdout.write('gh version 2.0.0\\n'); process.exit(0); }
 appendFileSync(join(dir, 'calls'), 'gh ' + line + '\\n');
 const s = JSON.parse(readFileSync(join(dir, 'gh.json'), 'utf8'));
 const out = text => { process.stdout.write(text + '\\n'); process.exit(0); };
@@ -93,6 +94,14 @@ esac
 exec "$REAL_GIT" "$@"
 `;
 
+// Every other fixture's git is the real one, with origin answered as a GitHub address, so the route is github.
+const GITHUB_GIT = `#!/usr/bin/env bash
+case "$*" in
+  *"remote get-url origin") echo "https://github.com/team/repo.git"; exit 0 ;;
+esac
+exec "$REAL_GIT" "$@"
+`;
+
 // Its `node` stands in for artifacts-run.mjs: `result` prints MAIN_RESULT (MAIN_AFTER after a `restart`) or RUN_RESULT,
 // `live` prints RUN_LIVE; app-change.mjs answers CAN_PUBLISH, PUBLISH_OUT and PUBLISH_RC.
 const FAKE_NODE = `#!/usr/bin/env bash
@@ -131,18 +140,19 @@ for (const line of s.lines ?? ['LOCAL_CHECKS=pass']) console.log(line);
 process.exit(s.code ?? 0);
 `;
 
-// WongStack's own profile names the route; without it the fake gh fails `gh --version`, and the route is local.
-const PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
+// The fake gh answers `gh --version` unless FAKE_NO_GH is set: then a GitHub origin's route is local.
+// A stand-in for the project's pre-check: it passes while ok.txt says ok.
+const OK_CHECK = "import { existsSync, readFileSync } from 'node:fs';\nprocess.exit(existsSync('ok.txt') && readFileSync('ok.txt', 'utf8') === 'ok\\n' ? 0 : 1);\n";
 
 // A real repository with a bare origin: main holds a first release, and `work` is checked out.
 // `checks` gives the repo a local-checks script that answers with those settings.
-function fixture(t, { gh = {}, openspec = {}, artifacts = false, checks = null, profile = PROFILE } = {}) {
+function fixture(t, { gh = {}, openspec = {}, artifacts = false, checks = null, local = false, precheck = null } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'wong-test-ship-commands-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const work = join(dir, 'work');
   const origin = join(dir, 'origin.git');
   for (const name of ['bin', 'work']) mkdirSync(join(dir, name));
-  for (const [name, body] of [['gh', FAKE_GH], ['openspec', FAKE_OPENSPEC], ...(artifacts ? [['git', FAKE_GIT], ['node', FAKE_NODE]] : [])]) {
+  for (const [name, body] of [['gh', FAKE_GH], ['openspec', FAKE_OPENSPEC], ...(artifacts ? [['git', FAKE_GIT], ['node', FAKE_NODE]] : [['git', GITHUB_GIT]])]) {
     writeFileSync(join(dir, 'bin', name), body);
     chmodSync(join(dir, 'bin', name), 0o755);
   }
@@ -154,8 +164,8 @@ function fixture(t, { gh = {}, openspec = {}, artifacts = false, checks = null, 
     ...process.env, PATH: `${join(dir, 'bin')}:${process.env.PATH}`, HOME: dir, FAKE_DIR: dir,
     GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null',
     GIT_AUTHOR_NAME: 'Fixture', GIT_AUTHOR_EMAIL: 'fixture@example.test', GIT_COMMITTER_NAME: 'Fixture', GIT_COMMITTER_EMAIL: 'fixture@example.test',
-    WONG_LOOP_PROFILE: profile,
-    ...(artifacts ? { FAKE_REMOTE: ARTIFACTS_REMOTE, REAL_GIT, REAL_NODE: process.execPath } : {}),
+    ...(local ? { FAKE_NO_GH: '1' } : {}),
+    REAL_GIT, ...(artifacts ? { FAKE_REMOTE: ARTIFACTS_REMOTE, REAL_NODE: process.execPath } : {}),
   };
   // The fixture's own git calls go to the real git, so only the command's calls are logged.
   const git = (...args) => execFileSync(REAL_GIT, args, { cwd: work, env, encoding: 'utf8' }).trim();
@@ -171,7 +181,7 @@ function fixture(t, { gh = {}, openspec = {}, artifacts = false, checks = null, 
   execFileSync(REAL_GIT, ['init', '-q', '--bare', '-b', 'main', origin], { env });
   git('init', '-q', '-b', 'main');
   git('remote', 'add', 'origin', origin);
-  commit({ 'CHANGELOG.md': CHANGELOG, VERSION: '1.0.0\n', 'app.txt': 'one\n', ...(checks ? { '.github/scripts/checks.mjs': FAKE_CHECKS } : {}), ...(artifacts ? { '.claude/.wong-stack.json': `${JSON.stringify(ARTIFACTS_RECORD)}\n` } : {}) }, 'base');
+  commit({ 'CHANGELOG.md': CHANGELOG, VERSION: '1.0.0\n', 'app.txt': 'one\n', ...(checks ? { '.github/scripts/checks.mjs': FAKE_CHECKS } : {}), ...(precheck ? { '.github/scripts/checks.mjs': precheck } : {}), ...(artifacts ? { '.claude/.wong-stack.json': `${JSON.stringify(ARTIFACTS_RECORD)}\n` } : {}) }, 'base');
   git('push', '-q', '-u', 'origin', 'main');
   git('checkout', '-q', '-b', 'work');
   // Another release, or another person's edit, lands on the default branch meanwhile.
@@ -199,7 +209,7 @@ function fixture(t, { gh = {}, openspec = {}, artifacts = false, checks = null, 
 const behindMain = f => f.git('merge-base', '--is-ancestor', 'origin/main', 'HEAD');
 const SAVE_NEXT = `invoke ordinary /save once, with change demo and archive path ${ARCHIVE} (mode archive). Go on to /verify only on SUCCESS or NONE.`;
 const checkCalls = f => f.calls().match(/^checks .*$/gm) ?? [];
-const NO_SCRIPT = 'not run (the project names no pre-check)';
+const NO_SCRIPT = 'not run (the project has no pre-check)';
 
 test('a prepare that merges nothing runs no local check, and prints the same lines as before', t => {
   const f = fixture(t, { checks: { code: 1, lines: ['LOCAL_CHECKS=fail (suite)'] } });
@@ -905,13 +915,8 @@ test('a teammate with the publish tick ships through the app: archive, save, the
   assert.doesNotMatch(f.calls(), /^(gh|git push|git merge|node artifacts-run) /m);
 });
 
-// The loop alone, with no gh: a profile whose pre-check passes while ok.txt says ok, and no other part.
-function localFixture(t) {
-  const profile = join(mkdtempSync(join(tmpdir(), 'wong-test-ship-profile-')), 'profile.mjs');
-  t.after(() => rmSync(dirname(profile), { recursive: true, force: true }));
-  writeFileSync(profile, "export default { precheck: 'grep -qx ok ok.txt' };\n");
-  return fixture(t, { profile });
-}
+// No gh: the route is local, with a pre-check that passes while ok.txt says ok.
+const localFixture = t => fixture(t, { local: true, precheck: OK_CHECK });
 
 test('a local route prepares against the local default branch, with no fetch and no default checks', t => {
   const f = localFixture(t);

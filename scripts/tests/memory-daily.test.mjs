@@ -4,13 +4,13 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileS
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { test } from 'node:test';
-import { dailyBlocker, readDaily, startDaily, today } from '../../.agents/plugins/memory/scripts/lib/daily.mjs';
-import { dailyCounts } from '../../.agents/plugins/memory/scripts/memory.mjs';
-import { diffCounts, mapChanges, runNote } from '../../.agents/plugins/memory/scripts/run.mjs';
+import { dailyBlocker, readDaily, startDaily, today } from '../../.agents/skills/memory/scripts/lib/daily.mjs';
+import { dailyCounts } from '../../.agents/skills/memory/scripts/memory.mjs';
+import { diffCounts, mapChanges, runNote } from '../../.agents/skills/memory/scripts/run.mjs';
 import { memory, node, PROFILE, rows, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const DAY = today();
-const TIDY = fileURLToPath(new URL('../../.agents/plugins/memory/scripts/daily-tidy.mjs', import.meta.url));
+const TIDY = fileURLToPath(new URL('../../.agents/skills/memory/scripts/daily-tidy.mjs', import.meta.url));
 const CUT_SHORT = "stopped at its time limit; the rest is on tomorrow's map";
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
 const wait = async (check, ms = 15000) => {
@@ -112,7 +112,7 @@ async function dailyRepo(t, extra = {}, prepare = () => {}) {
   return { env, origin, agent, run, left };
 }
 
-// A profile for one run's WONG_MEMORY_PROFILE: `source` is its default export, with WongStack's own as `base`.
+// A profile for one run's WONG_MEMORY_PARTS: `source` is its default export, with WongStack's own as `base`.
 function profileFile(env, source) {
   const file = join(env.repo.home, 'tidy-profile.mjs');
   writeFileSync(file, `import { mkdirSync, writeFileSync } from 'node:fs';\nimport { join } from 'node:path';
@@ -174,11 +174,11 @@ test('page edits publish through the profile\'s line, then the record is sent, w
 test('the publish step refuses the deny list the tidy refuses, and Codex with a deny list runs neither', async t => {
   const { env, agent, run } = await dailyRepo(t, { STUB_TIDY: 'edit' });
   const profile = profileWith(env, { deny: ['Bash(rm:*)', 'Bash(curl:*)'] });
-  const result = await run([], { WONG_MEMORY_PROFILE: profile });
+  const result = await run([], { WONG_MEMORY_PARTS: profile });
   assert.equal(result.code, 0, result.stderr);
   assert.deepEqual(agent.calls(), ['capture', 'tidy', 'publish']);
   assert.deepEqual(agent.denied(), ['Bash(rm:*)', 'Bash(curl:*)']);
-  const codex = await run(['--agent', 'codex', '--force'], { WONG_MEMORY_PROFILE: profile });
+  const codex = await run(['--agent', 'codex', '--force'], { WONG_MEMORY_PARTS: profile });
   assert.equal(codex.code, 0, codex.stderr);
   assert.deepEqual(agent.calls(), ['capture', 'tidy', 'publish', 'codex'], 'Codex runs only the capture part');
   assert.deepEqual(dailyRows(env).map(row => [row.status, row.reason]), [['failed', 'the deny list works only with Claude Code']]);
@@ -187,7 +187,7 @@ test('the publish step refuses the deny list the tidy refuses, and Codex with a 
 test('a tidy killed at its time limit with no part kept fails and keeps nothing; the copy is gone', async t => {
   const { env, agent, run, left } = await dailyRepo(t, { STUB_TIDY: 'hang', WONG_MEMORY_DAILY_WORK_MS: '2000' });
   // With no publish line, edits that got past the kill would wait on a local daily-tidy branch.
-  const result = await run([], { WONG_MEMORY_PROFILE: profileWith(env, { publish: null }) });
+  const result = await run([], { WONG_MEMORY_PARTS: profileWith(env, { publish: null }) });
   assert.equal(result.code, 0, result.stderr);
   assert.deepEqual(agent.calls(), ['capture', 'tidy']);
   assert.deepEqual(dailyRows(env), [{ day: DAY, status: 'failed', reason: 'the tidy reached its time limit with no part finished; nothing was kept', counts: '{}' }]);
@@ -199,7 +199,7 @@ test('a tidy killed at its time limit with no part kept fails and keeps nothing;
 test('a tidy killed after two kept parts publishes what it staged, drops the rest, and says it stopped', async t => {
   const { env, agent, run, left } = await dailyRepo(t, { STUB_TIDY: 'killed' });
   manyFacts(env);
-  const result = await run([], { WONG_MEMORY_PROFILE: profileWith(env, { publish: null }) });
+  const result = await run([], { WONG_MEMORY_PARTS: profileWith(env, { publish: null }) });
   assert.equal(result.code, 0, result.stderr);
   assert.deepEqual(agent.calls(), ['capture', 'tidy']);
   assert.deepEqual(dailyRows(env).map(row => ({ ...row, counts: JSON.parse(row.counts) })), [{ day: DAY, status: 'ok', reason: CUT_SHORT, counts: { pages: 2 } }]);
@@ -214,7 +214,7 @@ test('a tidy killed after two kept parts publishes what it staged, drops the res
 test('the profile readies the copy before the first map: a page its prepare adds is counted, and a missing or failed prepare fails no run', async t => {
   const { env, agent, run } = await dailyRepo(t, {}, env => commitOld(env.repo.root, '.gitignore', '/extra\n'));
   const topic = "{ tag: 'refunds', kind: 'company', page: 'extra/refunds.md', summary: 'How refunds are approved.', aliases: [], paths: [], docs: [], hub: null }";
-  const withPrepare = prepare => ({ WONG_MEMORY_PROFILE: profileFile(env,
+  const withPrepare = prepare => ({ WONG_MEMORY_PARTS: profileFile(env,
     `{ ...base, topics: async ctx => [...await base.topics(ctx), ${topic}], tidy: { ...base.tidy, prepare: ${prepare} } }`) });
   const made = await run([], withPrepare("({ root }) => { mkdirSync(join(root, 'extra')); writeFileSync(join(root, 'extra/refunds.md'), '# Refunds\\n'); }"));
   assert.equal(made.code, 0, made.stderr);
@@ -239,7 +239,7 @@ test("WongStack's profile gives the copy its own company folder: its pages are o
     git(copy, 'config', 'user.name', 'Dev');
     commitOld(copy, 'refunds.md', '# Refunds\n\nHow refunds are approved.\n');
   });
-  const result = await run([], { WONG_MEMORY_PROFILE: profileWith(env, { publish: null }) });
+  const result = await run([], { WONG_MEMORY_PARTS: profileWith(env, { publish: null }) });
   assert.equal(result.code, 0, result.stderr);
   assert.match(agent.prompt(), /^due pages: 1; knowledge\/refunds\.md$/m, 'a company page is due on the first map');
   assert.deepEqual(records(env), [`Daily tidy ${DAY}: read facts up to #0. Sorted facts up to #0. Checked: knowledge/refunds.md. Linked: none. Map: due pages 1 to 0.`]);

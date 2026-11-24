@@ -5,8 +5,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
-process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
 
 const script = new URL('../../.agents/loop/routes/publish-artifacts.sh', import.meta.url).pathname;
 const merge = new URL('../../.agents/skills/ship/scripts/merge.sh', import.meta.url).pathname;

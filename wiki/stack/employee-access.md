@@ -4,7 +4,7 @@ Access is the mini app where the owner chooses who can sign in to the business a
 
 [Cloudflare's sign-in wall](cloudflare-access.md#the-wall-decides-who-the-app-decides-what) decides who gets in. The app decides the rest, on every request.
 
-The rules live in the [Access module](../../.agents/plugins/access/README.md), the same for any app. WongStack gives it [one slots object](../../.agents/plugins/access/references/setup.md#6-write-the-slots), built per request in `app/worker/access-slots.ts`: the Cloudflare sign-in, the database store, the owner, the apps, and the keys. `/access` reads and changes people from a chat.
+The rules live in the [Access skill](../../.agents/skills/access/SKILL.md)'s folder, the same for any app. WongStack gives it one slots object, built per request in `app/worker/access-slots.ts`: the Cloudflare sign-in, the database store, the owner, the apps, and the keys. [`slots.json`](../../.agents/access/slots.json) names that file and where the service definitions, types, and notes are, for `/access` and the services helper. `/access` reads and changes people from a chat.
 
 ## How the owner is known
 

@@ -181,18 +181,18 @@ test('directory expansion detects additions and removals while exclusions stay o
 
 test("an update never lists a target's daily steps, even when the source holds some", t => {
   const real = JSON.parse(readFileSync(join(repo, '.agents/skills/wong-sync/references/payload-files.json'), 'utf8'));
-  const manifest = inventory({ core: { ...inventory().core, mapped: { '.claude/plugins/daily': '.claude/skills/daily' }, exclude: real.core.exclude } });
+  const manifest = inventory({ core: { ...inventory().core, skillDirs: ['alpha', 'daily'], exclude: real.core.exclude } });
   const steps = { '.claude/skills/daily/team.md': '- Team step.\n', '.claude/skills/daily/people/jo.md': '---\nemails: [jo@example.com]\n---\n- Jo step.\n' };
-  const f = fixture(t, { manifest, targetFiles: { '.claude/skills/daily/SKILL.md': 'daily base\n', ...steps } });
-  write(f.source, '.agents/plugins/daily/SKILL.md', 'daily base\n');
+  const f = fixture(t, { manifest, components: { skills: ['alpha', 'daily'] }, targetFiles: { '.claude/skills/daily/SKILL.md': 'daily base\n', ...steps } });
+  write(f.source, '.agents/skills/daily/SKILL.md', 'daily base\n');
   f.commit('add daily');
   f.updateRecord({ commit: git(f.source, 'rev-parse', 'HEAD') });
   git(f.target, 'add', '.');
   git(f.target, 'commit', '-m', 'record daily base');
 
-  write(f.source, '.agents/plugins/daily/SKILL.md', 'daily latest\n');
-  write(f.source, '.agents/plugins/daily/team.md', '- Upstream team step.\n');
-  write(f.source, '.agents/plugins/daily/people/sam.md', '- Upstream person.\n');
+  write(f.source, '.agents/skills/daily/SKILL.md', 'daily latest\n');
+  write(f.source, '.agents/skills/daily/team.md', '- Upstream team step.\n');
+  write(f.source, '.agents/skills/daily/people/sam.md', '- Upstream person.\n');
   f.commit('change daily');
   assert.deepEqual(f.inspect().changes.map(change => [change.targetPath, change.operation]), [
     ['.claude/skills/daily/SKILL.md', 'modified'],
@@ -440,6 +440,20 @@ test('an install whose module is a plugin, or whose settings name one, gets the 
   write(f.target, '.claude/skills/memory/.claude-plugin/plugin.json', '{"name":"memory","version":"4.0.0"}\n');
   write(f.target, '.claude/settings.local.json', '{"enabledPlugins":{"daily@skills-dir":false}}\n');
   assert.deepEqual(reason(), { code: 'module-plugin', paths: ['.claude/skills/memory/.claude-plugin', '.claude/settings.local.json'] });
+});
+
+test('an install at the 61.x module layout gets the module-folders catch-up, and the current layout does not', t => {
+  const f = fixture(t);
+  f.updateRecord({ version: '61.13.0' });
+  currentLayout(f);
+  const reason = () => f.inspect().catchUp.reasons.find(found => found.code === 'module-folders');
+  assert.equal(reason(), undefined);
+  write(f.target, '.claude/skills/loop/scripts/slot.mjs', 'slot\n');
+  write(f.target, '.claude/skills/daily/skills/schedule/SKILL.md', '# /schedule\n');
+  write(f.target, '.claude/memory/profile.mjs', 'export default {};\n');
+  write(f.target, '.claude/skills/memory/VERSION', '4.0.0\n');
+  assert.deepEqual(reason(), { code: 'module-folders', paths: ['.claude/skills/loop', '.claude/skills/daily/skills',
+    '.claude/memory/profile.mjs', '.claude/skills/memory/VERSION'] });
 });
 
 test('an install that keeps finished changes as folders gets the unpacked-archive catch-up, with their count', t => {
