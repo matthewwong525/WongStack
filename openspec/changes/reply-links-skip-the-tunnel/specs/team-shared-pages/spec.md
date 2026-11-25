@@ -26,7 +26,7 @@ The person whose Inbox holds a page, plain or review, SHALL be able to share it 
 
 A plain page that carries files SHALL show a Download action outside the page's sealed frame. Opening the page from the inbox list or *Artifacts* SHALL NOT start a download by itself. Only the person whose inbox holds the page, or a signed-in teammate with an open team link, SHALL get its files; a service token SHALL get none.
 
-#### Scenario: Opened from Artifacts
+#### Scenario: Opened from the Archive
 
 - **WHEN** the person opens a file page from *Artifacts*
 - **THEN** nothing downloads until they tap Download
