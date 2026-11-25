@@ -7,9 +7,11 @@ const tap = z.object({ id: z.string(), item: z.string(), action: z.string(), tex
 const archived = z.object({ endedAt: z.number(), answers: z.array(z.object({ action: z.string(), text: z.string(), at: z.number() })) })
 // A file a plain page carries for download.
 const pageFile = z.object({ name: z.string(), size: z.number() })
+// What a review page says of itself: its notes key, whether it draws its own Back, and its buttons' labels.
+const page = z.object({ key: z.string().nullable(), ownBack: z.boolean(), labels: z.record(z.string(), z.string()) })
 // A plain page asks nothing; `pageFiles` are the files it carries, and `shared` is its open team link's token.
 const item = z.object({ id: z.string(), kind: z.string(), title: z.string(), workspace: z.string(), actions: z.array(z.string()),
-  version: z.string(), body: z.string(), tap: tap.nullable(), files: z.array(z.string()), archived: archived.optional(),
+  version: z.string(), page: page.nullable().default(null), tap: tap.nullable(), files: z.array(z.string()), archived: archived.optional(),
   plain: z.boolean().default(false), pageFiles: z.array(pageFile).default([]), shared: z.string().nullable().default(null) })
 const review = z.object({ id: z.string(), title: z.string(), workspace: z.string(), createdAt: z.number(), closesAt: z.number(),
   endedAt: z.number().nullable(), answered: z.boolean(), plain: z.boolean().default(false), shared: z.boolean().default(false) })
@@ -134,5 +136,16 @@ export async function sendFile(input: { item: string; name: string; question: st
     return code === 'full' || code === 'bad_file' || code === 'closed' ? FILE_REFUSALS[code] : FILE_REFUSALS.failed
   } catch {
     return FILE_REFUSALS.failed
+  }
+}
+
+/** A page's picture or video at `url`, for its sealed frame: `{ blob }`, or `{ missing: true }` when the page has none
+ *  by that name or it can't be read. */
+export async function readMedia(url: string): Promise<{ blob: Blob } | { missing: true }> {
+  try {
+    const response = await fetch(url)
+    return response.ok ? { blob: await response.blob() } : { missing: true }
+  } catch {
+    return { missing: true }
   }
 }

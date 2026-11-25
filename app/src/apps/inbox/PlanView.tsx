@@ -3,11 +3,11 @@ import { Link, useLocation, useNavigate } from 'react-router'
 import { Loading } from '@/components/Loading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { type Archived, Failed, FILE_MAX, FILE_REFUSALS, label, pending, readInbox, readPlan, sendFile, sendTap, type Plan, type Tap } from './api'
+import { type Archived, Failed, FILE_MAX, FILE_REFUSALS, label, pending, readInbox, readMedia, readPlan, sendFile, sendTap, type Plan, type Tap } from './api'
 import { AnswerLine } from './AnswerLine'
 import { DownloadButton } from './Download'
-import { pageFileUrl, takeDownload } from './downloads'
-import { actionLabels, appLook, frameMessage, notesKey, ownBack, PAGE_COLUMN } from './frame'
+import { pageFileUrl, pageMediaUrl, takeDownload } from './downloads'
+import { appLook, frameMessage, PAGE_COLUMN } from './frame'
 import { afterLoad, leaveLine, START, stopped } from './leave'
 import { LINE_REFRESH_MS, REFRESH_MS, useLine } from './line'
 import { ShareControls, SharedNote } from './Share'
@@ -24,24 +24,21 @@ function Top({ item, back, children }: { item: Plan['item']; back: string; child
     <p className="min-w-0 truncate text-sm text-muted-foreground">{item.workspace}</p>{children}</div>
 }
 
-/** A page sealed in a frame, edge to edge; popups let its links open their own tab. `src` loads a sealed address;
- *  else `body` is the frame's own document, whose review page keeps its port by version. */
-export function PageFrame({ title, body, src, frameRef, onLoad }: { title: string; body?: string; src?: string;
-  frameRef?: Ref<HTMLIFrameElement>; onLoad?: () => void }) {
+/** A page sealed in a frame, edge to edge, from its sealed address; popups let its links open their own tab. */
+export function PageFrame({ title, src, frameRef, onLoad }: { title: string; src: string; frameRef?: Ref<HTMLIFrameElement>; onLoad?: () => void }) {
   const seen = useRef(START)
   const [tries, setTries] = useState(0)
   // A sealed address that loads again left it: the frame starts again, says so, and after three tries shows no more.
   const loaded = () => {
-    if (!src) { onLoad?.(); return }
     seen.current = afterLoad(seen.current)
     if (seen.current.tries === tries) onLoad?.()
     else setTries(seen.current.tries)
   }
-  const line = src && leaveLine(tries)
+  const line = leaveLine(tries)
   return <>
     {line && <p role="status" className="text-sm text-muted-foreground">{line}</p>}
     {!stopped(tries) && <iframe key={tries} ref={frameRef} title={title} sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-      {...(src ? { src } : { srcDoc: body })} className="ml-[calc(50%-50vw)] min-h-0 w-screen max-w-none flex-1" onLoad={loaded} />}
+      src={src} className="ml-[calc(50%-50vw)] min-h-0 w-screen max-w-none flex-1" onLoad={loaded} />}
   </>
 }
 
@@ -112,10 +109,11 @@ export function PlanView({ id }: { id: string }) {
     if (asked.current && !pending(next)) { asked.current = false; void tell(next.state) }
   }
   const listen = async (item: Plan['item'], data: unknown) => {
-    const message = frameMessage(data, { actions: item.actions, key: notesKey(item.body) })
+    const message = frameMessage(data, { actions: item.actions, key: item.page?.key ?? null })
     if (message?.type === 'inbox:notes-get') post({ type: 'inbox:notes', value: localStorage.getItem(message.key) })
     if (message?.type === 'inbox:notes-set' && !item.archived) localStorage.setItem(message.key, message.value)
     if (message?.type === 'inbox:back') void navigate(back)
+    if (message?.type === 'inbox:media') post({ type: 'inbox:media-result', ref: message.ref, ...await readMedia(pageMediaUrl(item.id, message.name)) })
     if (message?.type === 'inbox:file') post({ type: 'inbox:file-result', ref: message.ref, ...await upload(item, message) })
     if (message?.type !== 'inbox:tap') return
     // An older page still offers Send notes: it hears the link closed, and copies its notes.
@@ -156,23 +154,25 @@ export function PlanView({ id }: { id: string }) {
   const shared = (token: string | null) => setPlan(shown => shown && { ...shown, item: { ...shown.item, shared: token } })
   const share = <ShareControls id={item.id} token={item.shared} onChange={shared} />
   const note = item.shared && <SharedNote token={item.shared} />
-  // A plain page asks nothing, so it takes no hello and shows no answer: it loads from its own sealed address.
+  // Each version loads afresh: the address never serves an older page.
+  const src = `/apps/inbox/api/frame?${new URLSearchParams({ id: item.id, v: item.version })}`
+  // A plain page asks nothing, so it takes no hello and shows no answer.
   const urlOf = (name: string) => pageFileUrl(item.id, name)
   if (item.plain) return <div className={PAGE_COLUMN}>
     <Top item={item} back={back}>{item.pageFiles.length ? <div className="ml-auto flex flex-wrap items-center gap-2">
       <DownloadButton files={item.pageFiles} urlOf={urlOf} auto={rest !== null} />{share}</div> : share}</Top>
     {note}
-    <PageFrame key={item.version} title={item.title} src={`/apps/inbox/api/frame?id=${encodeURIComponent(item.id)}`} />
+    <PageFrame key={item.version} title={item.title} src={src} />
   </div>
   const answered: Archived | undefined = item.archived
     ?? (tap?.state === 'sent' && sentAt !== null ? { endedAt: sentAt, answers: [{ action: tap.action, text: tap.text, at: sentAt }] } : undefined)
   // A page drawing its own Back scrolls it away, so its share controls get their own row; an older one gets Top.
   return <div className={PAGE_COLUMN}>
-    {ownBack(item.body) ? <><h1 className="sr-only">{item.title}</h1><div className="flex flex-wrap items-center gap-2">{share}</div></>
+    {item.page?.ownBack ? <><h1 className="sr-only">{item.title}</h1><div className="flex flex-wrap items-center gap-2">{share}</div></>
       : <Top item={item} back={back}>{share}</Top>}
     {note}
-    {answered ? <AnswerLine archived={answered} labels={actionLabels(item.body)} /> : <Watch waiting={waiting} look={look} />}
+    {answered ? <AnswerLine archived={answered} labels={item.page?.labels ?? {}} /> : <Watch waiting={waiting} look={look} />}
     {tap && !answered && <TapLine tap={tap} online={plan.computerOnline} copy={tap.text || label(tap.action)} onChange={settle} onReload={() => void load()} />}
-    <PageFrame key={item.version} title={item.title} body={item.body} frameRef={frame} onLoad={() => greet(item)} />
+    <PageFrame key={item.version} title={item.title} src={src} frameRef={frame} onLoad={() => greet(item)} />
   </div>
 }

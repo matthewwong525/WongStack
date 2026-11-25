@@ -9,7 +9,9 @@ const SEALED = {
     + "form-action 'none'; base-uri 'none'",
   "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer",
 };
-export const sealedPage = (body: string, plain: boolean) => new Response(plain ? linksOpenOwnTab(body) : body, { headers: SEALED });
+/** A page's HTML, sealed. A plain page's links get their own tab, so its whole HTML is read; any other page streams. */
+export const sealedPage = async (body: string | ReadableStream<Uint8Array>, plain: boolean) =>
+  new Response(plain ? linksOpenOwnTab(typeof body === "string" ? body : await new Response(body).text()) : body, { headers: SEALED });
 
 /** A plain page's links open their own tab, and a `#` link with no target stays in the page. Keep in step with its twin
  *  in .agents/skills/page/scripts/page.mjs; a page put before that one gets it here. */

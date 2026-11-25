@@ -15,11 +15,15 @@ const PNG = (b: Uint8Array) => [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].
 const JPEG = (b: Uint8Array) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
 const ZIP = (b: Uint8Array) => at(b, 0, "PK\x03\x04");
 const TEXT = (b: Uint8Array) => !b.subarray(0, 4096).includes(0);
+// An MP4 or QuickTime file starts with a box's size, then its name.
+const MOVIE = (b: Uint8Array) => ["ftyp", "moov", "mdat", "wide", "free"].some(box => at(b, 4, box));
 /** Each name ending the page takes, its type, and the first bytes that file must start with. */
 const TYPES: Record<string, { type: string; starts: (bytes: Uint8Array) => boolean }> = {
   png: { type: "image/png", starts: PNG }, jpg: { type: "image/jpeg", starts: JPEG }, jpeg: { type: "image/jpeg", starts: JPEG },
   webp: { type: "image/webp", starts: b => at(b, 0, "RIFF") && at(b, 8, "WEBP") },
   gif: { type: "image/gif", starts: b => at(b, 0, "GIF87a") || at(b, 0, "GIF89a") },
+  mp4: { type: "video/mp4", starts: MOVIE }, mov: { type: "video/quicktime", starts: MOVIE },
+  webm: { type: "video/webm", starts: b => [0x1a, 0x45, 0xdf, 0xa3].every((x, i) => b[i] === x) },
   pdf: { type: "application/pdf", starts: b => at(b, 0, "%PDF-") },
   txt: { type: "text/plain", starts: TEXT }, csv: { type: "text/csv", starts: TEXT }, md: { type: "text/markdown", starts: TEXT },
   json: { type: "application/json", starts: TEXT },
@@ -35,6 +39,8 @@ const known = (name: string) => {
   const ending = /\.([a-z0-9]+)$/i.exec(name)?.[1].toLowerCase() ?? "";
   return Object.hasOwn(TYPES, ending) ? TYPES[ending] : undefined;
 };
+/** Whether `name` is a picture or video a page may show: a safe name with such an ending. */
+export const isMedia = (name: string) => safeName(name) && /^(image|video)\//.test(known(name)?.type ?? "");
 /** The content type `name`'s ending says, else bytes of no known kind. */
 export const typeOf = (name: string) => known(name)?.type ?? "application/octet-stream";
 /** Whether `bytes`, a file's first part, start as `name`'s ending says; a name of no known kind takes any bytes. */

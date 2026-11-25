@@ -11,7 +11,7 @@ export { mine, seen, type Scope } from "./rows.ts";
 type Env = Parameters<Action["handler"]>[1];
 type Identity = Parameters<NonNullable<Action["allowed"]>>[0];
 
-// A page with a live card runs to 1.5 MB; D1 keeps 2 MB a row.
+// A card, or a page put before the page store, runs to 1.5 MB; D1 keeps 2 MB a row.
 export const LIMITS = { bodyBytes: Math.round(1.6 * 1024 * 1024), text: 20_000, title: 200, workspace: 100, actions: 6, detail: 2000, option: 300, options: 6,
   urlBytes: 2048, step: 200 };
 /** A computer that checked in this recently is online: six missed check-ins means it is gone, not slow. */
@@ -82,12 +82,12 @@ export async function scope(env: Env, identity: Identity): Promise<Scope> {
   const db = env.DB.withSession("first-primary");
   const installation = await installationOf(db);
   const email = humanEmail(identity)!;
-  return { db, installation, email, owner: ownerEmail(env), now: Date.now(), wake: computer => wake(env, installation, email, computer) };
+  return { db, installation, email, owner: ownerEmail(env), now: Date.now(), pages: env.INBOX_PAGES ?? null, wake: computer => wake(env, installation, email, computer) };
 }
 
 const ERRORS = {
   not_found: "No such item or tap.", closed: "This item has closed.", changed: "The plan changed since you loaded it.",
-  done: "That was already sent.", not_waiting: "That tap is no longer waiting.", too_large: "The body or file is larger than this inbox takes: 1.6 MB a page, 25 MB a file, 100 MB an item's files.",
+  done: "That was already sent.", not_waiting: "That tap is no longer waiting.", too_large: "This is larger than the inbox takes: 25 MB a page or a file, 95 MB a picture or video (25 MB with no file store), 1.6 MB a card.",
   bad_detail: "An approval or question needs its words as JSON.", bad_link: "A link needs its kind and an https tunnel address, and no actions.",
   bad_start: "A plan card needs its state, a plan within the limits once ready, and go and skip.", bad_agent: "An agent's status needs its state and short lines, and no actions.",
   bad_plain: "A plain page is a plan's HTML with no actions; only a plain page carries files.", not_page: "Only a page can be shared, shown in a frame, or carry files.",
@@ -102,6 +102,7 @@ const ERRORS = {
   bad_page_file: "A page's file needs a short name with no folder, its sha256, and bytes that match both.",
   no_upload: "A file the page names was not uploaded whole; upload it again.",
   pages_full: "The pages' files fill the 1 GB this app keeps for them.",
+  bad_media: "A page's pictures and videos are png, jpg, webp, gif, mp4, webm or mov files, each with its own name, 300 at most.",
 };
 export const fail = (code: keyof typeof ERRORS, status: number) => Response.json({ error: { code } }, { status });
 
@@ -132,7 +133,8 @@ export const settleTaps = (at: Scope) => at.db.batch([
 
 // Which closed items go: any but a review page, and a review page older code emptied. The second matches the
 // inbox_items_emptied index's WHERE exactly, so the clean-up never reads a kept page.
-const GONE = ["kind <> 'plan'", "kind = 'plan' AND body = ''"];
+// A page in the page store has an empty body too, so its page_info keeps it.
+const GONE = ["kind <> 'plan'", "kind = 'plan' AND body = '' AND page_info IS NULL"];
 
 /** Removes items closed over a day ago, with their taps and files; a review page that kept its body stays. */
 export const prune = (at: Scope) => at.db.batch(GONE.flatMap(which => [

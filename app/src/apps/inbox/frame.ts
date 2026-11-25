@@ -14,42 +14,17 @@ const message = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('inbox:notes-set'), key, value: z.string().max(1_000_000) }),
   // The page's own Back was tapped: the inbox opens the chat list.
   z.strictObject({ type: z.literal('inbox:back') }),
+  // A picture or video the page carries, by name; the inbox answers `inbox:media-result` by `ref`.
+  z.strictObject({ type: z.literal('inbox:media'), ref: z.string().regex(/^[\w-]{1,64}$/), name: z.string().min(1).max(200) }),
 ])
 export type FrameMessage = z.infer<typeof message>
 
-/** The notes key of the plan's own review page, from its `<body data-change>`, or null when it names none. */
-export function notesKey(body: string): string | null {
-  const change = /<body\b[^>]*\sdata-change="([\w-]{1,100})"/i.exec(body)?.[1]
-  return change ? `wong-review3:${change}` : null
-}
-
-/** Whether the plan's page draws its own Back, from its `<body data-own-back>`; a page built before that draws none. */
-export function ownBack(body: string): boolean {
-  return /<body\b[^>]*\sdata-own-back(?=[\s=>])/i.test(body)
-}
-
-const ENTITIES: Record<string, string> = { '&quot;': '"', '&lt;': '<', '&gt;': '>', '&amp;': '&' }
-const buttons = z.array(z.object({ name: z.string(), label: z.string() }))
-
-/** Each button's label on the plan's page, by action, from its `#ready data-actions`: *Build and publish* on a plan,
- *  *Publish* on a preview. A page that names none, or names them badly, gives none. */
-export function actionLabels(body: string): Record<string, string> {
-  const escaped = /<div id="ready" data-actions="([^"]*)"/.exec(body)?.[1]
-  if (!escaped) return {}
-  try {
-    const found = buttons.safeParse(JSON.parse(escaped.replace(/&(quot|lt|gt|amp);/g, entity => ENTITIES[entity]))).data ?? []
-    return Object.fromEntries(found.map(button => [button.name, button.label]))
-  } catch {
-    return {}
-  }
-}
-
-/** The page's message, or null: one of five kinds, each field checked, a tap only on an action its item offers, and
+/** The page's message, or null: one of six kinds, each field checked, a tap only on an action its item offers, and
  *  notes only under the plan's own key. */
 export function frameMessage(data: unknown, plan: { actions: string[]; key: string | null }): FrameMessage | null {
   const parsed = message.safeParse(data).data ?? null
   if (parsed?.type === 'inbox:tap') return parsed.action === 'send' || plan.actions.includes(parsed.action) ? parsed : null
-  if (parsed?.type === 'inbox:back' || parsed?.type === 'inbox:file') return parsed
+  if (parsed?.type === 'inbox:back' || parsed?.type === 'inbox:file' || parsed?.type === 'inbox:media') return parsed
   return parsed && parsed.key === plan.key ? parsed : null
 }
 

@@ -15,6 +15,7 @@ interface __BaseEnv_Env {
 	SKIP_AUTH?: "true";
 	LIVE_LINE?: DurableObjectNamespace /* Line from wongstack-line-local */ | DurableObjectNamespace /* Line from wongstack-line */;
 	MEMORY_BUCKET?: R2Bucket;
+	INBOX_PAGES?: R2Bucket;
 	MEMORY_DB?: D1Database;
 	ARTIFACTS?: Artifacts;
 	WONG_KEY_SEAL_PUBLIC?: "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEA5Ik4ZLsqQPdupKM4A3wt+AXkccImmtGkoNSj54UvmzOltjKngwqBRt8+98P7Z7xvVOO6kjJ5PrkOTa/8RRSSrkme03K0gMUcA6bpjpwMm+cnJN+3EHi2KYQsFOzeeE3GTKFRjf6XrcY0jsTbnFb67RBus0Hu/58LLe46gmsuPZHSN+xg5Zz1NZ55+FypCuLr/W7L0FLZ5hUrWMnw9ujiTrAqZWYSKgNHiSWM7umwpjTnD/pAxuOFhkgkaiG8jFYrv+LK1yx9aS7rDMe2+Tqu8Fa0Al9c9cKud8Dyyjhz+m1DqjyOPLmq4t0FoE9zg9syr/vhTlzolhcL9tt63O80MjbWoRQ1mIegjQcf7luJNPwVB0NAxDwSr5TTW548+13qv0UCM4ce0N/buFfbtDH65UYqJWhcBiWe4PJbcTrhmDtGwFqJY6+F58je3zBVcmRpAip2sKUy9kgUeGUwy+VGaZbD22W2Tfo12Ip9MbfHGHSyDasnmO6K+wY7K+uGSw1ZAgMBAAE=";
@@ -24,6 +25,7 @@ declare namespace Cloudflare {
 		mainModule: typeof import("./worker/index");
 	}
 	interface StagingEnv {
+		INBOX_PAGES: R2Bucket;
 		DB: D1Database;
 		ASSETS: Fetcher;
 		WONG_ENVIRONMENT: "staging";
@@ -36,6 +38,7 @@ declare namespace Cloudflare {
 		CF_ACCESS_WORKER_ID: "bc809703c01f47528ff4e5449cf36e12";
 	}
 	interface LocalEnv {
+		INBOX_PAGES: R2Bucket;
 		DB: D1Database;
 		ASSETS: Fetcher;
 		WONG_ENVIRONMENT: "local";

@@ -2,7 +2,8 @@
 // the Inbox reads a shared one by its token. wiki/development/plain-pages.md#share-with-team
 import { z } from "zod";
 import { actionError, humanEmail, type Route } from "../../api/contract.ts";
-import { downloaded, fileOfPage, filesOfPage } from "./page-files.ts";
+import { blobOfPage, filesOfPage, served } from "./page-files.ts";
+import { type Owner, readStored } from "./page-store.ts";
 import { sealedPage } from "./sealed.ts";
 import { fail, findItem, inboxAction, itemId, type ItemRow, mine, scope, type Scope } from "./store.ts";
 
@@ -58,13 +59,20 @@ export const shareStop = pageWrite({
   return Response.json({ stopped: true });
 });
 
-/** GET frame?id= → the caller's own page as a sealed document, for a plain page's frame. */
+/** The page `item`'s HTML, sealed: its uploaded HTML, else the `body` a page put before the page store keeps. */
+async function sealed(owner: Owner, item: string, body: string, plain: boolean) {
+  const stored = await blobOfPage(owner, item, "", "body");
+  return sealedPage(stored ? await readStored(owner, stored) : body, plain);
+}
+
+/** GET frame?id= → the caller's own page as a sealed document, for its frame. */
 export const frame: Route = async (_request, env, { url, identity }) => {
   if (!humanEmail(identity)) return actionError("forbidden");
   const id = url.searchParams.get("id") ?? "";
   if (!itemId.safeParse(id).success) return fail("not_found", 404);
-  const found = await page(await scope(env, identity), id, ", plain, body");
-  return found instanceof Response ? found : sealedPage(found.body, found.plain === 1);
+  const at = await scope(env, identity);
+  const found = await page(at, id, ", plain, body");
+  return found instanceof Response ? found : sealed(at, id, found.body, found.plain === 1);
 };
 
 type Shared = { email: string; item_id: string; stopped_at: number | null; title: string | null; plain: number; updated_at: number; body?: string };
@@ -83,7 +91,7 @@ async function shared(at: Scope, value: string, body: boolean): Promise<Shared |
 
 const time = z.number().int().nonnegative();
 /** The page maker's rows, as a shared link reads them. */
-const maker = (at: Scope, found: Shared) => ({ db: at.db, installation: at.installation, email: found.email });
+const maker = (at: Scope, found: Shared): Owner => ({ db: at.db, installation: at.installation, email: found.email, pages: at.pages });
 
 /** GET shared?token= → a page someone shared: its title, who shared it, when its newest version came, and its files. */
 export const sharedPage = inboxAction<{ token: string }>({
@@ -103,16 +111,22 @@ export const sharedPage = inboxAction<{ token: string }>({
 /** GET shared-frame?token= → the shared page itself, sealed. */
 export const sharedFrame: Route = async (_request, env, { url, identity }) => {
   if (!humanEmail(identity)) return actionError("forbidden");
-  const found = await shared(await scope(env, identity), url.searchParams.get("token") ?? "", true);
-  return found instanceof Response ? found : sealedPage(String(found.body), found.plain === 1);
+  const at = await scope(env, identity);
+  const found = await shared(at, url.searchParams.get("token") ?? "", true);
+  return found instanceof Response ? found : sealed(maker(at, found), found.item_id, String(found.body), found.plain === 1);
 };
 
-/** GET shared-file?token=&name= → a file of the shared page, as a download, while its link is open. */
-export const sharedFile: Route = async (_request, env, { url, identity }) => {
+/** A read of the shared page's `role` blob by `?token=&name=`, while its link is open. */
+const sharedRead = (role: "file" | "media"): Route => async (_request, env, { url, identity }) => {
   if (!humanEmail(identity)) return actionError("forbidden");
   const at = await scope(env, identity);
   const found = await shared(at, url.searchParams.get("token") ?? "", false);
   if (found instanceof Response) return found;
   const owner = maker(at, found);
-  return downloaded(owner, await fileOfPage(owner, found.item_id, url.searchParams.get("name") ?? ""));
+  return served(owner, await blobOfPage(owner, found.item_id, url.searchParams.get("name") ?? "", role), role === "file");
 };
+
+/** GET shared-file?token=&name= → a file of the shared page, as a download. */
+export const sharedFile = sharedRead("file");
+/** GET shared-media?token=&name= → a picture or video of the shared page, for its sealed frame. */
+export const sharedMedia = sharedRead("media");
