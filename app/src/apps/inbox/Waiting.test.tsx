@@ -41,10 +41,10 @@ const open = async () => {
   </MemoryRouter>)
   await act(async () => { await new Promise(done => setTimeout(done, 10)) })
 }
-const needs = () => within(screen.getByRole('region', { name: /Needs you/ }))
+const needs = () => within(screen.getByRole('region', { name: /^Open/ }))
 const rows = () => needs().getAllByRole('link').map(link => link.querySelector('span.font-medium')!.textContent)
 
-it('shows the pages waiting for you under Needs you, newest first, each with its folder and when it came', async () => {
+it('shows the pages open for you under Open, newest first, each with its folder and when it came', async () => {
   await open()
   expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Inbox')
   expect(screen.getByText('Computer online')).toBeTruthy()
@@ -52,8 +52,8 @@ it('shows the pages waiting for you under Needs you, newest first, each with its
   expect(needs().getByText('2')).toBeTruthy()
   expect(needs().getByText(`durable-hamster · ${when(newer.createdAt)}`)).toBeTruthy()
   expect(needs().getAllByText('Review')).toHaveLength(2)
-  expect(screen.getByRole('region', { name: 'Archive' })).toBeTruthy()
-  expect(screen.queryByText('Nothing waits for you.')).toBeNull()
+  expect(screen.getByRole('region', { name: 'Artifacts' })).toBeTruthy()
+  expect(screen.queryByText('Nothing open.')).toBeNull()
 })
 
 it('opens a waiting page with one tap', async () => {
@@ -64,12 +64,12 @@ it('opens a waiting page with one tap', async () => {
   expect(screen.getByTestId('where').textContent).toBe(`/apps/inbox/?item=${newer.id}`)
 })
 
-it('says nothing waits, and shows the Archive below, when no page waits for you', async () => {
+it('says nothing is open, and shows Artifacts below, when no page waits for you', async () => {
   server.waiting = []
   await open()
-  expect(screen.getByText('Nothing waits for you.')).toBeTruthy()
-  expect(screen.queryByRole('region', { name: /Needs you/ })).toBeNull()
-  expect(screen.getByRole('region', { name: 'Archive' })).toBeTruthy()
+  expect(screen.getByText('Nothing open.')).toBeTruthy()
+  expect(screen.queryByRole('region', { name: /^Open/ })).toBeNull()
+  expect(screen.getByRole('region', { name: 'Artifacts' })).toBeTruthy()
 })
 
 it('says when the computer is offline', async () => {

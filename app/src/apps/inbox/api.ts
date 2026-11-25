@@ -46,7 +46,7 @@ export type Refusal = 'changed' | 'done' | 'soon' | 'closed' | 'gone' | 'failed'
 export const label = (action: string) => action.charAt(0).toUpperCase() + action.slice(1)
 /** A moment as a list or an answer line shows it: *3 Nov, 14:02*. */
 export const when = (at: number) => new Date(at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-/** What an Archive row says under its title: a waiting page's folder, else what it is, whether the team has its link,
+/** What an Artifacts row says under its title: a waiting page's folder, else what it is, whether the team has its link,
  *  when it ended, and its folder: *Page · Shared, 23 Nov, 09:00 · stock*. */
 export const archiveLine = (row: Review, now = Date.now()) => row.endedAt === null && row.closesAt > now ? `Waiting · ${row.workspace}`
   : `${row.plain ? 'Page' : row.answered ? 'Answered' : 'No answer'}${row.shared ? ' · Shared' : ''}, ${when(row.endedAt ?? row.closesAt)} · ${row.workspace}`
@@ -72,7 +72,7 @@ const call = async <T>(schema: z.ZodType<T>, route: string, input?: object) =>
 
 export const readInbox = () => call(list, 'items')
 export const readPlan = (id: string) => call(one, `item?id=${encodeURIComponent(id)}`)
-/** The person's review pages matching `q`; `before` reads the Archive's next page after that row. */
+/** The person's review pages matching `q`; `before` reads Artifacts' next page after that row. */
 export const readReviews = (q: string, before?: Review) => call(reviews, `reviews?${new URLSearchParams({
   ...(q.trim() && { q: q.trim() }), ...(before && { before: `${before.createdAt}:${before.id}` }) })}`)
 /** Shares the page with the team: its link's token, the same one while it stays shared. */

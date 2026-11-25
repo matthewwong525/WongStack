@@ -64,7 +64,7 @@ When the person's computer has not checked in recently, the inbox SHALL say it i
 
 ### Requirement: Items close on their own
 
-A plan item SHALL close once a tap on it, notes or an action, reaches its chat, when its link's time runs out, or when its chat closes. A plan whose tap did not arrive SHALL stay open. An approval or question SHALL close once its answer reaches the chat, when its chat closes, or when the daily watch that sent it ends. A closed item SHALL leave the waiting items. A closed review page SHALL be kept with its page and its answers, and SHALL never be deleted; any other closed item SHALL be removed after a day. A plan the chat updates and opens again SHALL come back as a new item.
+A plan item SHALL close once a tap on it, notes or an action, reaches its chat, when its link's time runs out, or when its chat closes. A plan whose tap did not arrive SHALL stay open. An approval or question SHALL close once its answer reaches the chat, when its chat closes, or when the daily watch that sent it ends. A closed item SHALL leave *Open*. A closed review page SHALL be kept with its page and its answers, and SHALL never be deleted; any other closed item SHALL be removed after a day. A plan the chat updates and opens again SHALL come back as a new item.
 
 #### Scenario: The answer arrived
 
@@ -74,7 +74,7 @@ A plan item SHALL close once a tap on it, notes or an action, reaches its chat, 
 #### Scenario: Notes on a plan arrived
 
 - **WHEN** the person sends notes on a plan and the chat gets them
-- **THEN** the plan moves to the Archive with its page, and its updated version waits as a new entry once the chat opens it again
+- **THEN** the plan moves to *Artifacts* with its page, and its updated version waits as a new entry once the chat opens it again
 
 ### Requirement: The inbox never holds a secret
 
@@ -153,7 +153,7 @@ A file sent with a tap SHALL be kept by the app only for that tap's item and per
 
 ### Requirement: An archived review page opens read-only
 
-An archived review page SHALL open in the same view as a waiting one, showing the same page. It SHALL offer no action and take no notes, and no tap on it SHALL ever reach a chat. Above the page it SHALL say what reached the chat and when, with any notes sent, or that no answer came and when it closed. A page whose answer has just reached the chat SHALL look the same at once, before it moves to the Archive.
+An archived review page SHALL open in the same view as an open one, showing the same page. It SHALL offer no action and take no notes, and no tap on it SHALL ever reach a chat. Above the page it SHALL say what reached the chat and when, with any notes sent, or that no answer came and when it closed. A page whose answer has just reached the chat SHALL look the same at once, before it moves to *Artifacts*.
 
 #### Scenario: Opening an answered page
 
@@ -170,9 +170,9 @@ An archived review page SHALL open in the same view as a waiting one, showing th
 - **WHEN** an archived page built before this change sends its notes
 - **THEN** nothing reaches the chat, and the page says the link has closed
 
-### Requirement: The inbox keeps past review pages in an Archive
+### Requirement: The inbox keeps past pages in Artifacts
 
-Below the waiting pages, the inbox SHALL show every signed-in person an Archive of their own answered or closed review pages, newest first, whether or not they use the daily. A search SHALL find pages by their title, waiting or archived. The Archive SHALL show no other person's pages, and no question, approval, private link or hidden item.
+Below *Open*, the inbox SHALL show every signed-in person *Artifacts*: their own answered or closed pages, newest first, whether or not they use the daily. A search SHALL find pages by their title, open or closed, and no page SHALL show twice. *Artifacts* SHALL show no other person's pages, and no question, approval, private link or hidden item.
 
 #### Scenario: Looking back at a past plan
 
@@ -182,7 +182,7 @@ Below the waiting pages, the inbox SHALL show every signed-in person an Archive 
 #### Scenario: A page that ran out of time
 
 - **WHEN** a review page's 24 hours pass with no answer
-- **THEN** it leaves *Needs you*, and the page shows in the Archive with no answer
+- **THEN** it leaves *Open*, and the page shows in *Artifacts* with no answer
 
 ### Requirement: The inbox's Schedules button lists the person's schedules
 
@@ -200,14 +200,14 @@ The inbox SHALL have a *Schedules* button in its top bar that opens the signed-i
 
 ### Requirement: The inbox opens on the pages waiting for the person
 
-The inbox SHALL open on the signed-in person's review pages that wait on them, newest first, only theirs, each with its title, its folder, and when it came, and a tap SHALL open that page. A page SHALL leave the list when it is answered, closed, or runs out of time. The inbox SHALL show no list of open chats, and no days, dates, tasks or backlog. A plan item SHALL still open from its own link.
+The inbox SHALL open on the signed-in person's pages that wait on them, under *Open*, newest first, only theirs, each with its title, its folder, and when it came, and a tap SHALL open that page. A page SHALL leave *Open* when it is answered, closed, or runs out of time. The inbox SHALL show no list of open chats, and no days, dates, tasks or backlog. A plan item SHALL still open from its own link.
 
 #### Scenario: Opening the inbox
 
 - **WHEN** Jo has two plans waiting on Jo's review and four open chats with nothing waiting
-- **THEN** Jo sees the two plans under *Needs you*, newest first, and no row for the four chats, and a tap on the first opens its plan
+- **THEN** Jo sees the two plans under *Open*, newest first, and no row for the four chats, and a tap on the first opens its plan
 
 #### Scenario: Nothing waits
 
 - **WHEN** no page waits on Jo
-- **THEN** the inbox says nothing waits, and shows the Archive below
+- **THEN** the inbox says *Nothing open.*, and shows *Artifacts* below

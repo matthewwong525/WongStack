@@ -16,7 +16,7 @@ const open = (who: AccessIdentity | null, route: string) =>
 const share = async (id = PAGE) => String((await call(sam, "POST", "share", { id })).json.token);
 const codeOf = async (response: Response) => [response.status, ((await response.json()) as { error: { code: string } }).error.code];
 
-it("puts a plain page straight in the Archive marked as a page, takes no tap, and takes one only as a plan with no actions", async () => {
+it("puts a plain page straight in Artifacts marked as a page, takes no tap, and takes one only as a plan with no actions", async () => {
   expect((await put(sam, plainPage)).status).toBe(200);
   expect((await call(sam, "GET", "items")).json.items).toEqual([]);
   const listed = (await call(sam, "GET", "reviews")).json;

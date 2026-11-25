@@ -294,7 +294,7 @@ it("opens a closed review page read-only with each answer that reached the chat,
   expect(await call(sam, "GET", "item", { id: APPROVAL })).toMatchObject({ status: 410, json: { error: { code: "closed" } } });
 });
 
-it("lists the caller's review pages alone: waiting ones, then the Archive, newest first, by title words", async () => {
+it("lists the caller's review pages alone: open ones, then Artifacts, newest first, by title words", async () => {
   await put(sam, { ...plan, id: page(1), title: "Weekly profit summary" });
   later(1000);
   await put(sam, { ...plan, id: page(2), title: "Profit by channel" });
@@ -326,7 +326,7 @@ it("lists the caller's review pages alone: waiting ones, then the Archive, newes
   expect((await call(machine, "GET", "reviews")).status).toBe(403);
 });
 
-it("reads the Archive 50 pages at a time, the next after the last one shown", async () => {
+it("reads Artifacts 50 pages at a time, the next after the last one shown", async () => {
   const row = db.sql.prepare(`INSERT INTO inbox_items (installation_id, email, id, kind, title, workspace, body, actions, version,
     created_at, closes_at, closed_at) VALUES ('', 'sam@example.com', ?, 'plan', ?, 'desk', '<p>Page</p>', '[]', 'v1', ?, ?, ?)`);
   // Two pages share a moment, so the id orders them.
@@ -402,7 +402,7 @@ it("starts staging with a sample day in Fay's inbox, one agent per group, and a 
   expect(detail.options.map(option => String(option).length > 180)).toEqual([true, true]);
 });
 
-it("starts staging with Fay's review pages: two waiting, an Archive answered with notes, with Build it, and not at all, and a shared plain page", async () => {
+it("starts staging with Fay's review pages: two waiting, an artifact answered with notes, with Build it, and not at all, and a shared plain page", async () => {
   const { DB } = seeded().env;
   const fay = person("fay@example.invalid");
   const read = async (route: string) => body(await handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}`), fakeEnv({ DB }), fay));

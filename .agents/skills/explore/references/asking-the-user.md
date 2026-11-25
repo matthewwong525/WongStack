@@ -70,7 +70,7 @@ Some hosts hide the text above a question card, so **the question holds what the
 
 ## Print the plan's link
 
-When a reply makes or changes a plan or its checklist, print the link as [one chat line](#end-every-reply-with-the-next-step) near the top, even when the build goes on: it adds no stop. Copy the builder's `[👉 Tap here to see the plan](…)` line whole: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file; on *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are not a change.
+When a reply makes or changes a plan or its checklist, print the link as [one chat line](#end-every-reply-with-the-next-step) near the top, even mid-build: it adds no stop. Copy the builder's `[👉 Tap here to see the plan](…)` line whole: [the reply link](../../../../wiki/development/reply-links.md) when one opens, else the `review.html` file, with its *Signed out* line; on *new link*, rerun the builder. Status, branch, Open questions, and Decision-log lines alone are not a change.
 
 **A finished plan's reply asks nothing:** it prints the builder's output as is: link, copy, then the review line. **Any other closing question in a reply that made or changed a plan offers *Review the plan***, the link in its question. Picking it starts nothing and ends the same way. Leave the copy and the review line out of every other reply.
 

@@ -62,7 +62,7 @@ function Watch({ waiting, look }: { waiting: boolean; look: () => void }) {
 export function PlanView({ id }: { id: string }) {
   const [plan, setPlan] = useState<Plan | null>(null)
   const navigate = useNavigate()
-  // Back returns to the chat list, which holds the Archive too.
+  // Back returns to the chat list, which holds Artifacts too.
   const back = '/apps/inbox/'
   const [gone, setGone] = useState<'closed' | 'unavailable' | null>(null)
   const [tap, setTap] = useState<Tap | null>(null)

@@ -105,7 +105,7 @@ describe('a page with files', () => {
     expect(screen.getByRole('button', { name: 'Share with team' })).toBeTruthy()
   })
 
-  it('downloads nothing by itself from the Archive, and Download saves the files', async () => {
+  it('downloads nothing by itself from Artifacts, and Download saves the files', async () => {
     item = { ...item, pageFiles: files.slice(0, 1) }
     open()
     await screen.findByRole('button', { name: 'Download' })

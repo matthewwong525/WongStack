@@ -9,7 +9,7 @@ Every review page shows the same parts, in this order:
 1. **The top**: the ask as the title, such as *Approve these 3 ads?*, then *Review · 2 notes*, then one row of section links that scrolls sideways on a phone. The how-to hint sits under *Your notes* until the first note, so the first card starts high on a phone.
 2. **Why**: a few short paragraphs.
 3. **The cards**: the things to review, numbered, each with its picture or words.
-4. **What the build needs**, on a plan: [each key, login, file, or answer](#what-the-build-needs), *Ready* or *Needs you*. An answer is asked in the chat first, so it is *Ready*.
+4. **What the build needs**, on a plan: [each key, login, file, or answer](#what-the-build-needs), *Ready*, *Optional* or *Needs you*. An answer is asked in the chat first, so it is *Ready*.
 5. **Decisions**, only when there are some. A page with none shows no Decisions section and no link to one.
 6. **The bar** at the bottom: *Send notes*, and only the buttons the page's link offers. Opened from a file, *Send notes* is *Copy notes*. With no reply link, a page opens so, and the person replies in the chat. A shipped plan's link is its saved file too: a live page would wait for an answer again, with build buttons.
 
@@ -85,6 +85,7 @@ Every plan lists what its build needs from you, so a build never stops halfway t
 
 - **A business service's key** is checked by `node scripts/company-api.mjs services`, then the computer's own `.env` ([secrets](development/secrets.md)). A website sign-in is checked by opening the site with `browse.mjs` ([saved browser logins](../.agents/skills/browser/references/browsing.md#saved-browser-logins)).
 - **A key goes through [its private link](development/secrets.md#receive-a-key-through-a-private-link)**, which the page shows as *Open the link*.
+- **An *Optional* item** holds a form you may leave empty, such as a file the build can do without. The bar never waits for it.
 - **The bar waits for it.** An item counts as open until you send its files on the page. While any item is open, each button but *Send notes* reads *2 things need you*, and a tap shows the first open item. A key saved on its private link turns *Ready* when the chat builds the page again.
 
 ## OK and Note
@@ -131,7 +132,7 @@ node "$(git rev-parse --show-toplevel)/.claude/skills/plan/scripts/build-review.
   --action "approve=Approve|Approved: run the 3 ads as shown." --action "launch=Launch|Launch the 3 ads now." --confirm launch --link
 ```
 
-Each `--action` is a name, the label the button shows, and the one-line message the chat gets, 6 at most. A name is lowercase letters, digits, and hyphens; `yes`, `cancel`, and `send` are the bar's own. A `--confirm` name asks once more on the page, such as *Launch? This can't be undone.* The page opens in the person's Inbox when one answers, else through [a reply link](development/reply-links.md). Once an answer reaches the chat, the page turns read-only under that answer, and it stays so in the Inbox's Archive ([in your inbox first](development/reply-links.md#in-your-inbox-first)). Its notes come under *Notes on the review page "<ask>". Don't go on yet.*
+Each `--action` is a name, the label the button shows, and the one-line message the chat gets, 6 at most. A name is lowercase letters, digits, and hyphens; `yes`, `cancel`, and `send` are the bar's own. A `--confirm` name asks once more on the page, such as *Launch? This can't be undone.* The page opens in the person's Inbox by [a reply link](development/reply-links.md#in-your-inbox-first); signed out, the chat gives its file and the sign-in link, never a tunnel. A project with no app opens it at a tunnel. Once an answer reaches the chat, the page turns read-only under that answer, and stays so in the Inbox's *Artifacts*. Its notes come under *Notes on the review page "<ask>". Don't go on yet.*
 
 ## The ad card
 

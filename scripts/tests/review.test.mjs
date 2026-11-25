@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
-import { assemble, buildReview, chatCopy, notesHeader, planActions, planLink, previewActions, previewNotesHeader, REVIEW_IN_CHAT, REVIEW_ON_PAGE, WORK_IN_CHAT, workActions, workNotesHeader } from '../../.agents/skills/plan/scripts/build-review.mjs';
+import { assemble, buildReview, chatCopy, linked, linkLines, notesHeader, planActions, planLink, previewActions, previewNotesHeader, REVIEW_IN_CHAT, REVIEW_ON_PAGE, SIGN_IN, WORK_IN_CHAT, workActions, workNotesHeader } from '../../.agents/skills/plan/scripts/build-review.mjs';
 import { pack } from '../../.agents/loop/scripts/archive.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { needs } from './fixtures/needs.mjs';
@@ -403,7 +403,8 @@ test('--link prints the reply link in the same line, with the plan\'s header and
     assert.equal(plain.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${copy}${REVIEW_IN_CHAT}\n`);
     assert.equal(existsSync(state), false, 'no link, no actions');
     rmSync(join(root, 'review.html'));
-    const out = spawnSync(process.execPath, [builder, root, '--require-current', '--link'], { encoding: 'utf8', env, timeout: 30_000 });
+    // Run outside any checkout: a project with no company app opens its link at the tunnel stand-in.
+    const out = spawnSync(process.execPath, [builder, root, '--require-current', '--link'], { cwd: home, encoding: 'utf8', env, timeout: 30_000 });
     assert.equal(out.status, 0, out.stderr);
     const [, link] = /^\[👉 Tap here to see the plan\]\((\S+)\)$/m.exec(out.stdout) ?? [];
     assert.match(link ?? out.stdout, new RegExp(`^${ORIGIN}/p/[0-9a-f]{32}/#key=[0-9a-f]{64}$`));
@@ -422,10 +423,10 @@ test('--link prints the reply link in the same line, with the plan\'s header and
     assert.deepEqual(actionsOf(built).map(action => [action.name, action.label]), [['build', 'Build it'], ['publish', 'Build and publish']], 'the page offers both');
     assert.ok(kit.includes("'Notes on the plan ' + CHANGE + ' from the review page. Don\\'t build yet.'"), 'the kit copies notes under the same line');
     // A second run prints the same link, and an older page, which can not send, keeps its file.
-    const again = spawnSync(process.execPath, [builder, root, '--link'], { encoding: 'utf8', env, timeout: 30_000 });
+    const again = spawnSync(process.execPath, [builder, root, '--link'], { cwd: home, encoding: 'utf8', env, timeout: 30_000 });
     assert.equal(again.stdout, `review: current, unchanged\n${planLink(link)}\n\n${copy}${REVIEW_ON_PAGE}\n`, 'the same link while the tunnel lives');
     writeFileSync(join(root, 'review.html'), '<!-- wong-review:2 -->\n<html><!-- proposal:start -->\nold\n<!-- proposal:end --></html>');
-    const older = spawnSync(process.execPath, [builder, root, '--link'], { encoding: 'utf8', env, timeout: 30_000 });
+    const older = spawnSync(process.execPath, [builder, root, '--link'], { cwd: home, encoding: 'utf8', env, timeout: 30_000 });
     assert.equal(older.stdout, `review: proposal-only, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${REVIEW_IN_CHAT}\n`);
   } finally {
     let server = null;
@@ -927,6 +928,38 @@ test('the needs list sits after the cards and before Decisions, each item marked
   assert.match(chatCopy('example', asking), /\*\*What the build needs\*\*\n\n- \*\*Shopify key\*\*: Ready[^\n]*\n- \*\*Your logo\*\*: Needs you\.\n/);
 }, asking));
 
+test('an Optional need shows its tag and form, and never holds a button', () => fixture(root => {
+  buildReview(root, { requireCurrent: true });
+  const html = page(root);
+  assert.deepEqual([...html.matchAll(/<li class="need card" id="(need-\d)" data-need="(\w+)">/g)].map(m => `${m[1]} ${m[2]}`), ['need-1 ready', 'need-2 needs', 'need-3 optional', 'need-4 needs', 'need-5 none']);
+  assert.match(html, /<li class="need card" id="need-3" data-need="optional"><p><span class="tag-outline">Optional<\/span> <b>Shop pictures<\/b>/);
+  assert.match(html, /data-q="need-3-q-1" data-kind="file" data-label="Shop pictures"/);
+}, asking.replace('- **Shop pictures**: Needs you.', '- **Shop pictures**: Optional.')));
+
+test('in the inbox an Optional need never counts toward the things that need you', needsDom, () => fixture(async root => {
+  buildReview(root, { requireCurrent: true });
+  const { window, document, errors } = dom(page(root));
+  await loaded(window);
+  hosted(window, ['build']);
+  assert.equal(document.querySelector('[data-ready="build"]').textContent.trim(), '2 things need you');
+  assert.deepEqual(errors, []);
+  window.close();
+}, asking.replace('- **Shop pictures**: Needs you.', '- **Shop pictures**: Optional.')));
+
+test('a review link gives a bare link or {link, reason}; signed out adds the sign-in line under the file', async () => {
+  const page = '/w/example/review.html', at = 'https://app.example.com/apps/inbox/?item=1';
+  const given = value => async () => value;
+  assert.deepEqual(await linked(page, 'H', {}, given(at)), { link: at }, 'a bare link');
+  assert.deepEqual(await linked(page, 'H', {}, given({ link: at })), { link: at });
+  assert.deepEqual(await linked(page, 'H', {}, given({ link: null, reason: 'signed-out' })), { link: page, reason: 'signed-out' });
+  assert.deepEqual(await linked(page, 'H', {}, given(undefined)), { link: page, reason: undefined }, 'no link: the file');
+  assert.deepEqual(await linked(page, 'H', {}, given(null)), { link: page, reason: undefined });
+  assert.equal(linkLines({ link: page, reason: 'signed-out' }), `${planLink(page)}\n${SIGN_IN}`);
+  assert.match(SIGN_IN, /node scripts\/company-api\.mjs login/);
+  for (const reason of [undefined, 'inbox-down', 'no-chat', 'off']) assert.equal(linkLines({ link: page, reason }), planLink(page));
+  assert.equal(linkLines({ link: at }, 'the review'), planLink(at, 'the review'));
+});
+
 test('a page with no needs list has no Needs section or jump link', () => fixture(root => {
   buildReview(root, { requireCurrent: true });
   assert.doesNotMatch(page(root), /id="needs"|href="#needs"/);
@@ -956,7 +989,7 @@ for (const [what, [from, to], line, where, why] of refusedAsks) {
 }
 
 const refusedNeeds = [
-  ['neither state', ['**Shopify key**: Ready,', '**Shopify key**: Maybe,'], 'item 1: start with **<what>**: Ready or **<what>**: Needs you'],
+  ['neither state', ['**Shopify key**: Ready,', '**Shopify key**: Maybe,'], 'item 1: start with **<what>**: Ready, **<what>**: Needs you or **<what>**: Optional'],
   ['an http link', ['<https://key.example.dev/k>', '[the link](http://key.example.dev/k)'], 'item 4: a need takes one https link at most'],
   ['nothing to give', ['Get it: <https://key.example.dev/k>', 'Ask the owner.'], 'item 4: a need that needs you holds a form or its https link'],
 ];
