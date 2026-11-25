@@ -35,7 +35,7 @@ The bridge carries no notes storage and no files. A page that needs a file quest
 - Has an app → inbox only. Signed out → `REPLY_LINK=none`, `REPLY_REASON=signed-out`; an inbox that does not answer or take the page → `REPLY_REASON=inbox-down`. The plan and preview builders print the file and a line that asks the chat to give the `node scripts/company-api.mjs login` link.
 - No app → the tunnel path as before (`ensureServer`), with no inbox listing. `no-cloudflared` and `tunnel-down` stay, for no-app projects only.
 - `listPage` and `unlist` go: a project with an app has no tunnel pages to list, and one without has no inbox.
-- `openReviewLink` returns `{link, reason}`, so the builder can tell signed out from the rest; `openReplyLink` keeps returning the link or null for every other caller. The loop profile's `reviewLink` calls `openReviewLink`; `linked()` still takes a bare string from an older profile.
+- `openReviewLink` returns `{link, reason}`, so the builder can tell signed out from the rest; `openReplyLink` keeps returning the link or null for every other caller. `linked()` calls `openReviewLink` straight, and still takes a bare string.
 - `PROTOCOL` goes 16 → 17, so an older page server or inbox helper is replaced at the next open. It stays below ClaymooApp's 20.
 
 ### D4. Open, then Artifacts

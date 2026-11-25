@@ -8,7 +8,7 @@
 
 ## 2. The loop
 
-- [x] 2.1 `build-review.mjs`: `linked()` returns `{link, reason}` and still takes a bare string; `linkLines` adds the sign-in line when signed out; an `Optional` need. `preview-review.mjs` prints `previewLines`. The profile's `reviewLink` calls `openReviewLink`. Verify in `review.test.mjs` and `preview-review.test.mjs`, the `--link` tunnel case run outside a checkout.
+- [x] 2.1 `build-review.mjs`: `linked()` returns `{link, reason}` and still takes a bare string; `linkLines` adds the sign-in line when signed out; an `Optional` need. `preview-review.mjs` prints `previewLines`. `linked()` calls `openReviewLink`. Verify in `review.test.mjs` and `preview-review.test.mjs`, the `--link` tunnel case run outside a checkout.
 - [x] 2.2 Update the loop README's `reviewLink` row and the ask convention's link line, within the instruction budget. Verify `node scripts/measure-context.mjs --check`.
 
 ## 3. Inbox
