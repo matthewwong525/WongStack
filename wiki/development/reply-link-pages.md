@@ -12,7 +12,7 @@ node .claude/skills/reply-link/scripts/reply-link.mjs close "$page"
 node .claude/skills/reply-link/scripts/reply-link.mjs list
 ```
 
-`--header` is the fixed first line of every message the page sends; write it so the chat knows what to do with the text. `--hours N` changes the 24 hours. The page opens in the person's inbox, titled by its `<title>`; in a project with no app, at a tunnel. On `REPLY_LINK=none`, offer the file and take the answers in chat. With `REPLY_REASON=signed-out`, also give the sign-in link from `node scripts/company-api.mjs login`, once. [Where no link opens](reply-links.md#where-no-link-opens) lists every reason.
+`--header` is the fixed first line of every message the page sends; write it so the chat knows what to do with the text. `--hours N` changes the 24 hours. `--media <list.json>` carries pictures and videos: a JSON file with up to 300 `{"name", "path"}` entries, each path read from the list's folder. Each is a PNG, JPEG, WebP, GIF, MP4, WebM, or MOV, 95 MB at most, whose first bytes match its name; one that does not stops the open before anything is sent. The page asks for each by name, as [the page bridge](#the-page-bridge) says. The page opens in the person's inbox, titled by its `<title>`; in a project with no app, at a tunnel. On `REPLY_LINK=none`, offer the file and take the answers in chat. With `REPLY_REASON=signed-out`, also give the sign-in link from `node scripts/company-api.mjs login`, once. [Where no link opens](reply-links.md#where-no-link-opens) lists every reason.
 
 The page reads its key, then asks three routes beside itself:
 
@@ -42,7 +42,9 @@ In the inbox, the page runs in a sealed frame with no address of its own, so its
 - **It answers `alive`, `send` and `act`** over the inbox's private channel, with the same answers as the table above. `alive` waits up to 10 seconds for the inbox, and answers `410` on a closed page. Every other call passes through.
 - **It opens a link in a new tab**, and a `#` link scrolls the page.
 - **No confirm box.** The frame blocks `confirm()` and `alert()`: ask with a second tap on the page instead.
-- **No notes storage and no files.** A page that needs a file question is a [review page](../review-pages.md#a-page-for-other-work).
+- **It hands in pictures and videos.** `await window.replyMedia(name)` gives the `Blob` of a `--media` entry, or `null` when the inbox has none by that name. Show it with `URL.createObjectURL(blob)`: the frame can't load an address.
+- **It sends files with `send`.** A `send` whose body is a `FormData` sends each `file` entry first, then the text with the files, as [files from a page](reply-links.md#files-from-a-page) says. A refused file answers `413`.
+- **No notes storage.** A page that needs notes is a [review page](../review-pages.md#a-page-for-other-work).
 
 ### Servers
 

@@ -9,6 +9,10 @@ const GAP_MS = 400
 export const pageFileUrl = (id: string, name: string) => `/apps/inbox/api/page-file?${new URLSearchParams({ id, name })}`
 /** Where an open team link `token` serves its page's file `name`. */
 export const sharedFileUrl = (token: string, name: string) => `/apps/inbox/api/shared-file?${new URLSearchParams({ token, name })}`
+/** Where the person's own page `id` serves its picture or video `name`, which the inbox hands to the sealed page. */
+export const pageMediaUrl = (id: string, name: string) => `/apps/inbox/api/page-media?${new URLSearchParams({ id, name })}`
+/** Where an open team link `token` serves its page's picture or video `name`. */
+export const sharedMediaUrl = (token: string, name: string) => `/apps/inbox/api/shared-media?${new URLSearchParams({ token, name })}`
 
 /** The query without `download` when it asks for the files, else null: the files download once, and Back, a reload
  *  or Artifacts never download them again. */

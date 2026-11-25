@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { helperFiles } from '../../.agents/skills/reply-link/scripts/lib/computer.mjs';
 import test from 'node:test';
 import { checkin, closeItem, companyFor, hasApp, listLink, probe, tapResult, upload } from '../../.agents/skills/reply-link/scripts/lib/inbox.mjs';
-import { bridged, closeInboxItem, closePlanPages, inboxTick, openInboxItem, openLink, openReplyLink, openReviewLink, PROTOCOL, startInbox } from '../../.agents/skills/reply-link/scripts/reply-link.mjs';
+import { bridged, closeInboxItem, closePlanPages, inboxTick, mediaList, openInboxItem, openLink, openReplyLink, openReviewLink, PROTOCOL, startInbox } from '../../.agents/skills/reply-link/scripts/reply-link.mjs';
 
 const ORIGIN = 'https://app.example.com';
 const BUILD = 'Build it now: run /apply for the plan example.';
@@ -24,13 +24,22 @@ const sha = text => createHash('sha256').update(text).digest('hex');
 let JSDOM;
 try { ({ JSDOM } = await import('jsdom')); } catch { /* the bridge's case skips */ }
 
-// The live app's inbox routes, kept in memory; `status` answers every call with that code, and `down` throws. A
-// check-in hands out the taps on the items it names, once, as the app does.
+// The app's inbox routes in memory: `status` answers every call with that code, `down` throws, a check-in hands out
+// its items' taps once, and an item that names its HTML by hash is kept with that upload, as the app does.
 function fakeApp(origin = ORIGIN) {
-  const app = { calls: [], items: new Map(), taps: [], files: new Map(), status: 200, down: false, reports: true };
+  const app = { calls: [], items: new Map(), taps: [], files: new Map(), uploads: new Map(), status: 200, down: false, reports: true };
   const answer = (route, body) => {
     if (route === 'items') return { items: [...app.items.values()], computerOnline: true };
-    if (route === 'item') { app.items.set(body.id, body); return { id: body.id, version: body.version }; }
+    if (/^page-(body|file)\?/.test(route)) {
+      const query = new URLSearchParams(route.slice(route.indexOf('?') + 1));
+      app.uploads.set(query.get('sha256'), body);
+      return { file: { name: query.get('name') ?? '', size: body.length, sha256: query.get('sha256') } };
+    }
+    if (route === 'item') {
+      const { bodySha256, ...item } = body;
+      app.items.set(body.id, bodySha256 ? { ...item, body: String(app.uploads.get(bodySha256)) } : body);
+      return { id: body.id, version: body.version };
+    }
     if (route === 'item-close') { app.items.delete(body.id); return { id: body.id }; }
     if (route.startsWith('reviews?')) {
       const q = new URLSearchParams(route.slice(8)).get('q');
@@ -53,7 +62,7 @@ function fakeApp(origin = ORIGIN) {
     http: async (path, init) => {
       if (app.down) throw new Error('fetch failed');
       const route = path.replace('/apps/inbox/api/', '');
-      const body = init.body ? JSON.parse(init.body) : null;
+      const body = Buffer.isBuffer(init.body) ? init.body : init.body ? JSON.parse(init.body) : null;
       app.calls.push({ route, method: init.method, body });
       const value = app.status === 200 ? answer(route, body) : null;
       return { value, status: value ? app.status : 500 };
@@ -170,6 +179,80 @@ test('a hand-written page opens in the inbox with the bridge first in its head; 
   assert.ok(bridged('<html><p>no head</p></html>').startsWith('<html><script>'), 'a page with no head gets it inside <html>');
 });
 
+const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(24, 7)]);
+const MP4 = Buffer.concat([Buffer.from([0, 0, 0, 24]), Buffer.from('ftypisom'), Buffer.alloc(24, 1)]);
+
+/** A page and its media list beside it: `chart.png` and `walk.mp4`, and `names` each file's name in the list. */
+function withMedia(at, names = { 'chart.png': PNG, 'walk.mp4': MP4 }) {
+  const file = join(at.dir, 'page.html');
+  writeFileSync(file, '<!doctype html><html><head><title>Walkthrough</title></head><body></body></html>');
+  mkdirSync(join(at.dir, 'media'), { recursive: true });
+  for (const [name, bytes] of Object.entries(names)) writeFileSync(join(at.dir, 'media', name), bytes);
+  const list = join(at.dir, 'media.json');
+  writeFileSync(list, JSON.stringify(Object.keys(names).map(name => ({ name, path: `media/${name}` }))));
+  return { file, list };
+}
+
+test('a page opens with its pictures and videos: each uploads first, then its HTML, and the put names them with no body', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const { file, list } = withMedia(at);
+  const env = { ...at.env, PASEO_AGENT_ID: 'chat-1', HANDOVER_PASEO_BIN: process.execPath, PATH: '' };
+  const opened = await openLink({ file, header: HEADER, env, cwd: at.dir, media: mediaList(list),
+    inbox: { clientFor: async () => app.client, start: () => {} } });
+  const id = /item=([0-9a-f]{32})$/.exec(opened.link)?.[1];
+  assert.ok(id, opened.link);
+  const html = bridged(readFileSync(file, 'utf8'));
+  assert.deepEqual(app.calls.slice(1).map(call => [call.method, call.route]), [
+    ['PUT', `page-file?id=${id}&name=chart.png&sha256=${sha(PNG)}&media=1`], ['PUT', `page-file?id=${id}&name=walk.mp4&sha256=${sha(MP4)}&media=1`],
+    ['PUT', `page-body?id=${id}&sha256=${sha(html)}`], ['PUT', 'item']]);
+  const put = app.calls.at(-1).body;
+  assert.deepEqual([put.body, put.bodySha256], ['', sha(html)], 'the put carries no HTML, only its hash');
+  const media = [{ name: 'chart.png', size: PNG.length, sha256: sha(PNG) }, { name: 'walk.mp4', size: MP4.length, sha256: sha(MP4) }];
+  assert.deepEqual(put.media, media);
+  // A rebuilt page goes up again by hash, and still names its pictures and videos.
+  writeFileSync(file, '<!doctype html><html><head><title>Walkthrough</title></head><body><p>Rebuilt</p></body></html>');
+  await tick(at, app);
+  const again = app.calls.filter(call => call.route === 'item').at(-1).body;
+  assert.deepEqual([again.body, again.media], ['', media]);
+  assert.ok(again.bodySha256 && again.bodySha256 !== put.bodySha256);
+});
+
+test('signed out, a page with media uploads nothing; an app before page uploads takes the HTML in the put', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const { file, list } = withMedia(at);
+  const env = { ...at.env, PASEO_AGENT_ID: 'chat-1', HANDOVER_PASEO_BIN: process.execPath, PATH: '' };
+  const opened = await openLink({ file, header: HEADER, env, cwd: at.dir, media: mediaList(list), inbox: { clientFor: async () => null, hasApp: () => true } });
+  assert.deepEqual(opened, { link: null, reason: 'signed-out' });
+  assert.deepEqual(app.calls, []);
+  const old = fakeApp();
+  const http = old.client.http;
+  old.client.http = async (path, init) => (path.includes('page-body') ? { status: 404, value: null } : http(path, init));
+  assert.ok(await upload(old.client, { id: 'a'.repeat(32), kind: 'plan', title: 'T', body: '<p>Plan</p>', actions: [], version: 'v' }));
+  assert.equal(old.items.get('a'.repeat(32)).body, '<p>Plan</p>');
+});
+
+test('a media list stops before any upload on a file of the wrong kind, a missing or empty file, a shared name, or a bad list', t => {
+  const at = home(t);
+  const { list } = withMedia(at, { 'chart.png': Buffer.from('not a picture') });
+  assert.throws(() => mediaList(list), /chart\.png is not what its name says/);
+  const cases = [
+    [{ 'notes.pdf': Buffer.from('%PDF-1.7') }, /notes\.pdf is not a picture or video a page shows/],
+    [{ 'empty.gif': Buffer.alloc(0) }, /not a file with something in it/],
+  ];
+  for (const [names, refused] of cases) assert.throws(() => mediaList(withMedia(at, names).list), refused);
+  writeFileSync(list, JSON.stringify([{ name: 'a.png', path: 'media/gone.png' }]));
+  assert.throws(() => mediaList(list), /not a file with something in it/);
+  writeFileSync(join(at.dir, 'media', 'a.png'), PNG);
+  writeFileSync(list, JSON.stringify([{ name: 'a.png', path: 'media/a.png' }, { name: 'a.png', path: 'media/a.png' }]));
+  assert.throws(() => mediaList(list), /share a name/);
+  for (const bad of ['{}', '[{"name": "a.png"}]', 'not json', JSON.stringify(Array(301).fill({ name: 'a.png', path: 'media/a.png' }))]) {
+    writeFileSync(list, bad);
+    assert.throws(() => mediaList(list), /--media takes a JSON list of up to 300/);
+  }
+});
+
 test('the bridge answers a framed page\'s alive, send and act over the inbox\'s port', { skip: !JSDOM && 'jsdom is not installed: run npm ci in scripts/tests' }, async t => {
   const at = home(t);
   const app = fakeApp();
@@ -221,6 +304,42 @@ test('the bridge answers a framed page\'s alive, send and act over the inbox\'s 
     const answer = await closed.window.fetch(route, route === 'send' ? { method: 'POST', body: JSON.stringify({ text: 'late' }) } : undefined);
     assert.deepEqual(await said(answer), [410, { closed: true }], `${route} on a closed page`);
   }
+});
+
+test('the bridge gets a picture with window.replyMedia, and a send with files hands each to the inbox before its tap', { skip: !JSDOM && 'jsdom is not installed: run npm ci in scripts/tests' }, async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const file = join(at.dir, 'page.html');
+  writeFileSync(file, '<!doctype html><html><head><title>Page</title></head><body></body></html>');
+  await openPlan(at, app, file, {});
+  const parent = new JSDOM('<!doctype html><body></body>', { runScripts: 'outside-only' });
+  const dom = new JSDOM(String([...app.items.values()][0].body), { runScripts: 'dangerously', beforeParse(win) { Object.defineProperty(win, 'parent', { value: parent.window }); } });
+  const { port1, port2 } = new MessageChannel();
+  t.after(() => { dom.window.close(); parent.window.close(); port1.close(); });
+  const win = dom.window;
+  // The inbox's end: a picture by name, each file taken with an id, and each tap answered sent.
+  const heard = [];
+  port1.onmessage = ({ data }) => {
+    heard.push(data.type === 'inbox:file' ? { ...data, data: Buffer.from(data.data).toString() } : data);
+    if (data.type === 'inbox:media') port1.postMessage({ type: 'inbox:media-result', ref: data.ref, ...(data.name === 'chart.png' ? { blob: new Blob(['png']) } : { missing: true }) });
+    if (data.type === 'inbox:file') port1.postMessage({ type: 'inbox:file-result', ref: data.ref, id: 'f'.repeat(32) });
+    if (data.type === 'inbox:tap') port1.postMessage({ type: 'inbox:result', state: 'sent' });
+  };
+  const picture = win.replyMedia('chart.png');
+  const event = new win.Event('message');
+  Object.defineProperties(event, { source: { value: parent.window }, data: { value: { type: 'inbox:hello', version: 'v1', actions: [] } }, ports: { value: [port2] } });
+  win.dispatchEvent(event);
+  assert.equal(await (await picture).text(), 'png', 'replyMedia waits for the hello, then answers the inbox\'s blob');
+  assert.equal(await win.replyMedia('gone.png'), null);
+  const form = new win.FormData();
+  form.append('text', 'Here is the logo');
+  form.append('question', 'Logo');
+  form.append('file', new win.File(['logo bytes'], 'logo.png', { type: 'image/png' }));
+  const sent = await win.fetch('send', { method: 'POST', body: form });
+  assert.equal(sent.status, 200);
+  assert.deepEqual(heard.filter(m => m.type !== 'inbox:media').map(({ ref: _ref, ...m }) => m), [
+    { type: 'inbox:file', name: 'logo.png', question: 'Logo', data: 'logo bytes' },
+    { type: 'inbox:tap', action: 'send', text: 'Here is the logo', files: ['f'.repeat(32)] }]);
 });
 
 /** Opens a page, signed out, from a project with an app or with none, through a tunnel stand-in that counts starts. */

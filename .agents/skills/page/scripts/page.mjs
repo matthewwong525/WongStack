@@ -2,11 +2,11 @@
 // One HTML page from a folder, put in the person's inbox as a plain page, shared with --share; with --file, it carries
 // files its link downloads. wiki/development/plain-pages.md#a-plain-page
 import { createHash, randomBytes } from 'node:crypto';
-import { readFileSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { isMain, parseCli } from '../../memory/scripts/lib/cli.mjs';
 import { inliner, local } from '../../plan/scripts/build-review.mjs';
-import { companyFor, sharePage, upload, uploadPageFile } from '../../reply-link/scripts/lib/inbox.mjs';
+import { companyFor, hashFiles, putPage as putInboxPage, sharePage } from '../../reply-link/scripts/lib/inbox.mjs';
 
 const USAGE = `usage: page.mjs [<folder>] --title "<title>" [--file <path>]… [--id <id>] [--share]
   Reads <folder>/index.html, carries its styles, scripts, pictures and fonts inside it, and puts it in your inbox.
@@ -14,7 +14,7 @@ const USAGE = `usage: page.mjs [<folder>] --title "<title>" [--file <path>]… [
            shows each file's name and size
   --id     the page to replace, printed by an earlier run
   --share  share it with the team and print the team link`;
-const KB = 1024, MB = 1024 * KB, WARN = 800 * KB, MAX = 1536 * KB;
+const KB = 1024, MB = 1024 * KB, WARN = 800 * KB, MAX = 25 * MB;
 /** The app's limits for a page's files: D1 keeps them in parts. */
 const FILES = { page: 5, file: 25 * MB, name: 200 };
 /** What the app's refusal of a file means, by its code. */
@@ -36,14 +36,14 @@ export function linksOpenOwnTab(html) {
 }
 
 /** The folder's index.html as one sealed-ready document, and its warnings; throws on a web address, a missing file or
- *  a page over 1.5 MB. */
+ *  a page over 25 MB. */
 export function buildPage(folder) {
   const root = resolve(folder);
   const stop = why => { throw new Error(why); };
   const { real, bytes } = local('index.html', root, root, stop, `no index.html in ${folder}`);
   const html = linksOpenOwnTab(inliner(root, stop, 'a page')(bytes.toString('utf8'), dirname(real)));
   const size = Buffer.byteLength(html);
-  if (size > MAX) stop(`the page is ${Math.ceil(size / KB)} KB; keep a page under 1.5 MB: use smaller pictures`);
+  if (size > MAX) stop(`the page is ${Math.ceil(size / KB)} KB; keep a page under 25 MB: use smaller pictures`);
   const warnings = size > WARN ? [`the page is ${Math.ceil(size / KB)} KB; a page over 800 KB is slow on a phone`] : [];
   return { html, warnings };
 }
@@ -82,30 +82,20 @@ export function filePage(title, files) {
     + `<body><h1>${escape(title)}</h1><ul>${rows}</ul><p>Tap Download at the top to get ${files.length === 1 ? 'it' : 'them'} again.</p></body></html>`;
 }
 
-/** Uploads each of `files` for page `id`, one at a time: what the page names, `{ name, size, sha256 }`. */
-async function uploadFiles(client, id, files) {
-  const named = [];
-  for (const file of files) {
-    const bytes = readFileSync(file.path);
-    const sha256 = createHash('sha256').update(bytes).digest('hex');
-    const answer = await uploadPageFile(client, id, { name: file.name, sha256, bytes });
-    if (answer?.status !== 200) {
-      const why = REFUSALS[answer?.value?.error?.code];
-      throw new Error(`the inbox did not take ${file.name}${why ? `: ${why}` : `; sign in with ${SIGN_IN}, then run this again`}`);
-    }
-    named.push({ name: file.name, size: bytes.length, sha256 });
-  }
-  return named;
-}
-
 /** Puts the page in the person's inbox through `client`, its `files` uploaded first, and shares it when asked: its
  *  lines to print. A page with files prints a link that downloads them on open. */
 export async function putPage(client, { html, title, id = randomBytes(16).toString('hex'), share = false, workspace, chat, files = [] }) {
-  const named = await uploadFiles(client, id, files);
+  const hashed = hashFiles(files);
+  const named = hashed.map(({ name, size, sha256 }) => ({ name, size, sha256 }));
   const version = createHash('sha256').update(html).update(JSON.stringify(named)).digest('hex').slice(0, 16);
   const item = { id, kind: 'plan', title, workspace: workspace.slice(0, 100), body: html, actions: [], version, closesAt: Date.now(),
-    plain: true, ...(chat && { chat: chat.slice(0, 128) }), ...(named.length && { files: named }) };
-  if (!(await upload(client, item))) throw new Error(`the inbox did not take the page; sign in with ${SIGN_IN}, then run this again`);
+    plain: true, ...(chat && { chat: chat.slice(0, 128) }) };
+  const { value, refused } = await putInboxPage(client, item, { files: hashed });
+  if (refused) {
+    const why = REFUSALS[refused.code];
+    throw new Error(`the inbox did not take ${refused.name}${why ? `: ${why}` : `; sign in with ${SIGN_IN}, then run this again`}`);
+  }
+  if (!value) throw new Error(`the inbox did not take the page; sign in with ${SIGN_IN}, then run this again`);
   const origin = client.target();
   const lines = [`page: ${origin}/apps/inbox/?item=${id}${named.length ? '&download=1' : ''}`, `id: ${id} (pass --id ${id} to replace it)`];
   if (!share) return lines;

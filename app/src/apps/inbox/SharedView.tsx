@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router'
 import { Loading } from '@/components/Loading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Failed, readShared } from './api'
+import { Failed, readMedia, readShared } from './api'
 import { DownloadButton } from './Download'
-import { sharedFileUrl } from './downloads'
-import { appLook, PAGE_COLUMN } from './frame'
+import { sharedFileUrl, sharedMediaUrl } from './downloads'
+import { appLook, frameMessage, PAGE_COLUMN } from './frame'
 import { PageFrame } from './PlanView'
 
 type Shown = Awaited<ReturnType<typeof readShared>>
@@ -29,11 +29,18 @@ export function SharedView({ token }: { token: string }) {
   useEffect(() => { void load() }, [load])
   const retry = () => { setState('loading'); void load() }
   useEffect(() => () => port.current?.close(), [])
-  // A review page waits for the inbox's hello: read-only, it shows no buttons. Only its own Back is heard.
+  // A review page waits for the inbox's hello: read-only, it shows no buttons. Only its own Back and its pictures
+  // are heard; a tap or a note goes nowhere.
+  const listen = async (data: unknown) => {
+    const message = frameMessage(data, { actions: [], key: null })
+    if (message?.type === 'inbox:back') void navigate('/apps/inbox/')
+    if (message?.type === 'inbox:media') port.current?.postMessage({ type: 'inbox:media-result', ref: message.ref,
+      ...await readMedia(sharedMediaUrl(token, message.name)) })
+  }
   const greet = () => {
     port.current?.close()
     const { port1, port2 } = new MessageChannel()
-    port1.onmessage = event => { if ((event.data as { type?: unknown } | null)?.type === 'inbox:back') void navigate('/apps/inbox/') }
+    port1.onmessage = event => void listen(event.data)
     port.current = port1
     frame.current?.contentWindow?.postMessage({ type: 'inbox:hello', item: token, version: 'shared', actions: [], readOnly: true, workspace: '',
       files: [], theme: appLook() }, '*', [port2])
@@ -48,7 +55,8 @@ export function SharedView({ token }: { token: string }) {
       {shown.files.length > 0 && <div className="ml-auto flex flex-wrap items-center gap-2">
         <DownloadButton files={shown.files} urlOf={urlOf} auto /></div>}
     </div>
-    <PageFrame title={shown.title} src={`/apps/inbox/api/shared-frame?token=${encodeURIComponent(token)}`} frameRef={frame} onLoad={greet} />
+    <PageFrame title={shown.title} src={`/apps/inbox/api/shared-frame?token=${encodeURIComponent(token)}`} frameRef={frame} onLoad={greet}
+      onLeave={() => { port.current?.close(); port.current = null }} />
   </div>
   const ended = state === 'stopped' || state === 'missing' ? ENDED[state] : null
   if (ended) return <div className="grid justify-items-center gap-2 py-16 text-center">

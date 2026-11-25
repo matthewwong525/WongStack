@@ -1,9 +1,11 @@
 import { z } from "zod";
-import { pageFiles, replaceFiles } from "./page-files.ts";
+import { pageFiles, pageMedia, replacePage } from "./page-files.ts";
+import { readPageInfo } from "./page-info.ts";
+import { readStored } from "./page-store.ts";
 import { actionName, agent, agentId, detail, fail, inboxAction, itemId, KINDS, LIMITS, link, mine, settleTaps, start, START_ACTIONS } from "./store.ts";
 
 type Input = { id: string; kind: (typeof KINDS)[number]; title: string; workspace: string; body: string; actions: string[]; version: string; closesAt: number; hidden?: boolean;
-  chat?: string; plain?: true; files?: z.infer<typeof pageFiles> };
+  chat?: string; plain?: true; files?: z.infer<typeof pageFiles>; bodySha256?: string; media?: z.infer<typeof pageMedia> };
 
 const parsed = <T>(schema: z.ZodType<T>, body: string): T | null => {
   try { return schema.safeParse(JSON.parse(body)).data ?? null; } catch { return null; }
@@ -14,10 +16,14 @@ const startSound = (body: string, actions: string[]) => {
   return !!card && (card.state === "ready") === (card.plan !== undefined) && actions.length === START_ACTIONS.length &&
     START_ACTIONS.every(action => actions.includes(action));
 };
+/** Whether the item names uploads it can not carry: only a plan does, with its HTML sent or uploaded, never both. */
+const misplaced = ({ kind, body, bodySha256, media }: Pick<Input, "kind" | "body" | "bodySha256" | "media">) =>
+  !!(bodySha256 || media?.length) && (kind !== "plan" || !!(bodySha256 && body));
 /** Why the item's body can't be kept, or null: an approval or question needs its words; a link its address alone; a
  *  plan card its state and plan; an agent's status its state, taking no taps. */
-const fault = ({ kind, body, actions, plain, files }: Input) => {
+const fault = ({ kind, body, actions, plain, files, bodySha256, media }: Input) => {
   if (files?.length && !plain) return fail("bad_plain", 400);
+  if (misplaced({ kind, body, bodySha256, media })) return fail("bad_media", 400);
   if (plain) return kind === "plan" && actions.length === 0 ? null : fail("bad_plain", 400);
   if (kind === "link") return actions.length === 0 && parsed(link, body) ? null : fail("bad_link", 400);
   if (kind === "start") return startSound(body, actions) ? null : fail("bad_start", 400);
@@ -31,13 +37,15 @@ export const itemPut = inboxAction<Input>({
   input: z.strictObject({
     id: itemId.describe("The item's id, chosen by the computer."), kind: z.enum(KINDS).describe("What the item is."),
     title: z.string().trim().min(1).max(LIMITS.title).describe("The item's title."), workspace: z.string().max(LIMITS.workspace).describe("The workspace that sent it."),
-    body: z.string().describe("A plan's HTML, or JSON: an approval's or question's words, a link's {what, url}, a plan card's {state, plan?}, or an agent's {state, step?, action?, proof?}."),
+    body: z.string().default("").describe("A page put before the page store's HTML, or JSON: an approval's or question's words, a link's {what, url}, a plan card's {state, plan?}, or an agent's {state, step?, action?, proof?}."),
+    bodySha256: z.string().regex(/^[0-9a-f]{64}$/).optional().describe("A page's HTML, uploaded first with PUT page-body: its sha256."),
     actions: z.array(actionName).max(LIMITS.actions).describe("The actions a tap may name besides send."),
     version: z.string().min(1).max(100).describe("The body's version."), closesAt: z.number().int().positive().describe("When the item closes, in ms."),
     hidden: z.boolean().optional().describe("The item takes taps but shows in no list, such as a chat's watch."),
     chat: agentId.optional().describe("The agent id of the chat that sent it."),
     plain: z.literal(true).optional().describe("A plain page: a plan's HTML with no actions, which asks nothing and goes straight to Artifacts."),
     files: pageFiles.optional().describe("A plain page's files, each uploaded first with PUT page-file: its name, size and sha256."),
+    media: pageMedia.optional().describe("A page's pictures and videos, each uploaded first with PUT page-file and media=1: its name, size and sha256."),
   }),
   output: z.strictObject({ id: itemId, version: z.string() }), encoding: "json", effect: "write",
   limits: { inputBytes: 3145728, outputBytes: 65536, timeoutMs: 15000 },
@@ -47,15 +55,20 @@ export const itemPut = inboxAction<Input>({
     if (refused) return refused;
     // A waiting tap on an item that had closed stays expired: reopening never sends it.
     await settleTaps(at);
-    const files = await replaceFiles(at, input.id, input.files ?? []);
-    if (files instanceof Response) return files;
+    const blobs = await replacePage(at, input.id, { files: input.files, media: input.media, body: input.bodySha256 });
+    if (blobs instanceof Response) return blobs;
+    // Only a page with uploads gets page_info, which keeps it from the emptied-page prune; any other reads its row.
+    const html = blobs.page ? await new Response(await readStored(at, { ...blobs.page, item: input.id })).text() : input.body;
+    const info = blobs.page || input.media?.length ? JSON.stringify(readPageInfo(html)) : null;
     // A plain page ends as it is put, so it goes straight to Artifacts. Each put sets when the newest version came.
     await at.db.batch([mine(at, `INSERT INTO inbox_items (installation_id, email, id, kind, title, workspace, body, actions, version, created_at, updated_at,
-      closes_at, hidden, chat, plain) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, ?11, ?12, ?13, ?14) ON CONFLICT (installation_id, email, id)
+      closes_at, hidden, chat, plain, page_info) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, ?11, ?12, ?13, ?14, ?15) ON CONFLICT (installation_id, email, id)
       DO UPDATE SET kind = excluded.kind, title = excluded.title, workspace = excluded.workspace, body = excluded.body, actions = excluded.actions,
       version = excluded.version, updated_at = excluded.updated_at, closes_at = excluded.closes_at, closed_at = NULL, hidden = excluded.hidden,
-      chat = COALESCE(excluded.chat, inbox_items.chat), plain = excluded.plain`, input.id, input.kind, input.title, input.workspace, input.body, JSON.stringify(input.actions), input.version, at.now,
-    input.plain ? at.now : input.closesAt, input.hidden ? 1 : 0, input.chat ?? null, input.plain ? 1 : 0), ...files]);
+      chat = COALESCE(excluded.chat, inbox_items.chat), plain = excluded.plain, page_info = excluded.page_info`, input.id, input.kind, input.title,
+    input.workspace, input.body, JSON.stringify(input.actions), input.version, at.now, input.plain ? at.now : input.closesAt, input.hidden ? 1 : 0,
+    input.chat ?? null, input.plain ? 1 : 0, info), ...blobs.statements]);
+    await blobs.after();
     await at.wake(null);
     return Response.json({ id: input.id, version: input.version });
   },

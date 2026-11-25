@@ -379,7 +379,7 @@ test('a built page over 1.5 MB stops the build, and the previous page stays', ()
   writeFileSync(join(root, 'proposal.md'), withPictures(['a.png', 'b.png', 'c.png', 'd.png']));
   const result = build(root);
   assert.equal(result.status, 1);
-  assert.match(result.stderr, new RegExp(`^review: the page is (\\d+) KB; keep a page under 1.5 MB so the Inbox takes it: show fewer pictures, or ${SMALLER}\n$`));
+  assert.match(result.stderr, new RegExp(`^review: the page is (\\d+) KB; keep a page under 1.5 MB so it opens on a phone: show fewer pictures, or ${SMALLER}\n$`));
   assert.ok(Number(/is (\d+) KB/.exec(result.stderr)[1]) > 1536);
   assert.equal(page(root), good);
 }, ['a.png'], Object.fromEntries(['a', 'b', 'c', 'd'].map(name => [`${name}.png`, png(300 * KB)]))));

@@ -16,6 +16,7 @@ beforeEach(() => {
   paths = []
   vi.stubGlobal('fetch', vi.fn(async (path: string) => {
     paths.push(path)
+    if (path.startsWith('/apps/inbox/api/shared-media?')) return new Response(new Uint8Array([0x89, 0x50]), { headers: { 'content-type': 'image/png' } })
     return path.startsWith('/apps/inbox/api/shared?') ? answer() : Response.json({ items: [], computerOnline: false })
   }))
 })
@@ -57,6 +58,18 @@ it("hears only the page's own Back, on the newest load's port, and goes to the i
   second.postMessage({ type: 'inbox:back' })
   await wait()
   expect(screen.queryByTitle('Kit sales, November')).toBeNull()
+})
+
+it("hands the shared page each picture it asks for, by the link's token", async () => {
+  await open()
+  fireEvent.load(screen.getByTitle('Kit sales, November'))
+  const port = (frameWindow.postMessage.mock.calls[0][2] as MessagePort[])[0]
+  const heard: { type: string; ref: string; blob: Blob }[] = []
+  port.onmessage = event => { heard.push(event.data) }
+  port.postMessage({ type: 'inbox:media', ref: 'm1', name: 'shot.png' })
+  for (let i = 0; i < 100 && !heard.length; i++) await act(async () => { await new Promise(done => setTimeout(done, 5)) })
+  expect(paths.at(-1)).toBe(`/apps/inbox/api/shared-media?${new URLSearchParams({ token: TOKEN, name: 'shot.png' })}`)
+  expect([heard[0].type, heard[0].ref, heard[0].blob.size]).toEqual(['inbox:media-result', 'm1', 2])
 })
 
 it('says a stopped link is no longer shared, and a missing one does not exist', async () => {

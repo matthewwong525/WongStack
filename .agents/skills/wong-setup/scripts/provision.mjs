@@ -131,13 +131,15 @@ export function safeName(name) {
 /** A `.env` file's `KEY=value` lines, read by the memory scripts' parser; `{}` when it is missing. */
 export const readEnv = file => (existsSync(file) ? parseEnv(readFileSync(file, 'utf8')) : {});
 
-/** Every name one base takes. The memory store's database and bucket share a name. */
+/** Every name one base takes. The memory store's database and bucket share a name; the inbox's bucket has a twin. */
 export const namesFor = (base) => ({
   worker: base,
   staging: `${base}-staging`,
   db: `${base}-db`,
   stagingDb: `${base}-db-staging`,
   memory: `${base}-memory`,
+  inbox: `${base}-inbox`,
+  inboxStaging: `${base}-inbox-staging`,
   deploy: `${base}-deploy`,
   knowledge: `${base}-knowledge`,
 });
@@ -235,6 +237,8 @@ const nameList = (base) => {
     { kind: 'database', name: n.stagingDb },
     { kind: 'database', name: n.memory },
     { kind: 'bucket', name: n.memory },
+    { kind: 'bucket', name: n.inbox },
+    { kind: 'bucket', name: n.inboxStaging },
     { kind: 'token', name: n.deploy },
     { kind: 'repository', name: n.knowledge },
   ];
@@ -322,7 +326,7 @@ function dropLines(text, from, to) {
 export function wranglerConfig({ base, ids, bucket, access }, fragment = wranglerFragment()) {
   const n = namesFor(base);
   let text = fragment;
-  if (!bucket) text = dropLines(text, /\/\/ Only when the memory store has a bucket/, /^\s*\],?\s*$/);
+  while (!bucket && /\/\/ Only when R2 is on/.test(text)) text = dropLines(text, /\/\/ Only when R2 is on/, /^\s*\],?\s*$/);
   text = text.replace(/,(\s*\n\s*[}\]])/g, '$1');
   const fill = {
     '<your-worker>': n.worker,
@@ -911,10 +915,13 @@ export async function provision({ token, api, fetch, account, repo, base, route 
   let bucket = null;
   if (buckets && (!keepConfig || recordedBucket)) {
     bucket = n.memory;
-    if (buckets.some((b) => b.name === bucket)) note('reused', `bucket ${bucket}`);
-    else {
-      await step('cloudflare', () => cf('POST', `/accounts/${account}/r2/buckets`, { name: bucket }));
-      note('created', `bucket ${bucket}`);
+    // The inbox keeps its pages, pictures and videos in its own bucket, with a staging twin.
+    for (const name of [bucket, n.inbox, n.inboxStaging]) {
+      if (buckets.some((b) => b.name === name)) note('reused', `bucket ${name}`);
+      else {
+        await step('cloudflare', () => cf('POST', `/accounts/${account}/r2/buckets`, { name }));
+        note('created', `bucket ${name}`);
+      }
     }
   }
   const sub = await step('cloudflare', () => subdomain(cf, account, String(repo).split('/')[0], note));
@@ -972,6 +979,9 @@ export async function provision({ token, api, fetch, account, repo, base, route 
       if (bucket && !readFileSync(config, 'utf8').includes('MEMORY_BUCKET')) {
         if (addBucketBinding(config, bucket)) note('updated', 'app/wrangler.jsonc MEMORY_BUCKET');
         else report.todo.push(`add MEMORY_BUCKET for ${bucket} to app/wrangler.jsonc`);
+      }
+      if (bucket && !readFileSync(config, 'utf8').includes('INBOX_PAGES')) {
+        report.todo.push(`add INBOX_PAGES for ${n.inbox} to app/wrangler.jsonc, and for ${n.inboxStaging} to its env.staging`);
       }
     }
     migrateScripts(dir, n, note);

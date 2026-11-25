@@ -53,7 +53,8 @@ export const inbox: AppTests = context => {
 
   it("lists Fay's seeded waiting pages, and answers the chat list's old routes with retired, with no chats table left", async () => {
     const { waiting } = await (await asFay("GET", "reviews")).json() as { waiting: { id: string }[] };
-    expect(waiting.map(({ id }) => id).sort()).toEqual(["a0000000000000000000000000000006", "a0000000000000000000000000000007"]);
+    expect(waiting.map(({ id }) => id).sort()).toEqual(["a0000000000000000000000000000006", "a0000000000000000000000000000007",
+      "a0000000000000000000000000000012"]);
     for (const [method, route] of [["GET", "chats"], ["PUT", "chat"], ["POST", "chat-close"]]) {
       const old = await asFay(method, route, method === "GET" ? undefined : { agentId: "runtime-agent" });
       expect([old.status, await old.json()]).toEqual([404, { error: { code: "retired" } }]);

@@ -1,6 +1,7 @@
 // The live app's inbox, reached as the signed-in person through the company helper. Every call answers null on a
 // 404, a refused sign-in or a network error, so the caller falls back to the file. wiki/development/reply-links.md
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { primaryRoot } from '../../../memory/scripts/lib/primary-root.mjs';
@@ -42,18 +43,52 @@ export async function probe(client) {
   return (await ask(client, 'items', 'GET')) ? client.target() : null;
 }
 
-/** Writes an item: `{id, kind, title, workspace, body, actions, version, closesAt}`, and `plain: true` for a page that
- * asks nothing. */
-export const upload = (client, item) => ask(client, 'item', 'PUT', item);
 // A 25 MB file on a slow line takes minutes, not the 20 seconds a call gets.
 const UPLOAD_MS = 15 * 60_000;
-/** Uploads one file for the person's plain page `id`, raw, before the page names it: `{status, value}`, or null when
- * no answer came. */
-export async function uploadPageFile(client, id, { name, sha256, bytes }) {
+const sha256Of = bytes => createHash('sha256').update(bytes).digest('hex');
+
+/** Uploads raw `bytes` to `route` with `query`: `{status, value}`, or null when no answer came. A Buffer body sends its
+ *  Content-Length, which the app needs to refuse a large one early. */
+async function uploadBytes(client, route, query, bytes) {
   try {
-    return await client.http(`${BASE}page-file?${new URLSearchParams({ id, name, sha256 })}`,
+    return await client.http(`${BASE}${route}?${new URLSearchParams(query)}`,
       { method: 'PUT', headers: { 'Content-Type': 'application/octet-stream' }, body: bytes, signal: AbortSignal.timeout(UPLOAD_MS) });
   } catch { return null; }
+}
+
+/** Writes an item: `{id, kind, title, workspace, body, actions, version, closesAt}`, and `plain: true` for a page that
+ * asks nothing. A page's HTML uploads first and the item names it by hash; an app before that takes it in the item. */
+export async function upload(client, item) {
+  if (item.kind !== 'plan' || typeof item.body !== 'string' || !item.body) return ask(client, 'item', 'PUT', item);
+  const bytes = Buffer.from(item.body, 'utf8');
+  const sha256 = sha256Of(bytes);
+  const answer = await uploadBytes(client, 'page-body', { id: item.id, sha256 }, bytes);
+  if (answer?.status === 404) return ask(client, 'item', 'PUT', item);
+  return answer?.status === 200 ? ask(client, 'item', 'PUT', { ...item, body: '', bodySha256: sha256 }) : null;
+}
+
+/** Uploads one file for the person's page `id`, raw, before the page names it; `media` for a picture or video the
+ *  page shows: `{status, value}`, or null when no answer came. */
+const uploadPageFile = (client, id, { name, sha256, bytes, media = false }) =>
+  uploadBytes(client, 'page-file', { id, name, sha256, ...(media && { media: '1' }) }, bytes);
+
+/** Each `{name, path}` with its `size` and `sha256`, read one at a time. */
+export const hashFiles = list => list.map(({ name, path }) => {
+  const bytes = readFileSync(path);
+  return { name, path, size: bytes.length, sha256: sha256Of(bytes) };
+});
+
+/** Puts page `item`: each of `files` and `media`, hashed by hashFiles, uploads first, then the item names them.
+ *  `{value}`, a null value when the put failed, or `{refused: {name, code}}` for the first file the app refused. */
+export async function putPage(client, item, { files = [], media = [] } = {}) {
+  for (const [list, isMedia] of [[files, false], [media, true]]) {
+    for (const file of list) {
+      const answer = await uploadPageFile(client, item.id, { name: file.name, sha256: file.sha256, bytes: readFileSync(file.path), media: isMedia });
+      if (answer?.status !== 200) return { refused: { name: file.name, code: answer?.value?.error?.code } };
+    }
+  }
+  const named = list => list.map(({ name, size, sha256 }) => ({ name, size, sha256 }));
+  return { value: await upload(client, { ...item, ...(files.length && { files: named(files) }), ...(media.length && { media: named(media) }) }) };
 }
 /** Shares the person's page `id` with the team: `{token}`, the same while it stays shared, or null. */
 export const sharePage = (client, id) => ask(client, 'share', 'POST', { id });

@@ -17,7 +17,9 @@ export function companyClient() {
   return {
     target: () => 'https://app.example.com',
     http: async (path, init) => {
-      appendFileSync(process.env.FAKE_INBOX_LOG, `${JSON.stringify({ route: path.replace('/apps/inbox/api/', ''), body: JSON.parse(init.body ?? 'null') })}\n`);
+      // An upload's raw bytes are logged by their size.
+      const body = Buffer.isBuffer(init.body) ? { bytes: init.body.length } : JSON.parse(init.body ?? 'null');
+      appendFileSync(process.env.FAKE_INBOX_LOG, `${JSON.stringify({ route: path.replace('/apps/inbox/api/', ''), body })}\n`);
       if (process.env.FAKE_INBOX_HANG) return new Promise((_, fail) => setTimeout(fail, 20_000, new Error('timed out')));
       const status = Number(process.env.FAKE_INBOX_STATUS) || 200;
       return { status, value: status === 200 ? { items: [], taps: [] } : null };

@@ -72,6 +72,11 @@
 		{
 			"binding": "MEMORY_BUCKET",
 			"bucket_name": "wongstack-memory"
+		},
+		// Inbox pages' HTML, pictures and videos, twinned in staging. wiki/development/plain-pages.md
+		{
+			"binding": "INBOX_PAGES",
+			"bucket_name": "wongstack-inbox"
 		}
 	],
 	// The live line, in its own Worker (wrangler.line.jsonc) so this one keeps preview links. line-2 drops the
@@ -114,6 +119,12 @@
 					"migrations_dir": "../schema/migrations"
 				}
 			],
+			"r2_buckets": [
+				{
+					"binding": "INBOX_PAGES",
+					"bucket_name": "wongstack-inbox-staging"
+				}
+			],
 			// Triggers are inherited: an empty list keeps production's schedule
 			// off staging. wiki/stack/staging-bindings.md
 			"triggers": {
@@ -135,6 +146,13 @@
 					"database_id": "322d78e8-19e1-4bf0-8489-faa13c66deb1",
 					"remote": false,
 					"migrations_dir": "../schema/migrations"
+				}
+			],
+			"r2_buckets": [
+				{
+					"binding": "INBOX_PAGES",
+					"bucket_name": "wongstack-inbox-local",
+					"remote": false
 				}
 			],
 			"durable_objects": {

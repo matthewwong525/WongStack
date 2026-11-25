@@ -7,7 +7,7 @@ import { pageFileUrl } from './downloads'
 
 const PLAN = 'c'.repeat(32)
 const plan = { id: PLAN, kind: 'plan', title: 'One inbox', workspace: 'lousy-dingo', actions: ['build', 'publish'], version: 'v1', createdAt: 1,
-  closesAt: 2, detail: null, tap: null, body: '<!doctype html><title>One inbox</title><p>The plan</p>', files: [] }
+  closesAt: 2, detail: null, tap: null, page: null, files: [] }
 
 let item: Record<string, unknown>
 let shareAnswer: () => Response
@@ -45,7 +45,7 @@ it('opens a plain page from its own sealed address, greets it with nothing, and 
   item = { ...plan, actions: [], plain: true, shared: null }
   open()
   const frame = await screen.findByTitle<HTMLIFrameElement>('One inbox')
-  expect(frame.getAttribute('src')).toBe(`/apps/inbox/api/frame?id=${PLAN}`)
+  expect(frame.getAttribute('src')).toBe(`/apps/inbox/api/frame?id=${PLAN}&v=v1`)
   expect(frame.hasAttribute('srcdoc')).toBe(false)
   expect(frame.getAttribute('sandbox')).toBe('allow-scripts allow-popups allow-popups-to-escape-sandbox')
   fireEvent.load(frame)

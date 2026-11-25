@@ -32,6 +32,9 @@ const noSleep = async () => {};
 // A Worker upload, as distinct from the secret or the subdomain setting under the same script.
 const SCRIPT_UPLOAD = /\/workers\/scripts\/[^/]+$/;
 
+/** The buckets a provision with R2 on makes: the memory store's, and the inbox's with its staging twin. */
+const INBOX_BUCKETS = ['recipe-box-memory', 'recipe-box-inbox', 'recipe-box-inbox-staging'];
+
 test('private setup rejects unreachable owner identities before any provider mutation', async (t) => {
   const env = await setup(t);
   for (const ownerEmail of ['', 'bad', 'user@workspace.invalid', '42+ada@users.noreply.github.com']) {
@@ -744,7 +747,7 @@ test('names are derived from the repo, and a clash moves every name to the first
   const fresh = await env.names();
   assert.equal(fresh.base, 'recipe-box');
   assert.ok(fresh.checked.every((item) => item.status === 'free'));
-  assert.deepEqual(fresh.names, { worker: 'recipe-box', staging: 'recipe-box-staging', db: 'recipe-box-db', stagingDb: 'recipe-box-db-staging', memory: 'recipe-box-memory', deploy: 'recipe-box-deploy', knowledge: 'recipe-box-knowledge' });
+  assert.deepEqual(fresh.names, { worker: 'recipe-box', staging: 'recipe-box-staging', db: 'recipe-box-db', stagingDb: 'recipe-box-db-staging', memory: 'recipe-box-memory', inbox: 'recipe-box-inbox', inboxStaging: 'recipe-box-inbox-staging', deploy: 'recipe-box-deploy', knowledge: 'recipe-box-knowledge' });
 
   env.fake.state.workers.push('recipe-box');
   env.fake.state.databases.push({ uuid: 'theirs', name: 'recipe-box-2-memory' });
@@ -787,7 +790,7 @@ test('a fresh provision with R2 on makes the memory store, both databases, the c
   // The memory store, recorded with the Worker that serves it and migrated. Memory uses the company sign-in: no key.
   assert.equal(report.r2, true);
   assert.deepEqual(env.record().components.companyApi, { origin: "https://recipe-box.ada.workers.dev" });
-  assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
+  assert.deepEqual(env.fake.state.buckets, INBOX_BUCKETS);
   assert.deepEqual(env.record().components.memory, {
     accountId: ACCOUNT, databaseId: 'uuid-recipe-box-memory', database: 'recipe-box-memory', bucket: 'recipe-box-memory',
     worker: 'https://recipe-box.ada.workers.dev/_memory',
@@ -807,7 +810,11 @@ test('a fresh provision with R2 on makes the memory store, both databases, the c
   assert.equal(databaseName(config, 'staging'), 'recipe-box-db-staging');
   assert.equal(config.compatibility_date, sourceDate(), 'a new install gets the source app\'s date, not the install day');
   assert.deepEqual(config.d1_databases[1], { binding: 'MEMORY_DB', database_name: 'recipe-box-memory', database_id: 'uuid-recipe-box-memory' });
-  assert.deepEqual(config.r2_buckets, [{ binding: 'MEMORY_BUCKET', bucket_name: 'recipe-box-memory' }]);
+  assert.deepEqual(config.r2_buckets, [{ binding: 'MEMORY_BUCKET', bucket_name: 'recipe-box-memory' },
+    { binding: 'INBOX_PAGES', bucket_name: 'recipe-box-inbox' }]);
+  // The inbox's bucket has a staging twin and a local one; memory never does.
+  assert.deepEqual([config.env.staging.r2_buckets, config.env.local.r2_buckets], [[{ binding: 'INBOX_PAGES', bucket_name: 'recipe-box-inbox-staging' }],
+    [{ binding: 'INBOX_PAGES', bucket_name: 'recipe-box-inbox-local', remote: false }]]);
   // Production's schedule, and staging's empty one so it does not inherit it.
   assert.deepEqual([config.triggers, config.env.staging.triggers], [{ crons: ['*/15 * * * *'] }, { crons: [] }]);
   assert.deepEqual(config.env.staging.d1_databases.map((d) => d.database_id), ['uuid-recipe-box-db-staging']);
@@ -1234,8 +1241,8 @@ test('with R2 off the store has no bucket, the config binds none, and the deploy
   const report = await env.provision();
   assert.equal(report.r2, false);
   assert.equal(env.record().components.memory.bucket, null);
-  assert.equal(env.config().r2_buckets, undefined);
-  assert.doesNotMatch(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), /Only when the memory store has a bucket/);
+  assert.deepEqual([env.config().r2_buckets, env.config().env.staging.r2_buckets, env.config().env.local.r2_buckets], [undefined, undefined, undefined]);
+  assert.doesNotMatch(readFileSync(join(env.dir, 'app/wrangler.jsonc'), 'utf8'), /Only when R2 is on/);
   const [deploy] = env.fake.state.accountTokens;
   assert.ok(!deploy.policies[0].permission_groups.some((g) => g.id === groupId('Workers R2 Storage Write')));
 });
@@ -1452,7 +1459,7 @@ for (const [where, refuse] of [
     env.gh.fail(false);
     await env.provision();
     assert.equal(env.fake.state.databases.length, 3);
-    assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
+    assert.deepEqual(env.fake.state.buckets, INBOX_BUCKETS);
     assert.deepEqual(env.fake.state.accountTokens.map((token) => token.name), ['recipe-box-deploy', 'recipe-box-access', 'recipe-box-cloudflare-read']);
     // The app's two keys are minted last and go to the Workers, never to GitHub.
     assert.equal(env.gh.secrets().CLOUDFLARE_DEPLOY_TOKEN, env.fake.state.minted.at(-3));
@@ -1469,7 +1476,7 @@ test('a store with no bucket, on an account that now has R2, gets one, in the re
   const key = readEnv(join(env.dir, '.env')).CLOUDFLARE_MEMORY_TOKEN;
   env.fake.state.r2 = true;
   const report = await env.provision();
-  assert.deepEqual(env.fake.state.buckets, ['recipe-box-memory']);
+  assert.deepEqual(env.fake.state.buckets, INBOX_BUCKETS);
   assert.equal(env.record().components.memory.bucket, 'recipe-box-memory');
   assert.deepEqual(env.config().r2_buckets, [{ binding: 'MEMORY_BUCKET', bucket_name: 'recipe-box-memory' }]);
   assert.equal(env.config().env.staging.r2_buckets, undefined, 'staging never binds memory');
@@ -1489,6 +1496,7 @@ test('a config with no top-level env is left for a hand edit when a bucket arriv
     'add "WONG_OWNER_EMAIL" with the owner sign-in email to the production and staging vars in app/wrangler.jsonc',
     "set each environment's CF_ACCESS_AUD and CF_ACCESS_APP_ID in app/wrangler.jsonc from components.access and its staging",
     'add MEMORY_BUCKET for recipe-box-memory to app/wrangler.jsonc',
+    'add INBOX_PAGES for recipe-box-inbox to app/wrangler.jsonc, and for recipe-box-inbox-staging to its env.staging',
     'add "WONG_CODE_REPOSITORY" to production and staging in app/wrangler.jsonc, as wiki/stack/employee-project.md describes',
     'add "WONG_KNOWLEDGE_REPOSITORY": "recipe-box-knowledge" to production and staging, and the "artifacts" binding ARTIFACTS for the wongstack namespace to production alone, in app/wrangler.jsonc, as wiki/stack/company-knowledge.md describes',
   ]);
@@ -1870,10 +1878,11 @@ test('a repository name another project holds is reported taken, and stops the i
   // Without the route, names asks nothing about repositories and reports what it always did.
   const plain = await env.names();
   assert.equal(plain.base, 'recipe-box');
-  assert.deepEqual(plain.names, { worker: 'recipe-box', staging: 'recipe-box-staging', db: 'recipe-box-db', stagingDb: 'recipe-box-db-staging', memory: 'recipe-box-memory', deploy: 'recipe-box-deploy', knowledge: 'recipe-box-knowledge' });
+  assert.deepEqual(plain.names, { worker: 'recipe-box', staging: 'recipe-box-staging', db: 'recipe-box-db', stagingDb: 'recipe-box-db-staging', memory: 'recipe-box-memory', inbox: 'recipe-box-inbox', inboxStaging: 'recipe-box-inbox-staging', deploy: 'recipe-box-deploy', knowledge: 'recipe-box-knowledge' });
   assert.deepEqual(plain.checked.map((item) => `${item.kind} ${item.name} ${item.status}`), [
     'worker recipe-box free', 'worker recipe-box-staging free', 'worker recipe-box-line free', 'database recipe-box-db free', 'database recipe-box-db-staging free',
-    'database recipe-box-memory free', 'bucket recipe-box-memory free', 'token recipe-box-deploy free', 'repository recipe-box-knowledge free',
+    'database recipe-box-memory free', 'bucket recipe-box-memory free',
+    'bucket recipe-box-inbox free', 'bucket recipe-box-inbox-staging free', 'token recipe-box-deploy free', 'repository recipe-box-knowledge free',
   ]);
 
   const found = await env.names({ route: 'artifacts' });
@@ -1888,7 +1897,7 @@ test('a repository name another project holds is reported taken, and stops the i
   assert.equal(found.base, 'recipe-box-2');
   assert.deepEqual(artifactNamesFor('recipe-box-2'), { repo: 'recipe-box-2', runner: 'recipe-box-2-checks', storage: 'recipe-box-2-checks-storage' });
   assert.deepEqual(found.names, {
-    worker: 'recipe-box-2', staging: 'recipe-box-2-staging', db: 'recipe-box-2-db', stagingDb: 'recipe-box-2-db-staging', memory: 'recipe-box-2-memory', deploy: 'recipe-box-2-deploy',
+    worker: 'recipe-box-2', staging: 'recipe-box-2-staging', db: 'recipe-box-2-db', stagingDb: 'recipe-box-2-db-staging', memory: 'recipe-box-2-memory', inbox: 'recipe-box-2-inbox', inboxStaging: 'recipe-box-2-inbox-staging', deploy: 'recipe-box-2-deploy',
     knowledge: 'recipe-box-2-knowledge', ...artifactNamesFor('recipe-box-2'),
   });
 
@@ -1910,7 +1919,7 @@ test('with no namespace yet, an Artifacts install\'s names are all free', async 
   const env = await artifactsSetup(t);
   const found = await env.names({ route: 'artifacts' });
   assert.equal(found.base, 'recipe-box');
-  assert.equal(found.checked.length, 13);
+  assert.equal(found.checked.length, 15);
   assert.ok(found.checked.every((item) => item.status === 'free'), JSON.stringify(found.checked));
   assert.deepEqual(env.fake.state.namespaces, [], 'looking makes no namespace');
 });
@@ -1979,7 +1988,7 @@ test('a fresh Artifacts install makes the repository, the check runner and its k
   assert.deepEqual(Object.keys(deploy.policies[0].resources), [`com.cloudflare.api.account.${ACCOUNT}`]);
 
   // The runner's bucket, beside the memory store's, with the rule that deletes old snapshots.
-  assert.deepEqual(state.buckets, ['recipe-box-memory', 'recipe-box-checks']);
+  assert.deepEqual(state.buckets, [...INBOX_BUCKETS, 'recipe-box-checks']);
   assert.deepEqual(Object.keys(state.lifecycles), ['recipe-box-checks']);
   const [rule, ...others] = state.lifecycles['recipe-box-checks'];
   assert.deepEqual(others, []);

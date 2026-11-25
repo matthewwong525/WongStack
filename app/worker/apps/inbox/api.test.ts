@@ -4,7 +4,7 @@ import { handleApp } from "../index";
 import { body, type Loose } from "../../../tests/body";
 import { fakeEnv } from "../../../tests/env";
 import { seeded, site } from "../../../tests/employee-access/connections";
-import { START, person, sam, jo, machine, db, call, PLAN, APPROVAL, plan, approval, put, tap, checkin, later } from "../../../tests/inbox";
+import { START, person, sam, jo, machine, db, call, PLAN, APPROVAL, plan, approval, put, tap, checkin, later, frameOf } from "../../../tests/inbox";
 
 it("lists only the signed-in person's items, and never lets another read or tap one", async () => {
   expect(await put(sam, plan)).toEqual({ status: 200, json: { id: PLAN, version: "v1" } });
@@ -20,8 +20,8 @@ it("lists only the signed-in person's items, and never lets another read or tap 
   expect((await tap(jo, { action: "build" })).status).toBe(404);
   // Jo's own item of the same id is Jo's alone, and leaves Sam's as it was.
   await put(jo, { ...plan, body: "<p>Jo's</p>" });
-  expect((await call(sam, "GET", "item", { id: PLAN })).json.item.body).toBe("<p>The plan</p>");
-  expect((await call(jo, "GET", "item", { id: PLAN })).json.item.body).toBe("<p>Jo's</p>");
+  expect(await frameOf(sam, PLAN)).toBe("<p>The plan</p>");
+  expect(await frameOf(jo, PLAN)).toBe("<p>Jo's</p>");
   expect(await checkin(jo)).toEqual([]);
 });
 
@@ -115,7 +115,7 @@ it("re-uploading replaces the body and the version, and reopens a closed item wi
   expect((await tap(sam, { action: "publish" })).status).toBe(410);
   await put(sam, { ...plan, body: "<p>Rebuilt</p>", version: "v2" });
   const opened = (await call(sam, "GET", "item", { id: PLAN })).json.item;
-  expect([opened.body, opened.version, opened.createdAt]).toEqual(["<p>Rebuilt</p>", "v2", START]);
+  expect([await frameOf(sam, PLAN), opened.version, opened.createdAt]).toEqual(["<p>Rebuilt</p>", "v2", START]);
   expect((await call(sam, "GET", "tap", { id: old.id })).json.tap.state).toBe("expired");
   expect(await checkin()).toEqual([]);
   later(5000);
@@ -278,7 +278,8 @@ it("opens a closed review page read-only with each answer that reached the chat,
   await call(sam, "POST", "item-close", { id: PLAN });
   const opened = await call(sam, "GET", "item", { id: PLAN });
   expect(opened.status).toBe(200);
-  expect(opened.json.item).toMatchObject({ body: "<p>The plan</p>",
+  expect(await frameOf(sam, PLAN)).toBe("<p>The plan</p>");
+  expect(opened.json.item).toMatchObject({
     archived: { endedAt: START + 7000, answers: [{ action: "send", text: "Shorter, please", at: START + 6000 }] } });
   later(5000);
   expect(await tap(sam, { action: "send", text: "More" })).toMatchObject({ status: 410, json: { error: { code: "closed" } } });
@@ -396,7 +397,7 @@ it("starts staging with a sample day in Fay's inbox, one agent per group, and a 
   const { items } = await body(response);
   expect(items.map(item => [item.workspace, item.kind, item.detail?.state]).sort()).toEqual([["bfcm-brief", "agent", "planning"],
     ["bfcm-brief", "question", undefined], ["bfcm-brief", "start", "ready"], ["bfcm-landing-page", "plan", undefined],
-    ["landing-check", "agent", "working"], ["ronald-files", "agent", "done"], ["weekly-profit-summary", "plan", undefined]]);
+    ["december-designs", "plan", undefined], ["landing-check", "agent", "working"], ["ronald-files", "agent", "done"], ["weekly-profit-summary", "plan", undefined]]);
   const [{ detail }] = items.filter(item => String(item.kind) === "question");
   expect(String(detail.text).split("\n\n")).toHaveLength(2);
   expect(detail.options.map(option => String(option).length > 180)).toEqual([true, true]);
@@ -407,15 +408,23 @@ it("starts staging with Fay's review pages: two waiting, an artifact answered wi
   const fay = person("fay@example.invalid");
   const read = async (route: string) => body(await handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}`), fakeEnv({ DB }), fay));
   const { waiting, archived } = await read("reviews");
-  expect(titles(waiting)).toEqual(["Weekly profit summary", "New BFCM landing page"]);
+  expect(titles(waiting)).toEqual(["Weekly profit summary", "Gift card designs for December", "New BFCM landing page"]);
   expect(archived.map(row => [row.title, row.answered, row.plain, row.shared])).toEqual([["Weekly profit summary", true, false, false],
     ["Stock check each Friday", true, false, false], ["BFCM countdown banner", false, false, false], ["Gift card sales, November", false, true, true]]);
   const shared = await read("shared?token=seedGiftCardSalesNov01");
   expect(shared).toEqual({ title: "Gift card sales, November", sharedBy: "fay", updatedAt: 1792224000000,
     files: [{ name: "gift-card-sales-november.csv", size: 50 }] });
   const pages = await Promise.all(archived.slice(0, 3).map(row => read(`item?id=${row.id}`)));
-  expect(pages.map(({ item }) => [item.workspace, item.archived.answers.map(answer => answer.action), String(item.body).includes(`data-change="${item.workspace}"`)]))
+  expect(pages.map(({ item }) => [item.workspace, item.archived.answers.map(answer => answer.action), String(item.page.key) === `wong-review3:${item.workspace}`]))
     .toEqual([["weekly-profit-summary", ["send"], true], ["stock-check-friday", ["build"], true], ["bfcm-landing-page", [], true]]);
+  // The page in the page store: its HTML and both pictures, from database parts.
+  const stored = "a0000000000000000000000000000012";
+  const raw = (route: string) => handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}`), fakeEnv({ DB }), fay);
+  expect(await (await raw(`frame?id=${stored}`)).text()).toContain('data-change="december-designs"');
+  for (const name of ["snowflake.png", "gift-box.png"]) {
+    const picture = await raw(`page-media?id=${stored}&name=${name}`);
+    expect([picture.status, picture.headers.get("content-type")], name).toEqual([200, "image/png"]);
+  }
 });
 
 it("answers the week board's and the chat list's old routes with retired, and changes nothing", async () => {
