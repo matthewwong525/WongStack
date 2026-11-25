@@ -3,7 +3,7 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
-## Next (minor) — Every reply-link page opens in your Inbox; Open and Artifacts
+## 62.2.0 — Every reply-link page opens in your Inbox; Open and Artifacts
 
 - **Every page a chat opens with a reply link opens in your Inbox.** A plan, a built preview, a page for other work, and a page a chat wrote itself, such as a form, all open there, titled by the page's own title. The page's buttons reach the same chat as before, and its file never changes. A page you write yourself reads its key as `window.REPLY_KEY` first ([reply link pages](wiki/development/reply-link-pages.md#the-page-bridge)).
 - **A project with a company app never starts a tunnel for a reply link.** Signed out, or with the Inbox out of reach, the chat gives you the page's file and the sign-in link from `node scripts/company-api.mjs login`, and takes your answer in the chat. `reply-link.mjs open` says why with `REPLY_REASON=signed-out` or `inbox-down`. A project with no app opens its links at a tunnel, as before, and no longer lists them in an Inbox ([where no link opens](wiki/development/reply-links.md#where-no-link-opens)).

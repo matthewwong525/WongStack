@@ -1,3 +1,348 @@
+<!-- openspec-archive v1 2026-11-25-reply-links-skip-the-tunnel -->
+<!-- file proposal.md utf8 5455 -->
+# Every reply-link page opens in your inbox; Open and Artifacts
+
+**Status:** ready-to-ship
+**Branch:** reply-links-skip-the-tunnel
+**Open questions:** none
+
+## Why
+
+Today only a plan's review page opens in your Inbox. Any other page a chat opens with a reply link, such as a form or a list to approve, starts a Cloudflare tunnel, and the Inbox lists only its address. A signed-out computer starts a tunnel even for a plan. A tunnel is slow to start, stops when the computer sleeps, and needs `cloudflared` on every computer. A project with a company app already has a better place for every page: the Inbox, behind the company sign-in. ClaymooApp made this change on 2026-11-24 and it works well there, so every WongStack install gets it too.
+
+## What Changes
+
+- **Every page opens in your Inbox.** A plan, a built preview, a page for other work, and a page a chat wrote itself all open in the Inbox, titled by the page's own title. The page's buttons reach the same chat as before. The page's file never changes.
+- **A project with an app never starts a tunnel for a reply link.** Signed out, or with the Inbox out of reach, the chat gives you the page's file and the sign-in link, and takes your answer in the chat.
+- **A project with no app keeps its tunnel**, as before.
+- **The Inbox's lists are *Open* and *Artifacts*.** *Needs you* becomes *Open*: each page that still waits on you, newest first. With none, it says *Nothing open.* The Archive becomes *Artifacts*: every closed page, newest first. Search finds a page, open or closed, and no page shows twice.
+  | Before | After |
+  |---|---|
+  | *Needs you* | *Open* |
+  | *Nothing waits for you.* | *Nothing open.* |
+  | Archive | *Artifacts* |
+  | *Search reviews by title* | *Search artifacts by title* |
+- **A build need can be *Optional*.** A plan's *What the build needs* item marked *Optional* shows its form, and the build buttons never wait for it.
+
+Non-goals: no change to private links or live views, which keep their tunnel; no new Inbox route or item kind; no type filter in *Artifacts*.
+
+## What the build needs
+
+- **Nothing.**
+
+## Capabilities
+
+### New Capabilities
+
+None.
+
+### Modified Capabilities
+
+- `reply-links`: every reply-link page opens in the person's inbox in a project with an app, which never opens a tunnel; a project with no app keeps the tunnel; a shipped plan leaves *Open*.
+- `inbox`: the waiting list is *Open* and the past list is *Artifacts*.
+- `team-shared-pages`: a plain page goes to *Artifacts*, and its row says *Shared* there.
+
+## Impact
+
+- `.agents/skills/reply-link/scripts/reply-link.mjs`: any page file goes to the inbox as a `plan` item, with the new `lib/bridge.js` first in its `<head>` in the uploaded copy only; `openLink` goes inbox-only when `hasApp(cwd)`, with `REPLY_REASON=signed-out` or `inbox-down`; `listPage` and `unlist` go; new `openReviewLink`; `PROTOCOL` 16 → 17.
+- `.agents/skills/reply-link/scripts/lib/inbox.mjs`: `hasApp(cwd)`.
+- `.agents/skills/plan/`, `.agents/skills/apply/`, `.agents/skills/explore/`: `build-review.mjs` `linked()` calls `openReviewLink`, returns `{link, reason}` and prints a sign-in line when signed out; `Optional` need state; `preview-review.mjs` prints the same lines; the ask convention's link line.
+- `app/src/apps/inbox/`: `Archive.tsx` → `Artifacts.tsx`, *Needs you* → *Open* in `Waiting.tsx`, tests and comments.
+- `wiki/`: `reply-links.md` (split: the page-author half moves to a new `reply-link-pages.md`), `review-pages.md`, `plain-pages.md`, `daily.md`, `first-day/use-skills.md`, `required-tools.md`, `stack/mini-apps.md`.
+- `CHANGELOG.md`: a `minor` entry. `scripts/retired-names.json`: two retired names.
+
+## Decision log
+
+- **2026-11-24** — Assumed: port ClaymooApp's change as it shipped (PR #2509), less its ClaymooApp-only parts, because the owner asked for the generic parts upstream.
+- **2026-11-24** — Assumed: a WongStack project has an app when its primary checkout holds `scripts/company-api.mjs` and its `.claude/.wong-stack.json` records an app (`components.companyApi.origin`, or `components.memory.worker` on an older install), because every install ships the helper, so the file alone says nothing.
+- **2026-11-24** — Assumed: `PROTOCOL` goes from 16 to 17, below ClaymooApp's 20, so a ClaymooApp copy on the same computer still wins.
+- **2026-11-24** — Assumed: the sign-in line names `node scripts/company-api.mjs login`, WongStack's own sign-in command.
+- **2026-11-24** — Assumed: split `wiki/development/reply-links.md` at *Open one for another page* into `reply-link-pages.md`, as ClaymooApp has it, because the new lines take the page past the 3,000-word cap; the old heading stays as an entry point.
+- **2026-11-24** — Assumed: the *Optional* need line goes in `wiki/review-pages.md`, not the plan's `review-page.md` reference, because skill instructions are at their word budget.
+- **2026-11-24** — Assumed: the loop module goes to 3.6.0, a minor: its builders print a sign-in line and take an *Optional* need.
+- **2026-11-24** — Assumed: *Artifacts* names the inbox list as in ClaymooApp, though the wiki has an unrelated *Artifacts route* install page, so a synced repo keeps one name.
+- **2026-11-25** — Assumed: archive checkpoint after bringing in main's one-stack update (62.0.0): `linked()` calls `openReviewLink` straight, as profiles are gone; the loop version bump and profile line drop; file-page text from 62.1.0 says *Artifacts*.
+
+<!-- end proposal.md -->
+<!-- file design.md utf8 6012 -->
+# Design
+
+## Context
+
+ClaymooApp shipped this as merge commit `35fb01a6d` (PR #2509, archived change `2026-11-24-review-pages-skip-the-tunnel`). WongStack has the same reply-link code: `openInboxItem` sent a page to the inbox only when its file started with `<!-- wong-review:3 -->`. Every other page fell through `openLink` to `ensureServer`, which starts `cloudflared`, and `listPage` listed that tunnel link in the inbox. A signed-out computer started a tunnel even for a plan.
+
+The inbox shows a page in a sealed frame (`app/src/apps/inbox/PlanView.tsx`, `frame.ts`). After load it posts `inbox:hello` with a `MessagePort`, the item's `version`, `actions` and `readOnly`. The page answers with `inbox:tap {action, text}`, and the inbox replies `inbox:result {state}`. The review kit's hosted adapter is the one page that speaks this today.
+
+## Goals / Non-Goals
+
+**Goals:** every reply-link page opens in the inbox; a project with a company app never starts a tunnel for a reply link; the inbox's lists read *Open* and *Artifacts*, as in ClaymooApp.
+
+**Non-goals:** private links and live views, which keep their tunnel; new inbox routes or item kinds; ClaymooApp's own pages (its email draft, standup and statement pages).
+
+## Decisions
+
+### D1. Any page file goes to the inbox as a `plan` item
+
+Drop the review-kit gate. A kit page uploads as before. Any other page uploads with the page bridge (D2) first in its `<head>`, at upload time only: the file on disk stays as written, so its `version` hash and the no-app tunnel path are unchanged. The item keeps kind `plan`, so *Artifacts*, Share and the read-only view work with no app change. `titleOf` already reads a page's `<title>`.
+
+### D2. A page bridge, not a page rewrite
+
+`reply-link/scripts/lib/bridge.js`, inlined at upload, makes a hand-written page work in the frame:
+
+- It sets `window.REPLY_KEY = 'inbox'` before the page's own script runs. A page reads its key as `window.REPLY_KEY || new URLSearchParams(location.hash.slice(1)).get('key')`, the documented contract in `wiki/development/reply-link-pages.md`.
+- It wraps `fetch` for the relative `alive`, `send` and `act` only, and passes every other call through. `alive` waits up to 10 s for `inbox:hello`, then answers from it, or `410` when `readOnly`. `send` and `act` post `inbox:tap` and answer from `inbox:result` with the kit's status map (`sent` 200, `changed`/`done`/`gone` 409, `soon` 429, `closed`/`expired` 410, else 502).
+- It turns a `#` link into a scroll and opens other links in a new tab.
+
+The bridge carries no notes storage and no files. A page that needs a file question is a review page for other work.
+
+### D3. No tunnel where the project has an app
+
+`openLink` decides by the project, not by the sign-in. `companyFor` returns null both for a project with no app and for a signed-out one, so `hasApp(cwd)` in `lib/inbox.mjs` tells them apart. Every WongStack install ships `scripts/company-api.mjs`, so the helper alone says nothing: `hasApp` is true when the primary checkout holds the helper and its `.claude/.wong-stack.json` records an app, `components.companyApi.origin` or, on an older install, `components.memory.worker`.
+
+- Has an app → inbox only. Signed out → `REPLY_LINK=none`, `REPLY_REASON=signed-out`; an inbox that does not answer or take the page → `REPLY_REASON=inbox-down`. The plan and preview builders print the file and a line that asks the chat to give the `node scripts/company-api.mjs login` link.
+- No app → the tunnel path as before (`ensureServer`), with no inbox listing. `no-cloudflared` and `tunnel-down` stay, for no-app projects only.
+- `listPage` and `unlist` go: a project with an app has no tunnel pages to list, and one without has no inbox.
+- `openReviewLink` returns `{link, reason}`, so the builder can tell signed out from the rest; `openReplyLink` keeps returning the link or null for every other caller. `linked()` calls `openReviewLink` straight, and still takes a bare string.
+- `PROTOCOL` goes 16 → 17, so an older page server or inbox helper is replaced at the next open. It stays below ClaymooApp's 20.
+
+### D4. Open, then Artifacts
+
+The set of open items is already right: the computer ends an item when its chat is gone, its deadline passes, or a tap reaches the chat. So this is a naming and docs change, with no handler change.
+
+- `Waiting.tsx`: the *Needs you* heading becomes *Open*, with the same count; its empty text becomes *Nothing open.*
+- `Archive.tsx` becomes `Artifacts.tsx`: heading *Artifacts*, search label *Search artifacts by title*, empty texts *No artifacts yet.* and *No artifact matches.* It keeps today's rule: closed pages, plus open ones only in a search, so no page shows twice.
+- The *Needs you* label on a review page's *What the build needs* item stays: it names what the build needs, not the inbox list.
+
+### D5. An Optional build need
+
+`build-review.mjs` takes `**<what>**: Optional` beside *Ready* and *Needs you*. It draws the item's form with an *Optional* tag and `data-need="optional"`. The kit counts only `data-need="needs"`, so the build buttons never wait for it.
+
+### D6. Docs
+
+`wiki/development/reply-links.md` loses the tunnel-first framing: every page opens in the inbox; signed out → the file and the sign-in link; no app → tunnel. The new lines take it past the 3,000-word cap, so its *Open one for another page* half moves to `reply-link-pages.md`, as ClaymooApp has it, with the `window.REPLY_KEY` line, the bridge and the new reasons. The old heading stays as an entry point, and old changelog links move to the new page.
+
+## Risks / Trade-offs
+
+- **A hand-written page that fetches other relative paths** breaks in the frame. The bridge passes them through, and they fail as they would offline.
+- **A signed-out computer gets no link.** Before, it got a tunnel. The chat says how to sign in.
+
+## Migration Plan
+
+None in the app: no route or table changes. The raised `PROTOCOL` replaces an older running helper at the next open.
+
+## Open Questions
+
+None.
+
+<!-- end design.md -->
+<!-- file tasks.md utf8 2751 -->
+# Tasks
+
+## 1. Reply links
+
+- [x] 1.1 `reply-link.mjs`: any page file goes to the inbox as a `plan` item, with `lib/bridge.js` first in its `<head>` in the uploaded copy only. Verify in `reply-link-inbox.test.mjs`: the uploaded body starts with the bridge, the file and its version stay as written, and a review-kit page gets no bridge.
+- [x] 1.2 Add `lib/bridge.js`. Verify a jsdom case: `alive` waits for the hello, `send` and `act` answer from the port, an old version answers 409, other calls pass through, a link opens its own tab, and a closed page answers 410.
+- [x] 1.3 Add `hasApp(cwd)` to `lib/inbox.mjs`; `openLink` goes inbox-only when it is true, with `signed-out` and `inbox-down`; remove `listPage` and `unlist`; add `openReviewLink`; raise `PROTOCOL` to 17. Verify: an app project signed out or with the inbox down never calls the tunnel; a no-app project still gets one; `hasApp` answers for a subfolder, an older install, a helper alone, and a folder outside a checkout.
+
+## 2. The loop
+
+- [x] 2.1 `build-review.mjs`: `linked()` returns `{link, reason}` and still takes a bare string; `linkLines` adds the sign-in line when signed out; an `Optional` need. `preview-review.mjs` prints `previewLines`. `linked()` calls `openReviewLink`. Verify in `review.test.mjs` and `preview-review.test.mjs`, the `--link` tunnel case run outside a checkout.
+- [x] 2.2 Update the loop README's `reviewLink` row and the ask convention's link line, within the instruction budget. Verify `node scripts/measure-context.mjs --check`.
+
+## 3. Inbox
+
+- [x] 3.1 `Waiting.tsx`: *Open* and *Nothing open.*; `Archive.tsx` → `Artifacts.tsx` with its heading, search label and empty texts; tests, comments, `payload-files.json` and the verification journeys follow. Verify `npm test` in `app/`.
+
+## 4. Docs and release
+
+- [x] 4.1 `wiki/development/reply-links.md`: every page in the inbox, signed out, no-app tunnel, new reasons, *Open* and *Artifacts*; move its page-author half to `reply-link-pages.md` with the key line and the bridge; link the new page from the development hub, the seed hub and `payload-files.json`. Verify `node .github/scripts/wiki-links.mjs` and `node scripts/check-payload-links.mjs`.
+- [x] 4.2 Rename the inbox lists in `review-pages.md` (and the *Optional* need), `plain-pages.md`, `daily.md`, `first-day/use-skills.md`, `stack/mini-apps.md`; `required-tools.md` says a reply link needs `cloudflared` only with no app.
+- [x] 4.3 Retire `inbox/Archive.tsx` and *Nothing waits for you* in `scripts/retired-names.json`; add a `## Next (minor)` entry to `CHANGELOG.md`. Verify `node scripts/check-retired-names.mjs`.
+
+## 5. Checks
+
+- [x] 5.1 Run `node scripts/payload-checks.mjs`, oxlint, the script tests and the app's tests; all pass.
+
+<!-- end tasks.md -->
+<!-- file specs/inbox/spec.md utf8 3981 -->
+## RENAMED Requirements
+
+- FROM: `### Requirement: The inbox keeps past review pages in an Archive`
+- TO: `### Requirement: The inbox keeps past pages in Artifacts`
+
+## MODIFIED Requirements
+
+### Requirement: Items close on their own
+
+A plan item SHALL close once a tap on it, notes or an action, reaches its chat, when its link's time runs out, or when its chat closes. A plan whose tap did not arrive SHALL stay open. An approval or question SHALL close once its answer reaches the chat, when its chat closes, or when the daily watch that sent it ends. A closed item SHALL leave *Open*. A closed review page SHALL be kept with its page and its answers, and SHALL never be deleted; any other closed item SHALL be removed after a day. A plan the chat updates and opens again SHALL come back as a new item.
+
+#### Scenario: The answer arrived
+
+- **WHEN** an approval's tap is delivered
+- **THEN** the approval leaves the inbox, and a day later it is gone
+
+#### Scenario: Notes on a plan arrived
+
+- **WHEN** the person sends notes on a plan and the chat gets them
+- **THEN** the plan moves to *Artifacts* with its page, and its updated version waits as a new entry once the chat opens it again
+
+### Requirement: An archived review page opens read-only
+
+An archived review page SHALL open in the same view as an open one, showing the same page. It SHALL offer no action and take no notes, and no tap on it SHALL ever reach a chat. Above the page it SHALL say what reached the chat and when, with any notes sent, or that no answer came and when it closed. A page whose answer has just reached the chat SHALL look the same at once, before it moves to *Artifacts*.
+
+#### Scenario: Opening an answered page
+
+- **WHEN** the person opens a page they answered with *Build and publish* and notes
+- **THEN** the page shows read-only under the answer, its time and the notes, and offers no button
+
+#### Scenario: Just answered
+
+- **WHEN** the person taps *Approve* on a page in the inbox and the chat gets it
+- **THEN** the page shows read-only under *Approve* and its time, with no *Send notes* and no *Remove* on a sent file
+
+#### Scenario: An older page tries to send
+
+- **WHEN** an archived page built before this change sends its notes
+- **THEN** nothing reaches the chat, and the page says the link has closed
+
+### Requirement: The inbox keeps past pages in Artifacts
+
+Below *Open*, the inbox SHALL show every signed-in person *Artifacts*: their own answered or closed pages, newest first, whether or not they use the daily. A search SHALL find pages by their title, open or closed, and no page SHALL show twice. *Artifacts* SHALL show no other person's pages, and no question, approval, private link or hidden item.
+
+#### Scenario: Looking back at a past plan
+
+- **WHEN** Jo, who never set up the daily, opens the inbox and searches *profit*
+- **THEN** Jo sees each version of the profit plan they reviewed, newest first, and no one else's pages
+
+#### Scenario: A page that ran out of time
+
+- **WHEN** a review page's 24 hours pass with no answer
+- **THEN** it leaves *Open*, and the page shows in *Artifacts* with no answer
+
+### Requirement: The inbox opens on the pages waiting for the person
+
+The inbox SHALL open on the signed-in person's pages that wait on them, under *Open*, newest first, only theirs, each with its title, its folder, and when it came, and a tap SHALL open that page. A page SHALL leave *Open* when it is answered, closed, or runs out of time. The inbox SHALL show no list of open chats, and no days, dates, tasks or backlog. A plan item SHALL still open from its own link.
+
+#### Scenario: Opening the inbox
+
+- **WHEN** Jo has two plans waiting on Jo's review and four open chats with nothing waiting
+- **THEN** Jo sees the two plans under *Open*, newest first, and no row for the four chats, and a tap on the first opens its plan
+
+#### Scenario: Nothing waits
+
+- **WHEN** no page waits on Jo
+- **THEN** the inbox says *Nothing open.*, and shows *Artifacts* below
+
+<!-- end specs/inbox/spec.md -->
+<!-- file specs/reply-links/spec.md utf8 3741 -->
+## RENAMED Requirements
+
+- FROM: `### Requirement: A shipped plan leaves Needs you`
+- TO: `### Requirement: A shipped plan leaves Open`
+
+## MODIFIED Requirements
+
+### Requirement: No reply link where no chat can be woken
+
+When the host gives no way to wake the chat, opening a reply link SHALL end quickly with no link and no request to install anything, so the caller can fall back to its file. In a project with no company app, the same SHALL hold when the tunnel tool is missing or the tunnel does not come up.
+
+#### Scenario: A host with no way to wake a chat
+
+- **WHEN** a plan is made on a host that can not be sent a message
+- **THEN** no link is opened and the plan's file is offered as before
+
+### Requirement: A shipped plan leaves Open
+
+When a change ships and is live, its plan's page in the person's Inbox SHALL close and move from *Open* to *Artifacts*, wherever the plan was made: another chat, folder or computer. A page whose chat or folder is gone SHALL still close in its app while any folder on the computer can reach that app. A failed close SHALL NOT stop the ship. Asking for a shipped plan's link SHALL NOT open a new page under *Open*.
+
+#### Scenario: A plan made in a closed chat ships
+
+- **WHEN** a plan's page waits in the Inbox, its chat was closed and its folder deleted, and the change ships from another chat
+- **THEN** once the change is live, the page leaves *Open* and opens read-only from *Artifacts*
+
+#### Scenario: The Inbox can not be reached at ship time
+
+- **WHEN** the change merges but the Inbox does not answer the close
+- **THEN** the ship finishes and its report says the plan page was not closed
+
+## REMOVED Requirements
+
+### Requirement: A reply link opens in the inbox when it can
+
+**Reason**: Every reply-link page now opens in the inbox, not only a plan, and a project with a company app no longer falls back to a tunnel or lists a tunnel link.
+**Migration**: Replaced by *Every reply-link page opens in the person's inbox*.
+
+## ADDED Requirements
+
+### Requirement: Every reply-link page opens in the person's inbox
+
+In a project with a company app, every page a chat opens as a reply link, a plan's review page, a page for other work, or a page the chat wrote itself, SHALL open inside the person's inbox and give its inbox address when the computer is signed in and the inbox takes the page. The page's file SHALL stay as written. Such a project SHALL never open a tunnel for a reply link: signed out, or with the inbox out of reach, opening SHALL give no link and say why, so the chat gives the page's file and the sign-in link and takes the answer in the chat. A project with no company app SHALL keep opening its reply links at a tunnel, and SHALL list none in an inbox. While any inbox item is open, the computer SHALL collect the person's taps, deliver them under the same fixed-message, version and once-per-action rules, and report each result back. A rebuilt page SHALL replace its inbox copy at the same address while that item is open; one opened again after its item closed SHALL get a new address.
+
+#### Scenario: A page the chat wrote, signed in
+
+- **WHEN** a chat in a project with an app opens an intake form it wrote, on a computer signed in to that app
+- **THEN** the printed link opens the form in the person's inbox, no tunnel starts, and its *Submit* reaches that chat only
+
+#### Scenario: Signed out
+
+- **WHEN** a chat in a project with an app opens a page while the computer is signed out
+- **THEN** no tunnel starts, and the chat shows the page's file and the sign-in link
+
+#### Scenario: A project with no app
+
+- **WHEN** a chat in a project with no company app opens a page
+- **THEN** the page opens at a tunnel link, as before, and nothing is listed in an inbox
+
+<!-- end specs/reply-links/spec.md -->
+<!-- file specs/team-shared-pages/spec.md utf8 2432 -->
+## MODIFIED Requirements
+
+### Requirement: An agent can put a plain page in a person's inbox
+A chat SHALL be able to put a plain HTML page in its person's Inbox, with a title. A plain page SHALL show no review bar and take no taps, and it SHALL stay in the person's *Artifacts*, marked as a page. The same chat and id SHALL replace the page with a new version. A plain page SHALL be kept within the Inbox's size limit for a review page.
+
+#### Scenario: A plain page arrives
+- **WHEN** a chat puts a plain page titled "Kit sales, November" in the person's Inbox
+- **THEN** the person can open it from the link the chat prints, it shows no OK, Note or Send, and its *Artifacts* row says it is a page
+
+#### Scenario: A page loads from the web
+- **WHEN** the page names a script, style, picture or font at a web address
+- **THEN** the agent's check refuses it and names the address, and nothing goes to the Inbox
+
+### Requirement: The maker can share any inbox page with the team
+The person whose Inbox holds a page, plain or review, SHALL be able to share it with one action, which gives a link under the app's own address. Only that person SHALL be able to share or stop sharing it. Sharing a page that is already shared SHALL give the same link.
+
+#### Scenario: Share and copy
+- **WHEN** the person taps *Share with team* on a page in their Inbox
+- **THEN** the page shows that it is shared, with its link and a way to copy it, and its *Artifacts* row says *Shared*
+
+#### Scenario: Someone else tries to share it
+- **WHEN** another signed-in person asks the app to share or stop sharing a page that is not in their own Inbox
+- **THEN** the app refuses and changes nothing
+
+### Requirement: A file page shows a Download button and downloads on open only from its link
+
+A plain page that carries files SHALL show a Download action outside the page's sealed frame. Opening the page from the inbox list or *Artifacts* SHALL NOT start a download by itself. Only the person whose inbox holds the page, or a signed-in teammate with an open team link, SHALL get its files; a service token SHALL get none.
+
+#### Scenario: Opened from the Archive
+
+- **WHEN** the person opens a file page from *Artifacts*
+- **THEN** nothing downloads until they tap Download
+
+#### Scenario: Someone else asks for the file
+
+- **WHEN** another signed-in person asks for the file of a page that has no open team link
+- **THEN** the app refuses and sends no bytes
+
+<!-- end specs/team-shared-pages/spec.md -->
+<!-- file .openspec.yaml utf8 40 fence=~~~ -->
+~~~yaml
+schema: spec-driven
+created: 2026-11-24
+
+~~~
+<!-- end .openspec.yaml -->
+<!-- file review.html utf8 114346 fence=~~~ -->
+~~~html
 <!-- wong-review:3 -->
 <!doctype html>
 <!--
@@ -12,7 +357,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Review · reply-links-skip-the-tunnel</title>
+<title>Review · 2026-11-25-reply-links-skip-the-tunnel</title>
 <style>
   /* The app's look for pages outside the app: the plan review page, the private pages, and a closed link's page.
    look.mjs swaps the colour sets between the markers for the app's own, from app/src/index.css; this copy of
@@ -454,10 +799,10 @@
 })();
 </script>
 </head>
-<body data-change="reply-links-skip-the-tunnel" data-own-back>
+<body data-change="2026-11-25-reply-links-skip-the-tunnel" data-own-back>
 <main>
 <header>
-  <h1>reply-links-skip-the-tunnel</h1>
+  <h1>2026-11-25-reply-links-skip-the-tunnel</h1>
   <p class="muted"><span class="kind">Review</span> · <span class="note-count">0 notes</span></p>
   <nav aria-label="Sections"><ul class="jump"><li><a href="#why">Why</a></li><li><a href="#changes">Changes</a></li><li><a href="#needs">Needs</a></li><li><a href="#decisions">Decisions</a></li><li><a href="#notes">Notes</a></li></ul></nav>
   <p id="script-error" role="alert" hidden></p>
@@ -492,6 +837,7 @@
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-24</p>Assumed: the <i>Optional</i> need line goes in <code>wiki/review-pages.md</code>, not the plan's <code>review-page.md</code> reference, because skill instructions are at their word budget.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-24</p>Assumed: the loop module goes to 3.6.0, a minor: its builders print a sign-in line and take an <i>Optional</i> need.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-24</p>Assumed: <i>Artifacts</i> names the inbox list as in ClaymooApp, though the wiki has an unrelated <i>Artifacts route</i> install page, so a synced repo keeps one name.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: archive checkpoint after bringing in main's one-stack update (62.0.0): <code>linked()</code> calls <code>openReviewLink</code> straight, as profiles are gone; the loop version bump and profile line drop; file-page text from 62.1.0 says <i>Artifacts</i>.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -1760,3 +2106,6 @@
 </script>
 </body>
 </html>
+
+~~~
+<!-- end review.html -->
