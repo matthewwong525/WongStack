@@ -62,6 +62,7 @@ None.
 - **2026-11-24** — Assumed: the loop module goes to 3.6.0, a minor: its builders print a sign-in line and take an *Optional* need.
 - **2026-11-24** — Assumed: *Artifacts* names the inbox list as in ClaymooApp, though the wiki has an unrelated *Artifacts route* install page, so a synced repo keeps one name.
 - **2026-11-25** — Assumed: archive checkpoint after bringing in main's one-stack update (62.0.0): `linked()` calls `openReviewLink` straight, as profiles are gone; the loop version bump and profile line drop; file-page text from 62.1.0 says *Artifacts*.
+- **2026-11-25** — Check: the kept check `team-shared-pages/a-plain-page-arrives` is replaced: it now also expects *Nothing open.*, because its promise names *Artifacts* and the empty Open list; nothing it checked before is dropped.
 
 <!-- end proposal.md -->
 <!-- file design.md utf8 6012 -->

@@ -6,40 +6,32 @@
     "requirement": "An agent can put a plain page in a person's inbox",
     "scenario": "A plain page arrives"
   },
-  "thenDigest": "7fc5062d3cfaad9421cae1bde20ba19924b25630f73e4a2ab3036f3f14c65bad",
+  "thenDigest": "fc87253e3cba110e69545bfd29ebec9304b20303d586ff88e343d49a7a01d826",
   "probe": "browser",
   "writes": false,
   "sourcePaths": [
     ".agents/memory/areas.json",
+    ".agents/skills/apply/scripts/preview-review.mjs",
+    ".agents/skills/explore/references/asking-the-user.md",
+    ".agents/skills/plan/references/review-kit.html",
     ".agents/skills/plan/scripts/build-review.mjs",
-    ".agents/skills/page/SKILL.md",
-    ".agents/skills/page/scripts/page.mjs",
+    ".agents/skills/reply-link/scripts/lib/bridge.js",
     ".agents/skills/reply-link/scripts/lib/inbox.mjs",
-    ".agents/skills/wong-setup/references/cloudflare.md",
+    ".agents/skills/reply-link/scripts/reply-link.mjs",
     ".agents/skills/wong-setup/references/seed/wiki-development-README.md",
-    ".agents/skills/wong-setup/references/tools.md",
-    ".agents/skills/wong-sync/references/catch-up.md",
     ".agents/skills/wong-sync/references/payload-files.json",
-    ".agents/skills/wong-sync/references/payload-manifest.md",
-    "app/src/apps/inbox/App.tsx",
     "app/src/apps/inbox/Artifacts.tsx",
     "app/src/apps/inbox/PlanView.tsx",
-    "app/src/apps/inbox/Share.tsx",
-    "app/src/apps/inbox/SharedView.tsx",
+    "app/src/apps/inbox/Waiting.tsx",
     "app/src/apps/inbox/api.ts",
-    "app/src/apps/inbox/frame.ts",
-    "app/src/apps/inbox/leave.ts",
-    "app/worker/apps/inbox/api.ts",
+    "app/src/apps/inbox/downloads.ts",
+    "app/worker/apps/inbox/item-close.ts",
     "app/worker/apps/inbox/item-put.ts",
-    "app/worker/apps/inbox/item.ts",
     "app/worker/apps/inbox/reviews.ts",
-    "app/worker/apps/inbox/sealed.ts",
-    "app/worker/apps/inbox/share.ts",
-    "app/worker/apps/inbox/store.ts",
-    "schema/migrations/20261123120000_inbox_shared_pages.sql",
-    "schema/seed.sql"
+    "scripts/retired-names.json",
+    "site/attachments/own-your-setup.md"
   ],
-  "recordedAt": "9a32643ab02c48c0aa7b431edd8f04d4bd74ab9a",
+  "recordedAt": "c3a48a0eb18084c72008730055731efb286421fb",
   "steps": [
     [
       "network",
@@ -73,6 +65,9 @@
   "expect": [
     {
       "text": "Page · Shared"
+    },
+    {
+      "text": "Nothing open."
     }
   ]
 }
