@@ -44,7 +44,7 @@ An open reply link SHALL never stop a key link or a live view from opening, nor 
 
 ### Requirement: No reply link where no chat can be woken
 
-When the host gives no way to wake the chat, or the tunnel tool is missing, or the tunnel does not come up, opening a reply link SHALL end quickly with no link and no request to install anything, so the caller can fall back to its file.
+When the host gives no way to wake the chat, opening a reply link SHALL end quickly with no link and no request to install anything, so the caller can fall back to its file. In a project with no company app, the same SHALL hold when the tunnel tool is missing or the tunnel does not come up.
 
 #### Scenario: A host with no way to wake a chat
 
@@ -69,25 +69,6 @@ A reply link's opener MAY name actions, each with the message it sends. A page o
 
 - **WHEN** the person triggers an action with valid saved notes on an unchanged page
 - **THEN** the chat receives the fixed action instruction and those notes together in one message, and the page receives acknowledgement only after confirmed delivery
-
-### Requirement: A reply link opens in the inbox when it can
-
-When the computer is signed in to the live app and the app has the inbox, opening a plan's reply link SHALL put the page in the person's inbox and give its inbox address, and SHALL start no tunnel for it. Any other page SHALL open through the tunnel as before and, when the inbox is available, SHALL also be listed there with its address only, never its content, until the link closes. Otherwise every page SHALL open through the tunnel as before. While any inbox item is open, the computer SHALL collect the person's taps, deliver them under the same fixed-message, version and once-per-action rules, and report each result back. A rebuilt page SHALL replace its inbox copy at the same address while that item is open; one opened again after its item closed SHALL get a new address.
-
-#### Scenario: Signed in with the inbox
-
-- **WHEN** a plan is made on a computer signed in to an app that has the inbox
-- **THEN** the plan's link is its inbox address and no tunnel starts
-
-#### Scenario: A form while the inbox is on
-
-- **WHEN** the assistant opens an intake form on a computer signed in to an app with the inbox
-- **THEN** the form opens at a tunnel link, the inbox lists it with *Open*, and the app holds neither the form nor the answers
-
-#### Scenario: Not signed in
-
-- **WHEN** a page is opened on a computer that is not signed in, or whose app has no inbox yet
-- **THEN** it opens at a tunnel link, as before, and nothing is listed
 
 ### Requirement: A page's send comes from the person
 
@@ -140,16 +121,35 @@ A page on a reply link SHALL be able to send files with its text or its action, 
 - **WHEN** a request sends a file to the link's address without the link's secret
 - **THEN** nothing is saved and the chat gets nothing
 
-### Requirement: A shipped plan leaves Needs you
+### Requirement: A shipped plan leaves Open
 
-When a change ships and is live, its plan's page in the person's Inbox SHALL close and move to the Archive, wherever the plan was made: another chat, folder or computer. A page whose chat or folder is gone SHALL still close in its app while any folder on the computer can reach that app. A failed close SHALL NOT stop the ship. Asking for a shipped plan's link SHALL NOT open a new page that waits on the person.
+When a change ships and is live, its plan's page in the person's Inbox SHALL close and move from *Open* to *Artifacts*, wherever the plan was made: another chat, folder or computer. A page whose chat or folder is gone SHALL still close in its app while any folder on the computer can reach that app. A failed close SHALL NOT stop the ship. Asking for a shipped plan's link SHALL NOT open a new page under *Open*.
 
 #### Scenario: A plan made in a closed chat ships
 
 - **WHEN** a plan's page waits in the Inbox, its chat was closed and its folder deleted, and the change ships from another chat
-- **THEN** once the change is live, the page leaves Needs you and opens read-only from the Archive
+- **THEN** once the change is live, the page leaves *Open* and opens read-only from *Artifacts*
 
 #### Scenario: The Inbox can not be reached at ship time
 
 - **WHEN** the change merges but the Inbox does not answer the close
 - **THEN** the ship finishes and its report says the plan page was not closed
+
+### Requirement: Every reply-link page opens in the person's inbox
+
+In a project with a company app, every page a chat opens as a reply link, a plan's review page, a page for other work, or a page the chat wrote itself, SHALL open inside the person's inbox and give its inbox address when the computer is signed in and the inbox takes the page. The page's file SHALL stay as written. Such a project SHALL never open a tunnel for a reply link: signed out, or with the inbox out of reach, opening SHALL give no link and say why, so the chat gives the page's file and the sign-in link and takes the answer in the chat. A project with no company app SHALL keep opening its reply links at a tunnel, and SHALL list none in an inbox. While any inbox item is open, the computer SHALL collect the person's taps, deliver them under the same fixed-message, version and once-per-action rules, and report each result back. A rebuilt page SHALL replace its inbox copy at the same address while that item is open; one opened again after its item closed SHALL get a new address.
+
+#### Scenario: A page the chat wrote, signed in
+
+- **WHEN** a chat in a project with an app opens an intake form it wrote, on a computer signed in to that app
+- **THEN** the printed link opens the form in the person's inbox, no tunnel starts, and its *Submit* reaches that chat only
+
+#### Scenario: Signed out
+
+- **WHEN** a chat in a project with an app opens a page while the computer is signed out
+- **THEN** no tunnel starts, and the chat shows the page's file and the sign-in link
+
+#### Scenario: A project with no app
+
+- **WHEN** a chat in a project with no company app opens a page
+- **THEN** the page opens at a tunnel link, as before, and nothing is listed in an inbox

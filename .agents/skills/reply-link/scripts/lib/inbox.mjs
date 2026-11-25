@@ -1,9 +1,23 @@
 // The live app's inbox, reached as the signed-in person through the company helper. Every call answers null on a
-// 404, a refused sign-in or a network error, so the caller falls back to the tunnel. wiki/development/reply-links.md
+// 404, a refused sign-in or a network error, so the caller falls back to the file. wiki/development/reply-links.md
 
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { primaryRoot } from '../../../memory/scripts/lib/primary-root.mjs';
 
 const BASE = '/apps/inbox/api/';
+const COMPANY_API = 'scripts/company-api.mjs';
+
+/** True when the checkout holding `cwd` has a company app, signed in or not: such a project never opens a tunnel for
+ * a reply link. Every install ships the helper, so the app is the origin its record names, as the helper reads it. */
+export function hasApp(cwd = process.cwd()) {
+  try {
+    const { root } = primaryRoot(cwd);
+    if (!existsSync(join(root, COMPANY_API))) return false;
+    const { companyApi, memory } = JSON.parse(readFileSync(join(root, '.claude', '.wong-stack.json'), 'utf8')).components ?? {};
+    return Boolean(companyApi?.origin || memory?.worker);
+  } catch { return false; }
+}
 
 /** The person's company client for the checkout holding `cwd`, or null outside one, or where it has no helper or no
  * connection. `load` is for tests. */

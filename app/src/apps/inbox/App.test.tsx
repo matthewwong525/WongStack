@@ -27,7 +27,7 @@ const open = async (at: string) => {
 
 it('opens the waiting pages at their own address, inside the page frame', async () => {
   await open('/apps/inbox/')
-  expect(await screen.findByText('Nothing waits for you.')).toBeTruthy()
+  expect(await screen.findByText('Nothing open.')).toBeTruthy()
   expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Inbox')
   expect(calls.filter(call => call === 'items')).toHaveLength(1)
 })

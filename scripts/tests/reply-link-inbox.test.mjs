@@ -9,17 +9,20 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { helperFiles } from '../../.agents/skills/reply-link/scripts/lib/computer.mjs';
 import test from 'node:test';
-import { checkin, closeItem, companyFor, listLink, probe, tapResult, upload } from '../../.agents/skills/reply-link/scripts/lib/inbox.mjs';
-import { closeInboxItem, closePlanPages, inboxTick, openInboxItem, openReplyLink, PROTOCOL, startInbox, unlist } from '../../.agents/skills/reply-link/scripts/reply-link.mjs';
+import { checkin, closeItem, companyFor, hasApp, listLink, probe, tapResult, upload } from '../../.agents/skills/reply-link/scripts/lib/inbox.mjs';
+import { bridged, closeInboxItem, closePlanPages, inboxTick, openInboxItem, openLink, openReplyLink, openReviewLink, PROTOCOL, startInbox } from '../../.agents/skills/reply-link/scripts/reply-link.mjs';
 
 const ORIGIN = 'https://app.example.com';
 const BUILD = 'Build it now: run /apply for the plan example.';
 const HEADER = 'Notes on the plan example from the review page.';
 const CHAT = { agentId: 'chat-1', cwd: '/w/chat', paseoHome: null, paseoHost: null };
 const ID = /^[0-9a-f]{32}$/;
-// The review kit's first line: only a page that starts with it goes to the inbox.
+// The review kit's first line: a page that starts with it talks to the inbox itself, so it gets no bridge.
 const MARK = '<!-- wong-review:3 -->\n';
 const sha = text => createHash('sha256').update(text).digest('hex');
+// jsdom comes with scripts/tests' npm ci; the bridge's case skips without it.
+let JSDOM;
+try { ({ JSDOM } = await import('jsdom')); } catch { /* the bridge's case skips */ }
 
 // The live app's inbox routes, kept in memory; `status` answers every call with that code, and `down` throws. A
 // check-in hands out the taps on the items it names, once, as the app does.
@@ -131,7 +134,7 @@ test('an inbox that answers takes the plan with its chat\'s agent id, and the li
   assert.equal((await openPlan(at, app, file)).id, id, 'opening the file again keeps its item');
 });
 
-test('a 404, a refused sign-in, a network error or no connection opens nothing in the inbox, so the tunnel is tried', async t => {
+test('a 404, a refused sign-in, a network error or no connection opens nothing in the inbox', async t => {
   const at = home(t);
   const file = join(at.dir, 'review.html');
   writeFileSync(file, `${MARK}<title>One</title>`);
@@ -144,14 +147,146 @@ test('a 404, a refused sign-in, a network error or no connection opens nothing i
   assert.equal((await openPlan(at, upTo, file)).id, undefined, 'an upload the app refused');
   assert.equal(await openInboxItem({ file, kind: 'plan', header: HEADER, actions: {}, hours: 1, target: CHAT, cwd: at.dir },
     { env: at.env, clientFor: async () => null }), null);
-  const other = join(at.dir, 'intake.html');
-  writeFileSync(other, '<!doctype html><title>Intake</title><script>fetch("send")</script>');
-  let asked = 0;
-  const found = fakeApp();
-  assert.equal(await openInboxItem({ file: other, kind: 'plan', header: HEADER, actions: {}, hours: 1, target: CHAT, cwd: at.dir },
-    { env: at.env, clientFor: async () => { asked += 1; return found.client; } }), null, 'a page that is not a plan keeps its tunnel');
-  assert.equal(asked, 0);
   assert.equal(existsSync(at.state.items) ? readdirSync(at.state.items).length : 0, 0, 'nothing kept open here');
+});
+
+test('a hand-written page opens in the inbox with the bridge first in its head; its file and version stay as written', async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const file = join(at.dir, 'email.html');
+  const text = '<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><title>Email · Winter sale</title></head><body><script>fetch("alive")</script></body></html>';
+  writeFileSync(file, text);
+  const { id } = await openPlan(at, app, file, { schedule: 'Schedule it.' });
+  assert.ok(id, 'a page that is no plan opens in the inbox too');
+  const sent = app.items.get(id);
+  assert.deepEqual([sent.kind, sent.title, sent.version], ['plan', 'Email · Winter sale', sha(text)]);
+  const body = String(sent.body);
+  assert.ok(body.startsWith('<!doctype html>\n<html lang="en"><head><script>'), 'the bridge runs before anything else in the page');
+  assert.match(body, /window\.REPLY_KEY = 'inbox'/);
+  assert.ok(body.endsWith(text.slice(text.indexOf('<meta'))), 'the page itself follows unchanged');
+  assert.equal(readFileSync(file, 'utf8'), text, 'the file on disk is never changed');
+  assert.equal(bridged(`${MARK}<title>One</title>`), `${MARK}<title>One</title>`, 'a review-kit page gets no bridge');
+  assert.ok(bridged('<p>bare</p>').startsWith('<script>'), 'a page with no head still gets it first');
+  assert.ok(bridged('<html><p>no head</p></html>').startsWith('<html><script>'), 'a page with no head gets it inside <html>');
+});
+
+test('the bridge answers a framed page\'s alive, send and act over the inbox\'s port', { skip: !JSDOM && 'jsdom is not installed: run npm ci in scripts/tests' }, async t => {
+  const at = home(t);
+  const app = fakeApp();
+  const file = join(at.dir, 'page.html');
+  writeFileSync(file, '<!doctype html><html><head><title>Page</title></head><body><p id="why">Why</p><a id="out" href="https://example.com">out</a></body></html>');
+  await openPlan(at, app, file, { schedule: 'Schedule it.' });
+  const body = String([...app.items.values()][0].body);
+  // The inbox's frame: a parent window that posts the hello, and one port's far end that answers each tap. jsdom has
+  // no MessageChannel, so Node's stands in, and the hello is a plain event carrying its source and port.
+  const parent = new JSDOM('<!doctype html><body></body>', { runScripts: 'outside-only' });
+  const hello = (win, data, port) => {
+    const event = new win.Event('message');
+    Object.defineProperties(event, { source: { value: parent.window }, data: { value: { type: 'inbox:hello', ...data } }, ports: { value: [port] } });
+    win.dispatchEvent(event);
+  };
+  const dom = new JSDOM(body, { runScripts: 'dangerously', beforeParse(win) {
+    Object.defineProperty(win, 'parent', { value: parent.window });
+    win.fetch = async () => ({ ok: true, status: 200, json: async () => ({ real: true }) });
+  } });
+  const { port1, port2 } = new MessageChannel();
+  t.after(() => { dom.window.close(); parent.window.close(); port1.close(); });
+  const win = dom.window;
+  assert.equal(win.REPLY_KEY, 'inbox');
+  const taps = [];
+  let state = 'sent';
+  port1.onmessage = event => { taps.push(event.data); port1.postMessage({ type: 'inbox:result', state }); };
+  // The page's answers are made in its own realm: JSON brings them into this one to compare.
+  const said = async answer => [answer.status, JSON.parse(JSON.stringify(await answer.json()))];
+  const early = win.fetch('alive', { headers: { 'x-reply-key': 'inbox' } });
+  hello(win, { version: 'v1', actions: ['schedule'] }, port2);
+  assert.deepEqual(await said(await early), [200, { closesAt: null, actions: ['schedule'], version: 'v1' }], 'alive waits for the hello');
+  assert.deepEqual(await said(await win.fetch('send', { method: 'POST', body: JSON.stringify({ text: 'Looks good' }) })), [200, { sent: true }]);
+  assert.deepEqual(await said(await win.fetch('act', { method: 'POST', body: JSON.stringify({ action: 'schedule', version: 'v1', text: '{}' }) })), [200, { sent: true }]);
+  state = 'changed';
+  const old = await win.fetch('act', { method: 'POST', body: JSON.stringify({ action: 'schedule', version: 'v0', text: '' }) });
+  assert.deepEqual(await said(old), [409, { changed: true }], 'a tap on an old version comes back changed');
+  assert.deepEqual(taps, [{ type: 'inbox:tap', action: 'send', text: 'Looks good' }, { type: 'inbox:tap', action: 'schedule', text: '{}' },
+    { type: 'inbox:tap', action: 'schedule', text: '' }]);
+  assert.deepEqual((await said(await win.fetch('other')))[1], { real: true }, 'every other call passes through');
+  const link = win.document.getElementById('out');
+  link.dispatchEvent(new win.MouseEvent('click', { bubbles: true, cancelable: true }));
+  assert.equal(link.target, '_blank', 'a link opens its own tab');
+
+  const closed = new JSDOM(body, { runScripts: 'dangerously', beforeParse(w) { Object.defineProperty(w, 'parent', { value: parent.window }); } });
+  const ports = new MessageChannel();
+  t.after(() => { closed.window.close(); ports.port1.close(); });
+  hello(closed.window, { version: 'v1', actions: [], readOnly: true }, ports.port2);
+  for (const route of ['alive', 'send']) {
+    const answer = await closed.window.fetch(route, route === 'send' ? { method: 'POST', body: JSON.stringify({ text: 'late' }) } : undefined);
+    assert.deepEqual(await said(answer), [410, { closed: true }], `${route} on a closed page`);
+  }
+});
+
+/** Opens a page, signed out, from a project with an app or with none, through a tunnel stand-in that counts starts. */
+async function openSignedOut(at, withApp) {
+  const file = join(at.dir, 'page.html');
+  writeFileSync(file, '<!doctype html><title>Page</title>');
+  let tunnels = 0;
+  const env = { ...at.env, PASEO_AGENT_ID: 'chat-1', HANDOVER_PASEO_BIN: process.execPath, PATH: '' };
+  const opened = await openLink({ file, header: HEADER, env, cwd: at.dir, inbox: { clientFor: async () => null, hasApp: () => withApp,
+    tunnel: async () => { tunnels += 1; return { origin: 'https://quiet-fox-lamp.trycloudflare.com' }; } } });
+  return { ...opened, tunnels };
+}
+
+test('a project with an app, signed out, opens no tunnel: it says signed-out, and the chat falls back to the file', async t => {
+  assert.deepEqual(await openSignedOut(home(t), true), { link: null, reason: 'signed-out', tunnels: 0 });
+});
+
+test('a project with an app whose inbox does not answer opens no tunnel either: it says inbox-down', async t => {
+  const at = home(t);
+  const app = Object.assign(fakeApp(), { status: 404 });
+  const file = join(at.dir, 'page.html');
+  writeFileSync(file, '<!doctype html><title>Page</title>');
+  let tunnels = 0;
+  const env = { ...at.env, PASEO_AGENT_ID: 'chat-1', HANDOVER_PASEO_BIN: process.execPath, PATH: '' };
+  const opened = await openLink({ file, header: HEADER, env, cwd: at.dir, inbox: { clientFor: async () => app.client, hasApp: () => true,
+    tunnel: async () => { tunnels += 1; return { origin: 'https://quiet-fox-lamp.trycloudflare.com' }; } } });
+  assert.deepEqual({ ...opened, tunnels }, { link: null, reason: 'inbox-down', tunnels: 0 });
+});
+
+test('a review page\'s link keeps the signed-out reason, so the plan builder can give the sign-in link', async t => {
+  const at = home(t);
+  const file = join(at.dir, 'page.html');
+  writeFileSync(file, '<!doctype html><title>Page</title>');
+  const env = { ...at.env, PASEO_AGENT_ID: 'chat-1', HANDOVER_PASEO_BIN: process.execPath, PATH: '' };
+  const inbox = { clientFor: async () => null, hasApp: () => true };
+  assert.deepEqual(await openReviewLink({ file, header: HEADER, env, cwd: at.dir, inbox }), { link: null, reason: 'signed-out' });
+  assert.equal(await openReplyLink({ file, header: HEADER, env, cwd: at.dir, inbox }), null);
+  assert.deepEqual(await openReviewLink({ file: join(at.dir, 'gone.html'), header: HEADER, env, cwd: at.dir, inbox }), { link: null, reason: 'failed' });
+});
+
+test('a project with no app still opens its page at a tunnel', async t => {
+  const opened = await openSignedOut(home(t), false);
+  assert.match(String(opened.link), /^https:\/\/quiet-fox-lamp\.trycloudflare\.com\/p\/[0-9a-f]{32}\/#key=[0-9a-f]{64}$/);
+  assert.equal(opened.tunnels, 1);
+});
+
+test('a checkout counts as a project with an app from any folder in it once its install records one; any other folder has none', t => {
+  const at = home(t);
+  const checkout = (name, { helper = true, components } = {}) => {
+    const root = join(at.dir, name);
+    execFileSync('git', ['init', '-q', root]);
+    if (helper) { mkdirSync(join(root, 'scripts'), { recursive: true }); writeFileSync(join(root, 'scripts', 'company-api.mjs'), ''); }
+    if (components) { mkdirSync(join(root, '.claude'), { recursive: true }); writeFileSync(join(root, '.claude', '.wong-stack.json'), JSON.stringify({ components })); }
+    return root;
+  };
+  const app = checkout('app', { components: { companyApi: { origin: 'https://app.example.com' } } });
+  mkdirSync(join(app, 'src', 'deep'), { recursive: true });
+  assert.equal(hasApp(app), true);
+  assert.equal(hasApp(join(app, 'src', 'deep')), true, 'a chat in a subfolder still never opens a tunnel');
+  assert.equal(hasApp(checkout('older', { components: { memory: { worker: 'https://memory.example.com' } } })), true, 'an older install names its app by its memory worker');
+  assert.equal(hasApp(checkout('helper-only')), false, 'every install ships the helper: only a recorded app counts');
+  assert.equal(hasApp(checkout('no-helper', { helper: false, components: { companyApi: { origin: 'https://app.example.com' } } })), false);
+  assert.equal(hasApp(checkout('plain', { helper: false })), false);
+  const loose = join(at.dir, 'loose');
+  mkdirSync(loose);
+  assert.equal(hasApp(loose), false, 'a folder outside any checkout answers false, never throws');
 });
 
 test('a tap on an old version is changed, a failed wake can be tried again, and a delivered tap closes the plan', async t => {
@@ -513,18 +648,13 @@ test('a folder now signed in to another app is never sent the item, its taps or 
   assert.ok(a.items.has(quote.id), 'left for its own app to close at its time');
 });
 
-test('an item and a listed form close in the app that lists them, whichever folder asks', async t => {
+test('an item closes in the app that holds it, whichever folder asks', async t => {
   const at = home(t);
   const { a, b, clientFor } = twoApps();
   const quote = await approvalOf(at, a, 'Send the quote', { cwd: '/w/a', clientFor });
   assert.equal(await closeInboxItem(quote.id, { env: at.env, clientFor }), true);
   assert.equal(a.items.has(quote.id), false);
   assert.deepEqual(callsTo(b, 'item-close'), []);
-  const [one, two, three] = ['1', '2', '3'].map(n => n.repeat(32));
-  await unlist([{ id: one, listed: true, app: { cwd: '/w/a', origin: A }, target: { cwd: '/w/b' } },
-    { id: two, listed: true, target: { cwd: '/w/b' } }, { id: three, target: { cwd: '/w/a' } }], { clientFor });
-  assert.deepEqual(callsTo(a, 'item-close'), [{ id: quote.id }, { id: one }]);
-  assert.deepEqual(callsTo(b, 'item-close'), [{ id: two }], 'a page from older code closes through its chat\'s folder');
 });
 
 test('a hidden kept-open item wakes its chat on every tap, moves its close each time, and says its stop message once', async t => {

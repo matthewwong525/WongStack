@@ -15,7 +15,7 @@ export const pageMediaUrl = (id: string, name: string) => `/apps/inbox/api/page-
 export const sharedMediaUrl = (token: string, name: string) => `/apps/inbox/api/shared-media?${new URLSearchParams({ token, name })}`
 
 /** The query without `download` when it asks for the files, else null: the files download once, and Back, a reload
- *  or the Archive never download them again. */
+ *  or Artifacts never download them again. */
 export function takeDownload(search: string): string | null {
   const params = new URLSearchParams(search)
   if (params.get('download') !== '1') return null

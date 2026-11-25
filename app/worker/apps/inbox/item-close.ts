@@ -2,7 +2,7 @@ import { z } from "zod";
 import { inboxAction, itemId, mine, settleTaps } from "./store.ts";
 
 /** POST item-close → the computer closes an item: its answer arrived, its chat closed, or its time ran out. A review
- *  page keeps its body for the Archive; any other item's words go. */
+ *  page keeps its body for Artifacts; any other item's words go. */
 export const itemClose = inboxAction<{ id: string }>({
   operationId: "inbox.item-close", summary: "Close an item", description: "Close one of the person's items; its waiting taps never go.",
   input: z.strictObject({ id: itemId.describe("The item's id.") }), output: z.strictObject({ closed: z.literal(true) }), encoding: "json", effect: "write",

@@ -625,8 +625,9 @@ function noQuestions(block, fence, ctx) {
   throw new Error(`${ctx.file} line ${fence.at}: item ${block.n}: ${hidden ? secret(hidden) : inChat(asks[0] ?? 'it')}`);
 }
 
-// ── `## What the build needs`: each bullet Ready or Needs you; one that needs you holds its questions or its link ──
-const NEED = /^\*\*([^*]+)\*\*:\s*(Ready|Needs you)\b[.,;:]?\s*/;
+// ── `## What the build needs`: each bullet Ready, Needs you or Optional; one that needs you holds its questions or its
+// link. An Optional one may stay unanswered, so a page button never waits on it. ──
+const NEED = /^\*\*([^*]+)\*\*:\s*(Ready|Needs you|Optional)\b[.,;:]?\s*/;
 const NOTHING = /^\*\*Nothing\b[^*]*\*\*\s*/i;
 function needs(section, ctx) {
   const items = blocks(section, 'need');
@@ -635,7 +636,7 @@ function needs(section, ctx) {
     const at = `${ctx.file} line ${section.at}: ## ${section.title}`;
     if (!block.n) return `<li class="aside">${inline(block.text)}</li>`;
     const state = NEED.exec(block.text), nothing = !state && NOTHING.exec(block.text);
-    if (!state && !nothing) throw new Error(`${at}, item ${block.n}: start with **<what>**: Ready or **<what>**: Needs you`);
+    if (!state && !nothing) throw new Error(`${at}, item ${block.n}: start with **<what>**: Ready, **<what>**: Needs you or **<what>**: Optional`);
     const rest = block.text.slice((state ?? nothing)[0].length).replace(/<(https:\/\/[^\s>]+)>/g, '[Open the link]($1)');
     const links = [...rest.matchAll(/\]\(([^)\s]+)\)/g)].map(m => m[1]).filter(href => /^[a-z][\w+.-]*:/i.test(href));
     if (links.some(href => !/^https:/i.test(href)) || links.length > 1) throw new Error(`${at}, item ${block.n}: a need takes one https link at most`);
@@ -646,12 +647,12 @@ function needs(section, ctx) {
       k += drawn.count;
       return drawn.html;
     });
-    const open = state?.[2] === 'Needs you';
-    if (open && !forms.length && !links.length) throw new Error(`${at}, item ${block.n}: a need that needs you holds a form or its https link`);
-    const tag = nothing ? '' : `<span class="${open ? 'tag-outline' : 'tag'}">${open ? 'Needs you' : 'Ready'}</span> `;
+    const open = state?.[2] === 'Needs you', optional = state?.[2] === 'Optional';
+    if ((open || optional) && !forms.length && !links.length) throw new Error(`${at}, item ${block.n}: a need that needs you holds a form or its https link`);
+    const tag = nothing ? '' : `<span class="${open || optional ? 'tag-outline' : 'tag'}">${state[2]}</span> `;
     // The source's own separator went with the state, so the name keeps a colon before its detail.
     const words = nothing ? inline(nothing[0].trim()) + (rest ? ` ${inline(rest)}` : '') : `<b>${inline(state[1])}</b>${rest ? `: ${inline(rest)}` : ''}`;
-    return `<li class="need card" id="need-${block.n}" data-need="${open ? 'needs' : nothing ? 'none' : 'ready'}"><p>${tag}`
+    return `<li class="need card" id="need-${block.n}" data-need="${open ? 'needs' : optional ? 'optional' : nothing ? 'none' : 'ready'}"><p>${tag}`
       + `${words.replace(/<a href=/g, '<a target="_blank" rel="noopener noreferrer" href=')}</p>${forms.join('')}</li>`;
   }).join('\n')}\n</ol>`;
 }
@@ -907,11 +908,19 @@ export function workActions(pairs = [], confirm = []) {
   return actions;
 }
 
-/** The page's reply link, else its file: with no link the person answers in chat. */
-export async function linked(page, header, actions) {
-  const { openReplyLink } = await import('../../reply-link/scripts/reply-link.mjs');
-  return (await openReplyLink({ file: page, header, ...(actions && { actions }) })) || page;
+const openReviewLink = async input => (await import('../../reply-link/scripts/reply-link.mjs')).openReviewLink(input);
+
+/** `{link}` from the page's reply link, else `{link: page, reason}`: with no link the person answers in chat. */
+export async function linked(page, header, actions, open = openReviewLink) {
+  // A bare link, or `{link, reason}` naming why none opened.
+  const value = await open({ file: page, header, ...(actions && { actions }) });
+  const { link, reason } = typeof value === 'string' ? { link: value } : value ?? {};
+  return link ? { link } : { link: page, reason };
 }
+
+// Signed out, the page opens only as a file: the chat gives the sign-in link beside it.
+export const SIGN_IN = 'Signed out of the company app, so this is the file. Run `node scripts/company-api.mjs login` and give its sign-in link on the next line.';
+export const linkLines = ({ link, reason }, what) => [planLink(link, what), ...(reason === 'signed-out' ? [SIGN_IN] : [])].join('\n');
 
 export function buildReview(changeRoot, { requireCurrent = false, kind = 'plan', actions } = {}) {
   const sourcePath = join(changeRoot, SOURCES[kind].file);
@@ -944,8 +953,8 @@ async function printWork(root, values) {
   console.log(`review: ${result.kind}, ${result.changed ? 'updated' : 'unchanged'}`);
   const page = resolve(root, 'review.html');
   const messages = Object.fromEntries(actions.map(action => [action.name, action.message]));
-  const link = values.link ? await linked(page, workNotesHeader(result.ask), messages) : page;
-  console.log(`${planLink(link, 'the review')}\n\n${link === page ? WORK_IN_CHAT : WORK_ON_PAGE}`);
+  const shown = values.link ? await linked(page, workNotesHeader(result.ask), messages) : { link: page };
+  console.log(`${linkLines(shown, 'the review')}\n\n${shown.link === page ? WORK_IN_CHAT : WORK_ON_PAGE}`);
 }
 
 // A packed archived change, named by its file, its old folder path, or its name: unpacked to `.scratch/archive/`, so
@@ -988,11 +997,11 @@ if (isMain(import.meta.url)) {
       const name = basename(resolve(root));
       // A shipped plan's link is its saved file: a live page would wait on the person again, with build buttons.
       const shipped = Boolean(archived) || /[\\/]openspec[\\/]changes[\\/]archive[\\/]/.test(page);
-      const link = args.values.link && result.kind === 'current' && !shipped ? await linked(page, notesHeader(name), planActions(name)) : page;
-      const next = link === page ? REVIEW_IN_CHAT : REVIEW_ON_PAGE;
+      const shown = args.values.link && result.kind === 'current' && !shipped ? await linked(page, notesHeader(name), planActions(name)) : { link: page };
+      const next = shown.link === page ? REVIEW_IN_CHAT : REVIEW_ON_PAGE;
       const copy = result.kind === 'current' ? chatCopy(name, readFileSync(join(root, 'proposal.md'), 'utf8')) : '';
       // The link comes first: a chat that folds a long reply would hide a link at its end.
-      if (result.kind !== 'no-page') console.log([planLink(link), copy, next].filter(Boolean).join('\n\n'));
+      if (result.kind !== 'no-page') console.log([linkLines(shown), copy, next].filter(Boolean).join('\n\n'));
     } catch (error) { console.error(`review: ${error.message}`); process.exitCode = 1; }
   }
 }

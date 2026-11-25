@@ -7,7 +7,7 @@ A plain page is an HTML page that an agent makes for you, such as a chart, a sma
 Ask for "an HTML page", "an artifact", or "a page I can share". The [`/page`](../../.agents/skills/page/SKILL.md) skill writes the page, checks it, and puts it in your inbox. It prints the page's link, and the team link when you ask for one.
 
 - **Plain page or review page?** A page that needs your OK, a choice, or your notes is a [review page](../review-pages.md). A page that you only look at, or send to the team, is a plain page.
-- **No bar.** A plain page has no OK, Note, or Send. It goes directly to the Archive, marked *Page*, and stays there.
+- **No bar.** A plain page has no OK, Note, or Send. It goes directly to *Artifacts*, marked *Page*, and stays there.
 - **Its own script runs, sealed.** A chart that you can tap works. The page can't load from the web, call the app, or read your sign-in.
 - **A link opens a new tab.** [`page.mjs`](../../.agents/skills/page/scripts/page.mjs) adds `<base target="_blank">` to the page, and the app adds it to an older plain page when it shows it. A page with its own `<base>` keeps it. A link to a part of the same page (`#…`) stays in the page.
 - **The page can't leave its frame.** A page whose script loads a different address, such as `location.href = …` or a meta refresh, starts again and says *This page tried to leave the page.* After three tries, the frame closes and says *This page keeps trying to leave. Reload to try again.*
@@ -25,7 +25,7 @@ A plain page can carry files, such as a statement, a PDF, or a spreadsheet. The 
 2. Tap the link that it prints (`…/apps/inbox/?item=<id>&download=1`). The page opens and each file downloads.
 3. To get a file again, open the page and tap **Download** at the top.
 
-- **Only the printed link downloads by itself.** When you open the page from the inbox or the Archive, nothing downloads until you tap **Download**. The app removes `download=1` from the address, so Back or a reload does not download again.
+- **Only the printed link downloads by itself.** When you open the page from the inbox or *Artifacts*, nothing downloads until you tap **Download**. The app removes `download=1` from the address, so Back or a reload does not download again.
 - **Limits** → 5 files a page, 25 MB a file, of any kind. A name is 200 characters at most, with no folder. A name that ends in a known kind, such as `.pdf` or `.xlsx`, must start with the bytes of that kind. When a file is too large, zip it or split it.
 - **A team link** → a teammate who opens it gets the files at once, and sees **Download** too. A stopped link gives no file.
 - **Change it in place** → run `page.mjs` again with `--id`. The new list of files replaces the old list, and an old file does not download again.
@@ -33,7 +33,7 @@ A plain page can carry files, such as a statement, a PDF, or a spreadsheet. The 
 
 ## Share with team
 
-1. Open the page from your inbox or its Archive.
+1. Open the page from your inbox's *Open* or *Artifacts* list.
 2. Tap **Share with team**. The page shows *Shared with the team*, **Copy link**, and **Stop sharing**, with the link below them.
 3. Tap **Copy link**, then paste the link where your team reads it.
 
@@ -41,7 +41,7 @@ A plain page can carry files, such as a statement, a PDF, or a spreadsheet. The 
 - **What they see** → the page's title, *Shared by* and your email's name, the date of the last change, and the page. A review page opens read-only: no buttons, no notes. Nothing that a teammate does gets to your chat.
 - **Turn it off** → tap **Stop sharing**. The link says *This page is no longer shared* at once, and it never opens again. Share again for a new link.
 - **Only you** can share or stop your page. The app refuses a request from a different person.
-- **The Archive says *Shared*** on each page with a link that is on.
+- ***Artifacts* says *Shared*** on each page with a link that is on.
 
 ## Why and edge cases
 

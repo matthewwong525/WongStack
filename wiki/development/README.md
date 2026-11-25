@@ -6,7 +6,8 @@ How this repo plans, builds, checks, and ships changes. Every WongStack install 
 
 - [The change loop](the-change-loop.md) — how work moves from idea to shipped, archived spec: `/explore → /plan → /apply → /save → /ship`, with `/apply <name>` to pick saved work back up, each a thin verb over an OpenSpec step, with the change as a living handoff (Status header + append-only Decision log + PR-body mirror).
   - [Loosened checks](loosened-checks.md) — what the loosened-check guard flags, when a kept check needs a reason, and the copy of the guard a pull request can not edit.
-- [Reply links](reply-links.md) — a plan's page opens at a link whose *Send notes* button puts your notes straight into the chat, and whose *Build it* and *Build and publish* start the build: the inbox, the 24 hours, *new link*, the fallback to copying, and how another page opens the same way.
+- [Reply links](reply-links.md) — a plan's page opens at a link whose *Send notes* button puts your notes straight into the chat, and whose *Build it* and *Build and publish* start the build: the inbox, the 24 hours, *new link*, and the fallback to the file.
+  - [Reply link pages](reply-link-pages.md) — open a reply link for a page you write, the bridge that carries its calls in the inbox, its buttons, and an item with no page.
   - [Plain pages and team links](plain-pages.md) — a page with no bar, made by `/page`, and a link that lets the team open any page in your inbox.
 - [Staging walkthrough](staging-walkthrough.md) — why `/verify` probes the deployed preview, what you need for it, and what it deliberately is not.
   - [Kept checks](kept-checks.md) — passed preview checks saved in the project and replayed, with no AI, before each publish.

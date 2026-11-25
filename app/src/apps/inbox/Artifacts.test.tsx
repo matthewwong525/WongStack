@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen, within } from '@testing-librar
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { archiveLine, when, type Review } from './api'
-import { Archive } from './Archive'
+import { Artifacts } from './Artifacts'
 
 const HOUR = 3_600_000
 const NOW = Date.UTC(2026, 10, 3, 12, 0)
@@ -35,26 +35,26 @@ const held = () => {
   const response = new Promise<Response>(done => { give = done })
   return { response, give: (response: Response) => act(async () => { give(response) }) }
 }
-const show = () => render(<MemoryRouter initialEntries={['/apps/inbox/']}><Archive /></MemoryRouter>)
+const show = () => render(<MemoryRouter initialEntries={['/apps/inbox/']}><Artifacts /></MemoryRouter>)
 const settle = () => act(async () => { await new Promise(done => setTimeout(done, 10)) })
 const open = async () => { show(); await settle() }
-const links = () => within(screen.getByRole('region', { name: 'Archive' })).queryAllByRole('link').map(link => link.textContent)
+const links = () => within(screen.getByRole('region', { name: 'Artifacts' })).queryAllByRole('link').map(link => link.textContent)
 const search = async (text: string) => {
-  fireEvent.change(screen.getByLabelText('Search reviews by title'), { target: { value: text } })
+  fireEvent.change(screen.getByLabelText('Search artifacts by title'), { target: { value: text } })
   await act(async () => { await new Promise(done => setTimeout(done, 300)) })
 }
 
-it('lists the answered and closed pages with each answer and its time, and opens a page from its row', async () => {
+it('lists the closed pages with each answer and its time, and opens a page from its row', async () => {
   await open()
   expect(links()).toEqual([`Profit by channelAnswered, ${when(archived[0].endedAt!)} · desk`,
     `Stock checkNo answer, ${when(archived[1].closesAt)} · desk`])
   expect(screen.getByRole('link', { name: /Stock check/ }).getAttribute('href')).toBe(`/apps/inbox/?item=${archived[1].id}`)
   // The field waits for a tap: a phone's keyboard stays down.
-  expect(document.activeElement).not.toBe(screen.getByLabelText('Search reviews by title'))
+  expect(document.activeElement).not.toBe(screen.getByLabelText('Search artifacts by title'))
   expect(screen.queryByRole('button', { name: 'Show more' })).toBeNull()
 })
 
-it('searches by title as you type, waiting pages too, and says when nothing matches', async () => {
+it('searches by title as you type, open pages too, each once, and says when nothing matches', async () => {
   await open()
   answer = query => Response.json(!query.get('q') ? { waiting, archived, more: false } : query.get('q') === 'profit'
     ? { waiting, archived: [archived[0]], more: false } : { waiting: [], archived: [], more: false })
@@ -62,8 +62,8 @@ it('searches by title as you type, waiting pages too, and says when nothing matc
   expect(reads.at(-1)!.get('q')).toBe('profit')
   expect(links()).toEqual(['Weekly profit summaryWaiting · desk', `Profit by channelAnswered, ${when(archived[0].endedAt!)} · desk`])
   await search('nothing')
-  expect(screen.getByText('No page matches.')).toBeTruthy()
-  fireEvent.keyDown(screen.getByLabelText('Search reviews by title'), { key: 'Escape' })
+  expect(screen.getByText('No artifact matches.')).toBeTruthy()
+  fireEvent.keyDown(screen.getByLabelText('Search artifacts by title'), { key: 'Escape' })
   await settle()
   expect(links()).toHaveLength(2)
 })
@@ -97,7 +97,7 @@ it('reads the next pages after the last one shown with Show more, and says when 
   expect(screen.getByRole('alert').textContent).toBe('More pages could not be loaded. Try again.')
 })
 
-it('says when no page is answered yet, and offers Retry when the list does not load', async () => {
+it('says when no page is closed yet, and offers Retry when the list does not load', async () => {
   answer = () => new Response(null, { status: 500 })
   show()
   expect(screen.getByRole('status').textContent).toBe('Loading…')
@@ -105,13 +105,13 @@ it('says when no page is answered yet, and offers Retry when the list does not l
   answer = () => Response.json({ waiting, archived: [], more: false })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry' })) })
   await settle()
-  expect(screen.getByText('No answered pages yet.')).toBeTruthy()
+  expect(screen.getByText('No artifacts yet.')).toBeTruthy()
 })
 
 it('clears the search with Escape or the Clear button, and a second Escape on an empty field keeps it empty', async () => {
   await open()
   await search('profit')
-  const field = screen.getByLabelText<HTMLInputElement>('Search reviews by title')
+  const field = screen.getByLabelText<HTMLInputElement>('Search artifacts by title')
   fireEvent.keyDown(field, { key: 'a' })
   expect(field.value).toBe('profit')
   fireEvent.keyDown(field, { key: 'Escape' })

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -519,45 +519,38 @@ const inboxIn = (f, log, options) => {
   Object.assign(f.env, inboxEnv(log, options));
 };
 
-test('a form at a tunnel is listed in the inbox by its link once it prints, and closed with it; a plan never is', async t => {
+/** Makes the fixture's checkout a project with a company app: its helper, and the app its install recorded. */
+const withApp = f => {
+  mkdirSync(join(f.root, 'scripts'), { recursive: true });
+  writeFileSync(join(f.root, 'scripts', 'company-api.mjs'), '');
+  mkdirSync(join(f.root, '.claude'), { recursive: true });
+  writeFileSync(join(f.root, '.claude', '.wong-stack.json'), JSON.stringify({ components: { companyApi: { origin: 'https://app.example.com' } } }));
+};
+
+test('a project with an app never opens a tunnel: an inbox that does not take the page prints no link and its reason', t => {
   const f = fixture(t);
   const log = join(f.root, 'inbox.jsonl');
-  inboxIn(f, log);
+  inboxIn(f, log, { status: 404 });
+  withApp(f);
   const form = f.page('intake.html');
-  const { id, link } = f.open(form);
-  const { deadline } = f.registration(id);
-  assert.deepEqual(inboxCalls(log), [{ route: 'item', body: { id, kind: 'link', title: HEADER, workspace: basename(f.root),
-    body: JSON.stringify({ what: 'form', url: link }), actions: [], version: 'link', closesAt: deadline } }]);
-  assert.equal(f.registration(id).listed, true);
-  assert.match(f.reply('close', form).stdout, /^REPLY_CLOSED=yes$/m);
-  assert.deepEqual(inboxCalls(log).at(-1), { route: 'item-close', body: { id } });
-
-  // A plan the inbox can't take falls back to a tunnel, and is still never listed as a link.
-  Object.assign(f.env, inboxEnv(log, { status: 404 }));
-  f.open(f.page('review.html', '<!-- wong-review:3 -->\n<title>Plan</title>'));
-  assert.deepEqual(inboxCalls(log).slice(2).map(call => call.route), ['items']);
+  const out = f.reply('open', form, '--header', HEADER);
+  assert.equal(out.status, 0, out.stderr);
+  assert.equal(out.stdout, 'REPLY_LINK=none\nREPLY_REASON=inbox-down\n');
+  assert.equal(f.tunnels(), 0);
+  assert.equal(f.server(), null, 'no tunnel server');
+  assert.deepEqual(existsSync(join(f.state, 'pages')) ? readdirSync(join(f.state, 'pages')) : [], [], 'no page registered');
+  assert.deepEqual(inboxCalls(log).map(call => call.route), ['items'], 'the inbox was asked, and never told of a tunnel link');
+  assert.match(f.reply('close', form).stdout, /^REPLY_CLOSED=no$/m);
 });
 
-test('an inbox that never answers delays no reply link: it prints first, and the command ends once the listing gives up in 3 s', async t => {
+test('a project with no app still opens a page at a tunnel when the inbox does not take it, and never lists it there', t => {
   const f = fixture(t);
-  inboxIn(f, join(f.root, 'inbox.jsonl'), { hang: true });
-  const form = f.page('intake.html');
-  const started = Date.now();
-  const child = spawn(process.execPath, [script, 'open', form, '--header', HEADER], { cwd: f.root, env: f.env });
-  let printed = 0;
-  let out = '';
-  child.stdout.on('data', chunk => { out += chunk; printed ||= /REPLY_LINK=/.test(out) && Date.now(); });
-  const status = await new Promise(done => child.on('close', done));
-  const ended = Date.now();
-  assert.equal(status, 0);
-  const [, id] = LINK.exec(out);
-  assert.ok(ended - printed >= 2500 && ended - printed < 6000, `${ended - printed} ms after the link`);
-  assert.ok(ended - started < 10_000, `ended ${ended - started} ms after it started, while the app call still hung`);
-  assert.equal(f.registration(id).listed, undefined);
-  // Closing it waits for no hung app either.
-  const closing = Date.now();
-  assert.match(f.reply('close', form).stdout, /^REPLY_CLOSED=yes$/m);
-  assert.ok(Date.now() - closing < 6000, `close took ${Date.now() - closing} ms`);
+  const log = join(f.root, 'inbox.jsonl');
+  inboxIn(f, log, { status: 404 });
+  const { id } = f.open(f.page('intake.html'));
+  assert.ok(f.registration(id));
+  assert.equal(f.tunnels(), 1);
+  assert.deepEqual(inboxCalls(log).map(call => call.route), ['items']);
 });
 
 const PNG = Buffer.concat([Buffer.from('89504e470d0a1a0a', 'hex'), Buffer.alloc(40, 7)]);
