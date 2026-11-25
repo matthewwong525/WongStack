@@ -16,11 +16,14 @@ const startSound = (body: string, actions: string[]) => {
   return !!card && (card.state === "ready") === (card.plan !== undefined) && actions.length === START_ACTIONS.length &&
     START_ACTIONS.every(action => actions.includes(action));
 };
+/** Whether the item names uploads it can not carry: only a plan does, with its HTML sent or uploaded, never both. */
+const misplaced = ({ kind, body, bodySha256, media }: Pick<Input, "kind" | "body" | "bodySha256" | "media">) =>
+  !!(bodySha256 || media?.length) && (kind !== "plan" || !!(bodySha256 && body));
 /** Why the item's body can't be kept, or null: an approval or question needs its words; a link its address alone; a
  *  plan card its state and plan; an agent's status its state, taking no taps. */
 const fault = ({ kind, body, actions, plain, files, bodySha256, media }: Input) => {
   if (files?.length && !plain) return fail("bad_plain", 400);
-  if ((bodySha256 || media?.length) && (kind !== "plan" || (bodySha256 && body))) return fail("bad_media", 400);
+  if (misplaced({ kind, body, bodySha256, media })) return fail("bad_media", 400);
   if (plain) return kind === "plan" && actions.length === 0 ? null : fail("bad_plain", 400);
   if (kind === "link") return actions.length === 0 && parsed(link, body) ? null : fail("bad_link", 400);
   if (kind === "start") return startSound(body, actions) ? null : fail("bad_start", 400);
@@ -54,8 +57,9 @@ export const itemPut = inboxAction<Input>({
     await settleTaps(at);
     const blobs = await replacePage(at, input.id, { files: input.files, media: input.media, body: input.bodySha256 });
     if (blobs instanceof Response) return blobs;
+    // Only a page with uploads gets page_info, which keeps it from the emptied-page prune; any other reads its row.
     const html = blobs.page ? await new Response(await readStored(at, { ...blobs.page, item: input.id })).text() : input.body;
-    const info = input.kind === "plan" ? JSON.stringify(readPageInfo(html)) : null;
+    const info = blobs.page || input.media?.length ? JSON.stringify(readPageInfo(html)) : null;
     // A plain page ends as it is put, so it goes straight to Artifacts. Each put sets when the newest version came.
     await at.db.batch([mine(at, `INSERT INTO inbox_items (installation_id, email, id, kind, title, workspace, body, actions, version, created_at, updated_at,
       closes_at, hidden, chat, plain, page_info) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, ?11, ?12, ?13, ?14, ?15) ON CONFLICT (installation_id, email, id)

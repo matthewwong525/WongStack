@@ -9,10 +9,11 @@ import { FakeSocket, line } from './line.test.kit'
 import { TAP_POLL_MS } from './TapLine'
 
 const PLAN = 'c'.repeat(32)
-const BODY = '<!doctype html><title>One inbox</title><body data-change="inbox-mini-app"><p>The plan</p>'
 const NOTES = 'wong-review3:inbox-mini-app'
+// What the inbox read from the plan's review page when it was put: the page itself loads in the frame by its address.
+const PAGE = { key: NOTES, ownBack: false, labels: {} }
 const plan = (version = 'v1', tap: Tap | null = null, files: string[] = []) => ({ id: PLAN, kind: 'plan', title: 'One inbox', workspace: 'lousy-dingo',
-  actions: ['build', 'publish'], version, createdAt: 1, closesAt: 2, detail: null, tap, body: BODY, files })
+  actions: ['build', 'publish'], version, createdAt: 1, closesAt: 2, detail: null, tap, page: PAGE, files })
 const waiting: Tap = { id: 't'.repeat(32), item: PLAN, action: 'build', text: '', state: 'waiting' }
 
 let answer: () => Response
@@ -21,7 +22,8 @@ let tapState: Tap['state']
 let online: boolean | null
 let calls: { path: string; body: unknown }[]
 let fileAnswer: () => Response
-// The frame's window as the inbox sees it: jsdom loads each frame once, and that load greets this stand-in.
+let mediaAnswer: (name: string) => Response
+// The frame's window as the inbox sees it: each test loads the frame once, and that load greets this stand-in.
 let frameWindow: { postMessage: ReturnType<typeof vi.fn> }
 beforeEach(() => {
   frameWindow = { postMessage: vi.fn() }
@@ -32,10 +34,12 @@ beforeEach(() => {
   online = false
   calls = []
   fileAnswer = () => Response.json({ file: { id: 'f'.repeat(32) } })
+  mediaAnswer = name => new Response(name === 'shot.png' ? new Uint8Array([0x89, 0x50]) : null, { status: name === 'shot.png' ? 200 : 404, headers: { 'content-type': 'image/png' } })
   localStorage.clear()
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
     calls.push({ path, body: typeof init?.body === 'string' ? JSON.parse(init.body) : init?.body ?? null })
     if (path.startsWith('/apps/inbox/api/file?')) return fileAnswer()
+    if (path.startsWith('/apps/inbox/api/page-media?')) return mediaAnswer(new URL(path, 'https://app.example').searchParams.get('name')!)
     if (path.startsWith('/apps/inbox/api/item?')) return answer()
     if (path === '/apps/inbox/api/tap') return tapAnswer()
     if (path === '/apps/inbox/api/items') return online === null ? new Response(null, { status: 503 }) : Response.json({ items: [], computerOnline: online })
@@ -58,6 +62,7 @@ const greeted = async () => {
 const open = async (entry = `/apps/inbox/?item=${PLAN}`) => {
   render(<MemoryRouter initialEntries={[entry]}><Routes><Route path="/apps/:name/*" element={<App />} /></Routes></MemoryRouter>)
   const frame = await screen.findByTitle<HTMLIFrameElement>('One inbox')
+  fireEvent.load(frame)
   const port = await greeted()
   const posted = frameWindow.postMessage
   const heard: unknown[] = []
@@ -77,7 +82,7 @@ it('seals the plan in a frame that can run its page but never reach the app, and
   expect(calls[0].path).toBe(`/apps/inbox/api/item?id=${PLAN}`)
   expect(frame.getAttribute('sandbox')).toBe('allow-scripts allow-popups allow-popups-to-escape-sandbox')
   expect(frame.getAttribute('sandbox')).not.toContain('allow-same-origin')
-  expect(frame.getAttribute('srcdoc')).toBe(BODY)
+  expect(frame.getAttribute('src')).toBe(`/apps/inbox/api/frame?id=${PLAN}&v=v1`)
   // The review page in the frame shows the title; the bar keeps it for screen readers only and shows the workspace.
   expect(screen.getByRole('heading', { level: 1, name: 'One inbox' }).className).toBe('sr-only')
   expect(screen.getByText('lousy-dingo')).toBeTruthy()
@@ -114,7 +119,7 @@ it("pins an older plan's Back above it, and nothing hides, slides or resizes as 
 })
 
 it('leaves Back to a page that draws its own: none shows outside the frame, and the plan keeps its height as it scrolls', async () => {
-  answer = () => Response.json({ item: { ...plan(), body: BODY.replace('<body ', '<body data-own-back ') }, computerOnline: false })
+  answer = () => Response.json({ item: { ...plan(), page: { ...PAGE, ownBack: true } }, computerOnline: false })
   const { frame, say } = await open()
   const column = frame.parentElement!
   expect(screen.queryByRole('link', { name: 'Back' })).toBeNull()
@@ -309,9 +314,9 @@ it('ignores a message of an unknown kind, too large, or for an action the plan d
 })
 
 it('takes no notes from a plan whose page names no review', async () => {
-  answer = () => Response.json({ item: { ...plan(), body: '<!doctype html><title>One inbox</title><p>No change named</p>' }, computerOnline: false })
+  answer = () => Response.json({ item: { ...plan(), page: { ...PAGE, key: null } }, computerOnline: false })
   render(<MemoryRouter initialEntries={[`/apps/inbox/?item=${PLAN}`]}><Routes><Route path="/apps/:name/*" element={<App />} /></Routes></MemoryRouter>)
-  await screen.findByTitle<HTMLIFrameElement>('One inbox')
+  fireEvent.load(await screen.findByTitle<HTMLIFrameElement>('One inbox'))
   const port = await greeted()
   const heard: unknown[] = []
   port.onmessage = event => { heard.push(event.data) }
@@ -368,6 +373,21 @@ it("sends a file the page hands over for its own item, answers its id, and refus
   await say(picked(3, 'odd'))
   await until(() => heard.length > 2)
   expect(heard[2]).toEqual({ type: 'inbox:file-result', ref: 'odd', error: 'this is not a file the page takes' })
+})
+
+it("hands the page each picture it asks for by name, from its own item, or says it is missing", async () => {
+  const { heard, say } = await open()
+  await say({ type: 'inbox:media', ref: 'm1', name: 'shot.png' })
+  await until(() => heard.length > 0)
+  expect(calls.find(call => call.path.startsWith('/apps/inbox/api/page-media?'))!.path)
+    .toBe(`/apps/inbox/api/page-media?${new URLSearchParams({ id: PLAN, name: 'shot.png' })}`)
+  const [{ type, ref, blob }] = heard as { type: string; ref: string; blob: Blob }[]
+  expect([type, ref, blob.type, blob.size]).toEqual(['inbox:media-result', 'm1', 'image/png', 2])
+  await say({ type: 'inbox:media', ref: 'm2', name: 'other.png' })
+  mediaAnswer = () => { throw new TypeError('offline') }
+  await say({ type: 'inbox:media', ref: 'm3', name: 'shot.png' })
+  await until(() => heard.length > 2)
+  expect(heard.slice(1)).toEqual([{ type: 'inbox:media-result', ref: 'm2', missing: true }, { type: 'inbox:media-result', ref: 'm3', missing: true }])
 })
 
 it('passes the files the page sent with its tap', async () => {
@@ -431,9 +451,8 @@ it('tells the page which files the app still holds when it opens, and after a ta
 })
 
 // A closed plan as the inbox gives it: notes and Build and publish reached the chat, named by the page's own buttons.
-const READY = '<div id="ready" data-actions="[{&quot;name&quot;:&quot;publish&quot;,&quot;label&quot;:&quot;Build and publish&quot;}]" hidden></div>'
 const archived = (answers: { action: string; text: string; at: number }[]) => () => Response.json({ item: { ...plan('v1', waiting),
-  body: BODY.replace('<p>The plan</p>', READY), archived: { endedAt: 9_000, answers } }, computerOnline: true })
+  page: { ...PAGE, labels: { publish: 'Build and publish' } }, archived: { endedAt: 9_000, answers } }, computerOnline: true })
 
 it('opens an archived page read-only under what reached the chat, and starts no line, poll or tap line', async () => {
   vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
@@ -456,6 +475,10 @@ it('says an archived page had no answer and when it closed, and an action the pa
   answer = archived([{ action: 'build', text: '', at: 3_000 }])
   await open()
   expect(screen.getByRole('status').textContent).toBe(`Archived · Build, ${when(3_000)}`)
+  cleanup() // A page the inbox read nothing from names no button either.
+  answer = () => Response.json({ item: { ...plan(), page: null, archived: { endedAt: 9_000, answers: [{ action: 'publish', text: '', at: 3_000 }] } }, computerOnline: true })
+  await open()
+  expect(screen.getByRole('status').textContent).toBe(`Archived · Publish, ${when(3_000)}`)
 })
 
 it('answers any tap or file from an archived page with closed, sends none, keeps no notes, and goes Back to the waiting pages', async () => {

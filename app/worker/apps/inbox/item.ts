@@ -14,8 +14,8 @@ const answers = async (at: Scope, id: string) => (await mine(at, `SELECT action,
   WHERE installation_id = ?1 AND email = ?2 AND item_id = ?3 AND state = 'sent' ORDER BY answered_at, rowid`, id)
   .all<z.infer<typeof archived>["answers"][number]>()).results;
 
-/** GET item?id= → one item, what its page says of itself (never the page: its frame loads that), held files, a page's own files, plain flag, open team link, and whether the
- *  computer is on. Any open item opens; a closed review page opens read-only with its answers. */
+/** GET item?id= → one item, what its page says of itself (its frame loads the page), held and page files, plain flag,
+ *  team link, and whether the computer is on. Any open item opens; a closed review page is read-only, with answers. */
 export const item = inboxAction<{ id: string }>({
   operationId: "inbox.item", summary: "Open one item", description: "One of the signed-in person's open items, or a closed review page.",
   input: z.strictObject({ id: itemId.describe("The item's id.") }),

@@ -55,7 +55,8 @@ export function SharedView({ token }: { token: string }) {
       {shown.files.length > 0 && <div className="ml-auto flex flex-wrap items-center gap-2">
         <DownloadButton files={shown.files} urlOf={urlOf} auto /></div>}
     </div>
-    <PageFrame title={shown.title} src={`/apps/inbox/api/shared-frame?token=${encodeURIComponent(token)}`} frameRef={frame} onLoad={greet} />
+    <PageFrame title={shown.title} src={`/apps/inbox/api/shared-frame?token=${encodeURIComponent(token)}`} frameRef={frame} onLoad={greet}
+      onLeave={() => { port.current?.close(); port.current = null }} />
   </div>
   const ended = state === 'stopped' || state === 'missing' ? ENDED[state] : null
   if (ended) return <div className="grid justify-items-center gap-2 py-16 text-center">

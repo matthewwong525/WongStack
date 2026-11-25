@@ -56,9 +56,10 @@ The **only source of the app's wrangler config**, so a deployable Worker: the to
     // Session memory, production only. No migrations_dir: the memory skill migrates it.
     { "binding": "MEMORY_DB", "database_name": "<your-repo>-memory", "database_id": "<memory database_id>" }
   ],
-  // Only when the memory store has a bucket.
+  // Only when R2 is on.
   "r2_buckets": [
-    { "binding": "MEMORY_BUCKET", "bucket_name": "<your-repo>-memory" }
+    { "binding": "MEMORY_BUCKET", "bucket_name": "<your-repo>-memory" },
+    { "binding": "INBOX_PAGES", "bucket_name": "<your-repo>-inbox" }
   ],
   // Rereads who can push on GitHub, for previews' sign-in.
   "triggers": { "crons": ["*/15 * * * *"] },
@@ -76,12 +77,20 @@ The **only source of the app's wrangler config**, so a deployable Worker: the to
         "CF_ACCESS_WORKER_ID": "<staging Worker id>"
       },
       "d1_databases": [{ "binding": "DB", "database_name": "<your-db-name>-staging", "database_id": "<staging database_id>", "migrations_dir": "../schema/migrations" }],
+      // Only when R2 is on.
+      "r2_buckets": [
+        { "binding": "INBOX_PAGES", "bucket_name": "<your-repo>-inbox-staging" }
+      ],
       "triggers": { "crons": [] }
     },
     "local": {
       "name": "<your-worker>-local",
       "vars": { "WONG_ENVIRONMENT": "local", "SKIP_AUTH": "true" },
       "d1_databases": [{ "binding": "DB", "database_name": "<your-db-name>-local", "database_id": "<production database_id>", "remote": false, "migrations_dir": "../schema/migrations" }],
+      // Only when R2 is on.
+      "r2_buckets": [
+        { "binding": "INBOX_PAGES", "bucket_name": "<your-repo>-inbox-local", "remote": false }
+      ],
       "durable_objects": { "bindings": [{ "name": "LIVE_LINE", "class_name": "Line", "script_name": "<your-worker>-line-local" }] }
     }
   }
@@ -92,10 +101,10 @@ Six rules the scripts depend on:
 
 - **Write `migrations_dir` per layout; the block shows `app/`'s.** Wrangler resolves it from the **config file**, but `schema/` sits at the **repo root**: `../schema/migrations` in `app/`, `schema/migrations` beside a root config. Repeat it in each environment. A wrong path stops `cf-build.sh` with `No migrations present at …` on the first migration, failing CI.
 - **Describe a deployable Worker, not just bindings.** `app/wrangler.jsonc` is [not copied](payload-manifest.md#the-app-scaffold), and a config with no entry point deploys nothing while provisioning reports success: hence `main`, `assets`, `compatibility_date`, and `compatibility_flags`. `main` also resolves from the config file, so `worker/index.ts` fits both layouts. Keep the given `compatibility_date`: the shipped local runtime refuses a newer one, failing the first save.
-- **Give `env.staging` its own `name`,** or it inherits production's, and a branch deploy lands there. `cf-deploy.sh` refuses it; declare the name so the check never fires.
+- **Give `env.staging` its own `name`,** or it inherits production's, and a branch deploy lands there. `cf-deploy.sh` refuses it.
 - **Redeclare every stateful binding in `env.staging`, pointing at its twin** ([the twin table](../../../../wiki/stack/staging-bindings.md#twin-every-stateful-binding)): an environment inherits no `vars` or bindings. Its `d1_databases` entry needs the staging database's own `database_name`; `cf-build.sh` and `reset-staging-d1.mjs` read it from *inside* the block and stop rather than touch production. A forgotten binding is absent in staging, and `npm run secrets:check` fails the build; it warns on a *service* binding copied without repointing, which quietly calls production.
 - **Cron `triggers` do inherit** ([why](../../../../wiki/stack/staging-bindings.md#cron-triggers-inherit-omitting-them-does-not-disable-them)): omitted, production's schedule fires silently on staging. Keep the empty list unless staging *should* run it.
-- **Never twin the memory bindings.** `MEMORY_DB` and `MEMORY_BUCKET` sit at the top level only: session memory lives on the production Worker alone ([why](../../../../wiki/development/memory.md)). `secrets:check` skips `MEMORY_*` bindings, and the pipeline scripts never read `MEMORY_DB` as the app's database. Wrangler's warning that `MEMORY_DB` is not on `env.staging` is expected; leave it.
+- **Never twin the memory bindings.** `MEMORY_DB` and `MEMORY_BUCKET` sit at the top level only: session memory lives on the production Worker alone ([why](../../../../wiki/development/memory.md)). `secrets:check` skips `MEMORY_*` bindings, and the pipeline scripts never read `MEMORY_DB` as the app's database. Wrangler's warning that `MEMORY_DB` is not on `env.staging` is expected.
 
 A queue twin needs both halves in the environment, or staging messages land on the production consumer:
 

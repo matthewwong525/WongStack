@@ -15,7 +15,7 @@ export type Stored = "db" | "bucket";
 export type Owner = Pick<Scope, "db" | "installation" | "email" | "pages">;
 export type Blob = { item: string; sha256: string; size: number; stored: Stored };
 
-export const PARTS = "FROM inbox_page_file_parts WHERE installation_id = ?1 AND email = ?2 AND item_id = ?3 AND sha256 = ?4";
+const PARTS = "FROM inbox_page_file_parts WHERE installation_id = ?1 AND email = ?2 AND item_id = ?3 AND sha256 = ?4";
 /** An upload to the bucket keeps this part row, with no bytes, so a day-old one no page names is found and deleted. */
 const MARK = -1;
 
@@ -50,7 +50,7 @@ async function intoParts(at: Scope, item: string, hash: string, body: ReadableSt
   return size;
 }
 
-/** Streams `body` of `length` bytes into the bucket; R2 checks the hash, and the first bytes are checked as they pass. */
+/** Streams `body` of `length` bytes into the bucket; R2 checks the hash, and the first bytes are checked in passing. */
 async function intoBucket(at: Scope, item: string, hash: string, body: ReadableStream<Uint8Array>, length: number,
   starts: (bytes: Uint8Array) => boolean, type: string) {
   let head = new Uint8Array(0);
@@ -61,13 +61,11 @@ async function intoBucket(at: Scope, item: string, hash: string, body: ReadableS
     }
     controller.enqueue(chunk);
   } });
-  const fixed = new FixedLengthStream(length);
-  const flowing = body.pipeThrough(checked).pipeTo(fixed.writable);
-  try {
-    await Promise.all([at.pages!.put(await keyOf(at, item, hash), fixed.readable, { sha256: hash, httpMetadata: { contentType: type } }), flowing]);
-  } catch (error) {
-    throw error instanceof Stop ? error : new Stop(fail("bad_page_file", 400));
-  }
+  const key = await keyOf(at, item, hash), fixed = new FixedLengthStream(length);
+  // R2 refuses bytes that are not `hash`, and the check above stops bytes that are not what the name says.
+  await Promise.all([at.pages!.put(key, fixed.readable, { sha256: hash, httpMetadata: { contentType: type } }),
+    body.pipeThrough(checked).pipeTo(fixed.writable)])
+    .catch(() => { throw new Stop(fail("bad_page_file", 400)); });
   await mine(at, "INSERT INTO inbox_page_file_parts (installation_id, email, item_id, sha256, n, created_at, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
     item, hash, MARK, at.now, new Uint8Array(0)).run();
   return length;
@@ -79,8 +77,8 @@ export async function storeUpload(at: Scope, { item, name, hash, body, stored, m
   body: ReadableStream<Uint8Array>; stored: Stored; max: number; length: number }) {
   const starts = (bytes: Uint8Array) => (name ? startsAsNamed(name, bytes) : !bytes.includes(0));
   if (stored === "db") return intoParts(at, item, hash, body, max, starts);
+  // The route refused a length over `max`; the bucket needs one.
   if (!length) return Promise.reject(new Stop(fail("bad_page_file", 400)));
-  if (length > max) return Promise.reject(new Stop(fail("too_large", 413)));
   return intoBucket(at, item, hash, body, length, starts, name ? typeOf(name) : "text/html; charset=utf-8");
 }
 
@@ -92,27 +90,19 @@ export async function dropUpload(at: Scope, item: string, hash: string, stored: 
 
 /** How many bytes of `item`'s upload `hash` are kept, where `stored` says. */
 export async function storedSize(at: Owner, item: string, hash: string, stored: Stored) {
-  if (stored === "bucket") return (await at.pages?.head(await keyOf(at, item, hash)))?.size ?? 0;
+  if (stored === "bucket") return (await at.pages!.head(await keyOf(at, item, hash)))?.size ?? 0;
   return (await mine(at, `SELECT COALESCE(SUM(length(data)), 0) AS bytes ${PARTS}`, item, hash).first<{ bytes: number }>())!.bytes;
 }
 
-/** The first bytes of `item`'s upload `hash`. */
+/** The first bytes of `item`'s upload `hash`, once `storedSize` found it. */
 export async function firstBytes(at: Owner, item: string, hash: string, stored: Stored) {
-  if (stored === "bucket") {
-    const got = await at.pages?.get(await keyOf(at, item, hash), { range: { offset: 0, length: 4096 } });
-    return got ? new Uint8Array(await got.arrayBuffer()) : new Uint8Array(0);
-  }
-  const first = await mine(at, `SELECT data ${PARTS} AND n = 0`, item, hash).first<{ data: ArrayBuffer | Uint8Array | number[] }>();
-  return first ? new Uint8Array(first.data) : new Uint8Array(0);
+  if (stored === "bucket") return new Uint8Array(await (await at.pages!.get(await keyOf(at, item, hash), { range: { offset: 0, length: 4096 } }))!.arrayBuffer());
+  return new Uint8Array((await mine(at, `SELECT data ${PARTS} AND n = 0`, item, hash).first<{ data: ArrayBuffer | Uint8Array | number[] }>())!.data);
 }
 
 /** `owner`'s kept `blob`, streamed: the bucket's object, or its D1 parts in order. */
 export async function readStored(owner: Owner, blob: Blob): Promise<ReadableStream<Uint8Array>> {
-  if (blob.stored === "bucket") {
-    const got = await owner.pages?.get(await keyOf(owner, blob.item, blob.sha256));
-    if (!got) throw new Error("The page's stored bytes are gone.");
-    return got.body;
-  }
+  if (blob.stored === "bucket") return (await owner.pages!.get(await keyOf(owner, blob.item, blob.sha256)))!.body;
   const parts = Math.ceil(blob.size / PART_BYTES);
   let n = 0;
   return new ReadableStream<Uint8Array>({ async pull(controller) {
@@ -142,7 +132,7 @@ export async function dropUnnamed(at: Owner, item: string, keep: string[]) {
 const UNNAMED = `NOT EXISTS (SELECT 1 FROM inbox_page_files f WHERE f.installation_id = inbox_page_file_parts.installation_id
   AND f.email = inbox_page_file_parts.email AND f.item_id = inbox_page_file_parts.item_id AND f.sha256 = inbox_page_file_parts.sha256)`;
 
-/** Deletes every person's uploads kept before `before` that no page names, in the bucket too. The app's room counts all. */
+/** Deletes every person's uploads kept before `before` that no page names, bucket too. The app's room counts all. */
 export async function pruneUploads(at: Scope, before: number) {
   if (at.pages) {
     const marks = (await at.db.prepare(`SELECT email, item_id AS item, sha256 FROM inbox_page_file_parts WHERE installation_id = ?1

@@ -131,9 +131,8 @@ export const settleTaps = (at: Scope) => at.db.batch([
   ...dropSettledFiles(at),
 ]);
 
-// Which closed items go: any but a review page, and a review page older code emptied. The second matches the
-// inbox_items_emptied index's WHERE exactly, so the clean-up never reads a kept page.
-// A page in the page store has an empty body too, so its page_info keeps it.
+// Which closed items go: any but a review page, and a review page older code emptied (one with uploads has page_info).
+// The second matches the inbox_items_emptied index's WHERE exactly, so the clean-up never reads a kept page.
 const GONE = ["kind <> 'plan'", "kind = 'plan' AND body = '' AND page_info IS NULL"];
 
 /** Removes items closed over a day ago, with their taps and files; a review page that kept its body stays. */

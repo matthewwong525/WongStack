@@ -9,6 +9,7 @@ import { buildPage, filePage, linksOpenOwnTab, main, pageFiles, putPage, sizeTex
 
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
 const ORIGIN = 'https://business.example.com';
+const sha = text => createHash('sha256').update(text).digest('hex');
 
 /** A page folder holding `files`, by name, removed when the test ends. */
 function folder(t, files) {
@@ -18,7 +19,7 @@ function folder(t, files) {
   return dir;
 }
 
-/** A company client that records each call and answers as the inbox does; `refuse` makes it answer 403. A file's
+/** A company client that records each call and answers as the inbox does; `refuse` makes it answer 403. An upload's
  *  raw bytes are kept as they came. */
 function client(refuse = false) {
   const sent = [];
@@ -55,9 +56,17 @@ test('a page that loads a script, a style, a picture or a font from the web is r
   assert.throws(() => buildPage(folder(t, {})), /no index\.html/);
 });
 
-test('a page over 1.5 MB stops, and one over 800 KB warns', t => {
-  assert.throws(() => buildPage(folder(t, { 'index.html': `<p>${'x'.repeat(1536 * 1024)}</p>` })), /keep a page under 1\.5 MB/);
+test('a page over 25 MB stops, one over 800 KB warns, and a 2 MB page goes up as an upload, not in the put', async t => {
+  assert.throws(() => buildPage(folder(t, { 'index.html': `<p>${'x'.repeat(26 * 1024 * 1024)}</p>` })), /keep a page under 25 MB/);
   assert.match(buildPage(folder(t, { 'index.html': `<p>${'x'.repeat(900 * 1024)}</p>` })).warnings[0], /over 800 KB/);
+  const { html } = buildPage(folder(t, { 'index.html': `<p>${'x'.repeat(2 * 1024 * 1024)}</p>` }));
+  const shop = client();
+  const id = 'b'.repeat(32);
+  await putPage(shop, { html, title: 'Big', id, workspace: 'desk' });
+  const sha256 = sha(html);
+  assert.deepEqual(shop.sent.map(call => call.path), [`/apps/inbox/api/page-body?id=${id}&sha256=${sha256}`, '/apps/inbox/api/item']);
+  assert.equal(String(shop.sent[0].body), html);
+  assert.deepEqual([shop.sent[1].body.body, shop.sent[1].body.bodySha256], ['', sha256]);
 });
 
 test('--share puts a plain page, shares it, and prints the inbox and team links', async () => {
@@ -66,8 +75,8 @@ test('--share puts a plain page, shares it, and prints the inbox and team links'
   const lines = await putPage(shop, { html: '<p>Chart</p>', title: 'Kit sales', id, share: true, workspace: 'dull-blobfish', chat: 'agent-1' });
   assert.deepEqual(lines, [`page: ${ORIGIN}/apps/inbox/?item=${id}`, `id: ${id} (pass --id ${id} to replace it)`,
     `team link: ${ORIGIN}/apps/inbox/?shared=k7Qm2xW9`]);
-  assert.deepEqual(shop.sent.map(call => call.path), ['/apps/inbox/api/item', '/apps/inbox/api/share']);
-  const [put, share] = shop.sent.map(call => call.body);
+  assert.deepEqual(shop.sent.map(call => call.path.replace(/\?.*/, '')), ['/apps/inbox/api/page-body', '/apps/inbox/api/item', '/apps/inbox/api/share']);
+  const [, put, share] = shop.sent.map(call => call.body);
   assert.deepEqual([put.plain, put.kind, put.actions, put.chat, share], [true, 'plan', [], 'agent-1', { id }]);
   // Without --share it prints no team link; a refused put says to sign in, and a refused share says what to tap.
   assert.equal((await putPage(shop, { html: '<p>Chart</p>', title: 'Kit sales', id, workspace: 'desk' })).length, 2);
@@ -140,10 +149,11 @@ test('each file uploads before the page names it, and the printed link downloads
   const lines = await putPage(shop, { html: filePage('Q2', files), title: 'Q2', id, workspace: 'desk', files });
   assert.equal(lines[0], `page: ${ORIGIN}/apps/inbox/?item=${id}&download=1`);
   assert.deepEqual(shop.sent.map(call => [call.init.method, call.path]), [
-    ['PUT', `/apps/inbox/api/page-file?id=${id}&name=q2-sales.xlsx&sha256=${sha256}`], ['PUT', '/apps/inbox/api/item']]);
+    ['PUT', `/apps/inbox/api/page-file?id=${id}&name=q2-sales.xlsx&sha256=${sha256}`], ['PUT', `/apps/inbox/api/page-body?id=${id}&sha256=${sha(filePage('Q2', files))}`],
+    ['PUT', '/apps/inbox/api/item']]);
   assert.equal(String(shop.sent[0].body), 'PK sales');
   assert.ok(shop.sent[0].init.signal instanceof AbortSignal);
-  assert.deepEqual(shop.sent[1].body.files, [{ name: 'q2-sales.xlsx', size: 8, sha256 }]);
+  assert.deepEqual(shop.sent[2].body.files, [{ name: 'q2-sales.xlsx', size: 8, sha256 }]);
   // A refused upload stops before the page is put, and says why in words; no answer says to sign in.
   const refusing = code => ({ ...shop, http: async path => path.includes('page-file') ? { status: 413, value: { error: { code } } } : { status: 200, value: {} } });
   await assert.rejects(putPage(refusing('too_large'), { html: '<p/>', title: 't', id, workspace: 'w', files }),
@@ -161,7 +171,7 @@ test('the command takes files with no folder, and writes the page that lists the
   assert.equal(await main(['a', 'b', '--title', 'Q2']), 2);
   const shop = client();
   assert.equal(await main(['--title', 'Q2 sales', '--file', join(dir, 'q2-sales.csv')], async () => shop), 0);
-  assert.match(shop.sent[1].body.body, /<h1>Q2 sales<\/h1>.*q2-sales\.csv/);
+  assert.match(String(shop.sent[1].body), /<h1>Q2 sales<\/h1>.*q2-sales\.csv/);
   assert.match(printed.mock.calls[0].arguments[0], /\?item=[0-9a-f]{32}&download=1/);
   assert.equal(await main(['--title', 'Q2', '--file', join(dir, 'missing.csv')], async () => shop), 1);
 });

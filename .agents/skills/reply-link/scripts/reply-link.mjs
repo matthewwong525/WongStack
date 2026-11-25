@@ -13,13 +13,14 @@ import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { lookCss } from '../../plan/scripts/look.mjs';
 import { computerId, guardShared, hasOwnHelper, helperFiles, leaveShared, ownHelper, primaryOf, readApps, rememberApp } from './lib/computer.mjs';
 import { logAction } from './lib/helper-log.mjs';
-import { checkin, closeItem, companyFor, hasApp, openSocket, probe, readFile, tapResult, upload, waitingReviews } from './lib/inbox.mjs';
+import { checkin, closeItem, companyFor, hashFiles, hasApp, openSocket, probe, putPage, readFile, tapResult, upload, waitingReviews } from './lib/inbox.mjs';
 import { appLines, nextPoll, waiter } from './lib/line.mjs';
-import { bytesRefused, FILE_LIMITS, filesLines, nameRefused, removeFile, saveFile, savedPath, uploadsFor } from './lib/uploads.mjs';
+import { bytesRefused, FILE_LIMITS, filesLines, MEDIA_LIMITS, mediaRefused, nameRefused, removeFile, saveFile, savedPath, uploadsFor } from './lib/uploads.mjs';
 import { alive, freePort, hasCloudflared, keyMatches, killTunnel, linkAnswers, signal, startTunnel } from '../../hand-over/scripts/lib/tunnel.mjs';
 import { canWake, chatTarget, liveChats, wakeChat } from './lib/wake.mjs';
 
 const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [--action <name>=<message>]... [--uploads <dir>]
+                      [--media <list.json>]
        reply-link.mjs item --title "<words>" --header "<line>" [--hours N] [--action <name>=<message>]...
                       [--hidden] [--keep-open] [--stop "<message>"]
        reply-link.mjs close <file> | close-plan <change> | list
@@ -35,6 +36,8 @@ const USAGE = `usage: reply-link.mjs open <file> --header "<line>" [--hours N] [
           --action: a button the page may offer, and the one-line message a tap on it
           sends to this chat; the page can never change that message (6 at most)
           --uploads: the folder for files the page sends (default .scratch/<page folder>-uploads)
+          --media: a JSON list of up to 300 {"name", "path"}: pictures and videos the page shows with
+          window.replyMedia(name), in the inbox only; png, jpg, webp, gif, mp4, webm or mov, 95 MB each
   item    put an item with no file in the inbox for this chat and print REPLY_ITEM=<id>, or none;
           an open item of this chat with the same title is replaced
           --hidden: the inbox lists no card for it; it still takes taps
@@ -48,7 +51,7 @@ export const LIMITS = { text: 20_000, body: 128 * 1024, header: 300, action: 300
 const HOURS = 24;
 // Raised when the server or inbox helper changes: one from older code is swapped for this one. The shared page server
 // takes the highest copy; a project's own helper compares only its own project's copies.
-export const PROTOCOL = 17;
+export const PROTOCOL = 18;
 const ID = /^[0-9a-f]{32}$/;
 const ACTION = /^[a-z][a-z0-9-]{0,30}$/;
 const ROUTE = /^\/p\/([0-9a-f]{32})\/(alive|send|act|file)?$/;
@@ -456,7 +459,7 @@ function titleOf(text, file) {
 /** What the app keeps of an item: its words, actions and chat's agent id, never its target chat or messages. */
 const shown = (item, body) => ({ id: item.id, kind: item.kind, title: item.title, workspace: item.workspace, body: item.file === null ? body : bridged(body),
   actions: Object.keys(item.actions), version: item.version, closesAt: item.deadline, ...(item.hidden && { hidden: true }),
-  ...(item.chat && { chat: item.chat }) });
+  ...(item.chat && { chat: item.chat }), ...(item.media && { media: item.media }) });
 
 /** The item's body as it stands: a plan's file, or the words it was made with; null when the file is gone. */
 function bodyOf(item) {
@@ -512,7 +515,11 @@ async function placeItem(spec, { env = process.env, clientFor = companyFor, star
     uploads: spec.uploads ?? uploadsFor(file ?? join(spec.cwd, 'inbox', 'item'), spec.cwd),
     app: { cwd: spec.cwd, origin }, ...(spec.hidden && { hidden: true }), ...(spec.keepOpen && { keepOpen: true, hours: spec.hours }),
     ...(spec.stop && { stop: spec.stop }), ...(env.PASEO_AGENT_ID && { chat: env.PASEO_AGENT_ID.slice(0, 128) }) };
-  if (!(await upload(client, shown(item, body)))) return { reason: 'inbox-down' };
+  // Hashed only once signed in: a signed-out open reads and uploads nothing.
+  const media = hashFiles(spec.media ?? []);
+  const { value } = await putPage(client, shown(item, body), { media });
+  if (!value) return { reason: 'inbox-down' };
+  if (media.length) item.media = media.map(({ name, size, sha256 }) => ({ name, size, sha256 }));
   writeItem(state, item);
   rememberApp(spec.cwd, env);
   await start(state, env);
@@ -844,7 +851,7 @@ export async function serveInbox({ service = false, project = null, env = proces
 
 /** `{link}` for the file's reply link, or `{link: null, reason}` where none can open. A project with an app opens it in
  * the inbox only; one with none, at a tunnel. `inbox` takes test stand-ins, `hasApp` and `tunnel` among them. */
-export async function openLink({ file, header, actions = {}, hours = HOURS, env = process.env, cwd = process.cwd(), inbox = {}, uploads }) {
+export async function openLink({ file, header, actions = {}, hours = HOURS, env = process.env, cwd = process.cwd(), inbox = {}, uploads, media = [] }) {
   const checked = checkActions(Object.entries(actions));
   if (env.REPLY_LINK === 'off') return { link: null, reason: 'off' };
   const target = chatTarget(env, cwd);
@@ -852,7 +859,7 @@ export async function openLink({ file, header, actions = {}, hours = HOURS, env 
   const real = realpathSync(file);
   const folder = resolve(cwd, uploads ?? uploadsFor(real, cwd));
   const { hasApp: appHere = hasApp, tunnel = ensureServer, ...stand } = inbox;
-  const item = await placeItem({ file: real, kind: 'plan', header, actions: checked, hours, target, cwd, uploads: folder }, { env, ...stand });
+  const item = await placeItem({ file: real, kind: 'plan', header, actions: checked, hours, target, cwd, uploads: folder, media }, { env, ...stand });
   if (item.link) return { link: item.link };
   if (appHere(cwd)) return { link: null, reason: item.reason };
   const state = files(env);
@@ -876,6 +883,21 @@ export async function openReviewLink(options) {
   try { return await openLink(options); } catch { return { link: null, reason: 'failed' }; }
 }
 
+/** The `--media` list at `file`: each `{name, path}`, its path read from the list's folder; throws on a bad list, or a
+ *  file of the wrong kind or size, before anything uploads. */
+export function mediaList(file) {
+  let list = null;
+  try { list = JSON.parse(readFileSync(file, 'utf8')); } catch { /* refused below */ }
+  if (!Array.isArray(list) || list.length > MEDIA_LIMITS.files || !list.every(entry => typeof entry?.name === 'string' && typeof entry.path === 'string')) {
+    throw new Error('--media takes a JSON list of up to 300 {"name", "path"}');
+  }
+  const media = list.map(({ name, path }) => ({ name, path: resolve(dirname(file), path) }));
+  const refused = media.map(mediaRefused).find(Boolean);
+  if (refused) throw new Error(refused);
+  if (new Set(media.map(entry => entry.name)).size !== media.length) throw new Error('two pictures or videos share a name; rename one');
+  return media;
+}
+
 /** The file's real path, or exit 1 once it has said the file is missing. */
 function realFile(file) {
   try { return realpathSync(file); } catch {
@@ -884,8 +906,8 @@ function realFile(file) {
   }
 }
 
-async function open(file, { header, actions, hours, uploads }) {
-  const { link, reason } = await openLink({ file: realFile(file), header, actions, hours, uploads });
+async function open(file, { header, actions, hours, uploads, media }) {
+  const { link, reason } = await openLink({ file: realFile(file), header, actions, hours, uploads, media });
   console.log(`REPLY_LINK=${link ?? 'none'}`);
   if (!link) console.log(`REPLY_REASON=${reason}`);
 }
@@ -920,7 +942,7 @@ function list() {
 
 if (isMain(import.meta.url)) {
   const { values, positionals: [command, ...rest] } = parseCli({ usage: USAGE, allowPositionals: true, options: { header: { type: 'string' }, hours: { type: 'string' }, action: { type: 'string', multiple: true }, service: { type: 'boolean' },
-    title: { type: 'string' }, hidden: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, stop: { type: 'string' }, uploads: { type: 'string' }, project: { type: 'string' } } });
+    title: { type: 'string' }, hidden: { type: 'boolean' }, 'keep-open': { type: 'boolean' }, stop: { type: 'string' }, uploads: { type: 'string' }, media: { type: 'string' }, project: { type: 'string' } } });
   const takes = { open: 1, item: 0, close: 1, 'close-plan': 1, list: 0, serve: 2, 'serve-inbox': 0 }[command];
   if (takes === undefined || rest.length !== takes) usageError(USAGE, command ? `unknown command: ${[command, ...rest].join(' ')}` : 'missing command');
   const hours = Number(values.hours ?? HOURS);
@@ -935,10 +957,13 @@ if (isMain(import.meta.url)) {
   if (values.service && command !== 'serve-inbox') usageError(USAGE, '--service goes with serve-inbox only');
   if (values.project !== undefined && (command !== 'serve-inbox' || !isAbsolute(values.project))) usageError(USAGE, '--project takes a main checkout\'s full path, with serve-inbox only');
   if (values.uploads !== undefined && (command !== 'open' || !values.uploads.trim())) usageError(USAGE, '--uploads takes a folder, with open only');
+  if (values.media !== undefined && command !== 'open') usageError(USAGE, '--media goes with open only');
+  let media = [];
+  try { if (values.media !== undefined) media = mediaList(values.media); } catch (error) { usageError(USAGE, error.message); }
   let actions;
   try { actions = checkActions((values.action ?? []).map(pair => pair.split(/=(.*)/s).slice(0, 2))); } catch (error) { usageError(USAGE, error.message); }
   const itemSpec = { title, header, actions, hours, hidden: Boolean(values.hidden), keepOpen: Boolean(values['keep-open']), stop };
-  await { open: () => open(rest[0], { header, actions, hours, uploads: values.uploads }), item: () => putItem(itemSpec), close: () => close(rest[0]),
+  await { open: () => open(rest[0], { header, actions, hours, uploads: values.uploads, media }), item: () => putItem(itemSpec), close: () => close(rest[0]),
     'close-plan': async () => console.log(`PLAN_PAGE=${await closePlanPages(process.cwd(), rest[0])}`), list, serve: () => serve(Number(rest[0]), Number(rest[1])), 'serve-inbox': () => serveInbox({ service: Boolean(values.service), project: values.project ?? null }) }[command]();
   // An app call past its 3 s wait would keep the process, and the chat's answer, alive until it fails.
   if (opens || command === 'close' || command === 'close-plan') process.exit(process.exitCode ?? 0);

@@ -484,8 +484,8 @@
 </section>
 <section id="needs" aria-labelledby="needs-h"><h2 id="needs-h">What the build needs</h2>
 <ol class="needs">
-<li class="need card" id="need-1" data-need="needs"><p><span class="tag-outline">Needs you</span> <b>Every reply-link page opens in the inbox, live first</b>: The page helper a chat's page uses comes with that change; ship it, then this one builds: <a target="_blank" rel="noopener noreferrer" href="https://github.com/matthewwong525/WongStack/pull/619">PR #619</a></p></li>
-<li class="need card" id="need-2" data-need="ready"><p><span class="tag">Ready</span> <b>Cloudflare access to make the two file stores</b>: The Cloudflare key is on this computer.</p></li>
+<li class="need card" id="need-1" data-need="ready"><p><span class="tag">Ready</span> <b>Every reply-link page opens in the inbox, live first</b>: It is live (v62.2.0), and this change builds on it: <a target="_blank" rel="noopener noreferrer" href="https://github.com/matthewwong525/WongStack/pull/619">PR #619</a></p></li>
+<li class="need card" id="need-2" data-need="ready"><p><span class="tag">Ready</span> <b>Cloudflare access to make the two file stores</b>: Both file stores exist.</p></li>
 </ol>
 </section>
 <section id="decisions" aria-labelledby="decisions-h"><h2 id="decisions-h">Decisions</h2>
@@ -498,6 +498,15 @@
 <li class="decision card" id="decision-6" data-note="decision-6" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: <code>page.mjs</code> moves to the body upload and a 25 MB stop (the 800 KB warning stays), but takes no media flag, because a plain page has no bridge to ask for media; a chat that needs media uses a reply-link page.</li>
 <li class="decision card" id="decision-7" data-note="decision-7" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: the review page's notes key, own-Back flag, and button labels move to a small <code>page_info</code> column read at put, because <code>frame.ts</code> reads them from the body today and <code>GET item</code> stops sending it.</li>
 <li class="decision card" id="decision-8" data-note="decision-8" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: ClaymooApp's ad review, Meta ads, <code>/ad-publish</code>, and Graveyard moves stay out, because WongStack has none of them.</li>
+<li class="decision card" id="decision-9" data-note="decision-9" tabindex="0"><p class="meta"><span class="tag asked">asked</span>2026-11-25</p>Asked whether to ship #619 first → chose ship #619 first; it is live as v62.2.0, and this change is built on it.</li>
+<li class="decision card" id="decision-10" data-note="decision-10" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: only a page with uploads (an uploaded body or media) gets <code>page_info</code>, because the prune of emptied pages (<code>body = '' AND page_info IS NULL</code>) must never drop a page whose blobs sit in the store; any other page reads its row as before.</li>
+<li class="decision card" id="decision-11" data-note="decision-11" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: <code>PROTOCOL</code> goes to 18 but <code>PROJECT_PROTOCOL</code> stays at 16, because the running helper compares <code>PROTOCOL</code> alone and the project helper did not change.</li>
+<li class="decision card" id="decision-12" data-note="decision-12" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: <code>scripts/cf-secrets.mjs</code> needs no change, because the bucket is a binding, not a secret, and its check shows no drift.</li>
+<li class="decision card" id="decision-13" data-note="decision-13" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: the sample page is a review page, not a plain page, because only a review page gets the port it asks for its pictures over.</li>
+<li class="decision card" id="decision-14" data-note="decision-14" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: the <b>Updating.</b> step is done by hand, because the setup script runs once at install and a sync does not run it.</li>
+<li class="decision card" id="decision-15" data-note="decision-15" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: the review page builder keeps its 1.5 MB stop with a new reason (a review is read on a phone too), because the inbox limit is no longer the reason.</li>
+<li class="decision card" id="decision-16" data-note="decision-16" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: a page that loads again (it went to another address) loses its port, because an old port must not keep answering media or taps for a page that left.</li>
+<li class="decision card" id="decision-17" data-note="decision-17" tabindex="0"><p class="meta"><span class="tag assumed">assumed</span>2026-11-25</p>Assumed: the migration file is named by hand (<code>20261125120000_inbox_page_store.sql</code>), because the repo has no migration script.</li>
 </ol>
 </section>
 <section id="notes" aria-labelledby="notes-h"><h2 id="notes-h">Your notes</h2>
@@ -1689,7 +1698,7 @@
     } else if (hosted.reply && m.type === 'inbox:result') {
       if (Array.isArray(m.files)) keepHeld(m.files);
       const reply = hosted.reply; hosted.reply = null; reply(m.state);
-      // A tap that reached the chat closes the page in the inbox, so it reads as answered now, as its Archive shows it.
+      // A tap that reached the chat closes the page in the inbox, so it reads as answered now, as Artifacts shows it.
       if (m.state === 'sent') closePage();
     } else if (m.type === 'inbox:file-result' && waiting[m.ref]) {
       const done = waiting[m.ref];

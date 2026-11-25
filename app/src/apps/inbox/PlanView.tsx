@@ -25,14 +25,16 @@ function Top({ item, back, children }: { item: Plan['item']; back: string; child
 }
 
 /** A page sealed in a frame, edge to edge, from its sealed address; popups let its links open their own tab. */
-export function PageFrame({ title, src, frameRef, onLoad }: { title: string; src: string; frameRef?: Ref<HTMLIFrameElement>; onLoad?: () => void }) {
+export function PageFrame({ title, src, frameRef, onLoad, onLeave }: { title: string; src: string; frameRef?: Ref<HTMLIFrameElement>;
+  onLoad?: () => void; onLeave?: () => void }) {
   const seen = useRef(START)
   const [tries, setTries] = useState(0)
   // A sealed address that loads again left it: the frame starts again, says so, and after three tries shows no more.
   const loaded = () => {
     seen.current = afterLoad(seen.current)
-    if (seen.current.tries === tries) onLoad?.()
-    else setTries(seen.current.tries)
+    if (seen.current.tries === tries) return onLoad?.()
+    onLeave?.()
+    setTries(seen.current.tries)
   }
   const line = leaveLine(tries)
   return <>
@@ -55,7 +57,7 @@ function Watch({ waiting, look }: { waiting: boolean; look: () => void }) {
 }
 
 /** A plan opened by its link, sealed in a frame that reaches the inbox only through the port its first load is handed.
- *  A frame that loads again went elsewhere, so nothing replaces the port; a closed or answered page opens read-only. */
+ *  A frame that loads again left: it loses its port and starts again. A closed or answered page is read-only. */
 export function PlanView({ id }: { id: string }) {
   const [plan, setPlan] = useState<Plan | null>(null)
   const navigate = useNavigate()
@@ -70,14 +72,14 @@ export function PlanView({ id }: { id: string }) {
     if (next?.state === 'sent') setSentAt(at => at ?? Date.now())
   }, [])
   const frame = useRef<HTMLIFrameElement>(null)
-  const channel = useRef<{ version: string; port: MessagePort | null } | null>(null)
+  const channel = useRef<MessagePort | null>(null)
   // True while the page waits to hear what became of its tap; `carried`, while that tap names files.
   const asked = useRef(false)
   const carried = useRef(false)
   const load = useCallback(() => readPlan(id).then(answer => { setPlan(answer); show(answer.item.archived ? null : answer.item.tap); setGone(null) },
     (error: unknown) => setGone(error instanceof Failed && (error.status === 404 || error.status === 410) ? 'closed' : 'unavailable')), [id, show])
   useEffect(() => { void load() }, [load])
-  useEffect(() => () => channel.current?.port?.close(), [])
+  useEffect(() => () => channel.current?.close(), [])
   // The link a chat prints asks for the files once; the address drops it, so Back or a reload downloads nothing.
   const { search } = useLocation()
   const [rest] = useState(() => takeDownload(search))
@@ -87,7 +89,7 @@ export function PlanView({ id }: { id: string }) {
     let shown = appLook()
     const observer = new MutationObserver(() => {
       const theme = appLook()
-      if (theme !== shown) { shown = theme; channel.current?.port?.postMessage({ type: 'inbox:theme', theme }) }
+      if (theme !== shown) { shown = theme; channel.current?.postMessage({ type: 'inbox:theme', theme }) }
     })
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] })
     return () => observer.disconnect()
@@ -98,7 +100,7 @@ export function PlanView({ id }: { id: string }) {
     if (document.visibilityState === 'visible') void readInbox().then(({ computerOnline }) =>
       setPlan(shown => shown && { ...shown, computerOnline }), () => undefined)
   }, [])
-  const post = (data: object) => channel.current?.port?.postMessage(data)
+  const post = (data: object) => channel.current?.postMessage(data)
   // A tap that did not reach the chat may have taken its files with it: the page hears which the app still holds.
   const tell = async (state: string) => {
     const held = carried.current && state !== 'sent' ? await readPlan(id).then(answer => ({ files: answer.item.files }), () => ({})) : {}
@@ -132,13 +134,13 @@ export function PlanView({ id }: { id: string }) {
     const sent = await sendFile({ item: item.id, ...file })
     return typeof sent === 'string' ? { error: sent } : { id: sent.id }
   }
+  // A page that left loses its port at once; the frame starts again, and its next first load is greeted anew.
+  const leave = () => { channel.current?.close(); channel.current = null }
   const greet = (item: Plan['item']) => {
-    const before = channel.current
-    before?.port?.close()
-    if (before?.version === item.version) { before.port = null; return }
+    channel.current?.close()
     const { port1, port2 } = new MessageChannel()
     port1.onmessage = event => void listen(item, event.data)
-    channel.current = { version: item.version, port: port1 }
+    channel.current = port1
     const offer = item.archived || item.tap?.state === 'sent' ? { actions: [], readOnly: true } : { actions: item.actions }
     frame.current?.contentWindow?.postMessage({ type: 'inbox:hello', item: item.id, version: item.version, ...offer, workspace: item.workspace,
       files: item.files, theme: appLook() }, '*', [port2])
@@ -173,6 +175,6 @@ export function PlanView({ id }: { id: string }) {
     {note}
     {answered ? <AnswerLine archived={answered} labels={item.page?.labels ?? {}} /> : <Watch waiting={waiting} look={look} />}
     {tap && !answered && <TapLine tap={tap} online={plan.computerOnline} copy={tap.text || label(tap.action)} onChange={settle} onReload={() => void load()} />}
-    <PageFrame key={item.version} title={item.title} src={src} frameRef={frame} onLoad={() => greet(item)} />
+    <PageFrame key={item.version} title={item.title} src={src} frameRef={frame} onLoad={() => greet(item)} onLeave={leave} />
   </div>
 }

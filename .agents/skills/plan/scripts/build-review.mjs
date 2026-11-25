@@ -940,7 +940,7 @@ export function buildReview(changeRoot, { requireCurrent = false, kind = 'plan',
   const extra = kind === 'review' ? { ask, header: workNotesHeader(ask), actions: actions.map(({ message: _message, ...shown }) => shown) } : {};
   const next = assemble(name, render(markdown, warnings, changeRoot, kind), undefined, kind, extra);
   const size = Buffer.byteLength(next);
-  if (size > PAGE_MAX) throw new Error(`the page is ${Math.ceil(size / KB)} KB; keep a page under 1.5 MB so the Inbox takes it: show fewer pictures, or ${SMALLER}`);
+  if (size > PAGE_MAX) throw new Error(`the page is ${Math.ceil(size / KB)} KB; keep a page under 1.5 MB so it opens on a phone: show fewer pictures, or ${SMALLER}`);
   if (size > PAGE_WARN) warnings.push(`the page is ${Math.ceil(size / KB)} KB; a page over 800 KB is slow on a phone: show fewer pictures, or ${SMALLER}`);
   return { kind: 'current', changed: writeIfDifferent(reviewPath, next), warnings, ...(ask && { ask }) };
 }

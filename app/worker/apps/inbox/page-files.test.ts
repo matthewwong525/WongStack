@@ -5,14 +5,14 @@ import { handleApp } from "../index";
 import { PART_BYTES } from "./files";
 import { PAGE_FILES } from "./page-files";
 import { fakeEnv } from "../../../tests/env";
-import { approval, APPROVAL, call, db, jo, later, machine, plan, PLAN, put, sam, sha256Of, START, upload } from "../../../tests/inbox";
+import { approval, APPROVAL, call, db, inboxEnv, jo, later, machine, plan, PLAN, put, sam, sha256Of, START, upload } from "../../../tests/inbox";
 
 const PAGE = "c".repeat(32);
 const page = { ...plan, id: PAGE, title: "Q2 sales", body: "<p>Q2</p>", actions: [], version: "p1", plain: true };
 const XLSM = new TextEncoder().encode("PK\x03\x04 a workbook with macros");
 const named = (name: string, bytes: Uint8Array) => ({ name, size: bytes.byteLength, sha256: sha256Of(bytes) });
 const download = (who: AccessIdentity | null, name: string, id = PAGE) => handleApp(new Request(
-  `https://business.example.com/apps/inbox/api/page-file?${new URLSearchParams({ id, name })}`), fakeEnv({ DB: db.DB }), who);
+  `https://business.example.com/apps/inbox/api/page-file?${new URLSearchParams({ id, name })}`), inboxEnv(), who);
 const count = (table: string) => (db.sql.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
 const bytesOf = async (response: Response) => new Uint8Array(await response.arrayBuffer());
 
@@ -73,7 +73,7 @@ it("gives another person no bytes of Sam's file, and refuses a service token and
   expect((await download(jo, "wbd-q2.xlsm")).status).toBe(404);
   expect((await download(sam, "wbd-q2.xlsm", "nope")).status).toBe(404);
   const bare = (method: string, query: string) => handleApp(new Request(`https://business.example.com/apps/inbox/api/page-file${query}`,
-    { method }), fakeEnv({ DB: db.DB }), sam);
+    { method }), inboxEnv(), sam);
   expect([(await bare("GET", "")).status, (await bare("GET", `?id=${PAGE}`)).status]).toEqual([404, 404]);
   expect([(await bare("PUT", "")).status, (await bare("PUT", `?id=${PAGE}`)).status]).toEqual([404, 400]);
   expect((await bare("PUT", `?id=${PAGE}&name=a.txt`)).status).toBe(400);
@@ -87,7 +87,7 @@ it("gives another person no bytes of Sam's file, and refuses a service token and
 
 it("refuses a file over 25 MB, a bad name, a wrong hash, bytes that are not what the name says, and a review page's id", async () => {
   const big = new Uint8Array(PAGE_FILES.file + 1);
-  expect(await upload(sam, PAGE, "big.zip", big)).toMatchObject({ status: 413, json: { error: { code: "too_large" } } });
+  expect(await upload(sam, PAGE, "big.zip", big, {}, { "content-length": "" })).toMatchObject({ status: 413, json: { error: { code: "too_large" } } });
   expect(await upload(sam, PAGE, "big.bin", big, {}, { "content-length": String(big.byteLength) }))
     .toMatchObject({ status: 413, json: { error: { code: "too_large" } } });
   for (const name of ["a/b.csv", "a\\b.csv", "a\nb.csv", "", "x".repeat(201)]) {

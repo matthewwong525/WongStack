@@ -1,5 +1,9 @@
 # Inbox pages up to 25 MB, with pictures and videos
 
+**Status:** built, publishing
+**Branch:** smooth-wombat
+**Open questions:** none
+
 ## Why
 
 An inbox page holds 1.5 MB at most today, because the page sits in one database row. So a page can't show full-size pictures or play a video, and a big report doesn't fit. ClaymooApp fixed this for its ad review (its `ad-review-in-inbox` plan), and Matthew asked on 2026-11-25 for the same in WongStack. This brings over only the general part: big pages, and pictures and videos inside any page.
@@ -48,8 +52,8 @@ Non-goals: ClaymooApp's ad review, Meta ads, and Graveyard moves; moving today's
 
 ## What the build needs
 
-- **Every reply-link page opens in the inbox, live first**: Needs you. The page helper a chat's page uses comes with that change; ship it, then this one builds: [PR #619](https://github.com/matthewwong525/WongStack/pull/619)
-- **Cloudflare access to make the two file stores**: Ready. The Cloudflare key is on this computer.
+- **Every reply-link page opens in the inbox, live first**: Ready. It is live (v62.2.0), and this change builds on it: [PR #619](https://github.com/matthewwong525/WongStack/pull/619)
+- **Cloudflare access to make the two file stores**: Ready. Both file stores exist.
 
 ## Capabilities
 
@@ -79,3 +83,12 @@ Non-goals: ClaymooApp's ad review, Meta ads, and Graveyard moves; moving today's
 - **2026-11-25** — Assumed: `page.mjs` moves to the body upload and a 25 MB stop (the 800 KB warning stays), but takes no media flag, because a plain page has no bridge to ask for media; a chat that needs media uses a reply-link page.
 - **2026-11-25** — Assumed: the review page's notes key, own-Back flag, and button labels move to a small `page_info` column read at put, because `frame.ts` reads them from the body today and `GET item` stops sending it.
 - **2026-11-25** — Assumed: ClaymooApp's ad review, Meta ads, `/ad-publish`, and Graveyard moves stay out, because WongStack has none of them.
+- **2026-11-25** — Asked whether to ship #619 first → chose ship #619 first; it is live as v62.2.0, and this change is built on it.
+- **2026-11-25** — Assumed: only a page with uploads (an uploaded body or media) gets `page_info`, because the prune of emptied pages (`body = '' AND page_info IS NULL`) must never drop a page whose blobs sit in the store; any other page reads its row as before.
+- **2026-11-25** — Assumed: `PROTOCOL` goes to 18 but `PROJECT_PROTOCOL` stays at 16, because the running helper compares `PROTOCOL` alone and the project helper did not change.
+- **2026-11-25** — Assumed: `scripts/cf-secrets.mjs` needs no change, because the bucket is a binding, not a secret, and its check shows no drift.
+- **2026-11-25** — Assumed: the sample page is a review page, not a plain page, because only a review page gets the port it asks for its pictures over.
+- **2026-11-25** — Assumed: the **Updating.** step is done by hand, because the setup script runs once at install and a sync does not run it.
+- **2026-11-25** — Assumed: the review page builder keeps its 1.5 MB stop with a new reason (a review is read on a phone too), because the inbox limit is no longer the reason.
+- **2026-11-25** — Assumed: a page that loads again (it went to another address) loses its port, because an old port must not keep answering media or taps for a page that left.
+- **2026-11-25** — Assumed: the migration file is named by hand (`20261125120000_inbox_page_store.sql`), because the repo has no migration script.

@@ -2,7 +2,7 @@
 // chat finds it. A file is checked here, on the computer, whichever way it came. wiki/development/reply-links.md
 
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, fstatSync, mkdirSync, openSync, readSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 
 const MB = 1024 * 1024;
@@ -23,6 +23,12 @@ const CHECKS = {
 };
 Object.assign(CHECKS, { jpeg: CHECKS.jpg, csv: CHECKS.txt, md: CHECKS.txt, json: CHECKS.txt, xlsx: zip, pptx: zip });
 
+// A page's pictures and videos, as the app takes them; an MP4 or QuickTime file starts with a box's size and name.
+const movie = bytes => ['ftyp', 'moov', 'mdat', 'wide', 'free'].includes(bytes.toString('latin1', 4, 8));
+const MEDIA_CHECKS = { png: CHECKS.png, jpg: CHECKS.jpg, jpeg: CHECKS.jpg, webp: CHECKS.webp, gif: CHECKS.gif, mp4: movie, mov: movie,
+  webm: bytes => starts(bytes, '\x1a\x45\xdf\xa3') };
+export const MEDIA_LIMITS = { files: 300, file: 95 * MB };
+
 const extension = name => /\.([a-z0-9]+)$/i.exec(name)?.[1].toLowerCase() ?? '';
 
 /** Why the name can't be sent, or null when it is one of the allowed types. */
@@ -35,6 +41,27 @@ export function nameRefused(name) {
 export function bytesRefused(name, bytes) {
   if (!bytes.length) return 'the file is empty';
   return CHECKS[extension(name)]?.(bytes) ? null : `${basename(name)} is not what its name says`;
+}
+
+/** A file's size and first 16 bytes, or null when `path` is no file. */
+function headOf(path) {
+  let fd;
+  try {
+    fd = openSync(path, 'r');
+    const bytes = Buffer.alloc(16);
+    return { size: fstatSync(fd).size, bytes: bytes.subarray(0, readSync(fd, bytes, 0, 16, 0)) };
+  } catch { return null; } finally { if (fd !== undefined) closeSync(fd); }
+}
+
+/** Why `{name, path}` can't be a page's picture or video, or null: a plain name of a kind a page shows, and a file
+ *  within 95 MB that starts as its name says. The app checks the same; this stops it before any upload. */
+export function mediaRefused({ name, path }) {
+  if (!name || name.length > FILE_LIMITS.name || /[/\\\p{Cc}]/u.test(name)) return `${JSON.stringify(name)} is not a file name of 1 to 200 characters`;
+  if (!Object.hasOwn(MEDIA_CHECKS, extension(name))) return `${name} is not a picture or video a page shows: png, jpg, webp, gif, mp4, webm or mov`;
+  const head = headOf(path);
+  if (!head?.size) return `${path} is not a file with something in it`;
+  if (head.size > MEDIA_LIMITS.file) return `${name} is over 95 MB`;
+  return MEDIA_CHECKS[extension(name)](head.bytes) ? null : `${name} is not what its name says`;
 }
 
 /** The name with only letters, digits, `_`, `.` and `-`, at most 100 characters, its extension kept. */

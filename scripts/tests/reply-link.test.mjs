@@ -543,6 +543,21 @@ test('a project with an app never opens a tunnel: an inbox that does not take th
   assert.match(f.reply('close', form).stdout, /^REPLY_CLOSED=no$/m);
 });
 
+test('--media of the wrong kind stops before anything uploads; it goes with open only', t => {
+  const f = fixture(t);
+  const log = join(f.root, 'inbox.jsonl');
+  inboxIn(f, log);
+  withApp(f);
+  const form = f.page('intake.html');
+  writeFileSync(join(f.root, 'chart.png'), 'not a picture');
+  writeFileSync(join(f.root, 'media.json'), JSON.stringify([{ name: 'chart.png', path: 'chart.png' }]));
+  const out = f.reply('open', form, '--header', HEADER, '--media', join(f.root, 'media.json'));
+  assert.equal(out.status, 2);
+  assert.match(out.stderr, /chart\.png is not what its name says/);
+  assert.deepEqual(inboxCalls(log), [], 'the inbox was never called');
+  assert.match(f.reply('list', '--media', join(f.root, 'media.json')).stderr, /--media goes with open only/);
+});
+
 test('a project with no app still opens a page at a tunnel when the inbox does not take it, and never lists it there', t => {
   const f = fixture(t);
   const log = join(f.root, 'inbox.jsonl');

@@ -3,7 +3,7 @@ import type { AccessIdentity } from "../../access-slots";
 import { handleApp } from "../index";
 import { employee, fixture, owner } from "../../../tests/employee-access/connections";
 import { fakeEnv } from "../../../tests/env";
-import { APPROVAL, approval, call, db, jo, later, machine, plan, PLAN, put, sam, sha256Of, START, tap, upload } from "../../../tests/inbox";
+import { APPROVAL, approval, call, db, inboxEnv, jo, later, machine, plan, PLAN, put, sam, sha256Of, START, tap, upload } from "../../../tests/inbox";
 import { linksOpenOwnTab } from "./sealed";
 
 // A plain page asks nothing; any page in the inbox can be shared with the team by a link, and stopped for good.
@@ -12,7 +12,7 @@ const plainPage = { ...plan, id: PAGE, title: "Kit sales, November", body: "<p>C
 
 /** A page's sealed frame, as `who`: the maker's by id, or a teammate's by token. */
 const open = (who: AccessIdentity | null, route: string) =>
-  handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}`), fakeEnv({ DB: db.DB }), who);
+  handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}`), inboxEnv(), who);
 const share = async (id = PAGE) => String((await call(sam, "POST", "share", { id })).json.token);
 const codeOf = async (response: Response) => [response.status, ((await response.json()) as { error: { code: string } }).error.code];
 
@@ -23,7 +23,7 @@ it("puts a plain page straight in Artifacts marked as a page, takes no tap, and 
   expect([listed.waiting, listed.archived.map(row => [row.title, row.plain, row.shared, row.endedAt])])
     .toEqual([[], [["Kit sales, November", true, false, START]]]);
   const opened = (await call(sam, "GET", "item", { id: PAGE })).json.item;
-  expect([opened.body, opened.plain, opened.shared]).toEqual(["<p>Chart</p>", true, null]);
+  expect([opened.page, opened.plain, opened.shared]).toEqual([{ key: null, ownBack: false, labels: {} }, true, null]);
   expect((await tap(sam, { item: PAGE, version: "p1", action: "send", text: "hi" })).json.error.code).toBe("closed");
   // A new version replaces it in place, and says when it came.
   later(1000);

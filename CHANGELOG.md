@@ -3,6 +3,18 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## Next (minor) — Inbox pages up to 25 MB, with pictures and videos
+
+- **A page in your Inbox can be 25 MB.** A plan, a page a chat wrote, or a `/page` page goes up first, then shows in your Inbox as before. An older page opens as it did ([plain pages](wiki/development/plain-pages.md#why-and-edge-cases)).
+- **A page can show pictures and videos.** A chat opens a reply-link page with `--media`, and the page asks the Inbox for each one by name: up to 300, 95 MB each. A teammate who opens the page's team link sees them too ([reply link pages](wiki/development/reply-link-pages.md#the-page-bridge)).
+- **A reply-link page can send files with its text.** The page's `send` takes the files, and the chat gets them as it gets a review page's files.
+- **A new install gets the Inbox's file store.** When R2 storage is on, setup makes two buckets, `<name>-inbox` and `<name>-inbox-staging`, and binds them as `INBOX_PAGES`.
+
+**Updating.** If your Cloudflare account has R2 storage on (your app's settings bind `MEMORY_BUCKET`), make the Inbox's file store, so pictures and videos can be 95 MB and pages stay out of the database:
+1. In Cloudflare, under R2, make two buckets: `<your-app>-inbox` and `<your-app>-inbox-staging`.
+2. In `app/wrangler.jsonc`, add `{ "binding": "INBOX_PAGES", "bucket_name": "<your-app>-inbox" }` to the top-level `r2_buckets`, and `"r2_buckets": [{ "binding": "INBOX_PAGES", "bucket_name": "<your-app>-inbox-staging" }]` to `env.staging`, as the [stack pack's fragment](.agents/skills/wong-sync/references/stack-pack-fragments.md) shows.
+With R2 storage off, skip this: pages still go up to 25 MB, and pictures and videos are 25 MB each. The update also adds three columns to your app's database; the next publish applies them. The next reply link replaces the running reply-link helper.
+
 ## 62.2.0 — Every reply-link page opens in your Inbox; Open and Artifacts
 
 - **Every page a chat opens with a reply link opens in your Inbox.** A plan, a built preview, a page for other work, and a page a chat wrote itself, such as a form, all open there, titled by the page's own title. The page's buttons reach the same chat as before, and its file never changes. A page you write yourself reads its key as `window.REPLY_KEY` first ([reply link pages](wiki/development/reply-link-pages.md#the-page-bridge)).

@@ -6,7 +6,7 @@ The inbox SHALL take a page of up to 25 MB, a review page or a plain page, and k
 
 #### Scenario: A big report
 - **WHEN** a chat puts a 6 MB plain page in Anne's inbox
-- **THEN** it shows in her Archive and opens whole
+- **THEN** it shows in her *Artifacts* and opens whole
 
 #### Scenario: An older page
 - **WHEN** Anne opens a review page that was put in her inbox before this update

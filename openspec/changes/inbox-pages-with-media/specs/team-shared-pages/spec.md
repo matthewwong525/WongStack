@@ -1,11 +1,11 @@
 ## MODIFIED Requirements
 
 ### Requirement: An agent can put a plain page in a person's inbox
-A chat SHALL be able to put a plain HTML page in its person's Inbox, with a title. A plain page SHALL show no review bar and take no taps, and it SHALL stay in the person's Archive, marked as a page. The same chat and id SHALL replace the page with a new version. A plain page SHALL be kept within the Inbox's size limit for a page.
+A chat SHALL be able to put a plain HTML page in its person's Inbox, with a title. A plain page SHALL show no review bar and take no taps, and it SHALL stay in the person's *Artifacts*, marked as a page. The same chat and id SHALL replace the page with a new version. A plain page SHALL be kept within the Inbox's size limit for a page.
 
 #### Scenario: A plain page arrives
 - **WHEN** a chat puts a plain page titled "Kit sales, November" in the person's Inbox
-- **THEN** the person can open it from the link the chat prints, it shows no OK, Note or Send, and its Archive row says it is a page
+- **THEN** the person can open it from the link the chat prints, it shows no OK, Note or Send, and its *Artifacts* row says it is a page
 
 #### Scenario: A page loads from the web
 - **WHEN** the page names a script, style, picture or font at a web address

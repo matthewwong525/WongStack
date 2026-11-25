@@ -35,6 +35,15 @@ function badQuery(role: Role, id: string, name: string, hash: string) {
   return (role === "body" || safeName(name)) && sha256.safeParse(hash).success ? null : fail("bad_page_file", 400);
 }
 
+const maxOf = (at: Scope, role: Role) => (role === "file" ? PAGE_FILES.file : role === "media" ? mediaBytes(at) : PAGE_BODY_BYTES);
+
+/** Why item `id` takes no `role` upload, or null. An id with no item yet is fine: the page is put after its uploads. A
+ *  card takes none, and only a plain page takes files. */
+async function notPage(at: Scope, id: string, role: Role) {
+  const row = await findItem<ItemRow & { plain: number }>(at, id, ", plain");
+  return !(row instanceof Response) && (row.kind !== "plan" || (role === "file" && row.plain !== 1)) ? fail("not_page", 400) : null;
+}
+
 /** An upload route for `role`: keeps the bytes for the caller's page `id` before the page names them. Only the
  *  person's computer uploads: a page on another site could ride their sign-in. */
 const upload = (role: Role): Handler => async (request, env, { url, identity }) => {
@@ -46,12 +55,10 @@ const upload = (role: Role): Handler => async (request, env, { url, identity }) 
   const bad = badQuery(role, id, name, hash) ?? (request.body ? null : fail("bad_page_file", 400));
   if (bad) return bad;
   const at = await scope(env, identity);
-  const max = role === "file" ? PAGE_FILES.file : role === "media" ? mediaBytes(at) : PAGE_BODY_BYTES;
-  const length = Number(request.headers.get("content-length") ?? 0);
+  const max = maxOf(at, role), length = Number(request.headers.get("content-length") ?? 0);
   if (length > max) return fail("too_large", 413);
-  // An id with no item yet is fine: the page is put after its uploads. A card takes none, and only a plain page files.
-  const row = await findItem<ItemRow & { plain: number }>(at, id, ", plain");
-  if (!(row instanceof Response) && (row.kind !== "plan" || (role === "file" && row.plain !== 1))) return fail("not_page", 400);
+  const refused = await notPage(at, id, role);
+  if (refused) return refused;
   await pruneUploads(at, at.now - KEEP_MS);
   const answer = (size: number) => Response.json({ file: { name, size, sha256: hash } }, { headers: noStore });
   const stored = storeFor(at, role);
@@ -75,7 +82,7 @@ export const pageFileUpload: Route = (request, env, context) =>
 /** PUT page-body?id=&sha256= → a page's HTML, up to 25 MB. */
 export const pageBodyUpload = upload("body");
 
-/** Why `entries` can not be the page's, or null: each kept whole, and each file or picture starting as its name says. */
+/** Why `entries` can not be the page's, or null: each kept whole, each file or picture starting as its name says. */
 async function unsound(at: Scope, item: string, entries: Entry[]) {
   for (const entry of entries) {
     if (await storedSize(at, item, entry.sha256, entry.stored) !== entry.size) return fail("no_upload", 400);
