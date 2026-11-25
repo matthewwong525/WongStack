@@ -1,5 +1,5 @@
 <!-- openspec-archive v1 2026-11-25-reply-links-skip-the-tunnel -->
-<!-- file proposal.md utf8 5455 -->
+<!-- file proposal.md utf8 5690 -->
 # Every reply-link page opens in your inbox; Open and Artifacts
 
 **Status:** ready-to-ship
