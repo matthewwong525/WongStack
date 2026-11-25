@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
-import { recordUse, usageSummary, weakAnswer } from '../../.agents/plugins/memory/scripts/lib/usage.mjs';
+import { recordUse, usageSummary, weakAnswer } from '../../.agents/skills/memory/scripts/lib/usage.mjs';
 import { memory, node, rows, setup, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
 const usesIn = dir => (existsSync(join(dir, 'usage.jsonl')) ? readFileSync(join(dir, 'usage.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line)) : []);

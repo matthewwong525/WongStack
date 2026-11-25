@@ -6,7 +6,7 @@ import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { installedAt, targetFiles } from '../.agents/skills/wong-setup/scripts/install.mjs';
+import { targetFiles } from '../.agents/skills/wong-setup/scripts/install.mjs';
 import { artifactNamesFor, codeInConfig, wranglerConfig } from '../.agents/skills/wong-setup/scripts/provision.mjs';
 import { isMain, parseCli } from './lib-cli.mjs';
 
@@ -50,13 +50,12 @@ function repoFiles(root) {
     .split('\0').filter(Boolean);
 }
 
-/** Copies the install's files into `dest`, laid out as an install: a real `.agents/` with the two links to it, and
- * each module folder at its install path. */
+/** Copies the install's files into `dest`, laid out as an install: a real `.agents/` with the two links to it. */
 function copyTarget(root, dest, manifest) {
   const present = repoFiles(root).filter(path => existsSync(join(root, path)) && lstatSync(join(root, path)).isFile());
   const files = targetFiles(present, manifest);
   for (const path of files) {
-    const to = join(dest, installedAt(path, manifest));
+    const to = join(dest, path);
     mkdirSync(dirname(to), { recursive: true });
     copyFileSync(join(root, path), to);
   }

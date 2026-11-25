@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { App } from './App'
+import { sharedFileUrl } from './downloads'
 
 const TOKEN = 'tok_1'
 let answer: () => Response
@@ -81,4 +82,20 @@ it('offers Retry when the page does not load, and shows it once it does', async 
   answer = () => Response.json({ title: 'Kit sales, November', sharedBy: 'matthew', updatedAt: 0 })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry' })); await new Promise(done => setTimeout(done, 10)) })
   expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Kit sales, November')
+})
+
+it("downloads a shared file page's files once on open, and Download saves them again; a stopped link saves none", async () => {
+  const saved: string[] = []
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) { saved.push(this.getAttribute('href') ?? '') })
+  answer = () => Response.json({ title: 'Kit sales, November', sharedBy: 'matthew', updatedAt: 0, files: [{ name: 'q2-sales.xlsx', size: 10 }] })
+  await open()
+  expect(saved).toEqual([sharedFileUrl(TOKEN, 'q2-sales.xlsx')])
+  expect(screen.getByRole('status').textContent).toBe('Downloading q2-sales.xlsx…')
+  fireEvent.click(screen.getByRole('button', { name: 'Download' }))
+  expect(saved).toHaveLength(2)
+  cleanup()
+  saved.length = 0
+  answer = () => Response.json({ error: { code: 'stopped' } }, { status: 410 })
+  await open()
+  expect([saved, screen.queryByRole('button', { name: 'Download' })]).toEqual([[], null])
 })

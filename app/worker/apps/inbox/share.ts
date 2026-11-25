@@ -2,6 +2,7 @@
 // the Inbox reads a shared one by its token. wiki/development/plain-pages.md#share-with-team
 import { z } from "zod";
 import { actionError, humanEmail, type Route } from "../../api/contract.ts";
+import { downloaded, fileOfPage, filesOfPage } from "./page-files.ts";
 import { sealedPage } from "./sealed.ts";
 import { fail, findItem, inboxAction, itemId, type ItemRow, mine, scope, type Scope } from "./store.ts";
 
@@ -66,14 +67,14 @@ export const frame: Route = async (_request, env, { url, identity }) => {
   return found instanceof Response ? found : sealedPage(found.body, found.plain === 1);
 };
 
-type Shared = { email: string; stopped_at: number | null; title: string | null; plain: number; updated_at: number; body?: string };
+type Shared = { email: string; item_id: string; stopped_at: number | null; title: string | null; plain: number; updated_at: number; body?: string };
 const token = z.string().regex(/^[\w-]{1,64}$/);
 
 /** The link `token`'s page, by token alone, never by the caller's email: a stopped link answers 410, and a missing one,
  *  or one whose page the inbox removed, 404. */
 async function shared(at: Scope, value: string, body: boolean): Promise<Shared | Response> {
   if (!token.safeParse(value).success) return fail("not_found", 404);
-  const found = await at.db.prepare(`SELECT s.email, s.stopped_at, i.title, i.plain, i.updated_at${body ? ", i.body" : ""}
+  const found = await at.db.prepare(`SELECT s.email, s.item_id, s.stopped_at, i.title, i.plain, i.updated_at${body ? ", i.body" : ""}
     FROM inbox_shares s LEFT JOIN inbox_items i ON i.installation_id = s.installation_id AND i.email = s.email AND i.id = s.item_id
     AND i.kind = 'plan' WHERE s.token = ?1 AND s.installation_id = ?2`).bind(value, at.installation).first<Shared>();
   if (!found || found.title === null) return fail("not_found", 404);
@@ -81,17 +82,21 @@ async function shared(at: Scope, value: string, body: boolean): Promise<Shared |
 }
 
 const time = z.number().int().nonnegative();
+/** The page maker's rows, as a shared link reads them. */
+const maker = (at: Scope, found: Shared) => ({ db: at.db, installation: at.installation, email: found.email });
 
-/** GET shared?token= → a page someone shared: its title, who shared it, and when its newest version came. */
+/** GET shared?token= → a page someone shared: its title, who shared it, when its newest version came, and its files. */
 export const sharedPage = inboxAction<{ token: string }>({
-  operationId: "inbox.shared", summary: "Read a shared page's details", description: "The title, maker and update time of a page a teammate shared from their inbox, by its link.",
+  operationId: "inbox.shared", summary: "Read a shared page's details", description: "The title, maker, update time and files of a page a teammate shared from their inbox, by its link.",
   input: z.strictObject({ token: token.describe("The team link's token.") }),
-  output: z.strictObject({ title: z.string(), sharedBy: z.string(), updatedAt: time }), encoding: "query", effect: "read", limits,
+  output: z.strictObject({ title: z.string(), sharedBy: z.string(), updatedAt: time, files: z.array(z.strictObject({ name: z.string(), size: z.number() })) }),
+  encoding: "query", effect: "read", limits,
   async run(at, { token: value }) {
     const found = await shared(at, value, false);
     if (found instanceof Response) return found;
     // The access list keeps no names, so the maker shows by their email's name.
-    return Response.json({ title: found.title, sharedBy: found.email.split("@")[0], updatedAt: found.updated_at });
+    return Response.json({ title: found.title, sharedBy: found.email.split("@")[0], updatedAt: found.updated_at,
+      files: await filesOfPage(maker(at, found), found.item_id) });
   },
 });
 
@@ -100,4 +105,14 @@ export const sharedFrame: Route = async (_request, env, { url, identity }) => {
   if (!humanEmail(identity)) return actionError("forbidden");
   const found = await shared(await scope(env, identity), url.searchParams.get("token") ?? "", true);
   return found instanceof Response ? found : sealedPage(String(found.body), found.plain === 1);
+};
+
+/** GET shared-file?token=&name= → a file of the shared page, as a download, while its link is open. */
+export const sharedFile: Route = async (_request, env, { url, identity }) => {
+  if (!humanEmail(identity)) return actionError("forbidden");
+  const at = await scope(env, identity);
+  const found = await shared(at, url.searchParams.get("token") ?? "", false);
+  if (found instanceof Response) return found;
+  const owner = maker(at, found);
+  return downloaded(owner, await fileOfPage(owner, found.item_id, url.searchParams.get("name") ?? ""));
 };

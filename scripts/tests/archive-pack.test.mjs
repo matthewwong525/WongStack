@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { checkArchive, filesOf, listArchived, migrate, pack, packBytes, parsePacked, readArchived, resolveArchivePath, unpack }
-  from '../../.agents/plugins/loop/scripts/archive.mjs';
+  from '../../.agents/loop/scripts/archive.mjs';
 
-const script = new URL('../../.agents/plugins/loop/scripts/archive.mjs', import.meta.url).pathname;
+const script = new URL('../../.agents/loop/scripts/archive.mjs', import.meta.url).pathname;
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0xff, 0xfe, 0x00]);
 const FILES = {
   'proposal.md': '# Pack it\n\n<!-- end proposal.md -->\n<!-- file tasks.md utf8 3 -->\n```\nunclosed fence\n',

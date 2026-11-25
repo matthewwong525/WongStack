@@ -8,8 +8,6 @@ import test from 'node:test';
 import { PREVIEW_IN_CHAT, PREVIEW_ON_PAGE, previewLines, writePreview } from '../../.agents/skills/apply/scripts/preview-review.mjs';
 import { SIGN_IN } from '../../.agents/skills/plan/scripts/build-review.mjs';
 
-// The scripts run as WongStack's: its profile names the route, in whatever folder they start.
-process.env.WONG_LOOP_PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
 
 const script = resolve(import.meta.dirname, '../../.claude/skills/apply/scripts/preview-review.mjs');
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);

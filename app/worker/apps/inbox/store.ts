@@ -2,7 +2,7 @@
 // person's installation and email, so one person's item never reaches another. wiki/development/reply-links.md
 import { z } from "zod";
 import { defineAction, humanEmail, ownerEmail, type Action } from "../../api/contract.ts";
-import { dropSettledFiles, pruneFiles } from "./file-rows.ts";
+import { dropPageFiles, dropSettledFiles, pruneFiles } from "./file-rows.ts";
 import { mine, type Scope } from "./rows.ts";
 import { wake } from "./wake.ts";
 
@@ -90,7 +90,7 @@ const ERRORS = {
   done: "That was already sent.", not_waiting: "That tap is no longer waiting.", too_large: "The body or file is larger than this inbox takes: 1.6 MB a page, 25 MB a file, 100 MB an item's files.",
   bad_detail: "An approval or question needs its words as JSON.", bad_link: "A link needs its kind and an https tunnel address, and no actions.",
   bad_start: "A plan card needs its state, a plan within the limits once ready, and go and skip.", bad_agent: "An agent's status needs its state and short lines, and no actions.",
-  bad_plain: "A plain page is a plan's HTML with no actions.", not_page: "Only a page can be shared or shown in a frame.",
+  bad_plain: "A plain page is a plan's HTML with no actions; only a plain page carries files.", not_page: "Only a page can be shared, shown in a frame, or carry files.",
   stopped: "This page is no longer shared.",
   bad_action: "The item offers no such action, or the notes are empty.", files_gone: "A file sent with this is no longer held; pick it again.",
   too_soon: "Wait a few seconds, then try again.", retired: "This part of the Inbox is gone; the Inbox lists the plans that wait for you.",
@@ -99,6 +99,9 @@ const ERRORS = {
   paused: "Resume this schedule first.", bad_timing: "The timing needs a cadence, a timezone and a lateness the app can read.",
   ended: "This schedule has ended.", other_computer: "Another computer runs this schedule; approve it there.",
   not_claimed: "Another run holds this schedule's progress.",
+  bad_page_file: "A page's file needs a short name with no folder, its sha256, and bytes that match both.",
+  no_upload: "A file the page names was not uploaded whole; upload it again.",
+  pages_full: "The pages' files fill the 1 GB this app keeps for them.",
 };
 export const fail = (code: keyof typeof ERRORS, status: number) => Response.json({ error: { code } }, { status });
 
@@ -131,8 +134,9 @@ export const settleTaps = (at: Scope) => at.db.batch([
 // inbox_items_emptied index's WHERE exactly, so the clean-up never reads a kept page.
 const GONE = ["kind <> 'plan'", "kind = 'plan' AND body = ''"];
 
-/** Removes items closed over a day ago, with their taps; a review page that kept its body stays. */
+/** Removes items closed over a day ago, with their taps and files; a review page that kept its body stays. */
 export const prune = (at: Scope) => at.db.batch(GONE.flatMap(which => [
+  ...dropPageFiles(at, `SELECT id FROM inbox_items WHERE installation_id = ?1 AND email = ?2 AND ${which} AND closed_at < ?3`, at.now - KEEP_MS),
   mine(at, `DELETE FROM inbox_taps WHERE installation_id = ?1 AND email = ?2 AND item_id IN (SELECT id FROM inbox_items
     WHERE installation_id = ?1 AND email = ?2 AND ${which} AND closed_at < ?3)`, at.now - KEEP_MS),
   mine(at, `DELETE FROM inbox_items WHERE installation_id = ?1 AND email = ?2 AND ${which} AND closed_at < ?3`, at.now - KEEP_MS),

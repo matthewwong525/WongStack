@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain, parseCli, usageError } from '../../memory/scripts/lib/cli.mjs';
 import { computerId, helperFiles, launchLabel, leaveShared, pointCurrent, primaryScript, readApps, rejoinShared, rememberApp, unitName, unitPath, wongDir } from './lib/computer.mjs';
-import { alive, signal } from '../../browser/skills/hand-over/scripts/lib/tunnel.mjs';
+import { alive, signal } from '../../hand-over/scripts/lib/tunnel.mjs';
 
 const USAGE = `usage: helper.mjs install [--dry-run] | uninstall [--dry-run] | status | start
   Each acts on this project's own helper, which serves this project alone.

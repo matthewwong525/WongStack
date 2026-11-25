@@ -5,11 +5,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { appOrigin, ARTIFACTS_HOST, routeOf, wongDelivery as delivery } from '../../.agents/loop/routes/route.mjs';
-import { delivery as moduleDelivery, originHost, RouteError } from '../../.agents/plugins/loop/skills/save/scripts/delivery-route.mjs';
+import { delivery as moduleDelivery, originHost, RouteError } from '../../.agents/skills/save/scripts/delivery-route.mjs';
 
-const script = new URL('../../.agents/plugins/loop/skills/save/scripts/delivery-route.mjs', import.meta.url).pathname;
-// WongStack's own profile names the route; the module alone reads only origin and gh.
-const PROFILE = new URL('../../.agents/loop/profile.mjs', import.meta.url).pathname;
+const script = new URL('../../.agents/skills/save/scripts/delivery-route.mjs', import.meta.url).pathname;
 const ACCOUNT = '0123456789abcdef'.repeat(2);
 const HOST = `${ACCOUNT}.artifacts.cloudflare.net`;
 const ARTIFACTS = `https://${HOST}/git/wongstack/recipe-box.git`;
@@ -33,7 +31,7 @@ function checkout(t, { origin, record } = {}) {
 }
 
 const cli = (dir, env = {}) => spawnSync(process.execPath, [script, ...(typeof dir === 'string' ? [dir] : dir)],
-  { encoding: 'utf8', env: { ...process.env, WONG_LOOP_PROFILE: PROFILE, ...env } });
+  { encoding: 'utf8', env: { ...process.env, ...env } });
 
 // A `gh` first on PATH that exits with `status`: 0 is a working one, 1 one that can not run.
 function gh(t, status) {
@@ -156,32 +154,24 @@ test('only https, that exact path, and nothing else in the address is the app', 
   assert.throws(() => routeOf({ origin: `${APP}?x=1`, record: RECORDED }), /says artifacts, but origin is on app\.example\.com/);
 });
 
-test('with no profile, a GitHub origin and a working gh is github; no gh or another host is local', (t) => {
-  const alone = { WONG_LOOP_PROFILE: '/nonexistent/profile.mjs' };
+test('a GitHub origin and a working gh is github; no gh, another host, or no origin is local', (t) => {
   const github = checkout(t, { origin: GITHUB });
-  assert.equal(cli(github, { ...alone, ...gh(t, 0) }).stdout, 'github\n');
-  assert.equal(cli(github, { ...alone, ...gh(t, 1) }).stdout, 'local\n');
-  for (const origin of [ARTIFACTS, 'https://git.example.com/someone/recipe-box.git', undefined]) {
-    const result = cli(checkout(t, { origin }), { ...alone, ...gh(t, 0) });
+  assert.equal(cli(github, gh(t, 0)).stdout, 'github\n');
+  assert.equal(cli(github, gh(t, 1)).stdout, 'local\n');
+  for (const origin of ['https://git.example.com/someone/recipe-box.git', undefined]) {
+    const result = cli(checkout(t, { origin }), gh(t, 0));
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stdout, 'local\n', String(origin));
   }
 });
 
-test('the profile route wins over the module\'s own guess', async (t) => {
+test('an Artifacts checkout with its record saves by artifacts, whatever gh says', async (t) => {
   const dir = checkout(t, { origin: ARTIFACTS, record: RECORDED });
-  const saved = process.env.WONG_LOOP_PROFILE;
-  process.env.WONG_LOOP_PROFILE = PROFILE;
-  t.after(() => { if (saved === undefined) delete process.env.WONG_LOOP_PROFILE; else process.env.WONG_LOOP_PROFILE = saved; });
   assert.deepEqual(await moduleDelivery(dir), { route: 'artifacts', root: dir });
 });
 
-test('run hands a route the module does not own to the profile, and exits 2 when none runs it', (t) => {
-  const dir = checkout(t);
-  const profile = join(dir, 'profile.mjs');
-  writeFileSync(profile, "export default { routeRun: ({ args }) => (args[0] === 'company' && args[1] === 'wait' ? 5 : 0) };\n");
-  assert.equal(cli(['run', 'company', 'wait'], { WONG_LOOP_PROFILE: profile }).status, 5);
-  const none = cli(['run', 'company', 'wait'], { WONG_LOOP_PROFILE: '/nonexistent/profile.mjs' });
+test('run exits 2 for a route it does not run', () => {
+  const none = cli(['run', 'company', 'wait']);
   assert.equal(none.status, 2);
   assert.match(none.stderr, /runs no company route/);
 });

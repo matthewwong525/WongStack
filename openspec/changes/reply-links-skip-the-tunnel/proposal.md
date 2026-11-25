@@ -44,7 +44,7 @@ None.
 
 - `.agents/skills/reply-link/scripts/reply-link.mjs`: any page file goes to the inbox as a `plan` item, with the new `lib/bridge.js` first in its `<head>` in the uploaded copy only; `openLink` goes inbox-only when `hasApp(cwd)`, with `REPLY_REASON=signed-out` or `inbox-down`; `listPage` and `unlist` go; new `openReviewLink`; `PROTOCOL` 16 → 17.
 - `.agents/skills/reply-link/scripts/lib/inbox.mjs`: `hasApp(cwd)`.
-- `.agents/plugins/loop/`: `build-review.mjs` `linked()` returns `{link, reason}` and prints a sign-in line when signed out; `Optional` need state; `preview-review.mjs` prints the same lines; the profile's `reviewLink` calls `openReviewLink`; the loop README row and the ask convention's link line.
+- `.agents/skills/plan/`, `.agents/skills/apply/`, `.agents/skills/explore/`: `build-review.mjs` `linked()` calls `openReviewLink`, returns `{link, reason}` and prints a sign-in line when signed out; `Optional` need state; `preview-review.mjs` prints the same lines; the ask convention's link line.
 - `app/src/apps/inbox/`: `Archive.tsx` → `Artifacts.tsx`, *Needs you* → *Open* in `Waiting.tsx`, tests and comments.
 - `wiki/`: `reply-links.md` (split: the page-author half moves to a new `reply-link-pages.md`), `review-pages.md`, `plain-pages.md`, `daily.md`, `first-day/use-skills.md`, `required-tools.md`, `stack/mini-apps.md`.
 - `CHANGELOG.md`: a `minor` entry. `scripts/retired-names.json`: two retired names.

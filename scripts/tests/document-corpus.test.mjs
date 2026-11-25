@@ -8,7 +8,7 @@ import { lexicalSearch, interleaveSources, passages } from '../../.agents/skills
 import { validateRetrieval } from '../../.agents/skills/memory/scripts/lib/documents/input.mjs';
 import { retrieveDocuments } from '../../.agents/skills/memory/scripts/lib/documents/retrieve.mjs';
 import { tempDir } from './fixtures/memory/harness.mjs';
-import { archiveReader, pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
+import { archiveReader, pack } from '../../.agents/loop/scripts/archive.mjs';
 
 function fixture(t) {
   const root = tempDir(t, 'documents-'), commonDir = join(root, '.git');

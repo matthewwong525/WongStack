@@ -3,7 +3,7 @@ import type { AccessIdentity } from "../../access-slots";
 import { handleApp } from "../index";
 import { employee, fixture, owner } from "../../../tests/employee-access/connections";
 import { fakeEnv } from "../../../tests/env";
-import { APPROVAL, approval, call, db, jo, later, machine, plan, PLAN, put, sam, START, tap } from "../../../tests/inbox";
+import { APPROVAL, approval, call, db, jo, later, machine, plan, PLAN, put, sam, sha256Of, START, tap, upload } from "../../../tests/inbox";
 import { linksOpenOwnTab } from "./sealed";
 
 // A plain page asks nothing; any page in the inbox can be shared with the team by a link, and stopped for good.
@@ -79,7 +79,7 @@ it("shows the maker's own page sealed, its links in their own tab; another's pag
 it("lets any person who may open the Inbox read a shared page's title, maker and newest version, sealed", async () => {
   await put(sam, plainPage);
   const token = await share();
-  expect(await call(jo, "GET", "shared", { token })).toEqual({ status: 200, json: { title: "Kit sales, November", sharedBy: "sam", updatedAt: START } });
+  expect(await call(jo, "GET", "shared", { token })).toEqual({ status: 200, json: { title: "Kit sales, November", sharedBy: "sam", updatedAt: START, files: [] } });
   const frame = await open(jo, `shared-frame?token=${token}`);
   expect(await frame.text()).toBe('<base target="_blank"><p>Chart</p>');
   const policy = frame.headers.get("content-security-policy") ?? "";
@@ -126,7 +126,7 @@ it("refuses a machine, and answers a stopped link 410 for good, even after a new
   }
 });
 
-it("refuses a signed-in person who may not open the Inbox, on both of a link's routes", async () => {
+it("refuses a signed-in person who may not open the Inbox, on each of a link's routes", async () => {
   const { env } = fixture();
   const as = (who: AccessIdentity, route: string, input?: object) => handleApp(new Request(`https://business.example.com/apps/inbox/api/${route}`,
     input && { method: route === "item" ? "PUT" : "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }), fakeEnv(env), who);
@@ -137,6 +137,7 @@ it("refuses a signed-in person who may not open the Inbox, on both of a link's r
     const refused = await as(employee, route);
     expect([refused.status, await refused.text()], route).toEqual([403, expect.not.stringContaining("Chart")]);
   }
+  expect((await as(employee, `shared-file?token=${token}&name=sales.csv`)).status).toBe(403);
 });
 
 it("answers 404 for a link whose page left the inbox, never an empty page", async () => {
@@ -145,6 +146,40 @@ it("answers 404 for a link whose page left the inbox, never an empty page", asyn
   db.sql.prepare("DELETE FROM inbox_items WHERE id = ?").run(PAGE);
   expect(await call(jo, "GET", "shared", { token })).toMatchObject({ status: 404, json: { error: { code: "not_found" } } });
   expect(await codeOf(await open(jo, `shared-frame?token=${token}`))).toEqual([404, "not_found"]);
+});
+
+/** Sam's shared page carrying `name`, and its link's token. */
+async function sharedWithFile(name = "sales.csv", bytes = new TextEncoder().encode("kit,sold\nSnowflake,180\n")) {
+  await upload(sam, PAGE, name, bytes);
+  await put(sam, { ...plainPage, files: [{ name, size: bytes.byteLength, sha256: sha256Of(bytes) }] });
+  return { token: await share(), bytes };
+}
+const sharedFile = (who: AccessIdentity | null, token: string, name: string) => open(who, `shared-file?${new URLSearchParams({ token, name })}`);
+
+it("lets a teammate with the open link read the page's files and download each, always as an attachment", async () => {
+  const { token, bytes } = await sharedWithFile();
+  expect((await call(jo, "GET", "shared", { token })).json.files).toEqual([{ name: "sales.csv", size: bytes.byteLength }]);
+  const got = await sharedFile(jo, token, "sales.csv");
+  expect(new Uint8Array(await got.arrayBuffer())).toEqual(bytes);
+  expect([got.headers.get("content-disposition"), got.headers.get("content-type"), got.headers.get("content-security-policy"),
+    got.headers.get("x-content-type-options")]).toEqual(["attachment; filename*=UTF-8''sales.csv", "text/csv", "sandbox", "nosniff"]);
+  expect((await sharedFile(jo, token, "other.csv")).status).toBe(404);
+  expect((await sharedFile(jo, "nope", "sales.csv")).status).toBe(404);
+  expect((await open(jo, "shared-file")).status).toBe(404);
+  expect((await open(jo, `shared-file?token=${token}`)).status).toBe(404);
+});
+
+it("downloads a 200-character name of non-English letters through the link", async () => {
+  const name = `${"日".repeat(196)}.txt`;
+  const { token } = await sharedWithFile(name);
+  expect((await sharedFile(jo, token, name)).status).toBe(200);
+});
+
+it("gives no file through a stopped link, and none to a service token", async () => {
+  const { token } = await sharedWithFile();
+  expect((await sharedFile(machine, token, "sales.csv")).status).toBe(403);
+  await call(sam, "POST", "share-stop", { id: PAGE });
+  expect(await codeOf(await sharedFile(jo, token, "sales.csv"))).toEqual([410, "stopped"]);
 });
 
 it("opens a link in its own tab: the base goes after <head>, else after the doctype, and a # link stays in the page", () => {

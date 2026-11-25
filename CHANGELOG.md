@@ -11,7 +11,26 @@
 - **A build need can be *Optional*.** On a plan's page, an *Optional* item in *What the build needs* shows its form, and the build buttons never wait for it ([what the build needs](wiki/review-pages.md#what-the-build-needs)).
 - **The reply-link guide is two pages.** [Reply links](wiki/development/reply-links.md) says how a link works for you; [reply link pages](wiki/development/reply-link-pages.md) says how to open one for a page you write.
 
-**Updating.** Nothing to do by hand. The next reply link replaces the running reply-link helper. If your repo keeps its own loop profile (`.claude/loop/profile.mjs`), change its `reviewLink` line to call `openReviewLink`, as the new profile does, so a signed-out plan gets its sign-in line.
+**Updating.** Nothing to do by hand. The next reply link replaces the running reply-link helper.
+
+## 62.1.0 — Send a file on a page, and put the review on the card
+
+- **Ask a chat for a file.** Say *send me the file*, and the chat puts it on a page in your Inbox with `/page --file`. Tap the link it prints: the page opens and the file downloads. A page carries up to 5 files, 25 MB each, of any kind.
+- **Get the file again.** Open the page from the Archive and tap **Download** at the top. A page opened from the Archive downloads nothing by itself.
+- **Share the file with the team.** A teammate who opens the page's team link gets the files at once. A stopped link gives no file.
+- **The review goes on the question card.** Some hosts hide the text above a question card, so a question now holds what you must read to answer, or a link to a page when it is long. In Claude Code, a check sends a question back one time when it leaves out a draft, a table, or a quote that the reply showed.
+
+**Updating.** The update adds two tables to your app's database; the next publish applies them. Nothing to do by hand.
+
+## 62.0.0 — WongStack is one stack
+
+- **Every command is a normal folder.** `/plan`, `/memory`, `/daily`, `/schedule`, `/services`, the browser, and the others each sit in one folder in `.claude/skills/`. The build loop's shared files sit in `.claude/loop/`. The old `plugins` folder goes.
+- **The code calls the code it needs.** The go-between files (`profile.mjs` and `slot.mjs`) go. A step that needs the chat's title, a preview, or the memory store calls that code straight.
+- **One version.** WongStack's version is the only one. Each part's own version, README, setup guide, and second copy of its hooks go.
+- **Nothing you use changes.** Each command does the same thing under the same name. Your memory, schedules, keys, and app stay as they are.
+- **BREAKING:** a project that added one part alone, by its setup guide, can no longer update that part by itself. Links to the old setup guides on GitHub stop working.
+
+**Updating.** The update moves your copy to the new folders and keeps your own files, such as Daily's team page and people pages. A file you changed in an old folder moves to its new folder first, then takes the update. Unfinished work on another branch can add a new file in an old folder: `.claude/skills/loop/`, or a `skills/` folder inside memory, Daily, the browser, or Access. Before you save that work again, move the file by hand to its new folder: `.claude/loop/`, or `.claude/skills/<command>/`.
 
 ## 61.13.0 — A short review page top, and more notes on one part
 

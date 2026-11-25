@@ -411,7 +411,8 @@ it("starts staging with Fay's review pages: two waiting, an artifact answered wi
   expect(archived.map(row => [row.title, row.answered, row.plain, row.shared])).toEqual([["Weekly profit summary", true, false, false],
     ["Stock check each Friday", true, false, false], ["BFCM countdown banner", false, false, false], ["Gift card sales, November", false, true, true]]);
   const shared = await read("shared?token=seedGiftCardSalesNov01");
-  expect(shared).toEqual({ title: "Gift card sales, November", sharedBy: "fay", updatedAt: 1792224000000 });
+  expect(shared).toEqual({ title: "Gift card sales, November", sharedBy: "fay", updatedAt: 1792224000000,
+    files: [{ name: "gift-card-sales-november.csv", size: 50 }] });
   const pages = await Promise.all(archived.slice(0, 3).map(row => read(`item?id=${row.id}`)));
   expect(pages.map(({ item }) => [item.workspace, item.archived.answers.map(answer => answer.action), String(item.body).includes(`data-change="${item.workspace}"`)]))
     .toEqual([["weekly-profit-summary", ["send"], true], ["stock-check-friday", ["build"], true], ["bfcm-landing-page", [], true]]);

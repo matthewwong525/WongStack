@@ -58,7 +58,6 @@ The set of open items is already right: the computer ends an item when its chat 
 
 - **A hand-written page that fetches other relative paths** breaks in the frame. The bridge passes them through, and they fail as they would offline.
 - **A signed-out computer gets no link.** Before, it got a tunnel. The chat says how to sign in.
-- **An install with its own `.claude/loop/profile.mjs`** keeps `openReplyLink` for `reviewLink` until it takes the new line, and so gets no sign-in line. The changelog's *Updating* note says so.
 
 ## Migration Plan
 

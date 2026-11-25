@@ -8,9 +8,10 @@ import { basename, dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { FRAMES_SCRIPT, SECRETS_SCRIPT, sessionName } from '../../.agents/skills/browser/scripts/browse.mjs';
-import { keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs';
-import { appendTiming, KEEP, linkOf } from '../../.agents/skills/browser/skills/hand-over/scripts/lib/timings.mjs';
-import { VIEWER } from '../../.agents/skills/browser/skills/hand-over/scripts/view.mjs';
+import { keyMatches, servePage, tunnelOrigin } from '../../.agents/skills/hand-over/scripts/hand-over.mjs';
+import { appendTiming, KEEP, linkOf } from '../../.agents/skills/hand-over/scripts/lib/timings.mjs';
+import { VIEWER } from '../../.agents/skills/hand-over/scripts/view.mjs';
+import { lookCss } from '../../.agents/skills/plan/scripts/look.mjs';
 import { BROWSE_ENV, fakeCamofox } from './fixtures/fake-camofox.mjs';
 import { inboxCalls, inboxEnv } from './fixtures/fake-inbox.mjs';
 import { fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
@@ -19,7 +20,7 @@ import { fakeViewer, fakeViewTools, GREETING, SCREEN, upgrade } from './fixtures
 const legacyOutput = text => text.replace(/^HANDOVER_(COMPLETION|NOTIFICATION)=.*\n/gm, '');
 const legacyResult = ({ completionId: _completionId, notification: _notification, ready: _ready, ...result }) => result;
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const script = join(repo, '.agents/skills/browser/skills/hand-over/scripts/hand-over.mjs');
+const script = join(repo, '.agents/skills/hand-over/scripts/hand-over.mjs');
 const browse = join(repo, '.agents/skills/browser/scripts/browse.mjs');
 const KEY = /#key=([0-9a-f]{64})(?:&|$)/m;
 const PAGE = 'https://pay.example.com/card';
@@ -331,11 +332,11 @@ test('each private page gets the app\'s look and the switch from its own site, u
 });
 
 test('the key page loads the switch in its head, from its own site, and the live view and closed page get none', () => {
-  const html = readFileSync(join(repo, '.agents/skills/browser/skills/hand-over/scripts/keys-page.html'), 'utf8');
+  const html = readFileSync(join(repo, '.agents/skills/hand-over/scripts/keys-page.html'), 'utf8');
   const head = html.slice(0, html.indexOf('</head>'));
   assert.ok(head.indexOf('<script src="theme.js"></script>') > head.indexOf('href="page.css"'), 'keys-page: theme.js after page.css, in <head>');
   assert.doesNotMatch(html, /color-scheme:\s*light/, 'keys-page: no fixed light');
-  assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/browser/skills/hand-over/scripts/view-page.html'), 'utf8'), /theme\.js|data-theme-toggle/, 'the live view has no switch');
+  assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/hand-over/scripts/view-page.html'), 'utf8'), /theme\.js|data-theme-toggle/, 'the live view has no switch');
   assert.doesNotMatch(readFileSync(join(repo, '.agents/skills/reply-link/scripts/reply-link.mjs'), 'utf8'), /theme\.js|theme-toggle/, 'the closed page has no switch');
 });
 
@@ -1343,52 +1344,12 @@ test('a live view is listed by what it asks, never its note, and leaves the inbo
   assert.doesNotMatch(JSON.stringify(calls()), /human/);
 });
 
-// The repo's own parts come through the profile's slots: WONG_BROWSER_PROFILE names a stand-in, or none when empty.
-const SLOT_KEY = 'sk_live_Slot123';
-test('a profile fills the look, the inbox, and the chat wake, and each gets the link', async t => {
+test('a private page has the app\'s look and its light and dark switch, then its own rules', async t => {
   const f = fixture(t, { checkout: true });
-  const log = join(f.root, 'slots.jsonl');
-  f.env.WONG_BROWSER_PROFILE = join(f.root, 'profile.mjs');
-  writeFileSync(f.env.WONG_BROWSER_PROFILE, `import { appendFileSync } from 'node:fs';
-const note = (...call) => appendFileSync(${JSON.stringify(log)}, JSON.stringify(call) + '\\n');
-export default {
-  look: () => ({ css: ':root { --stub-look: 1; }', themeJs: 'stubTheme();' }),
-  wakeChat: (state, message) => { note('wakeChat', state.completionId, message); return 'notified'; },
-  inbox: {
-    companyFor: async () => 'client',
-    listLink: async (client, listing) => note('listLink', client, listing.id),
-    closeItem: async (client, id) => note('closeItem', client, id),
-    inTime: job => job,
-  },
-};
-`);
-  const { port, key } = opened(f, ...KEYS);
-  const { completionId } = stateOf(f);
+  const { port } = opened(f, ...KEYS);
   const sheet = await (await fetch(`http://127.0.0.1:${port}/page.css`)).text();
-  assert.ok(sheet.startsWith(':root { --stub-look: 1; }\n'), 'the profile\'s look first');
+  assert.ok(sheet.startsWith(`${lookCss()}\n`), 'the app\'s look first');
   assert.match(sheet, /\.steps > li::before/, 'then the private page\'s own rules');
-  assert.equal(await (await fetch(`http://127.0.0.1:${port}/theme.js`)).text(), 'stubTheme();');
-  await route(port, key, 'save', { keys: { MAPS_API_KEY: SLOT_KEY } });
-  assert.match(f.run('wait').rawStdout, /^HANDOVER_NOTIFICATION=notified$/m);
-  const calls = () => (existsSync(log) ? readFileSync(log, 'utf8').trim().split('\n').map(line => JSON.parse(line)) : []);
-  await eventually(() => calls().length === 3);
-  assert.deepEqual(calls().filter(([slot]) => slot !== 'wakeChat'), [['listLink', 'client', completionId], ['closeItem', 'client', completionId]]);
-  const [, id, message] = calls().find(([slot]) => slot === 'wakeChat');
-  assert.equal(id, completionId);
-  assert.ok(message.includes(completionId) && !message.includes(SLOT_KEY), 'the wake names the link, never the key');
-});
-
-test('with no profile, a private page has the plain look and no switch, and nothing is listed or woken', async t => {
-  const f = fixture(t, { checkout: true, paseo: 'ok' });
-  const calls = fakeInbox(f);
-  f.env.WONG_BROWSER_PROFILE = '';
-  const { port, key } = opened(f, ...KEYS);
-  const sheet = await (await fetch(`http://127.0.0.1:${port}/page.css`)).text();
-  assert.ok(sheet.startsWith(readFileSync(join(repo, '.agents/skills/browser/skills/hand-over/scripts/plain-look.css'), 'utf8')), 'the plain look');
-  assert.match(sheet, /--primary: #171717;[\s\S]*\.steps > li::before/, 'its tokens, then the page\'s rules');
-  assert.equal(await (await fetch(`http://127.0.0.1:${port}/theme.js`)).text(), '');
-  await route(port, key, 'save', { keys: { MAPS_API_KEY: SLOT_KEY } });
-  assert.match(f.run('wait').rawStdout, /^HANDOVER_NOTIFICATION=unavailable$/m);
-  assert.deepEqual([calls(), f.sent()], [[], []], 'no inbox call and no chat woken');
-  assert.match(readFileSync(join(f.cwd, '.env'), 'utf8'), /^MAPS_API_KEY=/m, 'the key went to the top .env');
+  const theme = readFileSync(join(repo, '.agents/skills/plan/references/theme.js'), 'utf8');
+  assert.equal(await (await fetch(`http://127.0.0.1:${port}/theme.js`)).text(), theme);
 });

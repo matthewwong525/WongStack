@@ -33,9 +33,9 @@ const PROSE_FILE = '.github/CONTRIBUTING.md';
 export const CAMOUFOX_PIN = '.agents/skills/browser/scripts/browse.mjs';
 const CAMOUFOX_INDEX = 'https://pypi.org/pypi/camoufox/json';
 // The live view's viewer, noVNC, is pinned by version and by its files' fingerprint in one constant here.
-export const VIEWER_PIN = '.agents/skills/browser/skills/hand-over/scripts/view.mjs';
+export const VIEWER_PIN = '.agents/skills/hand-over/scripts/view.mjs';
 // Shop's command is pinned by version and by its package's fingerprint in one constant here.
-export const SHOP_PIN = '.agents/skills/browser/skills/shop/scripts/shop.mjs';
+export const SHOP_PIN = '.agents/skills/shop/scripts/shop.mjs';
 // The web guidance tool is pinned once, in the ui skill's lookup command; a repo without the skill skips it.
 export const GUIDANCE_PIN = '.agents/skills/ui/SKILL.md';
 const GUIDANCE_TOOL = 'modern-web-guidance';

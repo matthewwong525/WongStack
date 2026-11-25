@@ -6,7 +6,7 @@ order: 1
 checked: 2026-11-18
 sources:
   - wiki/development/memory.md
-  - .agents/plugins/memory/SKILL.md
+  - .agents/skills/memory/SKILL.md
 ---
 Add a memory system to my AI setup. Build it in this project and ask me before anything you can't undo:
 

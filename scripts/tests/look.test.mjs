@@ -128,8 +128,8 @@ test('a repo with no app keeps the look\'s own font, corner and shadows', t => {
 async function rebrandedBuilder(t, css) {
   const root = checkout(t, css);
   mkdirSync(join(root, '.git'));
-  cpSync(join(repo, '.agents/plugins/loop'), join(root, '.agents/plugins/loop'), { recursive: true });
-  const { buildReview } = await import(pathToFileURL(join(root, '.agents/plugins/loop/skills/plan/scripts/build-review.mjs')).href);
+  for (const dir of ['.agents/skills/plan', '.agents/loop/scripts']) cpSync(join(repo, dir), join(root, dir), { recursive: true });
+  const { buildReview } = await import(pathToFileURL(join(root, '.agents/skills/plan/scripts/build-review.mjs')).href);
   return kind => {
     const dir = join(root, `sample-${kind}`);
     mkdirSync(dir);
@@ -198,8 +198,8 @@ test('look.mjs page with no Tailwind installed writes the look\'s colors and par
   assert.equal(css, lookCss(root));
   assert.deepEqual(buildReview(change, { requireCurrent: true }).warnings, []);
   mkdirSync(join(root, '.git'));
-  cpSync(join(repo, '.agents/plugins/loop'), join(root, '.agents/plugins/loop'), { recursive: true });
-  const run = spawnSync(process.execPath, [join(root, '.agents/plugins/loop/skills/plan/scripts/look.mjs'), 'page', join(change, 'pages/inbox.html')], { encoding: 'utf8' });
+  for (const dir of ['.agents/skills/plan', '.agents/loop/scripts']) cpSync(join(repo, dir), join(root, dir), { recursive: true });
+  const run = spawnSync(process.execPath, [join(root, '.agents/skills/plan/scripts/look.mjs'), 'page', join(change, 'pages/inbox.html')], { encoding: 'utf8' });
   assert.equal(run.status, 0, run.stderr);
   assert.equal(run.stdout, `${join(change, 'pages/inbox.css')}\n`);
   assert.match(run.stderr, /run `npm ci` in app\//);

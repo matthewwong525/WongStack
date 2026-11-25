@@ -1,11 +1,15 @@
-// The Inbox on the seeded database: Fay's items, an item and a schedule saved and read back, and her waiting pages.
+// The Inbox on the seeded database: Fay's items, an item and a schedule saved and read back, her waiting pages, and a
+// page's file uploaded and downloaded.
 import { beforeAll, expect, it } from "vitest";
 import { call, type AppTests } from "../context.ts";
+import { site } from "../identity.ts";
 import { resetToSeed } from "../setup.ts";
 
 const FAY = "fay@example.invalid";
 const ITEM = "e0000000000000000000000000000001";
 const COMPUTER = "e0000000000000000000000000000002";
+const FILE_PAGE = "a0000000000000000000000000000011";
+const NEW_PAGE = "e0000000000000000000000000000003";
 
 export const inbox: AppTests = context => {
   const db = () => context().runtime.env.DB;
@@ -55,5 +59,22 @@ export const inbox: AppTests = context => {
       expect([old.status, await old.json()]).toEqual([404, { error: { code: "retired" } }]);
     }
     expect(await db().prepare("SELECT name FROM sqlite_master WHERE name IN ('chats', 'inbox_items_chats')").first()).toBeNull();
+  });
+
+  it("downloads Fay's seeded page file, then uploads a new one, hashed as it streams, that her page puts and serves", async () => {
+    const asFile = (method: string, query: Record<string, string>, body?: Uint8Array) => context().runtime.worker.fetch(
+      `${site.origin}/apps/inbox/api/page-file?${new URLSearchParams(query)}`, { method, body, headers: { "Cf-Access-Jwt-Assertion": context().signed.fay } });
+    const seeded = await asFile("GET", { id: FILE_PAGE, name: "gift-card-sales-november.csv" });
+    expect([seeded.status, seeded.headers.get("content-disposition"), await seeded.text()])
+      .toEqual([200, "attachment; filename*=UTF-8''gift-card-sales-november.csv", "design,cards\nSnowflake,180\nGift box,132\nPlain,100\n"]);
+    const bytes = new TextEncoder().encode("week,cards\n47,212\n");
+    const sha256 = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(b => b.toString(16).padStart(2, "0")).join("");
+    const sent = await asFile("PUT", { id: NEW_PAGE, name: "week-47.csv", sha256 }, bytes);
+    expect([sent.status, await sent.json()]).toEqual([200, { file: { name: "week-47.csv", size: bytes.byteLength, sha256 } }]);
+    expect((await asFile("PUT", { id: NEW_PAGE, name: "week-47.csv", sha256: "0".repeat(64) }, bytes)).status).toBe(400);
+    const put = await asFay("PUT", "item", { id: NEW_PAGE, kind: "plan", title: "Week 47 cards", workspace: "cards", body: "<p>Week 47</p>", actions: [],
+      version: "f1", closesAt: Date.now(), plain: true, files: [{ name: "week-47.csv", size: bytes.byteLength, sha256 }] });
+    expect(put.status).toBe(200);
+    expect(await (await asFile("GET", { id: NEW_PAGE, name: "week-47.csv" })).text()).toBe("week,cards\n47,212\n");
   });
 };

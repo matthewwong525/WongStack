@@ -252,13 +252,14 @@ export function companyClient({ root = process.cwd(), stateDir, routesDir = defa
     }
     return credential;
   }
-  // `business` marks a call that may change something; its `check` names the read to run before repeating it.
+  // `business` marks a call that may change something; its `check` names the read to run before repeating it. An
+  // `init.signal`, such as a long upload's, replaces the usual wait.
   async function http(path, init = {}, origin = target(), suppliedToken, business) {
     if (!/^\/(?:api\/|apps\/)[^#]*$/.test(path) || new URL(path, origin).origin !== origin || path.includes('..') || path.includes('\\')) throw new Error('Refused an arbitrary server URL');
     const credential = suppliedToken || await session(origin);
     let response;
     try {
-      response = await request(new URL(path, origin), { ...init, redirect: 'manual', headers: { 'cf-access-token': credential, ...init.headers }, signal: AbortSignal.timeout(business ? ANSWER_WAIT : 20000) });
+      response = await request(new URL(path, origin), { ...init, redirect: 'manual', headers: { 'cf-access-token': credential, ...init.headers }, signal: init.signal ?? AbortSignal.timeout(business ? ANSWER_WAIT : 20000) });
     } catch {
       throw new Error(business ? `Company call did not complete; its outcome may be unknown. Do not automatically repeat it.${business.check}` : 'Company discovery is unreachable; no business action was called.');
     }

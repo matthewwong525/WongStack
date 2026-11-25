@@ -88,7 +88,7 @@ test('who names the settings, the team file and the guide; with no profile perso
   writeFileSync(join(root, '.agents/daily/sam.json'), JSON.stringify(settings({ person: 'sam', emails: ['sam@example.com'] })));
   const signed = who({ repo: root, ctx: { author: '' }, person: { state: 'expired', email: 'sam@example.com', origin: 'https://app.example.com',
     login: 'Sign in again: cloudflared access login https://app.example.com' } });
-  assert.deepEqual([signed.source, signed.person], ['profile', 'sam']);
+  assert.deepEqual([signed.source, signed.person], ['app', 'sam']);
   assert.match(signed.login, /login|sign/i);
   assert.equal(who({ repo: root, ctx: { author: 'x@example.com' }, person: null }).file, null);
   writeFileSync(join(root, '.agents/daily/sam.json'), '{"version":1}');
@@ -338,7 +338,7 @@ test('ensure starts the worker only when the person has a job, none runs, check-
 /** A checkout with the schedule skill, a shipped list, and `startDefaults` with a fake start. */
 function defaultsCheckout() {
   const root = temp('defaults'), stateDir = temp('state'), runs = [], list = join(temp('list'), 'schedules.json');
-  const dir = join(root, '.agents/skills/daily/scripts'), script = join(root, '.agents/skills/daily/skills/schedule/scripts/schedule.mjs');
+  const dir = join(root, '.agents/skills/daily/scripts'), script = join(root, '.agents/skills/schedule/scripts/schedule.mjs');
   mkdirSync(join(script, '..'), { recursive: true });
   writeFileSync(script, '');
   writeFileSync(list, '{"schedules":[]}');
@@ -414,9 +414,9 @@ test('a running try does not hold back a changed stamp, and a try marks done the
 test("a try's stamp comes from the list of the copy whose schedule skill it starts, not this chat's own", () => {
   const root = temp('defaults'), stateDir = temp('state'), runs = [];
   const dir = join(root, '.agents/skills/daily/scripts'), own = join(root, '.agents/skills/daily/references/schedules.json');
-  mkdirSync(join(root, '.agents/skills/daily/skills/schedule/scripts'), { recursive: true });
+  mkdirSync(join(root, '.agents/skills/schedule/scripts'), { recursive: true });
   mkdirSync(join(own, '..'), { recursive: true });
-  writeFileSync(join(root, '.agents/skills/daily/skills/schedule/scripts/schedule.mjs'), '');
+  writeFileSync(join(root, '.agents/skills/schedule/scripts/schedule.mjs'), '');
   writeFileSync(own, '{"schedules":[{"id":"main-only"}]}');
   const run = (...args) => { runs.push(args); return { on: () => {}, unref: () => {} }; };
   assert.equal(startDefaults({ home: { repo: root, dir }, stateDir, env: {}, now: NOW.getTime(), timezone: ZONE, run }), true);
@@ -544,14 +544,13 @@ test('checkins off and on still answer when the start of the defaults throws', a
 
 test("each tool's Daily hooks run mark at start, message and stop; mark writes the card but the stop's, and keeps Paseo's stop mark", () => {
   const read = path => JSON.parse(readFileSync(fileURLToPath(new URL(`../../.agents/${path}`, import.meta.url)), 'utf8')).hooks;
-  for (const tool of ['claude', 'codex']) {
-    const hooks = read(`plugins/daily/hooks/${tool}.json`);
-    const runs = (event, script) => hooks[event].flatMap(group => group.hooks).filter(hook => hook.command.includes(`/scripts/${script}`)
+  for (const [tool, file] of [['claude', 'settings.json'], ['codex', 'hooks.json']]) {
+    const hooks = read(file);
+    const runs = (event, script) => hooks[event].flatMap(group => group.hooks).filter(hook => hook.command.includes(`/daily/scripts/${script}`)
       && hook.command.endsWith(`--agent ${tool}`));
     assert.equal(runs('SessionStart', 'session-start.mjs"').length, 1, `${tool} SessionStart marks through session-start.mjs`);
     for (const event of ['UserPromptSubmit', 'Stop']) assert.equal(runs(event, 'daily.mjs" mark').length, 1, `${tool} ${event}`);
   }
-  for (const file of ['settings.json', 'hooks.json']) assert.match(JSON.stringify(read(file)), /daily\.mjs\\" mark/, `${file} runs Daily's hooks`);
   for (const tool of ['claude', 'codex']) {
     const home = temp('mark');
     const env = { HOME: home, PASEO_AGENT_ID: 'agent-7' };

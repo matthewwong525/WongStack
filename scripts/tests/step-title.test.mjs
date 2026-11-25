@@ -383,11 +383,11 @@ test('each loop skill still sets its own step, and each step it starts gives its
   // Ship names the script once, then `set DONE` in the same sentence.
   const calls = { explore: ['EXPLORE'], plan: ['PLAN'], apply: ['APPLY', 'DONE'], ship: ['SHIP'] };
   for (const [name, steps] of Object.entries(calls)) {
-    for (const step of steps) assert.match(skill(name), new RegExp(`slot\\.mjs stepTitle set ${step}\\b`), `${name} sets ${step}`);
+    for (const step of steps) assert.match(skill(name), new RegExp(`step-title\\.mjs set ${step}\\b`), `${name} sets ${step}`);
   }
   assert.match(skill('ship'), /`set DONE`/, 'ship sets DONE');
   for (const name of Object.keys(calls)) {
-    for (const [line, step] of skill(name).matchAll(/slot\.mjs stepTitle set (EXPLORE|PLAN|APPLY|SHIP)\b.{0,9}/g)) {
+    for (const [line, step] of skill(name).matchAll(/step-title\.mjs set (EXPLORE|PLAN|APPLY|SHIP)\b.{0,9}/g)) {
       assert.match(line, new RegExp(`set ${step} --task "`), `${name}: ${line}`);
     }
   }

@@ -5,10 +5,12 @@ const tap = z.object({ id: z.string(), item: z.string(), action: z.string(), tex
   state: z.enum(['waiting', 'delivering', 'sent', 'failed', 'changed', 'cancelled', 'expired']) })
 // A closed review page: when it closed, and each answer that reached the chat.
 const archived = z.object({ endedAt: z.number(), answers: z.array(z.object({ action: z.string(), text: z.string(), at: z.number() })) })
-// A plain page asks nothing; `shared` is its open team link's token.
+// A file a plain page carries for download.
+const pageFile = z.object({ name: z.string(), size: z.number() })
+// A plain page asks nothing; `pageFiles` are the files it carries, and `shared` is its open team link's token.
 const item = z.object({ id: z.string(), kind: z.string(), title: z.string(), workspace: z.string(), actions: z.array(z.string()),
   version: z.string(), body: z.string(), tap: tap.nullable(), files: z.array(z.string()), archived: archived.optional(),
-  plain: z.boolean().default(false), shared: z.string().nullable().default(null) })
+  plain: z.boolean().default(false), pageFiles: z.array(pageFile).default([]), shared: z.string().nullable().default(null) })
 const review = z.object({ id: z.string(), title: z.string(), workspace: z.string(), createdAt: z.number(), closesAt: z.number(),
   endedAt: z.number().nullable(), answered: z.boolean(), plain: z.boolean().default(false), shared: z.boolean().default(false) })
 const reviews = z.object({ waiting: z.array(review), archived: z.array(review), more: z.boolean() })
@@ -16,7 +18,7 @@ const list = z.object({ computerOnline: z.boolean() })
 const one = z.object({ item, computerOnline: z.boolean() })
 const tapped = z.object({ tap })
 const token = z.object({ token: z.string() })
-const sharedPage = z.object({ title: z.string(), sharedBy: z.string(), updatedAt: z.number() })
+const sharedPage = z.object({ title: z.string(), sharedBy: z.string(), updatedAt: z.number(), files: z.array(pageFile).default([]) })
 const refused = z.object({ error: z.object({ code: z.string() }) })
 const timing = z.object({ mode: z.enum(['once', 'recurring']), cron: z.string().optional(), every: z.string().optional(), timezone: z.string(),
   dueAt: z.string().optional() })
@@ -78,7 +80,7 @@ export const sharePage = (id: string) => call(token, 'share', { id }).then(answe
 export const stopSharing = (id: string) => call(z.object({ stopped: z.literal(true) }), 'share-stop', { id })
 /** The address a teammate opens for the link `token`. */
 export const sharedLink = (token: string) => `${location.origin}/apps/inbox/?shared=${token}`
-/** A page a teammate shared: its title, who shared it, and when its newest version came. Fails 410 once stopped. */
+/** A page a teammate shared: its title, who shared it, its newest version's time, and its files; 410 once stopped. */
 export const readShared = (value: string) => call(sharedPage, `shared?token=${encodeURIComponent(value)}`)
 export const readTap = (id: string) => call(tapped, `tap?id=${id}`).then(answer => answer.tap)
 export const cancelTap = (id: string) => call(tapped, 'tap-cancel', { id }).then(answer => answer.tap)

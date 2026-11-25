@@ -1,6 +1,6 @@
 # Plain pages and team links
 
-A plain page is an HTML page that an agent makes for you, such as a chart, a small tool, or a report, and that asks for no answer. It goes to your inbox, and you can send the team a link to it. A link works for each page in your inbox, a [review page](../review-pages.md) too. Part of [development](README.md).
+A plain page is an HTML page that an agent makes for you, such as a chart, a small tool, or a report, and that asks for no answer. It goes to your inbox, it can carry [files to download](#a-page-with-files), and you can send the team a link to it. A link works for each page in your inbox, a [review page](../review-pages.md) too. Part of [development](README.md).
 
 ## A plain page
 
@@ -16,6 +16,20 @@ Ask for "an HTML page", "an artifact", or "a page I can share". The [`/page`](..
 - **Size.** A file is 300 KB at most. A page over 800 KB gets a warning; a page over 1.5 MB stops.
 - **Change it in place.** The agent runs `page.mjs` again with the page's `--id`. The page and its team link show the new version.
 - **Not signed in?** `page.mjs` stops and says to run `node scripts/company-api.mjs login` ([company actions](../stack/company-api.md)).
+
+## A page with files
+
+A plain page can carry files, such as a statement, a PDF, or a spreadsheet. The link that the agent prints opens the page, and the files download at once. Ask for "send me the file" or "share this file".
+
+1. The agent runs [`page.mjs`](../../.agents/skills/page/scripts/page.mjs) with `--file <path>`, one time for each file. With no folder, the page shows the title and the name and size of each file.
+2. Tap the link that it prints (`…/apps/inbox/?item=<id>&download=1`). The page opens and each file downloads.
+3. To get a file again, open the page and tap **Download** at the top.
+
+- **Only the printed link downloads by itself.** When you open the page from the inbox or *Artifacts*, nothing downloads until you tap **Download**. The app removes `download=1` from the address, so Back or a reload does not download again.
+- **Limits** → 5 files a page, 25 MB a file, of any kind. A name is 200 characters at most, with no folder. A name that ends in a known kind, such as `.pdf` or `.xlsx`, must start with the bytes of that kind. When a file is too large, zip it or split it.
+- **A team link** → a teammate who opens it gets the files at once, and sees **Download** too. A stopped link gives no file.
+- **Change it in place** → run `page.mjs` again with `--id`. The new list of files replaces the old list, and an old file does not download again.
+- **A file for you goes on a page, not in an email.** Email a file only to a different person, or when you ask for email.
 
 ## Share with team
 
@@ -38,4 +52,7 @@ Ask for "an HTML page", "an artifact", or "a page I can share". The [`/page`](..
 - **The name is your email's name.** The access list keeps emails, not names, so *Shared by* shows the part before the `@`.
 - **A plain page is a review page with a `plain` flag, not a new kind.** A new kind needs a rebuild of the inbox's table; a column only adds. A link is a row in `inbox_shares`, found by a random token.
 - **No team list of shared pages yet.** The ask was a link to send.
-- Code: [`share.ts`](../../app/worker/apps/inbox/share.ts) (share, stop, both frames, and the teammate's read), [`sealed.ts`](../../app/worker/apps/inbox/sealed.ts) (the sealed answer), [`SharedView.tsx`](../../app/src/apps/inbox/SharedView.tsx) at `/apps/inbox/?shared=<token>`.
+- **A page's files are in the app's database, not in the page.** A page holds 1.5 MB at most, and a sealed frame can't download. The computer sends each file first (`PUT page-file`), in parts of 512 KB, then puts the page that names them, so a file never shows before its page. The app's bar, outside the frame, downloads them. A file that no page names is deleted at the next file sent, after one day.
+- **Why the database, not a bucket.** The app's only bucket is for memory, and it exists only in production. The database is in each copy of the app, previews too, so no setup step is necessary. All page files in the app share 1 GB, because plain pages stay; the app refuses a file past that limit.
+- **A file always downloads, never opens.** Each file comes with `Content-Disposition: attachment`, `nosniff`, and a `sandbox` policy, so each kind is safe: the browser keeps it and never shows it on the app's address.
+- Code: [`share.ts`](../../app/worker/apps/inbox/share.ts) (share, stop, both frames, and the teammate's read and files), [`page-files.ts`](../../app/worker/apps/inbox/page-files.ts) (a page's files), [`downloads.ts`](../../app/src/apps/inbox/downloads.ts) (the downloads in the app), [`sealed.ts`](../../app/worker/apps/inbox/sealed.ts) (the sealed answer), [`SharedView.tsx`](../../app/src/apps/inbox/SharedView.tsx) at `/apps/inbox/?shared=<token>`.

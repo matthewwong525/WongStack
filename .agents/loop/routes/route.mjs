@@ -3,7 +3,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { originHost, RouteError } from '../../plugins/loop/scripts/lib/origin.mjs';
+import { originHost, RouteError } from '../scripts/lib/origin.mjs';
 
 /** The host an Artifacts repository answers on: the account id, then Cloudflare's Git domain. */
 export const ARTIFACTS_HOST = /^([0-9a-f]{32})\.artifacts\.cloudflare\.net$/;

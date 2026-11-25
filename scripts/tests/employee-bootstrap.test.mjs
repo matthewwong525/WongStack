@@ -301,3 +301,13 @@ test('a socket opens only to the app\'s own paths, over wss, signed as the perso
   assert.equal(socket.url, 'wss://business.example.com/apps/inbox/api/line?computer=0123456789abcdef0123456789abcdef');
   assert.equal(opened[0].init.headers['cf-access-token'], token);
 });
+test('a call waits as long as its own signal says, else the usual 20 seconds', async t => {
+  const f = directories(t), signals = [];
+  const client = companyClient({ ...f, run: async () => jwt(), request: async (url, init) => { signals.push(init.signal); return Response.json(setup()); } });
+  await client.login(origin);
+  const own = AbortSignal.timeout(15 * 60_000);
+  await client.http('/apps/inbox/api/page-file', { method: 'PUT', signal: own });
+  await client.http('/apps/inbox/api/items');
+  assert.equal(signals.at(-2), own);
+  assert.ok(signals.at(-1) instanceof AbortSignal && signals.at(-1) !== own);
+});

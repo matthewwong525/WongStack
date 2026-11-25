@@ -1,10 +1,12 @@
 import { type ReactNode, type Ref, useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { Loading } from '@/components/Loading'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { type Archived, Failed, FILE_MAX, FILE_REFUSALS, label, pending, readInbox, readPlan, sendFile, sendTap, type Plan, type Tap } from './api'
 import { AnswerLine } from './AnswerLine'
+import { DownloadButton } from './Download'
+import { pageFileUrl, takeDownload } from './downloads'
 import { actionLabels, appLook, frameMessage, notesKey, ownBack, PAGE_COLUMN } from './frame'
 import { afterLoad, leaveLine, START, stopped } from './leave'
 import { LINE_REFRESH_MS, REFRESH_MS, useLine } from './line'
@@ -15,8 +17,8 @@ function Back({ to }: { to: string }) {
   return <Button asChild variant="ghost" className="justify-self-start"><Link to={to}>Back</Link></Button>
 }
 
-/** The row above an opened item: Back, where it came from, and the page's share controls, which wrap under Back on a
- *  phone. The page shows the title, so it is for screen readers here. */
+/** The row above an opened item: Back, where it came from, and the page's Download and share controls, which wrap
+ *  under Back on a phone. The page shows the title, so it is for screen readers here. */
 function Top({ item, back, children }: { item: Plan['item']; back: string; children?: ReactNode }) {
   return <div className="flex min-w-0 flex-wrap items-center gap-2"><Back to={back} /><h1 className="sr-only">{item.title}</h1>
     <p className="min-w-0 truncate text-sm text-muted-foreground">{item.workspace}</p>{children}</div>
@@ -79,6 +81,10 @@ export function PlanView({ id }: { id: string }) {
     (error: unknown) => setGone(error instanceof Failed && (error.status === 404 || error.status === 410) ? 'closed' : 'unavailable')), [id, show])
   useEffect(() => { void load() }, [load])
   useEffect(() => () => channel.current?.port?.close(), [])
+  // The link a chat prints asks for the files once; the address drops it, so Back or a reload downloads nothing.
+  const { search } = useLocation()
+  const [rest] = useState(() => takeDownload(search))
+  useEffect(() => { if (rest !== null) void navigate({ search: rest }, { replace: true }) }, [rest, navigate])
   // The page follows the app's switch in place, so it keeps its notes.
   useEffect(() => {
     let shown = appLook()
@@ -151,8 +157,10 @@ export function PlanView({ id }: { id: string }) {
   const share = <ShareControls id={item.id} token={item.shared} onChange={shared} />
   const note = item.shared && <SharedNote token={item.shared} />
   // A plain page asks nothing, so it takes no hello and shows no answer: it loads from its own sealed address.
+  const urlOf = (name: string) => pageFileUrl(item.id, name)
   if (item.plain) return <div className={PAGE_COLUMN}>
-    <Top item={item} back={back}>{share}</Top>
+    <Top item={item} back={back}>{item.pageFiles.length ? <div className="ml-auto flex flex-wrap items-center gap-2">
+      <DownloadButton files={item.pageFiles} urlOf={urlOf} auto={rest !== null} />{share}</div> : share}</Top>
     {note}
     <PageFrame key={item.version} title={item.title} src={`/apps/inbox/api/frame?id=${encodeURIComponent(item.id)}`} />
   </div>

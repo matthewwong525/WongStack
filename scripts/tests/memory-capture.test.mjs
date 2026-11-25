@@ -6,12 +6,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { pathToFileURL } from 'node:url';
-import { buildDigest, formatRun, formatTidy, latelyLine, MAX_BYTES, MAX_LINES } from '../../.agents/plugins/memory/scripts/lib/digest.mjs';
+import { buildDigest, formatRun, formatTidy, latelyLine, MAX_BYTES, MAX_LINES } from '../../.agents/skills/memory/scripts/lib/digest.mjs';
 import { currentSlug } from '../../.agents/memory/lookup.mjs';
 import { codexDayDir, escapeClaude, registerSession } from '../../.agents/skills/memory/scripts/lib/transcripts.mjs';
 import { COMMANDS } from '../../.agents/skills/memory/scripts/memory.mjs';
 import { SCRIPT } from '../../.agents/skills/memory/scripts/lib/store.mjs';
-import { MAX_TRANSCRIPT_BYTES } from '../../.agents/plugins/memory/store/interface.mjs';
+import { MAX_TRANSCRIPT_BYTES } from '../../.agents/skills/memory/store/interface.mjs';
 import { agentCommand, runbook, takeLock, withInputDir } from '../../.agents/skills/memory/scripts/run.mjs';
 import { memory, node, rows, SECRET, setup, signInAs, tempDir, writeJsonFile } from './fixtures/memory/harness.mjs';
 
@@ -215,18 +215,8 @@ test('Codex transcripts parse, and an unknown format is reported and stores noth
 
 const hook = (env, extraEnv = {}, input = { session_id: 'live-1', transcript_path: null, cwd: env.repo.root }) =>
   node(env.repo, env.fake, 'session-start.mjs', ['--agent', 'claude'], { input: JSON.stringify(input), env: extraEnv });
-// The hook's lines before the digest; the digest always lists the profile's topics.
+// The hook's lines before the digest; the digest always lists the topics.
 const beforeDigest = out => out.split(/^# Memory digest\n/m)[0];
-
-test('with no profile, the hook asks once per chat to set memory up, and a resume stays quiet', async t => {
-  const env = await setup(t);
-  const start = session_id => hook(env, { WONG_MEMORY_PROFILE: join(env.repo.root, 'no-profile.mjs') }, { session_id, cwd: env.repo.root });
-  const first = await start('chat-1');
-  assert.equal(first.code, 0);
-  assert.match(first.stdout, /^Memory is not set up in this repo\. Ask the person "Memory isn't set up yet\. Set it up now\?" Only on a yes, follow .*references\/setup\.md\.\n$/);
-  assert.deepEqual(await start('chat-1'), { code: 0, stdout: '', stderr: '' });
-  assert.equal((await start('chat-2')).stdout, first.stdout);
-});
 
 test('the hook adds only the topics and starts nothing when there is nothing to do', async t => {
   const env = await setup(t);
@@ -273,7 +263,7 @@ test('the hook prints the digest with branch threads, and starts one detached ru
   const called = readFileSync(marker, 'utf8');
   assert.match(called, /-p You are the WongStack memory background run/);
   // This test repo holds no plugin copy, so the run names the plugin by its full path.
-  assert.match(called, /--no-session-persistence --permission-mode dontAsk --allowedTools Bash\(node \S*\/plugins\/memory\/scripts\/memory\.mjs:\*\)/);
+  assert.match(called, /--no-session-persistence --permission-mode dontAsk --allowedTools Bash\(node \S*\/skills\/memory\/scripts\/memory\.mjs:\*\)/);
   assert.doesNotMatch(called, /(^|\s)--model(\s|$)/);
   assert.match(called, /Never capture session claude:live-1/);
   assert.match(called, /RUN=1/);

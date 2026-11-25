@@ -15,13 +15,10 @@
     "",
     "skillDirs are directory names under .claude/skills/, copied whole (references/",
     "and scripts/ included). dirs are copied whole from the repo root. Anything in",
-    "'exclude' is removed after its directory is walked. mapped folders are copied whole",
-    "from a source path to an install path: a module in .claude/plugins/<name>/ lands",
-    "in .claude/skills/<name>/. A nested mapped entry wins over its parent's: the loop's",
-    "skills/<name>/ lands in .claude/skills/<name>/, beside .claude/skills/loop/. No folder link ships.",
-    "A mapped file entry moves one file: another module's command keeps its folder in the module, and",
-    "only its SKILL.md lands in .claude/skills/<command>/, so the command loads by its bare name in every chat.",
-    "Modules load as plain skills, never plugins; .claude/settings.json and .claude/hooks.json run their hooks."
+    "'exclude' is removed after its directory is walked. The source tree is the install",
+    "tree: each command is a real folder under .claude/skills/, and no folder link ships.",
+    "Every skill loads as a plain skill, never a plugin; .claude/settings.json and",
+    ".claude/hooks.json run every hook."
   ],
   "core": {
     "skillDirs": [
@@ -32,15 +29,29 @@
       "lesson",
       "ui",
       "wong-sync",
-      "agent-browser"
+      "agent-browser",
+      "memory",
+      "daily",
+      "schedule",
+      "access",
+      "services",
+      "browser",
+      "hand-over",
+      "shop",
+      "explore",
+      "plan",
+      "apply",
+      "save",
+      "ship",
+      "verify",
+      "close"
     ],
     "exclude": [
-      ".claude/plugins/daily/team.md",
-      ".claude/plugins/daily/people"
+      ".claude/skills/daily/team.md",
+      ".claude/skills/daily/people"
     ],
     "files": [
       ".claude/settings.json",
-      ".claude/daily/profile.mjs",
       ".claude/hooks.json",
       ".claude/access/slots.json",
       ".claude/config.toml",
@@ -97,27 +108,8 @@
       "wiki/development/first-day",
       ".claude/memory",
       ".claude/inbox",
-      ".claude/browser",
       ".claude/loop"
-    ],
-    "mapped": {
-      ".claude/plugins/memory": ".claude/skills/memory",
-      ".claude/plugins/daily": ".claude/skills/daily",
-      ".claude/plugins/access": ".claude/skills/access",
-      ".claude/plugins/loop": ".claude/skills/loop",
-      ".claude/plugins/loop/skills/explore": ".claude/skills/explore",
-      ".claude/plugins/loop/skills/plan": ".claude/skills/plan",
-      ".claude/plugins/loop/skills/apply": ".claude/skills/apply",
-      ".claude/plugins/loop/skills/save": ".claude/skills/save",
-      ".claude/plugins/loop/skills/ship": ".claude/skills/ship",
-      ".claude/plugins/loop/skills/verify": ".claude/skills/verify",
-      ".claude/plugins/loop/skills/close": ".claude/skills/close",
-      ".claude/plugins/browser": ".claude/skills/browser",
-      ".claude/plugins/daily/skills/schedule/SKILL.md": ".claude/skills/schedule/SKILL.md",
-      ".claude/plugins/browser/skills/hand-over/SKILL.md": ".claude/skills/hand-over/SKILL.md",
-      ".claude/plugins/browser/skills/shop/SKILL.md": ".claude/skills/shop/SKILL.md",
-      ".claude/plugins/access/skills/services/SKILL.md": ".claude/skills/services/SKILL.md"
-    }
+    ]
   },
   "ui": {
     "files": [
@@ -172,6 +164,7 @@
       "schema/migrations/20261107120000_inbox_chats.sql",
       "schema/migrations/20261112120000_drop_inbox_chats.sql",
       "schema/migrations/20261123120000_inbox_shared_pages.sql",
+      "schema/migrations/20261124120000_inbox_page_files.sql",
       "app/.dev.vars.example",
       "scripts/cf-preview.sh",
       "scripts/company-api.mjs",

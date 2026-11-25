@@ -6,7 +6,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { assemble, buildReview, chatCopy, linked, linkLines, notesHeader, planActions, planLink, previewActions, previewNotesHeader, REVIEW_IN_CHAT, REVIEW_ON_PAGE, SIGN_IN, WORK_IN_CHAT, workActions, workNotesHeader } from '../../.agents/skills/plan/scripts/build-review.mjs';
-import { pack } from '../../.agents/plugins/loop/scripts/archive.mjs';
+import { pack } from '../../.agents/loop/scripts/archive.mjs';
 import { fakePaseo, fakeTunnel, ORIGIN, TUNNEL_ENV } from './fixtures/fake-tunnel.mjs';
 import { needs } from './fixtures/needs.mjs';
 
@@ -388,20 +388,6 @@ test('--link prints the file where no reply link can open', () => fixture(root =
   assert.equal(existsSync(join(home, '.wong-stack')), false, 'nothing was registered');
 }));
 
-// The module alone: a project with no reviewLink part gets the file, even where a reply link could open.
-test('--link prints the file when the profile has no reviewLink part', () => fixture(root => {
-  const home = join(dirname(root), 'home');
-  const bin = join(home, 'bin');
-  mkdirSync(bin, { recursive: true });
-  fakeTunnel(bin, join(home, 'calls.log'));
-  fakePaseo(bin, join(home, 'sent.jsonl'));
-  const env = { ...process.env, ...TUNNEL_ENV, REPLY_LINK: '', PASEO_AGENT_ID: 'a-chat', HOME: home, PATH: `${bin}:/usr/bin:/bin`, WONG_LOOP_PROFILE: join(home, 'none.mjs') };
-  const out = spawnSync(process.execPath, [builder, root, '--require-current', '--link'], { encoding: 'utf8', env, timeout: 30_000 });
-  assert.equal(out.status, 0, out.stderr);
-  assert.equal(out.stdout, `review: current, updated\n${planLink(join(resolve(root), 'review.html'))}\n\n${copy}${REVIEW_IN_CHAT}\n`);
-  assert.equal(existsSync(join(home, '.wong-stack')), false, 'nothing was registered');
-}));
-
 // A fake tunnel and a fake way to wake the chat stand in for the real ones, as in reply-link.test.mjs.
 test('--link prints the reply link in the same line, with the plan\'s header and its two actions', () => fixture(root => {
   const home = join(dirname(root), 'home');
@@ -409,9 +395,7 @@ test('--link prints the reply link in the same line, with the plan\'s header and
   mkdirSync(bin, { recursive: true });
   fakeTunnel(bin, join(home, 'calls.log'));
   fakePaseo(bin, join(home, 'sent.jsonl'));
-  // WongStack's own profile names the link part, wherever the builder runs.
-  const env = { ...process.env, ...TUNNEL_ENV, REPLY_LINK: '', PASEO_AGENT_ID: 'a-chat', PASEO_HOME: '', PASEO_HOST: '', HANDOVER_PASEO_BIN: '', HOME: home, PATH: `${bin}:/usr/bin:/bin`, REPLY_LINK_POLL_MS: '100',
-    WONG_LOOP_PROFILE: resolve(here, '../../.agents/loop/profile.mjs') };
+  const env = { ...process.env, ...TUNNEL_ENV, REPLY_LINK: '', PASEO_AGENT_ID: 'a-chat', PASEO_HOME: '', PASEO_HOST: '', HANDOVER_PASEO_BIN: '', HOME: home, PATH: `${bin}:/usr/bin:/bin`, REPLY_LINK_POLL_MS: '100' };
   const state = join(home, '.wong-stack/reply-link');
   try {
     // Without --link the same setup prints the file and registers nothing.
@@ -962,13 +946,13 @@ test('in the inbox an Optional need never counts toward the things that need you
   window.close();
 }, asking.replace('- **Shop pictures**: Needs you.', '- **Shop pictures**: Optional.')));
 
-test('a review link part gives a bare link or {link, reason}; signed out adds the sign-in line under the file', async () => {
+test('a review link gives a bare link or {link, reason}; signed out adds the sign-in line under the file', async () => {
   const page = '/w/example/review.html', at = 'https://app.example.com/apps/inbox/?item=1';
-  const given = value => async () => ({ empty: value === undefined, value });
-  assert.deepEqual(await linked(page, 'H', {}, given(at)), { link: at }, 'an older part gives the link alone');
+  const given = value => async () => value;
+  assert.deepEqual(await linked(page, 'H', {}, given(at)), { link: at }, 'a bare link');
   assert.deepEqual(await linked(page, 'H', {}, given({ link: at })), { link: at });
   assert.deepEqual(await linked(page, 'H', {}, given({ link: null, reason: 'signed-out' })), { link: page, reason: 'signed-out' });
-  assert.deepEqual(await linked(page, 'H', {}, given(undefined)), { link: page, reason: undefined }, 'no part: the file');
+  assert.deepEqual(await linked(page, 'H', {}, given(undefined)), { link: page, reason: undefined }, 'no link: the file');
   assert.deepEqual(await linked(page, 'H', {}, given(null)), { link: page, reason: undefined });
   assert.equal(linkLines({ link: page, reason: 'signed-out' }), `${planLink(page)}\n${SIGN_IN}`);
   assert.match(SIGN_IN, /node scripts\/company-api\.mjs login/);
