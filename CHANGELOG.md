@@ -3,6 +3,13 @@
 `/wong-sync` reads the entries newer than your installed version
 (`.claude/.wong-stack.json`) as context for planning the update. Newest first.
 
+## 62.2.1 — Memory finds skill-writing facts; the daily guide links review pages
+
+- **Skill writing is a memory topic.** Facts tagged `skills`, such as the description limit and when a skill hides from the `/` menu, now lead to the page on adding a skill when a chat pulls them, in the WongStack source repo.
+- **The daily guide links review pages.** A background schedule's chat makes a [review page](wiki/review-pages.md); [the daily guide](wiki/development/daily.md) now links it there.
+
+**Updating.** Nothing to do by hand.
+
 ## 62.2.0 — Every reply-link page opens in your Inbox; Open and Artifacts
 
 - **Every page a chat opens with a reply link opens in your Inbox.** A plan, a built preview, a page for other work, and a page a chat wrote itself, such as a form, all open there, titled by the page's own title. The page's buttons reach the same chat as before, and its file never changes. A page you write yourself reads its key as `window.REPLY_KEY` first ([reply link pages](wiki/development/reply-link-pages.md#the-page-bridge)).

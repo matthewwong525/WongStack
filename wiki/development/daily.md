@@ -69,7 +69,7 @@ The Inbox opens on the pages open for you, under *Open*, by [the Inbox](reply-li
 
 ## A background run's handoff
 
-A [background schedule](../stack/host-schedules.md#where-it-runs) run has no chat. When it finds something you should see, such as *3 invoices are late*, it writes what it found to a file and runs `D handoff --file <path>`, then stops. After the run, the worker opens one chat named for the schedule, with that text as its first message. That chat makes the review page, and the page shows in [the Inbox](#your-chat-list). A run that finds nothing for you opens no chat.
+A [background schedule](../stack/host-schedules.md#where-it-runs) run has no chat. When it finds something you should see, such as *3 invoices are late*, it writes what it found to a file and runs `D handoff --file <path>`, then stops. After the run, the worker opens one chat named for the schedule, with that text as its first message. That chat makes the [review page](../review-pages.md), and the page shows in [the Inbox](#your-chat-list). A run that finds nothing for you opens no chat.
 
 ## Close finished chats
 
